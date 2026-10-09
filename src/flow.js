@@ -4,7 +4,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import * as S from "./store.js";
 import { herdr, currentSocket, sessionName, socketExists } from "./herdr.js";
-import { show } from "./state.js";
+import { show, wantsAttention } from "./state.js";
+import { adapter, needsNote } from "./agents.js";
 
 export const RULE_DIR = ".herdr-superwork";
 export const noteFile = (t) => path.join(S.cwdOf(t), RULE_DIR, `closing-${t.n}.md`);
@@ -40,6 +41,12 @@ export function shown(t, session, here) {
 }
 // Names that cannot collide with a task's own fields (a task has its own `review` and `msg`).
 const pick = (s) => ({ state: s.state, kind: s.kind, note: s.msg, shownApp: s.app, progress: s.progress, asReview: !!s.review, stale: s.stale, exited: s.exited });
+// This machine's tasks as one herdr session sees them (the keeper serves several sessions from one data folder).
+export function boardFor(socket) {
+  const tasks = S.list();
+  const session = tasks.some((t) => isAgentTask(t) && t.link.socket === socket) ? readSession(socket) : null;
+  return tasks.map((t) => shown(t, session, socket));
+}
 export function board({ includeArchived = false } = {}) {
   const here = currentSocket();
   const tasks = S.list({ includeArchived });
@@ -56,14 +63,81 @@ export function assertLive(t) {
 
 // ---- telling herdr's own sidebar -------------------------------------------------------------------------------------
 // While a task waits for approval its pane says so in herdr's sidebar, with no change to the client's herdr settings.
+// herdr's default sidebar shows neither state labels nor custom tokens (verified on 0.9.3): only the agent's display
+// name. So the label goes three ways: into the display name (shows with no setup), as a state label and as the
+// `summary` token (both show once the sidebar rows from the README are in herdr's config; then the name is left alone).
+const sidebarFile = () => path.join(S.dataDir(), "sidebar.json");
 export function labelPane(t, text) {
   if (!isAgentTask(t)) return;
   const api = h(t);
-  if (text) api.metadata(t.link.pane, ["--state-label", `idle=${text}`, "--state-label", `done=${text}`, "--state-label", `unknown=${text}`]);
-  else api.metadata(t.link.pane, ["--clear-state-labels"]);
+  const rows = !!S.readJson(path.join(S.dataDir(), "extras.json"), {})?.sidebar;
+  const label = text ? String(text).slice(0, 40) : "";
+  try { const seen = S.readJson(sidebarFile(), {}) || {}; seen[`${t.link.socket}|${t.link.pane}`] = label; for (const k of Object.keys(seen).slice(0, -400)) delete seen[k]; S.writeJson(sidebarFile(), seen); } catch {}
+  if (label) api.metadata(t.link.pane, ["--state-label", `idle=${label}`, "--state-label", `done=${label}`, "--state-label", `unknown=${label}`, "--state-label", `blocked=${label}`, ...(rows ? ["--clear-display-agent"] : ["--display-agent", `${label} · ${t.agent || "agent"}`])]);
+  else api.metadata(t.link.pane, ["--clear-state-labels", "--clear-display-agent"]);
+  if (t.link.workspace && t.link.ownsWorkspace) { try { api.call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", ...(label ? ["--token", `summary=${label}`] : ["--clear-token", "summary"])]); } catch {} }
 }
+// The stage in plain words, for herdr's sidebar. Nothing while the agent simply works: herdr's own status says that.
+export function labelOf(t) {
+  const rv = S.currentReview(t);
+  switch (t.stage) {
+    case "approval": return t.mergeFailed ? "merge blocked" : t.prFailure ? "pr blocked" : rv ? `review ${rv.score}/5` : "approve?";
+    case "asks": return t.kind === "auth" ? "needs login" : "needs you";
+    case "nosummary": case "reviewneeds": return "needs you";
+    case "failed": return t.failure?.auth ? "needs login" : "failed";
+    case "merging": return t.autoMerge ? "merges on green" : "merging";
+    case "reviewing": return "in review";
+    case "checking": case "pushing": return "checking";
+  }
+  return "";
+}
+// Keep every live pane's label current; writes only when the value for that pane id changed (a restored task's new
+// pane therefore gets its label). Called by whoever ticks: the keeper, or the board when no keeper is alive.
+export function syncSidebar(tasks) {
+  const seen = S.readJson(sidebarFile(), {}) || {};
+  for (const t of tasks) {
+    if (!isAgentTask(t) || t.archivedAt || !t.live || t.live.gone || t.live.down || t.live.away) continue;
+    const want = labelOf(t).slice(0, 40);
+    if ((seen[`${t.link.socket}|${t.link.pane}`] ?? "") !== want) { try { labelPane(t, want); } catch {} }
+  }
+}
+
+// ---- alerts: one notification per task that newly needs you, whoever notices first ----------------------------------
+// "Once" is a marker on the task, set under its lock: whoever sets it raises the notification, everyone else skips.
+// The keeper has no terminal, so with the board closed the bell is herdr's notification sound; `bell` off, or a board
+// open on this machine (it rings its own terminal bell), raises the same notification silently.
+const boardsDir = () => path.join(S.dataDir(), "boards");
+export function boardBeat(stop = false) { const f = path.join(boardsDir(), `${process.pid}.hb`); try { if (stop) fs.rmSync(f, { force: true }); else { fs.mkdirSync(boardsDir(), { recursive: true }); fs.writeFileSync(f, String(Date.now())); } } catch {} }
+export function boardOpen() {
+  try { return fs.readdirSync(boardsDir()).some((n) => { const f = path.join(boardsDir(), n); const fresh = Date.now() - fs.statSync(f).mtimeMs < 5000; if (!fresh && Date.now() - fs.statSync(f).mtimeMs > 60000) fs.rmSync(f, { force: true }); return fresh; }); } catch { return false; }
+}
+const needKey = (t) => { const s = show(t, t.live); return wantsAttention(t, s) ? `${s.state}:${s.kind || ""}:${t.stage}:${t.at || 0}` : ""; };
+function claimAnnounce(id, key) {
+  let mine = false;
+  try { S.update(id, (t) => { if (t.announced?.key === key) return false; mine = true; t.announced = { key, at: Date.now() }; }, { waitMs: 3000 }); } catch {}
+  return mine;
+}
+function raise(t, title, body, sound) {
+  const quiet = !S.config().bell || boardOpen();
+  try { h(t).notify(title, body, quiet ? "none" : sound); } catch {}
+}
+// Hook-time and runner-time notifications go through the same marker, so the keeper never repeats one.
 export function notify(t, title, body, sound = "request") {
-  try { h(t).notify(title, body, sound); } catch {}
+  const cur = S.get(t.id) || t;
+  const key = needKey(cur);
+  if (key && !claimAnnounce(cur.id, key)) return;
+  raise(cur, title, body, sound);
+}
+export function announce(tasks) {
+  for (const t of tasks) {
+    if (t.archivedAt) continue;
+    const key = needKey(t);
+    if (!key) { if (t.announced) { try { S.update(t.id, (c) => { if (!c.announced || needKey(c)) return false; c.announced = null; }, { waitMs: 500 }); } catch {} } continue; }
+    if (t.announced?.key === key || !claimAnnounce(t.id, key)) continue;
+    const s = show(t, t.live);
+    const what = s.state === "done" ? "done" : s.state === "error" ? (t.stage === "nosummary" ? "stopped without a summary" : "failed") : s.kind === "auth" ? "needs a login" : t.stage === "approval" ? "approve to merge?" : s.kind === "question" ? "asks you" : "needs you";
+    raise(t, `${t.title}: ${what}`, s.msg || "", s.state === "done" ? "done" : "request");
+  }
 }
 
 // ---- sending text to an agent ----------------------------------------------------------------------------------------
@@ -82,7 +156,19 @@ export function deliver(t, text, wake = null) {
     return "queued";
   }
 }
-// Every prompt the plugin sends repeats the closing-note rule.
+// The closing-note rule. With a working hook the note is only the fallback, so it is repeated on plugin-sent prompts
+// only for kinds without one; kinds with no launch flag for standing rules also get a two-line short form of the rules.
+export const promptTail = (t) => [
+  adapter(t.agent).standing ? "" : `Rules still apply: do the work yourself on your own branch, never push or merge.\nIf you cannot continue without the human, run: ${shim()} report ${t.id} --state blocked --msg "<why>" and stop.`,
+  needsNote(t.agent) || t.hooked === false ? noteRule(t) : "",
+].filter(Boolean).join("\n\n");
+export const withTail = (t, text) => [text, promptTail(t)].filter(Boolean).join("\n\n");
+// The absolute path of the command, kept in the data folder, so agents and hooks find it without `npm link`.
+export function shim() {
+  const dir = path.join(S.dataDir(), "bin"), file = path.join(dir, "herdr-superwork");
+  try { if (!fs.existsSync(file)) { fs.mkdirSync(dir, { recursive: true }); fs.symlinkSync(S.BIN, file); } } catch {}
+  return file;
+}
 export const noteRule = (t) => `Before you stop, write your closing summary (or your question to the human, if you cannot continue) to ${RULE_DIR}/closing-${t.n}.md in this folder.`;
 // A prompt the plugin itself sends (check output, review findings, conflict or pull-request repair). It writes
 // expectedWake first, so the turn it causes is known to be the plugin's own: counters and an approved merge survive.
@@ -90,7 +176,7 @@ export function sendOwn(id, text, { reason, keepIntent = false, patch = {} } = {
   const wake = { reason, keepIntent, at: Date.now() };
   const t = S.update(id, (t) => { Object.assign(t, patch); t.expectedWake = wake; t.armedAt = wake.at; t.stage = "working"; t.turnOpen = false; t.msg = ""; t.watch = null; t.app = t.agent || t.app; t.seen = false; }, { waitMs: 10000 });
   labelPane(t, null);
-  return deliver(t, `${text}\n\n${noteRule(t)}`, wake);
+  return deliver(t, withTail(t, text), wake);
 }
 
 // ---- git/gh helpers used by more than one step -----------------------------------------------------------------------

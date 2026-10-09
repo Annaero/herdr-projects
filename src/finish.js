@@ -7,7 +7,9 @@ import * as S from "./store.js";
 import * as F from "./flow.js";
 import { readScreen } from "./herdr.js";
 import { claim, release, guardFor, sh, sleep, outputOf } from "./runner.js";
-import { startArgs, preTrust } from "./agents.js";
+import { startArgs, preTrust, adapter, readTurnOf, versionOf, installed } from "./agents.js";
+import { whyStopped } from "./turn.js";
+import { launchExtras, taskLine } from "./delegate.js";
 import { publishReview } from "./review-page.js";
 import { reviewMessage, reviewFindings } from "./actions.js";
 
@@ -26,55 +28,133 @@ function fail(g, failure, extra = {}) {
 }
 
 // ---- job: the agent's turn ended ----------------------------------------------------------------------------------------
-// `force`: the hook already decided a turn ended (missed-turn recovery), so the completion is not de-duplicated.
-export async function finishJob(id, { force = false } = {}) {
-  // 1. herdr guesses an agent's status from its screen; give a wrong "stopped" reading time to correct itself.
-  await sleep(ms("HERDR_SUPERWORK_SETTLE_MS", 5000));
+// Started two ways. By the agent's own turn-end hook (`turn-ended`): a definite stop, judged here from the saved
+// conversation. Or by herdr's status hook, the hook-less route: herdr's "idle" is a guess from the screen, so it alone
+// never finishes a task. `force`: the status hook already decided a turn ended (missed-turn recovery).
+// A finish runner that finds another unhandled event when it is done keeps its marker and processes that one too.
+export async function finishJob(id, opts = {}) {
+  for (let first = true; ; first = false) {
+    if (!(await finishOnce(id, first ? opts : {}))) return;
+    if (!release(id, { keep: true })) return;
+  }
+}
+const IGNORES = ["todo", "progress", "done", "queued", "starting", "setup"];
+const newer = (turn, t) => !!turn && turn.pos > (t.handled?.pos || 0);
+// What the status hook does when the human's turn ended without it seeing the start: the old approval, review and
+// counters no longer describe the work.
+function humanTurn(t) {
+  if (t.mergeIntent || t.stage === "approval") t.requireApproval = true;
+  t.mergeIntent = null;
+  if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
+  t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0;
+  t.armedAt = t.handled?.at || t.armedAt || 0; t.expectedWake = null; t.turnOpen = false;
+  t.stage = "working"; t.msg = ""; t.kind = undefined; t.mergeFailed = false;
+  if (t.failure?.auth) t.failure = null;
+}
+async function finishOnce(id, { force = false } = {}) {
   let t = S.get(id);
-  if (!t || !F.isAgentTask(t) || t.stage !== "working") return;
-  const api = F.h(t);
-  const a = api.agentGet(t.link.pane);
-  if (!a || a.agent_status === "working" || a.agent_status === "blocked") return;
-  const note = F.noteStat(t);
-  const freshNote = note && note.mtime > (t.armedAt || 0) && note.mtime !== t.handled?.note ? note : null;
-  if (a.agent_status === "unknown" && !freshNote) return; // herdr cannot tell, and no closing note says it stopped
-  const comp = a.completion_seq ?? null;
-  // It never de-duplicates on the commit, so a turn that ends without a new commit is still processed.
-  const seen = (t) => !force && (a.agent_status === "unknown" || comp == null ? !freshNote : comp === t.handled?.comp && !freshNote);
-  let mine = false;
+  if (!t || !F.isAgentTask(t)) return false;
+  const kind = t.agent, ver = versionOf(kind);
+  const mine0 = (e) => e.role === "agent" && !(e.side && e.session !== t.session);
+  // 1. Without an event, give herdr's screen guess time to correct itself.
+  if (!S.pendingEvents(t).some(mine0)) await sleep(ms("HERDR_SUPERWORK_SETTLE_MS", 5000));
+  let ev = null, mine = false;
   t = S.update(id, (t) => {
-    if (t.stage !== "working" || (t.runner && t.runner.pid !== process.pid && S.pidAlive(t.runner.pid)) || seen(t)) return false;
+    if (t.runner && t.runner.pid !== process.pid && S.markerAlive(t.runner)) return false;
+    const pending = S.pendingEvents(t);
+    ev = pending.filter((e) => e.role === "agent" && !(e.side && e.session !== t.session)).pop() || null;
+    if (!pending.length && (t.stage !== "working" || t.archivedAt)) return false;
+    // Every event up to here is now judged: accepted below, or dropped as a repeat, a side chat or a stale round.
+    if (pending.length) { t.eventsHandled = Math.max(...pending.map((e) => e.n)); t.events = []; }
+    if (t.archivedAt || (ev ? IGNORES.includes(t.stage) || (t.stage === "stopped" && ev.at < (t.stoppedAt || 0) + 3000) : t.stage !== "working")) return;
     mine = true;
-    t.runner = { pid: process.pid, started: Date.now(), job: "finish" };
+    t.runner = S.marker({ job: "finish" });
   }, { waitMs: 10000 });
-  if (!mine) return;
+  if (!mine) return false;
+  const api = F.h(t);
   const g = guardFor(id);
-  g.expect(t);
   try {
-    // 2. The closing note is where the plugin reads "the agent's last message".
-    const wake = t.expectedWake;
-    const handled = { comp, note: freshNote ? freshNote.mtime : t.handled?.note ?? null, at: Date.now() };
-    if (!freshNote && !wake) {
-      // A human turn that left no closing note did not finish normally (interrupted, a usage limit, an error, a full
-      // context): commit nothing and hold, with what is on the screen as the message.
-      const screen = lastLines(readScreen(api, t.link.pane, a.agent_status, 60));
-      t = g.set((t) => { t.stage = "nosummary"; t.msg = S.oneLine(lastLines(screen, 2)) || "stopped without a summary"; t.screen = screen; t.handled = handled; t.turnOpen = false; t.seen = false; });
-      F.notify(t, `${t.title}: stopped without a summary`, "ctrl+r tells it to continue; ctrl+y finishes anyway.");
-      return;
+    const a = api.agentGet(t.link.pane);
+    const comp = a?.completion_seq ?? null;
+    const note = F.noteStat(t);
+    const freshNote = note && note.mtime > (t.armedAt || 0) && note.mtime !== t.handled?.note ? note : null;
+    let turn = null;
+    if (ev) {
+      // 2a. The agent said its turn ended. The hook can fire before the last message is on disk: re-read for up to
+      //     ten seconds until the file shows something newer than the last handled turn.
+      const src = { file: ev.file || null, session: ev.session || t.session, cwd: S.cwdOf(t) };
+      for (const until = Date.now() + ms("HERDR_SUPERWORK_READ_MS", 10000); ; ) {
+        turn = readTurnOf(kind, src);
+        if (newer(turn, t) && (turn.finished || turn.error)) break;
+        if (Date.now() >= until) break;
+        await sleep(400);
+      }
+      if (adapter(kind).readTurn) { if (S.countMark(`reader:${kind}`, ver, !!turn)) S.notice(`${kind}: its saved conversations could not be read three turns in a row. The closing note is the fallback until ${kind} or herdr-superwork is updated.`); }
+      S.countMark(`hook:${kind}`, ver, true);
+      if (turn && !(newer(turn, t) && ((turn.finished && turn.id !== t.handled?.msg) || turn.error))) return true; // a repeat, or an earlier turn
+      if (t.selfBlocked && t.stage === "asks") { // it reported itself blocked, then stopped: that is not a finish
+        S.update(id, (t) => { t.handled = { ...(t.handled || {}), comp, at: Date.now(), msg: turn?.id ?? t.handled?.msg ?? null, pos: turn?.pos ?? t.handled?.pos ?? 0 }; t.selfBlocked = null; t.turnOpen = false; if (turn?.said) t.said = turn.said; if (ev.session) t.session = ev.session; }, { waitMs: 10000 });
+        return true;
+      }
+      // A turn that ended in a stage other than "working" was the human's, typed in the agent's own terminal.
+      if (t.stage !== "working") { t = S.update(id, (t) => { humanTurn(t); }, { waitMs: 10000 }); F.labelPane(t, null); await closeReviewer(id); }
+    } else {
+      // 2b. The hook-less route: no event (a crash, a kind without a hook, a hook marked not working).
+      if (a && (a.agent_status === "working" || a.agent_status === "blocked")) return true;
+      let session = t.session;
+      if (!session && adapter(kind).findSession) { session = adapter(kind).findSession(S.cwdOf(t), t.startedAgentAt || t.armedAt || 0, taskLine(t)); if (session) S.update(id, { session }, { waitMs: 10000 }); }
+      turn = readTurnOf(kind, { file: t.transcript || null, session, cwd: S.cwdOf(t) });
+      const says = newer(turn, t) && turn.pos > (t.armedAt || 0) && ((turn.finished && turn.id !== t.handled?.msg) || turn.error);
+      if (!a) { if (!(says && turn.error)) return true; } // the agent exited: reconcile shows that; a crash still shows its real last error
+      else if (!says) {
+        if (turn && turn.finished && turn.id === t.handled?.msg && !freshNote) { S.update(id, (t) => { t.handled = { ...(t.handled || {}), comp }; }, { waitMs: 10000 }); return true; } // a late "idle" for a turn already handled
+        if (a.agent_status === "unknown" && !freshNote) return true; // herdr cannot tell, and nothing says it stopped
+        if (!force && (a.agent_status === "unknown" || comp == null ? !freshNote : comp === t.handled?.comp && !freshNote)) return true;
+        turn = turn && newer(turn, t) && turn.interrupted ? turn : null;
+      } else if (turn.finished) {
+        // The file must have stood still through the settle wait: a message followed by more work is not the end.
+        const again = readTurnOf(kind, { file: turn.file });
+        if (!again || again.id !== turn.id || again.pos !== turn.pos) return true;
+        if (t.hooked && S.countMark(`hook:${kind}`, ver, false)) S.notice(`${kind} is running without its turn-end hook on this machine: it did not report three turns in a row.`);
+      }
     }
-    const text = freshNote ? freshNote.text : t.said || "";
+    g.expect(t);
+    // 3. What the agent said, and why it stopped.
+    const wake = t.expectedWake;
+    const handled = { comp, note: freshNote ? freshNote.mtime : t.handled?.note ?? null, at: Date.now(), msg: turn?.id ?? t.handled?.msg ?? null, pos: turn?.pos ?? t.handled?.pos ?? 0 };
+    const keep = (t) => { t.handled = handled; t.turnOpen = false; if (turn) { if (turn.said) t.said = turn.said; if (turn.usage) t.usage = turn.usage; if (turn.model) t.model = turn.model; t.transcript = turn.file; } if (ev?.session) t.session = ev.session; };
+    if (turn && (turn.error || turn.stop === "length" || turn.stop === "refusal")) {
+      const why = turn.error || (turn.stop === "length" ? "The agent's reply was cut off: it ran out of room (context or output limit)." : "The model refused to continue.");
+      g.set(keep);
+      fail(g, { stage: "agent", auth: turn.error ? turn.auth : false, agentCanFix: true, title: turn.auth ? "Needs a login" : "Agent stopped", msg: turn.auth ? "Needs a login" : `Agent stopped: ${S.oneLine(why, 200)}`, detail: `${why}${turn.said && turn.said !== why ? `\n\nIts last message:\n${turn.said}` : ""}`, next: "Fix what it reports, then reply or press ctrl+r to tell the agent to continue." });
+      return true;
+    }
+    const finished = !!turn?.finished;
+    if (!finished && !freshNote && !wake) {
+      // Nothing says the turn finished normally (interrupted, a crash, an unreadable conversation): commit nothing and
+      // hold, with what is on the screen as the message. A login screen is recognised from its text.
+      const screen = lastLines(readScreen(api, t.link.pane, a?.agent_status ?? null, 60));
+      if (S.isAuthFailure(screen)) { g.set(keep); fail(g, { stage: "agent", auth: true, title: "Needs a login", msg: "Needs a login", detail: screen }); return true; }
+      t = g.set((t) => { keep(t); t.stage = "nosummary"; t.msg = S.oneLine(lastLines(screen, 2)) || "stopped without a summary"; t.screen = screen; t.seen = false; });
+      F.notify(t, `${t.title}: stopped without a summary`, "ctrl+r tells it to continue; ctrl+y finishes anyway.");
+      return true;
+    }
+    const text = finished ? turn.said : freshNote ? freshNote.text : t.said || "";
     if (freshNote) { try { fs.writeFileSync(path.join(S.dirOf(id), "closing.md"), freshNote.text + "\n"); } catch {} }
-    t = g.set((t) => { t.handled = handled; t.expectedWake = null; t.turnOpen = false; t.said = text; if (a.agent_session?.value) t.session = a.agent_session.value; });
-    if (freshNote && /\?\s*$/.test(text)) {
+    t = g.set((t) => { keep(t); t.expectedWake = null; t.said = text; if (a?.agent_session?.value && !t.session) t.session = a.agent_session.value; });
+    // Only a kind on the closing-note fallback asks by ending its note with a question: that is where its rules put
+    // one. With a readable last message a closing question goes on to check and review; a truly blocked agent says so.
+    if (!finished && freshNote && /\?\s*$/.test(text)) {
       t = g.set((t) => { t.stage = "asks"; t.kind = "question"; t.msg = S.oneLine(text.split("\n").filter((l) => l.trim()).pop()); t.seen = false; });
       F.notify(t, `${t.title}: asks you`, t.msg);
-      return;
+      return true;
     }
     await pipeline(id, g, text, wake);
   } catch (e) {
     if (!e.aborted) try { fail(g, { stage: "workflow", title: "The finish line failed", detail: e.stack || e.message, next: "Investigate the error, then finish again." }); } catch {}
     else await closeReviewer(id);
-  } finally { release(id); }
+  }
+  return true;
 }
 // "Finish anyway" on a turn that left no closing note: the screen text is the summary.
 export async function pipelineJob(id) {
@@ -160,7 +240,7 @@ export async function pipeline(id, g, text, wake) {
   if (reviewNeeded) {
     const r = await runReview(id, g, { text, change, toLand, ch });
     if (r.aborted) return;
-    if (!r.review) return void fail(g, { stage: "review", title: "Review failed", msg: `Review failed: ${r.error}. Retry the task to review again.`, detail: `Review failed: ${r.error}`, next: "Investigate the reviewer failure, then finish again for a fresh review. Do not bypass review or merge approval." }, { patch: { review: null } });
+    if (!r.review) return void fail(g, { stage: "review", auth: r.auth ? true : undefined, title: r.auth ? "Needs a login" : "Review failed", msg: r.auth ? "The reviewer needs a login" : `Review failed: ${S.oneLine(r.error, 200)}. Retry the task to review again.`, detail: `Review failed: ${r.error}`, next: "Investigate the reviewer failure, then finish again for a fresh review. Do not bypass review or merge approval." }, { patch: { review: null } });
     review = r.review;
   }
   t = g.set({ failure: null });
@@ -242,18 +322,35 @@ async function runReview(id, g, { text, change, toLand, ch }) {
   const verdictFile = path.join(dir, "verdict.json");
   // The folder is emptied before the reviewer starts. Inside the working folder, so an agent's sandbox allows the writes.
   fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
-  const brief = reviewBrief(t, { text, change, toLand, ch });
-  let pane = null, error = "", review = null, sent = false, blockedSaid = false;
+  // The configured reviewer program may not be installed here: review with the working agent's kind instead, on that
+  // kind's own default model and effort, and say so on the task.
+  let rkind = ch.reviewer, rmodel = ch.reviewerModel, reffort = ch.reviewerEffort;
+  if (!installed(rkind) && installed(t.agent)) { rkind = t.agent; rmodel = ""; reffort = ""; }
+  const round = (t.reviewRound || 0) + 1;
+  t = g.set((t) => { t.reviewRound = round; t.reviewSession = null; t.fallbacks = { ...(t.fallbacks || {}), reviewer: rkind !== ch.reviewer ? `reviewed by ${rkind}: ${ch.reviewer} is not installed here` : undefined }; });
+  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch })}`;
+  let pane = null, error = "", review = null, sent = false, sentAt = 0, blockedSaid = false, auth = false, quietSince = 0;
+  // The reviewer ended its turn with no verdict: its own error when it has one, else its last message.
+  const noVerdict = (cur, ev) => {
+    const w = whyStopped(cur, "reviewer", ev);
+    auth = !!w.turn?.auth;
+    return w.turn?.error ? `the reviewer stopped: ${w.turn.error}` : `the reviewer finished without a verdict${w.turn?.said ? `. Its last message: ${w.turn.said.slice(0, 1500)}` : ""}`;
+  };
   try {
-    preTrust(ch.reviewer, t.root || S.folderOf(t.id));
+    preTrust(rkind, t.root || S.folderOf(t.id));
     await closeReviewer(id); // a pane left over from an interrupted round
     pane = api.paneSplit(t.link.pane, { cwd: folder });
     const taken = api.agents().map((a) => a.name).filter(Boolean);
     let name = `${t.link.agent || `sw-task-${t.n}`}-r`.slice(0, 32);
     if (taken.includes(name)) name = `${name.slice(0, 27)}-${String(Date.now() % 10000).padStart(4, "0")}`;
-    t = g.set((t) => { t.link = { ...t.link, reviewer: { pane: pane.pane_id, agent: name, kind: ch.reviewer } }; });
-    try { api.agentStart(name, ch.reviewer, pane.pane_id, startArgs(ch.reviewer, { model: ch.reviewerModel, effort: ch.reviewerEffort })); }
-    catch (e) { if (e.code !== "agent_not_ready") throw e; }
+    const x = launchExtras(t, "reviewer", { kind: rkind, round });
+    t = g.set((t) => { t.link = { ...t.link, reviewer: { pane: pane.pane_id, agent: name, kind: rkind } }; t.reviewSession = x.session; });
+    const startedAt = Date.now();
+    const start = (hook) => {
+      try { api.agentStart(name, rkind, pane.pane_id, startArgs(rkind, { model: rmodel, effort: reffort, session: x.session, extra: hook })); }
+      catch (e) { if (e.code === "agent_not_ready") return; if (!hook.length) throw e; start([]); } // once more without the hook arguments
+    };
+    start(x.hook);
     const until = Date.now() + ms("HERDR_SUPERWORK_REVIEW_MS", 20 * 60000);
     const every = ms("HERDR_SUPERWORK_POLL_MS", 3000);
     for (;;) {
@@ -265,6 +362,10 @@ async function runReview(id, g, { text, change, toLand, ch }) {
         catch (e) { error = String(e.message || e).replace(/\s+/g, " ").slice(0, 400) || "no valid verdict"; break; }
       }
       if (Date.now() > until) { error = "review timed out"; break; }
+      const now = S.get(id);
+      // The reviewer's own turn-end report for this round, and still no verdict: the review failed, at once.
+      const rev = S.pendingEvents(now).find((e) => e.role === "reviewer" && e.round === round);
+      if (rev && sent) { await sleep(Math.min(every, 1500)); if (!fs.existsSync(verdictFile)) { error = noVerdict(now, rev); break; } continue; }
       const a = api.agentGet(pane.pane_id);
       if (!a && sent) { error = "the reviewer exited without a verdict"; break; }
       if (!a && !api.paneGet(pane.pane_id)) { error = "the reviewer's terminal was closed"; break; }
@@ -273,7 +374,16 @@ async function runReview(id, g, { text, change, toLand, ch }) {
       const cur = S.get(id);
       if (blocked && cur.stage === "reviewing") { g.set({ stage: "reviewneeds", msg: "the reviewer shows a dialog: go in and answer it", seen: false }); g.allow("reviewing"); if (!blockedSaid) { blockedSaid = true; F.notify(t, `${t.title}: review needs you`, "The reviewer shows a dialog."); } }
       else if (!blocked && cur.stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "under review" }); g.allow("reviewneeds"); }
-      if (!sent && a && (a.agent_status === "idle" || a.agent_status === "done")) { try { api.agentPrompt(pane.pane_id, brief); sent = true; } catch (e) { if (e.code !== "agent_blocked" && e.code !== "agent_not_ready") { sent = true; } } }
+      if (!sent && a && (a.agent_status === "idle" || a.agent_status === "done")) { try { api.agentPrompt(pane.pane_id, brief); sent = true; sentAt = Date.now(); } catch (e) { if (e.code !== "agent_blocked" && e.code !== "agent_not_ready") { sent = true; sentAt = Date.now(); } } }
+      else if (sent && a && adapter(rkind).readTurn && Date.now() - sentAt > 5000) {
+        // No hook: "idle" alone never fails a review (a reviewer in a long test run looks idle). Only its saved
+        // conversation ending in a finished message or an error, and still no verdict 15 seconds later, does.
+        let session = now.reviewSession;
+        if (!session && adapter(rkind).findSession) { session = adapter(rkind).findSession(folder, startedAt, taskLine(t, "reviewer", round)); if (session) S.update(id, { reviewSession: session }, { waitMs: 10000 }); }
+        const turn = session ? readTurnOf(rkind, { session, cwd: folder }) : null;
+        if (turn && turn.pos > sentAt && (turn.finished || turn.error)) { quietSince = quietSince || Date.now(); if (Date.now() - quietSince > ms("HERDR_SUPERWORK_QUIET_MS", 15000) && !fs.existsSync(verdictFile)) { error = noVerdict(S.get(id), null); break; } }
+        else quietSince = 0;
+      }
       await sleep(every);
     }
   } catch (e) {
@@ -284,13 +394,13 @@ async function runReview(id, g, { text, change, toLand, ch }) {
   if (toLand) { try { S.gitOut(folder, ["reset", "--hard", change.head]); S.gitOut(folder, ["clean", "-fd"]); } catch {} }
   await closeReviewer(id);
   try { if (S.get(id).stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "review complete" }); } } catch (e) { if (e.aborted) return { aborted: true }; }
-  if (!review) return { error: error || "no valid verdict" };
+  if (!review) return { error: error || "no valid verdict", auth };
   // Move the folder to the task's artifacts and publish the evidence page.
   const art = S.artifactsDir(id);
   try { fs.rmSync(art, { recursive: true, force: true }); fs.mkdirSync(path.dirname(art), { recursive: true }); fs.cpSync(dir, art, { recursive: true }); fs.rmSync(dir, { recursive: true, force: true }); } catch {}
   try {
     t = S.get(id);
-    review.artifacts = await publishReview({ enabled: ch.artifacts, dir: art, listed: review.listed, review, task: t, serve: ch.serve,
+    review.artifacts = await publishReview({ enabled: ch.artifacts, dir: art, listed: review.listed, review, task: t, serve: ch.serve, onFallback: (why) => { try { S.update(id, (t) => { t.fallbacks = { ...(t.fallbacks || {}), serve: why }; }, { waitMs: 10000 }); } catch {} },
       context: { id, title: t.title, description: t.description, summary: text, stat: change?.stat, head: change?.head, pr: t.pr } });
   } catch { review.artifacts = []; } // a publish failure must not bypass the requested-review gate, nor fail the review
   delete review.listed;

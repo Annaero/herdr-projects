@@ -29,7 +29,8 @@ export function spawnRunner(job, id, extra = []) {
   if (inline()) { (globalThis.__swJobs ||= []).push([job, id, extra]); return 0; }
   const env = { ...userEnv() };
   // The runner is not a plugin command: it must not look like one to anything it starts.
-  for (const k of ["HERDR_PLUGIN_EVENT", "HERDR_PLUGIN_EVENT_JSON", "HERDR_PLUGIN_CONTEXT_JSON", "HERDR_PLUGIN_ENTRYPOINT_ID", "HERDR_PLUGIN_ACTION_ID"]) delete env[k];
+  // Nor a worker: a runner started by an agent's own turn-end hook must not inherit that agent's pane.
+  for (const k of ["HERDR_PLUGIN_EVENT", "HERDR_PLUGIN_EVENT_JSON", "HERDR_PLUGIN_CONTEXT_JSON", "HERDR_PLUGIN_ENTRYPOINT_ID", "HERDR_PLUGIN_ACTION_ID", "HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID"]) delete env[k];
   fs.mkdirSync(S.dirOf(id), { recursive: true });
   const out = fs.openSync(path.join(S.dirOf(id), "runner.log"), "a");
   const child = spawn(node(), [S.BIN, "run", job, id, ...extra], { detached: true, stdio: ["ignore", out, out], env, cwd: S.dataDir() });
@@ -43,29 +44,46 @@ export async function drainJobs(run) {
   while (globalThis.__swJobs?.length) { const [job, id, extra] = globalThis.__swJobs.shift(); await run(job, id, extra); }
 }
 
-export const runnerAlive = (t) => !!t?.runner && S.pidAlive(t.runner.pid);
+export const runnerAlive = (t) => S.markerAlive(t?.runner);
+const others = (t) => !!t.runner && t.runner.pid !== process.pid && S.markerAlive(t.runner);
 // Claim a task for this runner. Returns the task, or null when another live runner has it.
 export function claim(id, job, patch = {}) {
   let ok = false;
   const t = S.update(id, (t) => {
-    if (t.runner && t.runner.pid !== process.pid && S.pidAlive(t.runner.pid)) return false;
+    if (others(t)) return false;
     ok = true;
-    t.runner = { pid: process.pid, started: Date.now(), job };
+    t.runner = S.marker({ job });
     Object.assign(t, typeof patch === "function" ? patch(t) : patch);
   }, { waitMs: 10000 });
   return ok ? t : null;
 }
-export function release(id) {
-  try { S.update(id, (t) => { if (t.runner?.pid !== process.pid) return false; t.runner = null; }, { waitMs: 10000 }); } catch {}
+// The one way a marker is given up: one update under the task lock that also looks at the turn-ended events. The
+// hook appends under the same lock, so an event is either seen here or finds no marker and starts a runner itself.
+// `keep` (the finish runner): with an unhandled event, keep the marker and return true, so the caller processes it.
+export function release(id, { keep = false } = {}) {
+  let more = false;
+  try {
+    S.update(id, (t) => {
+      if (t.runner?.pid !== process.pid) return false;
+      more = S.pendingEvents(t).length > 0;
+      if (more && keep) return false;
+      t.runner = null;
+    }, { waitMs: 10000 });
+  } catch {}
+  if (more && !keep) spawnRunner("finish", id);
+  return more && keep;
 }
 // "Before every later step it re-reads the task under the lock and aborts if the stage is no longer the one it set
 // or armedAt moved." A guard remembers what this runner last set and throws Aborted when the world moved on.
 export class Aborted extends Error { constructor(why) { super(why || "aborted"); this.aborted = true; } }
 export function guardFor(id) {
-  let stages = [], armedAt = null;
+  let stages = [], armedAt = null, seen = Infinity;
+  // A worker's turn-ended event newer than the ones this runner started with: the human typed in its terminal and
+  // that turn ended, so whatever is running (check, review, merge) is about a superseded turn.
+  const newTurn = (t) => (t.events || []).some((e) => e.role === "agent" && e.n > seen);
   const g = {
     // Record the stage(s) this runner now stands in.
-    expect(t, ...also) { stages = [t.stage, ...also]; armedAt = t.armedAt ?? null; return t; },
+    expect(t, ...also) { stages = [t.stage, ...also]; armedAt = t.armedAt ?? null; seen = Math.max(t.eventSeq || 0, t.eventsHandled || 0); return t; },
     check() {
       const t = S.get(id);
       if (!t) throw new Aborted("the task is gone");
@@ -73,6 +91,7 @@ export function guardFor(id) {
       if (t.runner?.pid !== process.pid) throw new Aborted("another runner took over");
       if (!stages.includes(t.stage)) throw new Aborted(`stage changed to ${t.stage}`);
       if ((t.armedAt ?? null) !== armedAt) throw new Aborted("a new turn started");
+      if (newTurn(t)) throw new Aborted("the agent finished a new turn");
       return t;
     },
     // Change the task as this runner, only if it is still ours; remembers the new stage.

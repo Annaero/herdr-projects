@@ -43,7 +43,12 @@ async function tidy(id) {
   const kept = await cleanup(t, { deleteBranch: "always" });
   try { S.update(id, (t) => { if (kept.length) t.kept = kept; else { t.worktree = null; t.cleaned = Date.now(); t.link = { socket: t.link?.socket }; } if (kept.length) t.msg = `${t.msg} Kept: ${kept.join(", ")}`; }, { waitMs: 10000 }); } catch {}
 }
-export async function cleanupJob(id) { await tidy(id); }
+// Clean-up holds a runner marker like every other long step, so archive answers "busy" until it has ended.
+export async function cleanupJob(id) {
+  const t = claim(id, "cleanup");
+  if (!t) return;
+  try { await tidy(id); } finally { release(id); }
+}
 
 // The branch main lives on at the remote: what the worktree started from, else origin's default, else main.
 function mainBranch(root, t) {

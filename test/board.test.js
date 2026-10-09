@@ -40,7 +40,7 @@ test("the board: groups, aligned rows, side panel from 90 columns, details, and 
     assert.match(text, /0 blocked · 0 error · 1 working · 0 done · 1 idle/);
     assert.match(text, /● My own task {2}half way/); assert.match(text, /○ Write the docs {2}idle/);
     assert.match(text, /│ {2}My own task/); assert.match(text, /you are on it/); assert.match(text, /Permissions {6}full access/);
-    assert.match(text, /what's next\? \(helpers are off: what you type is filed as a task\)/);
+    assert.match(text, /what's next\? \(no Coordinator: what you type is filed as a task, word for word\)/);
     assert.equal(s.screen(120).length, 34); assert.ok(s.screen(120).every((l) => l.length <= 120));
     assert.ok(!/│ {2}My own task/.test(s.text(80)), "no side panel below 90 columns");
     s.press("ctrl+b"); assert.ok(!/│ {2}My own task/.test(s.text(120))); s.press("ctrl+b");
@@ -175,7 +175,7 @@ test("the command: add, list, report, config, and the hook entry does nothing wh
     assert.equal(JSON.parse(out[0]).id, "proj/1");
     const listed = JSON.parse(out[2]); assert.deepEqual([listed[0].state, listed[0].app, listed[0].msg], ["working", S.me(), "on it"]);
     assert.equal(S.config().max, 2); assert.equal(S.choices(S.get("proj/1")).review, "none");
-    assert.match(out.at(-1), /closing-<number>\.md/);
+    assert.match(out.at(-1), /report <your id> --state blocked/);
     assert.throws(() => sw("frobnicate"), /Unknown command/);
   } finally { w.cleanup(); }
 });

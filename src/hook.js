@@ -10,11 +10,17 @@ import * as F from "./flow.js";
 import { herdr, currentSocket } from "./herdr.js";
 import { spawnRunner, runnerAlive } from "./runner.js";
 import { housekeeping } from "./housekeeping.js";
+import { readTurnOf } from "./agents.js";
+import { ensureKeeper } from "./keeper.js";
 
 // Stages in which a finished turn nobody saw start (a short turn, a herdr restart, a lock wait) still counts.
 const WAITING = ["asks", "nosummary", "approval", "failed", "reviewneeds"];
 
 export function hookMain() {
+  // The keeper does the board's periodic work with the board closed. herdr's startup and every hook event start it
+  // when it is not running; an agent's own commands never do.
+  try { ensureKeeper(); } catch (e) { log(e); }
+  if (process.env.HERDR_PLUGIN_EVENT === "startup") { try { import("./extras.js").then((X) => X.syncSkill()).catch(() => {}); } catch {} }
   if (!S.hasTasks()) return; // nothing of ours anywhere: do nothing, in any herdr session
   const socket = currentSocket();
   let event = process.env.HERDR_PLUGIN_EVENT || "", data = {};
@@ -72,6 +78,7 @@ export function apply(id, a, api) {
         t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0;
         t.armedAt = Date.now(); t.turnOpen = true;
         t.stage = "working"; t.msg = ""; t.kind = undefined; t.watch = null; t.seen = false; t.since = Date.now(); t.mergeFailed = false;
+        if (t.failure?.auth) t.failure = null; // typing after a login problem is how "fixed" is said
         then = then || "unlabel";
       } else {
         // A second `working` in the same human turn (a flap) only moves armedAt if no closing note is newer than it.
@@ -85,7 +92,7 @@ export function apply(id, a, api) {
       // delivered when the dialog is answered.
       if (S.pendingText(id).length) { then = "inbox"; return; }
       if (t.selfBlocked && t.stage === "asks") { // it said it is blocked, then stopped: that is not a finish
-        t.handled = { comp, note: F.noteStat(t)?.mtime ?? t.handled?.note ?? null, at: Date.now() }; t.selfBlocked = null; t.turnOpen = false;
+        t.handled = { ...(t.handled || {}), comp, note: F.noteStat(t)?.mtime ?? t.handled?.note ?? null, at: Date.now() }; t.selfBlocked = null; t.turnOpen = false;
         return;
       }
       if (t.stage === "working") {
@@ -93,6 +100,7 @@ export function apply(id, a, api) {
         if (comp != null && comp !== t.handled?.comp && !runnerAlive(t)) then = "finish";
         return;
       }
+      if (WAITING.includes(t.stage) && !runnerAlive(t) && sameTurn(t)) { if (comp != null) t.handled = { ...(t.handled || {}), comp }; return; } // herdr counted a turn the agent's own report already finished
       if (WAITING.includes(t.stage) && !runnerAlive(t) && missedTurn(t, comp)) { humanTurnEnded(t); then = "finish-force"; }
       return;
     }
@@ -103,7 +111,11 @@ export function apply(id, a, api) {
     }
   }, { waitMs: 10000 });
   if (then === "inbox") return void deliverInbox(t, api);
-  if (then === "cancel-auto") { try { F.cancelAutoMerge(t); } catch (e) { log(e); } F.labelPane(t, null); }
+  if (then === "cancel-auto") {
+    // A failed cancellation must be seen: the merge may still happen by itself while the agent changes the work.
+    try { F.cancelAutoMerge(t); } catch (e) { log(e); try { S.update(id, (t) => { Object.assign(t, S.failurePatch({ stage: "merge", title: "Could not cancel the pending auto-merge", detail: `${e.message}\n\nYou typed in the agent's terminal while GitHub was set to merge ${t.pr || "the pull request"} by itself. That is still set: it may merge when its checks pass.`, next: `Cancel it yourself: gh pr merge ${F.prNumber(t.pr || "")} --disable-auto`, agentCanFix: false, auth: false })); }, { waitMs: 10000 }); F.notify(S.get(id), `${t.title}: could not cancel the auto-merge`, "It may still merge by itself."); } catch {} }
+    F.labelPane(t, null);
+  }
   if (then === "unlabel") F.labelPane(t, null);
   if (then === "finish") spawnRunner("finish", id);
   if (then === "finish-force") spawnRunner("finish", id, ["--force"]);
@@ -111,6 +123,12 @@ export function apply(id, a, api) {
 // A human turn that has already ended without the hook seeing it start: a completion newer than the last handled
 // one, a closing note newer than the last consumed one, or a worktree HEAD or dirty tree different from the
 // recorded reviewed commit.
+// The saved conversation still ends in the message the finish line already handled.
+function sameTurn(t) {
+  if (!t.handled?.msg) return false;
+  const turn = readTurnOf(t.agent, { file: t.transcript || null, session: t.session, cwd: S.cwdOf(t) });
+  return !!turn && turn.id === t.handled.msg;
+}
 function missedTurn(t, comp) {
   if (comp != null && t.handled && comp !== t.handled.comp && comp > (t.handled.comp || 0)) return true;
   const note = F.noteStat(t);
@@ -154,9 +172,9 @@ export function reconcile(t, api) {
   if (!a) return void S.update(t.id, (t) => { if (t.last?.status === null && !t.last?.gone && t.exitedAt) return false; t.last = { ...(t.last || {}), status: null, gone: false, at: Date.now() }; t.exitedAt = t.exitedAt || Date.now(); }, { waitMs: 10000 });
   if (!sameDir(a.cwd, S.cwdOf(t)) && !sameDir(a.foreground_cwd, S.cwdOf(t))) return;
   // A runner marker whose pid is dead is cleared and the step retried once.
-  if (t.runner && !S.pidAlive(t.runner.pid)) {
+  if (t.runner && !S.markerAlive(t.runner)) {
     const dead = t.runner;
-    const cur = S.update(t.id, (t) => { if (!t.runner || S.pidAlive(t.runner.pid)) return false; t.runner = null; t.retried = (t.retried || 0) + 1; }, { waitMs: 10000 });
+    const cur = S.update(t.id, (t) => { if (!t.runner || S.markerAlive(t.runner)) return false; t.runner = null; t.retried = (t.retried || 0) + 1; }, { waitMs: 10000 });
     if (!cur.runner && (cur.retried || 0) <= 1 && S.RUNNER_STAGES.includes(cur.stage)) {
       const job = cur.stage === "merging" ? "land" : cur.stage === "starting" || cur.stage === "setup" ? "delegate" : "pipeline";
       if (job === "delegate") S.update(t.id, { stage: "starting" }, { waitMs: 10000 });

@@ -7,7 +7,8 @@ import { execFileSync } from "node:child_process";
 import * as S from "./store.js";
 import * as F from "./flow.js";
 import { claim, release, guardFor, sh, outputOf } from "./runner.js";
-import { startArgs, preTrust, adapter } from "./agents.js";
+import { randomBytes } from "node:crypto";
+import { startArgs, preTrust, adapter, hookUsable, versionOf } from "./agents.js";
 
 // ---- names -----------------------------------------------------------------------------------------------------------
 // `sw-` + the repo name (lower-case, anything outside [a-z0-9] as `-`, 16 characters) + `-<n>`. Always matches herdr's
@@ -72,17 +73,35 @@ export function copyIncludes(root, dir, include) {
 
 // ---- the first prompt ------------------------------------------------------------------------------------------------
 export function rules(t) {
+  const cmd = F.shim();
   const lines = [
-    "Do all of the work yourself, in this folder. Never delegate it, file it as a new task or hand it to anyone else.",
+    "Do all of the work yourself, in this folder. Never delegate it or hand it to anyone else.",
     t.worktree ? `You are in your own git worktree on branch ${t.branch}; the human's checkout is elsewhere and untouched. Commit your work on this branch with clear messages. Do not push, merge into the human's branch or switch branches yourself (you may bring the base branch into your own branch to resolve a conflict). When you finish, the board runs the repo's check and opens the pull request.` : "",
     t.repoCfg?.check ? `Your work only counts as done when this passes: ${t.repoCfg.check}` : "",
-    "Do not stop until the work is finished and you have checked that it works. Stopping means it is finished and goes to review.",
-    `Before you stop, write your closing summary, or your question to the human if you cannot continue, to ${F.RULE_DIR}/closing-${t.n}.md in this folder (git ignores that folder). The board reads that file, not your screen.`,
-    `If you cannot continue until the human does something, also run this and then stop: herdr-superwork report ${t.id} --state blocked --kind <question|permission|auth> --msg "<why, in one line>"  (question: the human must type an answer; permission: you need approval to do something; auth: a login, token or credential is missing).`,
+    "Do not stop until the work is finished and you have checked that it works. Stopping means it is finished and goes to review. End with a short summary of what you did.",
+    `If you cannot continue without the human, run this and then stop: ${cmd} report ${t.id} --state blocked --kind <question|permission|auth> --msg "<why, in one line>"  (question: the human must type an answer; permission: you need approval to do something; auth: a login, token or credential is missing). Do not end with a question otherwise.`,
+    `If you come across unrelated work that should be done (a bug elsewhere, a follow-up), do not do it: file it on the board with ${cmd} add "<short title>" --desc "<what and why>" and carry on. Those two commands are the only board commands you may run.`,
+    `Before you stop, also write your closing summary (or your question to the human) to ${F.RULE_DIR}/closing-${t.n}.md in this folder (git ignores that folder). It is the board's fallback when it cannot read your last message.`,
   ].filter(Boolean);
   return `Rules for this task (its id on the work board is ${t.id}):\n${lines.map((l) => `- ${l}`).join("\n")}`;
 }
-export const firstPrompt = (t) => [t.title, t.description, rules(t)].filter(Boolean).join("\n\n");
+// Every worker's first prompt starts with one line naming the task and the role: it is how a conversation file is
+// matched to its task for an agent kind that names its own sessions.
+export const taskLine = (t, role = "agent", round = 0) => `Work board task ${t.id}, role: ${role}${round ? `, round ${round}` : ""}.`;
+// With a launch flag for standing rules the rules stay in force for the whole session and are not repeated here.
+export const firstPrompt = (t, standing = !!adapter(t.agent).standing) => [taskLine(t), t.title, t.description, standing ? "" : rules(t)].filter(Boolean).join("\n\n");
+
+// The launch arguments that are the plugin's own: the turn-end hook (with a new secret token) and the standing rules.
+// Returns { extra, hooked, session }. Nothing is written to the user's own agent settings.
+export function launchExtras(t, role, { kind, round = 0, standing = "", resume = null } = {}) {
+  const a = adapter(kind);
+  const token = randomBytes(18).toString("hex");
+  S.setToken(t.id, role, token, round);
+  let hook = null;
+  if (hookUsable(kind)) { try { hook = a.hookArgs({ shim: F.shim(), id: t.id, role, round, token, dir: S.dirOf(t.id) }); } catch { hook = null; } }
+  const session = !resume && a.newSession ? a.newSession() : null;
+  return { hook: hook || [], rules: standing && a.standing ? a.standing(standing, S.dirOf(t.id)) : [], hooked: !!hook, session, version: versionOf(kind) };
+}
 
 // ---- starting the agent ----------------------------------------------------------------------------------------------
 // Used by a first delegation and by "restarting an exited agent". The pane must be at its shell prompt.
@@ -94,14 +113,26 @@ export function startAgent(id, g, { prompt, resume = null }) {
   preTrust(kind, t.root || S.folderOf(t.id));
   const taken = api.agents().filter((a) => a.pane_id !== t.link.pane).map((a) => a.name).filter(Boolean);
   const name = agentName(t, taken);
-  let blocked = false;
-  try { api.agentStart(name, kind, t.link.pane, startArgs(kind, { model: ch.model, effort: ch.effort, resume })); }
-  catch (e) {
-    if (e.code !== "agent_not_ready") throw e;
-    blocked = true; // a dialog is in the way (folder trust, first run): the text waits in the inbox
-  }
-  // The send time arms the pipeline: a closing note counts only when it is newer than this.
-  t = g.set((t) => { t.stage = "working"; t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.msg = ""; t.link = { ...t.link, agent: name }; t.startedAgentAt = Date.now(); t.exitedAt = null; });
+  const x = launchExtras(t, "agent", { kind, standing: rules(t), resume });
+  const args = (hooked) => startArgs(kind, { model: ch.model, effort: ch.effort, resume, session: x.session, extra: [...(hooked ? x.hook : []), ...x.rules] });
+  let blocked = false, hooked = x.hooked;
+  const start = (withHook) => {
+    try { api.agentStart(name, kind, t.link.pane, args(withHook)); }
+    catch (e) {
+      if (e.code === "agent_not_ready") { blocked = true; return; } // a dialog is in the way (folder trust, first run): the text waits in the inbox
+      if (!withHook) throw e;
+      hooked = false; start(false); // once more without the hook arguments
+    }
+  };
+  start(hooked);
+  // The send time arms the pipeline: nothing older than this counts as the turn's end.
+  t = g.set((t) => {
+    t.stage = "working"; t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.msg = ""; t.link = { ...t.link, agent: name }; t.startedAgentAt = Date.now(); t.exitedAt = null;
+    t.hooked = hooked; t.agentVersion = x.version || "";
+    const session = resume || x.session || null;
+    if (session !== (t.session || null)) { t.session = session; t.transcript = null; t.handled = { ...(t.handled || {}), msg: null, pos: 0 }; }
+  });
+  if (!prompt) return "started";
   if (blocked) { S.queueText(id, prompt); F.notify(t, `${t.title}: needs you`, "Its agent shows a dialog. Go in and answer it; your task is queued behind it."); return "queued"; }
   const how = F.deliver(t, prompt);
   if (how === "queued") F.notify(t, `${t.title}: needs you`, "Its agent shows a dialog. Go in and answer it; your task is queued behind it.");
@@ -109,11 +140,17 @@ export function startAgent(id, g, { prompt, resume = null }) {
 }
 
 // The prompt for an agent that is started again on a task it worked on before.
+// It resumes the conversation whose id the plugin chose (or learned) at launch, when the agent program still has
+// it; otherwise it starts fresh with the task and the last message.
+export function resumable(t) {
+  const a = adapter(t.agent);
+  if (!t.session || !a.resume) return false;
+  try { return !a.transcript || !!a.transcript(t.session, S.cwdOf(t)); } catch { return false; }
+}
 function againPrompt(t, waiting) {
-  const resumable = !!t.session && !!adapter(t.agent).resume;
-  const said = t.said ? `Your last closing note was:\n${t.said}` : "";
-  return resumable
-    ? { resume: t.session, prompt: [waiting.join("\n\n") || "Continue where you left off.", F.noteRule(t)].join("\n\n") }
+  const said = t.said ? `Your last message was:\n${t.said}` : "";
+  return resumable(t)
+    ? { resume: t.session, prompt: F.withTail(t, waiting.join("\n\n") || "Continue where you left off.") }
     : { prompt: [firstPrompt(t), said, "You were working on this before and your session ended. Continue from the state of this branch.", waiting.join("\n\n")].filter(Boolean).join("\n\n") };
 }
 
@@ -131,7 +168,7 @@ export async function delegateJob(id) {
     const livePane = t.link.pane ? api.paneGet(t.link.pane) : null;
     if (livePane && api.agentGet(t.link.pane)) { // delegate again on a task whose agent is still there: just continue it
       t = g.set((t) => { t.stage = "working"; t.armedAt = Date.now(); t.turnOpen = true; });
-      const how = F.deliver(t, `Continue this task.\n\n${F.noteRule(t)}`);
+      const how = F.deliver(t, F.withTail(t, "Continue this task."));
       return void (how === "queued" && F.notify(t, `${t.title}: needs you`, "Its agent shows a dialog."));
     }
     if (!livePane) {
@@ -217,4 +254,27 @@ export async function restartJob(id) {
     if (e.aborted) return;
     try { S.update(id, (t) => { if (t.runner?.pid !== process.pid) return false; t.stage = "failed"; t.msg = "could not restart the agent"; Object.assign(t, S.failurePatch({ stage: "start", title: "Could not restart the agent", detail: e.message, agentCanFix: false, next: "Fix what herdr reports, then reply or delegate again." })); }, { waitMs: 10000 }); } catch {}
   } finally { release(id); }
+}
+
+// Reopen a task's space when it was closed (archive closes it) and, with `restart`, start its exited agent again in
+// the same conversation without sending it anything. Used by "go into the task" here and from another machine.
+export function reopen(id, { restart = false } = {}) {
+  let t = S.find(id);
+  F.assertLive(t);
+  const api = F.h(t);
+  let pane = api.paneGet(t.link.pane);
+  if (!pane) {
+    if (!(t.worktree && fs.existsSync(t.worktree))) throw new Error("Its terminal is gone. Reply or delegate again to start its agent.");
+    const res = api.worktreeOpen({ cwd: S.folderOf(t.id), path: t.worktree, label: String(t.title).slice(0, 60) });
+    pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
+    t = S.update(t.id, (t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true }; });
+  }
+  let hasAgent = !!api.agentGet(pane.pane_id);
+  if (!hasAgent && restart && resumable(t) && !S.markerAlive(t.runner)) {
+    const stage = t.stage, armedAt = t.armedAt;
+    const g = { set: (fn) => S.update(t.id, fn, { waitMs: 10000 }) };
+    try { startAgent(t.id, g, { prompt: "", resume: t.session }); hasAgent = true; } catch {}
+    S.update(t.id, (c) => { c.stage = stage; c.armedAt = armedAt; c.turnOpen = false; }, { waitMs: 10000 }); // nothing was asked of it: the task stands where it stood
+  }
+  return { pane, hasAgent, task: S.get(t.id) };
 }

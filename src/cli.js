@@ -24,42 +24,14 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork pin|archive|restore|clear <id>
   herdr-superwork config [key [value]] [--id ID]   show or change settings; with --id, one task's own choice
   herdr-superwork --skill                       instructions an agent can load
+  herdr-superwork remove-extras                 take out what the plugin added outside its own folders (the how-to
+                                                files, its blocks in herdr's config); run it before unlinking
 `;
-const SKILL = `# herdr-superwork: the work board
-
-The human keeps one list of tasks on a board. You can read and change it from your shell with \`herdr-superwork\`.
-Every command accepts \`--json\`.
-
-- \`herdr-superwork list\`: the tasks: id (\`<repo>/<number>\`), state (idle, working, blocked, done, error), who is on it, title.
-  \`--query TEXT\` searches, \`--archived\` shows the archive, \`--all\` includes it.
-- \`herdr-superwork add "<short title>" --desc "<full description>"\`: file a new task in the current repo
-  (\`--repo <name or path>\` for another). Filing starts nothing. Add \`--delegate\` only if the human asked for an agent.
-- \`herdr-superwork delegate <id>\`: put an agent on a task. It works in its own git worktree, as an ordinary herdr
-  agent in its own herdr space. Options for this one task: \`--agent claude|codex|…\`, \`--model\`, \`--effort\`,
-  \`--reviewer <kind>|off\`, \`--no-worktree\` (work in the human's checkout), \`--base head\` (start from their current commit).
-- \`herdr-superwork tell <id> "<text>"\`: send a message to a task's agent.
-- \`herdr-superwork report <id> --state <state> [--msg "<one line>"]\`: say where a task stands. \`--title\` renames it.
-  \`herdr-superwork describe <id> "<text>"\` replaces its description.
-- \`herdr-superwork approve <id>\`: merge finished work that waits for approval. Only when the human plainly says so.
-- \`herdr-superwork review <id>\` sends the reviewer's findings back to the agent; \`retry <id>\` sends a saved error back;
-  \`fix <id>\` sends failure details; \`details <id>\` reads them; \`stop <id>\` stops the agent.
-- \`herdr-superwork archive <id>\` hides a task and keeps everything; \`restore <id>\` brings it back; \`clear <id>\` deletes it
-  (only when the human plainly asks).
-- \`herdr-superwork config\` shows the settings; \`config <key> <value>\` changes one; \`config <key> <value> --id <id>\` sets it
-  for one task (agent, model, effort, reviewer, reviewerModel, reviewerEffort, watcher, review, reviewAuto, rounds,
-  artifacts, serve, conflictAuto).
-
-If you are the agent working on a task: do the work yourself, commit on your branch, never push or merge. Before you
-stop, write your closing summary (or your question) to \`.herdr-superwork/closing-<number>.md\` in your folder. If you
-cannot continue until the human does something, run
-\`herdr-superwork report <id> --state blocked --kind question|permission|auth --msg "<why>"\` and stop.
-You cannot mark your own task done: the board runs the check, the review and the merge.
-`;
-
 // positional arguments, --flag value, --flag (true), --no-flag (false)
 export function parse(argv) {
   const pos = [], flags = {};
   const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "worktree", "no-worktree"]);
+  if (argv[0] === "config") BOOL.delete("skill");
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--") { pos.push(...argv.slice(i + 1)); break; }
@@ -88,11 +60,28 @@ export function contextFolder() {
   }
   return process.cwd();
 }
-// Is the caller the agent of a task? Its shell runs in the task's worker pane.
-function callerTask() {
+// Is the caller the agent of a task? Its shell runs in the task's worker pane (or its reviewer's). The board popup has
+// no pane id and the Coordinator's is removed, so neither is ever taken for a worker, even when the popup was opened
+// over a worker's pane.
+function caller() {
   const pane = process.env.HERDR_PANE_ID, socket = process.env.HERDR_SOCKET_PATH;
   if (!pane || !socket || process.env.HERDR_PLUGIN_ID) return null;
-  return S.list({ includeArchived: true }).find((t) => t.link?.pane === pane && t.link?.socket === socket) || null;
+  for (const t of S.list({ includeArchived: true })) {
+    if (t.link?.socket !== socket) continue;
+    if (t.link.pane === pane) return { task: t, role: "agent" };
+    if (t.link.reviewer?.pane === pane) return { task: t, role: "reviewer" };
+  }
+  return null;
+}
+const callerTask = () => { const c = caller(); return c?.role === "agent" ? c.task : null; };
+// What an agent the board started may run. A guard against an agent's mistakes, not a security boundary.
+function refuse(cmd, pos, flags) {
+  const c = caller();
+  if (!c) return "";
+  const own = !pos[1] || (() => { try { return S.find(pos[1]).id === c.task.id; } catch { return false; } })();
+  const ok = c.role === "reviewer" ? ["list", "ls", "details"].includes(cmd)
+    : ["add", "new", "list", "ls", "details"].includes(cmd) || (cmd === "report" && flags.state === "blocked" && own);
+  return ok ? "" : `Refused: as the ${c.role === "reviewer" ? "reviewer" : "agent"} of ${c.task.id} you may only run ${c.role === "reviewer" ? "list and details" : `add, list, details and "report ${c.task.id} --state blocked"`}. The human does the rest from the board.`;
 }
 const line = (t) => `${t.id.padEnd(14)} ${String(t.state).padEnd(8)}${t.kind ? ` ${t.kind}` : ""}${t.shownApp ? ` [${t.shownApp}]` : ""}  ${t.title}${t.note ? `  · ${t.note}` : ""}${t.archivedAt ? "  (archived)" : ""}`;
 const brief = (t) => ({ id: t.id, state: t.state, kind: t.kind, app: t.shownApp, title: t.title, msg: t.note, stage: t.stage, progress: t.progress, pr: t.pr || undefined, archivedAt: t.archivedAt || undefined, review: S.currentReview(t) || undefined });
@@ -105,7 +94,10 @@ export async function main(argv) {
   const rest = (n) => pos.slice(n).join(" ");
 
   // ---- entries herdr itself calls: keep them light, they run on every agent status change -------------------------
-  if (cmd === "hook") { if (!S.hasTasks()) return 0; const { hookMain } = await import("./hook.js"); hookMain(); return 0; }
+  if (cmd === "turn-ended") { const { turnEnded } = await import("./turn.js"); try { turnEnded({ id: flags.id, role: flags.role, token: flags.token, round: flags.round }, pos.slice(1)); } catch {} return 0; } // run by an agent's own hook: silent, always 0
+  if (cmd === "hook") { const { hookMain } = await import("./hook.js"); hookMain(); return 0; }
+  if (cmd === "keeper") { const { keeperMain } = await import("./keeper.js"); await keeperMain(); return 0; }
+  if (cmd === "keeper-work") { const { keeperWork } = await import("./keeper.js"); await keeperWork(); return 0; }
   if (cmd === "run") { const { runJob } = await import("./jobs.js"); await runJob(pos[1], pos[2], pos.slice(3).concat(flags.force ? ["--force"] : [])); return 0; }
   if (cmd === "open") { const { herdr } = await import("./herdr.js"); herdr().openBoard(); return 0; }
   if (cmd === "approve-current") {
@@ -121,7 +113,7 @@ export async function main(argv) {
   }
   if (cmd === "serve") { const { serveMain } = await import("./review-page.js"); await serveMain(); return 0; }
   if (cmd === "remote") { const { remoteMain } = await import("./remote.js"); await remoteMain(pos.slice(1)); return 0; }
-  if (cmd === "--skill" || cmd === "skill") { process.stdout.write(SKILL); return 0; }
+  if (cmd === "--skill" || cmd === "skill") { const X = await import("./extras.js"); const F = await import("./flow.js"); process.stdout.write(X.skillText(F.shim())); return 0; }
   if (cmd === "help" || flags.help) { process.stdout.write(HELP); return 0; }
   if (cmd === "board") {
     if (!process.stdout.isTTY || !process.stdin.isTTY) { process.stdout.write(HELP); return 0; }
@@ -130,6 +122,8 @@ export async function main(argv) {
     return 0;
   }
 
+  const no = refuse(cmd, pos, flags);
+  if (no) throw new Error(no);
   const A = await import("./actions.js");
   const F = await import("./flow.js");
   const { housekeeping } = await import("./housekeeping.js");
@@ -182,8 +176,11 @@ export async function main(argv) {
       const c = id ? (pos[1] && value !== undefined ? S.setTaskConfig(S.find(id).id, pos[1], value) : S.choices(S.find(id)))
         : pos[1] && value !== undefined ? S.setConfig(pos[1], value) : S.config();
       result = [pos[1] && value === undefined ? { [pos[1]]: c[pos[1]] } : c];
+      if (!id && pos[1] === "skill" && value !== undefined) { const X = await import("./extras.js"); X.syncSkill(F.shim()); } // on writes the how-to, off removes exactly what was written
       break;
     }
+    case "remove-extras": { const X = await import("./extras.js"); const r = X.removeExtras(); result = [r, `Removed: the how-to files${r.blocks ? " and the plugin's blocks in herdr's config (a backup is beside it)" : ""}. The skill setting is off and the key question will not be asked again.`]; break; }
+    case "reopen": { const D = await import("./delegate.js"); const r = D.reopen(need(1, "an id"), { restart: true }); result = [{ pane: r.pane.pane_id, hasAgent: r.hasAgent }, `${r.task.id}: its space is open${r.hasAgent ? "" : ", no agent in it"}`]; break; }
     case "housekeep": { housekeeping(undefined, { force: flags.pr ? "pr" : true }); result = [{ ok: true }, "ok"]; break; }
     default: throw new Error(`Unknown command "${cmd}". Try: herdr-superwork help`);
   }
