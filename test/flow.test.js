@@ -27,7 +27,7 @@ test("delegate: a herdr worktree workspace, the agent in its root pane, the firs
     assert.ok(pane.agent.args.includes("--dangerously-skip-permissions")); // full access by default, as pi-work's agents had
     const prompt = pane.agent.prompts[0];
     assert.match(prompt, /\n\nAdd a greeting\n\nSay hello\./);
-    const standing = pane.agent.args.join(" "); // the rules ride on the launch, in force for the whole session
+    const standing = fs.readFileSync(pane.agent.args[pane.agent.args.indexOf("--append-system-prompt-file") + 1], "utf8"); // the rules ride on the launch, in a file, in force for the whole session
     assert.match(standing, /closing-1\.md/); assert.match(standing, /herdr-superwork report proj\/1 --state blocked/); assert.match(standing, /Do not push/); assert.match(prompt, /^Work board task proj\/1, role: agent\./);
     assert.match(git(w.root, "rev-parse", "--git-path", "info/exclude") && fs.readFileSync(path.join(w.root, ".git/info/exclude"), "utf8"), /\.herdr-superwork\//);
     assert.equal(JSON.parse(fs.readFileSync(process.env.HERDR_SUPERWORK_CLAUDE_JSON, "utf8")).projects[w.root].hasTrustDialogAccepted, true); // pre-trusted
