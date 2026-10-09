@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+// A stand-in for gh. Canned answers come from $HERDR_FAKE_DIR/gh.json; every call is logged to gh.log.
+import fs from "node:fs";
+import path from "node:path";
+const dir = process.env.HERDR_FAKE_DIR, a = process.argv.slice(2);
+let c = {}; try { c = JSON.parse(fs.readFileSync(path.join(dir, "gh.json"), "utf8")); } catch {}
+fs.appendFileSync(path.join(dir, "gh.log"), a.join(" ") + "\n");
+const fail = (m) => { process.stderr.write(m + "\n"); process.exit(1); };
+if (a[0] === "pr" && a[1] === "create") { if (c.createFail) fail(c.createFail); console.log("https://github.com/o/r/pull/7"); }
+else if (a[0] === "pr" && a[1] === "ready") {}
+else if (a[0] === "pr" && a[1] === "merge") {
+  if (a.includes("--disable-auto")) { if (c.disableFail) fail("could not disable auto-merge"); }
+  else if (a.includes("--auto")) { if (!c.autoOk) fail("auto-merge is not allowed"); }
+  else if (c.mergeFail) fail(c.mergeFail);
+}
+else if (a[0] === "pr" && a[1] === "view") console.log(JSON.stringify(c.view || { state: "OPEN", statusCheckRollup: [], comments: [], reviews: [], author: { login: "me" } }));
+else fail("fake gh: unknown " + a.join(" "));

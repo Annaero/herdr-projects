@@ -1,0 +1,269 @@
+// The exact actions of the board, also the subcommands any agent can run from its shell. Each one only records a
+// request under the task lock and, when a long job follows, starts the detached runner; none of them waits for it.
+import fs from "node:fs";
+import * as S from "./store.js";
+import { herdr, currentSocket } from "./herdr.js";
+import * as F from "./flow.js";
+import { spawnRunner, runnerAlive } from "./runner.js";
+import { interruptKey } from "./agents.js";
+
+const AGENT_STAGES = ["queued", ...S.SLOT_STAGES];
+const say = (t, msg) => ({ task: t, msg });
+
+// ---- filing and editing ----------------------------------------------------------------------------------------------
+export function add(folder, title, { description = "", repo } = {}) {
+  return S.create(S.folderFor(repo, folder), title, { description });
+}
+export function rename(id, title) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.title = S.oneLine(title, 192) || t.title; }); }
+export function describe(id, text) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.description = String(text || "").replace(/\r/g, "").trim(); }); }
+export function pin(id) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.pinned = !t.pinned; }); }
+export function seen(id) { return S.update(S.find(id).id, (t) => { if (t.seen) return false; t.seen = true; }); }
+
+// A report, as in pi-work: the human (or any agent) says where a task stands. A delegated task's own agent may only
+// say it is blocked; it cannot mark itself done: the finish line does that.
+export function report(id, { state, kind, msg, title, progress, asAgent = false } = {}) {
+  const cur = S.find(id);
+  if (title && !state) return rename(cur.id, title);
+  if (!["idle", "working", "blocked", "done", "error"].includes(state)) throw new Error("state must be one of: idle, working, blocked, done, error");
+  if (asAgent && state !== "blocked") throw new Error("Do not report done yourself. Write your closing note and stop; the board runs the check and marks it done. (Use --state blocked if you need the human.)");
+  const delegated = F.isAgentTask(cur) && AGENT_STAGES.concat(["asks", "nosummary", "approval", "reviewneeds", "failed"]).includes(cur.stage);
+  const t = S.update(cur.id, (t) => {
+    S.assertUnarchived(t);
+    if (title) t.title = S.oneLine(title, 192) || t.title;
+    if (state === "blocked") {
+      t.stage = "asks"; t.kind = S.KINDS.includes(kind) ? kind : "question"; t.msg = S.oneLine(msg) || "needs you"; t.seen = false; t.turnOpen = false;
+      if (asAgent) t.selfBlocked = Date.now(); // the turn that follows this report is not a finish
+      return;
+    }
+    if (delegated && runnerAlive(t)) throw new Error(`${t.id} is in the middle of a workflow step. Stop it first.`);
+    t.kind = undefined; t.msg = S.oneLine(msg); t.failure = state === "error" ? t.failure : null;
+    if (state === "idle") { t.stage = F.isAgentTask(t) ? "stopped" : "todo"; if (!F.isAgentTask(t)) t.app = null; }
+    else if (state === "working") { if (F.isAgentTask(t)) throw new Error(`${t.id} has an agent. Reply to it, or delegate it again, to make it work.`); t.stage = "progress"; t.app = t.owner; t.since = Date.now(); if (progress !== undefined) t.watch = { progress: clampPct(progress) }; }
+    else if (state === "done") { t.stage = "done"; t.seen = true; t.mergeIntent = null; }
+    else if (state === "error") { t.stage = "failed"; Object.assign(t, S.failurePatch({ stage: "agent", title: "Marked as failed", detail: S.oneLine(msg) || "No details given.", auth: false })); }
+  });
+  if (state === "blocked") F.notify(t, `${t.title}: needs you`, t.msg);
+  return t;
+}
+const clampPct = (p) => Math.max(0, Math.min(100, Math.round(Number(p)) || 0));
+
+// ---- delegate --------------------------------------------------------------------------------------------------------
+// Records the request (stage "queued") and lets the housekeeping pass start it when a slot is free.
+export function delegate(id, opts = {}) {
+  const cur = S.find(id);
+  for (const k of S.PER_TASK) if (opts[k] !== undefined && opts[k] !== null && opts[k] !== "") S.setTaskConfig(cur.id, k, opts[k]);
+  const socket = currentSocket();
+  const t = S.update(cur.id, (t) => {
+    S.assertUnarchived(t);
+    if (AGENT_STAGES.includes(t.stage) || runnerAlive(t)) throw new Error(`${t.id} already has an agent working on it.`);
+    if (t.autoMerge) throw new Error(`${t.id} is waiting for an automatic merge. Reply to its agent to cancel that first.`);
+    if (t.link?.socket && t.link.socket !== socket) throw new Error(`${t.id} lives in another herdr session. Open the board there.`);
+    if (opts.worktree === true || opts.worktree === false) t.worktreeMode = opts.worktree ? "own" : "none";
+    if (opts.base === "fresh" || opts.base === "head") t.base = opts.base;
+    // Work that already landed and was cleaned up starts a new round in a fresh worktree, never in your checkout.
+    if (t.cleaned || (t.stage === "done" && t.worktree && !fs.existsSync(t.worktree))) {
+      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "handled", "session", "said", "summary", "stat", "kept", "exitedAt", "repoCfg"]) delete t[k];
+      t.link = {};
+    }
+    t.agent = S.choices(t).agent || "claude";
+    t.app = t.agent;
+    t.stage = "queued"; t.queuedAt = Date.now(); t.msg = ""; t.kind = undefined; t.seen = false; t.since = Date.now();
+    t.link = { ...(t.link || {}), socket };
+    t.mergeIntent = null; t.requireApproval = t.requireApproval || !!t.review; t.failure = null; t.expectedWake = null; t.turnOpen = false;
+    if (t.review) t.review = { ...t.review, stale: true };
+    t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0;
+  });
+  F.labelPane(t, null);
+  startQueued(socket);
+  return S.get(t.id);
+}
+// Start queued tasks while slots are free. Counting and claiming happen under one global lock, so two passes cannot
+// both take the last slot. A turn the human started in an agent's terminal counts toward the total.
+export function startQueued(socket = currentSocket()) {
+  const started = [];
+  S.withLock("slots", () => {
+    const all = S.list();
+    let busy = all.filter((t) => S.SLOT_STAGES.includes(t.stage) && !t.autoMerge).length; // a remembered auto-merge runs nothing
+    const waiting = all.filter((t) => t.stage === "queued" && t.link?.socket === socket).sort((a, b) => (a.queuedAt || 0) - (b.queuedAt || 0));
+    for (const w of waiting) {
+      if (busy >= S.config().max) break;
+      const t = S.update(w.id, (t) => { if (t.stage !== "queued") return false; t.stage = "starting"; t.msg = ""; });
+      if (t.stage !== "starting") continue;
+      busy++;
+      started.push(t.id);
+    }
+  }, { waitMs: 5000 });
+  for (const id of started) spawnRunner("delegate", id);
+  return started;
+}
+
+// ---- talking to the agent --------------------------------------------------------------------------------------------
+// A reply from the board is a human turn: it re-arms the pipeline, revokes an approval, cancels a pending
+// auto-merge and marks the old review stale, exactly as typing in the agent's own terminal does.
+export function tell(id, text, { keepIntent = false } = {}) {
+  const cur = S.find(id);
+  S.assertUnarchived(cur);
+  const words = String(text || "").trim();
+  if (!words) throw new Error("Nothing to send.");
+  F.assertLive(cur);
+  if (cur.stage === "merging" && runnerAlive(cur) && !cur.autoMerge) throw new Error("Wait for the merge to finish before replying.");
+  F.cancelAutoMerge(cur); // a failure sends nothing and keeps the draft
+  const live = F.liveOf(cur, F.readSession(cur.link.socket));
+  if (live.gone || live.status == null) { // the agent has exited: start it again, with the words waiting for it
+    S.queueText(cur.id, words);
+    S.update(cur.id, (t) => rearm(t, keepIntent));
+    spawnRunner("restart", cur.id);
+    return say(S.get(cur.id), "The agent had exited: starting it again with your message.");
+  }
+  const t = S.update(cur.id, (t) => rearm(t, keepIntent));
+  F.labelPane(t, null);
+  const how = F.deliver(t, words);
+  return say(S.get(t.id), how === "queued" ? "queued: go in to answer its dialog first" : "Sent to the agent");
+}
+// What every human-started turn does to a task.
+export function rearm(t, keepIntent = false) {
+  t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.selfBlocked = null;
+  if (!keepIntent) { if (t.mergeIntent || t.stage === "approval") t.requireApproval = true; t.mergeIntent = null; }
+  if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
+  t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0;
+  t.stage = "working"; t.msg = ""; t.kind = undefined; t.watch = null; t.app = t.agent || t.app; t.seen = false; t.since = Date.now(); t.mergeFailed = false;
+}
+// Stop: the stage is set first and the pane's state_change_seq recorded, then the interrupt key is sent, so a late
+// hook cannot undo the stop.
+export function stop(id) {
+  const cur = S.find(id);
+  S.assertUnarchived(cur);
+  if (cur.stage === "progress") return S.update(cur.id, { stage: "todo", app: null, msg: "" });
+  if (!F.isAgentTask(cur) || cur.stage === "queued") return S.update(cur.id, (t) => { if (!AGENT_STAGES.includes(t.stage)) throw new Error(`${t.id} is not working.`); t.stage = F.isAgentTask(t) ? "stopped" : "todo"; if (!F.isAgentTask(t)) t.app = null; t.msg = ""; });
+  let a = null;
+  try { F.assertLive(cur); a = F.h(cur).agentGet(cur.link.pane); } catch {}
+  const t = S.update(cur.id, (t) => {
+    t.stage = "stopped"; t.stopSeq = a?.state_change_seq ?? t.last?.seq ?? 0; t.sawIdleAfterStop = false;
+    t.expectedWake = null; t.turnOpen = false; t.msg = ""; t.watch = null; t.mergeIntent = null;
+  });
+  if (t.runner && t.runner.pid !== process.pid && S.pidAlive(t.runner.pid)) { try { process.kill(-t.runner.pid, "SIGTERM"); } catch { try { process.kill(t.runner.pid, "SIGTERM"); } catch {} } }
+  if (a && ["working", "blocked", "unknown"].includes(a.agent_status)) { try { F.h(t).agentKeys(t.link.pane, interruptKey(t.agent)); } catch {} }
+  if (t.link.reviewer?.pane) F.h(t).paneClose(t.link.reviewer.pane);
+  F.labelPane(t, null);
+  return S.get(t.id);
+}
+
+// ---- the finish line's keys -------------------------------------------------------------------------------------------
+// Approve: the one decision that ships finished work. An agent's own request for permission gets a yes instead.
+export function approve(id) {
+  const cur = S.find(id);
+  S.assertUnarchived(cur);
+  if (cur.stage === "asks" && cur.kind === "permission") return tell(cur.id, "Yes, go ahead.");
+  if (cur.stage !== "approval") throw new Error(`${cur.id} is not waiting for an approval to merge.`);
+  const t = S.update(cur.id, (t) => {
+    if (t.stage !== "approval") throw new Error(`${t.id} is not waiting for an approval to merge.`);
+    if (runnerAlive(t)) throw new Error(`${t.id} is busy. Try again in a moment.`);
+    t.stage = "merging"; t.msg = "merging"; t.requireApproval = false; t.since = Date.now(); t.mergeFailed = false;
+    t.mergeIntent = { approvedAt: Date.now(), repairs: t.mergeIntent?.repairs || 0, verifiedHead: t.reviewedHead || null };
+  });
+  F.labelPane(t, null);
+  spawnRunner("land", t.id);
+  return say(t, `${t.id}: approved, merging`);
+}
+export const reviewFindings = (rv) => `${rv.text}${rv.problems && rv.problems.length ? `\n\nProblems it found:\n${rv.problems.map((p) => `- ${p}`).join("\n")}` : ""}`;
+export const reviewMessage = (rv) => `A reviewer went through your change and rated it ${rv.score} out of 5.\n\n${reviewFindings(rv)}\n\nAddress these, then finish again.`;
+// Hand the reviewer's findings to the working agent. By hand any time; by itself when reviewAuto is on.
+export function sendReview(id) {
+  const cur = S.find(id);
+  S.assertUnarchived(cur);
+  const rv = cur.review;
+  if (!rv || !rv.text) throw new Error(`${cur.id} has no review to send.`);
+  if (rv.score >= 5) throw new Error(`${cur.id} was rated 5 out of 5: there is nothing to send back.`);
+  const out = tell(cur.id, reviewMessage(rv));
+  S.update(cur.id, (t) => { t.reviewRounds = (cur.reviewRounds || 0) + 1; });
+  return say(out.task, `${cur.id}: review sent to the agent`);
+}
+// Send the saved error, not stale review feedback, to the task's agent.
+export const canSendError = (t) => (t?.stage === "nosummary" || (t?.stage === "failed" && !t.failure?.auth)) && F.isAgentTask(t) && !t.archivedAt;
+export function sendError(id) {
+  const cur = S.find(id);
+  S.assertUnarchived(cur);
+  if (cur.stage === "nosummary") { const out = tell(cur.id, `You stopped without writing your closing note. Continue the task where you left off. ${F.noteRule(cur)}`); return say(out.task, `${cur.id}: told the agent to continue`); }
+  if (!canSendError(cur)) throw new Error(`${cur.id} has no agent error to send. Login blockers need the human first.`);
+  const why = cur.failure?.detail || cur.msg || "No details were saved.";
+  const out = tell(cur.id, `This task ran into an error:\n\n${cur.failure?.title ? `${cur.failure.title}\n\n` : ""}${why}\n\nInvestigate and fix the cause, then finish again. Run the checks before finishing. If a login, permission or human decision is needed, report blocked instead of retrying it yourself.`);
+  S.update(cur.id, (t) => { if (t.failure) t.failure = { ...t.failure, sentAt: Date.now() }; });
+  return say(out.task, `${cur.id}: error sent to the agent`);
+}
+// The failure a task shows, with what to do next. An ordinary request for merge approval is not a failure.
+export function failureOf(t) {
+  const f = t.failure || t.prFailure;
+  if (f) return !f.remote && t.prFailure && t.failure && !String(f.detail || "").includes(t.prFailure.detail) ? { ...f, detail: `${f.detail}\n\nPull request blocker:\n${t.prFailure.detail}` } : f;
+  if (t.stage === "nosummary") return { stage: "agent", title: "Stopped without a summary", detail: t.msg || "The agent stopped without writing its closing note.", agentCanFix: true, plain: true, next: "ctrl+r tells the agent to continue; ctrl+y finishes anyway, with what is on its screen as the summary." };
+  return null;
+}
+// ctrl+g: send the failure details to the task's own agent. Never approves a merge.
+export function sendFailure(id) {
+  const cur = S.find(id);
+  S.assertUnarchived(cur);
+  const f = failureOf(cur);
+  if (!f) throw new Error(`${cur.id} has no failure details to send.`);
+  if (!f.agentCanFix) throw new Error(f.next || "This needs the human first.");
+  if (cur.stage === "merging" && runnerAlive(cur)) throw new Error("Wait for the merge to finish before sending repair details.");
+  if (f.sentAt && cur.stage === "working") throw new Error("These details are already with the agent.");
+  const mergeRetry = f.phase === "sync" && !!cur.mergeIntent;
+  const text = `The workflow is blocked: ${f.title}\n\n${f.detail}\n\nNext step: ${f.next || "Investigate and fix it."}\n\nResolve what you safely can in your own working folder, run the checks, then finish again so the board continues its review and approval workflow. This is not permission to ship, delete work, alter the human's checkout, or bypass a login or required approval. If you need the human, report blocked and explain what is needed.${mergeRetry ? " The human already approved this merge. After this main-branch conflict repair, the board rechecks, reviews and retries that approved merge; do not push or merge into the human's branch yourself." : ""}`;
+  F.assertLive(cur);
+  F.cancelAutoMerge(cur);
+  if (mergeRetry) {
+    // The plugin's own turn: the approved merge survives the repair.
+    const how = F.sendOwn(cur.id, text, { reason: "conflict", keepIntent: true, patch: { mergeIntent: { ...cur.mergeIntent, repairs: (cur.mergeIntent.repairs || 0) + 1 }, failure: { ...f, sentAt: Date.now() } } });
+    return say(S.get(cur.id), how === "queued" ? "queued: go in to answer its dialog first" : `${cur.id}: failure details sent to the agent`);
+  }
+  const out = tell(cur.id, text);
+  S.update(cur.id, (t) => { const cf = t.failure || t.prFailure; if (cf) { const sent = { ...cf, sentAt: Date.now() }; if (t.failure) t.failure = sent; else t.prFailure = sent; } });
+  return say(out.task, out.msg.startsWith("queued") ? out.msg : `${cur.id}: failure details sent to the agent`);
+}
+// "Finish anyway": run the pipeline on a turn that left no closing note, with the screen text as the summary.
+export function finishAnyway(id) {
+  const cur = S.find(id);
+  S.assertUnarchived(cur);
+  if (cur.stage !== "nosummary") throw new Error(`${cur.id} did not stop without a summary.`);
+  const t = S.update(cur.id, (t) => { if (t.stage !== "nosummary" || runnerAlive(t)) throw new Error(`${t.id} is busy.`); t.stage = "checking"; t.msg = ""; t.since = Date.now(); });
+  spawnRunner("pipeline", t.id);
+  return say(t, `${t.id}: finishing with what is on its screen`);
+}
+export function details(id) {
+  const t = S.find(id);
+  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null };
+}
+
+// ---- archive, restore, clear -----------------------------------------------------------------------------------------
+// Archive closes the task's herdr workspace (the agent ends with it) and keeps everything else.
+export function archive(id) {
+  const cur = S.find(id);
+  if (cur.archivedAt) return cur;
+  let workspace = null, socket = null;
+  const t = S.update(cur.id, (t) => {
+    if (t.archivedAt) return false;
+    if (S.SLOT_STAGES.includes(t.stage) || t.stage === "queued" || runnerAlive(t) || t.autoMerge || t.mergeIntent) throw new Error(`${t.id} is still active. Stop its agent first; an automatic merge must finish first.`);
+    t.archivedAt = Date.now();
+    if (t.link?.workspace && t.link.ownsWorkspace) { workspace = t.link.workspace; socket = t.link.socket; }
+  });
+  if (workspace && socket === currentSocket()) { try { herdr(socket).workspaceClose(workspace); } catch {} }
+  return t;
+}
+// Restore changes nothing in herdr and starts nothing.
+export function restore(id) { return S.update(S.find(id).id, (t) => { t.archivedAt = null; }); }
+// Clear: stop the agent, run teardown, remove the worktree without force, delete the branch only if merged.
+// A checkout with unsaved or unmerged work is kept and the caller is told where.
+export async function clear(id) {
+  const cur = S.find(id);
+  if (S.SLOT_STAGES.includes(cur.stage) && F.isAgentTask(cur) && !cur.archivedAt) { try { stop(cur.id); } catch {} }
+  const { cleanup } = await import("./land.js");
+  const t = S.get(cur.id);
+  if (!t) return { id: cur.id, kept: [] };
+  if (runnerAlive(t)) { try { process.kill(t.runner.pid, "SIGTERM"); } catch {} }
+  const kept = await cleanup(t, { deleteBranch: "merged" }); // herdr and git calls: never under the task lock
+  S.withTaskLock(cur.id, () => S.remove(cur.id), { waitMs: 5000 });
+  return { id: cur.id, kept };
+}
+
+// ---- the human's own tasks -------------------------------------------------------------------------------------------
+export function startHuman(id) { return report(id, { state: "working" }); }
+export function existsWorktree(t) { return !!t.worktree && fs.existsSync(t.worktree); }

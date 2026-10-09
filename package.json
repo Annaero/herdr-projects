@@ -1,0 +1,15 @@
+{
+  "name": "herdr-superwork",
+  "version": "0.1.0",
+  "description": "A work board for herdr: one list of tasks, each delegated one running as an ordinary herdr agent.",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "herdr-superwork": "bin/herdr-superwork.js" },
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@earendil-works/pi-tui": "1.1.0"
+  }
+}
