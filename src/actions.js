@@ -25,7 +25,9 @@ export function report(id, { state, kind, msg, title, progress, asAgent = false 
   const cur = S.find(id);
   if (title && !state) return rename(cur.id, title);
   if (!["idle", "working", "blocked", "done", "error"].includes(state)) throw new Error("state must be one of: idle, working, blocked, done, error");
-  if (asAgent && state !== "blocked") throw new Error("Do not report done yourself. Write your closing note and stop; the board runs the check and marks it done. (Use --state blocked if you need the human.)");
+  if (asAgent && state !== "blocked") throw new Error("Do not report done yourself. Finish your work and stop; the board runs the check and marks it done. (Use --state blocked if you need the human.)");
+  // "Mark it idle" on a task whose agent is working means "stop it": the same stop as the stop command.
+  if (state === "idle" && !asAgent && F.isAgentTask(cur) && AGENT_STAGES.includes(cur.stage)) return stop(cur.id);
   const delegated = F.isAgentTask(cur) && AGENT_STAGES.concat(["asks", "nosummary", "approval", "reviewneeds", "failed"]).includes(cur.stage);
   const t = S.update(cur.id, (t) => {
     S.assertUnarchived(t);
@@ -105,6 +107,12 @@ export function tell(id, text, { keepIntent = false } = {}) {
   S.assertUnarchived(cur);
   const words = String(text || "").trim();
   if (!words) throw new Error("Nothing to send.");
+  // A reply to a task that never had an agent starts one with that message, through the normal delegation path, so
+  // the slot limit and the queue apply.
+  if (!F.isAgentTask(cur) && ["todo", "progress"].includes(cur.stage)) {
+    S.queueText(cur.id, words);
+    return say(delegate(cur.id), `${cur.id}: an agent is starting on it with your message`);
+  }
   F.assertLive(cur);
   if (cur.stage === "merging" && runnerAlive(cur) && !cur.autoMerge) throw new Error("Wait for the merge to finish before replying.");
   F.cancelAutoMerge(cur); // a failure sends nothing and keeps the draft
@@ -123,6 +131,7 @@ export function tell(id, text, { keepIntent = false } = {}) {
 // What every human-started turn does to a task.
 export function rearm(t, keepIntent = false) {
   t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.selfBlocked = null;
+  if (t.failure?.auth) t.failure = null; // a reply or a retry after a login problem is how "fixed" is said
   if (!keepIntent) { if (t.mergeIntent || t.stage === "approval") t.requireApproval = true; t.mergeIntent = null; }
   if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
   t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0;
@@ -138,10 +147,10 @@ export function stop(id) {
   let a = null;
   try { F.assertLive(cur); a = F.h(cur).agentGet(cur.link.pane); } catch {}
   const t = S.update(cur.id, (t) => {
-    t.stage = "stopped"; t.stopSeq = a?.state_change_seq ?? t.last?.seq ?? 0; t.sawIdleAfterStop = false;
+    t.stage = "stopped"; t.stoppedAt = Date.now(); t.stopSeq = a?.state_change_seq ?? t.last?.seq ?? 0; t.sawIdleAfterStop = false;
     t.expectedWake = null; t.turnOpen = false; t.msg = ""; t.watch = null; t.mergeIntent = null;
   });
-  if (t.runner && t.runner.pid !== process.pid && S.pidAlive(t.runner.pid)) { try { process.kill(-t.runner.pid, "SIGTERM"); } catch { try { process.kill(t.runner.pid, "SIGTERM"); } catch {} } }
+  if (t.runner && t.runner.pid !== process.pid && S.markerAlive(t.runner)) { try { process.kill(-t.runner.pid, "SIGTERM"); } catch { try { process.kill(t.runner.pid, "SIGTERM"); } catch {} } }
   if (a && ["working", "blocked", "unknown"].includes(a.agent_status)) { try { F.h(t).agentKeys(t.link.pane, interruptKey(t.agent)); } catch {} }
   if (t.link.reviewer?.pane) F.h(t).paneClose(t.link.reviewer.pane);
   F.labelPane(t, null);
@@ -179,11 +188,14 @@ export function sendReview(id) {
   return say(out.task, `${cur.id}: review sent to the agent`);
 }
 // Send the saved error, not stale review feedback, to the task's agent.
-export const canSendError = (t) => (t?.stage === "nosummary" || (t?.stage === "failed" && !t.failure?.auth)) && F.isAgentTask(t) && !t.archivedAt;
+const loginOf = (t) => (t?.stage === "failed" && t.failure?.auth) || (t?.stage === "asks" && t.kind === "auth");
+// An agent's own login problem can be retried once the human has logged in; a login problem of the workflow (a
+// failed push, a check) is retried by finishing again.
+export const canSendError = (t) => (t?.stage === "nosummary" || (t?.stage === "failed" && (!t.failure?.auth || t.failure.stage === "agent"))) && F.isAgentTask(t) && !t.archivedAt;
 export function sendError(id) {
   const cur = S.find(id);
   S.assertUnarchived(cur);
-  if (cur.stage === "nosummary") { const out = tell(cur.id, `You stopped without writing your closing note. Continue the task where you left off. ${F.noteRule(cur)}`); return say(out.task, `${cur.id}: told the agent to continue`); }
+  if (cur.stage === "nosummary" || (cur.stage === "failed" && cur.failure?.auth && cur.failure.stage === "agent")) { const out = tell(cur.id, F.withTail(cur, "You stopped before the work was finished. Continue the task where you left off.")); return say(out.task, `${cur.id}: told the agent to continue`); }
   if (!canSendError(cur)) throw new Error(`${cur.id} has no agent error to send. Login blockers need the human first.`);
   const why = cur.failure?.detail || cur.msg || "No details were saved.";
   const out = tell(cur.id, `This task ran into an error:\n\n${cur.failure?.title ? `${cur.failure.title}\n\n` : ""}${why}\n\nInvestigate and fix the cause, then finish again. Run the checks before finishing. If a login, permission or human decision is needed, report blocked instead of retrying it yourself.`);
@@ -192,6 +204,8 @@ export function sendError(id) {
 }
 // The failure a task shows, with what to do next. An ordinary request for merge approval is not a failure.
 export function failureOf(t) {
+  // A login problem comes first: older failure details are not shown or sent while the agent cannot work.
+  if (loginOf(t)) return { stage: "agent", title: "Needs a login", detail: t.failure?.auth ? t.failure.detail : t.msg || "The agent needs a login, token or credential.", auth: true, agentCanFix: false, at: t.failure?.at, next: "Fix the login or credential, then reply, or press ctrl+r to tell the agent to continue." };
   const f = t.failure || t.prFailure;
   if (f) return !f.remote && t.prFailure && t.failure && !String(f.detail || "").includes(t.prFailure.detail) ? { ...f, detail: `${f.detail}\n\nPull request blocker:\n${t.prFailure.detail}` } : f;
   if (t.stage === "nosummary") return { stage: "agent", title: "Stopped without a summary", detail: t.msg || "The agent stopped without writing its closing note.", agentCanFix: true, plain: true, next: "ctrl+r tells the agent to continue; ctrl+y finishes anyway, with what is on its screen as the summary." };
@@ -241,6 +255,7 @@ export function archive(id) {
   let workspace = null, socket = null;
   const t = S.update(cur.id, (t) => {
     if (t.archivedAt) return false;
+    if (runnerAlive(t) && t.runner.job === "cleanup") throw Object.assign(new Error(`${t.id} is busy cleaning up after its merge. Try again in a moment.`), { code: "BUSY" });
     if (S.SLOT_STAGES.includes(t.stage) || t.stage === "queued" || runnerAlive(t) || t.autoMerge || t.mergeIntent) throw new Error(`${t.id} is still active. Stop its agent first; an automatic merge must finish first.`);
     t.archivedAt = Date.now();
     if (t.link?.workspace && t.link.ownsWorkspace) { workspace = t.link.workspace; socket = t.link.socket; }
@@ -259,6 +274,8 @@ export async function clear(id) {
   const t = S.get(cur.id);
   if (!t) return { id: cur.id, kept: [] };
   if (runnerAlive(t)) { try { process.kill(t.runner.pid, "SIGTERM"); } catch {} }
+  // Removing the worktree is a clean-up like the one after a merge: it holds a runner marker while it runs.
+  try { S.update(cur.id, (t) => { t.runner = S.marker({ job: "cleanup" }); }, { waitMs: 5000 }); } catch {}
   const kept = await cleanup(t, { deleteBranch: "merged" }); // herdr and git calls: never under the task lock
   S.withTaskLock(cur.id, () => S.remove(cur.id), { waitMs: 5000 });
   return { id: cur.id, kept };

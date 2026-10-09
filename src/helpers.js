@@ -7,23 +7,35 @@ import { spawn } from "node:child_process";
 import * as S from "./store.js";
 import * as F from "./flow.js";
 import { herdr } from "./herdr.js";
-import { adapter } from "./agents.js";
+import { adapter, installed } from "./agents.js";
 import { userEnv } from "./runner.js";
 import { spawnLoose } from "./housekeeping.js";
 
 // Tests replace the model call with a stand-in: a JSON argv; the prompt arrives on stdin.
 const override = () => { try { const a = JSON.parse(process.env.HERDR_SUPERWORK_HELPER_CMD || "null"); return Array.isArray(a) && a.length ? a : null; } catch { return null; } };
+// The Coordinator runs the natural-language box. It defaults to "the same as the working agent" (agent, model,
+// effort) and must be restricted to herdr-superwork commands by the program's own allow-list. A kind that cannot be
+// restricted cannot be the Coordinator: when it was only inherited from `agent`, Claude Code takes over on its own
+// default model and effort (a model name set for another kind is not passed to it); when it was chosen explicitly,
+// the box files what you type word for word.
+export function coordinator() {
+  const c = S.config();
+  const can = (k) => !!adapter(k).oneShot && !!adapter(k).allow && installed(k);
+  if (c.coordinator) return can(c.coordinator) ? { kind: c.coordinator, model: c.coordinatorModel, effort: c.coordinatorEffort } : null;
+  if (can(c.agent)) return { kind: c.agent, model: c.coordinatorModel || c.model, effort: c.coordinatorEffort || c.effort };
+  return can("claude") ? { kind: "claude", model: c.coordinatorModel && c.agent === "claude" ? c.coordinatorModel : "", effort: "", fallback: c.agent } : null;
+}
+export const coordinatorLine = () => { const k = coordinator(); return k ? `${k.kind} · ${k.model || "default model"} · ${k.effort || "default effort"}${k.fallback ? ` (${k.fallback} cannot be limited to board commands)` : ""}` : "off: what you type is filed word for word"; };
 function helperCommand({ prompt, system, allow = false }) {
   const o = override();
   if (o) return { command: o[0], args: o.slice(1), stdin: `${system ? `${system}\n\n` : ""}${prompt}` };
+  if (allow) { const k = coordinator(); return k ? adapter(k.kind).oneShot({ model: k.model, effort: k.effort, prompt, system, allow: true }) : null; }
   const c = S.config();
-  const a = adapter(c.helper);
-  if (!a.oneShot || (allow && !a.allow)) return null;
-  return a.oneShot({ model: c.helperModel, prompt, system, allow });
+  const a = adapter(c.watcherAgent);
+  return a.oneShot ? a.oneShot({ model: c.watcherModel, prompt, system }) : null;
 }
-export const helpersReady = () => !!override() || !!adapter(S.config().helper).oneShot;
-// The dispatcher must be restricted to herdr-superwork commands by the agent's own allow-list flag.
-export const dispatcherReady = () => !!override() || (!!adapter(S.config().helper).oneShot && !!adapter(S.config().helper).allow);
+export const helpersReady = () => !!override() || !!adapter(S.config().watcherAgent).oneShot;
+export const dispatcherReady = () => !!override() || !!coordinator();
 // Helper calls are detached from the board's terminal (own session, no tty), so herdr does not mistake them for an
 // agent in the board's pane.
 function runHelper(cmd, { cwd, env = {}, timeoutMs = 45000 }, done) {
@@ -41,10 +53,9 @@ function runHelper(cmd, { cwd, env = {}, timeoutMs = 45000 }, done) {
 // plugin command or a task's agent.
 function helperEnv() {
   const env = { ...userEnv() };
-  const shim = path.join(S.dataDir(), "bin");
-  try { if (!fs.existsSync(path.join(shim, "herdr-superwork"))) { fs.mkdirSync(shim, { recursive: true }); fs.symlinkSync(S.BIN, path.join(shim, "herdr-superwork")); } } catch {}
-  env.PATH = `${shim}:${env.PATH || ""}`;
+  env.PATH = `${path.dirname(F.shim())}:${env.PATH || ""}`;
   for (const k of ["HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID", "HERDR_PLUGIN_ID", "HERDR_PLUGIN_CONTEXT_JSON", "HERDR_PLUGIN_EVENT", "HERDR_PLUGIN_EVENT_JSON", "HERDR_PLUGIN_ENTRYPOINT_ID"]) delete env[k];
+  env.HERDR_SUPERWORK_NO_KEEPER = "1"; // a helper's commands never start the keeper
   return env;
 }
 
@@ -67,7 +78,8 @@ export function watchTick(tasks, now = Date.now()) {
     let screen = "";
     try { screen = herdr(t.link.socket).agentRead(pane, { source: "visible" }); } catch { continue; } // never a deep read: it would scroll a working agent's view
     const lines = screen.split("\n").map((l) => l.trimEnd()).filter((l) => l.trim()).slice(-40).join("\n").slice(-5000);
-    if (!lines) continue;
+    if (!lines || lines === w.lines) { w.at = now; watching.set(t.id, w); continue; } // an unchanged screen costs no call
+    w.lines = lines;
     const prompt = [
       role === "reviewer" ? "You are watching an adversarial reviewer check finished work. Write its status for a dashboard. Estimate progress through this review only, not through the agent's task." : "You are watching a coding agent work on a task. Write its status for a dashboard.",
       `Task: ${t.title}`,
@@ -89,7 +101,10 @@ export function watchTick(tasks, now = Date.now()) {
         // A late answer cannot overwrite a newer turn or its result.
         const cur = S.update(t.id, (c) => { if (c.stage !== stage || (c.armedAt ?? null) !== armedAt || S.choices(c).watcher === "off") return false; c.watch = watch; });
         // Also to herdr as pane metadata tokens, so herdr's own sidebar can show it.
-        if (cur.watch === watch || cur.watch?.at === watch.at) herdr(t.link.socket).metadata(pane, ["--token", `summary=${watch.msg}`, "--token", `progress=${watch.progress}%`, "--ttl-ms", "120000"]);
+        if (cur.watch === watch || cur.watch?.at === watch.at) {
+          herdr(t.link.socket).metadata(pane, ["--token", `summary=${watch.msg}`, "--token", `progress=${watch.progress}%`, "--ttl-ms", "120000"]);
+          if (t.link.workspace && t.link.ownsWorkspace) { try { herdr(t.link.socket).call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", "--token", `summary=${watch.msg}`, "--ttl-ms", "120000"]); } catch {} }
+        }
       } catch {}
     });
     watching.set(t.id, w);
@@ -97,13 +112,13 @@ export function watchTick(tasks, now = Date.now()) {
 }
 
 // ---- the dispatcher -----------------------------------------------------------------------------------------------------
-export const DISPATCH = `You are the dispatcher of a work board. The human typed one instruction. Carry it out by running the herdr-superwork command with your shell tool, then stop. There is no conversation: never ask a question, make sensible choices instead.
+export const DISPATCH = `You are the Coordinator of a work board. The human typed one instruction. Carry it out by running the herdr-superwork command with your shell tool, then stop. There is no conversation: never ask a question, make sensible choices instead.
 - Most instructions describe new work. File it as a task: herdr-superwork add "<short title: a few words, no trailing period>" --desc "<the full description in your own clear words; Markdown is fine; keep every requirement the human gave>". One task per distinct piece of work. The description says only what to build or do: never put handling instructions in it (delegating, reviewers, models, settings); act on those with the command instead.
 - If they ask to start it, delegate it, or hand it to an agent, also run: herdr-superwork delegate <id>. Agents get their own git worktree by default; add --no-worktree only if the human says to work in place, in their checkout, or without a worktree. Worktrees start from the remote's default branch; add --base head if the human says to build on their current branch or their unpushed work.
-- Instructions can also be about existing tasks: delegate them, "herdr-superwork tell <id> <text>" to say something to their agents, or "herdr-superwork report <id> --state <idle|working|done> [--msg <one line>]" to say where a task stands (the human's own tasks: working means in progress). Use "herdr-superwork clear <id>" only when the human plainly asks to delete or remove something. Use "archive <id>" when asked to archive or hide a task (kept, not deleted) and "restore <id>" to bring it back. Archived tasks are read-only: restore them before changing or starting them. "herdr-superwork list --archived" shows the archive; "list --query <text>" searches everything.
-- Who does the work can be chosen per task: the working agent (--agent <kind such as claude or codex>, --model, --effort), the reviewer that attacks finished work and rates it 1 to 5 (--reviewer <kind>, or --reviewer off for none; reviewerModel, reviewerEffort, artifacts, serve), the watcher (watcher on or off), and the review loop: reviewAuto (true: a rating below 5/5 goes back to the agent by itself), review (repos, all or none), rounds, conflictAuto. If the human chooses any of these for a particular task ("with codex", "on high effort", "no reviewer for this one"), pass it to delegate as --<name> <value>, or run "herdr-superwork config <name> <value> --id <id>" if it is not being delegated now. If they choose one in general, run "herdr-superwork config <name> <value>".
+- Instructions can also be about existing tasks: delegate them, "herdr-superwork tell <id> <text>" to say something to their agents, or "herdr-superwork stop <id>" to stop a task's agent (it interrupts the agent at once), or "herdr-superwork report <id> --state <idle|working|done> [--msg <one line>] [--progress <0 to 100>]" to say where a task stands (the human's own tasks: working means in progress, and --progress shows how far along it is). "herdr-superwork tell <id> <text>" on a task that never had an agent puts one on it with that message. Use "herdr-superwork clear <id>" only when the human plainly asks to delete or remove something. Use "archive <id>" when asked to archive or hide a task (kept, not deleted) and "restore <id>" to bring it back. Archived tasks are read-only: restore them before changing or starting them. "herdr-superwork list --archived" shows the archive; "list --query <text>" searches everything.
+- Who does the work can be chosen per task: the working agent (--agent <kind such as claude or codex>, --model, --effort), the reviewer that attacks finished work and rates it 1 to 5 (--reviewer <kind>, or --reviewer off for none; reviewerModel, reviewerEffort, artifacts, serve), the Watcher that writes the "doing now" line (watcher on or off), and the review loop: reviewAuto (true: a rating below 5/5 goes back to the agent by itself), review (repos, all or none), rounds, conflictAuto. If the human chooses any of these for a particular task ("with codex", "on high effort", "no reviewer for this one"), pass it to delegate as --<name> <value>, or run "herdr-superwork config <name> <value> --id <id>" if it is not being delegated now. If they choose one in general, run "herdr-superwork config <name> <value>".
 - If they ask to send the review back, or to have the agent fix what the reviewer found: herdr-superwork review <id>. To send a saved error back: herdr-superwork retry <id>. To send failure details: herdr-superwork fix <id>.
-- If they ask to change a setting (default agent, model, effort, the watcher, worktrees, the review loop, pull requests, how work is merged (squash, merge or rebase), cleanup, how many agents at once), run "herdr-superwork config <key> <value>". "herdr-superwork config" shows the settings.
+- If they ask to change a setting (default agent, model, effort; the Coordinator, which is you: coordinator, coordinatorModel, coordinatorEffort; the Watcher: watcher, watcherAgent, watcherModel; worktrees, the review loop, pull requests, how work is merged (squash, merge or rebase), cleanup, how many agents at once), run "herdr-superwork config <key> <value>". "herdr-superwork config" shows the settings.
 - If they approve finished work ("approve it", "merge the poem one", "ship it"): herdr-superwork approve <id>. Only when they plainly say so.
 - To change a task's title: herdr-superwork report <id> --title "<new title>". To write or change its description: herdr-superwork describe <id> "<the full new text>".
 - Do nothing beyond what was asked. Do not do the work yourself.
@@ -123,12 +138,12 @@ export function startDispatch(cwd, text, delegate, aboutId) {
   const d = S.newDispatch(text, { cwd, delegate: !!delegate, about: aboutId || null });
   if (process.env.HERDR_SUPERWORK_INLINE === "1") { (globalThis.__swJobs ||= []).push(["dispatch", d.id, []]); return d; }
   const pid = spawnLoose(["run", "dispatch", d.id]);
-  S.setDispatch(d.id, { pid });
+  S.setDispatch(d.id, { pid, pidStart: S.procStart(pid) });
   return d;
 }
 export function stopDispatch(j) {
   const d = S.getDispatch(j.id);
-  for (const pid of [d?.helperPid, d?.pid]) if (pid && S.pidAlive(pid)) { try { process.kill(-pid, "SIGTERM"); } catch { try { process.kill(pid, "SIGTERM"); } catch {} } }
+  for (const [pid, start] of [[d?.helperPid, d?.helperStart], [d?.pid, d?.pidStart]]) if (S.markerAlive({ pid, start })) { try { process.kill(-pid, "SIGTERM"); } catch { try { process.kill(pid, "SIGTERM"); } catch {} } }
   S.clearDispatch(j.id);
 }
 export function dispatchJob(id) {
@@ -139,7 +154,7 @@ export function dispatchJob(id) {
     const { system, prompt } = dispatchPrompt(cwd, d.text, d.delegate, d.about);
     const cmd = helperCommand({ prompt, system, allow: true });
     const last = (t) => String(t || "").trim().split("\n").filter((l) => l.trim()).pop() || "";
-    if (!cmd) { S.setDispatch(id, { state: "error", msg: `the helper "${S.config().helper}" cannot be the dispatcher` }); return resolve(); }
+    if (!cmd) { S.setDispatch(id, { state: "error", msg: `"${S.config().coordinator || S.config().agent}" cannot be the Coordinator: it cannot be limited to board commands` }); return resolve(); }
     // An instruction that has not finished in two minutes is stuck: stop it and say so.
     const child = runHelper(cmd, { cwd, timeoutMs: 120000 }, (code, out, err) => {
       if (S.getDispatch(id)) { // not stopped meanwhile
@@ -148,7 +163,7 @@ export function dispatchJob(id) {
       }
       resolve();
     });
-    S.setDispatch(id, { helperPid: child.pid, pid: d.pid || process.pid });
+    S.setDispatch(id, { helperPid: child.pid, helperStart: S.procStart(child.pid), pid: d.pid || process.pid, pidStart: d.pid ? d.pidStart : S.procStart(process.pid) });
   });
 }
 // For another machine's board: run one instruction here and answer when it is done.

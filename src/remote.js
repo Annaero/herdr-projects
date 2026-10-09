@@ -59,9 +59,12 @@ const snapshot = (t) => {
   const folder = S.folderOf(t.id);
   const tree = t.worktree || "";
   const c = S.config();
-  return { folder: S.tilde(folder), tree: S.tilde(tree), branch: S.branchOf(tree || folder), choices: S.choices(t), config: { helper: c.helper, helperModel: c.helperModel }, fullAccess: fullAccess(t.agent || S.choices(t).agent), canWorktree: S.canWorktree(folder), worktree: c.worktree };
+  return { folder: S.tilde(folder), tree: S.tilde(tree), branch: S.branchOf(tree || folder), choices: S.choices(t), config: { watcherAgent: c.watcherAgent, watcherModel: c.watcherModel }, fullAccess: fullAccess(t.agent || S.choices(t).agent), canWorktree: S.canWorktree(folder), worktree: c.worktree };
 };
-export const remoteList = () => ({ host: os.hostname(), tasks: F.board({ includeArchived: true }).map((t) => { const { live, ...rest } = t; return { ...rest, snap: snapshot(t) }; }) });
+// `said`, `usage` and `agentVersion` ride along on each task; `version` is this side's plugin version (a machine on
+// an older plugin sends none, and the asking side then knows which requests it would not understand). The `announced`
+// marker is this machine's own and is not sent, nor are pending hook events.
+export const remoteList = () => ({ host: os.hostname(), version: S.VERSION, tasks: F.board({ includeArchived: true }).map((t) => { const { live, announced, events, ...rest } = t; return { ...rest, snap: snapshot(t) }; }) });
 export async function remoteMain([what, payload]) {
   const a = payload ? JSON.parse(Buffer.from(payload, "base64").toString("utf8")) : {};
   const say = (o) => process.stdout.write(JSON.stringify(o) + "\n");
@@ -84,6 +87,9 @@ export async function remoteMain([what, payload]) {
         seen: () => { A.seen(t.id); return ""; },
         stop: () => { A.stop(t.id); return `${t.id}: stopped, idle. ctrl+x again clears the task.`; },
       };
+      // Going into a task from another machine: reopen its space and restart its exited agent here first, with the
+      // same function the local board calls, and answer with the pane to attach to.
+      if (a.action === "reopen") { const D = await import("./delegate.js"); const r = D.reopen(t.id, { restart: true }); return say({ ok: true, msg: "", pane: r.pane.pane_id, hasAgent: r.hasAgent }); }
       if (a.action === "clear") { const out = await A.clear(t.id); return say({ ok: true, msg: out.kept.length ? `${t.id} cleared. Kept, so no work is lost: ${out.kept.join(", ")}` : `${t.id} cleared` }); }
       if (!acts[a.action]) return say({ ok: false, msg: `Unknown action ${a.action}` });
       return say({ ok: true, msg: acts[a.action]() });

@@ -19,7 +19,7 @@ export function show(t, live) {
   const agent = !!t.app && t.app !== t.owner;
   switch (t.stage) {
     case "todo": return out("idle");
-    case "progress": return out("working", { app: t.owner });
+    case "progress": return out("working", { app: t.owner, progress: t.watch?.progress }); // your own task: the progress you reported
     case "done": return out("done");
     case "failed": return t.failure?.auth ? out("blocked", { kind: "auth" }) : out("error");
     case "approval": return out("blocked", { kind: "permission", review: !t.mergeFailed });

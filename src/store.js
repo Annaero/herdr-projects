@@ -47,14 +47,18 @@ export function appendLine(file, value) { fs.mkdirSync(path.dirname(file), { rec
 export function readLines(file) { try { return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)); } catch { return []; } }
 export const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 export const pidAlive = (pid) => { if (!pid) return false; try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; } };
+// A process marker is a pid plus that process's start time, so a pid reused after a reboot is not mistaken for it.
+export const procStart = (pid) => { try { const s = fs.readFileSync(`/proc/${pid}/stat`, "utf8"); return s.slice(s.lastIndexOf(")") + 2).split(" ")[19]; } catch { return null; } };
+export const marker = (extra = {}) => ({ pid: process.pid, start: procStart(process.pid), started: Date.now(), ...extra });
+export const markerAlive = (m) => !!m?.pid && pidAlive(m.pid) && (!m.start || procStart(m.pid) === m.start);
+export const VERSION = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version; } catch { return "0"; } })();
 
 // ---- locks -------------------------------------------------------------------------------------------------------
 // One kernel lock per name (flock). This process keeps the descriptor, so it owns the lock after the helper exits;
 // the kernel releases it when the process ends or crashes, so there are no stale owners to repair.
 const held = new Set();
-export function withLock(name, fn, { waitMs = 2000 } = {}) {
-  const file = path.join(dataDir(), "locks", `${Buffer.from(String(name)).toString("base64url")}.lock`);
-  if (held.has(file)) return fn(); // nested in this process
+const lockFile = (name) => path.join(dataDir(), "locks", `${Buffer.from(String(name)).toString("base64url")}.lock`);
+function takeLock(name, file, waitMs) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const fd = fs.openSync(file, "a");
   try {
@@ -68,9 +72,20 @@ export function withLock(name, fn, { waitMs = 2000 } = {}) {
     if (lock.error?.code === "ENOENT") throw new Error("herdr-superwork needs flock (util-linux) to change tasks safely.");
     if (lock.status === 1) throw Object.assign(new Error(`${name} is busy with another action. Try again in a moment.`), { code: "BUSY" });
     if (lock.status !== 0) throw new Error(`Could not lock ${name}: ${lock.error?.message || String(lock.stderr || "").trim()}`);
-    held.add(file);
-    try { return fn(); } finally { held.delete(file); }
-  } finally { fs.closeSync(fd); }
+    return fd;
+  } catch (e) { fs.closeSync(fd); throw e; }
+}
+export function withLock(name, fn, { waitMs = 2000 } = {}) {
+  const file = lockFile(name);
+  if (held.has(file)) return fn(); // nested in this process
+  const fd = takeLock(name, file, waitMs);
+  held.add(file);
+  try { return fn(); } finally { held.delete(file); fs.closeSync(fd); }
+}
+// A lock held until the returned function is called, or the process ends (the keeper holds one for its whole life).
+export function holdLock(name, { waitMs = 2000 } = {}) {
+  const fd = takeLock(name, lockFile(name), waitMs);
+  return () => { try { fs.closeSync(fd); } catch {} };
 }
 const taskKey = (id) => String(id).split("/").slice(0, 2).join("/");
 export const withTaskLock = (id, fn, opts) => withLock(`task:${taskKey(id)}`, fn, opts);
@@ -82,8 +97,10 @@ export const DEFAULTS = {
   model: "", effort: "",
   reviewer: "codex",      // the reviewer's agent kind; "off" for no review
   reviewerModel: "", reviewerEffort: "",
-  helper: "claude",       // the hidden helper behind the watcher line and the natural-language box
-  helperModel: "claude-haiku-5-5",
+  coordinator: "",        // who runs the natural-language box; empty: the same as the working agent (agent, model, effort)
+  coordinatorModel: "", coordinatorEffort: "",
+  watcherAgent: "claude", // the Watcher: a small model behind the "doing now" line; any kind with a one-shot entry in agents.js
+  watcherModel: "claude-haiku-5-5",
   watcher: "on",          // "off": no status line and no progress guess
   review: "repos",        // what gets reviewed when finished: "repos", "all" or "none"
   artifacts: true,        // the reviewer brings evidence: screenshots, a recording, a link, test output
@@ -99,6 +116,8 @@ export const DEFAULTS = {
   remoteUser: "",
   bell: true,
   max: 4,                 // agents working at once
+  skill: true,            // write a small how-to into each installed agent program's own skills folder, so any chat knows the board
+  theme: "auto",          // the board's colours: "auto" (ask the terminal), "dark" or "light"
   trust: true,            // mark a new task's repo as trusted in the agent's own settings, so no dialog blocks the start
   agentArgs: {},          // per agent kind: extra arguments after `--` for `herdr agent start`; replaces the built-in default
 };
@@ -119,7 +138,8 @@ function coerce(key, value) {
     if (v.toLowerCase() === "default") v = "";
     if (key === "reviewer") v = ["false", "off", "no", "none"].includes(v.toLowerCase()) ? "off" : v.toLowerCase();
     if (key === "watcher") v = ["false", "off", "no", "none"].includes(v.toLowerCase()) ? "off" : "on";
-    if (key === "agent" || key === "helper") { v = v.toLowerCase(); if (v && !/^[a-z][a-z0-9_-]*$/.test(v)) throw new Error(`${key} must be an agent kind such as claude or codex`); }
+    if (key === "theme") { v = v.toLowerCase() || "auto"; if (!["auto", "dark", "light"].includes(v)) throw new Error("theme must be auto, dark or light"); }
+    if (["agent", "coordinator", "watcherAgent"].includes(key)) { v = v.toLowerCase(); if (v && !/^[a-z][a-z0-9_-]*$/.test(v)) throw new Error(`${key} must be an agent kind such as claude or codex`); }
   }
   if (key === "review") { v = REVIEW_WORDS[String(value).trim().toLowerCase()]; if (!v) throw new Error("review must be repos, all or none"); }
   if (key === "worktree" && !["auto", "none"].includes(v)) throw new Error("worktree must be auto or none");
@@ -129,12 +149,17 @@ function coerce(key, value) {
   return v;
 }
 const configFile = () => path.join(configDir(), "config.json");
+// `helper` and `helperModel` were the Watcher's settings before the Coordinator existed: an existing file keeps working.
+const ALIAS = { helper: "watcherAgent", helperModel: "watcherModel" };
 export const config = () => {
-  const c = { ...DEFAULTS, ...(readJson(configFile()) || {}) };
+  const file = readJson(configFile()) || {};
+  const c = { ...DEFAULTS, ...file };
+  for (const [old, now] of Object.entries(ALIAS)) { if (file[old] !== undefined && file[now] === undefined) c[now] = file[old]; delete c[old]; }
   c.review = REVIEW_WORDS[String(c.review)] || "repos";
   return c;
 };
 export function setConfig(key, value) {
+  key = ALIAS[key] || key;
   if (!(key in DEFAULTS)) throw new Error(`Unknown setting "${key}". Settings: ${Object.keys(DEFAULTS).join(", ")}`);
   const now = { ...(readJson(configFile()) || {}) };
   const v = coerce(key, value);
@@ -336,7 +361,7 @@ export function dispatches() {
   try { names = fs.readdirSync(dispatchDir()).filter((f) => /^\d+\.json$/.test(f)); } catch {}
   const out = names.map((f) => readJson(path.join(dispatchDir(), f))).filter(Boolean).sort((a, b) => a.n - b.n);
   // A working one whose helper process is gone did not finish: say so instead of spinning forever.
-  for (const d of out) if (d.state === "working" && d.pid && !pidAlive(d.pid) && Date.now() - d.created > 3000) Object.assign(d, setDispatch(d.id, { state: "error", msg: d.msg || "stopped before it finished" }));
+  for (const d of out) if (d.state === "working" && d.pid && !markerAlive({ pid: d.pid, start: d.pidStart }) && Date.now() - d.created > 3000) Object.assign(d, setDispatch(d.id, { state: "error", msg: d.msg || "stopped before it finished" }));
   return out;
 }
 
@@ -378,3 +403,39 @@ export function due(name, ms) {
   return true;
 }
 export const tilde = (p) => (p === os.homedir() ? "~" : String(p).startsWith(os.homedir() + "/") ? "~" + String(p).slice(os.homedir().length) : String(p));
+
+// ---- per-launch hook tokens: beside the task, never in its record, so no listing, snapshot or log prints them --------
+const tokensFile = (id) => path.join(dirOf(id), "tokens.json");
+export function setToken(id, role, token, round = 0) {
+  const j = readJson(tokensFile(id), {}) || {};
+  if (role === "reviewer") j.reviewer = { ...(j.reviewer || {}), [round]: token }; else j.agent = token;
+  fs.mkdirSync(dirOf(id), { recursive: true });
+  fs.writeFileSync(tokensFile(id), JSON.stringify(j), { mode: 0o600 });
+}
+export function tokenOk(id, role, token, round = 0) {
+  const j = readJson(tokensFile(id), {}) || {};
+  const want = role === "reviewer" ? j.reviewer?.[round] : j.agent;
+  return !!want && !!token && want === token;
+}
+// ---- turn-ended events: appended by the agent's own hook, judged only by the finish runner ---------------------------
+export const pendingEvents = (t) => (t?.events || []).filter((e) => e.n > (t.eventsHandled || 0));
+// ---- marks: "this kind's hook (or reader) does not work on this machine", valid for one program and plugin version ---
+const marksFile = () => path.join(dataDir(), "marks.json");
+export function mark(name, version) { const m = readJson(marksFile(), {}) || {}; const k = m[name]; return k && k.set && k.program === version && k.plugin === VERSION ? k : null; }
+// Count one more turn in a row (or reset with ok = true). Returns true when the mark was set just now.
+export function countMark(name, version, ok) {
+  return withLock("marks", () => {
+    const m = readJson(marksFile(), {}) || {};
+    const k = m[name] && m[name].program === version && m[name].plugin === VERSION ? m[name] : { program: version, plugin: VERSION, n: 0, set: false };
+    if (ok) { if (!k.n && !k.set) return false; k.n = 0; k.set = false; m[name] = k; writeJson(marksFile(), m); return false; }
+    k.n += 1;
+    const now = !k.set && k.n >= 3;
+    if (now) k.set = true;
+    m[name] = k; writeJson(marksFile(), m);
+    return now;
+  });
+}
+// One-line notices for the board to show once.
+const noticesFile = () => path.join(dataDir(), "notices.jsonl");
+export function notice(text) { appendLine(noticesFile(), { text, at: Date.now() }); }
+export function takeNotices() { const all = readLines(noticesFile()); if (all.length) fs.rmSync(noticesFile(), { force: true }); return all; }

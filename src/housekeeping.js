@@ -36,7 +36,7 @@ export function housekeeping(socket = currentSocket(), { force = false } = {}) {
 // A detached job that belongs to no single task.
 export function spawnLoose(args) {
   const env = { ...userEnv() };
-  for (const k of ["HERDR_PLUGIN_EVENT", "HERDR_PLUGIN_EVENT_JSON", "HERDR_PLUGIN_CONTEXT_JSON"]) delete env[k];
+  for (const k of ["HERDR_PLUGIN_EVENT", "HERDR_PLUGIN_EVENT_JSON", "HERDR_PLUGIN_CONTEXT_JSON", "HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID"]) delete env[k];
   fs.mkdirSync(S.dataDir(), { recursive: true });
   const out = fs.openSync(path.join(S.dataDir(), "jobs.log"), "a");
   const child = spawn(process.execPath, [S.BIN, ...args], { detached: true, stdio: ["ignore", out, out], env, cwd: S.dataDir() });
@@ -48,11 +48,14 @@ export function spawnLoose(args) {
 
 // ---- pull requests are watched: failed checks, a requested change or new feedback wake the agent; a merge made
 // elsewhere marks the task done. Conflicts wait for merge time. ------------------------------------------------------
+// A task waiting on a login is the human's: pull-request feedback does not wake its agent until that is cleared. The
+// blocker itself stays saved, so the next poll after the login wakes the agent in the usual way.
+const needsLogin = (t) => !!t.failure?.auth || (t.stage === "asks" && t.kind === "auth");
 const BAD = ["FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "STALE"];
 const GOOD = ["SUCCESS", "NEUTRAL", "SKIPPED"];
 export async function pollPrs() {
   for (const first of S.list()) {
-    if (!first.pr || first.prMerged || runnerAlive(first) || (first.stage === "working" && !first.autoMerge) || first.failure?.auth) continue;
+    if (!first.pr || first.prMerged || runnerAlive(first) || (first.stage === "working" && !first.autoMerge) || needsLogin(first)) continue;
     const r = F.gh(["pr", "view", F.prNumber(first.pr), "--json", "state,reviewDecision,statusCheckRollup,author,comments,reviews,headRefOid"], S.folderOf(first.id), 60000);
     let j;
     try { j = JSON.parse(r.stdout); } catch { continue; }
@@ -69,7 +72,7 @@ async function pollOne(id, pr, j) {
       then = "merged";
       return;
     }
-    if (j.state !== "OPEN" || (t.stage === "working" && !t.autoMerge) || t.failure?.auth) return false;
+    if (j.state !== "OPEN" || (t.stage === "working" && !t.autoMerge) || needsLogin(t)) return false;
     if (t.prHead && j.headRefOid !== t.prHead) return false; // stale or unknown-head CI cannot resolve a pushed repair
     const failed = (j.statusCheckRollup || []).filter((c) => BAD.includes(String(c.conclusion || c.state || "").toUpperCase())).map((c) => c.name || c.context).filter(Boolean);
     // What others wrote on it (people or review bots), not the author: a new one is worth the agent's attention.

@@ -1,6 +1,6 @@
 {
   "name": "herdr-superwork",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A work board for herdr: one list of tasks, each delegated one running as an ordinary herdr agent.",
   "type": "module",
   "license": "MIT",

@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import http from "node:http";
-import { spawn, execFileSync } from "node:child_process";
+import { spawn, spawnSync, execFileSync } from "node:child_process";
 import * as S from "./store.js";
 
 
@@ -117,7 +117,9 @@ export function artifactBase(id, serve) {
   if (serve === "tailscale") { try { base = ensureTailscale(info); } catch { base = local; } }
   return `${base}/${id}`;
 }
-export async function publishReview({ enabled, dir, listed, context, review, task, serve }) {
+export async function publishReview({ enabled, dir, listed, context, review, task, serve, onFallback }) {
+  // Tailscale asked for but not installed here: a local link instead, said on the task.
+  if (serve === "tailscale" && spawnSync("sh", ["-c", "command -v tailscale"], { stdio: "ignore" }).status !== 0) { serve = "local"; try { onFallback?.("review link is local: tailscale is not installed here"); } catch {} }
   if (!enabled) return [];
   const evidence = selectEvidence(listed, dir);
   if (!evidence.length) return []; // Do not manufacture a page for tiny changes with no useful evidence.
