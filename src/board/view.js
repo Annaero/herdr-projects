@@ -102,7 +102,7 @@ export class View {
   }
   // The first run: ask once what the plugin may add to herdr's settings. Only inside herdr, only what is missing.
   startSetup() {
-    if (!inHerdr() && !process.env.HERDR_PLUGIN_ID) return;
+    if ((!inHerdr() && !process.env.HERDR_PLUGIN_ID) || process.env.HERDR_SUPERWORK_INLINE === "1") return;
     const o = X.offers();
     if (o.asked) return;
     const steps = [

@@ -39,7 +39,7 @@ test("a worktree's tasks belong to its primary repo", async () => {
 test("settings: defaults, your own, one task's own, and the repo file read from a commit", async () => {
   const w = await world({ repoSettings: { setup: "true", check: "npm test", land: "auto", include: [".env"] } });
   try {
-    assert.equal(S.config().agent, "claude"); assert.equal(S.config().reviewer, "codex"); assert.equal(S.config().helperModel, "claude-haiku-5-5");
+    assert.equal(S.config().agent, "claude"); assert.equal(S.config().reviewer, "codex"); assert.equal(S.config().watcherModel, "claude-haiku-5-5");
     assert.equal(S.DEFAULTS.serve, "tailscale"); assert.equal(S.config().max, 4);
     S.setConfig("max", "2"); assert.equal(S.config().max, 2);
     assert.throws(() => S.setConfig("merge", "yolo"), /squash, merge or rebase/);

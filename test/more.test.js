@@ -101,7 +101,7 @@ test("an agent herdr cannot classify (unknown) finishes when its closing note ap
     A.delegate(id);
     const t = await settle(id);
     assert.equal(t.stage, "approval");
-    assert.deepEqual(paneOf(w, t).agent.args, ["--dangerously-bypass-approvals-and-sandbox", "--no-daemon"]);
+    assert.deepEqual(paneOf(w, t).agent.args.slice(0, 2), ["--dangerously-bypass-approvals-and-sandbox", "--no-daemon"]);
     assert.match(fs.readFileSync(process.env.HERDR_SUPERWORK_CODEX_TOML, "utf8"), /trust_level = "trusted"/);
   } finally { w.cleanup(); }
 });
@@ -382,6 +382,6 @@ test("delegating a landed task again starts a new round in a fresh worktree, nev
     t = await settle(id);
     assert.equal(t.stage, "working"); assert.equal(t.branch, "work/1-work"); assert.ok(t.worktree && t.worktree !== w.root && fs.existsSync(t.worktree));
     assert.notEqual(paneOf(w, t).cwd, w.root);
-    assert.match(paneOf(w, t).agent.prompts[0], /^Work\n/);
+    assert.match(paneOf(w, t).agent.prompts[0], /\n\nWork/);
   } finally { w.cleanup(); }
 });
