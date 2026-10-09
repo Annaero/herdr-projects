@@ -89,7 +89,9 @@ export function watchTick(tasks, now = Date.now()) {
     ].join("\n");
     const cmd = helperCommand({ prompt });
     if (!cmd) return;
-    const armedAt = t.armedAt ?? null, stage = t.stage;
+    // The turn this look belongs to. Not armedAt: herdr's status flaps between tools move that every few seconds.
+    const turnOf = (c) => `${c.since || 0}:${c.handled?.at || 0}:${c.reviewRound || 0}`;
+    const mine = turnOf(t), stage = t.stage;
     w.at = now;
     // "Only the watcher should have autocompact 100k."
     w.child = runHelper(cmd, { cwd: S.dataDir(), env: { CLAUDE_CODE_AUTO_COMPACT_WINDOW: "100000" } }, (_code, out) => {
@@ -99,7 +101,7 @@ export function watchTick(tasks, now = Date.now()) {
         if (!j.msg) return;
         const watch = { msg: S.oneLine(j.msg, 120), progress: Math.max(0, Math.min(99, Math.round(Number(j.progress)) || 0)), at: Date.now(), role };
         // A late answer cannot overwrite a newer turn or its result.
-        const cur = S.update(t.id, (c) => { if (c.stage !== stage || (c.armedAt ?? null) !== armedAt || S.choices(c).watcher === "off") return false; c.watch = watch; });
+        const cur = S.update(t.id, (c) => { if (c.stage !== stage || turnOf(c) !== mine || S.choices(c).watcher === "off") return false; c.watch = watch; });
         // Also to herdr as pane metadata tokens, so herdr's own sidebar can show it.
         if (cur.watch === watch || cur.watch?.at === watch.at) {
           herdr(t.link.socket).metadata(pane, ["--token", `summary=${watch.msg}`, "--token", `progress=${watch.progress}%`, "--ttl-ms", "120000"]);

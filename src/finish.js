@@ -364,7 +364,9 @@ async function runReview(id, g, { text, change, toLand, ch }) {
       if (Date.now() > until) { error = "review timed out"; break; }
       const now = S.get(id);
       // The reviewer's own turn-end report for this round, and still no verdict: the review failed, at once.
-      const rev = S.pendingEvents(now).find((e) => e.role === "reviewer" && e.round === round);
+      // Codex also reports its side chats (it names a conversation with one, right after the first prompt): not this.
+      const rev = S.pendingEvents(now).find((e) => e.role === "reviewer" && e.round === round && !e.side);
+      if (rev?.session && !now.reviewSession) S.update(id, { reviewSession: rev.session }, { waitMs: 10000 });
       if (rev && sent) { await sleep(Math.min(every, 1500)); if (!fs.existsSync(verdictFile)) { error = noVerdict(now, rev); break; } continue; }
       const a = api.agentGet(pane.pane_id);
       if (!a && sent) { error = "the reviewer exited without a verdict"; break; }

@@ -53,11 +53,12 @@ const usageOf = (i, o, model, window) => { const inp = Number(i) || 0, out = Num
 
 function readClaude(file) {
   const rows = tailLines(file);
-  let last = null, usage = null, model = "";
+  let last = null, usage = null, model = "", latest = ""; // latest: the newest text the agent said, shown mid-work
   for (const e of rows) {
     if (e.type === "assistant" && e.message) {
       if (e.isApiErrorMessage) { last = { kind: "error", e }; continue; }
       const text = (e.message.content || []).filter((c) => c.type === "text").map((c) => c.text).join("");
+      if (text.trim()) latest = last?.kind === "say" && last.id === e.message.id && last.text ? last.text + text : text;
       const tool = (e.message.content || []).some((c) => c.type === "tool_use");
       if (last?.kind === "say" && last.id === e.message.id) { last.text += text; last.tool = last.tool || tool; last.e = e; }
       else last = { kind: "say", id: e.message.id, text, tool, e };
@@ -73,10 +74,10 @@ function readClaude(file) {
   const base = { pos: when(last.e.timestamp), usage: usage ? usageOf(usage[0], usage[1], model) : null, model };
   if (last.kind === "error") { const text = (last.e.message.content || []).map((c) => c.text || "").join("").trim(); return turn({ ...base, id: last.e.uuid, said: text, stop: "error", error: text || String(last.e.error || "error"), authCode: last.e.error === "authentication_failed" }); }
   if (last.kind === "interrupt") return turn({ ...base, id: last.e.uuid, said: last.said, stop: "interrupted", interrupted: true });
-  if (last.kind === "user") return turn({ ...base, id: last.e.uuid, pending: true });
+  if (last.kind === "user") return turn({ ...base, id: last.e.uuid, pending: true, said: latest.trim() });
   const stop = last.e.message.stop_reason;
   const done = !last.tool && ["end_turn", "stop_sequence", "max_tokens", "refusal"].includes(stop);
-  return turn({ ...base, id: last.id, said: last.text.trim(), stop: stop === "max_tokens" ? "length" : stop === "refusal" ? "refusal" : done ? "stop" : "", finished: done, pending: !done });
+  return turn({ ...base, id: last.id, said: (last.text.trim() || (done ? "" : latest.trim())), stop: stop === "max_tokens" ? "length" : stop === "refusal" ? "refusal" : done ? "stop" : "", finished: done, pending: !done });
 }
 function readCodex(file) {
   const rows = tailLines(file);
@@ -98,20 +99,20 @@ function readCodex(file) {
   if (last.kind === "error") return turn({ ...base, said: last.text, stop: "error", error: last.text });
   if (last.kind === "interrupt") return turn({ ...base, said, stop: "interrupted", interrupted: true });
   if (last.kind === "done" || last.kind === "final") return turn({ ...base, said: said.trim(), stop: "stop", finished: true });
-  return turn({ ...base, pending: true });
+  return turn({ ...base, pending: true, said: said.trim() });
 }
 function readPi(file) {
   const rows = tailLines(file);
-  let last = null, usage = null, model = "";
+  let last = null, usage = null, model = "", latest = "";
   for (const e of rows) {
     if (e.type !== "message" || !e.message) continue;
     const m = e.message;
-    if (m.role === "assistant") { last = { kind: "say", e, m }; if (m.usage) usage = [(m.usage.input || 0) + (m.usage.cacheRead || 0) + (m.usage.cacheWrite || 0), m.usage.output || 0]; model = m.model || model; }
+    if (m.role === "assistant") { last = { kind: "say", e, m }; const tx = (m.content || []).filter((c) => c.type === "text").map((c) => c.text).join("").trim(); if (tx) latest = tx; if (m.usage) usage = [(m.usage.input || 0) + (m.usage.cacheRead || 0) + (m.usage.cacheWrite || 0), m.usage.output || 0]; model = m.model || model; }
     else if (m.role === "user" || m.role === "toolResult") last = { kind: "user", e };
   }
   if (!last) return null;
   const base = { pos: when(last.e.timestamp), usage: usage ? usageOf(usage[0], usage[1], model) : null, model, id: last.e.id || "" };
-  if (last.kind === "user") return turn({ ...base, pending: true });
+  if (last.kind === "user") return turn({ ...base, pending: true, said: latest });
   const text = (last.m.content || []).filter((c) => c.type === "text").map((c) => c.text).join("").trim();
   const stop = last.m.stopReason;
   if (stop === "error") return turn({ ...base, said: text, stop: "error", error: String(last.m.errorMessage || text || "error") });

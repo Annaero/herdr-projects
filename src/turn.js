@@ -22,10 +22,11 @@ export function turnEnded({ id, role = "agent", token, round = 0 }, extra = []) 
     round = Number(round) || 0;
     if (!["agent", "reviewer"].includes(role) || !S.tokenOk(t.id, role, token, round)) return void log(`refused for ${id} (${role}): wrong token`);
     const j = input(extra);
-    // Codex also reports turns of side conversations (it names its chats with one): `hint` says whether this
-    // report's prompt named this task, for the runner to judge.
-    const said = JSON.stringify(j["input-messages"] || "");
-    const ev = { at: Date.now(), role, round, session: String(j.session_id || j["thread-id"] || ""), file: String(j.transcript_path || ""), error: String(j.error || ""), side: !!j["thread-id"] && !said.includes(`task ${t.id}`) };
+    // Codex also reports turns of side conversations (it names a chat with one, and that prompt quotes ours): a
+    // real first prompt starts with the task line, so `side` marks every other report for the runner to judge. A
+    // later prompt of the real conversation is known by its session id.
+    const first = String((j["input-messages"] || [])[0] || "").trimStart();
+    const ev = { at: Date.now(), role, round, session: String(j.session_id || j["thread-id"] || ""), file: String(j.transcript_path || ""), error: String(j.error || ""), side: !!j["thread-id"] && !first.startsWith(`Work board task ${t.id},`) };
     let start = false;
     S.update(t.id, (t) => {
       t.eventSeq = (t.eventSeq || 0) + 1;

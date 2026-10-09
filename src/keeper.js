@@ -94,8 +94,8 @@ export function refreshSaid(rows, now = Date.now()) {
     if (t.stage !== "working" || !F.isAgentTask(t) || t.archivedAt || t.live?.status == null || now - (saidAt.get(t.id) || 0) < 5000) continue;
     saidAt.set(t.id, now);
     const turn = readTurnOf(t.agent, { file: t.transcript || null, session: t.session, cwd: S.cwdOf(t) });
-    if (!turn || !turn.said || (turn.said === t.said && turn.usage?.context === t.usage?.context)) continue;
-    try { S.update(t.id, (c) => { if (c.stage !== "working") return false; c.said = turn.said; if (turn.usage) c.usage = turn.usage; if (turn.model) c.model = turn.model; }, { waitMs: 300 }); } catch {}
+    if (!turn || ((!turn.said || turn.said === t.said) && turn.usage?.context === t.usage?.context)) continue;
+    try { S.update(t.id, (c) => { if (c.stage !== "working") return false; if (turn.said) c.said = turn.said; if (turn.usage) c.usage = turn.usage; if (turn.model) c.model = turn.model; }, { waitMs: 300 }); } catch {}
   }
 }
 export async function keeperWork() {
