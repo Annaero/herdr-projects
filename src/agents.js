@@ -144,7 +144,8 @@ export const AGENTS = {
     },
     newSession: () => randomUUID(),
     sessionArgs: (id) => ["--session-id", id],
-    standing: (text) => ["--append-system-prompt", text],
+    // From a file: herdr refuses launch arguments that hold line breaks.
+    standing: (text, dir) => { const f = path.join(dir, "rules.md"); fs.writeFileSync(f, text); return ["--append-system-prompt-file", f]; },
     transcript(session, cwd) {
       const real = (() => { try { return fs.realpathSync(cwd); } catch { return cwd; } })();
       const direct = path.join(claudeHome(), "projects", real.replace(/[^A-Za-z0-9]/g, "-"), `${session}.jsonl`);
@@ -237,7 +238,7 @@ export default function (pi: any) {
     },
     newSession: () => `sw-${randomUUID().slice(0, 13)}`,
     sessionArgs: (id) => ["--session-id", id],
-    standing: (text) => ["--append-system-prompt", text],
+    standing: (text, dir) => { const f = path.join(dir, "rules.md"); fs.writeFileSync(f, text); return ["--append-system-prompt", f]; }, // pi reads a file given here
     transcript: (session) => findFile(path.join(piHome(), "sessions"), (n) => n.endsWith(`_${session}.jsonl`), 1)[0] || null,
     readTurn: readPi,
     skillDir: () => skillAt(piHome()),

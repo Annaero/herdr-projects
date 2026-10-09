@@ -100,7 +100,7 @@ export function launchExtras(t, role, { kind, round = 0, standing = "", resume =
   let hook = null;
   if (hookUsable(kind)) { try { hook = a.hookArgs({ shim: F.shim(), id: t.id, role, round, token, dir: S.dirOf(t.id) }); } catch { hook = null; } }
   const session = !resume && a.newSession ? a.newSession() : null;
-  return { hook: hook || [], rules: standing && a.standing ? a.standing(standing) : [], hooked: !!hook, session, version: versionOf(kind) };
+  return { hook: hook || [], rules: standing && a.standing ? a.standing(standing, S.dirOf(t.id)) : [], hooked: !!hook, session, version: versionOf(kind) };
 }
 
 // ---- starting the agent ----------------------------------------------------------------------------------------------

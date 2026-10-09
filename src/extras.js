@@ -63,9 +63,10 @@ function skillTargets() {
   if (dirs !== undefined) return dirs.split(":").filter(Boolean).map((d) => ({ kind: path.basename(d), dir: path.join(d, NAME) }));
   return Object.entries(AGENTS).filter(([kind, a]) => a.skillDir && installed(kind)).map(([kind, a]) => ({ kind, dir: a.skillDir() && path.join(a.skillDir(), NAME) })).filter((x) => x.dir);
 }
-export function syncSkill(shim = path.join(S.dataDir(), "bin", NAME)) {
+export function syncSkill(shim) { return S.withLock("extras", () => syncSkill0(shim), { waitMs: 15000 }); }
+function syncSkill0(shim = path.join(S.dataDir(), "bin", NAME)) {
   if (process.env.HERDR_SUPERWORK_INLINE === "1" && process.env.HERDR_SUPERWORK_SKILL_DIRS === undefined) return []; // tests never write into real agent folders
-  if (!S.config().skill) return removeSkill();
+  if (!S.config().skill) return removeSkill0();
   const wrote = new Set(extras().skillPaths || []);
   const text = skillText(shim);
   for (const { dir } of skillTargets()) {
@@ -82,7 +83,8 @@ export function syncSkill(shim = path.join(S.dataDir(), "bin", NAME)) {
   return [...wrote];
 }
 // Removes exactly what was written: the recorded folders, and only while they still hold just our file.
-export function removeSkill() {
+export function removeSkill() { return S.withLock("extras", removeSkill0, { waitMs: 15000 }); }
+function removeSkill0() {
   const gone = [];
   for (const dir of extras().skillPaths || []) {
     try { const names = fs.readdirSync(dir); if (names.every((n) => n === "SKILL.md")) { fs.rmSync(dir, { recursive: true, force: true }); gone.push(dir); } } catch { gone.push(dir); }
