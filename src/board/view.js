@@ -14,7 +14,7 @@ import * as R from "../remote.js";
 import { herdr, currentSocket, inHerdr, readScreen, sessionName } from "../herdr.js";
 import { housekeeping } from "../housekeeping.js";
 import { fullAccess, adapter } from "../agents.js";
-import { keeperAlive, tickOnce } from "../keeper.js";
+import { keeperAlive, tickOnce, codeStamp } from "../keeper.js";
 import * as X from "../extras.js";
 import * as D from "../delegate.js";
 import { DraftEditor } from "./editor.js";
@@ -97,6 +97,7 @@ export class View {
     this.canDispatch = H.dispatcherReady();
     this.load();
     F.boardBeat();
+    try { this.stamp = codeStamp(); } catch {}
     try { this.startSetup(); } catch {}
     this.timer = setInterval(() => this.beat(), 1000);
   }
@@ -150,6 +151,8 @@ export class View {
     // of it itself, as it always did, so a missing keeper never makes the board worse.
     if (!keeperAlive()) { try { tickOnce(currentSocket(), { watch: (rows) => H.watchTick(rows.map(asRow)) }); } catch {} }
     try { for (const n of S.takeNotices()) this.flash(n.text, "warning"); } catch {}
+    // An open board keeps running the code it started with: say so when the plugin changed underneath it.
+    if (this.tick % 5 === 0) { try { if (this.stamp && codeStamp() !== this.stamp) { this.stale = true; this.flash("herdr-superwork was updated. Close the board (esc) and open it again to get the new version.", "warning"); } } catch {} }
     try { this.load(); } catch {}
     try { this.announce(); } catch {}
     this.tui.requestRender();

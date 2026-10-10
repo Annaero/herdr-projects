@@ -28,7 +28,7 @@ export function ensureKeeper() {
   return true;
 }
 // The newest change under src/: a keeper started from older code hands over to a successor.
-function codeStamp() {
+export function codeStamp() {
   let newest = 0;
   const walk = (dir) => { for (const n of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, n.name); if (n.isDirectory()) walk(p); else newest = Math.max(newest, fs.statSync(p).mtimeMs); } };
   try { walk(path.join(S.ROOT, "src")); } catch {}
