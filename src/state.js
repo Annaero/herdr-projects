@@ -29,7 +29,9 @@ export function show(t, live) {
     case "stopped": return out("idle", { msg: "stopped" });
     case "queued": case "starting": return out("working", { msg: t.msg || STAGE_LINE[t.stage] });
   }
-  if (RUNNER_STAGES.includes(t.stage)) return out("working", { msg: t.msg || STAGE_LINE[t.stage], progress: t.watch?.progress, reviewing: t.stage === "reviewing" });
+  // Under review the Watcher follows the reviewer: its line and its own progress, started afresh for every round.
+  if (t.stage === "reviewing") return out("working", { msg: t.watch?.msg || t.msg || STAGE_LINE.reviewing, progress: t.watch?.progress ?? 0, reviewing: true });
+  if (RUNNER_STAGES.includes(t.stage)) return out("working", { msg: t.msg || STAGE_LINE[t.stage], progress: t.watch?.progress, reviewing: false });
   // stage "working": the agent's own turn. herdr decides.
   if (!agent || !live) return out("working", { progress: t.watch?.progress });
   if (live.down) return out(lastKnown(t), { msg: "herdr is not running", stale: true });
@@ -37,7 +39,7 @@ export function show(t, live) {
   if (live.gone) return out("error", { msg: "the agent's terminal is gone" });
   if (live.status == null) return out("error", { msg: "the agent has exited", exited: true });
   if (live.status === "blocked") return out("blocked", { kind: t.pendingText ? "permission" : undefined, msg: t.pendingText ? "queued: go in to answer its dialog first" : "needs you" });
-  if (live.status === "working") return out("working", { msg: t.watch?.msg || t.msg || "working", progress: t.watch?.progress });
+  if (live.status === "working") return out("working", { msg: t.watch?.msg || t.msg || "working", progress: t.watch?.progress ?? 0 });
   if (live.status === "unknown") return out("working", { msg: "herdr can't tell if it stopped" });
   return out("working", { msg: "finishing" }); // idle or done, and the runner has not finished the turn yet
 }

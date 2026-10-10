@@ -866,10 +866,8 @@ export class View {
     layout.score = max("score");
     layout.decision = layout.recommendation + layout.score + (layout.recommendation && layout.score ? 1 : 0);
     if (!fits()) { layout.recommendation = 0; layout.decision = layout.score; if (!fits()) layout.decision = layout.score = 0; }
-    // Progress is judged only against the rows that have one: another row's long sentence (a review summary waiting
-    // for approval) is cut to fit and must not hide every working agent's bar.
+    // The bar and percent always keep their place, just left of the time: a long "doing now" sentence is cut instead.
     layout.progress = max("progress");
-    if (!fits(records.filter((r) => r.state !== "done" && r.progress !== undefined))) layout.progress = 0;
     return layout;
   }
   row(r, width, layout = this.rowLayout([r], width)) {
