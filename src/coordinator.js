@@ -8,6 +8,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import * as S from "./store.js";
 import * as F from "./flow.js";
 import { herdr, currentSocket, sessionName, socketExists, readScreen } from "./herdr.js";
@@ -62,10 +63,11 @@ export function ready(socket = currentSocket()) {
 
 // ---- its standing rules ------------------------------------------------------------------------------------------------
 export function rules(cmd = F.shim()) {
-  return `You are the Coordinator of the human's work board in herdr (herdr-superwork). You are an ordinary agent in a long-lived chat: you have all your tools, you may answer questions, look things up, ask the human something when you need to, and do what they ask of you. Your messages from the box at the bottom of the board start with a line in [square brackets] saying where the human is; the human sees your last message in a small drawer, so answer briefly and lead with the result.
+  return `You are the Coordinator of the human's work board in herdr (herdr-superwork). You are an ordinary agent in a long-lived chat: you have all your tools, you may answer questions, look things up, ask the human something when you need to, and do what they ask of you. What the human types in the box at the bottom of the board reaches you word for word, with nothing added; the human sees your last message in a small drawer, so answer briefly and lead with the result.
 The board's command is: ${cmd}  (written "board" below; always run it by that full path).
+- Before you file, delegate or change anything for a message, run: board coordinator where. It lists the human's last few messages from the board, the newest last, and for each one: which repo they were in when they sent it, which task they had open (then "it" and "this" in that message mean that task), and whether they sent it with the delegate key (then delegate what you file from that message). Go by the entry of the message you are acting on, not by a newer one.
 - Work the human describes ("fix the login page", "add dark mode") is not yours to do: file it as a task. board add "<short title: a few words, no trailing period>" --repo <repo> --desc "<the full description in your own clear words; Markdown is fine; keep every requirement the human gave>". One task per distinct piece of work. The description says only what to build or do: never put handling instructions in it (delegating, reviewers, models, settings); act on those with the command instead. Do the work yourself only when the human plainly asks you, yourself, to do it or to answer something.
-- You run in a folder of your own, not in a repo and not in the human's home folder (${os.homedir()}): use full paths for the human's files, and every "board add" says where the task goes: --repo <a known repo's name, a folder name, or a path; "~" is the home folder>. That is the repo named in the bracket line, unless the human names another place ("in the other repo", "for project X", "in my home folder"). "board list" shows the tasks; "board list --archived" the archive; "board list --query <text>" searches everything; "board details <id>" says where one stands.
+- You run in a folder of your own, not in a repo and not in the human's home folder (${os.homedir()}): use full paths for the human's files, and every "board add" says where the task goes: --repo <a known repo's name, a folder name, or a path; "~" is the home folder>. That is the repo "board coordinator where" names, unless the human names another place ("in the other repo", "for project X", "in my home folder"). "board list" shows the tasks; "board list --archived" the archive; "board list --query <text>" searches everything; "board details <id>" says where one stands.
 - If they ask to start it, delegate it, or hand it to an agent, also run: board delegate <id>. Agents get their own git worktree by default; add --no-worktree only if the human says to work in place, in their checkout, or without a worktree. Worktrees start from the remote's default branch; add --base head if the human says to build on their current branch or their unpushed work.
 - Existing tasks: delegate them, "board tell <id> <text>" to say something to their agents (on a task that never had an agent it puts one on it with that message), "board stop <id>" to stop a task's agent at once, "board report <id> --state <idle|working|done> [--msg <one line>] [--progress <0 to 100>]" to say where one of the human's own tasks stands. "board clear <id>" only when the human plainly asks to delete or remove something. "board archive <id>" to archive or hide a task (kept, not deleted) and "board restore <id>" to bring it back; archived tasks are read-only until restored.
 - Who does the work can be chosen per task: the working agent (--agent <kind such as claude or codex>, --model, --effort), the reviewer that attacks finished work and rates it 1 to 5 (--reviewer <kind>, or --reviewer off for none; reviewerModel, reviewerEffort, artifacts, serve), the Watcher that writes the "doing now" line (watcher on or off), and the review loop: reviewAuto (true: a rating below 5/5 goes back to the agent by itself), review (repos, all or none), rounds, conflictAuto (on by default: a conflict with main goes back to the task's agent by itself, at most "rounds" times in a row; false: it waits for the human to send it). If the human chooses any of these for a particular task ("with codex", "on high effort", "no reviewer for this one"), pass it to delegate as --<name> <value>, or run "board config <name> <value> --id <id>" if it is not being delegated now. If they choose one in general, run "board config <name> <value>".
@@ -77,12 +79,36 @@ When you acted on the board, end with one short line saying what you did, naming
 }
 
 // ---- requests: written down here, carried out by the pump --------------------------------------------------------------
-// One line of context before the human's words, so one conversation serves every repo the board is opened in.
-export function compose(cwd, text, { delegate = false, about = null } = {}) {
+// What the human types goes in word for word: nothing is added to it. Where they were (the repo, the task they had
+// open, whether they asked for it to be delegated) is kept beside it, and the Coordinator asks for it with
+// `coordinator where`, so one conversation serves every repo the board is opened in.
+export function context(cwd, { delegate = false, about = null } = {}) {
   const here = S.repoOf(cwd);
   const t = about ? S.get(about) : null;
-  const where = `[board: the human is in the repo "${here.name}" (${S.tilde(here.root)})${t ? `; task ${t.id} ("${S.oneLine(t.title, 120)}") is open, so "it" and "this" mean that task` : ""}]`;
-  return `${where}\n${text}${delegate ? "\n\nDelegate what you file to an agent." : ""}`;
+  return { repo: here.name, root: here.root, task: t ? t.id : "", title: t ? S.oneLine(t.title, 120) : "", delegate: !!delegate };
+}
+// Said per message, the newest last: a second message sent while the first is still being worked on does not take
+// the first one's repo or delegate choice away. Only messages that really went in are listed, and one is kept for as
+// long as the Coordinator may still have it ahead of it. It counts as dealt with once the same run of its program
+// has finished a turn since the last message went in and is at rest, a while after this one went in. At rest alone
+// says nothing: a program that was restarted (or exited) in the middle of its work is idle with the work undone.
+// Of those dealt with, the last few stay. One not dealt with yet is never dropped, however many there are.
+const KEPT = 5;
+const restMs = () => Number(process.env.HERDR_SUPERWORK_HANDLED_MS ?? 15000);
+const trimmed = (list) => { const cut = list.length - KEPT; return list.filter((x, i) => i >= cut || !x.handled); };
+export function where(socket = currentSocket()) {
+  const list = get(socket)?.where || [];
+  if (!list.length) return "Nothing was sent from the board yet, so it is not known which repo the human is in: ask them, or see \"board list\".";
+  const one = (w) => [`"${S.oneLine(w.said, 80)}" was sent from the repo "${w.repo}" (${S.tilde(w.root)}).`,
+    w.task ? `Task ${w.task} ("${w.title}") was open: for this message "it" and "this" mean that task.` : "No task was open.",
+    w.delegate ? "It was sent with the delegate key: delegate what you file from it to an agent." : "It was not sent with the delegate key."].join(" ");
+  return [`The human's last ${list.length > 1 ? `${list.length} messages` : "message"} from the board${list.length > 1 ? ", the newest last. Each has its own repo, open task and delegate choice: use the ones of the message you are acting on" : ""}:`, ...list.map((w) => `- ${one(w)}`)].join("\n");
+}
+// The Coordinator's own folder (or one inside it) is never where the human is working.
+export function inHome(dir, socket = currentSocket()) {
+  const real = (p) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
+  const h = real(home(socket)), d = real(String(dir || ""));
+  return d === h || d.startsWith(h + path.sep);
 }
 // The pump is told which herdr session it serves: the keeper ticks for several from one process.
 function kick(socket) {
@@ -92,13 +118,13 @@ function kick(socket) {
 // Say something to the Coordinator. It is started (or started again, in the same conversation) when it is not there.
 export function send(cwd, text, opts = {}, socket = currentSocket()) {
   if (!socketExists(socket)) throw new Error("herdr is not running: the Coordinator lives in herdr.");
-  const c = change(socket, (c) => { c.queue = [...(c.queue || []), { text: compose(cwd, text, opts), said: String(text), at: Date.now() }]; c.error = ""; c.stopped = false; });
+  const c = change(socket, (c) => { c.queue = [...(c.queue || []), { id: randomUUID(), text: String(text), said: String(text), where: context(cwd, opts), at: Date.now() }]; c.error = ""; c.stopped = false; });
   kick(socket);
   return c;
 }
 // restart: the same conversation, the program started again. new: a fresh conversation, on the default or on `pick`
 // (a choice for that one Coordinator only). stop: close it; the next message starts it again where it left off.
-// open: have it running, with nothing said (the full-screen chat needs something to show).
+// open: have it running, with nothing said (there must be a chat to go into).
 function want(what, pick, socket) {
   if (!socketExists(socket)) throw new Error("herdr is not running: the Coordinator lives in herdr.");
   if (what !== "stop" && !pick && !get(socket)?.run && !choice()) throw new Error("The Coordinator is off. `herdr-superwork config coordinator default` turns it on.");
@@ -165,7 +191,7 @@ function ensure(api, socket) {
   // herdr types the launch command into the pane's shell, and a terminal takes at most 4096 bytes on one line: a
   // longer one arrives cut off (seen with Codex, whose flag for standing rules carries the text itself, as an
   // unfinished quote at a shell continuation prompt). So where the rules would ride on the command line they are put
-  // in a file, the flag only points at it, and the rules themselves go in with the first message.
+  // in a file and the flag only points at it. What the human says is never made to carry them.
   const rulesFile = path.join(dirOf(socket), "rules.md");
   fs.writeFileSync(rulesFile, rules());
   let standing = a.standing ? a.standing(rules(), dirOf(socket)) : [], pointer = false;
@@ -186,7 +212,7 @@ function ensure(api, socket) {
   }
   c = change(socket, (c) => {
     c.run = run; c.pick = null; c.agent = name; c.startedAt = Date.now(); c.version = versionOf(run.kind) || ""; c.starting = 0;
-    c.intro = (!a.standing || pointer) && !resume; // no launch flag that can hold the rules: they ride on the first message
+    c.intro = !a.standing && !resume; // no launch flag for the rules at all: one line before the first message points at them
     if (!resume) { c.session = session; c.transcript = null; c.since = began; c.seen = null; }
   });
   return { c, blocked };
@@ -208,7 +234,7 @@ export function pump(socket = currentSocket()) {
           if (c.want?.at === w.at) c.want = null;
           if (w.what === "open") return;
           Object.assign(c, { workspace: null, tab: null, pane: null, terminal: null, agent: null });
-          if (w.what === "new") Object.assign(c, { run: null, pick: w.pick, session: null, transcript: null, seen: null, intro: false, last: "" });
+          if (w.what === "new") Object.assign(c, { run: null, pick: w.pick, session: null, transcript: null, seen: null, intro: false, last: "", where: [], mark: null });
         });
         // Stopped is stopped: words that were still waiting stay waiting, and go in with your next message. Only
         // something said after the stop was asked for starts it again.
@@ -228,12 +254,33 @@ export function pump(socket = currentSocket()) {
         // Asked to stop (or restart, or begin anew) while an earlier message went in: that comes first, and the rest
         // of what was waiting is not sent ahead of it.
         if (get(socket).want) break;
-        try { api.agentPrompt(c.pane, c.intro ? `${rules()}\n\n${m.text}` : m.text); }
+        // Known before it reads the words: it may ask where they came from at once.
+        // A message that is refused (a dialog is up) takes it back: it did not go in, and what is said about the
+        // messages before it stays as it was.
+        // Each message is its own (an id, not the time it was sent: two can share a millisecond), and the list is
+        // only cut down once this one really went in, so a refused one costs an older one nothing. Before these
+        // words go in: has this run of the program finished a turn since the last ones did, and is it at rest? Then
+        // whatever went in a while ago has been dealt with. Typed in a moment ago, a message may not have set it
+        // working yet, so that one is not counted.
+        let ag = null; try { ag = api.agentGet(c.pane); } catch {}
+        const run = get(socket).startedAt || 0, seq = ag?.completion_seq ?? null;
+        if (ag && ["idle", "done"].includes(ag.agent_status) && seq != null) change(socket, (c) => {
+          if (!c.mark || c.mark.run !== run || c.mark.seq === seq) return false;
+          const due = (Array.isArray(c.where) ? c.where : []).filter((x) => !x.handled && x.sentAt && Date.now() - x.sentAt >= restMs());
+          if (!due.length) return false;
+          for (const x of due) x.handled = true;
+        });
+        const same = (x) => (m.id ? x.id === m.id : x.at === m.at && x.text === m.text);
+        const note = m.where ? { ...m.where, said: m.said, at: m.at, id: m.id || `${m.at}` } : null;
+        const said = (c) => (Array.isArray(c.where) ? c.where : []).filter((x) => x.id !== note.id);
+        const unsay = () => { if (note) { try { change(socket, (c) => { c.where = said(c); }); } catch {} } };
+        if (note) change(socket, (c) => { c.where = [...said(c), note]; });
+        try { api.agentPrompt(c.pane, c.intro ? `[Your standing rules as the Coordinator of the human's work board are in the file ${path.join(dirOf(socket), "rules.md")}: read it first.]\n\n${m.text}` : m.text); }
         catch (e) {
-          if (["agent_blocked", "agent_not_ready"].includes(e.code)) { stuck = true; break; }
-          if (!["agent_prompt_stalled", "timeout"].includes(e.code)) throw e; // herdr: these do not prove nothing was sent; never send twice
+          if (["agent_blocked", "agent_not_ready"].includes(e.code)) { unsay(); stuck = true; break; }
+          if (!["agent_prompt_stalled", "timeout"].includes(e.code)) { unsay(); throw e; } // herdr: these do not prove nothing was sent; never send twice
         }
-        change(socket, (c) => { c.queue = c.queue.filter((x) => x.at !== m.at || x.text !== m.text); c.intro = false; c.sentAt = Date.now(); c.last = m.said; });
+        change(socket, (c) => { c.queue = c.queue.filter((x) => !same(x)); if (Array.isArray(c.where)) { for (const x of c.where) if (note && x.id === note.id) x.sentAt = Date.now(); c.where = trimmed(c.where); } c.mark = { run, seq }; c.intro = false; c.sentAt = Date.now(); c.last = m.said; });
       }
       if (stuck) break;
     }
@@ -292,14 +339,21 @@ export function screen(v, socket = currentSocket()) {
   screens.set(socket, { pane: v.pane, at: Date.now(), text });
   return text;
 }
-// "Open the board on the Coordinator's chat": a herdr key can ask for it, whether the board is open or not.
-// Kept per herdr session, as the Coordinator is: a board open in another session must not take this one's request.
-const fullFile = (socket) => path.join(dirOf(socket), "open-full");
-export function askFull(socket = currentSocket()) { fs.mkdirSync(dirOf(socket), { recursive: true }); fs.writeFileSync(fullFile(socket), String(Date.now())); }
-export function takeFull(socket = currentSocket()) {
-  let at = 0;
-  try { at = Number(fs.readFileSync(fullFile(socket), "utf8")) || 0; fs.rmSync(fullFile(socket), { force: true }); } catch { return false; }
-  return Date.now() - at < 15000;
+// Going into it: herdr moves to its real pane, as it does for any task's agent. Whatever is typed there, the box's
+// last words no longer head its last message.
+export function focus(v, socket = currentSocket()) { herdr(socket).agentFocus(v.pane); typedThere(socket); }
+// "Go into the Coordinator's chat" from anywhere in herdr (a herdr key can ask for it): no board in between. Not
+// running: it is started with nothing said first, and this waits for it.
+export async function goIn(socket = currentSocket(), { waitMs = 90000, stepMs = 400 } = {}) {
+  let asked = false;
+  for (const until = Date.now() + waitMs; ;) {
+    const v = look(socket);
+    if (v.status && v.pane) { focus(v, socket); return v; }
+    if (asked && v.error) throw new Error(`The Coordinator could not be started: ${v.error}`);
+    if (!asked) { open(socket); asked = true; }
+    if (Date.now() > until) throw new Error("The Coordinator did not start in time.");
+    await new Promise((r) => setTimeout(r, stepMs));
+  }
 }
 // For the command line and for other machines.
 export function summary(socket = currentSocket()) {

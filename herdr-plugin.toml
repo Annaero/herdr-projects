@@ -18,7 +18,7 @@ command = ["sh", "bin/run.sh", "open"]
 
 [[actions]]
 id = "coordinator"
-title = "Open the work board on the Coordinator's chat"
+title = "Go into the Coordinator's chat"
 command = ["sh", "bin/run.sh", "open-coordinator"]
 
 [[actions]]

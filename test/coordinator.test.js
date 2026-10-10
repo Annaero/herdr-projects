@@ -1,10 +1,8 @@
-// The Coordinator: one long-lived agent behind the box, its drawer on the board, and its real terminal full screen.
+// The Coordinator: one long-lived agent behind the box, its drawer on the board, and going into its real pane.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { EventEmitter } from "node:events";
-import { PassThrough } from "node:stream";
 import { stripVTControlCharacters } from "node:util";
 import { world } from "./helpers.js";
 import * as S from "../src/store.js";
@@ -12,7 +10,6 @@ import * as A from "../src/actions.js";
 import * as C from "../src/coordinator.js";
 import { main } from "../src/cli.js";
 import { View } from "../src/board/view.js";
-import { Bridge } from "../src/board/bridge.js";
 import { theme } from "../src/board/theme.js";
 import { runJob } from "../src/jobs.js";
 import { drainJobs } from "../src/runner.js";
@@ -30,21 +27,16 @@ async function coordWorld(settings = {}) {
   w.agents = () => w.state().panes.filter((p) => p.agent);
   return w;
 }
-function open(w, { rows = 34, bridges = [] } = {}) {
-  const calls = [];
+function open(w, { rows = 34 } = {}) {
+  const calls = [], closed = [];
   const tui = { terminal: { rows, columns: 120 }, requestRender() {}, stop() { calls.push("stop"); }, start() { calls.push("start"); } };
-  // A stand-in for the real terminal bridge: it remembers what it was given and lets the test press its keys.
-  const bridge = (o) => { const b = { o, started: false, stopped: false, start() { this.started = true; }, stop() { this.stopped = true; }, drawFooter() {} }; bridges.push(b); return b; };
-  const v = new View(tui, theme, () => {}, { cwd: w.root, bridge });
-  // As main.js does: the board's screen starts after the view is made, and only then may the chat take it over.
-  const early = bridges.length; calls.push("start"); v.started();
-  v.early = early;
+  const v = new View(tui, theme, (x) => closed.push(x), { cwd: w.root });
   clearInterval(v.timer);
   const screen = (width = 120) => v.render(width).map((l) => stripVTControlCharacters(l).replace(/\x1b_pi:c\x07/g, ""));
   const press = (...keys) => { for (const k of keys) v.handleInput(KEY[k] ?? k); };
   const type = (text) => { for (const ch of text) v.handleInput(ch); };
   const beat = () => { v.load(); v.syncDrawer(); };
-  return { v, tui: calls, screen, press, type, beat, text: (width) => screen(width).join("\n") };
+  return { v, tui: calls, closed, screen, press, type, beat, text: (width) => screen(width).join("\n") };
 }
 
 test("the box talks to one long-lived Coordinator: an ordinary agent, started once, with nothing held back", async () => {
@@ -68,7 +60,8 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     assert.ok(agent.args.includes("--dangerously-skip-permissions")); assert.ok(agent.args.includes("--session-id")); assert.ok(agent.args.includes("--append-system-prompt-file"));
     assert.ok(!agent.args.some((a) => /allowedTools|--tools/.test(a)), "nothing is held back from it");
     assert.match(fs.readFileSync(agent.args[agent.args.indexOf("--append-system-prompt-file") + 1], "utf8"), /You are the Coordinator of the human's work board/);
-    assert.match(agent.prompts[0], /^\[board: the human is in the repo "proj" \(.*\)\]\nbuild a login page$/);
+    assert.equal(agent.prompts[0], "build a login page", "your words go in exactly as typed, with nothing added");
+    assert.match(C.where(), /^The human's last message from the board:\n- "build a login page" was sent from the repo "proj" \(.*\)\. No task was open\. It was not sent with the delegate key\.$/);
     assert.equal(C.get().queue.length, 0);
     // Its reply pops the drawer up, once.
     s.beat();
@@ -84,67 +77,87 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     await drainJobs(runJob);
     assert.equal(w.agents().length, 1); assert.equal(w.state().calls.filter((c) => c.startsWith("agent start")).length, 1);
     assert.equal(w.agents()[0].agent.prompts.length, 2);
-    assert.match(w.agents()[0].agent.prompts[1], /\nand start it\n\nDelegate what you file to an agent\.$/);
+    assert.equal(w.agents()[0].agent.prompts[1], "and start it");
+    // Each message keeps its own: the newer one does not take the first one's repo or delegate choice away.
+    assert.match(C.where(), /2 messages[^\n]*\n- "build a login page"[^\n]*It was not sent with the delegate key\.\n- "and start it"[^\n]*It was sent with the delegate key: delegate what you file from it to an agent\.$/);
     s.beat(); assert.equal(s.v.drawer, "peek"); assert.match(s.text(), /Delegated proj\/1\./);
     // With the preview of a task open that has no agent to reply to, the words go to the Coordinator with that task named.
     const t = A.add(w.root, "Write the docs");
     A.report(t.id, { state: "done" });
     s.v.sel = t.id; s.press("esc", "space"); assert.equal(s.v.peek, true); assert.equal(s.v.drawer, "hidden");
     s.type("make it shorter"); s.press("enter"); await drainJobs(runJob);
-    assert.match(w.agents()[0].agent.prompts[2], /task proj\/1 \("Write the docs"\) is open, so "it" and "this" mean that task\]\nmake it shorter$/);
+    assert.equal(w.agents()[0].agent.prompts[2], "make it shorter");
+    assert.match(C.where(), /\n- "make it shorter"[^\n]*Task proj\/1 \("Write the docs"\) was open: for this message "it" and "this" mean that task\. It was not sent/);
+    const out = []; const write = process.stdout.write; process.stdout.write = (x) => (out.push(String(x)), true);
+    try { assert.equal(await main(["coordinator", "where"]), 0); } finally { process.stdout.write = write; }
+    assert.match(out.join("\n"), /was sent from the repo "proj"/, "the Coordinator's own command says it");
   } finally { w.cleanup(); }
 });
 
-test("the drawer has three stops and moves between them freely: hidden, the last message, the real chat full screen", async () => {
+test("the drawer shows only its last message; going into the Coordinator leaves the board for its real pane, as with any agent", async () => {
   const w = await coordWorld();
   try {
-    const bridges = [];
-    const s = open(w, { bridges });
+    process.env.HERDR_ENV = "1";
+    const s = open(w);
     assert.equal(s.v.drawer, "hidden");
     s.press("alt+c"); assert.equal(s.v.drawer, "peek");
     assert.match(s.text(), /Coordinator {2}not started {2}claude · default model · default effort/); assert.match(s.text(), /it starts with your first message, and stays/);
-    assert.match(s.text(), /alt\+c its chat, full screen · alt\+v or esc hide · alt\+r restart · alt\+n new one/);
-    // Full screen before it ever ran: it is started with nothing said, and its terminal shows as soon as it is there.
-    s.press("alt+c"); assert.equal(s.v.drawer, "full"); assert.equal(bridges.length, 0);
-    assert.match(s.text(), /Starting the Coordinator… its chat opens here as soon as it is ready\./);
-    s.type("x"); assert.equal(s.v.value(), "", "nothing is typed anywhere while it starts");
+    assert.match(s.text(), /alt\+c go into its chat · alt\+v or esc hide · alt\+r restart · alt\+n new one/);
+    // Going in before it ever ran: it is started with nothing said, the board stays the board meanwhile (no chat is
+    // drawn over it), and you go in as soon as it is there.
+    s.press("alt+c"); assert.equal(s.v.drawer, "peek"); assert.deepEqual(s.closed, []);
+    assert.match(s.text(), /Starting the Coordinator: you go into its chat as soon as it is ready\. esc stays on the board\./);
+    assert.match(s.text(), /❯ say something to the Coordinator/, "the board is still the board");
     await drainJobs(runJob);
     assert.equal(w.agents().length, 1); assert.equal(w.agents()[0].agent.prompts, undefined);
+    assert.deepEqual(w.state().focus, []);
     s.beat();
-    assert.equal(bridges.length, 1); assert.ok(bridges[0].started); assert.deepEqual(s.tui, ["start", "stop"]); // the board's own screen steps aside
-    assert.equal(bridges[0].o.pane, C.get().pane); assert.equal(bridges[0].o.socket, w.socket);
-    assert.match(stripVTControlCharacters(bridges[0].o.footer(120)), /Coordinator {2}claude · default model · default effort {2}· {2}alt\+v drawer down · alt\+c back to the board/);
-    // Its keys: alt+v lowers to the last message, alt+c goes back to the board.
-    bridges[0].o.onKey("peek");
-    assert.equal(s.v.drawer, "peek"); assert.ok(bridges[0].stopped); assert.deepEqual(s.tui, ["start", "stop", "start"]);
-    s.press("alt+c"); assert.equal(s.v.drawer, "full"); assert.equal(bridges.length, 2); assert.ok(bridges[1].started);
-    bridges[1].o.onKey("hidden"); assert.equal(s.v.drawer, "hidden"); assert.ok(bridges[1].stopped);
-    // Down one step at a time, and esc hides it.
-    s.press("alt+c", "alt+c"); assert.equal(s.v.drawer, "full"); bridges[2].o.onKey("peek"); s.press("alt+v"); assert.equal(s.v.drawer, "hidden");
-    s.press("alt+c", "esc"); assert.equal(s.v.drawer, "hidden");
-    // herdr ending the stream (its terminal taken over elsewhere) drops back to the last message, with the reason.
-    s.press("alt+c", "alt+c"); bridges[3].o.onClose("its terminal was closed or taken over elsewhere");
-    assert.equal(s.v.drawer, "peek"); assert.match(s.text(), /The Coordinator's chat closed: its terminal was closed or taken over elsewhere\./);
+    assert.deepEqual(s.closed, [{ entered: "coordinator" }], "the board closes"); assert.deepEqual(w.state().focus, [`agent ${C.get().pane}`], "and herdr moves to its real pane");
+    assert.deepEqual(s.tui, [], "the board's screen is never handed to a chat inside it");
+    s.v.dispose();
+    assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).drawer, "peek"); // coming back, the board is as you left it
+    // Back on the board from the Coordinator's pane: herdr names that pane's folder, which is nobody's repo. The
+    // board is where it was, so the draft that comes back is sent from the repo it was typed in.
+    {
+      const b = open(w); b.type("a draft"); b.v.dispose();
+      const tui = { terminal: { rows: 34, columns: 120 }, requestRender() {}, stop() {}, start() {} };
+      const back = new View(tui, theme, () => {}, { cwd: C.home() }); clearInterval(back.timer);
+      assert.equal(back.value(), "a draft"); assert.equal(back.ctx.cwd, w.root); assert.equal(back.repo.root, w.root);
+      back.handleInput("\r"); await drainJobs(runJob);
+      assert.deepEqual(C.get().where.at(-1).root, w.root, "not the Coordinator's own folder");
+      back.setDrawer("peek"); back.dispose();
+    }
+    // Running: alt+c with the drawer up goes straight in.
+    const d = open(w); assert.equal(d.v.drawer, "peek");
+    d.press("alt+c"); assert.deepEqual(d.closed, [{ entered: "coordinator" }]); assert.equal(w.state().focus.length, 2);
+    // alt+v and esc hide the drawer; neither goes anywhere.
+    const e = open(w); e.press("alt+v"); assert.equal(e.v.drawer, "hidden"); e.press("alt+c", "esc"); assert.equal(e.v.drawer, "hidden"); assert.deepEqual(e.closed, []);
+    // Asked to go in, then esc: you stay on the board, also once it is there.
+    C.stop(); await drainJobs(runJob); e.beat();
+    e.press("alt+c", "alt+c"); assert.ok(e.v.going); e.press("esc"); assert.equal(e.v.going, 0); assert.equal(e.v.drawer, "peek");
+    await drainJobs(runJob); e.beat(); assert.deepEqual(e.closed, []); assert.equal(w.state().focus.length, 2);
     // A task's preview and the drawer share the place above the box: one at a time, and a reply never pops up over a
     // preview, where your typing belongs to that task's agent.
-    A.add(w.root, "A task"); s.v.msgAt = 0; s.beat();
-    s.press("space"); assert.equal(s.v.peek, true); assert.equal(s.v.drawer, "hidden");
+    e.press("esc"); A.add(w.root, "A task"); e.v.msgAt = 0; e.beat();
+    e.press("space"); assert.equal(e.v.peek, true); assert.equal(e.v.drawer, "hidden");
     w.script({ coordinator: [{ said: "All done." }] });
-    C.send(w.root, "do something"); await drainJobs(runJob); s.beat();
-    assert.equal(s.v.drawer, "hidden"); assert.match(s.text(), /Coordinator replied · alt\+c shows it · All done\./);
-    s.press("alt+c"); assert.equal(s.v.peek, false); assert.equal(s.v.drawer, "peek"); assert.match(s.text(), /last message *\n › do something *\n All done\./);
-    // The plugin's herdr action asks an open board for the full-screen chat.
-    s.press("esc"); C.askFull(); s.v.beat(); assert.equal(s.v.drawer, "full"); assert.equal(bridges.length, 5);
-    s.v.dispose(); assert.ok(bridges[4].stopped);
-    // A board opened straight into the chat: its own screen starts first and is then stopped for the chat's, so only
-    // the chat hears the keys, and alt+v lands on the last message, not past it.
-    C.askFull(); const before = bridges.length; const d = open(w, { bridges });
-    assert.equal(d.v.early, before, "no chat before the board's screen runs"); assert.equal(bridges.length, before + 1);
-    assert.deepEqual(d.tui.slice(0, 2), ["start", "stop"]);
-    bridges.at(-1).o.onKey("peek"); assert.equal(d.v.drawer, "peek"); assert.deepEqual(d.tui, ["start", "stop", "start"]);
-    d.v.dispose();
-    assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).drawer, "peek"); // a board closed on the chat reopens on its last message
+    C.send(w.root, "do something"); await drainJobs(runJob); e.beat();
+    assert.equal(e.v.drawer, "hidden"); assert.match(e.text(), /Coordinator replied · alt\+c shows it · All done\./);
+    e.press("alt+c"); assert.equal(e.v.peek, false); assert.equal(e.v.drawer, "peek"); assert.match(e.text(), /last message *\n › do something *\n All done\./);
+    // Whatever was typed in its own chat, the box's last words no longer head its last message.
+    e.press("alt+c"); assert.deepEqual(e.closed, [{ entered: "coordinator" }]); assert.equal(C.get().last, "");
     for (const width of [24, 40, 64, 90, 200]) assert.ok(open(w).screen(width).every((l) => l.length <= width), `fits ${width}`);
+  } finally { delete process.env.HERDR_ENV; w.cleanup(); }
+});
+
+test("the herdr action goes into the Coordinator's pane from anywhere, starting it first when it is not running", async () => {
+  const w = await coordWorld();
+  try {
+    const going = main(["open-coordinator"]);
+    await new Promise((r) => setTimeout(r, 50)); await drainJobs(runJob);
+    assert.equal(await going, 0);
+    assert.equal(w.agents().length, 1); assert.deepEqual(w.state().focus, [`agent ${C.get().pane}`], "its pane, not the board");
+    assert.equal(await main(["open-coordinator"]), 0); assert.equal(w.state().focus.length, 2);
   } finally { w.cleanup(); }
 });
 
@@ -215,45 +228,74 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     fs.rmSync(S.stampFile(`coordinator-default`), { force: true });
     C.tick(); await drainJobs(runJob);
     assert.equal(C.get().queue.length, 0); assert.deepEqual(w.agents()[0].agent.prompts.map((p) => p.split("\n").pop()), ["first"]);
+    // A second message refused by a dialog did not go in: the first, still being worked on, keeps its repo and its
+    // delegate choice, and the second is only said once it really went in.
+    const other = path.join(w.base, "elsewhere"); fs.mkdirSync(other);
+    w.patchState((st) => { st.panes.find((x) => x.agent).agent.status = "blocked"; });
+    C.send(other, "later", { delegate: true }); await drainJobs(runJob);
+    assert.equal(C.get().queue.length, 1); assert.deepEqual(C.get().where.map((x) => [x.said, x.repo, x.delegate]), [["first", "proj", false]]);
+    assert.doesNotMatch(C.where(), /later|elsewhere|was sent with the delegate key/);
+    w.patchState((st) => { st.panes.find((x) => x.agent).agent.status = "idle"; });
+    fs.rmSync(S.stampFile(`coordinator-default`), { force: true });
+    C.tick(); await drainJobs(runJob);
+    assert.deepEqual(C.get().where.map((x) => [x.said, x.repo, x.delegate]), [["first", "proj", false], ["later", "elsewhere", true]]);
+    // Two messages in the same millisecond, the same words, from different repos with opposite Tab choices: both
+    // reach the agent and each keeps its own.
+    const now = Date.now; Date.now = () => 1700000000000;
+    try { C.send(w.root, "same words"); C.send(other, "same words", { delegate: true }); } finally { Date.now = now; }
+    await drainJobs(runJob);
+    assert.equal(C.get().queue.length, 0); assert.equal(w.agents()[0].agent.prompts.filter((p) => p === "same words").length, 2);
+    assert.deepEqual(C.get().where.slice(-2).map((x) => [x.said, x.repo, x.delegate]), [["same words", "proj", false], ["same words", "elsewhere", true]]);
+    // The list is full (five that went in). One more that a dialog refuses takes nothing away from the oldest.
+    process.env.HERDR_SUPERWORK_HANDLED_MS = "0"; // at rest means dealt with, for this part
+    C.send(w.root, "fifth"); await drainJobs(runJob);
+    const full = C.get().where.map((x) => x.said); assert.deepEqual(full, ["first", "later", "same words", "same words", "fifth"]);
+    w.patchState((st) => { st.panes.find((x) => x.agent).agent.status = "blocked"; });
+    C.send(other, "sixth", { delegate: true }); await drainJobs(runJob);
+    assert.deepEqual(C.get().where.map((x) => x.said), full, "the refused one is not said, and the first is still there");
+    w.patchState((st) => { st.panes.find((x) => x.agent).agent.status = "idle"; });
+    fs.rmSync(S.stampFile(`coordinator-default`), { force: true });
+    C.tick(); await drainJobs(runJob);
+    assert.deepEqual(C.get().where.map((x) => x.said), ["later", "same words", "same words", "fifth", "sixth"]);
+    // Still working through what it was sent: nothing it has not dealt with yet is dropped, however many wait.
+    w.script({ coordinator: [1, 2, 3, 4, 5, 6, 7].map(() => ({ status: "working" })) });
+    for (const n of [1, 2, 3, 4, 5, 6, 7]) C.send(n === 1 ? other : w.root, `busy ${n}`, { delegate: n === 1 });
+    await drainJobs(runJob);
+    assert.equal(C.look().state, "working");
+    assert.deepEqual(C.get().where.map((x) => x.said), [1, 2, 3, 4, 5, 6, 7].map((n) => `busy ${n}`), "all seven it still has ahead of it; the ones dealt with before them are gone");
+    assert.match(C.where(), /- "busy 1" was sent from the repo "elsewhere"[^\n]*It was sent with the delegate key/);
+    // There is no number at which one it has not dealt with is let go: 61 more, and the very first is still there.
+    w.script({ coordinator: Array.from({ length: 61 }, () => ({ status: "working" })) });
+    for (let n = 8; n <= 68; n++) C.send(w.root, `busy ${n}`);
+    await drainJobs(runJob);
+    assert.equal(C.get().queue.length, 0); assert.equal(C.get().where.length, 68);
+    assert.deepEqual(C.get().where.slice(0, 1).map((x) => [x.said, x.repo, x.delegate]), [["busy 1", "elsewhere", true]]);
+    assert.match(C.where(), /- "busy 1" was sent from the repo "elsewhere"[^\n]*It was sent with the delegate key/);
+    // Restarted in the middle of that work: its program is idle again, and none of it is done. Idle alone is not
+    // taken for dealt with, however long ago the words went in, so the next message drops nothing.
+    C.restart(); await drainJobs(runJob);
+    assert.equal(C.look().state, "idle"); assert.equal(C.get().where.length, 68);
+    w.script({ coordinator: [{ said: "ok" }] });
+    C.send(w.root, "after the restart"); await drainJobs(runJob);
+    assert.equal(C.get().where.length, 69); assert.deepEqual(C.get().where[0].said, "busy 1"); assert.equal(C.get().where[0].delegate, true);
+    // It has finished a turn since and is at rest: the next message finds them dealt with, and the list is the
+    // last five once more.
+    w.script({ coordinator: [{ said: "ok" }] });
+    C.send(w.root, "after"); await drainJobs(runJob);
+    assert.deepEqual(C.get().where.map((x) => x.said), ["busy 66", "busy 67", "busy 68", "after the restart", "after"]);
+    // A message typed in a moment ago may not have set it working yet: it is not taken for dealt with.
+    process.env.HERDR_SUPERWORK_HANDLED_MS = "15000";
+    w.script({ coordinator: [1, 2, 3, 4, 5, 6].map(() => ({ said: "ok" })) });
+    for (const n of [1, 2, 3, 4, 5, 6]) C.send(w.root, `quick ${n}`);
+    await drainJobs(runJob);
+    assert.equal(C.look().state, "idle"); assert.deepEqual(C.get().where.map((x) => x.said), ["after", ...[1, 2, 3, 4, 5, 6].map((n) => `quick ${n}`)]);
     // A program that is not installed cannot be started: the reason shows, and the words wait.
     S.writeJson(path.join(S.dataDir(), "versions.json"), { nope: { v: "", at: Date.now(), found: false } });
     C.fresh(C.pickOf({ agent: "nope" })); C.send(w.root, "second"); await drainJobs(runJob);
     assert.match(C.look().error, /"nope" is not installed here/); assert.equal(C.get().queue.length, 1);
     s.beat(); assert.match(s.text(), /Coordinator could not be started: "nope" is not installed here/);
     assert.throws(() => C.pickOf({ agent: "not a kind" }), /must be an agent kind/);
-  } finally { w.cleanup(); }
-});
-
-test("the full-screen chat is the agent's real terminal: frames out, keys in, and only the drawer's keys are kept", () => {
-  const written = [], spawned = [];
-  const stdin = Object.assign(new EventEmitter(), { raw: null, setRawMode(v) { this.raw = v; }, resume() {} });
-  const stdout = Object.assign(new EventEmitter(), { rows: 30, columns: 100, write(x) { written.push(Buffer.isBuffer(x) ? x.toString("utf8") : String(x)); return true; } });
-  const child = Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new PassThrough(), kill() {} });
-  const sent = []; child.stdin.on("data", (d) => sent.push(...String(d).split("\n").filter(Boolean).map((l) => JSON.parse(l))));
-  const keys = [], closed = [];
-  const b = new Bridge({ socket: "/tmp/x.sock", pane: "w9:p1", footer: () => "FOOT", keys: [["alt+c", "hidden"], ["alt+v", "peek"]], onKey: (k) => keys.push(k), onClose: (why) => closed.push(why),
-    io: { stdin, stdout, spawn: (cmd, args, opts) => { spawned.push({ cmd, args, opts }); return child; } } });
-  b.start();
-  // One row is the board's: the agent's terminal is asked for one row less than the screen.
-  assert.deepEqual(spawned[0].args, ["terminal", "session", "control", "w9:p1", "--takeover", "--cols", "100", "--rows", "29"]);
-  assert.equal(spawned[0].opts.env.HERDR_SOCKET_PATH, "/tmp/x.sock"); assert.equal(stdin.raw, true);
-  assert.ok(written[0].startsWith("\x1b[?1049h")); assert.ok(written.at(-1).includes("\x1b[30;1H") && written.at(-1).includes("FOOT"));
-  const frame = (text, full) => child.stdout.write(JSON.stringify({ type: "terminal.frame", full, bytes: Buffer.from(text).toString("base64") }) + "\n");
-  written.length = 0; frame("\x1b[2Jhello", true);
-  return new Promise((resolve) => setImmediate(() => {
-    assert.equal(written[0], "\x1b[2Jhello"); assert.ok(written[1].includes("FOOT"), "a full frame clears the screen, so the board's row is drawn again");
-    stdin.emit("data", Buffer.from("hi\r")); stdin.emit("data", Buffer.from("\x1bc")); stdin.emit("data", Buffer.from("\x1bv")); stdin.emit("data", Buffer.from("\x1b[5;2~"));
-    stdout.rows = 20; stdout.columns = 60; stdout.emit("resize");
-    setImmediate(() => {
-      assert.deepEqual(sent, [{ type: "terminal.input", bytes: Buffer.from("hi\r").toString("base64") }, { type: "terminal.scroll", direction: "up", lines: 14 }, { type: "terminal.resize", cols: 60, rows: 19 }]);
-      assert.deepEqual(keys, ["hidden", "peek"]);
-      child.stdout.write(JSON.stringify({ type: "terminal.closed", reason: "detached" }) + "\n");
-      setImmediate(() => {
-        assert.equal(closed.length, 1); assert.equal(stdin.raw, false); assert.ok(written.at(-1).endsWith("\x1b[?1049l")); assert.equal(stdin.listenerCount("data"), 0);
-        resolve();
-      });
-    });
-  }));
+  } finally { delete process.env.HERDR_SUPERWORK_HANDLED_MS; w.cleanup(); }
 });
 
 test("a program that names its own conversations (Codex) is restarted in the same one, without the board having looked first", async () => {
@@ -302,7 +344,7 @@ test("turning the Coordinator on while the board is open takes effect at once, a
     s.type("second thing"); s.press("enter");
     assert.equal(S.get("proj/2"), null, "not filed word for word any more"); assert.equal(C.get().queue.length, 1);
     await drainJobs(runJob);
-    assert.match(w.agents()[0].agent.prompts[0], /\nsecond thing$/); assert.doesNotMatch(s.text(), /no Coordinator/);
+    assert.equal(w.agents()[0].agent.prompts[0], "second thing"); assert.doesNotMatch(s.text(), /no Coordinator/);
     // Off again: the next beat that checks sees it, even with one still running.
     S.setConfig("coordinator", "off");
     s.v.tick = 4; s.v.beat();
@@ -318,16 +360,16 @@ test("a start that fails loses nothing: a restart asked for meanwhile still happ
   const w = await coordWorld({ coordinator: "codex" });
   try {
     // Codex's flag for standing rules carries the text itself. The whole launch line must stay well under what a
-    // terminal takes on one line (4096 bytes): the flag points at a file and the rules go in with the first message.
+    // terminal takes on one line (4096 bytes): the flag points at a file, and your words go in as they are.
     C.send(w.root, "hello"); await drainJobs(runJob);
     const agent = w.agents()[0].agent;
     assert.ok(["codex", ...agent.args].join(" ").length < 2000, "the launch line is short");
     const flag = agent.args.at(-1);
     assert.match(flag, /^developer_instructions="You are the Coordinator of the human's work board in herdr\. Your standing rules are in the file .*rules\.md: read it/);
     assert.match(fs.readFileSync(/in the file (\S+rules\.md):/.exec(flag)[1], "utf8"), /board add "<short title/);
-    assert.match(agent.prompts[0], /^You are the Coordinator of the human's work board[\s\S]*\n\n\[board: the human is in the repo "proj"[^\n]*\]\nhello$/);
+    assert.equal(agent.prompts[0], "hello", "the rules are never put on what you say");
     C.send(w.root, "again"); await drainJobs(runJob);
-    assert.match(w.agents()[0].agent.prompts[1], /^\[board:/, "the rules ride on the first message only");
+    assert.equal(w.agents()[0].agent.prompts[1], "again");
     // A start that fails while you ask for a new one: the failure is said, and your request is still carried out.
     const real = process.env.HERDR_BIN_PATH, failing = path.join(w.base, "herdr-failing");
     fs.writeFileSync(failing, `#!/bin/sh\nif [ "$1 $2" = "agent start" ] && [ ! -e "${w.base}/ok" ]; then node -e 'const C = await import("${path.resolve("src/coordinator.js")}"); C.fresh(C.pickOf({ agent: "claude" }));' --input-type=module 2>/dev/null; touch "${w.base}/ok"; echo '{"error":{"code":"timeout","message":"the agent did not become ready"}}' >&2; exit 1; fi\nexec "${real}" "$@"\n`, { mode: 0o755 });
@@ -432,16 +474,6 @@ test("out of the box the Coordinator is Claude Code on its defaults, whatever th
   } finally { w.cleanup(); }
 });
 
-test("the full-screen shortcut reaches the board of its own herdr session only", async () => {
-  const w = await coordWorld();
-  try {
-    const here = path.join(w.base, "sessions", "one", "herdr.sock"), other = path.join(w.base, "sessions", "two", "herdr.sock");
-    C.askFull(here);
-    assert.equal(C.takeFull(other), false, "a board in another session does not take it");
-    assert.equal(C.takeFull(here), true, "and it is still there for the board it was meant for");
-    assert.equal(C.takeFull(here), false);
-  } finally { w.cleanup(); }
-});
 
 test("stop leaves it stopped, also with words still waiting: they go in with your next message", async () => {
   const w = await coordWorld();

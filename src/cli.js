@@ -25,6 +25,7 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork config [key [value]] [--id ID]   show or change settings; with --id, one task's own choice
   herdr-superwork coordinator                   the Coordinator (the agent behind the board's box): who it is, how it stands
   herdr-superwork coordinator tell <text>       say something to it (it is started when it is not running)
+  herdr-superwork coordinator where             where the human was when they last wrote to it from the board (for the Coordinator itself)
   herdr-superwork coordinator restart           start its program again, in the same conversation
   herdr-superwork coordinator new [--agent KIND] [--model M] [--effort E]
                                                 a fresh one; with options, that choice is for this one only
@@ -106,8 +107,8 @@ export async function main(argv) {
   if (cmd === "keeper-work") { const { keeperWork } = await import("./keeper.js"); await keeperWork(); return 0; }
   if (cmd === "run") { const { runJob } = await import("./jobs.js"); await runJob(pos[1], pos[2], pos.slice(3).concat(flags.force ? ["--force"] : [])); return 0; }
   if (cmd === "open") { const { herdr } = await import("./herdr.js"); herdr().openBoard(); return 0; }
-  // The board, straight on the Coordinator's chat. An open board sees the request on its next beat.
-  if (cmd === "open-coordinator") { const C = await import("./coordinator.js"); const { herdr } = await import("./herdr.js"); C.askFull(); try { herdr().openBoard(); } catch {} return 0; }
+  // Into the Coordinator's chat: herdr moves to its real pane, as for any agent. No board in between.
+  if (cmd === "open-coordinator") { const C = await import("./coordinator.js"); try { await C.goIn(); } catch (e) { console.error(e.message); return 1; } return 0; }
   if (cmd === "approve-current") {
     // Approves the task that owns the focused pane, from the invocation context; does nothing otherwise.
     let pane = "";
@@ -191,11 +192,12 @@ export async function main(argv) {
       const C = await import("./coordinator.js");
       const what = pos[1] || "status";
       const said = { tell: "sent to the Coordinator", restart: "the Coordinator is restarting, in the same conversation", new: "a new Coordinator is starting", stop: "the Coordinator is stopped; the next message starts it again" };
+      if (what === "where") { result = [{ where: C.get()?.where || [] }, C.where()]; break; }
       if (what === "tell") C.send(here, need(2, "the text") && rest(2), { delegate: !!flags.delegate });
       else if (what === "restart") C.restart();
       else if (what === "new" || what === "fresh") C.fresh(C.pickOf({ agent: flags.agent, model: flags.model, effort: flags.effort }));
       else if (what === "stop") C.stop();
-      else if (what !== "status") throw new Error("coordinator takes: tell <text>, restart, new, stop. Try: herdr-superwork help");
+      else if (what !== "status") throw new Error("coordinator takes: tell <text>, where, restart, new, stop. Try: herdr-superwork help");
       const s = C.summary();
       result = [s, said[what === "fresh" ? "new" : what] || `Coordinator: ${s.state} · ${[s.agent, s.model || "default model", s.effort || "default effort"].join(" · ")}${s.oneOff ? " (for this one only)" : ""} · default: ${s.default}${s.error ? `\n${s.error}` : ""}${s.said ? `\n\n${s.said}` : ""}`];
       break;
