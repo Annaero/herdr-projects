@@ -25,7 +25,7 @@ sits between two marker lines, and a change herdr rejects is rolled back):
 - a key that opens the board (it suggests one herdr does not use; `prefix+w` is herdr's own workspace picker);
 - sidebar rows, so herdr's sidebar shows each task's stage, its "doing now" line and its progress. herdr's default
   sidebar shows none of these: without the rows the plugin puts a short status into the agent's name instead
-  (`review 4/5 · claude`), which works with no setup.
+  (`review 1 · 4/5 · claude`), which works with no setup.
 
 Nothing else is needed: no herdr integration, no hooks in your own agent settings. To add the blocks by hand instead:
 
@@ -110,7 +110,9 @@ login error, token use. With the board open or closed it then:
 2. pushes the branch and opens a draft pull request, when there is an `origin` remote and `gh`;
 3. has a second agent review it adversarially, in a visible split of the same herdr space; it rates the work 1 to 5
    and brings evidence; whatever it changed is put back. A reviewer that ends its turn with no verdict fails the
-   review at once, with its own error or last message;
+   review at once, with its own error or last message. The board says which review a task is on (`review 1`,
+   `review 2`, …) wherever its review state shows: the row, the preview, the details, herdr's sidebar and the
+   review page;
 4. waits for your approval (`Ctrl+A`).
 
 An error, a usage limit, a cut-off or a refusal is saved as "Agent stopped" with the real text; a login error makes

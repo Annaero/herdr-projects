@@ -89,16 +89,19 @@ export function labelPane(t, text) {
   else api.metadata(t.link.pane, ["--clear-state-labels", "--clear-display-agent"]);
   if (t.link.workspace && t.link.ownsWorkspace) { try { api.call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", ...(label ? ["--token", `summary=${label}`] : ["--clear-token", "summary"])]); } catch {} }
 }
+// A verdict in a few words, with which review gave it: "review 2 · 4/5".
+export const verdictLabel = (t, rv) => `${S.reviewLabel(t) || "review"}${S.reviewLabel(t) ? " · " : " "}${rv.score}/5`;
 // The stage in plain words, for herdr's sidebar. Nothing while the agent simply works: herdr's own status says that.
 export function labelOf(t) {
   const rv = S.currentReview(t);
   switch (t.stage) {
-    case "approval": return t.mergeFailed ? "merge blocked" : t.prFailure ? "pr blocked" : rv ? `review ${rv.score}/5` : "approve?";
+    case "approval": return t.mergeFailed ? "merge blocked" : t.prFailure ? "pr blocked" : rv ? verdictLabel(t, rv) : "approve?";
     case "asks": return t.kind === "auth" ? "needs login" : "needs you";
-    case "nosummary": case "reviewneeds": return "needs you";
+    case "nosummary": return "needs you";
+    case "reviewneeds": return [S.reviewLabel(t), "needs you"].filter(Boolean).join(" · ");
     case "failed": return t.failure?.auth ? "needs login" : "failed";
     case "merging": return t.autoMerge ? "merges on green" : "merging";
-    case "reviewing": return "in review";
+    case "reviewing": return S.reviewLabel(t) || "in review";
     case "checking": case "pushing": return "checking";
   }
   return "";

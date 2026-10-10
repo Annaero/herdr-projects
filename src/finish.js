@@ -290,7 +290,7 @@ export async function pipeline(id, g, text, wake) {
   }
   // Finished work that waits for your yes is not done: it is blocked on you.
   t = g.set((t) => { t.stage = "approval"; t.msg = approvalMessage(t, note); t.seen = false; });
-  F.labelPane(t, review ? `review ${review.score}/5` : "approve?");
+  F.labelPane(t, review ? F.verdictLabel(t, review) : "approve?");
 }
 // A pull-request blocker found by polling survives a passing local check: remote CI must confirm.
 function holdPrFailure(g, t) {
@@ -423,7 +423,7 @@ async function runReview(id, g, { text, change, toLand, ch }) {
   try {
     t = S.get(id);
     review.artifacts = await publishReview({ enabled: ch.artifacts, dir: art, listed: review.listed, review, task: t, serve: ch.serve, onFallback: (why) => { try { S.update(id, (t) => { t.fallbacks = { ...(t.fallbacks || {}), serve: why }; }, { waitMs: 10000 }); } catch {} },
-      context: { id, title: t.title, description: t.description, summary: text, stat: change?.stat, head: change?.head, pr: t.pr } });
+      context: { id, round: S.reviewRound(t), title: t.title, description: t.description, summary: text, stat: change?.stat, head: change?.head, pr: t.pr } });
   } catch { review.artifacts = []; } // a publish failure must not bypass the requested-review gate, nor fail the review
   delete review.listed;
   return { review };

@@ -84,7 +84,7 @@ function refuse(cmd, pos, flags) {
   return ok ? "" : `Refused: as the ${c.role === "reviewer" ? "reviewer" : "agent"} of ${c.task.id} you may only run ${c.role === "reviewer" ? "list and details" : `add, list, details and "report ${c.task.id} --state blocked"`}. The human does the rest from the board.`;
 }
 const line = (t) => `${t.id.padEnd(14)} ${String(t.state).padEnd(8)}${t.kind ? ` ${t.kind}` : ""}${t.shownApp ? ` [${t.shownApp}]` : ""}  ${t.title}${t.note ? `  · ${t.note}` : ""}${t.archivedAt ? "  (archived)" : ""}`;
-const brief = (t) => ({ id: t.id, state: t.state, kind: t.kind, app: t.shownApp, title: t.title, msg: t.note, stage: t.stage, progress: t.progress, pr: t.pr || undefined, archivedAt: t.archivedAt || undefined, review: S.currentReview(t) || undefined });
+const brief = (t) => ({ id: t.id, state: t.state, kind: t.kind, app: t.shownApp, title: t.title, msg: t.note, stage: t.stage, progress: t.progress, pr: t.pr || undefined, archivedAt: t.archivedAt || undefined, review: S.currentReview(t) || undefined, reviewRound: S.reviewRound(t) || undefined });
 
 export async function main(argv) {
   const { pos, flags } = parse(argv);

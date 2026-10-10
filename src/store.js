@@ -390,6 +390,9 @@ export function failurePatch(failure) {
 }
 // Keep findings and evidence for reference, but a verdict stops describing the work once it resumes.
 export const currentReview = (t) => (t?.review?.stale ? null : t?.review);
+// Which review a task is on: 1 for its first, counted up each time a reviewer starts on it. "" before any review.
+export const reviewRound = (t) => Math.max(0, Math.floor(Number(t?.reviewRound) || 0));
+export const reviewLabel = (t) => (reviewRound(t) ? `review ${reviewRound(t)}` : "");
 
 // ---- view preferences and small shared files -------------------------------------------------------------------------
 export const stampFile = (name) => path.join(dataDir(), "stamps", name);

@@ -372,6 +372,10 @@ test("reviewAuto sends anything below 5 straight back, as the plugin's own turn,
     const t = await settle(id, { max: 30 });
     assert.equal(t.stage, "approval"); assert.equal(t.reviewRounds, 2); assert.equal(t.review.score, 4);
     assert.equal(paneOf(w, t).agent.prompts.length, 3);
+    // three reviews ran: the task says which one it is on, to herdr's sidebar too
+    assert.equal(S.reviewRound(t), 3); assert.equal(F.labelOf(t), "review 3 · 4/5");
+    assert.equal(F.labelOf({ ...t, stage: "reviewing" }), "review 3"); assert.equal(F.labelOf({ ...t, stage: "reviewing", reviewRound: 0 }), "in review");
+    assert.equal(F.labelOf({ ...t, stage: "reviewneeds" }), "review 3 · needs you"); assert.equal(F.labelOf({ ...t, stage: "reviewneeds", reviewRound: 0 }), "needs you");
   } finally { w.cleanup(); }
 });
 

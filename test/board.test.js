@@ -278,6 +278,25 @@ test("the board: a row waiting for approval keeps its name, with the PR, verdict
   assert.match(row(base, 120), /^ \S Build a flying game {2}approve to merge\? +0s$/); // no reviewer: only what it waits for
   assert.match(row({ ...pr, review: { ...review, stale: true } }, 120), /^ \S Build a flying game {2}approve to merge\? +PR #12 +0s$/);
   assert.match(row({ ...pr, review: { ...review, recommend: true, score: 5 } }, 120), / merge 5\/5 PR #12 +0s$/);
+  // which review it is on: a column of its own, kept when the verdict and the score have to go
+  const second = { ...pr, reviewRound: 2 };
+  assert.match(row(second, 120), /^ \S Build a flying game {2}approve to merge\? +review 2 don't merge 3\/5 PR #12 +0s$/);
+  assert.match(row(second, 60), /^ \S Build a flying game +review 2 don't merge 3\/5 PR #12 +0s$/);
+  assert.match(row(second, 44), /^ \S Build a flying game +review 2 PR #12 +0s$/);
+  // a failed merge still shows its verdict and score, so it still says which review gave them
+  const failedMerge = { ...second, mergeFailed: true, review: { ...review, recommend: true, score: 5 }, msg: "The merge failed." };
+  assert.match(row(failedMerge, 120), / review 2 merge 5\/5 #12 +0s$/);
+  assert.match(row({ ...failedMerge, pr: undefined }, 120), / review 2 +0s$/);
+  assert.match(stripVTControlCharacters(v.pageLines({ ...failedMerge, owner: "me" }, 80).join("\n")), /blocked · permission · review 2 · /);
+  assert.match(row({ ...second, stage: "merging", state: "working", kind: undefined, msg: "merging" }, 120), / review 2 don't merge 3\/5 #12 +0s$/);
+  assert.doesNotMatch(row({ ...second, state: "done", stage: "done" }, 120), /review 2/);
+  const under = { ...working, stage: "reviewing", reviewRound: 3, msg: "Running the tests." };
+  assert.match(row(under, 120), /^ \S Other {2}Running the tests\. +review 3 \S+ +50% +0s$/);
+  assert.match(row(under, 30), /^ \S Other +review 3 +50% +0s$/);
+  assert.match(row({ ...under, stage: "reviewneeds", state: "blocked", progress: undefined, msg: "the reviewer shows a dialog" }, 120), / review 3 +0s$/);
+  assert.doesNotMatch(row({ ...working, reviewRound: 3 }, 120), /review 3/); // back with the agent: no review is running
+  assert.match(stripVTControlCharacters(v.pageLines({ ...under, owner: "me" }, 80).join("\n")), /reviewing · review 3 · /);
+  assert.match(stripVTControlCharacters(v.pageLines({ ...plain, reviewRound: 2, owner: "me" }, 80).join("\n")), /blocked · review 2 · /);
   // narrower: the name stays whole, the columns go one at a time
   assert.match(row(pr, 60), /^ \S Build a flying game +don't merge 3\/5 PR #12 +0s$/);
   assert.match(row(plain, 44), /^ \S Build a flying game +don't merge 3\/5 +0s$/);

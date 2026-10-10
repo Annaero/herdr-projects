@@ -52,7 +52,7 @@ test("the finish line: commit leftovers, check, review, then wait for approval; 
     assert.deepEqual([s.state, s.kind, s.asReview], ["blocked", "permission", true]);
     const st = w.state();
     assert.deepEqual(st.notifications, []); // nothing pops up when a task lands in review
-    assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=review 4/5"))); // herdr's own sidebar shows it
+    assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=review 1 · 4/5"))); // herdr's own sidebar shows it
     assert.ok(!st.panes.some((p) => p.agent?.name === "sw-proj-1-r")); // the reviewer pane is closed again
     assert.equal(st.panes.find((p) => p.pane_id === t.link.pane).agent.kind, "claude");
     // approve

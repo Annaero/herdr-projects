@@ -36,6 +36,10 @@ const ROLE_COLOR = { agent: "accent", reviewer: "mauve" };
 const reviewing = (r) => r.state !== "done" && (r.stage === "reviewing" || r.stage === "reviewneeds");
 const statusColor = (r) => (reviewing(r) && r.state === "working" ? ROLE_COLOR.reviewer : COLOR[r.state]);
 const statusLabel = (r) => (reviewing(r) && r.state === "working" ? "reviewing" : r.state);
+// Which review the task is on ("review 2"), wherever its review state shows: under review, waiting for your approval
+// (a failed merge too), or anywhere else its verdict and score still show.
+const roundLabel = (r) => (r.state !== "done" && (reviewing(r) || r.stage === "approval" || (r.pr && S.currentReview(r))) ? S.reviewLabel(r) : "");
+const withRound = (r, text) => (text === "review" && roundLabel(r) ? roundLabel(r) : [text, roundLabel(r)].filter(Boolean).join(" · "));
 const currentReview = (r) => S.currentReview(r);
 const needsYou = (r) => r.state === "blocked" || r.state === "error";
 // Strip only board-generated review metadata; task descriptions and agent wording stay intact.
@@ -597,7 +601,7 @@ export class View {
       if ((this.peek || failure) && r) {
         if (hasEvidence) preview.push(artifactLine(t, evidence[0], width), "");
         const wrapAll = (text) => String(text).split("\n").flatMap((l) => { const w = wrapTextWithAnsi(clean(l), Math.max(10, width - 2)); return w.length ? w : [""]; });
-        const title = " " + this.mark(r) + " " + t.bold(clean(r.title || r.id)) + "  " + t.fg(statusColor(r), statusLabel(r)) + (kindOf(r) ? t.fg(kindColor(r), ` · ${kindOf(r)}`) : "") + (r.progress !== undefined ? t.fg(statusColor(r), ` · ${r.progress}%`) : "") + t.fg("overlay0", `  ${idLabel(r.id)}${r.app ? ` · ${r.app}` : ""}`);
+        const title = " " + this.mark(r) + " " + t.bold(clean(r.title || r.id)) + "  " + t.fg(statusColor(r), statusLabel(r)) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(statusColor(r), ` · ${roundLabel(r)}`) : "") + (r.progress !== undefined ? t.fg(statusColor(r), ` · ${r.progress}%`) : "") + t.fg("overlay0", `  ${idLabel(r.id)}${r.app ? ` · ${r.app}` : ""}`);
         if (failure) {
           preview.push(" " + t.fg("red", t.bold(clean(failure.title))), " " + t.fg("accent", clean(failureAction)), ...wrapAll(failure.detail).map((l) => " " + l));
         } else if (agentOn && r.state !== "error" && r.stage === "approval") {
@@ -606,7 +610,7 @@ export class View {
           const rv = currentReview(r);
           if (rv) {
             if (typeof rv.recommend === "boolean") preview.push(...fact("Recommends", rv.recommend ? "merge" : "don't merge", rv.recommend ? "green" : "red"));
-            preview.push(...fact("Score", `${rv.score}/5`, rv.score >= 5 ? "green" : rv.score >= 4 ? "subtext0" : "peach"));
+            preview.push(...fact("Score", withRound(r, `${rv.score}/5`), rv.score >= 5 ? "green" : rv.score >= 4 ? "subtext0" : "peach"));
             preview.push(...fact("Comment", rv.text || "No comment."));
           } else preview.push(" " + t.fg("overlay0", `${r.review?.stale ? "Awaiting a fresh review." : "No review yet."} ctrl+e full details`));
         } else {
@@ -719,7 +723,7 @@ export class View {
     const who = r.app ? (live ? (agent ? (reviewing(r) ? "reviewer is on it" : `${r.app} is on it`) : r.app === S.me() ? "you are on it" : `${r.app} is on it`) : `last worked by ${agent ? r.app : r.app === S.me() ? "you" : r.app}`) : `nobody is on it · owner ${r.owner === S.me() ? "you" : r.owner}`;
     if (r.archivedAt) L.push(...head("Archived", "overlay0"), ...block("Read-only · alt+a on the board to restore. Original state and all data are retained."));
     L.push(...head("Status"));
-    const status = this.mark(r) + " " + t.fg(statusColor(r), t.bold(statusLabel(r))) + (kindOf(r) ? t.fg(kindColor(r), ` · ${kindOf(r)}`) : "") + t.fg("overlay0", ` · ${who} · ${idLabel(r.id)} · ${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`);
+    const status = this.mark(r) + " " + t.fg(statusColor(r), t.bold(statusLabel(r))) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(statusColor(r), ` · ${roundLabel(r)}`) : "") + t.fg("overlay0", ` · ${who} · ${idLabel(r.id)} · ${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`);
     L.push(...wrapTextWithAnsi(status, w).map((l) => " " + l));
     if (r.progress !== undefined) L.push(" " + t.fg(statusColor(r), bar(r.progress, Math.min(24, w - 6))) + t.fg(statusColor(r), ` ${r.progress}%`));
 
@@ -854,7 +858,9 @@ export class View {
     const score = Number.isInteger(review?.score) && review.score >= 1 && review.score <= 5 ? t.fg("subtext0", `${review.score}/5`) : "";
     const recommendation = typeof review?.recommend === "boolean" ? t.fg(review.recommend ? "green" : "red", review.recommend ? "merge" : "don't merge") : "";
     const percent = !done && r.progress !== undefined ? t.fg(statusColor(r), `${String(r.progress).padStart(3)}%`) : "";
-    return { recommendation, score, pr: pr ? t.fg(prColor, pr) : "", progress: percent && bars ? t.fg(statusColor(r), bar(r.progress)) + " " + percent : percent, elapsed: age(now - (r.at || now)).padStart(3) };
+    // Which review it is on has its own column: it outlasts the verdict and the score when the row runs short.
+    const round = done ? "" : t.fg(reviewing(r) ? ROLE_COLOR.reviewer : "subtext0", roundLabel(r));
+    return { round, recommendation, score, pr: pr ? t.fg(prColor, pr) : "", progress: percent && bars ? t.fg(statusColor(r), bar(r.progress)) + " " + percent : percent, elapsed: age(now - (r.at || now)).padStart(3) };
   }
   activity(r) {
     const failure = failureFor(r);
@@ -864,12 +870,13 @@ export class View {
     return clean(failure && !failure.sentAt && (r.failure || r.prFailure) ? failure.msg || failure.title : (r.review?.stale ? reviewNote(r) : r.msg) || "").replace(/\*\*|`/g, "");
   }
   rowLayout(records, width) {
-    const layout = { decision: 0, recommendation: 0, score: 0, pr: 0, progress: 0, elapsed: 3, bars: width >= 64, now: Date.now() };
+    const layout = { decision: 0, round: 0, recommendation: 0, score: 0, pr: 0, progress: 0, elapsed: 3, bars: width >= 64, now: Date.now() };
     const fields = records.map((r) => this.rowFields(r, layout.bars, layout.now));
     const max = (key) => Math.max(0, ...fields.map((f) => visibleWidth(f[key])));
     layout.elapsed = Math.max(3, max("elapsed"));
     // Extremely long PR identifiers may shorten, but must never push time off-screen.
     layout.pr = Math.min(max("pr"), Math.max(0, width - 3 - layout.elapsed - 3));
+    layout.round = max("round");
     layout.recommendation = max("recommendation");
     layout.score = max("score");
     layout.progress = max("progress");
@@ -893,15 +900,15 @@ export class View {
       return (host && hostRoom >= Math.min(3, visibleWidth(host)) ? t.fg("overlay0", truncateToWidth(host, hostRoom, "…")) + " " : "") + shown;
     };
     // The name wins over the columns, and the columns win over the "doing now" sentence. A row whose name does not fit gives up
-    // its own columns, one at a time: the verdict, the score, the bar, the percent, the PR number and, last of all, the time.
+    // its own columns, one at a time: the verdict, the score, the bar, the percent, the PR number with the review round and, last of all, the time.
     const nameNeed = Math.min(room, visibleWidth(name));
     const pad = (s, n) => " ".repeat(Math.max(0, n - visibleWidth(s))) + s; // by terminal cells, not string length
     // Blank cells left of a row's first own column are not columns to that row: its words run into them.
     const build = (drop) => {
       const bars = layout.bars && drop < 3;
-      const cols = { recommendation: drop < 1 ? layout.recommendation : 0, score: drop < 2 ? layout.score : 0, pr: drop < 5 ? layout.pr : 0, progress: drop >= 4 ? 0 : bars ? layout.progress : layout.percent };
+      const cols = { round: drop < 5 ? layout.round : 0, recommendation: drop < 1 ? layout.recommendation : 0, score: drop < 2 ? layout.score : 0, pr: drop < 5 ? layout.pr : 0, progress: drop >= 4 ? 0 : bars ? layout.progress : layout.percent };
       const fields = this.rowFields(r, bars, layout.now);
-      const cells = [...["recommendation", "score"].map((k) => [cols[k], fields[k]]), [cols.pr, truncateToWidth(fields.pr, cols.pr, "…")], [cols.progress, fields.progress]].filter(([n]) => n);
+      const cells = [...["round", "recommendation", "score"].map((k) => [cols[k], fields[k]]), [cols.pr, truncateToWidth(fields.pr, cols.pr, "…")], [cols.progress, fields.progress]].filter(([n]) => n);
       const own = cells.findIndex(([, s]) => s);
       const metadata = [...(own < 0 ? [] : cells.slice(own)).map(([n, s]) => pad(s, n)), drop < 6 ? t.fg("overlay0", fields.elapsed.padStart(layout.elapsed)) : ""].filter(Boolean).join(" ").trimStart();
       return { metadata, labelRoom: Math.max(0, room - visibleWidth(metadata) - (metadata ? 2 : 0)) };
