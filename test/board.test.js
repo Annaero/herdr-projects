@@ -113,8 +113,8 @@ test("a tight row keeps the task's name, then the columns on the right; the sent
     assert.match(rows[0], /Remove notification pop-ups +95% +6m$/);
     assert.match(rows[1], /Fix ugly blocked row on the board +#3 +6m$/);
     assert.match(rows[2], /Truncate long descriptions in sidebar +6m$/);
-    rows = draw(40); // last of all the time
-    assert.match(rows[0], /Remove notification pop-ups +6m$/); assert.match(rows[2], /^ \S Truncate long descriptions in sidebar$/);
+    rows = draw(40); // last of all the time; a row without a PR is not charged for the PR column
+    assert.match(rows[0], /Remove notification pop-ups +95% +6m$/); assert.match(rows[2], /^ \S Truncate long descriptions in sidebar$/);
     rows = draw(30); // only now is a name cut
     assert.match(rows[0], /^ \S Remove notification pop-ups$/); assert.match(rows[1], /^ \S Fix ugly blocked row on th…$/);
     // A long name on one row costs the other rows nothing: their columns still come before their sentence.
@@ -126,7 +126,7 @@ test("a tight row keeps the task's name, then the columns on the right; the sent
     assert.match(rows[1], /Fix layout for task names in narrow terminal board +6m$/);
     rows = draw(72);
     assert.match(rows[0], /Fix login {2}Tracing[^#]*… +#3 █+░+ +55% +6m$/);
-    assert.match(rows[1], /Fix layout for task names in narrow terminal board +20% +6m$/); // the bar went, the percent fits
+    assert.match(rows[1], /Fix layout for task names in narrow terminal board +█+░+ +20% +6m$/); // not charged for the PR column it leaves blank: the bar fits
     // All machines: the machine's name is cut before the task's, and before any column goes.
     s.v.scope = "*";
     const far = { ...records[0], host: "very-long-machine-name-on-the-tailnet" };
@@ -263,4 +263,43 @@ test("the command: add, list, report, config, and the hook entry does nothing wh
     assert.match(out.at(-1), /report <your id> --state blocked/);
     assert.throws(() => sw("frobnicate"), /Unknown command/);
   } finally { w.cleanup(); }
+});
+
+test("the board: a row waiting for approval keeps its name, with the PR, verdict and score on the right", () => {
+  const v = Object.create(View.prototype); v.theme = theme; v.scope = "";
+  const row = (r, width, list = [r]) => stripVTControlCharacters(v.row(r, width, v.rowLayout(list, width)));
+  const base = { id: "proj/1", title: "Build a flying game", state: "blocked", kind: "permission", stage: "approval", agent: "claude", at: Date.now(), msg: "Approve to merge? Reviewed 3/5, says don't merge. Built **Skylark**: a little plane over endless sunny islands, with clouds." };
+  const review = { score: 3, recommend: false, text: "Crashes." };
+  const pr = { ...base, pr: "https://github.com/a/b/pull/12", prState: "passing", review }, plain = { ...base, review };
+  const working = { id: "proj/2", title: "Other", state: "working", agent: "claude", stage: "work", progress: 50, msg: "A long sentence about what the other agent is doing right now, in detail.", at: Date.now() };
+  // wide: the name, what it waits for, and on the right the verdict, the score and that it is a PR
+  assert.match(row(pr, 120), /^ \S Build a flying game {2}approve to merge\? +don't merge 3\/5 PR #12 +0s$/);
+  assert.match(row(plain, 120), /^ \S Build a flying game {2}approve to merge\? +don't merge 3\/5 +0s$/);
+  assert.match(row(base, 120), /^ \S Build a flying game {2}approve to merge\? +0s$/); // no reviewer: only what it waits for
+  assert.match(row({ ...pr, review: { ...review, stale: true } }, 120), /^ \S Build a flying game {2}approve to merge\? +PR #12 +0s$/);
+  assert.match(row({ ...pr, review: { ...review, recommend: true, score: 5 } }, 120), / merge 5\/5 PR #12 +0s$/);
+  // narrower: the name stays whole, the columns go one at a time
+  assert.match(row(pr, 60), /^ \S Build a flying game +don't merge 3\/5 PR #12 +0s$/);
+  assert.match(row(plain, 44), /^ \S Build a flying game +don't merge 3\/5 +0s$/);
+  assert.match(row(pr, 40), /^ \S Build a flying game +3\/5 PR #12 +0s$/);
+  assert.match(row(pr, 24), /^ \S Build a flying game *$/);
+  // another row's long sentence or progress does not take the verdict away
+  assert.match(row(pr, 80, [pr, working]), /^ \S Build a flying game .*don't merge 3\/5 PR #12 +0s$/);
+  for (const width of [24, 30, 40, 60, 80, 120]) for (const r of [pr, plain, base]) {
+    const line = row(r, width, [r, working]);
+    assert.ok(line.length <= width, `fits ${width}`); assert.ok(!/Skylark|\*\*|Reviewed/.test(line)); assert.match(line, /^ \S Build a flying game/);
+  }
+  // what blocks a row outranks its verdict and score: a failed merge says why before it says 5/5
+  const failed = { ...pr, pr: "https://github.com/a/b/pull/13", mergeFailed: true, review: { score: 5, recommend: true, text: "Fine." }, msg: "The merge failed: conflict in src/game.js" };
+  assert.match(row(failed, 60), /^ \S Build a flying game {2}The merge failed: conf… +5\/5 #13 +0s$/);
+  assert.match(row(failed, 120), /^ \S Build a flying game {2}The merge failed: conflict in src\/game\.js +merge 5\/5 #13 +0s$/);
+  // a question without a PR is not charged for the columns a PR row beside it fills
+  const quiz = { ...base, title: "Choose colours", stage: "", kind: "question", msg: "Sand or pebbles on the beach?" };
+  assert.equal(row(quiz, 60, [quiz, pr]), row(quiz, 60));
+  assert.match(row(quiz, 60, [quiz, pr]), /^ \S Choose colours {2}Sand or pebbles on the beach\? +0s$/);
+  assert.match(row(pr, 60, [quiz, pr]), /don't merge 3\/5 PR #12 +0s$/);
+  // other rows that need you still say what blocks them, after the name and without Markdown marks
+  const ask = "Which colour should the plane be, and should the **islands** have `palm` trees?";
+  for (const r of [{ ...base, stage: "", kind: "question", msg: ask }, { ...base, mergeFailed: true, msg: ask }, { ...base, state: "error", kind: "", stage: "failed", msg: ask }])
+    assert.match(row(r, 120), /^ \S Build a flying game {2}Which colour should the plane be, and should the islands have palm trees\? +0s$/);
 });

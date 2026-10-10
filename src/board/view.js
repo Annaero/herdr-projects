@@ -37,6 +37,7 @@ const reviewing = (r) => r.state !== "done" && (r.stage === "reviewing" || r.sta
 const statusColor = (r) => (reviewing(r) && r.state === "working" ? ROLE_COLOR.reviewer : COLOR[r.state]);
 const statusLabel = (r) => (reviewing(r) && r.state === "working" ? "reviewing" : r.state);
 const currentReview = (r) => S.currentReview(r);
+const needsYou = (r) => r.state === "blocked" || r.state === "error";
 // Strip only board-generated review metadata; task descriptions and agent wording stay intact.
 const reviewNote = (r) => (isAgent(r) ? String(r.msg || "").replace(/^(Approve to merge\?\s*)?Reviewed [1-5]\/5(?:, says (?:don't )?(?:merge|accept))?\.\s*/, "$1") : r.msg);
 const KIND = { // what it needs, what to type
@@ -845,9 +846,11 @@ export class View {
   rowFields(r, bars, now) {
     const t = this.theme;
     const done = r.state === "done";
-    const pr = r.pr ? `#${String(r.pr).split("/").pop()}` : "";
+    // A row waiting for the merge approval says so in columns: that it is a PR, the verdict and the score.
+    const approval = inReview(r);
+    const pr = r.pr ? `${approval ? "PR " : ""}#${String(r.pr).split("/").pop()}` : "";
     const prColor = { merged: "accent", passing: "green", failing: "red", waiting: "peach" }[r.prState] || "peach";
-    const review = !done && pr ? currentReview(r) : undefined;
+    const review = !done && (pr || approval) ? currentReview(r) : undefined;
     const score = Number.isInteger(review?.score) && review.score >= 1 && review.score <= 5 ? t.fg("subtext0", `${review.score}/5`) : "";
     const recommendation = typeof review?.recommend === "boolean" ? t.fg(review.recommend ? "green" : "red", review.recommend ? "merge" : "don't merge") : "";
     const percent = !done && r.progress !== undefined ? t.fg(statusColor(r), `${String(r.progress).padStart(3)}%`) : "";
@@ -855,7 +858,10 @@ export class View {
   }
   activity(r) {
     const failure = failureFor(r);
-    return clean(failure && !failure.sentAt && (r.failure || r.prFailure) ? failure.msg || failure.title : (r.review?.stale ? reviewNote(r) : r.msg) || "");
+    // The approval's long message (the agent's summary) stays in the preview and the details: the row says what it
+    // waits for, and the verdict sits in the columns on the right. Markdown marks are not for a one-line row.
+    if (inReview(r) && !(failure && !failure.sentAt && (r.failure || r.prFailure))) return "";
+    return clean(failure && !failure.sentAt && (r.failure || r.prFailure) ? failure.msg || failure.title : (r.review?.stale ? reviewNote(r) : r.msg) || "").replace(/\*\*|`/g, "");
   }
   rowLayout(records, width) {
     const layout = { decision: 0, recommendation: 0, score: 0, pr: 0, progress: 0, elapsed: 3, bars: width >= 64, now: Date.now() };
@@ -890,16 +896,23 @@ export class View {
     // its own columns, one at a time: the verdict, the score, the bar, the percent, the PR number and, last of all, the time.
     const nameNeed = Math.min(room, visibleWidth(name));
     const pad = (s, n) => " ".repeat(Math.max(0, n - visibleWidth(s))) + s; // by terminal cells, not string length
-    let metadata, labelRoom;
-    for (let drop = 0; drop <= 6; drop++) {
+    // Blank cells left of a row's first own column are not columns to that row: its words run into them.
+    const build = (drop) => {
       const bars = layout.bars && drop < 3;
       const cols = { recommendation: drop < 1 ? layout.recommendation : 0, score: drop < 2 ? layout.score : 0, pr: drop < 5 ? layout.pr : 0, progress: drop >= 4 ? 0 : bars ? layout.progress : layout.percent };
       const fields = this.rowFields(r, bars, layout.now);
-      metadata = [...["recommendation", "score"].map((k) => (cols[k] ? pad(fields[k], cols[k]) : "")), cols.pr ? pad(truncateToWidth(fields.pr, cols.pr, "…"), cols.pr) : "", cols.progress ? pad(fields.progress, cols.progress) : "", drop < 6 ? t.fg("overlay0", fields.elapsed.padStart(layout.elapsed)) : ""]
-        .filter(Boolean).join(" ");
-      labelRoom = Math.max(0, room - visibleWidth(metadata) - (metadata ? 2 : 0));
-      if (labelRoom >= nameNeed) break;
-    }
+      const cells = [...["recommendation", "score"].map((k) => [cols[k], fields[k]]), [cols.pr, truncateToWidth(fields.pr, cols.pr, "…")], [cols.progress, fields.progress]].filter(([n]) => n);
+      const own = cells.findIndex(([, s]) => s);
+      const metadata = [...(own < 0 ? [] : cells.slice(own)).map(([n, s]) => pad(s, n)), drop < 6 ? t.fg("overlay0", fields.elapsed.padStart(layout.elapsed)) : ""].filter(Boolean).join(" ").trimStart();
+      return { metadata, labelRoom: Math.max(0, room - visibleWidth(metadata) - (metadata ? 2 : 0)) };
+    };
+    let drop = 0, built = build(0);
+    while (built.labelRoom < nameNeed && drop < 6) built = build(++drop);
+    // What blocks a row that needs you outranks its verdict and score: they go when that lets the blocker show.
+    const blocker = needsYou(r) ? visibleWidth(this.activity(r)) : 0;
+    const blockerNeed = nameNeed + 2 + Math.min(blocker, SENTENCE_MIN);
+    if (blocker && built.labelRoom < blockerNeed) for (let d = drop + 1; d <= 2; d++) if (build(d).labelRoom >= blockerNeed) { built = build(d); break; }
+    const { metadata, labelRoom } = built;
     if (r.state === "done") {
       // Completed rows keep only the title, optional PR number and far-right time.
       const label = labelName(labelRoom);
@@ -908,7 +921,7 @@ export class View {
     // One allocation policy for every unfinished row: the name first, the columns second, the sentence in what is left.
     const activity = this.activity(r);
     const activityColor = reviewing(r) && r.state === "working" ? ROLE_COLOR.reviewer : r.state === "error" ? "red" : r.state === "blocked" ? "text" : "subtext0";
-    const summary = activity ? t.fg(activityColor, activity) : t.fg(kindOf(r) ? kindColor(r) : statusColor(r), kindOf(r) || statusLabel(r));
+    const summary = activity ? t.fg(activityColor, activity) : t.fg(kindOf(r) ? kindColor(r) : statusColor(r), inReview(r) ? "approve to merge?" : kindOf(r) || statusLabel(r));
     const renderedTitle = labelName(labelRoom);
     const summaryRoom = labelRoom - visibleWidth(renderedTitle) - 2;
     // A sentence cut to a few letters says nothing: it shows whole, or with at least SENTENCE_MIN cells, or not at all.
