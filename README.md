@@ -167,7 +167,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `watcherAgent`, `watcherModel` | `claude`, `claude-haiku-5-5` | the Watcher's small model (`helper`, `helperModel` are still read as these) |
 | `watcher` | `on` | the "doing now" line and progress guess, about every 15 seconds per working agent, board open or closed |
 | `skill` | `true` | keep the how-to in each agent program's skills folder |
-| `theme` | `auto` | `auto` asks the terminal whether it is light or dark; `dark`, `light` |
+| `theme` | `auto` | the board and the review page use herdr's own colours and status marks, read from herdr's `config.toml` (`[theme]` with its custom colours, `ui.status_indicators`). `auto` follows herdr's theme exactly; `dark` or `light` picks herdr's dark or light theme by hand |
 | `review` | `repos` | what gets reviewed: `repos`, `all` or `none` |
 | `artifacts`, `serve` | `true`, `tailscale` | evidence pages, linked privately on your tailnet (`local` for 127.0.0.1; also used, and said on the task, when Tailscale is not installed) |
 | `reviewAuto`, `rounds` | `false`, `3` | send reviews below 5/5 back by themselves, at most this often |
@@ -241,7 +241,8 @@ in a separate scratch herdr:
 | herdr's sidebar shows the plugin's pane and workspace metadata | **not by default.** State labels and `$summary` / `$progress` tokens show only when `[ui.sidebar.*] rows` in `config.toml` list them; only `--display-agent` shows with no setup. Hence the name fallback and the first-run offer |
 | A new `[[keys.command]]` after `herdr server reload-config` | works without a restart. A broken file is reported as `failed` and herdr keeps the old config; a key bound twice is `partial`; `herdr config check` validates a candidate given by `HERDR_CONFIG_PATH` |
 | herdr's config path and default keys | `~/.config/herdr/config.toml`; `herdr --default-config` lists the built-in keys (`prefix+w` is herdr's workspace picker; `prefix+a` is free) |
-| Light terminal detection inside herdr | not answered in the scratch session (no real terminal behind it): the board asks (OSC 11) and falls back to dark; `theme light` chooses by hand |
+| Light terminal detection inside herdr | not answered in the scratch session (no real terminal behind it): the board asks (OSC 11) only when herdr's `theme.auto_switch` is on, and falls back to dark; `theme light` chooses by hand |
+| herdr's theme, for a plugin | not handed to plugins. The board reads the `[theme]` and `[ui]` tables herdr reads (with its own full TOML reader, `src/toml.js`) and resolves them as herdr 0.9.3 does (`src/app/state.rs` palettes, `src/client/shell.rs` marks: `●` working, blocked and done, `○` idle; `◐ × ✓ ○` with `status_indicators = "symbols"`). Text is herdr's `text` colour and the side panel sits on `sidebar_bg` when the theme sets one. The review page takes the theme in force when it is written; where herdr follows the terminal (`auto_switch`, the `terminal` theme) the page follows the browser's light or dark setting. A theme changed in herdr shows the next time the board opens |
 | Limiting Codex or pi to one command | no flag found: neither can be the Coordinator |
 | herdr's own remote commands for a saved machine | not testable (no saved machine): the plugin's SSH door keeps doing all of it |
 | A keeper started from the startup hook | survives the hook and replaces itself on an update; "for hours" was not waited for, so hook events and the board also start it |

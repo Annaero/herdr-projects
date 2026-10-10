@@ -116,7 +116,7 @@ export const DEFAULTS = {
   remoteUser: "",
   max: 4,                 // agents working at once
   skill: true,            // write a small how-to into each installed agent program's own skills folder, so any chat knows the board
-  theme: "auto",          // the board's colours: "auto" (ask the terminal), "dark" or "light"
+  theme: "auto",          // the board's colours are herdr's: "auto" (herdr's own theme), or its "dark" or "light" one
   trust: true,            // mark a new task's repo as trusted in the agent's own settings, so no dialog blocks the start
   agentArgs: {},          // per agent kind: extra arguments after `--` for `herdr agent start`; replaces the built-in default
 };

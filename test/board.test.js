@@ -68,6 +68,8 @@ test("the board: groups, aligned rows, side panel from 90 columns, details, and 
     const s = open(w);
     let text = s.text(120);
     assert.match(text, /herdr-superwork {2}work board for herdr/);
+    // Every line is in herdr's text colour (Catppuccin's here), unless colours are switched off.
+    assert.ok(s.v.render(120).every((l) => (process.env.NO_COLOR ? !l.includes("\x1b[38;2;") : l.startsWith("\x1b[38;2;205;214;244m"))));
     assert.match(text, /0 blocked · 0 error · 1 working · 0 done · 1 idle/);
     assert.match(text, /● My own task {2}half way/); assert.match(text, /○ Write the docs {2}idle/);
     assert.match(text, /│ {2}My own task/); assert.match(text, /you are on it/); assert.match(text, /Permissions {6}full access/);
@@ -147,7 +149,7 @@ test("the board's keys: file by typing, tab delegates, space previews the agent'
     s.press("right"); assert.match(s.text(), /No agent has been on this yet/);
     s.press("tab");
     await settle("proj/1"); s.v.load();
-    assert.match(s.text(), /✽|✻/); assert.match(s.text(), /1 working/);
+    assert.match(s.text(), /● Add a greeting/); assert.match(s.text(), /1 working/);
     s.press("space");
     assert.match(s.text(), /● Editing greet\.sh/); assert.match(s.text(), /reply to Add a greeting/);
     w.script({ worker: [{ status: "working" }] });
@@ -179,13 +181,13 @@ test("the board: approval row draws as review, ctrl+a approves, archive view, un
     const s = open(w);
     s.v.sel = id; s.v.load();
     let text = s.text();
-    assert.match(s.text(80), /\n blocked +\n ◆ /); assert.match(text, /◆ blocked · review/);
+    assert.match(s.text(80), /\n blocked +\n ● /); assert.match(text, /● blocked · review/);
     s.press("space");
     assert.match(s.text(), /Recommends {6}merge/); assert.match(s.text(), /Score {11}4\/5/); assert.match(s.text(), /ctrl\+a to approve and merge/);
     s.press("esc", "ctrl+a");
     assert.equal(S.get(id).stage, "merging");
     await settle(id); s.v.load();
-    assert.match(s.text(), /✓ Make f/);
+    assert.match(s.text(), /● Make f/);
     // archive and undo
     s.v.sel = "proj/2"; s.v.load();
     s.press("alt+a"); assert.ok(S.get("proj/2").archivedAt); assert.ok(!/Other/.test(s.screen().slice(0, 12).join("\n")));
@@ -209,7 +211,7 @@ test("hidden helpers: the box files through a restricted helper and survives as 
     assert.ok(H.dispatcherReady());
     const s = open(w);
     s.type("build a login page"); s.press("enter");
-    assert.equal(S.dispatches().length, 1); assert.match(s.text(), /✽ build a login page|✻ build a login page/);
+    assert.equal(S.dispatches().length, 1); assert.match(s.text(), /● build a login page/);
     await drainJobs(runJob); s.v.load();
     assert.equal(S.dispatches().length, 0); assert.doesNotMatch(s.text(), /Filed proj\/1\./); // a result arriving shows nothing at the bottom
     assert.equal(S.get("proj/1").description, "From the box: build a login page");

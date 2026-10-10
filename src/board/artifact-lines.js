@@ -25,13 +25,13 @@ export function artifactLines(t, artifacts, width, heading) {
   const items = reviewArtifacts(artifacts);
   if (!items.length) return [];
   const w = Math.max(1, width - 3);
-  const lines = ["", " " + t.fg("muted", truncateToWidth(heading || "Review evidence", Math.max(1, width - 1), "…"))];
+  const lines = ["", " " + t.fg("subtext0", truncateToWidth(heading || "Review evidence", Math.max(1, width - 1), "…"))];
   for (const [i, a] of items.entries()) {
     if (i) lines.push("");
     lines.push(artifactLine(t, a, width));
-    if (a.detail) lines.push("   " + t.fg("dim", truncateToWidth(clean(a.detail), w, "…")));
+    if (a.detail) lines.push("   " + t.fg("overlay0", truncateToWidth(clean(a.detail), w, "…")));
     const url = String(a.link || a.url || "");
-    if (url) lines.push("   " + t.fg("dim", truncateToWidth(clean(url), w, "…")));
+    if (url) lines.push("   " + t.fg("overlay0", truncateToWidth(clean(url), w, "…")));
   }
   lines.push("");
   return lines;
