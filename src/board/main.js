@@ -8,7 +8,7 @@ import { userEnv } from "../runner.js";
 
 export async function openBoard({ folder }) {
   userEnv(); // the popup starts with herdr's server environment: helpers and git need the user's PATH
-  try { if (loadTheme()) { const t = await askTerminal(); setTerminal(t.light, t.ansi); } } catch {} // herdr's theme; the terminal is asked only when the theme follows its appearance or paints with its colours
+  try { if (loadTheme()) { const t = await askTerminal(); setTerminal(t.light); } } catch {} // herdr's theme; the terminal is asked only when the theme follows its appearance
   // The board opening is one of the keeper's starters; the how-to files are refreshed here too.
   try { ensureKeeper(); } catch {}
   try { const X = await import("../extras.js"); X.syncSkill(F.shim()); X.removePopups(); } catch {}

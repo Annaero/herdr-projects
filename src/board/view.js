@@ -34,15 +34,18 @@ const inReview = (r) => r.state === "blocked" && r.kind === "permission" && r.st
 const kindOf = (r) => (inReview(r) ? "review" : r.kind || "");
 const kindColor = (r) => (inReview(r) ? "teal" : "red");
 const reviewing = (r) => r.state !== "done" && (r.stage === "reviewing" || r.stage === "reviewneeds");
-// The mark and the title take herdr's colour for the state herdr itself shows. Finished work waiting for approval is
+// The mark, the bar, the percent and the score take herdr's colour for the state herdr itself shows; a task's own words
+// (its title and what it says) stay in herdr's text colours whatever its state. Finished work waiting for approval is
 // coloured as herdr colours a finished agent; an archived task as herdr colours a state it does not know.
 const statusColor = (r) => (r.archivedAt ? "overlay0" : inReview(r) ? COLOR.done : COLOR[r.state] || "overlay0");
-// What herdr has no word for (how far along, and that it is a review) may differ: a review has the board's own colour.
-const ownColor = (r) => (reviewing(r) && r.state === "working" ? "review" : statusColor(r));
+// The score is the only sign of the reviewer's advice: green says merge, red says don't, no advice is the state's colour.
+const scoreColor = (r, rv) => (rv.recommend === true ? "green" : rv.recommend === false ? "red" : statusColor(r));
 const statusLabel = (r) => (reviewing(r) && r.state === "working" ? "reviewing" : r.state);
 // Which review the task is on ("review 2"), wherever its review state shows: under review, waiting for your approval
 // (a failed merge too), or anywhere else its verdict and score still show.
 const roundLabel = (r) => (r.state !== "done" && (reviewing(r) || r.stage === "approval" || (r.pr && S.currentReview(r))) ? S.reviewLabel(r) : "");
+// On a row the round is a small marker beside the PR number: "r2".
+const roundMark = (r) => (roundLabel(r) ? `r${S.reviewRound(r)}` : "");
 const withRound = (r, text) => (text === "review" && roundLabel(r) ? roundLabel(r) : [text, roundLabel(r)].filter(Boolean).join(" · "));
 const currentReview = (r) => S.currentReview(r);
 const needsYou = (r) => r.state === "blocked" || r.state === "error";
@@ -596,7 +599,7 @@ export class View {
       const inputLines = this.input.renderWithin(width, rowsN - 4 - (selectedJob >= 0 ? 1 : 0), (s) => t.fg("accent", s));
       if (!v) inputLines[1] = `${t.fg("accent", "❯")} ${this.focused ? CURSOR_MARKER : ""}${t.inverse(place[0])}${t.fg("overlay0", place.slice(1))}`;
       const jobLine = (j) => {
-        const line = " " + (j.state === "error" ? t.fg("red", t.mark("error")) : t.fg("yellow", t.mark("working"))) + " " + t.fg(j.state === "error" ? "text" : "subtext0", clean(j.text)) + (j.state === "error" ? t.fg("red", `  ${clean(j.msg)}`) : "");
+        const line = " " + (j.state === "error" ? t.fg("red", t.mark("error")) : t.fg("yellow", t.mark("working"))) + " " + clean(j.text) + (j.state === "error" ? t.fg("subtext0", `  ${clean(j.msg)}`) : "");
         return j.id === this.sel ? this.hl(line, width) : line;
       };
       // The preview: what is on the selected task's agent's screen, without going in.
@@ -607,16 +610,15 @@ export class View {
       if (this.peek && r) {
         if (hasEvidence) preview.push(artifactLine(t, evidence[0], width), "");
         const wrapAll = (text) => String(text).split("\n").flatMap((l) => { const w = wrapTextWithAnsi(clean(l), Math.max(10, width - 2)); return w.length ? w : [""]; });
-        const title = " " + this.mark(r) + " " + t.fg(statusColor(r), t.bold(clean(r.title || r.id))) + "  " + t.fg(ownColor(r), statusLabel(r)) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(ownColor(r), ` · ${roundLabel(r)}`) : "") + (r.progress !== undefined ? t.fg(ownColor(r), ` · ${r.progress}%`) : "") + t.fg("overlay0", `  ${idLabel(r.id)}${r.app ? ` · ${r.app}` : ""}`);
+        const title = " " + this.mark(r) + " " + t.bold(clean(r.title || r.id)) + "  " + t.fg(statusColor(r), statusLabel(r)) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(statusColor(r), ` · ${roundLabel(r)}`) : "") + (r.progress !== undefined ? t.fg(statusColor(r), ` · ${r.progress}%`) : "") + t.fg("overlay0", `  ${idLabel(r.id)}${r.app ? ` · ${r.app}` : ""}`);
         if (failure) {
           preview.push(" " + t.fg("red", t.bold(clean(failure.title))), " " + t.fg("subtext0", clean(failureAction)), ...wrapAll(failure.detail).map((l) => " " + l));
         } else if (agentOn && r.state !== "error" && r.stage === "approval") {
-          // A small second opinion, not a second sidebar: recommendation, score and comment.
-          const fact = (label, value, color = "subtext0") => { const w = wrapTextWithAnsi(clean(value), Math.max(10, width - 19)); return w.map((l, n) => " " + (n ? " ".repeat(16) : t.fg(color, label.padEnd(16))) + l); };
+          // A small second opinion, not a second sidebar: the score, coloured by what the reviewer advises, and its comment.
+          const fact = (label, value, paint = (l) => l) => { const w = wrapTextWithAnsi(clean(value), Math.max(10, width - 19)); return w.map((l, n) => " " + (n ? " ".repeat(16) : t.fg("subtext0", label.padEnd(16))) + paint(l)); };
           const rv = currentReview(r);
           if (rv) {
-            if (typeof rv.recommend === "boolean") preview.push(...fact("Recommends", rv.recommend ? "merge" : "don't merge", rv.recommend ? "green" : "red"));
-            preview.push(...fact("Score", withRound(r, `${rv.score}/5`), "review"));
+            preview.push(...fact("Score", withRound(r, `${rv.score}/5`), (l) => l.replace(/^\d\/5/, (m) => t.fg(scoreColor(r, rv), m))));
             preview.push(...fact("Comment", rv.text || "No comment."));
           } else preview.push(" " + t.fg("overlay0", `${r.review?.stale ? "Awaiting a fresh review." : "No review yet."} ctrl+e full details`));
         } else {
@@ -721,16 +723,16 @@ export class View {
     }
     const agent = isAgent(r);
     const live = r.state === "working" || r.state === "blocked";
-    const L = ["", ...wrapTextWithAnsi(t.fg(statusColor(r), t.bold(clean(r.title || "(no title)"))), w).map((l) => " " + l)];
+    const L = ["", ...wrapTextWithAnsi(t.bold(clean(r.title || "(no title)")), w).map((l) => " " + l)];
     if (full) L.push(...artifactLines(t, r.review?.artifacts || [], width, "Evidence"));
 
     // Where it stands: the mark, the state, what it waits for, how far, who, and its id.
     const who = r.app ? (live ? (agent ? (reviewing(r) ? "reviewer is on it" : `${r.app} is on it`) : r.app === S.me() ? "you are on it" : `${r.app} is on it`) : `last worked by ${agent ? r.app : r.app === S.me() ? "you" : r.app}`) : `nobody is on it · owner ${r.owner === S.me() ? "you" : r.owner}`;
     if (r.archivedAt) L.push(...head("Archived", "overlay0"), ...block("Read-only · alt+a on the board to restore. Original state and all data are retained."));
     L.push(...head("Status"));
-    const status = this.mark(r) + " " + t.fg(ownColor(r), t.bold(statusLabel(r))) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(ownColor(r), ` · ${roundLabel(r)}`) : "") + t.fg("overlay0", ` · ${who} · ${idLabel(r.id)} · ${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`);
+    const status = this.mark(r) + " " + t.fg(statusColor(r), t.bold(statusLabel(r))) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(statusColor(r), ` · ${roundLabel(r)}`) : "") + t.fg("overlay0", ` · ${who} · ${idLabel(r.id)} · ${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`);
     L.push(...wrapTextWithAnsi(status, w).map((l) => " " + l));
-    if (r.progress !== undefined) L.push(" " + t.fg(ownColor(r), bar(r.progress, Math.min(24, w - 6))) + t.fg(ownColor(r), ` ${r.progress}%`));
+    if (r.progress !== undefined) L.push(" " + t.fg(statusColor(r), bar(r.progress, Math.min(24, w - 6))) + t.fg(statusColor(r), ` ${r.progress}%`));
 
     const failure = failureFor(r);
     if (failure) {
@@ -746,7 +748,7 @@ export class View {
     const said = agent ? this.lastSaid(r) : "";
     const note = reviewNote(r);
     const merging = r.state === "blocked" && r.stage === "approval";
-    if (r.state === "working") { if (note) L.push(...head("Now", ownColor(r)), ...block(note)); }
+    if (r.state === "working") { if (note) L.push(...head("Now", statusColor(r)), ...block(note)); }
     else if (merging || (failure && failure.detail === r.msg)) {} // shown in failure details, or below with the summary
     else if (r.state === "blocked") L.push(...head(r.kind ? { question: "Asks you", permission: "Needs your approval", auth: "Needs a login, token or credential" }[r.kind] || "Needs you" : "Needs you", COLOR.blocked), ...block(note || said || ""));
     else if (r.state === "error") {
@@ -863,34 +865,32 @@ export class View {
   rowFields(r, bars, now) {
     const t = this.theme;
     const done = r.state === "done";
-    // A row waiting for the merge approval says so in columns: that it is a PR, the verdict and the score.
+    // A row waiting for the merge approval says so in columns: that it is a PR, and the score in the verdict's colour.
     const approval = inReview(r);
     const pr = r.pr ? `${approval ? "PR " : ""}#${String(r.pr).split("/").pop()}` : "";
     const prColor = { merged: "overlay0", passing: "green", failing: "red" }[r.prState] || "subtext0";
     const review = !done && (pr || approval) ? currentReview(r) : undefined;
-    const score = Number.isInteger(review?.score) && review.score >= 1 && review.score <= 5 ? t.fg("review", `${review.score}/5`) : "";
-    const recommendation = typeof review?.recommend === "boolean" ? t.fg(review.recommend ? "green" : "red", review.recommend ? "merge" : "don't merge") : "";
-    const percent = !done && r.progress !== undefined ? t.fg(ownColor(r), `${String(r.progress).padStart(3)}%`) : "";
-    // Which review it is on has its own column: it outlasts the verdict and the score when the row runs short.
-    const round = done ? "" : t.fg(reviewing(r) ? "review" : "subtext0", roundLabel(r));
-    return { round, recommendation, score, pr: pr ? t.fg(prColor, pr) : "", progress: percent && bars ? t.fg(ownColor(r), bar(r.progress)) + " " + percent : percent, elapsed: age(now - (r.at || now)).padStart(3) };
+    const score = Number.isInteger(review?.score) && review.score >= 1 && review.score <= 5 ? t.fg(scoreColor(r, review), `${review.score}/5`) : "";
+    const percent = !done && r.progress !== undefined ? t.fg(statusColor(r), `${String(r.progress).padStart(3)}%`) : "";
+    // Which review it is on has its own small column: it outlasts the score when the row runs short.
+    const round = done ? "" : t.fg("subtext0", roundMark(r));
+    return { round, score, pr: pr ? t.fg(prColor, pr) : "", progress: percent && bars ? t.fg(statusColor(r), bar(r.progress)) + " " + percent : percent, elapsed: age(now - (r.at || now)).padStart(3) };
   }
   activity(r) {
     const failure = failureFor(r);
     // The approval's long message (the agent's summary) stays in the preview and the details: the row says what it
-    // waits for, and the verdict sits in the columns on the right. Markdown marks are not for a one-line row.
+    // waits for, and the score sits in the columns on the right. Markdown marks are not for a one-line row.
     if (inReview(r) && !(failure && !failure.sentAt && (r.failure || r.prFailure))) return "";
     return clean(failure && !failure.sentAt && (r.failure || r.prFailure) ? failure.msg || failure.title : (r.review?.stale ? reviewNote(r) : r.msg) || "").replace(/\*\*|`/g, "");
   }
   rowLayout(records, width) {
-    const layout = { decision: 0, round: 0, recommendation: 0, score: 0, pr: 0, progress: 0, elapsed: 3, bars: width >= 64, now: Date.now() };
+    const layout = { decision: 0, round: 0, score: 0, pr: 0, progress: 0, elapsed: 3, bars: width >= 64, now: Date.now() };
     const fields = records.map((r) => this.rowFields(r, layout.bars, layout.now));
     const max = (key) => Math.max(0, ...fields.map((f) => visibleWidth(f[key])));
     layout.elapsed = Math.max(3, max("elapsed"));
     // Extremely long PR identifiers may shorten, but must never push time off-screen.
     layout.pr = Math.min(max("pr"), Math.max(0, width - 3 - layout.elapsed - 3));
     layout.round = max("round");
-    layout.recommendation = max("recommendation");
     layout.score = max("score");
     layout.progress = max("progress");
     layout.percent = layout.bars ? Math.max(0, ...records.map((r) => visibleWidth(this.rowFields(r, false, layout.now).progress))) : layout.progress;
@@ -900,10 +900,9 @@ export class View {
     const t = this.theme;
     const unseen = r.state === "done" && !r.seen;
     const bright = r.state === "working" || r.state === "blocked" || unseen;
-    const faded = r.state === "done" && !unseen;
     const title = clean(r.title || r.id) + (r.archivedAt ? " [archived]" : "");
-    // The title is in herdr's colour for the task's state, as its mark is.
-    const name = bright ? t.fg(statusColor(r), t.bold(title)) : faded ? t.dim(t.fg(statusColor(r), title)) : t.fg(statusColor(r), title);
+    // The title is plain text whatever the task's state: the mark and the group's heading carry the state's colour.
+    const name = bright ? t.bold(title) : title;
     const prefix = ` ${this.mark(r)} `;
     const room = Math.max(0, width - visibleWidth(prefix));
     // In the all-machines view the machine's name sits before the task's, in what the task's name leaves: it is cut first.
@@ -914,25 +913,25 @@ export class View {
       return (host && hostRoom >= Math.min(3, visibleWidth(host)) ? t.fg("overlay0", truncateToWidth(host, hostRoom, "…")) + " " : "") + shown;
     };
     // The name wins over the columns, and the columns win over the "doing now" sentence. A row whose name does not fit gives up
-    // its own columns, one at a time: the verdict, the score, the bar, the percent, the PR number with the review round and, last of all, the time.
+    // its own columns, one at a time: the score, the bar, the percent, the PR number with the review round and, last of all, the time.
     const nameNeed = Math.min(room, visibleWidth(name));
     const pad = (s, n) => " ".repeat(Math.max(0, n - visibleWidth(s))) + s; // by terminal cells, not string length
     // Blank cells left of a row's first own column are not columns to that row: its words run into them.
     const build = (drop) => {
-      const bars = layout.bars && drop < 3;
-      const cols = { round: drop < 5 ? layout.round : 0, recommendation: drop < 1 ? layout.recommendation : 0, score: drop < 2 ? layout.score : 0, pr: drop < 5 ? layout.pr : 0, progress: drop >= 4 ? 0 : bars ? layout.progress : layout.percent };
+      const bars = layout.bars && drop < 2;
+      const cols = { round: drop < 4 ? layout.round : 0, score: drop < 1 ? layout.score : 0, pr: drop < 4 ? layout.pr : 0, progress: drop >= 3 ? 0 : bars ? layout.progress : layout.percent };
       const fields = this.rowFields(r, bars, layout.now);
-      const cells = [...["round", "recommendation", "score"].map((k) => [cols[k], fields[k]]), [cols.pr, truncateToWidth(fields.pr, cols.pr, "…")], [cols.progress, fields.progress]].filter(([n]) => n);
+      const cells = [...["round", "score"].map((k) => [cols[k], fields[k]]), [cols.pr, truncateToWidth(fields.pr, cols.pr, "…")], [cols.progress, fields.progress]].filter(([n]) => n);
       const own = cells.findIndex(([, s]) => s);
-      const metadata = [...(own < 0 ? [] : cells.slice(own)).map(([n, s]) => pad(s, n)), drop < 6 ? t.fg("overlay0", fields.elapsed.padStart(layout.elapsed)) : ""].filter(Boolean).join(" ").trimStart();
+      const metadata = [...(own < 0 ? [] : cells.slice(own)).map(([n, s]) => pad(s, n)), drop < 5 ? t.fg("overlay0", fields.elapsed.padStart(layout.elapsed)) : ""].filter(Boolean).join(" ").trimStart();
       return { metadata, labelRoom: Math.max(0, room - visibleWidth(metadata) - (metadata ? 2 : 0)) };
     };
     let drop = 0, built = build(0);
-    while (built.labelRoom < nameNeed && drop < 6) built = build(++drop);
-    // What blocks a row that needs you outranks its verdict and score: they go when that lets the blocker show.
+    while (built.labelRoom < nameNeed && drop < 5) built = build(++drop);
+    // What blocks a row that needs you outranks its score: it goes when that lets the blocker show.
     const blocker = needsYou(r) ? visibleWidth(this.activity(r)) : 0;
     const blockerNeed = nameNeed + 2 + Math.min(blocker, SENTENCE_MIN);
-    if (blocker && built.labelRoom < blockerNeed) for (let d = drop + 1; d <= 2; d++) if (build(d).labelRoom >= blockerNeed) { built = build(d); break; }
+    if (blocker && built.labelRoom < blockerNeed) if (drop < 1 && build(1).labelRoom >= blockerNeed) built = build(1);
     const { metadata, labelRoom } = built;
     if (r.state === "done") {
       // Completed rows keep only the title, optional PR number and far-right time.
@@ -941,8 +940,9 @@ export class View {
     }
     // One allocation policy for every unfinished row: the name first, the columns second, the sentence in what is left.
     const activity = this.activity(r);
-    const activityColor = reviewing(r) && r.state === "working" ? "review" : r.state === "error" ? "red" : r.state === "blocked" ? "text" : "subtext0";
-    const summary = activity ? t.fg(activityColor, activity) : t.fg(kindOf(r) ? kindColor(r) : ownColor(r), inReview(r) ? "approve to merge?" : kindOf(r) || statusLabel(r));
+    // What it says is secondary text whatever its state; what blocks a row that needs you is as plain as its name.
+    const said = activity || (inReview(r) ? "approve to merge?" : kindOf(r) || statusLabel(r));
+    const summary = needsYou(r) ? said : t.fg("subtext0", said);
     const renderedTitle = labelName(labelRoom);
     const summaryRoom = labelRoom - visibleWidth(renderedTitle) - 2;
     // A sentence cut to a few letters says nothing: it shows whole, or with at least SENTENCE_MIN cells, or not at all.

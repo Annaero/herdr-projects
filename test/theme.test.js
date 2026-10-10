@@ -31,36 +31,12 @@ test("the board's own setting: the terminal's colours when herdr's config here s
   assert.equal(resolve(none, null, "herdr").name, "catppuccin"); assert.equal(resolve(none, null, "dark").name, "catppuccin"); assert.equal(resolve(none, null, "light").name, "catppuccin-latte");
 });
 
-test("a review has the board's own colour, one herdr does not paint with", () => {
-  assert.equal(resolve().palette.review, 0xfab387); // peach
-  assert.equal(resolve({ theme: { name: "nord", custom: { peach: "#010203" } } }).palette.review, 0x010203);
-  // Where peach has the value of a colour herdr paints with (the terminal theme's and Vesper's working colour, a custom
-  // one, a background as much as a status colour), the terminal's magenta; then its bright magenta; then a purple.
-  for (const c of [{ theme: { name: "terminal" } }, { theme: { name: "vesper" } }, { theme: { custom: { peach: "#a6e3a1" } } }, { theme: { custom: { peach: "#F38BA8" } } }, { theme: { custom: { peach: "#123456", surface1: "#123456" } } }, { theme: { custom: { peach: "#123456", sidebar_bg: "#123456" } } }]) assert.equal(resolve(c).palette.review, parseColor("magenta"), JSON.stringify(c));
-  assert.equal(resolve({ theme: { custom: { peach: "#a6e3a1", teal: "magenta" } } }).palette.review, parseColor("lightmagenta"));
-  // Judged by what is shown, not by how it is written: a colour that looks like the terminal's magenta takes it too.
-  assert.equal(resolve({ theme: { custom: { peach: "#a6e3a1", teal: "#cd00cd" } } }).palette.review, parseColor("lightmagenta"));
-  assert.equal(resolve({ theme: { custom: { peach: "#a6e3a0", teal: "#cc01cd" } } }).palette.review, parseColor("lightmagenta")); // nearly the same is the same
-  assert.equal(resolve({ theme: { custom: { peach: "reset" } } }).palette.review, parseColor("magenta")); // no colour is not a colour of its own
-  // A colour of the terminal's own is what the terminal says it shows, not what xterm would show.
-  const said = readAnswers("\x1b]11;rgb:0d0d/1616/1c1c\x1b\\\x1b]4;5;rgb:aaaa/0000/aaaa\x1b\\\x1b]4;13;rgb:ff/00/ff\x07\x1b]4;3;rgb:e3e3/a0a0/1b1b\x1b\\\x1b[?62;22c");
-  assert.equal(said.light, false); assert.equal(said.done, true); assert.equal(said.ansi[5], 0xaa00aa); assert.equal(said.ansi[13], 0xff00ff); assert.equal(said.ansi[3], 0xe3a01b); assert.equal(said.ansi[0], undefined);
-  assert.deepEqual(readAnswers("\x1b]4;5;rgb:aa"), { light: null, ansi: [], done: false });
-  const mine = { theme: { custom: { peach: "#a6e3a1", teal: "#aa00aa" } } };
-  assert.equal(resolve(mine).palette.review, parseColor("magenta")); // xterm's magenta is another colour
-  assert.equal(resolve(mine, null, "herdr", said.ansi).palette.review, parseColor("lightmagenta")); // this terminal's is not
-  assert.equal(resolve({ theme: { name: "terminal", custom: { teal: "#aa00aa" } } }, null, "herdr", said.ansi).palette.review, parseColor("lightmagenta"));
-  assert.equal(resolve({}, null, "auto", said.ansi).palette.review, parseColor("magenta"));
-  assert.equal(resolve({}, null, "auto", Object.assign([], { 5: 0xe3a01b, 3: 0xe3a01b })).palette.review, parseColor("lightmagenta")); // a terminal whose magenta is its yellow
-  // Whatever a theme sets, the review colour looks like none of herdr's.
-  const XTERM = [0x000000, 0xcd0000, 0x00cd00, 0xcdcd00, 0x0000ee, 0xcd00cd, 0x00cdcd, 0xe5e5e5, 0x7f7f7f, 0xff0000, 0x00ff00, 0xffff00, 0x5c5cff, 0xff00ff, 0x00ffff, 0xffffff];
-  const shown = (c) => (c < 0 ? XTERM[c + 16] : c), apart = (a, b) => [16, 8, 0].reduce((n, sh) => n + Math.abs(((a >> sh) & 255) - ((b >> sh) & 255)), 0);
-  const KEYS = Object.keys(resolve().palette).filter((k) => k !== "review" && k !== "peach");
-  const distinct = (c, why) => { const { palette } = resolve(c); assert.equal(typeof palette.review, "number", why); for (const k of KEYS) if (palette[k] !== null) assert.ok(apart(shown(palette.review), shown(palette[k])) >= 48, `${why}: ${k}`); };
-  for (const name of ["catppuccin", "catppuccin-latte", "terminal", "tokyo-night", "tokyo-night-day", "dracula", "nord", "gruvbox", "gruvbox-light", "one-dark", "one-light", "solarized", "solarized-light", "kanagawa", "kanagawa-lotus", "rose-pine", "rose-pine-dawn", "vesper"]) distinct({ theme: { name } }, name);
-  // Even a theme made to take every colour the board would pick, one after another.
-  const custom = { peach: "magenta" };
-  for (const k of KEYS) { custom[k] = "#" + shown(resolve({ theme: { custom } }).palette.review).toString(16).padStart(6, "0"); distinct({ theme: { custom } }, `taken up to ${k}`); }
+test("the terminal says whether it is light or dark", () => {
+  const said = readAnswers("\x1b]11;rgb:0d0d/1616/1c1c\x1b\\\x1b[?62;22c");
+  assert.equal(said.light, false); assert.equal(said.done, true);
+  assert.deepEqual(readAnswers("\x1b]11;rgb:ffff/ffff/ffff\x07"), { light: true, done: false });
+  assert.deepEqual(readAnswers("\x1b]11;rgb:aa"), { light: null, done: false });
+  assert.equal(resolve().palette.review, undefined); // a review has no colour of its own: herdr's status colours only
 });
 
 test("herdr's theme name, aliases, custom colours, old accent setting and symbol marks are followed", () => {
@@ -79,7 +55,7 @@ test("herdr's theme name, aliases, custom colours, old accent setting and symbol
   // Every colour name the board paints with is one of herdr's.
   const used = new Set(["view.js", "editor.js", "artifact-lines.js"].flatMap((f) => [...fs.readFileSync(new URL(`../src/board/${f}`, import.meta.url), "utf8").matchAll(/\b(?:fg|bg|under)\(([^,()]+),/g)].flatMap((m) => m[1].replace(/[!=]== "[^"]*"/g, "").match(/"[a-z0-9_]+"/g) || [])));
   const known = Object.keys(resolve().palette);
-  assert.ok(used.size > 8); for (const name of used) assert.ok(known.includes(JSON.parse(name)), `${name} is not a herdr colour`);
+  assert.ok(used.size > 6); for (const name of used) assert.ok(known.includes(JSON.parse(name)), `${name} is not a herdr colour`);
 });
 
 test("light and dark: only when herdr switches by appearance, or the board's own setting picks one", () => {
@@ -141,19 +117,19 @@ test("the board paints with what it read: true colour, the terminal's 16 colours
     process.env.HERDR_CONFIG_PATH = cfg(`[theme]\nname = "terminal"\nauto_switch = true\nlight_name = "catppuccin-latte"\n[ui]\nstatus_indicators = "symbols"\n`);
     assert.equal(loadTheme(), true);
     assert.equal(theme.fg("red", "x"), "\x1b[91mx\x1b[39m"); assert.equal(theme.fg("green", "x"), "\x1b[32mx\x1b[39m"); assert.equal(theme.fg("text", "x"), "x");
-    assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.fg("review", "x"), "\x1b[35mx\x1b[39m"); assert.equal(theme.line("a"), "a");
+    assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.line("a"), "a");
     assert.equal(theme.selected("x"), "\x1b[100mx\x1b[49m"); // no selection colour in this theme: herdr's active row colour
     assert.deepEqual(["working", "blocked", "done", "idle", "error"].map(theme.mark), ["◐", "×", "✓", "○", "✗"]);
     setTerminal(true);
     assert.equal(theme.fg("red", "x"), "\x1b[38;2;210;15;57mx\x1b[39m"); assert.equal(theme.selected("x"), "\x1b[48;2;189;208;245mx\x1b[49m");
     process.env.HERDR_CONFIG_PATH = cfg("");
-    assert.equal(loadTheme(), true); // it paints with the terminal's colours: the terminal is asked what they are
+    assert.equal(loadTheme(), false); // the terminal's own colours, whatever they are: nothing to ask
     assert.deepEqual(["working", "blocked", "done", "idle", "error"].map(theme.mark), ["●", "●", "●", "○", "✗"]);
     // No theme set here: the terminal's colours and its own text colour.
     assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.fg("teal", "x"), "\x1b[36mx\x1b[39m"); assert.equal(theme.line("a b"), "a b");
     process.env.HERDR_CONFIG_PATH = cfg(`[theme]\nname = "catppuccin"\n`);
-    assert.equal(loadTheme(), false); // true colours throughout: nothing to ask
-    assert.equal(theme.fg("review", "x"), "\x1b[38;2;250;179;135mx\x1b[39m"); assert.equal(theme.dim("x"), "\x1b[2mx\x1b[22m");
+    assert.equal(loadTheme(), false); // no auto_switch: nothing to ask
+    assert.equal(theme.fg("review", "x"), "x"); assert.equal(theme.dim("x"), "\x1b[2mx\x1b[22m");
     assert.equal(theme.fg("yellow", "x"), "\x1b[38;2;249;226;175mx\x1b[39m");
     // Uncoloured text is herdr's text colour, and stays so after a coloured word; a background survives resets too.
     const text = "\x1b[38;2;205;214;244m";
