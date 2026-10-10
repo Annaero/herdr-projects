@@ -71,6 +71,9 @@ const bar = (pct, n = 8) => "█".repeat(Math.round((pct / 100) * n)).padEnd(n, 
 // A task as the screen reads it: `msg` is the line to show, `app` who is on it, `at` since when.
 export const asRow = (t) => ({ ...t, msg: t.note || "", raw: t.msg, app: t.shownApp || "", at: t.state === "working" ? t.since || t.at : t.at });
 
+// The fewest cells a cut "doing now" sentence is still worth showing in.
+const SENTENCE_MIN = 20;
+
 export class View {
   items = []; rows = []; selectionRows = []; selectionLayout = "";
   sel = ""; top = 0;
@@ -846,7 +849,7 @@ export class View {
     const score = Number.isInteger(review?.score) && review.score >= 1 && review.score <= 5 ? t.fg("muted", `${review.score}/5`) : "";
     const recommendation = typeof review?.recommend === "boolean" ? t.fg(review.recommend ? "success" : "error", review.recommend ? "merge" : "don't merge") : "";
     const percent = !done && r.progress !== undefined ? t.fg(statusColor(r), `${String(r.progress).padStart(3)}%`) : "";
-    return { recommendation, score, pr: pr ? t.fg(prColor, pr) : "", progress: percent && bars ? t.fg(statusColor(r), bar(r.progress)) + " " + percent : !pr ? percent : "", elapsed: age(now - (r.at || now)).padStart(3) };
+    return { recommendation, score, pr: pr ? t.fg(prColor, pr) : "", progress: percent && bars ? t.fg(statusColor(r), bar(r.progress)) + " " + percent : percent, elapsed: age(now - (r.at || now)).padStart(3) };
   }
   activity(r) {
     const failure = failureFor(r);
@@ -859,23 +862,10 @@ export class View {
     layout.elapsed = Math.max(3, max("elapsed"));
     // Extremely long PR identifiers may shorten, but must never push time off-screen.
     layout.pr = Math.min(max("pr"), Math.max(0, width - 3 - layout.elapsed - 3));
-    const metadataWidth = () => [layout.decision, layout.pr, layout.progress, layout.elapsed].filter(Boolean).reduce((sum, n) => sum + n + 1, -1);
-    const fixedWidth = metadataWidth();
-    // Current activity wins over optional columns. Hide a column for the whole list rather than per row.
-    const fits = (list = records) => list.every((r) => {
-      if (r.state === "done") return true;
-      const room = Math.max(0, width - visibleWidth(` ${this.mark(r)} `));
-      const activity = this.activity(r);
-      const name = (r.host && this.scope === "*" ? clean(r.host) + " " : "") + clean(r.title || r.id);
-      const need = activity ? Math.min(Math.max(0, room - fixedWidth - 2), visibleWidth(activity) + Math.min(3, visibleWidth(name)) + 2) : 0;
-      return room - metadataWidth() - 2 >= need;
-    });
     layout.recommendation = max("recommendation");
     layout.score = max("score");
-    layout.decision = layout.recommendation + layout.score + (layout.recommendation && layout.score ? 1 : 0);
-    if (!fits()) { layout.recommendation = 0; layout.decision = layout.score; if (!fits()) layout.decision = layout.score = 0; }
-    // The bar and percent always keep their place, just left of the time: a long "doing now" sentence is cut instead.
     layout.progress = max("progress");
+    layout.percent = layout.bars ? Math.max(0, ...records.map((r) => visibleWidth(this.rowFields(r, false, layout.now).progress))) : layout.progress;
     return layout;
   }
   row(r, width, layout = this.rowLayout([r], width)) {
@@ -885,29 +875,42 @@ export class View {
     const faded = r.state === "done" && !unseen;
     const title = clean(r.title || r.id) + (r.archivedAt ? " [archived]" : "");
     const name = bright ? t.bold(title) : faded ? t.fg("muted", title) : title;
-    const fields = this.rowFields(r, layout.bars, layout.now);
-    const pad = (s, n) => " ".repeat(Math.max(0, n - visibleWidth(s))) + s; // by terminal cells, not string length
-    const decision = [layout.recommendation ? pad(fields.recommendation, layout.recommendation) : "", layout.score ? pad(fields.score, layout.score) : ""].filter(Boolean).join(" ");
-    const metadata = [decision, layout.pr ? pad(truncateToWidth(fields.pr, layout.pr, "…"), layout.pr) : "", layout.progress ? pad(fields.progress, layout.progress) : "", t.fg("dim", fields.elapsed.padStart(layout.elapsed))]
-      .filter((_, n) => [layout.decision, layout.pr, layout.progress, layout.elapsed][n] > 0).join(" ");
     const prefix = ` ${this.mark(r)} `;
     const room = Math.max(0, width - visibleWidth(prefix));
-    const labelName = (r.host && this.scope === "*" ? t.fg("dim", `${r.host} `) : "") + name;
+    // In the all-machines view the machine's name sits before the task's, in what the task's name leaves: it is cut first.
+    const host = r.host && this.scope === "*" ? clean(r.host) : "";
+    const labelName = (w) => {
+      const shown = truncateToWidth(name, w, "…");
+      const hostRoom = w - visibleWidth(shown) - 1;
+      return (host && hostRoom >= Math.min(3, visibleWidth(host)) ? t.fg("dim", truncateToWidth(host, hostRoom, "…")) + " " : "") + shown;
+    };
+    // The name wins over the columns, and the columns win over the "doing now" sentence. A row whose name does not fit gives up
+    // its own columns, one at a time: the verdict, the score, the bar, the percent, the PR number and, last of all, the time.
+    const nameNeed = Math.min(room, visibleWidth(name));
+    const pad = (s, n) => " ".repeat(Math.max(0, n - visibleWidth(s))) + s; // by terminal cells, not string length
+    let metadata, labelRoom;
+    for (let drop = 0; drop <= 6; drop++) {
+      const bars = layout.bars && drop < 3;
+      const cols = { recommendation: drop < 1 ? layout.recommendation : 0, score: drop < 2 ? layout.score : 0, pr: drop < 5 ? layout.pr : 0, progress: drop >= 4 ? 0 : bars ? layout.progress : layout.percent };
+      const fields = this.rowFields(r, bars, layout.now);
+      metadata = [...["recommendation", "score"].map((k) => (cols[k] ? pad(fields[k], cols[k]) : "")), cols.pr ? pad(truncateToWidth(fields.pr, cols.pr, "…"), cols.pr) : "", cols.progress ? pad(fields.progress, cols.progress) : "", drop < 6 ? t.fg("dim", fields.elapsed.padStart(layout.elapsed)) : ""]
+        .filter(Boolean).join(" ");
+      labelRoom = Math.max(0, room - visibleWidth(metadata) - (metadata ? 2 : 0));
+      if (labelRoom >= nameNeed) break;
+    }
     if (r.state === "done") {
       // Completed rows keep only the title, optional PR number and far-right time.
-      const label = truncateToWidth(labelName, Math.max(0, room - visibleWidth(metadata) - 2), "…");
+      const label = labelName(labelRoom);
       return prefix + label + " ".repeat(Math.max(0, room - visibleWidth(label) - visibleWidth(metadata))) + metadata;
     }
-    // One allocation policy for every unfinished row: activity first, optional metadata second.
+    // One allocation policy for every unfinished row: the name first, the columns second, the sentence in what is left.
     const activity = this.activity(r);
     const activityColor = reviewing(r) && r.state === "working" ? ROLE_COLOR.reviewer : r.state === "error" ? "error" : r.state === "blocked" ? "text" : "muted";
     const summary = activity ? t.fg(activityColor, activity) : t.fg(kindOf(r) ? kindColor(r) : statusColor(r), kindOf(r) || statusLabel(r));
-    const labelRoom = Math.max(0, room - visibleWidth(metadata) - 2);
-    const summaryWidth = visibleWidth(summary);
-    const canKeepTitle = labelRoom >= summaryWidth + 5 || labelRoom < summaryWidth; // a title cannot force truncation of a fitting sentence
-    const titleRoom = labelRoom >= 7 && canKeepTitle ? Math.min(46, Math.max(3, labelRoom - summaryWidth - 2)) : 0;
-    const renderedTitle = truncateToWidth(labelName, titleRoom, "…");
-    const label = (renderedTitle ? renderedTitle + "  " : "") + truncateToWidth(summary, Math.max(0, labelRoom - visibleWidth(renderedTitle) - (renderedTitle ? 2 : 0)), "…");
+    const renderedTitle = labelName(labelRoom);
+    const summaryRoom = labelRoom - visibleWidth(renderedTitle) - 2;
+    // A sentence cut to a few letters says nothing: it shows whole, or with at least SENTENCE_MIN cells, or not at all.
+    const label = renderedTitle + (summaryRoom >= Math.min(visibleWidth(summary), SENTENCE_MIN) ? "  " + truncateToWidth(summary, summaryRoom, "…") : "");
     return prefix + label + " ".repeat(Math.max(0, room - visibleWidth(label) - visibleWidth(metadata))) + metadata;
   }
 }

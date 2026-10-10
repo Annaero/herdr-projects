@@ -84,6 +84,58 @@ test("the board: groups, aligned rows, side panel from 90 columns, details, and 
   } finally { w.cleanup(); }
 });
 
+test("a tight row keeps the task's name, then the columns on the right; the sentence takes what is left or goes", async () => {
+  const w = await world({ settings: { helper: "off" } });
+  try {
+    const s = open(w);
+    const at = Date.now() - 6 * 60000;
+    const records = [
+      { id: "proj/1", state: "working", title: "Remove notification pop-ups", msg: "Removing pop-up calls from plugin, fixing tests, writing closing note.", progress: 95, at },
+      { id: "proj/2", state: "working", title: "Fix ugly blocked row on the board", msg: "Fixing layout so approval names keep width.", progress: 55, pr: 3, at },
+      { id: "proj/3", state: "done", title: "Truncate long descriptions in sidebar", pr: 2, seen: true, at },
+    ];
+    const draw = (width) => { const layout = s.v.rowLayout(records, width); return records.map((r) => stripVTControlCharacters(s.v.row(r, width, layout))); };
+    for (const width of [200, 120, 90, 72, 64, 50, 40, 30, 20]) assert.ok(draw(width).every((l) => l.length <= width), `fits ${width}`);
+    let rows = draw(200); // room for everything
+    assert.match(rows[0], /Remove notification pop-ups {2}Removing pop-up calls from plugin, fixing tests, writing closing note\. .* 95% +6m$/);
+    rows = draw(92); // the sentence is cut, the name and the columns are whole
+    assert.match(rows[0], /Remove notification pop-ups {2}Removing pop-up calls[^…]*… +█+ +95% +6m$/);
+    assert.match(rows[1], /Fix ugly blocked row on the board {2}Fixing layout[^#]*… +#3 .*55% +6m$/);
+    rows = draw(72); // too little left for a sentence worth reading: none at all
+    assert.match(rows[0], /Remove notification pop-ups +\S.* 95% +6m$/); assert.doesNotMatch(rows[0], /Remov[^ ]* {2}Re/);
+    assert.match(rows[1], /Fix ugly blocked row on the board +#3 .*55% +6m$/);
+    rows = draw(56); // no bars below 64 columns
+    assert.match(rows[0], /Remove notification pop-ups +95% +6m$/);
+    assert.match(rows[1], /Fix ugly blocked row on the board +#3 +55% +6m$/); // a PR row keeps its percent while it fits
+    rows = draw(45); // each row gives up only what its own name needs: the percent, then the PR number
+    assert.match(rows[0], /Remove notification pop-ups +95% +6m$/);
+    assert.match(rows[1], /Fix ugly blocked row on the board +#3 +6m$/);
+    assert.match(rows[2], /Truncate long descriptions in sidebar +6m$/);
+    rows = draw(40); // last of all the time
+    assert.match(rows[0], /Remove notification pop-ups +6m$/); assert.match(rows[2], /^ \S Truncate long descriptions in sidebar$/);
+    rows = draw(30); // only now is a name cut
+    assert.match(rows[0], /^ \S Remove notification pop-ups$/); assert.match(rows[1], /^ \S Fix ugly blocked row on th…$/);
+    // A long name on one row costs the other rows nothing: their columns still come before their sentence.
+    records.splice(0, 3,
+      { id: "proj/8", state: "working", title: "Fix login", msg: "Tracing why the login form rejects valid passwords.", progress: 55, pr: 3, at },
+      { id: "proj/9", state: "working", title: "Fix layout for task names in narrow terminal board", msg: "Working.", progress: 20, at });
+    rows = draw(60);
+    assert.match(rows[0], /Fix login {2}Tracing why the login form[^#]*… +#3 +55% +6m$/);
+    assert.match(rows[1], /Fix layout for task names in narrow terminal board +6m$/);
+    rows = draw(72);
+    assert.match(rows[0], /Fix login {2}Tracing[^#]*… +#3 █+░+ +55% +6m$/);
+    assert.match(rows[1], /Fix layout for task names in narrow terminal board +20% +6m$/); // the bar went, the percent fits
+    // All machines: the machine's name is cut before the task's, and before any column goes.
+    s.v.scope = "*";
+    const far = { ...records[0], host: "very-long-machine-name-on-the-tailnet" };
+    const one = (width) => stripVTControlCharacters(s.v.row(far, width, s.v.rowLayout([far], width)));
+    assert.match(one(120), /very-long-machine-name-on-the-tailnet Fix login {2}Tracing/);
+    assert.match(one(40), /very-long-m\S*… Fix login +#3 +55% +6m$/);
+    assert.match(one(24), /^ \S ve… Fix login +#3 +6m$/); assert.match(one(18), /^ \S Fix login +6m$/);
+    for (const width of [200, 60, 40, 30, 24, 16]) assert.ok(one(width).length <= width, `fits ${width}`);
+  } finally { w.cleanup(); }
+});
+
 test("the board's keys: file by typing, tab delegates, space previews the agent's screen and replies, enter goes in", async () => {
   const w = await world({ settings: { helper: "off", reviewer: "off" } });
   try {
