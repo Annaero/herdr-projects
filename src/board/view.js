@@ -854,7 +854,7 @@ export class View {
     const metadataWidth = () => [layout.decision, layout.pr, layout.progress, layout.elapsed].filter(Boolean).reduce((sum, n) => sum + n + 1, -1);
     const fixedWidth = metadataWidth();
     // Current activity wins over optional columns. Hide a column for the whole list rather than per row.
-    const fits = () => records.every((r) => {
+    const fits = (list = records) => list.every((r) => {
       if (r.state === "done") return true;
       const room = Math.max(0, width - visibleWidth(` ${this.mark(r)} `));
       const activity = this.activity(r);
@@ -866,8 +866,10 @@ export class View {
     layout.score = max("score");
     layout.decision = layout.recommendation + layout.score + (layout.recommendation && layout.score ? 1 : 0);
     if (!fits()) { layout.recommendation = 0; layout.decision = layout.score; if (!fits()) layout.decision = layout.score = 0; }
+    // Progress is judged only against the rows that have one: another row's long sentence (a review summary waiting
+    // for approval) is cut to fit and must not hide every working agent's bar.
     layout.progress = max("progress");
-    if (!fits()) layout.progress = 0;
+    if (!fits(records.filter((r) => r.state !== "done" && r.progress !== undefined))) layout.progress = 0;
     return layout;
   }
   row(r, width, layout = this.rowLayout([r], width)) {

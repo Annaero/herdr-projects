@@ -65,15 +65,15 @@ export function assertLive(t) {
 // While a task waits for approval its pane says so in herdr's sidebar, with no change to the client's herdr settings.
 // herdr's default sidebar shows neither state labels nor custom tokens (verified on 0.9.3): only the agent's display
 // name. So the label goes three ways: into the display name (shows with no setup), as a state label and as the
-// `summary` token (both show once the sidebar rows from the README are in herdr's config; then the name is left alone).
+// `summary` token (both show once the sidebar rows from the README are in the config of the herdr client you look
+// through; a client on another machine reads its own config, so the name is always set as well).
 const sidebarFile = () => path.join(S.dataDir(), "sidebar.json");
 export function labelPane(t, text) {
   if (!isAgentTask(t)) return;
   const api = h(t);
-  const rows = !!S.readJson(path.join(S.dataDir(), "extras.json"), {})?.sidebar;
   const label = text ? String(text).slice(0, 40) : "";
   try { const seen = S.readJson(sidebarFile(), {}) || {}; seen[`${t.link.socket}|${t.link.pane}`] = label; for (const k of Object.keys(seen).slice(0, -400)) delete seen[k]; S.writeJson(sidebarFile(), seen); } catch {}
-  if (label) api.metadata(t.link.pane, ["--state-label", `idle=${label}`, "--state-label", `done=${label}`, "--state-label", `unknown=${label}`, "--state-label", `blocked=${label}`, ...(rows ? ["--clear-display-agent"] : ["--display-agent", `${label} · ${t.agent || "agent"}`])]);
+  if (label) api.metadata(t.link.pane, ["--state-label", `idle=${label}`, "--state-label", `done=${label}`, "--state-label", `unknown=${label}`, "--state-label", `blocked=${label}`, "--display-agent", `${label} · ${t.agent || "agent"}`]);
   else api.metadata(t.link.pane, ["--clear-state-labels", "--clear-display-agent"]);
   if (t.link.workspace && t.link.ownsWorkspace) { try { api.call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", ...(label ? ["--token", `summary=${label}`] : ["--clear-token", "summary"])]); } catch {} }
 }
