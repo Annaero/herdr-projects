@@ -19,6 +19,8 @@ import * as X from "../extras.js";
 import * as D from "../delegate.js";
 import { DraftEditor } from "./editor.js";
 import { artifactLine, artifactLines, reviewArtifacts } from "./artifact-lines.js";
+import * as C from "../coordinator.js";
+import { Bridge } from "./bridge.js";
 
 // The five states, in the order they need you.
 const ORDER = ["blocked", "error", "working", "done", "idle"];
@@ -57,7 +59,10 @@ const KIND = { // what it needs, what to type
   auth: ["a login, token, or credential", "fix the login, then tell the agent to continue"],
 };
 const HELP = [
-  ["enter", "send what you typed to the Coordinator; with nothing typed, go into the selected task's agent in herdr"],
+  ["enter", "send what you typed to the Coordinator, one long-lived agent chat; with nothing typed, go into the selected task's agent in herdr"],
+  ["alt+c", "raise the Coordinator's drawer: hidden, then its last message, then its real chat full screen, then hidden again"],
+  ["alt+v", "lower the drawer one step: full screen, its last message, hidden (esc hides it too)"],
+  ["alt+r / alt+n", "with the drawer up: restart the Coordinator in the same conversation / start a new one. Type a kind first (codex, or: codex <model> <effort>) and alt+n starts that one, this once"],
   ["→", "go into the selected task's agent: its real herdr pane. The board closes; your key or `herdr-superwork` brings it back"],
   ["space", "preview its agent's last message (its screen when a dialog is showing), and reply without going in"],
   ["ctrl+e", "open full details; ↑/↓, PgUp/PgDn, Home/End scroll; esc returns to the board"],
@@ -72,7 +77,7 @@ const HELP = [
   ["ctrl+r", "send an error to its agent to fix (or tell a stopped agent to continue); otherwise send review findings (below 5/5)"],
   ["ctrl+y", "finish anyway: when the agent stopped without a summary, run the check and review on what it left"],
   ["ctrl+g", "send the selected task's failure details to its agent to fix; never approves a merge"],
-  ["↑ ↓", "edit the draft; with an empty box, move between tasks"], ["shift+enter / ctrl+j", "new line"], ["PgUp/PgDn", "scroll a long draft; with an empty box, move between tasks"], ["shift+↑/↓", "move between tasks, even with a draft"], ["alt+↑/↓", "jump groups"], ["ctrl+↓ / ctrl+↑", "go to what the Coordinator is doing, and back"], ["esc", "back, clear, or quit"], ["?", "close"],
+  ["↑ ↓", "edit the draft; with an empty box, move between tasks"], ["shift+enter / ctrl+j", "new line"], ["PgUp/PgDn", "scroll a long draft; with an empty box, move between tasks"], ["shift+↑/↓", "move between tasks, even with a draft"], ["alt+↑/↓", "jump groups"], ["ctrl+↓ / ctrl+↑", "go to what you sent to another machine's Coordinator, and back"], ["esc", "back, clear, or quit"], ["?", "close"],
 ];
 const short = S.tilde;
 const clean = (s) => String(s ?? "").replace(/[\x00-\x1f\x7f]+/g, " ");
@@ -98,6 +103,8 @@ export class View {
   filter = ""; msg = ""; msgKind = "overlay0"; msgAt = 0;
   armed = { id: "", at: 0 }; back = ""; jobs = []; jobTop = 0; lastCtrlC = 0; tick = 0; disposed = false;
   screens = new Map(); // what an agent's pane shows, read through herdr, cached
+  // The Coordinator's drawer: "hidden", "peek" (its last message above the box) or "full" (its real chat, full screen).
+  drawer = "hidden"; coord = { state: "none", queue: 0, said: "" }; bridge = null; asked = 0;
   sent = new Map(); setup = null;
 
   constructor(tui, theme, done, ctx) {
@@ -108,10 +115,12 @@ export class View {
     this.byRepo = !!prefs.byRepo; this.sidebarHidden = !!prefs.sidebarHidden; this.scope = String(prefs.scope || "");
     // The board closes each time you go into an agent: selection, filter and draft come back when it reopens.
     this.sel = String(prefs.sel || ""); this.filter = String(prefs.filter || ""); if (prefs.draft) this.input.setText(String(prefs.draft));
+    this.drawer = C.takeFull() ? "full" : prefs.drawer === "peek" ? "peek" : "hidden";
     if (this.all) this.pollRemotes();
     this.repo = S.repoOf(ctx.cwd);
-    this.canDispatch = H.dispatcherReady();
+    try { this.canDispatch = C.ready(); } catch { this.canDispatch = false; }
     this.load();
+    try { this.syncDrawer(); } catch {}
     try { this.stamp = codeStamp(); } catch {}
     try { this.startSetup(); } catch {}
     this.timer = setInterval(() => this.beat(), 1000);
@@ -165,15 +174,20 @@ export class View {
     if (!keeperAlive()) { try { tickOnce(currentSocket(), { watch: (rows) => H.watchTick(rows.map(asRow)) }); } catch {} }
     // An open board keeps running the code it started with: say so when the plugin changed underneath it.
     if (this.tick % 5 === 0) { try { if (this.stamp && codeStamp() !== this.stamp) { this.stale = true; this.flash("herdr-superwork was updated. Close the board (esc) and open it again to get the new version.", "yellow"); } } catch {} }
+    // The Coordinator can be turned on or off (a setting, herdr starting) while the board is open.
+    if (this.tick % 5 === 0) { try { this.canDispatch = C.ready(); } catch {} }
     try { this.load(); } catch {}
+    try { if (C.takeFull() && this.drawer !== "full") this.setDrawer("full"); else this.syncDrawer(); } catch {}
+    // While the Coordinator's own terminal is on screen the board draws nothing but its one row.
+    if (this.bridge) return this.bridge.drawFooter();
     try { this.announce(); } catch {}
     this.tui.requestRender();
   }
-  dispose() { this.disposed = true; clearInterval(this.timer); this.savePrefs(); if (this.sent.size) { try { process.stdout.write([...this.sent.keys()].map(oscClear).join("")); } catch {} } }
+  dispose() { this.disposed = true; clearInterval(this.timer); try { this.bridge?.stop(); } catch {} this.savePrefs(); if (this.sent.size) { try { process.stdout.write([...this.sent.keys()].map(oscClear).join("")); } catch {} } }
   invalidate() { this.input.invalidate(); }
   get focused() { return this.input.focused; }
   set focused(value) { this.input.focused = value; }
-  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, scope: this.scope, sidebarHidden: this.sidebarHidden, sel: this.sel, filter: this.filter, draft: this.mode === "new" ? this.value() : "" }); } catch {} }
+  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, scope: this.scope, sidebarHidden: this.sidebarHidden, sel: this.sel, filter: this.filter, draft: this.mode === "new" ? this.value() : "", drawer: this.drawer === "full" ? "peek" : this.drawer }); } catch {} }
   flash(text, kind = "overlay0") { this.msg = clean(text); this.msgKind = kind; this.msgAt = Date.now(); }
   value() { return this.input.getText(); }
   setValue(v) { this.input.setText(v); }
@@ -196,6 +210,7 @@ export class View {
   }
 
   load(repliedTo = "") {
+    try { this.coord = C.look(); } catch {}
     const mine = F.board({ includeArchived: true }).map(asRow);
     this.items = this.scope === "" ? mine : this.scope === "*" ? [...mine, ...Object.values(this.remotes).flatMap((m) => m.items)] : (this.remotes[this.scope] ? this.remotes[this.scope].items : []);
     const jobs = this.archiveView ? [] : S.dispatches();
@@ -270,9 +285,10 @@ export class View {
     if (next !== undefined && this.rows[next + 1]?.rec) this.sel = this.rows[next + 1].rec.id;
     else if (d > 0 && this.jobs.length) this.sel = this.jobs[0].id;
   }
-  // One instruction for the dispatcher. While it runs it is a row of its own, so you can select it and stop it.
+  // What you typed, for the Coordinator: this machine's one long-lived agent. For another machine's, the words are a
+  // row of their own until that machine has taken them, so you can select it and stop it.
   dispatch(text, delegate, about) {
-    // Another machine's dispatcher: for a task of theirs you have open, or when you start with its name ("@vm-a fix the build").
+    // Another machine's Coordinator: for a task of theirs you have open, or when you start with its name ("@vm-a fix the build").
     const named = text.match(/^@?([A-Za-z0-9_.-]+)[:\s]\s*([\s\S]+)$/);
     const there = about && about.host ? this.remotes[about.host] : (named && this.all && (text.startsWith("@") || text.slice(named[1].length, named[1].length + 1) === ":") ? this.remotes[named[1]] : null) || (about ? null : this.remotes[this.scope]) || null;
     if (there) {
@@ -288,9 +304,10 @@ export class View {
       }, 150000);
       return this.load();
     }
+    if (!this.canDispatch) { try { this.canDispatch = C.ready(); } catch {} } // it may have been turned on a moment ago
     if (!this.canDispatch) {
-      // Helpers are off (no adapter for the helper kind, or it cannot be restricted to the board's commands):
-      // what you type is filed as a task, word for word.
+      // No Coordinator (it is off, its program is not installed, or herdr is not running): what you type is filed as
+      // a task, word for word.
       const about0 = about && !about.host ? about : null;
       if (about0) { A.describe(about0.id, `${about0.description ? `${about0.description}\n\n` : ""}${text}`); this.flash(`${about0.id}: added to its description`, "green"); return this.load(); }
       const [title, ...restLines] = text.split("\n");
@@ -300,8 +317,109 @@ export class View {
       this.sel = t.id;
       return this.load();
     }
-    H.startDispatch(this.ctx.cwd, text, delegate, about ? about.id : undefined);
+    C.send(this.ctx.cwd, text, { delegate, about: about ? about.id : null });
     this.load();
+  }
+  // ---- the Coordinator's drawer ----------------------------------------------------------------------------------------
+  // Three stops, moved between freely: hidden, its last message above the box, its real chat full screen.
+  setDrawer(to) {
+    if (to !== "hidden" && !this.canDispatch) { try { this.canDispatch = C.ready(); } catch {} }
+    if (to !== "hidden" && !this.canDispatch && this.coord.state === "none") return this.flash("No Coordinator here: it is off, its program is not installed, or herdr is not running.", "yellow");
+    if (this.bridge && to !== "full") this.closeBridge();
+    if (to !== "hidden" && this.peek) { this.seen(this.current()); this.peek = false; } // one thing above the box at a time
+    this.drawer = to;
+    this.asked = 0;
+    this.savePrefs();
+    this.load();
+    this.syncDrawer();
+  }
+  // Called on every beat and after every change: pop up for a reply nobody has seen, and show the real chat once
+  // there is an agent to show.
+  syncDrawer() {
+    const v = this.coord;
+    // A new reply pops the drawer up, except over a task's preview: there your typing belongs to that task's agent.
+    if (v.unseen && this.drawer === "hidden" && !this.peek && !this.detailsId && !this.setup && !this.archiveView) this.drawer = "peek";
+    if (v.unseen && this.drawer !== "hidden") C.seen(v.unseen);
+    if (this.drawer !== "full" || this.bridge || !this.live) return;
+    if (v.status && v.pane) return this.openBridge(v);
+    // Not running: have it started (once, and again if that failed and you ask again), then show it.
+    if (!v.error && Date.now() - this.asked > 15000 && ["none", "exited"].includes(v.state)) { this.asked = Date.now(); try { C.open(); } catch (e) { this.drawer = "peek"; this.flash(e.message, "red"); } }
+  }
+  // The board's own screen is running: only from here on can it be stopped for the Coordinator's. A chat shown before
+  // that would leave the board listening to the keys as well, once it starts.
+  started() { this.live = true; try { this.syncDrawer(); } catch {} if (this.bridge) this.bridge.drawFooter(); }
+  openBridge(v) {
+    const t = this.theme;
+    const footer = (cols) => truncateToWidth(" " + t.fg(this.coord.state === "blocked" ? "red" : this.coord.state === "working" ? "yellow" : "green", t.mark(this.coord.state === "working" ? "working" : this.coord.state === "blocked" ? "blocked" : "idle")) + " " + t.bold("Coordinator") + t.fg("overlay0", `  ${C.describe(this.coord.run)}  ·  `) + t.fg("text", "alt+v") + t.fg("overlay0", " drawer down · ") + t.fg("text", "alt+c") + t.fg("overlay0", " back to the board · shift+PgUp/PgDn scroll"), cols, "…");
+    const make = this.ctx.bridge || ((o) => new Bridge(o));
+    this.tui.stop();
+    this.bridge = make({ socket: currentSocket(), pane: v.pane, footer, keys: [["alt+c", "hidden"], ["alt+v", "peek"]],
+      onKey: (to) => { try { this.setDrawer(to); } catch {} },
+      onClose: (why) => { this.bridge = null; this.drawer = "peek"; C.typedThere(); this.tui.start(); this.flash(`The Coordinator's chat closed: ${why}.`, "yellow"); try { this.load(); } catch {} this.tui.requestRender(true); } });
+    this.bridge.start();
+  }
+  closeBridge() {
+    const b = this.bridge; this.bridge = null;
+    try { b.stop(); } catch {}
+    C.typedThere();
+    this.tui.start(); this.tui.requestRender(true);
+  }
+  // alt+r and alt+n ask twice: either one ends what the Coordinator is doing right now.
+  coordAct(what) {
+    const words = this.value().trim().split(/\s+/).filter(Boolean);
+    if (what === "new" && words.length > 3) return this.flash("For a one-off Coordinator type only: <kind> [model] [effort], then alt+n. With an empty box alt+n uses your default.", "yellow");
+    const pick = what === "new" ? C.pickOf({ agent: words[0], model: words[1], effort: words[2] }) : null;
+    const key = `coordinator:${what}:${words.join(" ")}`;
+    if (this.armed.id !== key || Date.now() - this.armed.at > 4000) {
+      this.armed = { id: key, at: Date.now() };
+      return this.flash(what === "new" ? `alt+n again: a new Coordinator on ${C.describe(pick || C.choice())}${pick ? " (this one only)" : ""}. This conversation ends.` : "alt+r again: restart the Coordinator. It keeps this conversation; what it is doing right now stops.", "yellow");
+    }
+    this.armed = { id: "", at: 0 };
+    if (what === "new") { C.fresh(pick); this.setValue(""); this.flash("A new Coordinator is starting.", "green"); }
+    else { C.restart(); this.flash("The Coordinator is restarting, in the same conversation.", "green"); }
+    this.load();
+  }
+  drawerLines(width, maxH) {
+    const t = this.theme, v = this.coord;
+    const color = { working: "yellow", starting: "yellow", blocked: "red", idle: "green" }[v.state] || "overlay0";
+    const word = { none: "not started", starting: "starting", working: "working", blocked: "needs you", idle: "idle", exited: "stopped" }[v.state] || v.state;
+    const mark = t.fg(color, t.mark(["working", "starting"].includes(v.state) ? "working" : v.state === "blocked" ? "blocked" : v.state === "idle" ? "idle" : "unknown"));
+    const wrapAll = (text) => String(text).split("\n").flatMap((l) => { const w = wrapTextWithAnsi(clean(l), Math.max(10, width - 2)); return w.length ? w : [""]; });
+    let label = "", text = "", tone = "";
+    if (v.error) { text = `It could not be started: ${v.error}`; tone = "red"; }
+    else if (v.state === "blocked") { label = "on its screen now"; text = C.screen(v) || "Something on its screen waits for you. alt+c opens its chat."; }
+    else if (v.said) { label = v.state === "working" ? "so far" : "last message"; text = v.said; }
+    else {
+      const on = v.status && (v.state === "working" || !v.readable) ? C.screen(v) : ""; // a program whose conversation cannot be read: its screen
+      if (on) { label = "on its screen now"; text = on; }
+      else { tone = "overlay0"; text = { none: "Type below and press enter: it starts with your first message, and stays.", starting: "Starting…", idle: "Ready. Type below and press enter.", exited: "Your next message starts it again, in the same conversation." }[v.state] || "Nothing said yet."; }
+    }
+    const head = " " + mark + " " + t.fg(color, t.bold("Coordinator")) + "  " + t.fg(color, word) + t.fg("overlay0", `  ${v.run ? C.describe(v.run) : "off"}${v.oneOff ? " (this one only)" : ""}${label ? `  · ${label}` : ""}`);
+    const notes = [];
+    if (v.stale) notes.push(" " + t.fg("overlay0", `your default is now ${C.describe(v.def)}: alt+n starts a new one on it`));
+    for (const m of v.waiting || []) notes.push(" " + t.fg("overlay0", `› ${clean(m)}  (waiting to be sent)`));
+    if (!v.queue && v.last && v.state !== "none") notes.push(" " + t.fg("overlay0", `› ${clean(v.last)}`));
+    const lines = wrapAll(label === "on its screen now" ? text : text.replace(/\*\*([^*\n]+)\*\*/g, "$1"));
+    return [t.fg("surface_dim", "─".repeat(width)), head, ...notes, ...(lines.length > maxH ? [" " + t.fg("overlay0", "…")] : []), ...lines.slice(-maxH).map((l) => " " + (tone ? t.fg(tone, l) : l))];
+  }
+  // With the drawer hidden, one row says what it is doing, and only while that is worth a row.
+  coordLine() {
+    const t = this.theme, v = this.coord;
+    if (this.drawer !== "hidden" || this.archiveView) return "";
+    const tail = (s) => clean(String(s || "").trim().split("\n").filter((l) => l.trim()).pop() || "");
+    if (v.error) return " " + t.fg("red", `${t.mark("error")} Coordinator could not be started: ${clean(v.error)}`);
+    if (v.unseen) return " " + t.fg("green", t.mark("idle")) + " " + t.fg("text", "Coordinator replied") + t.fg("overlay0", ` · alt+c shows it · ${tail(v.said)}`);
+    if (v.state === "blocked") return " " + t.fg("red", t.bold(t.mark("blocked"))) + " " + t.fg("text", "Coordinator needs you") + t.fg("overlay0", " · something on its screen waits · alt+c shows it");
+    if (v.state === "working" || v.state === "starting") return " " + t.fg("yellow", t.mark("working")) + " " + t.fg("subtext0", `Coordinator ${v.state === "starting" ? "starting" : "working"}`) + t.fg("overlay0", ` · ${clean((v.waiting || []).at(-1) || v.last || "") || tail(v.said)} · alt+c shows it`);
+    return "";
+  }
+  // Full screen was asked for and its terminal is not there yet.
+  waitLines(width, rowsN) {
+    const t = this.theme, v = this.coord;
+    const L = ["", " " + t.bold("Coordinator") + t.fg("overlay0", `  ${v.run ? C.describe(v.run) : "off"}`), ""];
+    L.push(...wrapTextWithAnsi(v.error ? t.fg("red", `It could not be started: ${clean(v.error)}`) : t.fg("subtext0", "Starting the Coordinator… its chat opens here as soon as it is ready."), Math.max(10, width - 4)).map((l) => "  " + l));
+    L.push("", "  " + t.fg("overlay0", "alt+v or esc: back to its last message · alt+c: back to the board" + (v.error ? " · alt+r: try again" : "")));
+    return this.pad(L, rowsN);
   }
   // ---- other machines: ask each for its board, and send each action to the machine that owns the task ----
   ssh(m, what, arg, cb, ms = 20000) { R.ask(m, what, arg, cb, ms); }
@@ -462,6 +580,14 @@ export class View {
       return; // reading never types, delegates, approves, or changes the board selection
     }
     if (this.help) { this.help = false; return; }
+    if (matchesKey(data, "alt+c")) return this.setDrawer(this.drawer === "hidden" ? "peek" : this.drawer === "peek" ? "full" : "hidden");
+    if (matchesKey(data, "alt+v")) return this.setDrawer(this.drawer === "full" ? "peek" : "hidden");
+    if (this.drawer === "full") { // waiting for its terminal: nothing is typed anywhere
+      if (matchesKey(data, "escape") || matchesKey(data, "ctrl+c")) return this.setDrawer("peek");
+      if (matchesKey(data, "alt+r")) { this.asked = 0; return this.coordAct("restart"); }
+      return;
+    }
+    if (this.drawer === "peek" && (matchesKey(data, "alt+r") || matchesKey(data, "alt+n"))) return this.coordAct(matchesKey(data, "alt+n") ? "new" : "restart");
     if (this.input.isPasting || data.includes("\x1b[200~")) { this.input.handleInput(data); if (this.mode === "find") this.load(); return; }
     if (matchesKey(data, "alt+h")) return this.toggleArchive();
     if (matchesKey(data, "alt+a")) { const r = this.current(); return r ? this.archiveSelected(r) : this.flash("Select a task to archive or restore."); }
@@ -479,6 +605,7 @@ export class View {
       if (this.mode !== "new") { this.mode = "new"; this.setValue(""); }
       else if (text) this.setValue("");
       else if (this.peek) return this.closePeek();
+      else if (this.drawer === "peek") return this.setDrawer("hidden");
       else if (this.filter) this.filter = "";
       else if (this.archiveView) return this.toggleArchive();
       else this.done(undefined);
@@ -493,7 +620,7 @@ export class View {
 
     const j = this.job();
     if (j && !text) {
-      // A dispatcher row: stop it, or take its words back into the box to change and send again.
+      // Words on their way to another machine's Coordinator: stop them, or take them back into the box to change and send again.
       if (matchesKey(data, "ctrl+x")) return this.try(() => { H.stopDispatch(j); this.flash("Stopped.", "yellow"); });
       if (enter || matchesKey(data, "right")) { this.try(() => H.stopDispatch(j)); return this.setValue(j.text || ""); }
       if (matchesKey(data, "tab")) return;
@@ -501,7 +628,7 @@ export class View {
     if (matchesKey(data, "ctrl+down") || matchesKey(data, "ctrl+up")) {
       const d = matchesKey(data, "ctrl+down") ? 1 : -1;
       const at = this.jobs.findIndex((x) => x.id === this.sel);
-      if (at < 0) { if (d > 0 && this.jobs.length) { this.back = this.sel; this.sel = this.jobs[0].id; } else if (d > 0) this.flash("The Coordinator has nothing running."); return; }
+      if (at < 0) { if (d > 0 && this.jobs.length) { this.back = this.sel; this.sel = this.jobs[0].id; } else if (d > 0) this.flash("Nothing is on its way to another machine's Coordinator."); return; }
       const to = at + d;
       if (to < 0) { this.sel = this.back || ""; this.load(); return; }
       this.sel = this.jobs[Math.min(this.jobs.length - 1, to)].id;
@@ -518,7 +645,7 @@ export class View {
     }
     if (enter) {
       if (!text) { if (r) this.chat(r); return; } // with nothing typed, enter goes straight into the selected task's agent
-      // With the preview open, your words go to that task's agent. Otherwise to the dispatcher.
+      // With the preview open, your words go to that task's agent. Otherwise to the Coordinator.
       if (this.peek && r?.archivedAt) return this.flash("Archived tasks are read-only. alt+a restores this task.", "yellow");
       // A reply to one of this machine's tasks that never had an agent starts one with that message.
       const fresh = this.peek && r && !r.host && !r.archivedAt && !F.isAgentTask(r) && ["todo", "progress"].includes(r.stage);
@@ -534,7 +661,7 @@ export class View {
     if (r?.archivedAt && ["tab", "ctrl+a", "ctrl+g", "ctrl+r", "ctrl+t", "ctrl+y"].some((k) => matchesKey(data, k)) && !(matchesKey(data, "tab") && text)) return this.flash("Archived tasks are read-only. alt+a restores this task.", "yellow");
     if (matchesKey(data, "tab")) { if (text) { this.dispatch(text, true); return this.setValue(""); } if (r && r.host) this.act(r, "delegate"); else if (r) this.try(() => { const t = A.delegate(r.id); this.flash(t.stage === "queued" ? `${r.id}: waiting for a free slot` : `${r.id}: an agent is on it`, "green"); }); return; }
     if (!text && matchesKey(data, "right") && r) return this.chat(r);
-    if (!text && data === " " && r) { if (this.peek) this.closePeek(); else this.peek = true; return; }
+    if (!text && data === " " && r) { if (this.peek) this.closePeek(); else { this.peek = true; if (this.drawer === "peek") { this.drawer = "hidden"; this.savePrefs(); } } return; }
     // Something waits for your yes: ctrl+a approves. Finished work is merged; an agent's own request gets a yes.
     if (r && matchesKey(data, "ctrl+a") && isAgent(r) && r.state === "blocked" && r.kind === "permission") {
       if (r.host) return this.act(r, "approve");
@@ -586,6 +713,7 @@ export class View {
       if (this.pasteText) return this.pad(["", ...String(this.pasteText).split("\n").flatMap((l) => wrapTextWithAnsi(l, Math.max(10, width - 4))).map((l) => "  " + l), "", "  " + t.fg("overlay0", "any key continues")], rowsN).map(fit);
       if (this.setup) return this.setupLines(width, rowsN).map(fit);
       if (this.detailsId) return this.pad(this.detailLines(width, rowsN), rowsN).map(fit);
+      if (this.drawer === "full") return this.waitLines(width, rowsN).map(fit);
       const n = (s) => this.items.filter((i) => i.state === s && (this.archiveView ? i.archivedAt : !i.archivedAt)).length;
       const rule = t.fg("surface_dim", "─".repeat(width));
       const agentOn = r && isAgent(r);
@@ -594,6 +722,7 @@ export class View {
       const place = this.mode === "find" ? "find (includes archived tasks)"
         : this.peek && r?.archivedAt ? "archived · alt+a restores this task"
         : this.peek && r ? (agentOn && failure ? (failure.agentCanFix ? "say what should change, or ctrl+g to send details" : "fix the blocker, then reply here") : agentOn && r.state === "blocked" && r.kind ? KIND[r.kind][1] : agentOn ? `reply to ${clean(r.title || r.id)}` : r.host || !["todo", "progress"].includes(r.stage) ? "what should change about this one?" : "reply to put an agent on it with your message")
+        : this.drawer === "peek" ? "say something to the Coordinator"
         : this.canDispatch ? "what's next?" : "what's next? (no Coordinator: what you type is filed as a task, word for word)";
       const v = this.value();
       const selectedJob = this.jobs.findIndex((j) => j.id === this.sel);
@@ -607,8 +736,10 @@ export class View {
       // Only Space opens it. Nothing that happens to a task may: the hint line below says there is something to see.
       const preview = [];
       const evidence = reviewArtifacts(r?.review?.artifacts);
-      const hasEvidence = this.peek && !!r && evidence.length > 0;
-      if (this.peek && r) {
+      const drawerUp = this.drawer === "peek";
+      const hasEvidence = !drawerUp && this.peek && !!r && evidence.length > 0;
+      if (drawerUp) preview.push(...this.drawerLines(width, Math.max(3, Math.floor(rowsN / 2) - 5)));
+      else if (this.peek && r) {
         if (hasEvidence) preview.push(artifactLine(t, evidence[0], width), "");
         const wrapAll = (text) => String(text).split("\n").flatMap((l) => { const w = wrapTextWithAnsi(clean(l), Math.max(10, width - 2)); return w.length ? w : [""]; });
         const title = " " + this.mark(r) + " " + t.bold(clean(r.title || r.id)) + "  " + t.fg(statusColor(r), statusLabel(r)) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(statusColor(r), ` · ${roundLabel(r)}`) : "") + (r.progress !== undefined ? t.fg(statusColor(r), ` · ${r.progress}%`) : "") + t.fg("overlay0", `  ${idLabel(r.id)}${r.app ? ` · ${r.app}` : ""}`);
@@ -632,14 +763,15 @@ export class View {
         }
       }
       // A preview is only a preview: never let it push the prompt or its controls off-screen.
-      const previewH = Math.max(this.peek && failure ? 3 : 2, Math.floor(rowsN / 2) - 2);
+      const previewH = Math.max((this.peek && failure) || drawerUp ? 3 : 2, Math.floor(rowsN / 2) - 2);
       const trimPreview = (limit) => {
         if (preview.length <= limit) return;
         if (hasEvidence && limit === 1) preview.splice(1);
-        else preview.splice(Math.max(0, limit - 1), preview.length, ...(limit ? [" " + t.fg("overlay0", hasEvidence ? "… ctrl+e: evidence & full details" : "… ctrl+e: full details")] : []));
+        else preview.splice(Math.max(0, limit - 1), preview.length, ...(limit ? [" " + t.fg("overlay0", drawerUp ? "… alt+c: its whole chat" : hasEvidence ? "… ctrl+e: evidence & full details" : "… ctrl+e: full details")] : []));
       };
       trimPreview(previewH);
-      const extraRows = Math.max(0, rowsN - inputLines.length - 2);
+      const status = this.coordLine();
+      const extraRows = Math.max(0, rowsN - inputLines.length - 2 - (status ? 1 : 0));
       const lastJobTop = Math.max(0, this.jobs.length - extraRows);
       if (selectedJob < 0) this.jobTop = lastJobTop;
       else if (selectedJob < this.jobTop) this.jobTop = selectedJob;
@@ -647,17 +779,18 @@ export class View {
       this.jobTop = Math.max(0, Math.min(this.jobTop, lastJobTop));
       const jobs = extraRows ? this.jobs.slice(this.jobTop, this.jobTop + extraRows).map(jobLine) : [];
       trimPreview(Math.max(0, extraRows - jobs.length));
-      const bottom = [...jobs, ...preview, ...inputLines];
+      const bottom = [...jobs, ...(status ? [status] : []), ...preview, ...inputLines];
       if (this.help) for (const [k, d] of HELP.slice(0, Math.max(1, rowsN - bottom.length - 1))) bottom.push("  " + truncateToWidth(`${t.fg("text", k)} ${t.fg("overlay0", d)}`, width - 2, "…"));
       else if (this.msg && Date.now() - this.msgAt < 6000) bottom.push("  " + t.fg(this.msgKind, this.msg));
       else bottom.push("  " + t.fg("overlay0", this.mode === "find" ? "search includes archived · enter to keep the filter · esc to clear"
         : r?.archivedAt ? "alt+a restore · ctrl+e full details · alt+h back to board · ctrl+x delete"
         : this.archiveView ? "alt+h or esc back to board · ctrl+f find archived tasks"
+        : drawerUp && !v ? "alt+c its chat, full screen · alt+v or esc hide · alt+r restart · alt+n new one (type a kind first for a one-off, e.g. codex) · type and enter to talk to it"
         : failure ? `${failureAction} · ctrl+e full details · space to preview and reply${r.stage === "approval" && r.kind === "permission" ? " · ctrl+a retry merge" : ""}`
         : r?.stage === "nosummary" ? "ctrl+r tell it to continue · ctrl+y finish anyway · enter to go in · space to preview"
         : canSendError(r) ? "ctrl+r send error to agent · ctrl+e full details · enter to go in · space to preview"
         : this.peek && r ? `${hasEvidence ? "ctrl+e evidence & details" : "ctrl+e full details"} · ctrl+b sidebar · ${agentOn && r.stage === "approval" && r.syncBlocked ? "behind main: the board keeps trying to update it · or type what should change" : agentOn && r.stage === "approval" ? `ctrl+a to approve and merge${r.review && r.review.score < 5 ? " · ctrl+r to send the review to the agent" : ""} · or type what should change` : agentOn && r.state === "blocked" && r.kind === "permission" ? "ctrl+a to say yes · or type your answer" : agentOn ? "type and enter to reply" : "type and enter to change it"} · enter to go in · space or esc to close`
-        : v ? "enter to send to the Coordinator · tab to delegate · shift+enter/ctrl+j newline · ↑↓/PgUp/PgDn edit · esc clear" : this.job() ? "ctrl+x to stop it · enter to take it back and change it · ctrl+↑ back to the list" : `${this.filter ? `filter: ${this.filter} (esc clears) · ` : ""}enter go in · tab delegate · ctrl+e details · ctrl+b sidebar · alt+a archive · alt+h archives · ctrl+x stop/delete · ? shortcuts`));
+        : v ? "enter to send to the Coordinator · tab to delegate · shift+enter/ctrl+j newline · ↑↓/PgUp/PgDn edit · esc clear" : this.job() ? "ctrl+x to stop it · enter to take it back and change it · ctrl+↑ back to the list" : `${this.filter ? `filter: ${this.filter} (esc clears) · ` : ""}enter go in · tab delegate · ctrl+e details · ${this.canDispatch ? "alt+c coordinator · " : ""}ctrl+b sidebar · alt+a archive · alt+h archives · ctrl+x stop/delete · ? shortcuts`));
       let top;
       const session = sessionName(currentSocket());
       const head = (w) => ["", " " + t.bold(this.archiveView ? "herdr-superwork · Archived tasks" : "herdr-superwork") + t.fg("overlay0", this.archiveView ? "  · alt+h back" : `  work board for herdr${session !== "default" ? ` · session ${session}` : ""}`) + (this.all ? t.fg("overlay0", this.scope === "*" ? "  ·  all machines: " : "  ·  only ") + (this.scope !== "*" ? t.fg("accent", this.scope) + (this.remotes[this.scope] && this.remotes[this.scope].ok ? "" : t.fg("overlay0", " (no answer)")) : Object.keys(this.remotes).length ? Object.values(this.remotes).map((m) => t.fg(m.ok ? "subtext0" : "overlay0", m.ok ? m.label : `${m.label} (no answer)`)).join(t.fg("overlay0", ", ")) : t.fg("overlay0", "no others found")) : ""),
@@ -720,7 +853,7 @@ export class View {
     const block = (text) => plain(text).split("\n").flatMap((line) => { const x = wrapTextWithAnsi(clean(line), w); return (x.length ? x : [""]).map((l) => " " + l); });
     const head = (label, color = "subtext0") => ["", ...wrapTextWithAnsi(t.fg(color, label), w).map((line) => " " + line)];
     if (r.title === undefined) { // a dispatcher row
-      return ["", ...block(r.text || ""), ...head("Status"), " " + (r.state === "error" ? t.fg("red", `${t.mark("error")} failed`) : t.fg("yellow", "working")) + t.fg("overlay0", ` · Coordinator · ${age(Date.now() - (r.created || Date.now()))}`), ...head("Coordinator"), ...block(r.remote ? `on ${r.remote}` : H.coordinatorLine()), ...(r.msg ? [...head(r.state === "error" ? "Went wrong" : "Now", r.state === "error" ? "red" : "yellow"), ...block(r.msg)] : [])];
+      return ["", ...block(r.text || ""), ...head("Status"), " " + (r.state === "error" ? t.fg("red", `${t.mark("error")} failed`) : t.fg("yellow", "working")) + t.fg("overlay0", ` · Coordinator · ${age(Date.now() - (r.created || Date.now()))}`), ...head("Coordinator"), ...block(r.remote ? `on ${r.remote}` : "on this machine"), ...(r.msg ? [...head(r.state === "error" ? "Went wrong" : "Now", r.state === "error" ? "red" : "yellow"), ...block(r.msg)] : [])];
     }
     const agent = isAgent(r);
     const live = r.state === "working" || r.state === "blocked";

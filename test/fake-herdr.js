@@ -40,6 +40,26 @@ const bump = (p, status, complete) => { st.seq += 1; p.agent.status = status; p.
 // status: "done" | "unknown" | "blocked" | "working", session: "id", screen: "text" }
 function play(p, prompt) {
   const script = read(path.join(dir, "script.json"), {});
+  // The Coordinator: no task, no closing note. A step may say something, which lands in its saved conversation as
+  // Claude Code would write it: { said: "text", status, screen }.
+  if (/^sw-coordinator/.test(p.agent.name)) {
+    const queue = script.coordinator || [];
+    const step = queue.shift() || {};
+    fs.writeFileSync(path.join(dir, "script.json"), JSON.stringify({ ...script, coordinator: queue }));
+    (p.agent.prompts ||= []).push(prompt);
+    bump(p, "working", false);
+    const at = p.agent.args.findIndex((a) => a === "--session-id" || a === "--resume");
+    if (step.said && at >= 0 && process.env.CLAUDE_CONFIG_DIR) {
+      const file = path.join(process.env.CLAUDE_CONFIG_DIR, "projects", fs.realpathSync(p.cwd).replace(/[^A-Za-z0-9]/g, "-"), `${p.agent.args[at + 1]}.jsonl`);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.appendFileSync(file, JSON.stringify({ type: "user", message: { role: "user", content: prompt }, timestamp: new Date().toISOString() }) + "\n"
+        + JSON.stringify({ type: "assistant", uuid: `u${st.seq}`, message: { id: `msg_${st.seq}`, role: "assistant", content: [{ type: "text", text: step.said }], stop_reason: "end_turn" }, timestamp: new Date().toISOString() }) + "\n");
+    }
+    if (step.screen) p.agent.screen = step.screen;
+    const status = step.status || "done";
+    if (status !== "working") bump(p, status, status === "done" || status === "idle");
+    return;
+  }
   const role = /-r(-\d+)?$/.test(p.agent.name) ? "reviewer" : "worker";
   const n = (p.agent.name.match(/-(\d+)(?:-[0-9a-f]{4})?(?:-r(?:-\d+)?)?$/) || [])[1];
   const queue = script[role] || [];

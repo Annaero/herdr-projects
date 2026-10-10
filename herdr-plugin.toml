@@ -17,6 +17,11 @@ title = "Open the work board"
 command = ["sh", "bin/run.sh", "open"]
 
 [[actions]]
+id = "coordinator"
+title = "Open the work board on the Coordinator's chat"
+command = ["sh", "bin/run.sh", "open-coordinator"]
+
+[[actions]]
 id = "approve-current"
 title = "Approve the task in the focused pane"
 contexts = ["pane"]

@@ -15,6 +15,7 @@ import { herdr, currentSocket, socketExists } from "./herdr.js";
 import { housekeeping, spawnLoose } from "./housekeeping.js";
 import { inline, userEnv } from "./runner.js";
 import { readTurnOf } from "./agents.js";
+import { tick as coordinatorTick } from "./coordinator.js";
 
 const beatFile = () => path.join(S.dataDir(), "keeper.json");
 const log = (msg) => { try { fs.appendFileSync(path.join(S.dataDir(), "keeper.log"), `${new Date().toISOString()} ${process.pid} ${msg}\n`); } catch {} };
@@ -81,6 +82,7 @@ export function tickOnce(socket, { watch } = {}) {
       rows = F.boardFor(socket);
       try { F.syncSidebar(rows); } catch {}
       try { refreshSaid(rows); } catch {}
+      try { coordinatorTick(socket); } catch {}
     }, { waitMs: 0 });
   } catch (e) { if (e.code !== "BUSY") throw e; }
   if (rows && watch) { try { watch(rows); } catch {} }

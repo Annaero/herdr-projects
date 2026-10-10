@@ -55,11 +55,37 @@ Your running herdr server must be 0.9.3 or newer: an older server refuses the pl
 Type what needs doing and press `Enter`: the Coordinator files it as a task. `Tab` puts an agent on the selected
 task. Nothing is edited by hand: to change a title, a description or a state, say so in the box or run the command.
 
+**The box is one agent chat.** The Coordinator is a single long-lived agent, not a call per instruction: everything
+you type goes into the same conversation, so "delegate that one too" works, and it can ask you something back. It is
+an ordinary herdr agent in a space of its own (named "Coordinator"), in a folder of its own inside the board's data
+folder (`HERDR_SUPERWORK_COORDINATOR_DIR` names another, which should be used for nothing else), started with the same
+arguments as any working agent: all its tools, nothing held back. It is started by your first message and stays; when
+its program exited or herdr restarted, your next message starts it again in the same conversation. The agent's own
+new-chat command (`/clear`, `/new`) is followed: the drawer and a restart go with the conversation it is in now. Its drawer sits
+above the box and has three stops:
+
+| Stop | Shows | Keys |
+|---|---|---|
+| hidden | nothing; one row while it works, needs you or has an unread reply | `alt+c` raises it |
+| last message | its last message (its screen while a dialog is up), above the box. A new reply pops it up by itself, except over a task's preview | `alt+c` full screen · `alt+v` or `esc` hides |
+| full screen | its real terminal inside the board: the whole conversation, its dialogs, its slash commands, its menus | `alt+v` back to the last message · `alt+c` back to the board · `shift+PgUp/PgDn` scroll |
+
+`alt+c` goes round (hidden, last message, full screen, hidden), `alt+v` goes down one stop. In full screen every other
+key goes to the agent. To open the board straight on the chat from anywhere in herdr, bind a key to the plugin action
+`herdr-superwork.coordinator`.
+
+With the drawer up, `alt+r` (twice) restarts the Coordinator in the same conversation and `alt+n` (twice) starts a
+new one with a fresh conversation. For a different one this once, type its kind first (`codex`, or
+`codex <model> <effort>`) and then `alt+n`: your default stays as it is. The same from a shell, or by asking it:
+`herdr-superwork coordinator` (how it stands), `coordinator tell <text>`, `coordinator restart`,
+`coordinator new [--agent KIND] [--model M] [--effort E]`, `coordinator stop`.
+
 | Key | Does |
 |---|---|
 | `Enter` / `→` | go into the task's agent: its real herdr pane. The board closes; your key brings it back where you left it |
 | `Space` | preview the agent's last message, and reply without going in. It shows the agent's screen instead ("on its screen now") while a dialog is up, before any message, or when the conversation cannot be read. On a task with no agent, a reply puts one on it with your message |
 | `Tab` | delegate the selected task (with text typed: file it and delegate it) |
+| `Alt+C` / `Alt+V` | raise / lower the Coordinator's drawer: hidden, its last message, its chat full screen |
 | `Ctrl+A` | approve: finished work is merged, its worktree and branch removed |
 | `Ctrl+R` | send an error back to the agent, tell a stopped agent to continue (also after you fixed a login), or send review findings (below 5/5) |
 | `Ctrl+Y` | finish anyway, when the agent stopped without a summary |
@@ -72,11 +98,12 @@ task. Nothing is edited by hand: to change a title, a description or a state, sa
 
 **Four roles.** The **Agent** does the work. The **Reviewer** attacks finished work. The **Watcher** is a small
 model that writes the "doing now" line and guesses progress (it skips a look when the screen has not changed). The
-**Coordinator** runs the box: it turns what you type into board commands. It defaults to the same program, model and
-effort as the Agent and follows `agent` when you change that; set `coordinator`, `coordinatorModel`,
-`coordinatorEffort` to choose otherwise. It must be limited to running `herdr-superwork` commands, which only Claude
-Code can do today: with a Codex or pi agent the Coordinator is Claude Code on its own default model (the side panel
-says which program runs the box), and with no Claude Code installed what you type is filed word for word.
+**Coordinator** is the agent behind the box: one long-lived chat that turns what you type into board commands, and
+can do whatever else an agent chat can. Like the Agent, it is Claude Code on its default model and effort unless you
+say otherwise, whatever the Agent is set to: set `coordinator`, `coordinatorModel`, `coordinatorEffort` (any
+`herdr agent start --kind` value), or pick one for a single use with `alt+n` or `coordinator new --agent …`. A changed
+default applies to the next new one; the drawer says so. `coordinator off`, a program that is not installed, or no
+running herdr: what you type is filed word for word.
 
 **Every chat knows the board.** With `skill` on (the default) the plugin keeps a small how-to, a folder named
 `herdr-superwork` holding `SKILL.md`, in each installed agent program's own skills folder (`~/.claude/skills`,
@@ -211,7 +238,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 |---|---|---|
 | `agent`, `model`, `effort` | `claude` | the working agent: any `herdr agent start --kind` value |
 | `reviewer`, `reviewerModel`, `reviewerEffort` | `codex` | the reviewer; `off` for none. Not installed here: the agent's own kind reviews, on its default model, and the task says so |
-| `coordinator`, `coordinatorModel`, `coordinatorEffort` | same as the agent | who runs the box |
+| `coordinator`, `coordinatorModel`, `coordinatorEffort` | `claude`, its defaults | the Coordinator, the one agent behind the box; `off` for none. For one use: `coordinator new --agent … --model … --effort …` |
 | `watcherAgent`, `watcherModel` | `claude`, `claude-haiku-5-5` | the Watcher's small model (`helper`, `helperModel` are still read as these) |
 | `watcher` | `on` | the "doing now" line and progress guess, about every 15 seconds per working agent, board open or closed |
 | `skill` | `true` | keep the how-to in each agent program's skills folder |
@@ -291,7 +318,12 @@ in a separate scratch herdr:
 | herdr's config path and default keys | `~/.config/herdr/config.toml`; `herdr --default-config` lists the built-in keys (`prefix+w` is herdr's workspace picker; `prefix+a` is free) |
 | What the terminal shows, inside herdr | the board asks the terminal for its background (OSC 11) and its 16 colours (OSC 4) when herdr's `theme.auto_switch` is on or the theme paints with the terminal's own colours; herdr answers for its panes with the colours of the terminal the client runs in. No answer (the scratch session has no real terminal behind it): dark, and xterm's colours. `theme light` chooses by hand |
 | herdr's theme, for a plugin | not handed to plugins. The board reads the `[theme]` and `[ui]` tables herdr reads (with its own full TOML reader, `src/toml.js`) and resolves them as herdr 0.9.3 does (`src/app/state.rs` palettes, `src/client/shell.rs` marks: `●` working, blocked and done, `○` idle; `◐ × ✓ ○` with `status_indicators = "symbols"`). Text is herdr's `text` colour and the side panel sits on `sidebar_bg` when the theme sets one. The review page takes the theme in force when it is written; where herdr follows the terminal (`auto_switch`, the `terminal` theme) the page follows the browser's light or dark setting. A theme changed in herdr shows the next time the board opens. Marks, group headings, the bar and the percent take herdr's colour for the task's state (working `yellow`, blocked `red`, done `teal`, idle `green`); a task's own words (its title and what it says) are always herdr's text colours, whatever its state; text, secondary text, rules and the selected row are herdr's sidebar colours (`text`, `subtext0`, `overlay0`, `surface_dim`, `selection_bg`/`active_row_bg`). A review's score is `green` when the reviewer says merge and `red` when it says don't: the colour is the advice, there are no words for it |
-| Limiting Codex or pi to one command | no flag found: neither can be the Coordinator |
+| `herdr terminal session control <pane> --takeover --cols N --rows M` (checked on 2026-10-10) | streams one terminal as lines of JSON (`terminal.frame` with base64 ANSI, drawn at absolute positions; a full frame clears the screen) and takes `terminal.input` (text or base64 bytes), `terminal.resize`, `terminal.scroll` (`direction` up or down, `lines`) and `terminal.release` on its input. It works from inside a herdr pane. The board shows the Coordinator's real terminal with it; `herdr agent attach` would too, but its `ctrl+b q` is taken by the herdr around it |
+| A long launch command through `herdr agent start` | herdr types it into the pane's shell, and a terminal takes at most 4096 bytes on one line: the Coordinator's rules inside Codex's `-c developer_instructions=…` arrived cut off, at a shell continuation prompt, and the start timed out. The flag now only points at a rules file and the rules go in with the first message: three new starts and two restarts of Codex in a row came up in about four seconds each, the restarts in the same conversation |
+| The agent's own new-chat command (Claude Code `/clear`, Codex `/new`, pi `/new`) | each starts another conversation file for the same folder and leaves the first one as it was (pi: `<time>_<id>.jsonl`, whose first line names the working folder and the id; `--session-id` reopens it). The Coordinator has a folder nothing else chats in, so the newest conversation saved there since it began is the one it is in. Live, all three programs: "pineapple", new chat, "watermelon"; the drawer showed watermelon, and after a restart the agent still answered watermelon |
+| Other conversations saved for the Coordinator's folder | a helper agent Codex spawns saves one of its own there, newer than the main one: its first line has `"source": {"subagent": …}` and `parent_thread_id` (seen in real files of 0.160.0); a headless `codex exec` has `"source": "exec"`. Claude Code keeps helpers' side conversations in a `subagents` subfolder, and each entry names its `entrypoint` (`cli` for the interactive program). Only a chat of the interactive program itself is taken for the Coordinator's |
+| `herdr workspace create --env KEY=VALUE` | the agent started in that space has the variable: the Coordinator's commands reach a board kept in another data folder |
+| The Coordinator on Claude Code and on Codex, live | Claude Code: started by the first message, more messages into the same conversation from the box and from the full-screen chat, a task filed in the named repo, and after a restart it still knew an earlier answer (`--resume`). Codex, as a one-off: one message, the task filed, its own conversation found from its folder and start time and its last message read. pi: started as the Coordinator, three messages, its own /new and a restart (above) |
 | herdr's own remote commands for a saved machine | not testable (no saved machine): the plugin's SSH door keeps doing all of it |
 | A keeper started from the startup hook | survives the hook and replaces itself on an update; "for hours" was not waited for, so hook events and the board also start it |
 
@@ -314,7 +346,7 @@ Different by choice, or because herdr or an agent program cannot do it:
 - A question does not pop open by itself: the row says so and `Space` reads it. `Ctrl+G` on an agent's own "I'm
   stuck" is refused when there is no saved failure. Agents report only `blocked`, never their own progress.
 - Agents the board starts may only file tasks and report themselves blocked.
-- Only Claude Code can be the Coordinator. One Watcher model for everything; per task it is on or off.
+- One Watcher model for everything; per task it is on or off.
 - Hooks were verified on Claude Code 2.1.296, Codex 0.160.0 and pi 1.1.0, and those are the adapters' minimum
   versions: older programs run without the hook. Codex and pi were verified piece by piece (hook, file, resume), not
   through a whole delegated task.

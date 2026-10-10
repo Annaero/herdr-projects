@@ -1,41 +1,24 @@
-// The two hidden helpers, as hidden model calls: the watcher (a status line and a progress guess for whatever is
-// running) and the dispatcher (the natural-language box). Both go through one small table of one-shot commands per
-// agent kind (agents.js); a helper kind without an entry turns the helpers off with a visible note.
-import fs from "node:fs";
+// The hidden helper, as a hidden model call: the watcher (a status line and a progress guess for whatever is running).
+// It goes through one small table of one-shot commands per agent kind (agents.js); a helper kind without an entry
+// turns it off. The Coordinator is not a helper: it is an ordinary agent of its own (coordinator.js).
 import path from "node:path";
 import { spawn } from "node:child_process";
 import * as S from "./store.js";
 import * as F from "./flow.js";
 import { herdr } from "./herdr.js";
-import { adapter, installed } from "./agents.js";
+import { adapter } from "./agents.js";
 import { userEnv } from "./runner.js";
-import { spawnLoose } from "./housekeeping.js";
 
 // Tests replace the model call with a stand-in: a JSON argv; the prompt arrives on stdin.
 const override = () => { try { const a = JSON.parse(process.env.HERDR_SUPERWORK_HELPER_CMD || "null"); return Array.isArray(a) && a.length ? a : null; } catch { return null; } };
-// The Coordinator runs the natural-language box. It defaults to "the same as the working agent" (agent, model,
-// effort) and must be restricted to herdr-superwork commands by the program's own allow-list. A kind that cannot be
-// restricted cannot be the Coordinator: when it was only inherited from `agent`, Claude Code takes over on its own
-// default model and effort (a model name set for another kind is not passed to it); when it was chosen explicitly,
-// the box files what you type word for word.
-export function coordinator() {
-  const c = S.config();
-  const can = (k) => !!adapter(k).oneShot && !!adapter(k).allow && installed(k);
-  if (c.coordinator) return can(c.coordinator) ? { kind: c.coordinator, model: c.coordinatorModel, effort: c.coordinatorEffort } : null;
-  if (can(c.agent)) return { kind: c.agent, model: c.coordinatorModel || c.model, effort: c.coordinatorEffort || c.effort };
-  return can("claude") ? { kind: "claude", model: c.coordinatorModel && c.agent === "claude" ? c.coordinatorModel : "", effort: "", fallback: c.agent } : null;
-}
-export const coordinatorLine = () => { const k = coordinator(); return k ? `${k.kind} · ${k.model || "default model"} · ${k.effort || "default effort"}${k.fallback ? ` (${k.fallback} cannot be limited to board commands)` : ""}` : "off: what you type is filed word for word"; };
-function helperCommand({ prompt, system, allow = false }) {
+function helperCommand({ prompt, system }) {
   const o = override();
   if (o) return { command: o[0], args: o.slice(1), stdin: `${system ? `${system}\n\n` : ""}${prompt}` };
-  if (allow) { const k = coordinator(); return k ? adapter(k.kind).oneShot({ model: k.model, effort: k.effort, prompt, system, allow: true }) : null; }
   const c = S.config();
   const a = adapter(c.watcherAgent);
   return a.oneShot ? a.oneShot({ model: c.watcherModel, prompt, system }) : null;
 }
 export const helpersReady = () => !!override() || !!adapter(S.config().watcherAgent).oneShot;
-export const dispatcherReady = () => !!override() || !!coordinator();
 // Helper calls are detached from the board's terminal (own session, no tty), so herdr does not mistake them for an
 // agent in the board's pane.
 function runHelper(cmd, { cwd, env = {}, timeoutMs = 45000 }, done) {
@@ -113,66 +96,9 @@ export function watchTick(tasks, now = Date.now()) {
   }
 }
 
-// ---- the dispatcher -----------------------------------------------------------------------------------------------------
-export const DISPATCH = `You are the Coordinator of a work board. The human typed one instruction. Carry it out by running the herdr-superwork command with your shell tool, then stop. There is no conversation: never ask a question, make sensible choices instead.
-- Most instructions describe new work. File it as a task: herdr-superwork add "<short title: a few words, no trailing period>" --desc "<the full description in your own clear words; Markdown is fine; keep every requirement the human gave>". One task per distinct piece of work. The description says only what to build or do: never put handling instructions in it (delegating, reviewers, models, settings); act on those with the command instead.
-- If they ask to start it, delegate it, or hand it to an agent, also run: herdr-superwork delegate <id>. Agents get their own git worktree by default; add --no-worktree only if the human says to work in place, in their checkout, or without a worktree. Worktrees start from the remote's default branch; add --base head if the human says to build on their current branch or their unpushed work.
-- Instructions can also be about existing tasks: delegate them, "herdr-superwork tell <id> <text>" to say something to their agents, or "herdr-superwork stop <id>" to stop a task's agent (it interrupts the agent at once), or "herdr-superwork report <id> --state <idle|working|done> [--msg <one line>] [--progress <0 to 100>]" to say where a task stands (the human's own tasks: working means in progress, and --progress shows how far along it is). "herdr-superwork tell <id> <text>" on a task that never had an agent puts one on it with that message. Use "herdr-superwork clear <id>" only when the human plainly asks to delete or remove something. Use "archive <id>" when asked to archive or hide a task (kept, not deleted) and "restore <id>" to bring it back. Archived tasks are read-only: restore them before changing or starting them. "herdr-superwork list --archived" shows the archive; "list --query <text>" searches everything.
-- Who does the work can be chosen per task: the working agent (--agent <kind such as claude or codex>, --model, --effort), the reviewer that attacks finished work and rates it 1 to 5 (--reviewer <kind>, or --reviewer off for none; reviewerModel, reviewerEffort, artifacts, serve), the Watcher that writes the "doing now" line (watcher on or off), and the review loop: reviewAuto (true: a rating below 5/5 goes back to the agent by itself), review (repos, all or none), rounds, conflictAuto (on by default: a conflict with main goes back to the task's agent by itself, at most "rounds" times in a row; false: it waits for the human to send it). If the human chooses any of these for a particular task ("with codex", "on high effort", "no reviewer for this one"), pass it to delegate as --<name> <value>, or run "herdr-superwork config <name> <value> --id <id>" if it is not being delegated now. If they choose one in general, run "herdr-superwork config <name> <value>".
-- If they ask to send the review back, or to have the agent fix what the reviewer found: herdr-superwork review <id>. To send a saved error back: herdr-superwork retry <id>. To send failure details: herdr-superwork fix <id>.
-- If they ask to change a setting (default agent, model, effort; the Coordinator, which is you: coordinator, coordinatorModel, coordinatorEffort; the Watcher: watcher, watcherAgent, watcherModel; worktrees, the review loop, pull requests, how work is merged (squash, merge or rebase), cleanup, how many agents at once), run "herdr-superwork config <key> <value>". "herdr-superwork config" shows the settings.
-- If they approve finished work ("approve it", "merge the poem one", "ship it"): herdr-superwork approve <id>. Only when they plainly say so.
-- To change a task's title: herdr-superwork report <id> --title "<new title>". To write or change its description: herdr-superwork describe <id> "<the full new text>".
-- Do nothing beyond what was asked. Do not do the work yourself.
-End with one short line saying what you did, naming the ids.`;
-
-export function dispatchPrompt(cwd, text, delegate, aboutId) {
-  const here = S.repoOf(cwd);
-  const tasks = F.board({ includeArchived: true }).map((t) => `${t.id} [${t.archivedAt ? "archived, " : ""}${t.state}${t.shownApp ? `, ${t.shownApp}` : ""}] ${t.title || ""}`).join("\n") || "(none)";
-  const repos = Object.entries(S.knownRepos()).map(([name, dir]) => `${name} (${dir})`).join(", ");
-  const about = aboutId ? S.get(aboutId) : null;
-  const system = `${DISPATCH}\n\nThe human is in the repo "${here.name}"; new tasks go there unless they name another place. If they do ("in the other repo", "for project X", "in my home folder"), add --repo <a known repo's name, a folder name, or a path; "~" is the home folder> to add. Known repos: ${repos || "none yet"}. Tasks right now:\n${tasks}${about ? `\n\nThe human has task ${about.id} ("${about.title || ""}") open. "it" and "this" mean that task. Its description now:\n${about.description || "(none)"}` : ""}`;
-  return { system, prompt: `Instruction: ${text}${delegate ? "\n\nDelegate what you file to an agent." : ""}` };
-}
-// A running instruction is a row of its own, on disk, so it is still there when the board is reopened; the helper
-// process is detached and finishes without the board.
-export function startDispatch(cwd, text, delegate, aboutId) {
-  const d = S.newDispatch(text, { cwd, delegate: !!delegate, about: aboutId || null });
-  if (process.env.HERDR_SUPERWORK_INLINE === "1") { (globalThis.__swJobs ||= []).push(["dispatch", d.id, []]); return d; }
-  const pid = spawnLoose(["run", "dispatch", d.id]);
-  S.setDispatch(d.id, { pid, pidStart: S.procStart(pid) });
-  return d;
-}
+// ---- instructions sent to another machine's Coordinator: a row on this board until that machine answers -----------------
 export function stopDispatch(j) {
   const d = S.getDispatch(j.id);
-  for (const [pid, start] of [[d?.helperPid, d?.helperStart], [d?.pid, d?.pidStart]]) if (S.markerAlive({ pid, start })) { try { process.kill(-pid, "SIGTERM"); } catch { try { process.kill(pid, "SIGTERM"); } catch {} } }
+  if (S.markerAlive({ pid: d?.pid, start: d?.pidStart })) { try { process.kill(-d.pid, "SIGTERM"); } catch { try { process.kill(d.pid, "SIGTERM"); } catch {} } }
   S.clearDispatch(j.id);
-}
-export function dispatchJob(id) {
-  return new Promise((resolve) => {
-    const d = S.getDispatch(id);
-    if (!d) return resolve();
-    const cwd = d.cwd && fs.existsSync(d.cwd) ? d.cwd : process.env.HOME || process.cwd();
-    const { system, prompt } = dispatchPrompt(cwd, d.text, d.delegate, d.about);
-    const cmd = helperCommand({ prompt, system, allow: true });
-    const last = (t) => String(t || "").trim().split("\n").filter((l) => l.trim()).pop() || "";
-    if (!cmd) { S.setDispatch(id, { state: "error", msg: `"${S.config().coordinator || S.config().agent}" cannot be the Coordinator: it cannot be limited to board commands` }); return resolve(); }
-    // An instruction that has not finished in two minutes is stuck: stop it and say so.
-    const child = runHelper(cmd, { cwd, timeoutMs: 120000 }, (code, out, err) => {
-      if (S.getDispatch(id)) { // not stopped meanwhile
-        if (code === 0 && last(out)) S.setDispatch(id, { state: "done", msg: S.oneLine(last(out), 300) });
-        else S.setDispatch(id, { state: "error", msg: S.oneLine(last(err) || last(out) || `it ended with ${code}`, 300) });
-      }
-      resolve();
-    });
-    S.setDispatch(id, { helperPid: child.pid, helperStart: S.procStart(child.pid), pid: d.pid || process.pid, pidStart: d.pid ? d.pidStart : S.procStart(process.pid) });
-  });
-}
-// For another machine's board: run one instruction here and answer when it is done.
-export async function dispatchNow(cwd, text, delegate, aboutId) {
-  const d = S.newDispatch(text, { cwd, delegate: !!delegate, about: aboutId || null, pid: process.pid });
-  await dispatchJob(d.id);
-  const done = S.getDispatch(d.id);
-  S.clearDispatch(d.id);
-  return done?.state === "done" ? { ok: true, msg: done.msg } : { ok: false, msg: done?.msg || "it did not finish" };
 }

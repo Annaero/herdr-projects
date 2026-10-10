@@ -27,5 +27,6 @@ export async function openBoard({ folder }) {
     tui.setFocus(view);
     for (const sig of ["SIGTERM", "SIGHUP"]) process.on(sig, done);
     tui.start();
+    view.started(); // a board opened straight into the Coordinator's chat hands the screen over now, not before
   });
 }

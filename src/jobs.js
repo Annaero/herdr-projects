@@ -16,7 +16,7 @@ export async function runJob(job, id, extra = []) {
     else if (job === "land") await (await import("./land.js")).landJob(id);
     else if (job === "cleanup") await (await import("./land.js")).cleanupJob(id, { deleteBranch: extra.includes("--merged") ? "merged" : "always" });
     else if (job === "prpoll") await (await import("./housekeeping.js")).pollPrs();
-    else if (job === "dispatch") await (await import("./helpers.js")).dispatchJob(id);
+    else if (job === "coordinator") { (await import("./coordinator.js")).pump(id && id !== "-" ? id : undefined); id = "-"; } // its id is a herdr session, not a task
     else throw new Error(`Unknown job ${job}`);
   } catch (e) {
     process.stderr.write(`${new Date().toISOString()} ${job} ${id}: ${e.stack || e}\n`);

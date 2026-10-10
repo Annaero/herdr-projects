@@ -100,7 +100,7 @@ export const DEFAULTS = {
   model: "", effort: "",
   reviewer: "codex",      // the reviewer's agent kind; "off" for no review
   reviewerModel: "", reviewerEffort: "",
-  coordinator: "",        // who runs the natural-language box; empty: the same as the working agent (agent, model, effort)
+  coordinator: "claude",  // who runs the natural-language box: its own choice, as the agent's is; "off" for none
   coordinatorModel: "", coordinatorEffort: "",
   watcherAgent: "claude", // the Watcher: a small model behind the "doing now" line; any kind with a one-shot entry in agents.js
   watcherModel: "claude-haiku-5-5",

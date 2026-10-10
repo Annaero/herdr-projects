@@ -242,20 +242,11 @@ test("the board: approval row draws as review, ctrl+a approves, archive view, un
   } finally { w.cleanup(); }
 });
 
-test("hidden helpers: the box files through a restricted helper and survives as a row; the watcher writes a line and a guess", async () => {
+test("the hidden helper: the watcher writes a line and a guess", async () => {
   const w = await world({ settings: { reviewer: "off", watcher: "on" } });
   try {
     process.env.HERDR_SUPERWORK_HELPER_CMD = JSON.stringify(["node", path.join(here, "fake-helper.js")]);
-    fs.mkdirSync(path.join(w.base, "shim")); fs.symlinkSync(S.BIN, path.join(w.base, "shim", "herdr-superwork")); process.env.PATH = `${path.join(w.base, "shim")}:${process.env.PATH}`;
-    assert.ok(H.dispatcherReady());
-    const s = open(w);
-    s.type("build a login page"); s.press("enter");
-    assert.equal(S.dispatches().length, 1); assert.match(s.text(), /● build a login page/);
-    await drainJobs(runJob); s.v.load();
-    assert.equal(S.dispatches().length, 0); assert.doesNotMatch(s.text(), /Filed proj\/1\./); // a result arriving shows nothing at the bottom
-    assert.equal(S.get("proj/1").description, "From the box: build a login page");
-    s.type("fail on purpose"); s.press("enter"); await drainJobs(runJob); s.v.load();
-    assert.equal(S.dispatches()[0].state, "error"); assert.match(s.text(), /✗ fail on purpose {2}the model refused/);
+    A.add(w.root, "build a login page");
     // the watcher: only while herdr says working; 100k auto-compact on the watcher only
     w.script({ worker: [{ status: "working", screen: "● Writing greet.sh\n" }] });
     A.delegate("proj/1"); await settle("proj/1");

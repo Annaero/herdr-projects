@@ -95,16 +95,18 @@ export async function remoteMain([what, payload]) {
       return say({ ok: true, msg: acts[a.action]() });
     }
     if (what === "dispatch") {
-      const H = await import("./helpers.js");
+      const C = await import("./coordinator.js");
       const cwd = a.about ? S.folderOf(a.about) : process.env.HOME || process.cwd();
-      if (!H.dispatcherReady()) {
+      if (!C.ready()) {
         const A = await import("./actions.js");
         const [title, ...rest] = String(a.text || "").split("\n");
         const t = A.add(cwd, title, { description: rest.join("\n") });
         if (a.delegate) A.delegate(t.id);
         return say({ ok: true, msg: `${t.id}: filed${a.delegate ? ", an agent is on it" : ""}` });
       }
-      return say(await H.dispatchNow(cwd, String(a.text || ""), !!a.delegate, a.about));
+      // This machine's own Coordinator takes it, in its one conversation; its answer shows on this machine's board.
+      C.send(cwd, String(a.text || ""), { delegate: !!a.delegate, about: a.about || null });
+      return say({ ok: true, msg: `sent to the Coordinator on ${os.hostname()}` });
     }
     say({ ok: false, msg: `Unknown request ${what}` });
   } catch (e) { say({ ok: false, msg: String((e && e.message) || e) }); }

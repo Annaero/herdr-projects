@@ -23,6 +23,12 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork details <id>                  failure details, review and next steps
   herdr-superwork pin|archive|restore|clear <id>
   herdr-superwork config [key [value]] [--id ID]   show or change settings; with --id, one task's own choice
+  herdr-superwork coordinator                   the Coordinator (the agent behind the board's box): who it is, how it stands
+  herdr-superwork coordinator tell <text>       say something to it (it is started when it is not running)
+  herdr-superwork coordinator restart           start its program again, in the same conversation
+  herdr-superwork coordinator new [--agent KIND] [--model M] [--effort E]
+                                                a fresh one; with options, that choice is for this one only
+  herdr-superwork coordinator stop              close it; the next message starts it again where it left off (words still waiting go in then)
   herdr-superwork --skill                       instructions an agent can load
   herdr-superwork remove-extras                 take out what the plugin added outside its own folders (the how-to
                                                 files, its blocks in herdr's config); run it before unlinking
@@ -61,8 +67,8 @@ export function contextFolder() {
   return process.cwd();
 }
 // Is the caller the agent of a task? Its shell runs in the task's worker pane (or its reviewer's). The board popup has
-// no pane id and the Coordinator's is removed, so neither is ever taken for a worker, even when the popup was opened
-// over a worker's pane.
+// no pane id and the Coordinator's pane belongs to no task, so neither is ever taken for a worker, even when the popup
+// was opened over a worker's pane.
 function caller() {
   const pane = process.env.HERDR_PANE_ID, socket = process.env.HERDR_SOCKET_PATH;
   if (!pane || !socket || process.env.HERDR_PLUGIN_ID) return null;
@@ -100,6 +106,8 @@ export async function main(argv) {
   if (cmd === "keeper-work") { const { keeperWork } = await import("./keeper.js"); await keeperWork(); return 0; }
   if (cmd === "run") { const { runJob } = await import("./jobs.js"); await runJob(pos[1], pos[2], pos.slice(3).concat(flags.force ? ["--force"] : [])); return 0; }
   if (cmd === "open") { const { herdr } = await import("./herdr.js"); herdr().openBoard(); return 0; }
+  // The board, straight on the Coordinator's chat. An open board sees the request on its next beat.
+  if (cmd === "open-coordinator") { const C = await import("./coordinator.js"); const { herdr } = await import("./herdr.js"); C.askFull(); try { herdr().openBoard(); } catch {} return 0; }
   if (cmd === "approve-current") {
     // Approves the task that owns the focused pane, from the invocation context; does nothing otherwise.
     let pane = "";
@@ -177,6 +185,19 @@ export async function main(argv) {
         : pos[1] && value !== undefined ? S.setConfig(pos[1], value) : S.config();
       result = [pos[1] && value === undefined ? { [pos[1]]: c[pos[1]] } : c];
       if (!id && pos[1] === "skill" && value !== undefined) { const X = await import("./extras.js"); X.syncSkill(F.shim()); } // on writes the how-to, off removes exactly what was written
+      break;
+    }
+    case "coordinator": {
+      const C = await import("./coordinator.js");
+      const what = pos[1] || "status";
+      const said = { tell: "sent to the Coordinator", restart: "the Coordinator is restarting, in the same conversation", new: "a new Coordinator is starting", stop: "the Coordinator is stopped; the next message starts it again" };
+      if (what === "tell") C.send(here, need(2, "the text") && rest(2), { delegate: !!flags.delegate });
+      else if (what === "restart") C.restart();
+      else if (what === "new" || what === "fresh") C.fresh(C.pickOf({ agent: flags.agent, model: flags.model, effort: flags.effort }));
+      else if (what === "stop") C.stop();
+      else if (what !== "status") throw new Error("coordinator takes: tell <text>, restart, new, stop. Try: herdr-superwork help");
+      const s = C.summary();
+      result = [s, said[what === "fresh" ? "new" : what] || `Coordinator: ${s.state} · ${[s.agent, s.model || "default model", s.effort || "default effort"].join(" · ")}${s.oneOff ? " (for this one only)" : ""} · default: ${s.default}${s.error ? `\n${s.error}` : ""}${s.said ? `\n\n${s.said}` : ""}`];
       break;
     }
     case "remove-extras": { const X = await import("./extras.js"); const r = X.removeExtras(); result = [r, `Removed: the how-to files${r.blocks ? " and the plugin's blocks in herdr's config (a backup is beside it)" : ""}. The skill setting is off and the key question will not be asked again.`]; break; }

@@ -5,14 +5,15 @@
 //   model       arguments that choose a model                                       none: the agent's default
 //   effort      arguments that choose an effort level                               none: the agent's default
 //   interrupt   the key that stops a turn                                           none: esc
-//   oneShot     a headless command for the hidden helpers                           none: cannot be a helper
-//   allow       restrict a one-shot helper to herdr-superwork commands              none: cannot be the Coordinator
+//   oneShot     a headless command for the hidden helper (the Watcher)              none: cannot be the Watcher
 //   trust       mark a repo as trusted in the agent's own settings                  none: its trust dialog waits for you
 //   minVersion  the oldest program version its turn-end hook was verified on        older: runs without the hook
 //   hookArgs    launch arguments that make it call `turn-ended` at every turn end   none: the closing note and herdr's status
 //   sessionArgs launch arguments that choose the conversation's id                  none: the id comes from the hook or the file
 //   standing    launch arguments that keep the rules in force for the whole session none: rules ride on every prompt
 //   transcript  where a conversation is saved                                       none: nothing is read
+//   latestSession the newest conversation saved in a folder since a time (the agent's own   none: the id chosen at launch
+//               "new chat" command starts another one)
 //   readTurn    the end of a saved conversation: last message, error, token use     none: blank on the board
 //   skillDir    the program's own user-level skills folder                          none: no how-to is installed
 // Verified on claude 2.1.296, codex 0.160.0, pi 1.1.0 (README, "What was checked").
@@ -43,6 +44,7 @@ function tailLines(file, bytes = 768 * 1024) {
     return lines.filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
   } finally { fs.closeSync(fd); }
 }
+const headOf = (file, bytes) => { const fd = fs.openSync(file, "r"); try { const buf = Buffer.alloc(bytes); return buf.toString("utf8", 0, fs.readSync(fd, buf, 0, bytes, 0)); } finally { fs.closeSync(fd); } };
 const when = (ts) => { const n = Date.parse(ts); return Number.isFinite(n) ? n : 0; };
 // What every reader returns. `finished`: a complete assistant message ends the file. `pending`: a tool call or a partial
 // message does. `interrupted`: the human stopped it. `error`: the program recorded an API, login or limit error.
@@ -152,15 +154,26 @@ export const AGENTS = {
       const direct = path.join(claudeHome(), "projects", real.replace(/[^A-Za-z0-9]/g, "-"), `${session}.jsonl`);
       return fs.existsSync(direct) ? direct : findFile(path.join(claudeHome(), "projects"), (n) => n === `${session}.jsonl`, 1)[0] || null;
     },
+    // /clear starts a new conversation file beside the old one (verified on 2.1.296).
+    latestSession(cwd, since) {
+      const real = (() => { try { return fs.realpathSync(cwd); } catch { return cwd; } })();
+      // Only a chat of the interactive program itself: not a helper's side conversation (older versions kept those
+      // as agent-*.jsonl beside it; now they sit in a subfolder) and not a headless run the agent made in its folder.
+      const own = (f) => { try { const head = headOf(f, 65536); const entry = /"entrypoint":"([^"]*)"/.exec(head); return (!entry || entry[1] === "cli") && !/"isSidechain":true/.test(head.slice(0, head.indexOf("\n") < 0 ? undefined : head.indexOf("\n"))); } catch { return false; } };
+      for (const f of findFile(path.join(claudeHome(), "projects", real.replace(/[^A-Za-z0-9]/g, "-")), (n) => /^[0-9a-f]{8}-[0-9a-f-]{27}\.jsonl$/.test(n), 0)) {
+        try { if (fs.statSync(f).mtimeMs < since) return null; } catch { continue; } // newest first: nothing older counts
+        if (own(f)) return path.basename(f, ".jsonl");
+      }
+      return null;
+    },
     readTurn: readClaude,
     skillDir: () => skillAt(claudeHome()),
     args: ["--dangerously-skip-permissions"],
     resume: (id) => ["--resume", id],
     model: (m) => ["--model", m],
     effort: (e) => ["--effort", e],
-    // The prompt goes in on stdin: --tools and --allowedTools take lists and would swallow a trailing prompt.
-    oneShot: ({ model, effort, prompt, allow, system }) => ({ command: "claude", stdin: prompt, args: ["-p", ...(model ? ["--model", model] : []), ...(effort ? ["--effort", effort] : []), ...(system ? ["--append-system-prompt", system] : []), "--no-session-persistence", ...(allow ? ["--allowedTools", "Bash(herdr-superwork:*)"] : ["--tools", ""])] }),
-    allow: true,
+    // The prompt goes in on stdin: --tools takes a list and would swallow a trailing prompt.
+    oneShot: ({ model, effort, prompt, system }) => ({ command: "claude", stdin: prompt, args: ["-p", ...(model ? ["--model", model] : []), ...(effort ? ["--effort", effort] : []), ...(system ? ["--append-system-prompt", system] : []), "--no-session-persistence", "--tools", ""] }),
     // Claude keeps trust per repository root, in ~/.claude.json. Verified on 2.1.295: with the flag set, a brand-new
     // worktree of that repo starts without the "trust this folder?" dialog.
     trust(root) {
@@ -194,6 +207,22 @@ export const AGENTS = {
       });
       if (hits.length !== 1) return null;
       try { return JSON.parse(fs.readFileSync(hits[0], "utf8").split("\n")[0]).payload.id; } catch { return null; }
+    },
+    // /new starts a new conversation file (verified on 0.160.0). Newest first: the first one in this folder wins.
+    latestSession(cwd, since) {
+      const real = (() => { try { return fs.realpathSync(cwd); } catch { return cwd; } })();
+      for (const f of findFile(path.join(codexHome(), "sessions"), (n) => n.endsWith(".jsonl"))) {
+        try {
+          if (fs.statSync(f).mtimeMs < since) return null; // sorted newest first: nothing older counts
+          const head = fs.readFileSync(f, "utf8").slice(0, 400000); const meta = JSON.parse(head.slice(0, head.indexOf("\n") < 0 ? undefined : head.indexOf("\n")));
+          // Only a chat of the interactive program itself. A helper agent it spawned has a conversation file of its
+          // own in the same folder (verified on 0.160.0: "source" is then {"subagent": …} and "parent_thread_id" names
+          // the main one), and so has a headless `codex exec` run there ("source": "exec").
+          const p = meta.payload || {};
+          if (p.cwd === real && p.id && !p.parent_thread_id && typeof (p.source ?? "cli") === "string" && p.source !== "exec") return p.id;
+        } catch {}
+      }
+      return null;
     },
     readTurn: readCodex,
     skillDir: () => skillAt(codexHome()),
@@ -241,6 +270,19 @@ export default function (pi: any) {
     sessionArgs: (id) => ["--session-id", id],
     standing: (text, dir) => { const f = path.join(dir, "rules.md"); fs.writeFileSync(f, text); return ["--append-system-prompt", f]; }, // pi reads a file given here
     transcript: (session) => findFile(path.join(piHome(), "sessions"), (n) => n.endsWith(`_${session}.jsonl`), 1)[0] || null,
+    // /new starts another session file in the same folder of sessions (verified on 1.1.0); its first line names the
+    // working folder and the id. Newest first: the first one of this folder wins.
+    latestSession(cwd, since) {
+      const real = (() => { try { return fs.realpathSync(cwd); } catch { return cwd; } })();
+      for (const f of findFile(path.join(piHome(), "sessions"), (n) => n.endsWith(".jsonl"), 1)) {
+        try {
+          if (fs.statSync(f).mtimeMs < since) return null;
+          const head = headOf(f, 8192); const meta = JSON.parse(head.slice(0, head.indexOf("\n") < 0 ? undefined : head.indexOf("\n")));
+          if (meta.type === "session" && meta.id && !meta.parentSession && (meta.cwd === real || meta.cwd === cwd)) return meta.id;
+        } catch {}
+      }
+      return null;
+    },
     readTurn: readPi,
     skillDir: () => skillAt(piHome()),
     args: [], // pi never asks before running something
