@@ -772,12 +772,15 @@ export class View {
     if (branch) rows.push(["Branch", branch + (tree && r.from ? `  (from ${r.from === "HEAD" ? "your checkout" : r.from})` : "")]);
     if (r.stage === "approval" && r.stat) result.push(["Change", String(r.stat).trim()]);
     if (r.pr) result.push(["Pull request", String(r.pr) + (r.prMerged ? "  (merged)" : "")]);
-    // The agent and watcher: "*" marks a choice made for this task alone. A setting you have not chosen says "default".
+    // The agent, reviewer and watcher: "*" marks a choice made for this task alone. A setting you have not chosen says "default".
     const own = r.own || {};
     const star = (...keys) => (keys.some((k) => own[k] !== undefined && own[k] !== null) ? t.fg("accent", " *") : "");
     const kind = r.agent || ch.agent;
     // Each role reads the same way: program and version, model, effort. The version is the one saved at launch.
     rows.push(["Agent", `${kind}${r.agentVersion ? ` ${r.agentVersion}` : ""} · ${ch.model || "default model"} · ${ch.effort || "default effort"}` + star("agent", "model", "effort")]);
+    // No reviewer, or no review at all for this task, reads as "off".
+    const noReview = !ch.reviewer || ch.reviewer === "off" || ch.review === "none";
+    rows.push(["Reviewer", (noReview ? "off" : `${ch.reviewer} · ${ch.reviewerModel || "default model"} · ${ch.reviewerEffort || "default effort"}`) + star("reviewer", "reviewerModel", "reviewerEffort", "review")]);
     const conf = RX ? RX.config || {} : S.config();
     rows.push(["Watcher", (ch.watcher === "off" ? "off" : `${conf.watcherAgent || conf.helper || "claude"} · ${conf.watcherModel || conf.helperModel || "default model"}`) + star("watcher")]);
     // Context fullness and token use come from the agent's saved conversation; blank when it cannot be read, and the
@@ -790,20 +793,22 @@ export class View {
     rows.push(["Conflict repair", (ch.conflictAuto ? "automatic for this task" : "manual for this task") + star("conflictAuto")]);
     rows.push(["Permissions", (RX ? RX.fullAccess : fullAccess(kind)) ? "full access" : "asks before acting"]);
     if (r.link?.pane) rows.push(["herdr", `${r.link.socket && !r.host ? `session ${sessionName(r.link.socket)} · ` : ""}space ${r.link.workspace || "?"} · pane ${r.link.pane}${r.link.agent ? ` · ${r.link.agent}` : ""}`]);
-    const ORDER2 = ["Machine", "Project", "Permissions", "Conflict repair", "Worktree", "Branch", "herdr", "Agent", "Watcher", "Context", "Tokens", "Note"];
+    const ORDER2 = ["Machine", "Project", "Permissions", "Conflict repair", "Worktree", "Branch", "herdr", "Agent", "Reviewer", "Watcher", "Context", "Tokens", "Note"];
     rows.sort((x, y) => ORDER2.indexOf(x[0]) - ORDER2.indexOf(y[0]));
     const kw = Math.max(...rows.concat(result).map(([k]) => k.length)) + 2;
-    const table = (list) => {
+    const table = (list, oneLine = false) => {
       for (const [k, v] of list) {
         const stacked = w - kw < 16; // stack labels at narrow widths instead of clipping the values beside them
         const indent = stacked ? 2 : kw;
-        const parts = String(v).split("\n").flatMap((line) => { const wrapped = wrapTextWithAnsi(line, Math.max(1, w - indent)); return wrapped.length ? wrapped : [""]; });
+        const parts = oneLine ? [truncateToWidth(String(v).replace(/\n/g, " "), Math.max(1, w - indent), "…")] : String(v).split("\n").flatMap((line) => { const wrapped = wrapTextWithAnsi(line, Math.max(1, w - indent)); return wrapped.length ? wrapped : [""]; });
         if (stacked && k) L.push(" " + t.fg("subtext0", k));
         L.push(" " + (stacked ? " ".repeat(indent) : t.fg("subtext0", k.padEnd(kw))) + (parts[0] ?? ""), ...parts.slice(1).map((x) => " " + " ".repeat(indent) + x));
       }
     };
     L.push("");
+    const tableAt = L.length;
     table(rows);
+    const tableLen = L.length - tableAt;
     // The sidebar never scrolls, so a long description gives up its lines first; ctrl+e still shows all of it.
     const over = !full && fit > 0 ? L.length - fit : 0;
     // When even one line is too many, the heading carries the pointer and its blank line above goes too.
@@ -813,6 +818,8 @@ export class View {
       const still = L.length - fit;
       if (!keep && still > 0) L.splice(descAt - (still > 1 ? 2 : 1), still > 1 ? 3 : 2, " " + t.fg("subtext0", "Description") + t.fg("overlay0", " · ctrl+e shows it"));
     }
+    // Still too tall: each fact keeps to one line, so none of them drops out of view.
+    if (!full && fit > 0 && L.length > fit) { L.length -= tableLen; table(rows, true); }
     // The footer belongs only in full details; the sidebar ends at the task facts.
     if (full && (result.length || merging)) {
       L.push("", " " + t.fg("surface_dim", "─".repeat(Math.max(1, w))));

@@ -40,14 +40,14 @@ test("the sidebar cuts a long description short so the task facts stay in view; 
     assert.match(text, /Line 1 of a very long/);
     assert.match(text, /… ctrl\+e shows the rest/);
     assert.doesNotMatch(text, /Line 80 of/);
-    for (const fact of ["Project", "Permissions", "Worktree", "Agent", "Watcher"]) assert.match(text, new RegExp(`│  ${fact} `), fact);
+    for (const fact of ["Project", "Permissions", "Worktree", "Agent", "Reviewer", "Watcher"]) assert.match(text, new RegExp(`│  ${fact} `), fact);
     assert.doesNotMatch(text, /More below/);
-    // A 24-row terminal: the description shrinks to one line, then to its heading alone, before any fact is lost.
+    // A 24-row terminal: the description shrinks to its heading alone before any fact is lost.
     const small = open(w, { rows: 24 });
     for (const width of [120, 90]) {
       const t24 = small.text(width);
-      assert.match(t24, width === 120 ? /Line 1 of a very long[^\n]*\n[^\n]*… ctrl\+e shows the rest/ : /│  Description · ctrl\+e shows it/, `description at ${width}`);
-      for (const fact of ["Project", "Permissions", "Worktree", "Agent", "Watcher"]) assert.match(t24, new RegExp(`│  ${fact} `), `${fact} at ${width}x24`);
+      assert.match(t24, /│  Description · ctrl\+e shows it/, `description at ${width}`);
+      for (const fact of ["Project", "Permissions", "Worktree", "Agent", "Reviewer", "Watcher"]) assert.match(t24, new RegExp(`│  ${fact} `), `${fact} at ${width}x24`);
       assert.doesNotMatch(t24, /More below/);
     }
     s.press("ctrl+e");
