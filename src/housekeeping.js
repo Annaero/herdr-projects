@@ -29,6 +29,14 @@ export function housekeeping(socket = currentSocket(), { force = false } = {}) {
       if (ok) for (const t of linked) { try { reconcile(S.get(t.id) || t, api); } catch {} }
     }
     if (tasks.some((t) => t.stage === "queued")) { try { startQueued(socket); } catch {} }
+    if (S.due(`spaces-${key(socket)}`, 30000)) { try { F.sweepRepoSpaces(socket); } catch {} try { F.sweepClosing(socket); } catch {} }
+    // A clean-up that found the task's space in use is tried again, so a done task leaves the sidebar by itself once
+    // the space is free; after a turn in the agent's own terminal only when that has been quiet for a while.
+    const quiet = process.env.HERDR_SUPERWORK_QUIET_MS !== undefined ? Number(process.env.HERDR_SUPERWORK_QUIET_MS) : 600000;
+    for (const t of tasks) {
+      if (!S.config().cleanup || t.stage !== "done" || !t.tidy || t.archivedAt || t.link?.socket !== socket || runnerAlive(t) || Date.now() - (t.tidy.quietFrom || 0) < quiet) continue;
+      if (S.due(`tidy-${key(t.id)}`, 30000)) spawnRunner("cleanup", t.id, t.tidy.deleteBranch === "merged" ? ["--merged"] : []);
+    }
     try { resync(tasks, socket); } catch {}
   }
   if (tasks.some((t) => (t.pr && !t.prMerged) || (Y.resyncable(t) && t.worktree)) && (force === "pr" || S.due("prpoll", 120000))) {
@@ -80,8 +88,7 @@ export function spawnLoose(args) {
 // A task waiting on a login is the human's: pull-request feedback does not wake its agent until that is cleared. The
 // blocker itself stays saved, so the next poll after the login wakes the agent in the usual way.
 const needsLogin = (t) => !!t.failure?.auth || (t.stage === "asks" && t.kind === "auth");
-const BAD = ["FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "STALE"];
-const GOOD = ["SUCCESS", "NEUTRAL", "SKIPPED"];
+const BAD = F.CHECK_BAD, GOOD = F.CHECK_GOOD;
 export async function pollPrs() {
   try { fetchMains(); } catch {}
   for (const first of S.list()) {
@@ -95,14 +102,40 @@ export async function pollPrs() {
 async function pollOne(id, pr, j) {
   let then = null;
   const { approvalMessage } = await import("./finish.js");
+  // What was merged is the pull request's head, not whatever the local branch holds by now: a commit made here since
+  // (never pushed, or pushed after the merge) landed nowhere, so its branch and worktree are not thrown away.
+  const local = () => { try { const c = S.get(id); return c?.branch ? S.gitOut(S.folderOf(id), ["rev-parse", "--verify", `refs/heads/${c.branch}`]) : ""; } catch { return ""; } };
+  const covered = (tip, head) => { if (!tip || tip === head) return true; if (!head) return false; try { S.gitOut(S.folderOf(id), ["merge-base", "--is-ancestor", tip, head]); return true; } catch { return false; } };
+  let mode = "always", legacy = false;
   S.update(id, (t) => {
     if (t.archivedAt || t.pr !== pr || runnerAlive(t)) return false; // archived or active since the request started: next poll
     if (j.state === "MERGED") {
-      t.stage = "done"; t.msg = `Merged: ${pr}`; t.failure = null; t.prFailure = null; t.prMerged = true; t.prState = "merged"; t.autoMerge = false; t.mergeIntent = null; t.seen = false;
+      mode = covered(local(), j.headRefOid || t.prHead || "") ? "always" : "merged";
+      t.stage = "done"; t.tidy = F.tidyMark(t, mode); t.msg = `Merged: ${pr}`; t.failure = null; t.prFailure = null; t.prMerged = true; t.prState = "merged"; t.autoMerge = false; t.mergeIntent = null; t.seen = false;
       then = "merged";
       return;
     }
+    // Closed without merging while its merge was awaited (taken out of the queue, closed by someone): GitHub will not
+    // merge it any more, so the task says so and waits for you instead of claiming a merge is on its way.
+    if (j.state === "CLOSED" && t.autoMerge) {
+      t.autoMerge = false; t.autoMergeLocal = false; t.stage = "approval"; t.mergeFailed = true; t.mergeIntent = null; t.requireApproval = true; t.seen = false; t.prState = "closed";
+      t.msg = "Pull request was closed without merging";
+      Object.assign(t, S.failurePatch({ stage: "merge", title: t.msg, detail: `Pull request: ${pr}\nBranch: ${t.branch || "unknown"}\n\nGitHub reports it as closed, not merged. The approved merge did not happen.`, next: "Reopen the pull request (gh pr reopen) and approve again, or open a new one from the task's branch. Nothing was cleaned up; the work is still on its branch.", agentCanFix: false, auth: false }));
+      then = "closed";
+      return;
+    }
     if (j.state !== "OPEN" || (t.stage === "working" && !t.autoMerge) || needsLogin(t)) return false;
+    // A remembered merge is for the commit that was reviewed. The pull request has moved on (someone pushed to it):
+    // the approval is withdrawn, and nothing merges until that has been checked and reviewed here.
+    const reviewed = t.mergeIntent?.verifiedHead || t.prHead || "";
+    if (t.autoMerge && reviewed && j.headRefOid && j.headRefOid !== reviewed) {
+      legacy = !t.autoMergeLocal;
+      t.autoMerge = false; t.autoMergeLocal = false; t.stage = "approval"; t.mergeFailed = true; t.mergeIntent = null; t.requireApproval = true; t.seen = false;
+      t.msg = "Pull request has commits that were not reviewed";
+      Object.assign(t, S.failurePatch({ stage: "merge", title: t.msg, detail: `Pull request: ${pr}\nBranch: ${t.branch || "unknown"}\nReviewed here: ${reviewed}\nOn the pull request: ${j.headRefOid}`, next: `Bring the pull request's commits into your own worktree (git pull origin ${t.branch || "<branch>"}), then finish again so they are checked and reviewed before anything merges.`, agentCanFix: true, auth: false }));
+      then = "unreviewed";
+      return;
+    }
     if (t.prHead && j.headRefOid !== t.prHead) return false; // stale or unknown-head CI cannot resolve a pushed repair
     const failed = (j.statusCheckRollup || []).filter((c) => BAD.includes(String(c.conclusion || c.state || "").toUpperCase())).map((c) => c.name || c.context).filter(Boolean);
     // What others wrote on it (people or review bots), not the author: a new one is worth the agent's attention.
@@ -116,8 +149,13 @@ async function pollOne(id, pr, j) {
     const why = reason ? reason + (others.length ? " Comments are also available for context (gh pr view --comments)." : "")
       : newFeedback ? `New feedback on the pull request ${pr}. Read the comments (gh pr view --comments) and address what they ask for on your branch; if nothing needs changing, say so and finish.` : "";
     const blocking = failed.length > 0 || j.reviewDecision === "CHANGES_REQUESTED";
-    if (t.autoMerge && !blocking && !t.prFailure) return; // pending checks still merge by themselves
     const checks = j.statusCheckRollup || [];
+    if (t.autoMerge && !blocking && !t.prFailure) {
+      // The checks have passed (and a required review is there): the remembered merge is carried out now.
+      const ready = t.autoMergeLocal && checks.every((c) => GOOD.includes(String(c.conclusion || c.state || "").toUpperCase())) && j.reviewDecision !== "REVIEW_REQUIRED";
+      if (ready) { t.autoMerge = false; t.autoMergeLocal = false; t.msg = "merging"; then = "land"; }
+      return;
+    }
     const passed = checks.length > 0 && checks.every((c) => GOOD.includes(String(c.conclusion || c.state || "").toUpperCase()));
     t.prState = blocking ? "failing" : passed && j.reviewDecision !== "REVIEW_REQUIRED" ? "passing" : "waiting";
     // Keep the last remote blocker independently of local check/review success.
@@ -147,7 +185,10 @@ async function pollOne(id, pr, j) {
       else if (t.stage === "approval" || t.autoMerge) t.msg = `${why} ${t.autoMerge ? "Auto-merge is blocked; send details to cancel pending auto-merge and repair safely." : "Automatic retries are exhausted; send details to the agent to try again."}`;
     }
   }, { waitMs: 10000 });
-  if (then === "merged") { const t = S.get(id); F.labelPane(t, null); const { cleanupJob } = await import("./land.js"); await cleanupJob(id); }
+  if (then === "merged") { const t = S.get(id); F.labelPane(t, null); const { cleanupJob } = await import("./land.js"); await cleanupJob(id, { deleteBranch: mode }); }
+  if (then === "merged") { const t = S.get(id); F.dropRemoteBranch(S.folderOf(id), t.branch, mode === "always" ? j.headRefOid || t.prHead || "" : ""); }
+  if (then === "unreviewed") { const t = S.get(id); F.labelPane(t, "merge blocked"); if (legacy) F.gh(["pr", "merge", F.prNumber(pr), "--disable-auto"], S.folderOf(id), 60000); }
+  if (then === "closed") F.labelPane(S.get(id), "merge blocked");
   if (then === "land") spawnRunner("land", id);
   if (then === "wake") {
     const { sendFailure } = await import("./actions.js");

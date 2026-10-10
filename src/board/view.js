@@ -523,7 +523,8 @@ export class View {
       // A reply to one of this machine's tasks that never had an agent starts one with that message.
       const fresh = this.peek && r && !r.host && !r.archivedAt && !F.isAgentTask(r) && ["todo", "progress"].includes(r.stage);
       if (fresh) { if (!this.try(() => { const out = A.tell(r.id, text); this.flash(out.msg, "green"); }, true)) return; }
-      else if (this.peek && r && isAgent(r) && (r.host || F.isAgentTask(r))) {
+      // (Work that ended and was cleaned up has no terminal left: the reply starts a new round.)
+      else if (this.peek && r && isAgent(r) && (r.host || F.isAgentTask(r) || F.cleanedUp(r))) {
         // Busy/refused replies keep the draft; only a successful send clears it.
         if (r.host) { this.act(r, "tell", { text }, false, (ok) => { if (ok && this.sel === r.id && this.value().trim() === text) this.setValue(""); }); return; }
         if (!this.try(() => { const out = A.tell(r.id, text); this.flash(out.msg, out.msg.startsWith("queued") ? "yellow" : "green"); }, true)) return;

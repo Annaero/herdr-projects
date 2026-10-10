@@ -66,6 +66,18 @@ export function herdr(socket = null) {
     panes: (workspace) => call(["pane", "list", ...(workspace ? ["--workspace", workspace] : [])]).panes || [],
     paneGet: (id) => quiet(() => call(["pane", "get", id]).pane),
     paneSplit: (id, { cwd, direction = "right", env = {} } = {}) => call(["pane", "split", id, "--direction", direction, ...(cwd ? ["--cwd", cwd] : []), ...Object.entries(env).flatMap(([k, v]) => ["--env", `${k}=${v}`]), "--no-focus"]).pane,
+    // Is nothing but its shell running in the pane? Unknown counts as busy.
+    paneIdle: (id) => quiet(() => { const i = call(["pane", "process-info", "--pane", id]).process_info; return Number.isInteger(i.shell_pid) && i.foreground_process_group_id === i.shell_pid && (i.foreground_processes || []).every((p) => p.pid === i.shell_pid) && spawnSync("pgrep", ["-P", String(i.shell_pid)], { stdio: "ignore" }).status === 1; }, false),
+    // Does nothing run in the pane but the program in its foreground (and the shell that started it)? No tool or
+    // command under that program, and no background job of the shell beside it. Unknown counts as no.
+    paneChildless: (id) => quiet(() => {
+      const i = call(["pane", "process-info", "--pane", id]).process_info;
+      const front = (i.foreground_processes || []).map((p) => p.pid).filter(Number.isInteger);
+      if (!front.length) return false;
+      const kids = (pid) => { const r = spawnSync("pgrep", ["-P", String(pid)], { encoding: "utf8" }); if (r.error || r.status > 1) throw new Error("pgrep failed"); return r.stdout.split("\n").map(Number).filter(Boolean); };
+      if (front.some((pid) => kids(pid).length)) return false;
+      return !Number.isInteger(i.shell_pid) || kids(i.shell_pid).every((pid) => front.includes(pid));
+    }, false),
     paneClose: (id) => quiet(() => call(["pane", "close", id])),
     paneRead: (id, { source = "visible", lines } = {}) => call(["pane", "read", id, "--source", source, ...(lines ? ["--lines", String(lines)] : [])], { raw: true }),
     metadata: (id, args) => quiet(() => call(["pane", "report-metadata", id, "--source", "plugin:herdr-superwork", ...args])),

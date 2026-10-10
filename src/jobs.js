@@ -14,7 +14,7 @@ export async function runJob(job, id, extra = []) {
     else if (job === "sync") await (await import("./finish.js")).syncJob(id, { force: extra.includes("--force") });
     else if (job === "recover") await (await import("./finish.js")).recoverJob(id);
     else if (job === "land") await (await import("./land.js")).landJob(id);
-    else if (job === "cleanup") await (await import("./land.js")).cleanupJob(id);
+    else if (job === "cleanup") await (await import("./land.js")).cleanupJob(id, { deleteBranch: extra.includes("--merged") ? "merged" : "always" });
     else if (job === "prpoll") await (await import("./housekeeping.js")).pollPrs();
     else if (job === "dispatch") await (await import("./helpers.js")).dispatchJob(id);
     else throw new Error(`Unknown job ${job}`);

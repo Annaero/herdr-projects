@@ -167,9 +167,27 @@ or `pr` off) the branch your checkout was on when the task first finished. For t
 merges nothing into waiting tasks, and they are held as "behind main" until your checkout is back on it.
 
 **Approving** makes that last sync, re-checks (and re-reviews, by the same rule) if it changed anything, then merges
-through the pull request (remembered when GitHub's checks are still running) or locally, squashed by default. A
+through the pull request, only at the commit that was reviewed (when GitHub's checks are still running the board
+remembers the approval and merges it itself once they pass; a commit pushed to the pull request meanwhile withdraws
+it; on a repo with a merge queue the task waits until GitHub says the pull request is merged) or locally, squashed
+by default. A
 conflict found here goes back to the agent the same way, and the merge you approved is retried after its repair. A
 checkout with unsaved files is never forced.
+
+**When a task is done** (merged here or on GitHub, finished with nothing to merge, or called done by you) its space
+leaves herdr's sidebar by itself, and its worktree and branch are removed. Work is never lost for it: a checkout
+with unsaved files, or with work that was never merged, stays on disk with its branch, the task says where, and a
+reply continues there; a space you are using again (a turn in the agent's own terminal, a command running in any of
+its panes) is not closed (that includes a command a finished agent left running in the background), and neither is one herdr could not answer for or whose herdr session is not running (then nothing of
+the task is touched): the clean-up is tried again by itself (about
+every half minute, board open or closed) and happens once the space is free, after a turn of the agent only when
+that has been quiet for ten minutes. Work that appeared meanwhile is kept. An agent herdr cannot place (status
+"unknown") counts as at work until its screen has stood still for two minutes and its saved conversation ends in a
+finished turn and nothing runs under the agent program (an agent of unknown status that keeps helper programs
+running is therefore never closed by itself: archive or clear its task). A reply to work that was cleaned up starts a new round in a fresh worktree. herdr also opens
+the repo itself as a space when it makes a repo's first worktree; that one is closed with the repo's last task
+space, unless it was open before or you use it (a second pane or tab, an agent, a running command, or you are
+looking at it). `cleanup` off keeps everything.
 
 **Agents run with full access by default**, as pi-work's did: `claude --dangerously-skip-permissions`,
 `codex --dangerously-bypass-approvals-and-sandbox --no-daemon`. They can run anything as you without asking; the
@@ -202,7 +220,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `artifacts`, `serve` | `true`, `tailscale` | evidence pages, linked privately on your tailnet (`local` for 127.0.0.1; also used, and said on the task, when Tailscale is not installed) |
 | `reviewAuto`, `rounds` | `false`, `3` | send reviews below 5/5 back by themselves, at most this often; `rounds` also caps conflict repairs |
 | `worktree`, `base` | `auto`, `fresh` | `none`: work in your checkout; `head`: start from your commit |
-| `pr`, `merge`, `cleanup` | `true`, `squash`, `true` | pull requests, how work lands, remove merged worktrees |
+| `pr`, `merge`, `cleanup` | `true`, `squash`, `true` | pull requests, how work lands, remove a done task's space, worktree and branch |
 | `max` | `4` | agents working at once |
 | `trust` | `true` | pre-trust a task's repo in the agent's own settings |
 | `agentArgs` | full access | per agent kind: arguments after `--` for `herdr agent start` |
@@ -248,7 +266,7 @@ machines.
 | Which event fires when an agent exits to its shell | `pane.agent_detected` (released) and a status change to `unknown` |
 | A process spawned detached from a hook | survives the hook's exit; a 150-second hook was not cut off |
 | `PATH` in hook-spawned processes | herdr's server environment, which can lack `~/.local/bin`: the plugin asks a login shell |
-| `worktree create --cwd <repo>` with no workspace open for it | works; herdr also opens the repo itself as a workspace |
+| `worktree create --cwd <repo>` with no workspace open for it | works; herdr also opens the repo itself as a workspace, which stays when the worktree is removed (so the plugin closes it) |
 | Claude and Codex in a brand-new worktree with full access | both show a trust dialog, once per repository; pre-trusting removes it |
 | Codex after a reply | reported `done` here; the closing note also covers `unknown` |
 | `herdr machine list --json` exposing SSH targets | not verifiable here (no saved machines; it prints `[]`): name machines in the `machines` setting if `auto` finds none |

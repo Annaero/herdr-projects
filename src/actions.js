@@ -29,6 +29,7 @@ export function report(id, { state, kind, msg, title, progress, asAgent = false 
   // "Mark it idle" on a task whose agent is working means "stop it": the same stop as the stop command.
   if (state === "idle" && !asAgent && F.isAgentTask(cur) && AGENT_STAGES.includes(cur.stage)) return stop(cur.id);
   const delegated = F.isAgentTask(cur) && AGENT_STAGES.concat(["asks", "nosummary", "approval", "reviewneeds", "failed"]).includes(cur.stage);
+  const mark = state === "done" ? F.tidyMark(cur, "merged") : null;
   const t = S.update(cur.id, (t) => {
     S.assertUnarchived(t);
     if (title) t.title = S.oneLine(title, 192) || t.title;
@@ -41,9 +42,11 @@ export function report(id, { state, kind, msg, title, progress, asAgent = false 
     t.kind = undefined; t.msg = S.oneLine(msg); t.failure = state === "error" ? t.failure : null;
     if (state === "idle") { t.stage = F.isAgentTask(t) ? "stopped" : "todo"; if (!F.isAgentTask(t)) t.app = null; }
     else if (state === "working") { if (F.isAgentTask(t)) throw new Error(`${t.id} has an agent. Reply to it, or delegate it again, to make it work.`); t.stage = "progress"; t.app = t.owner; t.since = Date.now(); if (progress !== undefined) t.watch = { progress: clampPct(progress) }; }
-    else if (state === "done") { t.stage = "done"; t.seen = true; t.mergeIntent = null; }
+    else if (state === "done") { t.stage = "done"; t.seen = true; t.mergeIntent = null; t.tidy = F.isAgentTask(t) ? mark : null; }
     else if (state === "error") { t.stage = "failed"; Object.assign(t, S.failurePatch({ stage: "agent", title: "Marked as failed", detail: S.oneLine(msg) || "No details given.", auth: false })); }
   });
+  // Called done by you: its space leaves herdr's sidebar as after a merge. Unmerged work stays on its branch.
+  if (state === "done" && F.isAgentTask(t)) { try { F.labelPane(t, null); } catch {} spawnRunner("cleanup", t.id, ["--merged"]); }
   return t;
 }
 const clampPct = (p) => Math.max(0, Math.min(100, Math.round(Number(p)) || 0));
@@ -54,6 +57,7 @@ export function delegate(id, opts = {}) {
   const cur = S.find(id);
   for (const k of S.PER_TASK) if (opts[k] !== undefined && opts[k] !== null && opts[k] !== "") S.setTaskConfig(cur.id, k, opts[k]);
   const socket = currentSocket();
+  let old = null; // the last round's space, when its clean-up had not managed to close it yet
   const t = S.update(cur.id, (t) => {
     S.assertUnarchived(t);
     if (AGENT_STAGES.includes(t.stage) || runnerAlive(t)) throw new Error(`${t.id} already has an agent working on it.`);
@@ -62,8 +66,9 @@ export function delegate(id, opts = {}) {
     if (opts.worktree === true || opts.worktree === false) t.worktreeMode = opts.worktree ? "own" : "none";
     if (opts.base === "fresh" || opts.base === "head") t.base = opts.base;
     // Work that already landed and was cleaned up starts a new round in a fresh worktree, never in your checkout.
-    if (t.cleaned || (t.stage === "done" && t.worktree && !fs.existsSync(t.worktree))) {
-      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "syncedTo", "syncSeen", "syncBranch", "syncRepairs", "syncRetryAt", "syncBlocked", "handled", "session", "said", "summary", "stat", "kept", "exitedAt", "repoCfg"]) delete t[k];
+    if (F.cleanedUp(t)) {
+      if (t.link?.workspace && t.link.ownsWorkspace) old = { socket: t.link.socket, workspace: t.link.workspace };
+      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "syncedTo", "syncSeen", "syncBranch", "syncRepairs", "syncRetryAt", "syncBlocked", "handled", "session", "said", "summary", "stat", "kept", "tidy", "exitedAt", "repoCfg"]) delete t[k];
       t.link = {};
     }
     t.agent = S.choices(t).agent || "claude";
@@ -74,6 +79,7 @@ export function delegate(id, opts = {}) {
     if (t.review) t.review = { ...t.review, stale: true };
     t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
   });
+  if (old) F.closeLater(old.socket, old.workspace);
   F.labelPane(t, null);
   startQueued(socket);
   return S.get(t.id);
@@ -112,6 +118,12 @@ export function tell(id, text, { keepIntent = false } = {}) {
     S.queueText(cur.id, words);
     return say(delegate(cur.id), `${cur.id}: an agent is starting on it with your message`);
   }
+  // A reply to work that ended and was cleaned up starts a new round with that message, in a fresh worktree.
+  cleaningUp(cur);
+  if (cur.stage === "done" && F.cleanedUp(cur)) {
+    S.queueText(cur.id, words);
+    return say(delegate(cur.id), `${cur.id}: an agent is starting a new round with your message`);
+  }
   F.assertLive(cur);
   if (cur.stage === "merging" && runnerAlive(cur) && !cur.autoMerge) throw new Error("Wait for the merge to finish before replying.");
   F.cancelAutoMerge(cur); // a failure sends nothing and keeps the draft
@@ -127,8 +139,12 @@ export function tell(id, text, { keepIntent = false } = {}) {
   const how = F.deliver(t, words);
   return say(S.get(t.id), how === "queued" ? "queued: go in to answer its dialog first" : "Sent to the agent");
 }
+// A task that just ended is being cleaned up: a reply waits for that, or its work would go with the worktree.
+function cleaningUp(t) { if (t.stage === "done" && runnerAlive(t)) throw Object.assign(new Error(`${t.id} is cleaning up after it finished. Try again in a moment.`), { code: "BUSY" }); }
 // What every human-started turn does to a task.
 export function rearm(t, keepIntent = false) {
+  cleaningUp(t);
+  t.tidy = null;
   t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.turnBy = "reply"; t.selfBlocked = null;
   if (t.failure?.auth) t.failure = null; // a reply or a retry after a login problem is how "fixed" is said
   if (!keepIntent) { if (t.mergeIntent || t.stage === "approval") t.requireApproval = true; t.mergeIntent = null; }
@@ -261,7 +277,7 @@ export function archive(id) {
     t.archivedAt = Date.now();
     if (t.link?.workspace && t.link.ownsWorkspace) { workspace = t.link.workspace; socket = t.link.socket; }
   });
-  if (workspace && socket === currentSocket()) { try { herdr(socket).workspaceClose(workspace); } catch {} }
+  if (workspace && socket === currentSocket()) { try { herdr(socket).workspaceClose(workspace); } catch {} F.closeRepoSpace(herdr(socket), S.folderOf(t.id)); }
   return t;
 }
 // Restore changes nothing in herdr and starts nothing.

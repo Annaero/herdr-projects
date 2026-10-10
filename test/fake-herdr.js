@@ -73,8 +73,10 @@ if (area === "workspace") {
   if (verb === "create") { const made = newWorkspace(path.resolve(flag("--cwd") || "."), flag("--label")); findPane(made.root_pane.pane_id).env = envOf(); ok({ type: "workspace_created", ...made }); }
   const w = st.workspaces.find((x) => x.workspace_id === argv[2]);
   if (!w) fail("workspace_not_found", `workspace ${argv[2]} not found`);
+  if (verb === "get" && st.wsGetOk != null && st.wsGetOk-- <= 0) fail("timeout", "timed out"); // answers this many lookups, then none
   if (verb === "get") ok({ type: "workspace_info", workspace: wsOut(w) });
   if (verb === "focus") { st.focus.push(`workspace ${w.workspace_id}`); ok({ type: "workspace_info", workspace: wsOut(w) }); }
+  if (verb === "close" && st.closeFails) fail("timeout", "timed out"); // a test's stand-in for a close herdr did not do
   if (verb === "close") { st.workspaces = st.workspaces.filter((x) => x !== w); st.panes = st.panes.filter((p) => p.workspace_id !== w.workspace_id); ok({ type: "ok" }); }
 }
 if (area === "worktree") {
@@ -99,6 +101,7 @@ if (area === "worktree") {
   if (verb === "remove") {
     const w = st.workspaces.find((x) => x.workspace_id === flag("--workspace"));
     if (!w || !w.worktree?.is_linked_worktree) fail("workspace_not_found", "not a linked worktree workspace");
+    if (st.removeFails) fail("timeout", "timed out");
     try { git(w.worktree.repo_root, ["worktree", "remove", ...(has("--force") ? ["--force"] : []), w.cwd]); } catch (e) { fail("worktree_remove_failed", String(e.stderr || e.message)); }
     st.workspaces = st.workspaces.filter((x) => x !== w); st.panes = st.panes.filter((p) => p.workspace_id !== w.workspace_id);
     ok({ type: "worktree_removed" });
@@ -106,6 +109,7 @@ if (area === "worktree") {
 }
 if (area === "tab" && verb === "focus") { st.focus.push(`tab ${argv[2]}`); ok({ type: "ok" }); }
 if (area === "pane") {
+  if (verb === "process-info") { const p = findPane(flag("--pane")); if (!p) fail("pane_not_found", "pane not found"); const shell = 4194400; ok({ type: "pane_process_info", process_info: { pane_id: p.pane_id, shell_pid: p.job ? 1 : shell, /* `job`: the shell has a background job beside the foreground program */ foreground_process_group_id: p.busy ? shell + 1 : shell, foreground_processes: [{ pid: p.tool ? 1 : p.busy ? shell + 1 : shell, name: p.tool ? "agent" : p.busy ? "sleep" : "bash" }] } }); } // `tool`: a program with children of its own (pid 1 always has some)
   if (verb === "list") { const w = flag("--workspace"); ok({ type: "pane_list", panes: st.panes.filter((p) => !w || p.workspace_id === w).map(paneOut) }); }
   const p = findPane(argv[2]);
   if (!p) fail("pane_not_found", `pane ${argv[2]} not found`);
@@ -116,6 +120,7 @@ if (area === "pane") {
   if (verb === "report-metadata") { st.metadata.push({ pane: p.pane_id, args: argv.slice(3) }); ok({ type: "ok" }); }
 }
 if (area === "agent") {
+  if (verb === "get" && st.agentGetFails) fail("timeout", "timed out"); // a test's stand-in for a lookup herdr did not answer
   if (verb === "list") ok({ type: "agent_list", agents: st.panes.filter((p) => p.agent).map(agentOut) });
   if (verb === "start") {
     const p = findPane(flag("--pane"));

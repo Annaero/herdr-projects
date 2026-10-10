@@ -305,11 +305,14 @@ export async function pipeline(id, g, text, wake, synced = null) {
   t = g.check();
   const change = tree ? F.changeOf(t) : null;
   const toLand = !!(change && change.stat);
-  const done = (msg, patch = {}) => { const d = g.set((t) => { t.stage = "done"; t.msg = S.oneLine(msg); t.seen = false; t.failure = null; t.mergeIntent = null; Object.assign(t, patch); }); F.labelPane(d, null); return d; };
+  // Done with nothing to merge leaves herdr's sidebar like merged work does; its branch goes only if git calls it merged.
+  const tidyDone = async (id) => { const { tidy } = await import("./land.js"); await tidy(id, { deleteBranch: "merged" }); };
+  const done = (msg, patch = {}) => { const mark = F.tidyMark(t, "merged"); const d = g.set((t) => { t.stage = "done"; t.tidy = mark; t.msg = S.oneLine(msg); t.seen = false; t.failure = null; t.mergeIntent = null; Object.assign(t, patch); }); F.labelPane(d, null); return d; };
   // Nothing to land: it is simply done, unless work outside a repo is reviewed too (review "all").
   if (!toLand && ch.review !== "all") {
     if (holdPrFailure(g, t)) return;
-    return void done(`${firstLine(text) || "finished"}${note}`);
+    done(`${firstLine(text) || "finished"}${note}`);
+    return void (await tidyDone(id));
   }
   // 4. An adversarial review before it reaches you.
   let review = null;
@@ -337,7 +340,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
     t = g.set({ stage: "merging", msg: "merging" });
     return void (await landCore(id, g));
   }
-  if (!toLand) return void done(`${review ? `Reviewed ${review.score}/5${review.recommend === true ? ", says accept" : review.recommend === false ? ", says don't accept" : ""}. ` : ""}${firstLine(text) || "finished"}${note}`, { review });
+  if (!toLand) { done(`${review ? `Reviewed ${review.score}/5${review.recommend === true ? ", says accept" : review.recommend === false ? ", says don't accept" : ""}. ` : ""}${firstLine(text) || "finished"}${note}`, { review }); return void (await tidyDone(id)); }
   t = g.set((t) => { t.review = review; t.stat = change.stat; t.reviewedHead = head; t.mergeFailed = false; });
   if (holdPrFailure(g, t)) return;
   // 5. A repo that lands by itself still wants a good review first: below 4, you are asked.

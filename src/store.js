@@ -114,7 +114,7 @@ export const DEFAULTS = {
   base: "fresh",          // "head": worktrees start from your current commit
   pr: true,               // push the branch and open a draft pull request after the check passes
   merge: "squash",        // how approved work lands: squash, merge or rebase
-  cleanup: true,          // remove a merged task's worktree and branch
+  cleanup: true,          // remove a done task's space, worktree and branch
   machines: "auto",       // other machines: "auto" (herdr's saved machines), names ("exedev@vm-a, vm-b") or "off"
   remoteUser: "",
   max: 4,                 // agents working at once

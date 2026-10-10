@@ -171,7 +171,7 @@ export async function delegateJob(id) {
     if (!livePane) {
       const mode = t.worktreeMode || S.config().worktree;
       let res, patch = {};
-      if (t.worktree && fs.existsSync(t.worktree)) res = api.worktreeOpen({ cwd: root, path: t.worktree, label });
+      if (t.worktree && fs.existsSync(t.worktree)) res = F.openingWorktree(api, root, () => api.worktreeOpen({ cwd: root, path: t.worktree, label }));
       else if (mode !== "none" && S.canWorktree(root) && !t.startedOnce) {
         // A repo with no commits yet has nothing to branch from: give it an empty first commit (files and index stay).
         try { S.gitOut(root, ["rev-parse", "--verify", "HEAD"]); } catch {
@@ -180,7 +180,7 @@ export async function delegateJob(id) {
         }
         const branch = freeBranch(root, t);
         const from = baseRef(root, t.base || S.config().base);
-        res = api.worktreeCreate({ cwd: root, branch, base: from, label });
+        res = F.openingWorktree(api, root, () => api.worktreeCreate({ cwd: root, branch, base: from, label }));
         const dir = res.worktree?.path || res.workspace?.worktree?.checkout_path;
         const repoCfg = S.repoConfig(root, from);
         excludeRuleDir(root);
@@ -239,7 +239,7 @@ export async function restartJob(id) {
       let res;
       if (ws) { const first = api.panes(ws.workspace_id)[0]; pane = first ? api.paneSplit(first.pane_id, { cwd: S.cwdOf(t), env: S.boardEnv() }) : null; }
       if (!pane) {
-        res = t.worktree && fs.existsSync(t.worktree) ? api.worktreeOpen({ cwd: root, path: t.worktree, label: t.title.slice(0, 60) }) : api.workspaceCreate({ cwd: S.cwdOf(t), label: t.title.slice(0, 60), env: S.boardEnv() });
+        res = t.worktree && fs.existsSync(t.worktree) ? F.openingWorktree(api, root, () => api.worktreeOpen({ cwd: root, path: t.worktree, label: t.title.slice(0, 60) })) : api.workspaceCreate({ cwd: S.cwdOf(t), label: t.title.slice(0, 60), env: S.boardEnv() });
         pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
       }
       t = g.set((t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true, reviewer: null }; });
@@ -262,7 +262,7 @@ export function reopen(id, { restart = false } = {}) {
   let pane = api.paneGet(t.link.pane);
   if (!pane) {
     if (!(t.worktree && fs.existsSync(t.worktree))) throw new Error("Its terminal is gone. Reply or delegate again to start its agent.");
-    const res = api.worktreeOpen({ cwd: S.folderOf(t.id), path: t.worktree, label: String(t.title).slice(0, 60) });
+    const res = F.openingWorktree(api, S.folderOf(t.id), () => api.worktreeOpen({ cwd: S.folderOf(t.id), path: t.worktree, label: String(t.title).slice(0, 60) }));
     pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
     t = S.update(t.id, (t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true }; });
   }

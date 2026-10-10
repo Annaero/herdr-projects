@@ -378,3 +378,27 @@ test("the board: a row waiting for approval keeps its name, with the PR and the 
   for (const r of [{ ...base, stage: "", kind: "question", msg: ask }, { ...base, mergeFailed: true, msg: ask }, { ...base, state: "error", kind: "", stage: "failed", msg: ask }])
     assert.match(row(r, 120), /^ \S Build a flying game {2}Which colour should the plane be, and should the islands have palm trees\? +0s$/);
 });
+
+test("a reply typed on the board to work that was merged and cleaned up starts a new round, also with the Coordinator off", async () => {
+  const w = await world({ settings: { helper: "off", reviewer: "off", coordinator: "off" } });
+  try {
+    process.env.HERDR_ENV = "1";
+    w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }] });
+    const id = A.add(w.root, "Work").id;
+    A.delegate(id);
+    assert.equal((await settle(id)).stage, "approval");
+    A.approve(id);
+    let t = await settle(id);
+    assert.equal(t.stage, "done"); assert.ok(t.cleaned && !t.link.pane);
+    const s = open(w);
+    s.v.sel = id; s.v.load();
+    s.press("space");
+    w.script({ worker: [{ files: { "g.txt": "g\n" }, commit: "g", note: "Did g." }] });
+    s.type("now add g"); s.press("enter");
+    assert.match(s.text(), /new round/); assert.equal(s.v.value(), "");
+    t = await settle(id);
+    assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.ok(!String(t.description || "").includes("now add g"));
+    assert.ok(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.some((x) => /now add g/.test(x)));
+    s.v.dispose();
+  } finally { delete process.env.HERDR_ENV; w.cleanup(); }
+});
