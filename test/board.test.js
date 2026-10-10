@@ -159,7 +159,7 @@ test("hidden helpers: the box files through a restricted helper and survives as 
     s.type("build a login page"); s.press("enter");
     assert.equal(S.dispatches().length, 1); assert.match(s.text(), /✽ build a login page|✻ build a login page/);
     await drainJobs(runJob); s.v.load();
-    assert.equal(S.dispatches().length, 0); assert.match(s.text(), /Filed proj\/1\./);
+    assert.equal(S.dispatches().length, 0); assert.doesNotMatch(s.text(), /Filed proj\/1\./); // a result arriving shows nothing at the bottom
     assert.equal(S.get("proj/1").description, "From the box: build a login page");
     s.type("fail on purpose"); s.press("enter"); await drainJobs(runJob); s.v.load();
     assert.equal(S.dispatches()[0].state, "error"); assert.match(s.text(), /✗ fail on purpose {2}the model refused/);

@@ -4,7 +4,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import * as S from "./store.js";
 import { herdr, currentSocket, sessionName, socketExists } from "./herdr.js";
-import { show, wantsAttention } from "./state.js";
+import { show } from "./state.js";
 import { adapter, needsNote } from "./agents.js";
 
 export const RULE_DIR = ".herdr-superwork";
@@ -99,44 +99,6 @@ export function syncSidebar(tasks) {
     if (!isAgentTask(t) || t.archivedAt || !t.live || t.live.gone || t.live.down || t.live.away) continue;
     const want = labelOf(t).slice(0, 40);
     if ((seen[`${t.link.socket}|${t.link.pane}`] ?? "") !== want) { try { labelPane(t, want); } catch {} }
-  }
-}
-
-// ---- alerts: one notification per task that newly needs you, whoever notices first ----------------------------------
-// "Once" is a marker on the task, set under its lock: whoever sets it raises the notification, everyone else skips.
-// The keeper has no terminal, so with the board closed the bell is herdr's notification sound; `bell` off, or a board
-// open on this machine (it rings its own terminal bell), raises the same notification silently.
-const boardsDir = () => path.join(S.dataDir(), "boards");
-export function boardBeat(stop = false) { const f = path.join(boardsDir(), `${process.pid}.hb`); try { if (stop) fs.rmSync(f, { force: true }); else { fs.mkdirSync(boardsDir(), { recursive: true }); fs.writeFileSync(f, String(Date.now())); } } catch {} }
-export function boardOpen() {
-  try { return fs.readdirSync(boardsDir()).some((n) => { const f = path.join(boardsDir(), n); const fresh = Date.now() - fs.statSync(f).mtimeMs < 5000; if (!fresh && Date.now() - fs.statSync(f).mtimeMs > 60000) fs.rmSync(f, { force: true }); return fresh; }); } catch { return false; }
-}
-const needKey = (t) => { const s = show(t, t.live); return wantsAttention(t, s) ? `${s.state}:${s.kind || ""}:${t.stage}:${t.at || 0}` : ""; };
-function claimAnnounce(id, key) {
-  let mine = false;
-  try { S.update(id, (t) => { if (t.announced?.key === key) return false; mine = true; t.announced = { key, at: Date.now() }; }, { waitMs: 3000 }); } catch {}
-  return mine;
-}
-function raise(t, title, body, sound) {
-  const quiet = !S.config().bell || boardOpen();
-  try { h(t).notify(title, body, quiet ? "none" : sound); } catch {}
-}
-// Hook-time and runner-time notifications go through the same marker, so the keeper never repeats one.
-export function notify(t, title, body, sound = "request") {
-  const cur = S.get(t.id) || t;
-  const key = needKey(cur);
-  if (key && !claimAnnounce(cur.id, key)) return;
-  raise(cur, title, body, sound);
-}
-export function announce(tasks) {
-  for (const t of tasks) {
-    if (t.archivedAt) continue;
-    const key = needKey(t);
-    if (!key) { if (t.announced) { try { S.update(t.id, (c) => { if (!c.announced || needKey(c)) return false; c.announced = null; }, { waitMs: 500 }); } catch {} } continue; }
-    if (t.announced?.key === key || !claimAnnounce(t.id, key)) continue;
-    const s = show(t, t.live);
-    const what = s.state === "done" ? "done" : s.state === "error" ? (t.stage === "nosummary" ? "stopped without a summary" : "failed") : s.kind === "auth" ? "needs a login" : t.stage === "approval" ? "approve to merge?" : s.kind === "question" ? "asks you" : "needs you";
-    raise(t, `${t.title}: ${what}`, s.msg || "", s.state === "done" ? "done" : "request");
   }
 }
 

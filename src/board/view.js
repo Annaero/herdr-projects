@@ -82,7 +82,7 @@ export class View {
   filter = ""; msg = ""; msgKind = "dim"; msgAt = 0;
   armed = { id: "", at: 0 }; back = ""; jobs = []; jobTop = 0; lastCtrlC = 0; tick = 0; disposed = false;
   screens = new Map(); // what an agent's pane shows, read through herdr, cached
-  known = null; sent = new Map(); setup = null;
+  sent = new Map(); setup = null;
 
   constructor(tui, theme, done, ctx) {
     this.tui = tui; this.theme = theme; this.done = done; this.ctx = ctx;
@@ -96,7 +96,6 @@ export class View {
     this.repo = S.repoOf(ctx.cwd);
     this.canDispatch = H.dispatcherReady();
     this.load();
-    F.boardBeat();
     try { this.stamp = codeStamp(); } catch {}
     try { this.startSetup(); } catch {}
     this.timer = setInterval(() => this.beat(), 1000);
@@ -109,7 +108,6 @@ export class View {
     const steps = [
       o.key && { what: "key", q: "Bind a key that opens this board from anywhere in herdr?", how: `Type the key and press enter${o.key.suggest ? ` (enter alone takes ${o.key.suggest}; herdr's own keys and yours are refused)` : " (for example prefix+a)"}, or n for no.`, suggest: o.key.suggest },
       o.sidebar && { what: "sidebar", q: "Show each task's stage and its \"doing now\" line in herdr's sidebar?", how: "herdr's sidebar only shows them when its settings list them. y adds the rows; n keeps a short status in the agent's name instead." },
-      o.popups && { what: "popups", q: "Turn on herdr's notification pop-ups, so the board can alert you while it is closed?", how: "They are off in herdr by default. y turns on in-app pop-ups; n leaves sound only." },
     ].filter(Boolean);
     if (!steps.length) { X.answer({}); return; }
     this.setup = { steps, at: 0, file: o.file, said: "" };
@@ -122,7 +120,7 @@ export class View {
     if (!enter) return this.input.handleInput(data);
     const v = this.value().trim().toLowerCase();
     const no = ["n", "no"].includes(v), yes = ["y", "yes", ""].includes(v);
-    if (no) return next(step.what === "key" ? { key: "no" } : step.what === "sidebar" ? { sidebarAnswer: "no" } : { popups: "no" });
+    if (no) return next(step.what === "key" ? { key: "no" } : { sidebarAnswer: "no" });
     const arg = step.what === "key" ? (yes ? step.suggest : v) : undefined;
     if (step.what === "key" && !arg) { this.setValue(""); return this.flash("Type a key such as prefix+a, or n.", "warning"); }
     if (step.what !== "key" && !yes) { this.setValue(""); return this.flash("y or n.", "warning"); }
@@ -130,7 +128,7 @@ export class View {
     if (!r.ok && !r.paste) { this.setValue(""); return this.flash(r.msg, "error"); } // refused: ask again
     st.said = r.ok ? `Added to ${short(st.file)}. \`herdr-superwork remove-extras\` undoes it.` : r.msg;
     if (r.paste) st.paste = r.msg;
-    next(step.what === "key" ? { key: r.ok ? arg : "paste" } : step.what === "sidebar" ? { sidebarAnswer: r.ok ? "yes" : "paste" } : { popups: r.ok ? "yes" : "paste" });
+    next(step.what === "key" ? { key: r.ok ? arg : "paste" } : { sidebarAnswer: r.ok ? "yes" : "paste" });
     if (r.paste) { this.detailsId = ""; this.pasteText = r.msg; }
   }
   setupLines(width, rowsN) {
@@ -146,18 +144,16 @@ export class View {
   beat() {
     this.tick++;
     if (this.all && this.tick % 5 === 0) this.pollRemotes();
-    F.boardBeat(); // while a board is open here, notifications are raised silently: the board rings its own bell
     // With a keeper alive the board only looks: the keeper polls, watches and alerts. Without one the board does all
     // of it itself, as it always did, so a missing keeper never makes the board worse.
     if (!keeperAlive()) { try { tickOnce(currentSocket(), { watch: (rows) => H.watchTick(rows.map(asRow)) }); } catch {} }
-    try { for (const n of S.takeNotices()) this.flash(n.text, "warning"); } catch {}
     // An open board keeps running the code it started with: say so when the plugin changed underneath it.
     if (this.tick % 5 === 0) { try { if (this.stamp && codeStamp() !== this.stamp) { this.stale = true; this.flash("herdr-superwork was updated. Close the board (esc) and open it again to get the new version.", "warning"); } } catch {} }
     try { this.load(); } catch {}
     try { this.announce(); } catch {}
     this.tui.requestRender();
   }
-  dispose() { this.disposed = true; F.boardBeat(true); clearInterval(this.timer); this.savePrefs(); if (this.sent.size) { try { process.stdout.write([...this.sent.keys()].map(oscClear).join("")); } catch {} } }
+  dispose() { this.disposed = true; clearInterval(this.timer); this.savePrefs(); if (this.sent.size) { try { process.stdout.write([...this.sent.keys()].map(oscClear).join("")); } catch {} } }
   invalidate() { this.input.invalidate(); }
   get focused() { return this.input.focused; }
   set focused(value) { this.input.focused = value; }
@@ -169,14 +165,10 @@ export class View {
   job() { return this.jobs.find((j) => j.id === this.sel); }
   try(fn, sentReply = false) { const repliedTo = sentReply ? this.sel : ""; let ok = true; try { fn(); } catch (e) { ok = false; this.flash(e.message, "error"); } this.load(repliedTo); return ok; }
 
-  // The bell and, for a board run as a plain command, the same tasks as OSC 7501 records on its own terminal.
-  // Output only: nothing reads OSC 7501.
+  // For a board run as a plain command: its tasks as OSC 7501 records on its own terminal. Output only: nothing
+  // reads OSC 7501. No bell, sound or message says that a task newly needs you.
   announce() {
     const local = this.items.filter((r) => !r.host && !r.archivedAt);
-    // The bell rings for a "newly needs you" marker this board has not rung for, whoever set it (keeper, hook or board).
-    const attention = local.filter((r) => r.state === "blocked" || r.state === "error" || (r.state === "done" && !r.seen)).map((r) => `${r.id}:${r.announced?.key || r.state}`);
-    if (this.known && S.config().bell && attention.some((a) => !this.known.has(a))) process.stdout.write("\x07");
-    this.known = new Set(attention);
     if (process.env.HERDR_PLUGIN_ID || process.env.HERDR_SUPERWORK_PROGRAM_STATUS === "0") return;
     const next = new Map();
     for (const r of local) if (r.state !== "idle" && !(r.state === "done" && r.seen)) next.set(r.id, osc(r));
@@ -191,8 +183,8 @@ export class View {
     const mine = F.board({ includeArchived: true }).map(asRow);
     this.items = this.scope === "" ? mine : this.scope === "*" ? [...mine, ...Object.values(this.remotes).flatMap((m) => m.items)] : (this.remotes[this.scope] ? this.remotes[this.scope].items : []);
     const jobs = this.archiveView ? [] : S.dispatches();
-    // A finished instruction says what it did in one line and is forgotten: there is no conversation.
-    for (const j of jobs) if (j.state === "done") { this.flash(j.msg || "Done.", "success"); S.clearDispatch(j.id); }
+    // A finished instruction is forgotten without a word: its row goes and what it did is on the board.
+    for (const j of jobs) if (j.state === "done") S.clearDispatch(j.id);
     this.jobs = jobs.filter((j) => j.state !== "done").reverse();
     const f = (this.mode === "find" ? this.value() : this.filter).trim().toLowerCase();
     const eligible = this.items.filter((r) => (this.archiveView ? !!r.archivedAt : !!f || !r.archivedAt));
@@ -273,7 +265,7 @@ export class View {
       this.ssh(there, "dispatch", { text: words, delegate, about: about && about.host ? about.rid : undefined }, (j) => {
         try {
           if (!S.getDispatch(job.id)) return;
-          if (j && j.ok) { S.clearDispatch(job.id); this.flash(`${there.label}: ${j.msg}`, "success"); }
+          if (j && j.ok) S.clearDispatch(job.id);
           else S.setDispatch(job.id, { state: "error", msg: j ? j.msg : `${there.label} did not answer` });
           this.pollRemotes(true); this.load(); this.tui.requestRender();
         } catch {}

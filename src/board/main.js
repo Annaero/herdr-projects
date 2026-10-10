@@ -11,7 +11,7 @@ export async function openBoard({ folder }) {
   try { setLight(!!(await detectLight())); } catch {}
   // The board opening is one of the keeper's starters; the how-to files are refreshed here too.
   try { ensureKeeper(); } catch {}
-  try { const X = await import("../extras.js"); X.syncSkill(F.shim()); } catch {}
+  try { const X = await import("../extras.js"); X.syncSkill(F.shim()); X.removePopups(); } catch {}
   return new Promise((resolve) => {
     const tui = new TuiAltScreen(new ProcessTerminal(), { mouse: false });
     let view;

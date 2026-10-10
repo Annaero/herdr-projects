@@ -62,8 +62,8 @@ const snapshot = (t) => {
   return { folder: S.tilde(folder), tree: S.tilde(tree), branch: S.branchOf(tree || folder), choices: S.choices(t), config: { watcherAgent: c.watcherAgent, watcherModel: c.watcherModel }, fullAccess: fullAccess(t.agent || S.choices(t).agent), canWorktree: S.canWorktree(folder), worktree: c.worktree };
 };
 // `said`, `usage` and `agentVersion` ride along on each task; `version` is this side's plugin version (a machine on
-// an older plugin sends none, and the asking side then knows which requests it would not understand). The `announced`
-// marker is this machine's own and is not sent, nor are pending hook events.
+// an older plugin sends none, and the asking side then knows which requests it would not understand). Pending
+// hook events are this machine's own and are not sent (nor is `announced`, a marker older versions left on tasks).
 export const remoteList = () => ({ host: os.hostname(), version: S.VERSION, tasks: F.board({ includeArchived: true }).map((t) => { const { live, announced, events, ...rest } = t; return { ...rest, snap: snapshot(t) }; }) });
 export async function remoteMain([what, payload]) {
   const a = payload ? JSON.parse(Buffer.from(payload, "base64").toString("utf8")) : {};

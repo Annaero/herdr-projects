@@ -51,7 +51,7 @@ test("the finish line: commit leftovers, check, review, then wait for approval; 
     let s = stateOf(id);
     assert.deepEqual([s.state, s.kind, s.asReview], ["blocked", "permission", true]);
     const st = w.state();
-    assert.ok(st.notifications.some((n) => /approve to merge/.test(n.title)));
+    assert.deepEqual(st.notifications, []); // nothing pops up when a task lands in review
     assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=review 4/5"))); // herdr's own sidebar shows it
     assert.ok(!st.panes.some((p) => p.agent?.name === "sw-proj-1-r")); // the reviewer pane is closed again
     assert.equal(st.panes.find((p) => p.pane_id === t.link.pane).agent.kind, "claude");
@@ -133,7 +133,7 @@ test("undelivered text is never dropped: a trust dialog queues the first prompt 
     assert.equal(S.pendingText(id).length, 1);
     let s = stateOf(id);
     assert.deepEqual([s.state, s.kind], ["blocked", "permission"]);
-    assert.ok(w.state().notifications.some((n) => /needs you/.test(n.title)));
+    assert.deepEqual(w.state().notifications, []);
     assert.match(A.tell(id, "Also add a test.").msg, /^queued/); // a reply while blocked is queued too
     // the human goes in and answers the dialog
     const { herdr } = await import("../src/herdr.js");

@@ -79,13 +79,11 @@ export async function landCore(id, g) {
   const fail = (title, detail, next, { agentCanFix = true, auth = S.isAuthFailure(detail), extra = {}, keepIntent = false } = {}) => {
     const f = g.set((t) => { t.stage = auth ? "failed" : "approval"; t.mergeFailed = true; t.msg = title; if (!keepIntent) t.mergeIntent = null; Object.assign(t, S.failurePatch({ stage: "merge", title, detail, next, agentCanFix, auth, ...extra })); });
     F.labelPane(f, "merge blocked");
-    F.notify(f, `${f.title}: ${title}`, String(next || "").split("\n")[0]);
     return f;
   };
   const landed = async (msg) => {
     const d = g.set((t) => { t.stage = "done"; t.msg = msg; t.failure = null; t.prFailure = null; t.mergeIntent = null; t.autoMerge = false; t.mergeFailed = false; t.seen = false; t.requireApproval = false; if (t.pr) { t.prMerged = true; t.prState = "merged"; } });
     F.labelPane(d, null);
-    F.notify(d, `${d.title}: merged`, msg, "done");
     await tidy(id);
   };
   const reverify = async (why) => {

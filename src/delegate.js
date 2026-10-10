@@ -133,10 +133,8 @@ export function startAgent(id, g, { prompt, resume = null }) {
     if (session !== (t.session || null)) { t.session = session; t.transcript = null; t.handled = { ...(t.handled || {}), msg: null, pos: 0 }; }
   });
   if (!prompt) return "started";
-  if (blocked) { S.queueText(id, prompt); F.notify(t, `${t.title}: needs you`, "Its agent shows a dialog. Go in and answer it; your task is queued behind it."); return "queued"; }
-  const how = F.deliver(t, prompt);
-  if (how === "queued") F.notify(t, `${t.title}: needs you`, "Its agent shows a dialog. Go in and answer it; your task is queued behind it.");
-  return how;
+  if (blocked) { S.queueText(id, prompt); return "queued"; }
+  return F.deliver(t, prompt);
 }
 
 // The prompt for an agent that is started again on a task it worked on before.
@@ -168,8 +166,7 @@ export async function delegateJob(id) {
     const livePane = t.link.pane ? api.paneGet(t.link.pane) : null;
     if (livePane && api.agentGet(t.link.pane)) { // delegate again on a task whose agent is still there: just continue it
       t = g.set((t) => { t.stage = "working"; t.armedAt = Date.now(); t.turnOpen = true; });
-      const how = F.deliver(t, F.withTail(t, "Continue this task."));
-      return void (how === "queued" && F.notify(t, `${t.title}: needs you`, "Its agent shows a dialog."));
+      return void F.deliver(t, F.withTail(t, "Continue this task."));
     }
     if (!livePane) {
       const mode = t.worktreeMode || S.config().worktree;
@@ -205,7 +202,7 @@ export async function delegateJob(id) {
         t = g.set({ stage: "setup", msg: `setting up: ${t.repoCfg.setup}` });
         const r = await sh(t.repoCfg.setup, S.cwdOf(t), env(), { alive: () => !!g.check() });
         if (r.aborted) return;
-        if (!r.ok) { g.set((t) => { t.stage = "failed"; t.setupPending = true; t.msg = "setup failed"; Object.assign(t, S.failurePatch({ stage: "setup", title: "Setup failed", detail: `Command: ${t.repoCfg.setup}\nFolder: ${S.cwdOf(t)}\n\n${r.out || "No output"}`, next: "Fix the setup problem in the working folder, then finish again. The setup is retried before the check." })); }); F.notify(t, `${t.title}: setup failed`, ""); return; }
+        if (!r.ok) { g.set((t) => { t.stage = "failed"; t.setupPending = true; t.msg = "setup failed"; Object.assign(t, S.failurePatch({ stage: "setup", title: "Setup failed", detail: `Command: ${t.repoCfg.setup}\nFolder: ${S.cwdOf(t)}\n\n${r.out || "No output"}`, next: "Fix the setup problem in the working folder, then finish again. The setup is retried before the check." })); }); return; }
       }
     }
     // 3. The agent, in the workspace's root pane, then the task.

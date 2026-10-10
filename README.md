@@ -19,14 +19,13 @@ herdr plugin link "$PWD"          # hooks, the popup and the actions
 ```
 
 Typing `herdr-superwork` in any pane opens the board. The first time it opens inside herdr it asks, once, whether
-it may add three things to your herdr `config.toml` (each is your choice; the file is backed up first, each block
+it may add two things to your herdr `config.toml` (each is your choice; the file is backed up first, each block
 sits between two marker lines, and a change herdr rejects is rolled back):
 
 - a key that opens the board (it suggests one herdr does not use; `prefix+w` is herdr's own workspace picker);
 - sidebar rows, so herdr's sidebar shows each task's stage, its "doing now" line and its progress. herdr's default
   sidebar shows none of these: without the rows the plugin puts a short status into the agent's name instead
-  (`review 4/5 · claude`), which works with no setup;
-- herdr's in-app notification pop-ups, which are off in herdr by default. Without them an alert is sound only.
+  (`review 4/5 · claude`), which works with no setup.
 
 Nothing else is needed: no herdr integration, no hooks in your own agent settings. To add the blocks by hand instead:
 
@@ -41,9 +40,6 @@ rows = [["state_icon", "machine", "workspace", "tab"], ["agent", "state_text"], 
 
 [ui.sidebar.spaces]
 rows = [["state_icon", "workspace"], ["branch", "git_status"], [{ token = "$summary", dim = true }]]
-
-[ui.toast]
-delivery = "herdr"
 ```
 
 Optionally bind `herdr-superwork.approve-current` too: it approves the task that owns the focused pane, and does
@@ -124,7 +120,7 @@ only blocks on you when the agent ran `report … --state blocked`; a final mess
 goes on to check and review, and you still approve at the end.
 
 **Without a hook** (a crash, a program older than the adapter's minimum version, another agent kind, Codex when you
-have your own `notify` configured, or a hook that failed three turns in a row, which the board says once) herdr's
+have your own `notify` configured, or a hook that failed three turns in a row) herdr's
 status is only a guess from the screen, so "idle" alone never finishes a task. The turn counts as ended when the
 saved conversation ends in a finished message or an error, or a closing note was written to
 `.herdr-superwork/closing-<n>.md` (the rules still ask for one as the fallback). Otherwise the task is held as
@@ -134,11 +130,11 @@ cancellation that fails is saved as a visible failure), the old review marked st
 
 **With the board closed** a small background process, the keeper (`herdr-superwork keeper`), does what the open
 board's tick does: it polls pull requests, starts queued tasks, runs the Watcher, keeps herdr's sidebar labels
-current and raises one herdr notification for each task that newly needs you (blocked, failed, or done and unseen).
-`bell` off, or a board open on this machine, raises it silently. herdr starts it with its server; any herdr event or
+current. It raises no notification, pop-up or sound: what needs you is on the board and in herdr's sidebar. herdr
+starts it with its server; any herdr event or
 opening the board starts it again if it died; it replaces itself when the plugin is updated, and exits when herdr is
 gone. It looks after this machine's tasks only. The sidebar shows only tasks with a live agent pane; the others
-(queued, your own) are covered by the notification.
+(queued, your own) are on the board only.
 
 **Approving** brings the branch up to date with main in the task's own worktree, re-checks and re-reviews if that
 changed anything, then merges through the pull request (remembered when GitHub's checks are still running) or
@@ -181,7 +177,6 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `trust` | `true` | pre-trust a task's repo in the agent's own settings |
 | `agentArgs` | full access | per agent kind: arguments after `--` for `herdr agent start` |
 | `machines`, `remoteUser` | `auto` | other machines: herdr's saved machines, names, or `off` |
-| `bell` | `true` | ring (board open) or sound herdr's notification (board closed) when something newly needs you |
 
 Per task (`--id <id>`, or options to `delegate`): `agent`, `model`, `effort`, `reviewer`, `reviewerModel`,
 `reviewerEffort`, `watcher`, `review`, `reviewAuto`, `rounds`, `artifacts`, `serve`, `conflictAuto`.
@@ -195,7 +190,7 @@ Every machine keeps its own tasks. `Ctrl+O` goes round: this machine, every mach
 Machines are found through herdr only: the ones you added with `herdr machine add` (or name them in `machines`);
 with none, `Ctrl+O` says so. There is no Tailscale discovery. The plugin's own commands on another machine still
 travel over the plugin's own SSH connection, because herdr has no command that runs a plugin's commands there.
-Each machine alerts for its own tasks; this machine does not alert you about the others while the board is closed. Each one needs, once:
+Each one needs, once:
 
 ```sh
 # Node 22.19+, git, gh, flock, the agent programs it will run, then:
@@ -244,7 +239,6 @@ in a separate scratch herdr:
 | A launch flag for standing rules | Claude `--append-system-prompt-file`, pi `--append-system-prompt <file>`, Codex `-c developer_instructions=…`: all three kept a rule over the session. herdr refuses a launch argument that holds a line break, hence the files |
 | User-level skills folders | `~/.claude/skills`, `~/.codex/skills`, `~/.pi/agent/skills` exist; Claude Code listed the plugin's how-to as a skill right after it was written |
 | herdr's sidebar shows the plugin's pane and workspace metadata | **not by default.** State labels and `$summary` / `$progress` tokens show only when `[ui.sidebar.*] rows` in `config.toml` list them; only `--display-agent` shows with no setup. Hence the name fallback and the first-run offer |
-| A herdr notification from a background process | raised (`shown: true`), but pop-ups are off by default (`ui.toast.delivery = "off"`): nothing appears until that is `herdr`. Shown once it is. Sound could not be heard from the test machine |
 | A new `[[keys.command]]` after `herdr server reload-config` | works without a restart. A broken file is reported as `failed` and herdr keeps the old config; a key bound twice is `partial`; `herdr config check` validates a candidate given by `HERDR_CONFIG_PATH` |
 | herdr's config path and default keys | `~/.config/herdr/config.toml`; `herdr --default-config` lists the built-in keys (`prefix+w` is herdr's workspace picker; `prefix+a` is free) |
 | Light terminal detection inside herdr | not answered in the scratch session (no real terminal behind it): the board asks (OSC 11) and falls back to dark; `theme light` chooses by hand |
@@ -254,7 +248,7 @@ in a separate scratch herdr:
 
 ## Compared with pi-work
 
-Back, in herdr's terms: the board is fresh and alerts you while closed (the keeper); the board knows when and why an
+Back, in herdr's terms: the board is fresh while closed (the keeper); the board knows when and why an
 agent or reviewer stopped without a note file (the turn-end hook); `Space` shows what the agent said; tokens and
 context fullness (for a model whose window is known: Codex states it, Claude Code and pi do not, so those show
 tokens only); the Coordinator; every chat knows the board; archive closes the space and a reply after restore resumes
@@ -264,9 +258,9 @@ Different by choice, or because herdr or an agent program cannot do it:
 
 - No "2 blocked · 1 working" counter: herdr's sidebar is the closed-board view. It shows the plugin's labels only
   with the sidebar rows in herdr's config (offered at first run); otherwise a short status in the agent's name.
-- With the board closed the bell is herdr's notification, and its pop-up shows only when herdr's pop-ups are on
-  (offered at first run). The board does not emit terminal status reports (OSC 7501) while closed.
-- The sidebar shows only tasks with a live agent pane; the others only notify.
+- No notifications: nothing pops up or sounds when a task needs you, with the board open or closed, and
+  there is no bell. The board does not emit terminal status reports (OSC 7501) while closed.
+- The sidebar shows only tasks with a live agent pane.
 - `Space` shows the raw screen while an agent sits at a dialog that is not in its messages.
 - A question does not pop open by itself: the row says so and `Space` reads it. `Ctrl+G` on an agent's own "I'm
   stuck" is refused when there is no saved failure. Agents report only `blocked`, never their own progress.

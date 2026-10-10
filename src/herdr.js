@@ -82,7 +82,6 @@ export function herdr(socket = null) {
     agentFocus: (target) => call(["agent", "focus", target]),
     agentRead: (target, { source = "visible", lines } = {}) => call(["agent", "read", target, "--source", source, ...(lines ? ["--lines", String(lines)] : [])], { raw: true, timeout: 60000 }),
     // ---- the rest
-    notify: (title, body, sound = "none") => quiet(() => call(["notification", "show", oneLineFor(title, 80), ...(body ? ["--body", oneLineFor(body, 240)] : []), "--sound", sound])),
     openBoard: () => call(["plugin", "pane", "open", "--plugin", "herdr-superwork", "--entrypoint", "board"]),
     machines: () => quiet(() => { const j = JSON.parse(run(null, ["machine", "list", "--json"], { raw: true })); return Array.isArray(j) ? j : j.machines || j.result?.machines || []; }, []),
   };

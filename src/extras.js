@@ -1,8 +1,8 @@
 // The two things the plugin writes outside its own folders, both consented and removable:
 //   1. a small how-to in each installed agent program's own skills folder (setting `skill`, default on), so any chat
 //      knows the board without being told;
-//   2. on a yes at the board's first run, marked blocks in herdr's config.toml: a key to open the board, the sidebar
-//      rows that show the plugin's labels, and in-app notification pop-ups.
+//   2. on a yes at the board's first run, marked blocks in herdr's config.toml: a key to open the board and the sidebar
+//      rows that show the plugin's labels.
 // `remove-extras` takes all of it out again. The plugin never edits a file, or a block, it did not write.
 import fs from "node:fs";
 import os from "node:os";
@@ -102,7 +102,6 @@ const END = (what) => `# <<< herdr-superwork ${what}`;
 const BLOCKS = {
   key: (key) => `[[keys.command]]\nkey = "${key}"\ntype = "plugin_action"\ncommand = "herdr-superwork.open"\ndescription = "work board"`,
   sidebar: () => `[ui.sidebar.agents]\nrows = [["state_icon", "machine", "workspace", "tab"], ["agent", "state_text"], [{ token = "$summary", dim = true }, "$progress"]]\n\n[ui.sidebar.spaces]\nrows = [["state_icon", "workspace"], ["branch", "git_status"], [{ token = "$summary", dim = true }]]`,
-  popups: () => `[ui.toast]\ndelivery = "herdr"`,
 };
 export const blockText = (what, arg) => `${BEGIN(what)}\n${BLOCKS[what](arg)}\n${END(what)}`;
 const read = () => { try { return fs.readFileSync(herdrConfig(), "utf8"); } catch { return ""; } };
@@ -127,7 +126,6 @@ export function offers() {
     file: herdrConfig(), asked: !!x.asked,
     key: !/command\s*=\s*"herdr-superwork\.open"/.test(text) && x.key !== "no" ? { suggest, taken } : null,
     sidebar: !/^\s*\[ui\.sidebar/m.test(text) && x.sidebarAnswer !== "no" ? {} : null,
-    popups: !/^\s*\[ui\.toast\]/m.test(text) && x.popups !== "no" ? {} : null,
   };
 }
 export const answer = (patch) => save({ asked: true, ...patch });
@@ -173,11 +171,18 @@ export function addBlock(what, arg) {
   if (what === "sidebar") save({ sidebar: true });
   return { ok: true, msg: r.status === "unknown" ? `Added. herdr could not be asked to reload (${S.oneLine(r.why, 120)}): restart herdr or run herdr server reload-config.` : "Added." };
 }
-export function removeBlocks() {
+// An earlier version offered to turn on herdr's notification pop-ups. The plugin raises none now, so the block it
+// wrote for that is taken out again, at herdr's start and when the board opens.
+export function removePopups() {
+  if (process.env.HERDR_SUPERWORK_INLINE === "1" && process.env.HERDR_CONFIG_PATH === undefined) return false; // tests never touch the real config
+  try { if (fs.lstatSync(herdrConfig()).isSymbolicLink()) return false; } catch { return false; } // a managed link: not ours to rewrite unasked
+  return S.withLock("extras", () => removeBlocks("popups"), { waitMs: 15000 });
+}
+export function removeBlocks(what = "[^\\n]*") {
   const file = herdrConfig();
   const text = read();
-  if (!text.includes("# >>> herdr-superwork ")) return false;
-  const next = text.replace(/\n?# >>> herdr-superwork [^\n]*\n[\s\S]*?# <<< herdr-superwork [^\n]*\n?/g, "\n").replace(/\n{3,}/g, "\n\n");
+  if (!new RegExp(`^# >>> herdr-superwork ${what}`, "m").test(text)) return false;
+  const next = text.replace(new RegExp(`\\n?# >>> herdr-superwork ${what}[^\\n]*\\n[\\s\\S]*?# <<< herdr-superwork ${what}[^\\n]*\\n?`, "g"), "\n").replace(/\n{3,}/g, "\n\n");
   try { fs.copyFileSync(file, `${file}.bak-herdr-superwork`); fs.writeFileSync(file, next); } catch { return false; }
   spawnSync(herdrBin(), ["server", "reload-config"], { encoding: "utf8", timeout: 15000 });
   return true;
@@ -188,6 +193,6 @@ export function removeExtras() {
   const blocks = removeBlocks();
   removeSkill();
   S.setConfig("skill", "false");
-  save({ asked: true, key: "no", sidebarAnswer: "no", popups: "no", sidebar: false });
+  save({ asked: true, key: "no", sidebarAnswer: "no", sidebar: false });
   return { blocks, skill: "off" };
 }

@@ -114,7 +114,6 @@ export const DEFAULTS = {
   cleanup: true,          // remove a merged task's worktree and branch
   machines: "auto",       // other machines: "auto" (herdr's saved machines), names ("exedev@vm-a, vm-b") or "off"
   remoteUser: "",
-  bell: true,
   max: 4,                 // agents working at once
   skill: true,            // write a small how-to into each installed agent program's own skills folder, so any chat knows the board
   theme: "auto",          // the board's colours: "auto" (ask the terminal), "dark" or "light"
@@ -154,6 +153,7 @@ const ALIAS = { helper: "watcherAgent", helperModel: "watcherModel" };
 export const config = () => {
   const file = readJson(configFile()) || {};
   const c = { ...DEFAULTS, ...file };
+  delete c.bell; // a setting of older versions: nothing rings any more
   for (const [old, now] of Object.entries(ALIAS)) { if (file[old] !== undefined && file[now] === undefined) c[now] = file[old]; delete c[old]; }
   c.review = REVIEW_WORDS[String(c.review)] || "repos";
   return c;
@@ -435,7 +435,3 @@ export function countMark(name, version, ok) {
     return now;
   });
 }
-// One-line notices for the board to show once.
-const noticesFile = () => path.join(dataDir(), "notices.jsonl");
-export function notice(text) { appendLine(noticesFile(), { text, at: Date.now() }); }
-export function takeNotices() { const all = readLines(noticesFile()); if (all.length) fs.rmSync(noticesFile(), { force: true }); return all; }

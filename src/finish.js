@@ -23,7 +23,6 @@ export const approvalMessage = (t, note = "") => {
 function fail(g, failure, extra = {}) {
   const t = g.set((t) => { t.stage = "failed"; t.msg = failure.msg || failure.title; t.mergeIntent = extra.keepIntent ? t.mergeIntent : null; Object.assign(t, S.failurePatch(failure), extra.patch || {}); });
   F.labelPane(t, null);
-  F.notify(t, `${t.title}: ${t.failure.auth ? "needs a login" : failure.title}`, firstLine(failure.next));
   return t;
 }
 
@@ -89,7 +88,7 @@ async function finishOnce(id, { force = false } = {}) {
         if (Date.now() >= until) break;
         await sleep(400);
       }
-      if (adapter(kind).readTurn) { if (S.countMark(`reader:${kind}`, ver, !!turn)) S.notice(`${kind}: its saved conversations could not be read three turns in a row. The closing note is the fallback until ${kind} or herdr-superwork is updated.`); }
+      if (adapter(kind).readTurn) S.countMark(`reader:${kind}`, ver, !!turn);
       S.countMark(`hook:${kind}`, ver, true);
       if (turn && !(newer(turn, t) && ((turn.finished && turn.id !== t.handled?.msg) || turn.error))) return true; // a repeat, or an earlier turn
       if (t.selfBlocked && t.stage === "asks") { // it reported itself blocked, then stopped: that is not a finish
@@ -115,7 +114,7 @@ async function finishOnce(id, { force = false } = {}) {
         // The file must have stood still through the settle wait: a message followed by more work is not the end.
         const again = readTurnOf(kind, { file: turn.file });
         if (!again || again.id !== turn.id || again.pos !== turn.pos) return true;
-        if (t.hooked && S.countMark(`hook:${kind}`, ver, false)) S.notice(`${kind} is running without its turn-end hook on this machine: it did not report three turns in a row.`);
+        if (t.hooked) S.countMark(`hook:${kind}`, ver, false);
       }
     }
     g.expect(t);
@@ -136,7 +135,6 @@ async function finishOnce(id, { force = false } = {}) {
       const screen = lastLines(readScreen(api, t.link.pane, a?.agent_status ?? null, 60));
       if (S.isAuthFailure(screen)) { g.set(keep); fail(g, { stage: "agent", auth: true, title: "Needs a login", msg: "Needs a login", detail: screen }); return true; }
       t = g.set((t) => { keep(t); t.stage = "nosummary"; t.msg = S.oneLine(lastLines(screen, 2)) || "stopped without a summary"; t.screen = screen; t.seen = false; });
-      F.notify(t, `${t.title}: stopped without a summary`, "ctrl+r tells it to continue; ctrl+y finishes anyway.");
       return true;
     }
     const text = finished ? turn.said : freshNote ? freshNote.text : t.said || "";
@@ -146,7 +144,6 @@ async function finishOnce(id, { force = false } = {}) {
     // one. With a readable last message a closing question goes on to check and review; a truly blocked agent says so.
     if (!finished && freshNote && /\?\s*$/.test(text)) {
       t = g.set((t) => { t.stage = "asks"; t.kind = "question"; t.msg = S.oneLine(text.split("\n").filter((l) => l.trim()).pop()); t.seen = false; });
-      F.notify(t, `${t.title}: asks you`, t.msg);
       return true;
     }
     await pipeline(id, g, text, wake);
@@ -228,7 +225,7 @@ export async function pipeline(id, g, text, wake) {
   t = g.check();
   const change = tree ? F.changeOf(t) : null;
   const toLand = !!(change && change.stat);
-  const done = (msg, patch = {}) => { const d = g.set((t) => { t.stage = "done"; t.msg = S.oneLine(msg); t.seen = false; t.failure = null; t.mergeIntent = null; Object.assign(t, patch); }); F.labelPane(d, null); F.notify(d, `${d.title}: done`, d.msg, "done"); return d; };
+  const done = (msg, patch = {}) => { const d = g.set((t) => { t.stage = "done"; t.msg = S.oneLine(msg); t.seen = false; t.failure = null; t.mergeIntent = null; Object.assign(t, patch); }); F.labelPane(d, null); return d; };
   // Nothing to land: it is simply done, unless work outside a repo is reviewed too (review "all").
   if (!toLand && ch.review !== "all") {
     if (holdPrFailure(g, t)) return;
@@ -270,7 +267,6 @@ export async function pipeline(id, g, text, wake) {
   // Finished work that waits for your yes is not done: it is blocked on you.
   t = g.set((t) => { t.stage = "approval"; t.msg = approvalMessage(t, note); t.seen = false; });
   F.labelPane(t, review ? `review ${review.score}/5` : "approve?");
-  F.notify(t, `${t.title}: approve to merge?`, review ? `Reviewed ${review.score}/5. ${review.text}` : firstLine(text));
 }
 // A pull-request blocker found by polling survives a passing local check: remote CI must confirm.
 function holdPrFailure(g, t) {
@@ -329,7 +325,7 @@ async function runReview(id, g, { text, change, toLand, ch }) {
   const round = (t.reviewRound || 0) + 1;
   t = g.set((t) => { t.reviewRound = round; t.reviewSession = null; t.fallbacks = { ...(t.fallbacks || {}), reviewer: rkind !== ch.reviewer ? `reviewed by ${rkind}: ${ch.reviewer} is not installed here` : undefined }; });
   const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch })}`;
-  let pane = null, error = "", review = null, sent = false, sentAt = 0, blockedSaid = false, auth = false, quietSince = 0;
+  let pane = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0;
   // The reviewer ended its turn with no verdict: its own error when it has one, else its last message.
   const noVerdict = (cur, ev) => {
     const w = whyStopped(cur, "reviewer", ev);
@@ -374,7 +370,7 @@ async function runReview(id, g, { text, change, toLand, ch }) {
       // herdr status is used only to notice a reviewer that is blocked: "review needs you".
       const blocked = a?.agent_status === "blocked";
       const cur = S.get(id);
-      if (blocked && cur.stage === "reviewing") { g.set({ stage: "reviewneeds", msg: "the reviewer shows a dialog: go in and answer it", seen: false }); g.allow("reviewing"); if (!blockedSaid) { blockedSaid = true; F.notify(t, `${t.title}: review needs you`, "The reviewer shows a dialog."); } }
+      if (blocked && cur.stage === "reviewing") { g.set({ stage: "reviewneeds", msg: "the reviewer shows a dialog: go in and answer it", seen: false }); g.allow("reviewing"); }
       else if (!blocked && cur.stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "under review" }); g.allow("reviewneeds"); }
       if (!sent && a && (a.agent_status === "idle" || a.agent_status === "done")) { try { api.agentPrompt(pane.pane_id, brief); sent = true; sentAt = Date.now(); } catch (e) { if (e.code !== "agent_blocked" && e.code !== "agent_not_ready") { sent = true; sentAt = Date.now(); } } }
       else if (sent && a && adapter(rkind).readTurn && Date.now() - sentAt > 5000) {

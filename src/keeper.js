@@ -79,7 +79,6 @@ export function tickOnce(socket, { watch } = {}) {
     S.withLock("tick", () => {
       try { housekeeping(socket); } catch {}
       rows = F.boardFor(socket);
-      try { F.announce(rows); } catch {}
       try { F.syncSidebar(rows); } catch {}
       try { refreshSaid(rows); } catch {}
     }, { waitMs: 0 });

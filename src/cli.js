@@ -104,11 +104,11 @@ export async function main(argv) {
     // Approves the task that owns the focused pane, from the invocation context; does nothing otherwise.
     let pane = "";
     try { pane = JSON.parse(process.env.HERDR_PLUGIN_CONTEXT_JSON || "{}").focused_pane_id || ""; } catch {}
-    const { currentSocket, herdr } = await import("./herdr.js");
+    const { currentSocket } = await import("./herdr.js");
     const t = pane && S.list().find((t) => t.link?.socket === currentSocket() && (t.link.pane === pane || t.link.reviewer?.pane === pane));
     if (!t || t.stage !== "approval") return 0;
     const A = await import("./actions.js");
-    try { const r = A.approve(t.id); herdr().notify(r.msg, ""); } catch (e) { herdr().notify("Could not approve", e.message); }
+    try { A.approve(t.id); } catch {}
     return 0;
   }
   if (cmd === "serve") { const { serveMain } = await import("./review-page.js"); await serveMain(); return 0; }

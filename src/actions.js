@@ -44,7 +44,6 @@ export function report(id, { state, kind, msg, title, progress, asAgent = false 
     else if (state === "done") { t.stage = "done"; t.seen = true; t.mergeIntent = null; }
     else if (state === "error") { t.stage = "failed"; Object.assign(t, S.failurePatch({ stage: "agent", title: "Marked as failed", detail: S.oneLine(msg) || "No details given.", auth: false })); }
   });
-  if (state === "blocked") F.notify(t, `${t.title}: needs you`, t.msg);
   return t;
 }
 const clampPct = (p) => Math.max(0, Math.min(100, Math.round(Number(p)) || 0));

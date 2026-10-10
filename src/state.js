@@ -46,5 +46,3 @@ export function show(t, live) {
 // With no live reading, show what was last seen rather than guessing.
 const lastKnown = (t) => (t.last?.status === "blocked" ? "blocked" : "working");
 
-// Does this change deserve the bell? Something newly needs you, or has a result waiting.
-export const wantsAttention = (t, s) => s.state === "blocked" || s.state === "error" || (s.state === "done" && !t.seen);

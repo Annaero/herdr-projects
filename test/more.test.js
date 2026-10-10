@@ -385,3 +385,29 @@ test("delegating a landed task again starts a new round in a fresh worktree, nev
     assert.match(paneOf(w, t).agent.prompts[0], /\n\nWork/);
   } finally { w.cleanup(); }
 });
+
+test("no notifications: a task that needs you raises nothing, and the pop-up block an older version wrote is taken out", async () => {
+  const w = await world();
+  try {
+    const id = await toApproval(w);
+    const { tickOnce } = await import("../src/keeper.js");
+    tickOnce(w.socket);
+    assert.equal(S.get(id).announced, undefined);
+    assert.ok(!("bell" in S.config()));
+    assert.deepEqual(w.state().notifications, []);
+    assert.ok(!w.state().calls.some((c) => JSON.stringify(c).includes("notification")));
+    const X = await import("../src/extras.js");
+    const file = path.join(w.fake, "config.toml");
+    const mine = `[keys]\nx = "prefix+x"\n\n${X.blockText("sidebar")}\n`;
+    fs.writeFileSync(file, `${mine}\n# >>> herdr-superwork popups (added by the herdr-superwork plugin; \`herdr-superwork remove-extras\` removes it)\n[ui.toast]\ndelivery = "herdr"\n# <<< herdr-superwork popups\n`);
+    process.env.HERDR_CONFIG_PATH = file;
+    assert.equal(X.offers().popups, undefined);
+    assert.equal(X.removePopups(), true);
+    assert.equal(fs.readFileSync(file, "utf8").trim(), mine.trim()); // only that block went
+    assert.equal(X.removePopups(), false);
+    const real = path.join(w.fake, "managed.toml"), before = `${mine}\n${X.blockText("sidebar").replaceAll("sidebar", "popups")}\n`;
+    fs.writeFileSync(real, before); fs.rmSync(file); fs.symlinkSync(real, file);
+    assert.equal(X.removePopups(), false); // a linked config is someone else's file: left as it is
+    assert.equal(fs.readFileSync(real, "utf8"), before);
+  } finally { delete process.env.HERDR_CONFIG_PATH; w.cleanup(); }
+});

@@ -117,7 +117,7 @@ async function pollOne(id, pr, j) {
       else if (t.stage === "approval" || t.autoMerge) t.msg = `${why} ${t.autoMerge ? "Auto-merge is blocked; send details to cancel pending auto-merge and repair safely." : "Automatic retries are exhausted; send details to the agent to try again."}`;
     }
   }, { waitMs: 10000 });
-  if (then === "merged") { const t = S.get(id); F.labelPane(t, null); F.notify(t, `${t.title}: merged`, pr, "done"); const { cleanupJob } = await import("./land.js"); await cleanupJob(id); }
+  if (then === "merged") { const t = S.get(id); F.labelPane(t, null); const { cleanupJob } = await import("./land.js"); await cleanupJob(id); }
   if (then === "land") spawnRunner("land", id);
   if (then === "wake") {
     const { sendFailure } = await import("./actions.js");
