@@ -145,6 +145,37 @@ test("a tight row keeps the task's name, then the columns on the right; the sent
   } finally { w.cleanup(); }
 });
 
+test("the bottom preview never opens by itself: a failure only adds the hint line, space opens and closes it", async () => {
+  const w = await world({ settings: { helper: "off" } });
+  try {
+    const id = A.add(w.root, "Match the colors").id;
+    S.update(id, (t) => { t.stage = "failed"; t.failure = { stage: "merge", phase: "sync", title: "Merge conflict with main", detail: "Conflicting files:\nsrc/board/view.js", agentCanFix: true, next: "Resolve the conflict." }; });
+    const s = open(w);
+    s.v.load();
+    assert.equal(s.v.sel, id); assert.equal(s.v.peek, false);
+    let text = s.text(80);
+    assert.doesNotMatch(text, /Conflicting files/);
+    assert.match(text, /ctrl\+e full details · space to preview/);
+    s.press("space"); text = s.text(80);
+    assert.match(text, /Merge conflict with main/); assert.match(text, /Conflicting files: *\n src\/board\/view\.js/);
+    s.press("space");
+    assert.doesNotMatch(s.text(80), /Conflicting files/);
+    // Nor does coming back from Archives, whether the panel was open before going in or opened while there.
+    s.press("space"); assert.equal(s.v.peek, true);
+    s.press("alt+h"); assert.equal(s.v.archiveView, true); assert.equal(s.v.peek, false);
+    s.press("alt+h"); assert.equal(s.v.archiveView, false); assert.equal(s.v.sel, id); assert.equal(s.v.peek, false);
+    assert.doesNotMatch(s.text(80), /Conflicting files/);
+    s.press("alt+h"); s.v.peek = true; s.press("esc"); if (s.v.archiveView) s.press("esc");
+    assert.equal(s.v.archiveView, false); assert.equal(s.v.peek, false);
+    // Reopening the board never brings the panel back: an open panel is not remembered.
+    s.press("space"); assert.equal(s.v.peek, true); s.v.savePrefs();
+    const again = open(w);
+    again.v.load();
+    assert.equal(again.v.sel, id); assert.equal(again.v.peek, false);
+    assert.doesNotMatch(again.text(80), /Conflicting files/);
+  } finally { w.cleanup(); }
+});
+
 test("the board's keys: file by typing, tab delegates, space previews the agent's screen and replies, enter goes in", async () => {
   const w = await world({ settings: { helper: "off", reviewer: "off" } });
   try {

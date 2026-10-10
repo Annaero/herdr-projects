@@ -104,7 +104,7 @@ export class View {
     const prefs = S.readJson(this.prefs) || {};
     this.byRepo = !!prefs.byRepo; this.sidebarHidden = !!prefs.sidebarHidden; this.scope = String(prefs.scope || "");
     // The board closes each time you go into an agent: selection, filter and draft come back when it reopens.
-    this.sel = String(prefs.sel || ""); this.filter = String(prefs.filter || ""); if (prefs.draft) this.input.setText(String(prefs.draft)); this.peek = !!prefs.peek;
+    this.sel = String(prefs.sel || ""); this.filter = String(prefs.filter || ""); if (prefs.draft) this.input.setText(String(prefs.draft));
     if (this.all) this.pollRemotes();
     this.repo = S.repoOf(ctx.cwd);
     this.canDispatch = H.dispatcherReady();
@@ -170,7 +170,7 @@ export class View {
   invalidate() { this.input.invalidate(); }
   get focused() { return this.input.focused; }
   set focused(value) { this.input.focused = value; }
-  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, scope: this.scope, sidebarHidden: this.sidebarHidden, sel: this.sel, filter: this.filter, draft: this.mode === "new" ? this.value() : "", peek: this.peek }); } catch {} }
+  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, scope: this.scope, sidebarHidden: this.sidebarHidden, sel: this.sel, filter: this.filter, draft: this.mode === "new" ? this.value() : "" }); } catch {} }
   flash(text, kind = "overlay0") { this.msg = clean(text); this.msgKind = kind; this.msgAt = Date.now(); }
   value() { return this.input.getText(); }
   setValue(v) { this.input.setText(v); }
@@ -417,13 +417,14 @@ export class View {
   }
   toggleArchive() {
     if (!this.archiveView) {
-      this.archiveBack = { sel: this.sel, top: this.top, filter: this.filter, mode: this.mode, value: this.value(), peek: this.peek };
+      this.archiveBack = { sel: this.sel, top: this.top, filter: this.filter, mode: this.mode, value: this.value() };
       this.archiveView = true;
       this.filter = ""; this.mode = "new"; this.setValue(""); this.peek = false; this.top = 0;
     } else {
       this.archiveView = false;
       const back = this.archiveBack;
-      if (back) { this.sel = back.sel; this.top = back.top; this.filter = back.filter; this.mode = back.mode; this.setValue(back.value); this.peek = back.peek; }
+      if (back) { this.sel = back.sel; this.top = back.top; this.filter = back.filter; this.mode = back.mode; this.setValue(back.value); }
+      this.peek = false;
       this.archiveBack = null;
     }
     this.armed = { id: "", at: 0 };
@@ -599,10 +600,11 @@ export class View {
         return j.id === this.sel ? this.hl(line, width) : line;
       };
       // The preview: what is on the selected task's agent's screen, without going in.
+      // Only Space opens it. Nothing that happens to a task may: the hint line below says there is something to see.
       const preview = [];
       const evidence = reviewArtifacts(r?.review?.artifacts);
       const hasEvidence = this.peek && !!r && evidence.length > 0;
-      if ((this.peek || failure) && r) {
+      if (this.peek && r) {
         if (hasEvidence) preview.push(artifactLine(t, evidence[0], width), "");
         const wrapAll = (text) => String(text).split("\n").flatMap((l) => { const w = wrapTextWithAnsi(clean(l), Math.max(10, width - 2)); return w.length ? w : [""]; });
         const title = " " + this.mark(r) + " " + t.fg(statusColor(r), t.bold(clean(r.title || r.id))) + "  " + t.fg(ownColor(r), statusLabel(r)) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(ownColor(r), ` · ${roundLabel(r)}`) : "") + (r.progress !== undefined ? t.fg(ownColor(r), ` · ${r.progress}%`) : "") + t.fg("overlay0", `  ${idLabel(r.id)}${r.app ? ` · ${r.app}` : ""}`);
@@ -627,7 +629,7 @@ export class View {
         }
       }
       // A preview is only a preview: never let it push the prompt or its controls off-screen.
-      const previewH = Math.max(failure ? 3 : 2, Math.floor(rowsN / 2) - 2);
+      const previewH = Math.max(this.peek && failure ? 3 : 2, Math.floor(rowsN / 2) - 2);
       const trimPreview = (limit) => {
         if (preview.length <= limit) return;
         if (hasEvidence && limit === 1) preview.splice(1);
