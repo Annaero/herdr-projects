@@ -660,7 +660,7 @@ export class View {
         const hd = head(listW).slice(0, Math.max(0, h - 1));
         const left = [...hd, ...this.listLines(listW, Math.max(1, h - hd.length))];
         const shown = r || this.job();
-        const page = shown ? this.pageLines(shown, paneW) : ["", " " + t.fg("dim", "nothing selected.")];
+        const page = shown ? this.pageLines(shown, paneW, false, h - 1) : ["", " " + t.fg("dim", "nothing selected.")];
         const right = shown ? [" " + t.fg("accent", page.length > h - 1 ? "More below · ctrl+e full details" : "ctrl+e full details"), ...page.slice(0, h - 1)] : page;
         const sep = t.fg("borderMuted", " │ ");
         top = Array.from({ length: h }, (_, i) => truncateToWidth(left[i] ?? "", listW, "…", true) + sep + (right[i] ?? ""));
@@ -701,7 +701,8 @@ export class View {
     return t.fg("dim", "○");
   }
   // The side panel. One shape, top to bottom: what is it, where does it stand, what was said, where does it live.
-  pageLines(r, width, full = false) {
+  // `fit` is the sidebar's height: a description too long for it is cut short so the rest stays in view.
+  pageLines(r, width, full = false, fit = 0) {
     const t = this.theme;
     const w = Math.max(10, width - 2);
     const plain = (text) => String(text ?? "").replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, "$1 $2").replace(/\*\*([^*]+)\*\*/g, "$1");
@@ -729,7 +730,10 @@ export class View {
         ...head("Next step"), ...block(failure.next || "Investigate and fix it."), ...head("Failure details"), ...block(failure.detail));
     }
     const desc = this.desc(r);
-    L.push(...head("Description"), ...(desc ? block(desc) : [" " + t.fg("dim", "None.")]));
+    L.push(...head("Description"));
+    const descAt = L.length;
+    L.push(...(desc ? block(desc) : [" " + t.fg("dim", "None.")]));
+    const descLen = L.length - descAt;
 
     const said = agent ? this.lastSaid(r) : "";
     const note = reviewNote(r);
@@ -795,6 +799,15 @@ export class View {
     };
     L.push("");
     table(rows);
+    // The sidebar never scrolls, so a long description gives up its lines first; ctrl+e still shows all of it.
+    const over = !full && fit > 0 ? L.length - fit : 0;
+    // When even one line is too many, the heading carries the pointer and its blank line above goes too.
+    const keep = Math.max(0, descLen - over - 1);
+    if (over > 0 && descLen > 1) {
+      L.splice(descAt + keep, descLen - keep, " " + t.fg("dim", keep ? "… ctrl+e shows the rest" : "… ctrl+e shows it"));
+      const still = L.length - fit;
+      if (!keep && still > 0) L.splice(descAt - (still > 1 ? 2 : 1), still > 1 ? 3 : 2, " " + t.fg("muted", "Description") + t.fg("dim", " · ctrl+e shows it"));
+    }
     // The footer belongs only in full details; the sidebar ends at the task facts.
     if (full && (result.length || merging)) {
       L.push("", " " + t.fg("dim", "─".repeat(Math.max(1, w))));
