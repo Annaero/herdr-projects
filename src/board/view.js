@@ -24,6 +24,7 @@ import { artifactLine, artifactLines, reviewArtifacts } from "./artifact-lines.j
 const ORDER = ["blocked", "error", "working", "done", "idle"];
 // herdr's own colour for each state (its status_color); a failure, which herdr has no state for, is red like blocked.
 const COLOR = { blocked: "red", error: "red", working: "yellow", done: "teal", idle: "green" };
+const MARK_STATES = ["working", "error", "done"];
 // "review" is not a kind a task carries: it is how the board shows blocked, kind permission, when the approval it
 // waits for is the merge of finished work. A merge that failed is shown as plain permission again.
 const isAgent = (r) => !!r.agent && !["todo", "progress"].includes(r.stage);
@@ -32,9 +33,12 @@ const canSendError = (r) => !!r && !r.host ? A.canSendError(r) : !!r && (r.stage
 const inReview = (r) => r.state === "blocked" && r.kind === "permission" && r.stage === "approval" && !r.mergeFailed;
 const kindOf = (r) => (inReview(r) ? "review" : r.kind || "");
 const kindColor = (r) => (inReview(r) ? "teal" : "red");
-const ROLE_COLOR = { agent: "accent", reviewer: "mauve" };
 const reviewing = (r) => r.state !== "done" && (r.stage === "reviewing" || r.stage === "reviewneeds");
-const statusColor = (r) => (reviewing(r) && r.state === "working" ? ROLE_COLOR.reviewer : COLOR[r.state]);
+// The mark and the title take herdr's colour for the state herdr itself shows. Finished work waiting for approval is
+// coloured as herdr colours a finished agent; an archived task as herdr colours a state it does not know.
+const statusColor = (r) => (r.archivedAt ? "overlay0" : inReview(r) ? COLOR.done : COLOR[r.state] || "overlay0");
+// What herdr has no word for (how far along, and that it is a review) may differ: a review has the board's own colour.
+const ownColor = (r) => (reviewing(r) && r.state === "working" ? "review" : statusColor(r));
 const statusLabel = (r) => (reviewing(r) && r.state === "working" ? "reviewing" : r.state);
 // Which review the task is on ("review 2"), wherever its review state shows: under review, waiting for your approval
 // (a failed merge too), or anywhere else its verdict and score still show.
@@ -131,8 +135,8 @@ export class View {
     const no = ["n", "no"].includes(v), yes = ["y", "yes", ""].includes(v);
     if (no) return next(step.what === "key" ? { key: "no" } : { sidebarAnswer: "no" });
     const arg = step.what === "key" ? (yes ? step.suggest : v) : undefined;
-    if (step.what === "key" && !arg) { this.setValue(""); return this.flash("Type a key such as prefix+a, or n.", "peach"); }
-    if (step.what !== "key" && !yes) { this.setValue(""); return this.flash("y or n.", "peach"); }
+    if (step.what === "key" && !arg) { this.setValue(""); return this.flash("Type a key such as prefix+a, or n.", "yellow"); }
+    if (step.what !== "key" && !yes) { this.setValue(""); return this.flash("y or n.", "yellow"); }
     const r = X.addBlock(step.what, arg);
     if (!r.ok && !r.paste) { this.setValue(""); return this.flash(r.msg, "red"); } // refused: ask again
     st.said = r.ok ? `Added to ${short(st.file)}. \`herdr-superwork remove-extras\` undoes it.` : r.msg;
@@ -157,7 +161,7 @@ export class View {
     // of it itself, as it always did, so a missing keeper never makes the board worse.
     if (!keeperAlive()) { try { tickOnce(currentSocket(), { watch: (rows) => H.watchTick(rows.map(asRow)) }); } catch {} }
     // An open board keeps running the code it started with: say so when the plugin changed underneath it.
-    if (this.tick % 5 === 0) { try { if (this.stamp && codeStamp() !== this.stamp) { this.stale = true; this.flash("herdr-superwork was updated. Close the board (esc) and open it again to get the new version.", "peach"); } } catch {} }
+    if (this.tick % 5 === 0) { try { if (this.stamp && codeStamp() !== this.stamp) { this.stale = true; this.flash("herdr-superwork was updated. Close the board (esc) and open it again to get the new version.", "yellow"); } } catch {} }
     try { this.load(); } catch {}
     try { this.announce(); } catch {}
     this.tui.requestRender();
@@ -370,16 +374,16 @@ export class View {
   chat(r) {
     if (r.archivedAt) { this.detailsId = r.id; this.detailsTop = 0; return; }
     if (r.host) return this.remoteChat(r);
-    if (!F.isAgentTask(r)) return this.flash("No agent has been on this yet. Tab puts one on it.", "peach");
+    if (!F.isAgentTask(r)) return this.flash("No agent has been on this yet. Tab puts one on it.", "yellow");
     F.assertLive(r);
     const api = herdr(r.link.socket);
     // Its space may have been closed (archive closes it): reopen it from the worktree first.
     let pane;
-    try { pane = D.reopen(r.id).pane; } catch (e) { return this.flash(e.message, "peach"); }
+    try { pane = D.reopen(r.id).pane; } catch (e) { return this.flash(e.message, "yellow"); }
     this.seen(r);
     const hasAgent = !!api.agentGet(pane.pane_id);
     if (!inHerdr()) {
-      if (!hasAgent) return this.flash("Its agent has exited. Reply here, or ctrl+r, to start it again.", "peach");
+      if (!hasAgent) return this.flash("Its agent has exited. Reply here, or ctrl+r, to start it again.", "yellow");
       this.tui.stop();
       process.stdout.write("\x1b[2J\x1b[H");
       spawnSync(process.env.HERDR_BIN_PATH || "herdr", ["agent", "attach", pane.pane_id], { stdio: "inherit", env: { ...process.env, HERDR_SOCKET_PATH: r.link.socket } });
@@ -391,7 +395,7 @@ export class View {
     this.done({ entered: r.id });
   }
   remoteChat(r) {
-    if (!r.link?.pane) return this.flash("No agent has been on this yet. Tab puts one on it.", "peach");
+    if (!r.link?.pane) return this.flash("No agent has been on this yet. Tab puts one on it.", "yellow");
     const attach = (pane) => {
       const { command, args } = R.attachCommand(r.machine, pane);
       this.tui.stop();
@@ -402,12 +406,12 @@ export class View {
       this.seen(r);
     };
     // A machine on an older plugin sends no version and would not know "reopen": attach to what is there.
-    if (!r.machine.version) { this.flash(`Update herdr-superwork on ${r.host}: it cannot reopen a closed space yet.`, "peach"); return attach(r.link.pane); }
+    if (!r.machine.version) { this.flash(`Update herdr-superwork on ${r.host}: it cannot reopen a closed space yet.`, "yellow"); return attach(r.link.pane); }
     // The owning machine reopens the task's space and restarts its exited agent in the same conversation, then we attach.
     this.flash(`${r.host}: opening…`);
     this.ssh(r.machine, "do", { action: "reopen", id: r.rid }, (j) => {
       if (!j || !j.ok) { this.flash(j ? j.msg : `${r.host} did not answer`, "red"); return this.tui.requestRender(); }
-      if (!j.hasAgent) { this.flash(`${r.host}: its agent has exited and could not be restarted. Reply here to start it again.`, "peach"); return this.tui.requestRender(); }
+      if (!j.hasAgent) { this.flash(`${r.host}: its agent has exited and could not be restarted. Reply here to start it again.`, "yellow"); return this.tui.requestRender(); }
       attach(j.pane || r.link.pane);
     }, 60000);
   }
@@ -486,7 +490,7 @@ export class View {
     const j = this.job();
     if (j && !text) {
       // A dispatcher row: stop it, or take its words back into the box to change and send again.
-      if (matchesKey(data, "ctrl+x")) return this.try(() => { H.stopDispatch(j); this.flash("Stopped.", "peach"); });
+      if (matchesKey(data, "ctrl+x")) return this.try(() => { H.stopDispatch(j); this.flash("Stopped.", "yellow"); });
       if (enter || matchesKey(data, "right")) { this.try(() => H.stopDispatch(j)); return this.setValue(j.text || ""); }
       if (matchesKey(data, "tab")) return;
     }
@@ -511,18 +515,18 @@ export class View {
     if (enter) {
       if (!text) { if (r) this.chat(r); return; } // with nothing typed, enter goes straight into the selected task's agent
       // With the preview open, your words go to that task's agent. Otherwise to the dispatcher.
-      if (this.peek && r?.archivedAt) return this.flash("Archived tasks are read-only. alt+a restores this task.", "peach");
+      if (this.peek && r?.archivedAt) return this.flash("Archived tasks are read-only. alt+a restores this task.", "yellow");
       // A reply to one of this machine's tasks that never had an agent starts one with that message.
       const fresh = this.peek && r && !r.host && !r.archivedAt && !F.isAgentTask(r) && ["todo", "progress"].includes(r.stage);
       if (fresh) { if (!this.try(() => { const out = A.tell(r.id, text); this.flash(out.msg, "green"); }, true)) return; }
       else if (this.peek && r && isAgent(r) && (r.host || F.isAgentTask(r))) {
         // Busy/refused replies keep the draft; only a successful send clears it.
         if (r.host) { this.act(r, "tell", { text }, false, (ok) => { if (ok && this.sel === r.id && this.value().trim() === text) this.setValue(""); }); return; }
-        if (!this.try(() => { const out = A.tell(r.id, text); this.flash(out.msg, out.msg.startsWith("queued") ? "peach" : "green"); }, true)) return;
+        if (!this.try(() => { const out = A.tell(r.id, text); this.flash(out.msg, out.msg.startsWith("queued") ? "yellow" : "green"); }, true)) return;
       } else this.dispatch(text, false, this.peek ? r : undefined);
       return this.setValue("");
     }
-    if (r?.archivedAt && ["tab", "ctrl+a", "ctrl+g", "ctrl+r", "ctrl+t", "ctrl+y"].some((k) => matchesKey(data, k)) && !(matchesKey(data, "tab") && text)) return this.flash("Archived tasks are read-only. alt+a restores this task.", "peach");
+    if (r?.archivedAt && ["tab", "ctrl+a", "ctrl+g", "ctrl+r", "ctrl+t", "ctrl+y"].some((k) => matchesKey(data, k)) && !(matchesKey(data, "tab") && text)) return this.flash("Archived tasks are read-only. alt+a restores this task.", "yellow");
     if (matchesKey(data, "tab")) { if (text) { this.dispatch(text, true); return this.setValue(""); } if (r && r.host) this.act(r, "delegate"); else if (r) this.try(() => { const t = A.delegate(r.id); this.flash(t.stage === "queued" ? `${r.id}: waiting for a free slot` : `${r.id}: an agent is on it`, "green"); }); return; }
     if (!text && matchesKey(data, "right") && r) return this.chat(r);
     if (!text && data === " " && r) { if (this.peek) this.closePeek(); else this.peek = true; return; }
@@ -543,7 +547,7 @@ export class View {
       try { const ring = ["", "*", ...Object.keys(this.remotes).filter((k) => this.remotes[k].ok).sort()]; this.scope = ring[(ring.indexOf(this.scope) + 1) % ring.length] ?? ""; this.savePrefs(); } catch {}
       if (this.all) { this.machinesAt = 0; this.pollRemotes(true); }
       // Machines are found through herdr only: with none saved, say how to add one.
-      if (this.all && !Object.keys(this.remotes).length) { let none = false; R.machines((list) => { none = !list.length; }); if (none) { this.scope = ""; this.savePrefs(); this.flash(S.config().machines === "off" ? "Other machines are off (config machines auto turns them on)." : "No other machines. Add one with: herdr machine add <name> <ssh target>  (or name them in the machines setting).", "peach"); return this.load(); } }
+      if (this.all && !Object.keys(this.remotes).length) { let none = false; R.machines((list) => { none = !list.length; }); if (none) { this.scope = ""; this.savePrefs(); this.flash(S.config().machines === "off" ? "Other machines are off (config machines auto turns them on)." : "No other machines. Add one with: herdr machine add <name> <ssh target>  (or name them in the machines setting).", "yellow"); return this.load(); } }
       this.flash(this.scope === "" ? "This machine only." : this.scope === "*" ? "Every machine you can reach. ctrl+o again for one at a time." : `Only ${this.scope}. What you type goes to ${this.scope}.`);
       return this.load();
     }
@@ -554,14 +558,14 @@ export class View {
     if (matchesKey(data, "ctrl+f")) { this.mode = "find"; this.setValue(this.filter); return; }
     if (r && matchesKey(data, "ctrl+x")) {
       const running = r.state === "working" && (isAgent(r) || r.stage === "progress") || r.stage === "queued" || (isAgent(r) && r.stage === "working");
-      if (running) { this.armed = { id: r.id, at: Date.now() }; if (r.host) return this.act(r, "stop"); return this.try(() => { A.stop(r.id); this.flash(`${r.id}: stopped, idle.`, "peach"); }); }
+      if (running) { this.armed = { id: r.id, at: Date.now() }; if (r.host) return this.act(r, "stop"); return this.try(() => { A.stop(r.id); this.flash(`${r.id}: stopped, idle.`, "yellow"); }); }
       if (this.armed.id === r.id && Date.now() - this.armed.at < 3000) {
         if (r.host) return this.act(r, "clear");
-        A.clear(r.id).then((out) => { this.flash(out.kept.length ? `${r.id} cleared. Kept, so no work is lost: ${out.kept.join(", ")}` : `${r.id} cleared`, out.kept.length ? "peach" : "overlay0"); this.load(); this.tui.requestRender(); }, (e) => { this.flash(e.message, "red"); this.tui.requestRender(); });
+        A.clear(r.id).then((out) => { this.flash(out.kept.length ? `${r.id} cleared. Kept, so no work is lost: ${out.kept.join(", ")}` : `${r.id} cleared`, out.kept.length ? "yellow" : "overlay0"); this.load(); this.tui.requestRender(); }, (e) => { this.flash(e.message, "red"); this.tui.requestRender(); });
         return this.flash(`${r.id}: clearing…`);
       }
       this.armed = { id: r.id, at: Date.now() };
-      return this.flash(`ctrl+x again to clear ${r.id}`, "peach");
+      return this.flash(`ctrl+x again to clear ${r.id}`, "yellow");
     }
     this.input.handleInput(data);
     if (this.mode === "find") this.load();
@@ -578,7 +582,7 @@ export class View {
       if (this.setup) return this.setupLines(width, rowsN).map(fit);
       if (this.detailsId) return this.pad(this.detailLines(width, rowsN), rowsN).map(fit);
       const n = (s) => this.items.filter((i) => i.state === s && (this.archiveView ? i.archivedAt : !i.archivedAt)).length;
-      const rule = t.fg("surface1", "─".repeat(width));
+      const rule = t.fg("surface_dim", "─".repeat(width));
       const agentOn = r && isAgent(r);
       const failure = r && failureFor(r);
       const failureAction = failure ? (failure.agentCanFix ? (failure.sentAt && r.state === "working" ? "Details sent · agent is working" : "ctrl+g send details to agent") : "Needs you · " + failure.next) : "";
@@ -601,16 +605,16 @@ export class View {
       if ((this.peek || failure) && r) {
         if (hasEvidence) preview.push(artifactLine(t, evidence[0], width), "");
         const wrapAll = (text) => String(text).split("\n").flatMap((l) => { const w = wrapTextWithAnsi(clean(l), Math.max(10, width - 2)); return w.length ? w : [""]; });
-        const title = " " + this.mark(r) + " " + t.bold(clean(r.title || r.id)) + "  " + t.fg(statusColor(r), statusLabel(r)) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(statusColor(r), ` · ${roundLabel(r)}`) : "") + (r.progress !== undefined ? t.fg(statusColor(r), ` · ${r.progress}%`) : "") + t.fg("overlay0", `  ${idLabel(r.id)}${r.app ? ` · ${r.app}` : ""}`);
+        const title = " " + this.mark(r) + " " + t.fg(statusColor(r), t.bold(clean(r.title || r.id))) + "  " + t.fg(ownColor(r), statusLabel(r)) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(ownColor(r), ` · ${roundLabel(r)}`) : "") + (r.progress !== undefined ? t.fg(ownColor(r), ` · ${r.progress}%`) : "") + t.fg("overlay0", `  ${idLabel(r.id)}${r.app ? ` · ${r.app}` : ""}`);
         if (failure) {
-          preview.push(" " + t.fg("red", t.bold(clean(failure.title))), " " + t.fg("accent", clean(failureAction)), ...wrapAll(failure.detail).map((l) => " " + l));
+          preview.push(" " + t.fg("red", t.bold(clean(failure.title))), " " + t.fg("subtext0", clean(failureAction)), ...wrapAll(failure.detail).map((l) => " " + l));
         } else if (agentOn && r.state !== "error" && r.stage === "approval") {
           // A small second opinion, not a second sidebar: recommendation, score and comment.
           const fact = (label, value, color = "subtext0") => { const w = wrapTextWithAnsi(clean(value), Math.max(10, width - 19)); return w.map((l, n) => " " + (n ? " ".repeat(16) : t.fg(color, label.padEnd(16))) + l); };
           const rv = currentReview(r);
           if (rv) {
             if (typeof rv.recommend === "boolean") preview.push(...fact("Recommends", rv.recommend ? "merge" : "don't merge", rv.recommend ? "green" : "red"));
-            preview.push(...fact("Score", withRound(r, `${rv.score}/5`), rv.score >= 5 ? "green" : rv.score >= 4 ? "subtext0" : "peach"));
+            preview.push(...fact("Score", withRound(r, `${rv.score}/5`), "review"));
             preview.push(...fact("Comment", rv.text || "No comment."));
           } else preview.push(" " + t.fg("overlay0", `${r.review?.stale ? "Awaiting a fresh review." : "No review yet."} ctrl+e full details`));
         } else {
@@ -627,7 +631,7 @@ export class View {
       const trimPreview = (limit) => {
         if (preview.length <= limit) return;
         if (hasEvidence && limit === 1) preview.splice(1);
-        else preview.splice(Math.max(0, limit - 1), preview.length, ...(limit ? [" " + t.fg("accent", hasEvidence ? "… ctrl+e: evidence & full details" : "… ctrl+e: full details")] : []));
+        else preview.splice(Math.max(0, limit - 1), preview.length, ...(limit ? [" " + t.fg("overlay0", hasEvidence ? "… ctrl+e: evidence & full details" : "… ctrl+e: full details")] : []));
       };
       trimPreview(previewH);
       const extraRows = Math.max(0, rowsN - inputLines.length - 2);
@@ -663,9 +667,9 @@ export class View {
         const left = [...hd, ...this.listLines(listW, Math.max(1, h - hd.length))];
         const shown = r || this.job();
         const page = shown ? this.pageLines(shown, paneW, false, h - 1) : ["", " " + t.fg("overlay0", "nothing selected.")];
-        const right = shown ? [" " + t.fg("accent", page.length > h - 1 ? "More below · ctrl+e full details" : "ctrl+e full details"), ...page.slice(0, h - 1)] : page;
+        const right = shown ? [" " + t.fg("overlay0", page.length > h - 1 ? "More below · ctrl+e full details" : "ctrl+e full details"), ...page.slice(0, h - 1)] : page;
         // The side panel sits on herdr's sidebar colour, when the theme gives it one.
-        top = Array.from({ length: h }, (_, i) => truncateToWidth(left[i] ?? "", listW, "…", true) + " " + t.fg("surface1", "│") + t.under("sidebar_bg", truncateToWidth(" " + (right[i] ?? ""), paneW + 1, "…", true)));
+        top = Array.from({ length: h }, (_, i) => truncateToWidth(left[i] ?? "", listW, "…", true) + " " + t.fg("surface_dim", "│") + t.under("sidebar_bg", truncateToWidth(" " + (right[i] ?? ""), paneW + 1, "…", true)));
       } else {
         const hd = head(width).slice(0, Math.max(0, h - 1));
         top = [...hd, ...this.listLines(width, Math.max(1, h - hd.length))];
@@ -689,19 +693,18 @@ export class View {
     const body = lines.slice(this.detailsTop, this.detailsTop + this.detailsHeight);
     while (body.length < this.detailsHeight) body.push("");
     const end = Math.min(lines.length, this.detailsTop + this.detailsHeight);
-    return [" " + t.bold(`Details · ${idLabel(this.detailsId)}`) + t.fg("overlay0", " · esc back"), t.fg("surface1", "─".repeat(width)), ...body,
+    return [" " + t.bold(`Details · ${idLabel(this.detailsId)}`) + t.fg("overlay0", " · esc back"), t.fg("surface_dim", "─".repeat(width)), ...body,
       " " + t.fg("overlay0", "esc back · ↑↓ scroll · PgUp/PgDn page"), " " + t.fg("overlay0", `Home/End · lines ${this.detailsTop + 1}–${end}/${lines.length}`)];
   }
   mark(r) {
     const t = this.theme;
     // herdr's own marks and colours. Finished work waiting for approval is marked as herdr marks a finished agent.
-    if (r.archivedAt) return t.fg("overlay0", t.mark("unknown"));
-    if (r.state === "working") return t.fg(statusColor(r), t.mark("working"));
-    if (inReview(r)) return t.fg("teal", t.bold(t.mark("done")));
-    if (r.state === "blocked") return t.fg("red", t.bold(t.mark("blocked")));
-    if (r.state === "error") return t.fg("red", t.mark("error"));
-    if (r.state === "done") return t.fg(r.seen ? "overlay0" : "teal", t.mark("done"));
-    return t.fg("green", t.mark("idle"));
+    const c = statusColor(r);
+    if (r.archivedAt) return t.fg(c, t.mark("unknown"));
+    if (inReview(r)) return t.fg(c, t.bold(t.mark("done")));
+    if (r.state === "blocked") return t.fg(c, t.bold(t.mark("blocked")));
+    if (r.state === "done" && r.seen) return t.dim(t.fg(c, t.mark("done"))); // seen: herdr's colour still, only quieter
+    return t.fg(c, t.mark(MARK_STATES.includes(r.state) ? r.state : "idle"));
   }
   // The side panel. One shape, top to bottom: what is it, where does it stand, what was said, where does it live.
   // `fit` is the sidebar's height: a description too long for it is cut short so the rest stays in view.
@@ -716,16 +719,16 @@ export class View {
     }
     const agent = isAgent(r);
     const live = r.state === "working" || r.state === "blocked";
-    const L = ["", ...wrapTextWithAnsi(t.bold(clean(r.title || "(no title)")), w).map((l) => " " + l)];
+    const L = ["", ...wrapTextWithAnsi(t.fg(statusColor(r), t.bold(clean(r.title || "(no title)"))), w).map((l) => " " + l)];
     if (full) L.push(...artifactLines(t, r.review?.artifacts || [], width, "Evidence"));
 
     // Where it stands: the mark, the state, what it waits for, how far, who, and its id.
     const who = r.app ? (live ? (agent ? (reviewing(r) ? "reviewer is on it" : `${r.app} is on it`) : r.app === S.me() ? "you are on it" : `${r.app} is on it`) : `last worked by ${agent ? r.app : r.app === S.me() ? "you" : r.app}`) : `nobody is on it · owner ${r.owner === S.me() ? "you" : r.owner}`;
     if (r.archivedAt) L.push(...head("Archived", "overlay0"), ...block("Read-only · alt+a on the board to restore. Original state and all data are retained."));
     L.push(...head("Status"));
-    const status = this.mark(r) + " " + t.fg(statusColor(r), t.bold(statusLabel(r))) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(statusColor(r), ` · ${roundLabel(r)}`) : "") + t.fg("overlay0", ` · ${who} · ${idLabel(r.id)} · ${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`);
+    const status = this.mark(r) + " " + t.fg(ownColor(r), t.bold(statusLabel(r))) + (kindOf(r) ? t.fg(kindColor(r), ` · ${withRound(r, kindOf(r))}`) : reviewing(r) && roundLabel(r) ? t.fg(ownColor(r), ` · ${roundLabel(r)}`) : "") + t.fg("overlay0", ` · ${who} · ${idLabel(r.id)} · ${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`);
     L.push(...wrapTextWithAnsi(status, w).map((l) => " " + l));
-    if (r.progress !== undefined) L.push(" " + t.fg(statusColor(r), bar(r.progress, Math.min(24, w - 6))) + t.fg(statusColor(r), ` ${r.progress}%`));
+    if (r.progress !== undefined) L.push(" " + t.fg(ownColor(r), bar(r.progress, Math.min(24, w - 6))) + t.fg(ownColor(r), ` ${r.progress}%`));
 
     const failure = failureFor(r);
     if (failure) {
@@ -741,13 +744,13 @@ export class View {
     const said = agent ? this.lastSaid(r) : "";
     const note = reviewNote(r);
     const merging = r.state === "blocked" && r.stage === "approval";
-    if (r.state === "working") { if (note) L.push(...head("Now", statusColor(r)), ...block(note)); }
+    if (r.state === "working") { if (note) L.push(...head("Now", ownColor(r)), ...block(note)); }
     else if (merging || (failure && failure.detail === r.msg)) {} // shown in failure details, or below with the summary
-    else if (r.state === "blocked") L.push(...head(r.kind ? { question: "Asks you", permission: "Needs your approval", auth: "Needs a login, token or credential" }[r.kind] || "Needs you" : "Needs you", "peach"), ...block(note || said || ""));
+    else if (r.state === "blocked") L.push(...head(r.kind ? { question: "Asks you", permission: "Needs your approval", auth: "Needs a login, token or credential" }[r.kind] || "Needs you" : "Needs you", COLOR.blocked), ...block(note || said || ""));
     else if (r.state === "error") {
       L.push(...head(r.stage === "nosummary" ? "Stopped without a summary" : "Went wrong", "red"), ...block((r.stage === "nosummary" ? r.screen : "") || note || said || "It failed."));
-      if (r.stage === "nosummary") L.push(...block("ctrl+r on board: tell it to continue · ctrl+y: finish anyway").map((line) => t.fg("accent", line)));
-      else if (canSendError(r)) L.push(...block("ctrl+r on board: send error to agent").map((line) => t.fg("accent", line)));
+      if (r.stage === "nosummary") L.push(...block("ctrl+r on board: tell it to continue · ctrl+y: finish anyway").map((line) => t.fg("subtext0", line)));
+      else if (canSendError(r)) L.push(...block("ctrl+r on board: send error to agent").map((line) => t.fg("subtext0", line)));
     }
     else if (said) L.push(...head("Last message"), ...block(said)); // the agent's closing note, word for word
     else if (note) L.push(...head("Note"), ...block(note));
@@ -795,9 +798,8 @@ export class View {
         const stacked = w - kw < 16; // stack labels at narrow widths instead of clipping the values beside them
         const indent = stacked ? 2 : kw;
         const parts = String(v).split("\n").flatMap((line) => { const wrapped = wrapTextWithAnsi(line, Math.max(1, w - indent)); return wrapped.length ? wrapped : [""]; });
-        const roleColor = k === "Agent" ? ROLE_COLOR.agent : "subtext0";
-        if (stacked && k) L.push(" " + t.fg(roleColor, k));
-        L.push(" " + (stacked ? " ".repeat(indent) : t.fg(roleColor, k.padEnd(kw))) + (parts[0] ?? ""), ...parts.slice(1).map((x) => " " + " ".repeat(indent) + x));
+        if (stacked && k) L.push(" " + t.fg("subtext0", k));
+        L.push(" " + (stacked ? " ".repeat(indent) : t.fg("subtext0", k.padEnd(kw))) + (parts[0] ?? ""), ...parts.slice(1).map((x) => " " + " ".repeat(indent) + x));
       }
     };
     L.push("");
@@ -813,8 +815,8 @@ export class View {
     }
     // The footer belongs only in full details; the sidebar ends at the task facts.
     if (full && (result.length || merging)) {
-      L.push("", " " + t.fg("overlay0", "─".repeat(Math.max(1, w))));
-      if (merging && !failure) L.push(...head("Ready to merge (approve on board)", inReview(r) ? "teal" : "peach"), ...block(r.summary || note || ""));
+      L.push("", " " + t.fg("surface_dim", "─".repeat(Math.max(1, w))));
+      if (merging && !failure) L.push(...head("Ready to merge (approve on board)", statusColor(r)), ...block(r.summary || note || ""));
       if (result.length) { L.push(""); table(result); }
     }
     return L;
@@ -853,14 +855,14 @@ export class View {
     // A row waiting for the merge approval says so in columns: that it is a PR, the verdict and the score.
     const approval = inReview(r);
     const pr = r.pr ? `${approval ? "PR " : ""}#${String(r.pr).split("/").pop()}` : "";
-    const prColor = { merged: "accent", passing: "green", failing: "red", waiting: "peach" }[r.prState] || "peach";
+    const prColor = { merged: "overlay0", passing: "green", failing: "red" }[r.prState] || "subtext0";
     const review = !done && (pr || approval) ? currentReview(r) : undefined;
-    const score = Number.isInteger(review?.score) && review.score >= 1 && review.score <= 5 ? t.fg("subtext0", `${review.score}/5`) : "";
+    const score = Number.isInteger(review?.score) && review.score >= 1 && review.score <= 5 ? t.fg("review", `${review.score}/5`) : "";
     const recommendation = typeof review?.recommend === "boolean" ? t.fg(review.recommend ? "green" : "red", review.recommend ? "merge" : "don't merge") : "";
-    const percent = !done && r.progress !== undefined ? t.fg(statusColor(r), `${String(r.progress).padStart(3)}%`) : "";
+    const percent = !done && r.progress !== undefined ? t.fg(ownColor(r), `${String(r.progress).padStart(3)}%`) : "";
     // Which review it is on has its own column: it outlasts the verdict and the score when the row runs short.
-    const round = done ? "" : t.fg(reviewing(r) ? ROLE_COLOR.reviewer : "subtext0", roundLabel(r));
-    return { round, recommendation, score, pr: pr ? t.fg(prColor, pr) : "", progress: percent && bars ? t.fg(statusColor(r), bar(r.progress)) + " " + percent : percent, elapsed: age(now - (r.at || now)).padStart(3) };
+    const round = done ? "" : t.fg(reviewing(r) ? "review" : "subtext0", roundLabel(r));
+    return { round, recommendation, score, pr: pr ? t.fg(prColor, pr) : "", progress: percent && bars ? t.fg(ownColor(r), bar(r.progress)) + " " + percent : percent, elapsed: age(now - (r.at || now)).padStart(3) };
   }
   activity(r) {
     const failure = failureFor(r);
@@ -889,7 +891,8 @@ export class View {
     const bright = r.state === "working" || r.state === "blocked" || unseen;
     const faded = r.state === "done" && !unseen;
     const title = clean(r.title || r.id) + (r.archivedAt ? " [archived]" : "");
-    const name = bright ? t.bold(title) : faded ? t.fg("subtext0", title) : title;
+    // The title is in herdr's colour for the task's state, as its mark is.
+    const name = bright ? t.fg(statusColor(r), t.bold(title)) : faded ? t.dim(t.fg(statusColor(r), title)) : t.fg(statusColor(r), title);
     const prefix = ` ${this.mark(r)} `;
     const room = Math.max(0, width - visibleWidth(prefix));
     // In the all-machines view the machine's name sits before the task's, in what the task's name leaves: it is cut first.
@@ -927,8 +930,8 @@ export class View {
     }
     // One allocation policy for every unfinished row: the name first, the columns second, the sentence in what is left.
     const activity = this.activity(r);
-    const activityColor = reviewing(r) && r.state === "working" ? ROLE_COLOR.reviewer : r.state === "error" ? "red" : r.state === "blocked" ? "text" : "subtext0";
-    const summary = activity ? t.fg(activityColor, activity) : t.fg(kindOf(r) ? kindColor(r) : statusColor(r), inReview(r) ? "approve to merge?" : kindOf(r) || statusLabel(r));
+    const activityColor = reviewing(r) && r.state === "working" ? "review" : r.state === "error" ? "red" : r.state === "blocked" ? "text" : "subtext0";
+    const summary = activity ? t.fg(activityColor, activity) : t.fg(kindOf(r) ? kindColor(r) : ownColor(r), inReview(r) ? "approve to merge?" : kindOf(r) || statusLabel(r));
     const renderedTitle = labelName(labelRoom);
     const summaryRoom = labelRoom - visibleWidth(renderedTitle) - 2;
     // A sentence cut to a few letters says nothing: it shows whole, or with at least SENTENCE_MIN cells, or not at all.

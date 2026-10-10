@@ -1,6 +1,13 @@
 // The board's colours and status marks are herdr's own (verified against herdr 0.9.3: src/app/state.rs for the
 // palettes, src/client/shell.rs for the marks). herdr does not hand its theme to plugins, so the board reads the same
 // `[theme]` and `[ui]` settings herdr reads from its config.toml and resolves them the way herdr does.
+// herdr's sidebar is painted by the client, with the config of the machine the client runs on; herdr passes neither
+// that config nor its theme on to the server the board runs on. A theme set in this machine's config is a choice the
+// board can follow. No theme set here says nothing: the client may be on another device with a theme of its own. The
+// board then paints with the terminal's own colours (herdr's "terminal" theme), the one look that belongs on whatever
+// screen shows it. The board's `theme` setting says otherwise by hand ("herdr": herdr's Catppuccin default).
+// This default is the owner's decision (task 14), taken knowing its cost: someone who runs an unconfigured herdr on
+// this very machine sees the terminal's colours on the board beside herdr's Catppuccin, until they set `theme herdr`.
 import fs from "node:fs";
 import { config } from "../store.js";
 import { herdrConfig } from "../extras.js";
@@ -47,16 +54,37 @@ export function parseColor(value) {
   if ((m = /^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/.exec(s)) && m.slice(1).every((n) => Number(n) < 256)) return (Number(m[1]) << 16) | (Number(m[2]) << 8) | Number(m[3]);
   return A + (NAMED[s] ?? 6);
 }
+// The terminal's 16 colours as xterm shows them: what a colour given by name looks like, as near as can be known.
+const XTERM = [0x000000, 0xcd0000, 0x00cd00, 0xcdcd00, 0x0000ee, 0xcd00cd, 0x00cdcd, 0xe5e5e5, 0x7f7f7f, 0xff0000, 0x00ff00, 0xffff00, 0x5c5cff, 0xff00ff, 0x00ffff, 0xffffff];
+// The board's own colour, for what herdr has no state for (a review): one that looks like none of the theme's colours.
+// It is judged by what is shown, not by how it is written, and two
+// colours closer than NEAR are the same to the eye. A colour of the terminal's own is what the terminal said it shows
+// (`ansi`, see askTerminal), or xterm's when it did not say. peach is first, the one colour herdr's screens never paint with;
+// where a theme makes it look like a colour herdr does paint with (the terminal theme's peach is its working yellow; a
+// custom peach may be anything), the terminal's magenta, then its bright magenta, then the nearest free purple of a grid
+// whose colours lie further apart than any one colour can cover: more of them than herdr has colours, so one is free.
+const NEAR = 48;
+const apart = (a, b) => Math.abs((a >> 16) - (b >> 16)) + Math.abs(((a >> 8) & 255) - ((b >> 8) & 255)) + Math.abs((a & 255) - (b & 255));
+const GRID = [0x20, 0x90, 0xff].flatMap((r) => [0x20, 0x90, 0xff].flatMap((g) => [0x20, 0x90, 0xff].map((b) => (r << 16) | (g << 8) | b))).sort((a, b) => apart(a, 0xc678dd) - apart(b, 0xc678dd));
+function reviewColor(palette, ansi) {
+  const shown = (c) => (c < 0 ? ansi[c - A] ?? XTERM[c - A] : c);
+  const taken = TOKENS.filter((k) => k !== "peach" && palette[k] !== R).map((k) => shown(palette[k]));
+  return [palette.peach, A + 5, A + 13, ...GRID].find((c) => c !== R && taken.every((t) => apart(shown(c), t) >= NEAR));
+}
 // herdr's config.toml. A file herdr could not read either gives herdr's defaults.
 export function readHerdrConfig(file = herdrConfig()) { try { return parseToml(fs.readFileSync(file, "utf8")); } catch { return {}; } }
 // The palette and status marks herdr would use with this config. `light` is the terminal's appearance (true, false or
-// null when unknown); `want` is the board's own `theme` setting: "auto" follows herdr, "dark" and "light" pick herdr's
-// dark or light theme by hand.
-export function resolve(cfg = {}, light = null, want = "auto") {
+// null when unknown); `want` is the board's own `theme` setting: "herdr" resolves the config exactly as herdr does,
+// "auto" does too when the config sets a theme and is the terminal's colours when it sets none, "terminal" is always
+// herdr's "terminal" theme, "dark" and "light" pick herdr's dark or light theme by hand.
+const THEME_KEYS = ["name", "dark_name", "light_name", "auto_switch", "custom"];
+export function resolve(cfg = {}, light = null, want = "herdr", ansi = []) {
   const th = cfg.theme || {}, ui = cfg.ui || {};
-  const manual = typeof th.name === "string" ? th.name : "catppuccin";
+  const unset = typeof ui.accent !== "string" && !THEME_KEYS.some((k) => Object.hasOwn(th, k));
+  const terminal = want === "terminal" || (want === "auto" && unset);
+  const manual = terminal ? "terminal" : typeof th.name === "string" ? th.name : "catppuccin";
   const [dark0, light0] = siblings(manual);
-  const mode = want === "dark" || want === "light" ? want : th.auto_switch === true ? (light ? "light" : "dark") : "";
+  const mode = terminal ? "" : want === "dark" || want === "light" ? want : th.auto_switch === true ? (light ? "light" : "dark") : "";
   const name = mode === "light" ? th.light_name || light0 : mode === "dark" ? th.dark_name || dark0 : manual;
   const base = PALETTES[canonical(name)] || PALETTES[mode === "light" ? "catppuccin-latte" : "catppuccin"];
   const palette = Object.fromEntries(TOKENS.map((k, i) => [k, base[i]]));
@@ -64,35 +92,42 @@ export function resolve(cfg = {}, light = null, want = "auto") {
   over(th.custom);
   if (typeof ui.accent === "string" && ui.accent !== "cyan" && typeof th.custom?.accent !== "string") palette.accent = parseColor(ui.accent); // herdr's older accent setting
   if (mode && th.auto_switch === true) over(th.custom?.[mode]);
+  palette.review = reviewColor(palette, ansi);
   return { name: canonical(name) || name, palette, symbols: ui.status_indicators === "symbols" };
 }
 
 let cfg = {}, P = resolve().palette, symbols = false;
 const want = () => String(config().theme || "auto");
-// Read herdr's theme. Answers whether the terminal's appearance is needed to finish the choice (herdr's auto_switch).
+// Read herdr's theme. Answers whether the terminal has to be asked to finish it: for its appearance (herdr's
+// auto_switch), or for its own colours when the theme paints with any, so the review colour looks like none of them.
 export function loadTheme(light = null) {
   cfg = readHerdrConfig();
   ({ palette: P, symbols } = resolve(cfg, light, want()));
-  return want() === "auto" && cfg.theme?.auto_switch === true;
+  return (["auto", "herdr"].includes(want()) && cfg.theme?.auto_switch === true) || Object.values(P).some((c) => c < 0);
 }
-export const setLight = (light) => { ({ palette: P, symbols } = resolve(cfg, light, want())); };
-// Ask the terminal for its background colour; answers true (light), false (dark) or null (no answer in time).
-export function detectLight(ms = 250) {
+// What the terminal answered: its appearance and its 16 colours.
+export const setTerminal = (light, ansi = []) => { ({ palette: P, symbols } = resolve(cfg, light, want(), ansi)); };
+// Ask the terminal what it shows: its background (light, dark or null when it does not say) and its 16 colours
+// (`ansi`, with a gap for each it does not tell). herdr answers both for its panes with the colours of the terminal the
+// client runs in. The question for the terminal's kind goes last: every terminal answers it, so no answer is waited for
+// longer than the terminal takes to say that it has none.
+const byte = (x) => parseInt(x.slice(0, 2).padEnd(2, x[0]), 16);
+export function readAnswers(buf) {
+  const ansi = [];
+  for (const m of buf.matchAll(/\]4;(\d+);rgb:([0-9a-f]+)\/([0-9a-f]+)\/([0-9a-f]+)/gi)) if (Number(m[1]) < 16) ansi[Number(m[1])] = (byte(m[2]) << 16) | (byte(m[3]) << 8) | byte(m[4]);
+  const bg = /\]11;rgb:([0-9a-f]+)\/([0-9a-f]+)\/([0-9a-f]+)/i.exec(buf);
+  return { light: bg ? isLight((byte(bg[1]) << 16) | (byte(bg[2]) << 8) | byte(bg[3])) : null, ansi, done: /\x1b\[\?[\d;]*c/.test(buf) };
+}
+export function askTerminal(ms = 250) {
   const fgbg = /;(\d+)$/.exec(process.env.COLORFGBG || "");
   const guess = fgbg ? [7, 15].includes(Number(fgbg[1])) : null;
-  if (!process.stdin.isTTY || !process.stdout.isTTY) return Promise.resolve(guess);
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return Promise.resolve({ light: guess, ansi: [] });
   return new Promise((resolve) => {
     let buf = "", done = false;
-    const end = (v) => { if (done) return; done = true; clearTimeout(timer); process.stdin.off("data", on); try { process.stdin.setRawMode(false); } catch {} process.stdin.pause(); resolve(v); };
-    const on = (d) => {
-      buf += d;
-      const m = /\]11;rgb:([0-9a-f]+)\/([0-9a-f]+)\/([0-9a-f]+)/i.exec(buf);
-      if (!m) return;
-      const [r, g, b] = m.slice(1).map((x) => parseInt(x.slice(0, 2).padEnd(2, x[0]), 16));
-      end(0.2126 * r + 0.7152 * g + 0.0722 * b > 140);
-    };
-    const timer = setTimeout(() => end(guess), ms);
-    try { process.stdin.setRawMode(true); process.stdin.resume(); process.stdin.on("data", on); process.stdout.write("\x1b]11;?\x1b\\"); } catch { end(guess); }
+    const end = () => { if (done) return; done = true; clearTimeout(timer); process.stdin.off("data", on); try { process.stdin.setRawMode(false); } catch {} process.stdin.pause(); const a = readAnswers(buf); resolve({ light: a.light ?? guess, ansi: a.ansi }); };
+    const on = (d) => { buf += d; if (readAnswers(buf).done) end(); };
+    const timer = setTimeout(end, ms);
+    try { process.stdin.setRawMode(true); process.stdin.resume(); process.stdin.on("data", on); process.stdout.write("\x1b]11;?\x1b\\" + XTERM.map((_, n) => `\x1b]4;${n};?\x1b\\`).join("") + "\x1b[c"); } catch { end(); }
   });
 }
 const plain = () => process.env.NO_COLOR !== undefined && process.env.NO_COLOR !== "";
@@ -111,6 +146,7 @@ export const theme = {
   line(s) { const on = this.fg("text", "\0").split("\0")[0]; return on ? this.fg("text", String(s).replace(/\x1b\[(?:0|39)?m/g, (m) => m + on)) : String(s); },
   mark: (state) => (MARKS[state] || MARKS.unknown)[symbols ? 1 : 0],
   bold: (s) => (plain() ? String(s) : `\x1b[1m${s}\x1b[22m`),
+  dim: (s) => (plain() ? String(s) : `\x1b[2m${s}\x1b[22m`),
   inverse: (s) => `\x1b[7m${s}\x1b[27m`,
   underline: (s) => `\x1b[4m${s}\x1b[24m`,
 };
@@ -119,8 +155,6 @@ export const theme = {
 // terminal's appearance (auto_switch) or its colours (the "terminal" theme), the page follows the browser's instead.
 const hex = (c) => "#" + c.toString(16).padStart(6, "0");
 const isLight = (c) => 0.2126 * (c >> 16) + 0.7152 * ((c >> 8) & 255) + 0.0722 * (c & 255) > 140;
-// The terminal's 16 colours as a browser shows them (xterm's values), for a colour herdr's config gives by name.
-const XTERM = [0x000000, 0xcd0000, 0x00cd00, 0xcdcd00, 0x0000ee, 0xcd00cd, 0x00cdcd, 0xe5e5e5, 0x7f7f7f, 0xff0000, 0x00ff00, 0xffff00, 0x5c5cff, 0xff00ff, 0x00ffff, 0xffffff];
 function pageVars({ name, palette }, light) {
   // A named colour the user chose is kept. The "terminal" theme's own colours, and "reset", mean whatever the
   // terminal shows, which a page cannot know: those take Catppuccin's, dark or light.
@@ -132,6 +166,7 @@ function pageVars({ name, palette }, light) {
 }
 export function pageTheme(c = readHerdrConfig(), wanted = want()) {
   const one = resolve(c, null, wanted);
-  if (wanted !== "auto" || (c.theme?.auto_switch !== true && one.name !== "terminal")) return `:root{${pageVars(one, wanted === "auto" ? null : wanted === "light")}}`;
+  const byHand = wanted === "dark" || wanted === "light";
+  if (byHand || (c.theme?.auto_switch !== true && one.name !== "terminal")) return `:root{${pageVars(one, byHand ? wanted === "light" : null)}}`;
   return `:root{${pageVars(resolve(c, false, wanted), false)}}@media (prefers-color-scheme:light){:root{${pageVars(resolve(c, true, wanted), true)}}}`;
 }

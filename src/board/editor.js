@@ -5,7 +5,7 @@ import { CURSOR_MARKER, Editor } from "@earendil-works/pi-tui";
 export class DraftEditor extends Editor {
   hiddenAbove = 0; hiddenBelow = 0; viewportTop = 0; paste = undefined;
   constructor(tui, theme) {
-    super(tui, { borderColor: (s) => theme.fg("surface1", s), selectList: { selectedPrefix: (s) => s, selectedText: (s) => s, description: (s) => s, scrollInfo: (s) => s, noMatch: (s) => s } });
+    super(tui, { borderColor: (s) => theme.fg("surface_dim", s), selectList: { selectedPrefix: (s) => s, selectedText: (s) => s, description: (s) => s, scrollInfo: (s) => s, noMatch: (s) => s } });
     this.focused = true;
     this.disableSubmit = true; // only the board may dispatch or delegate
   }

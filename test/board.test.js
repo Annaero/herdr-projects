@@ -64,12 +64,19 @@ test("the board: groups, aligned rows, side panel from 90 columns, details, and 
   const w = await world({ settings: { helper: "off" } });
   try {
     A.add(w.root, "Write the docs", { description: "All of them." });
-    const b = A.add(w.root, "My own task"); A.report(b.id, { state: "working", msg: "half way" });
+    const b = A.add(w.root, "My own task"); A.report(b.id, { state: "working", msg: "half way", progress: 50 });
     const s = open(w);
     let text = s.text(120);
     assert.match(text, /herdr-superwork {2}work board for herdr/);
-    // Every line is in herdr's text colour (Catppuccin's here), unless colours are switched off.
-    assert.ok(s.v.render(120).every((l) => (process.env.NO_COLOR ? !l.includes("\x1b[38;2;") : l.startsWith("\x1b[38;2;205;214;244m"))));
+    // Every line is in herdr's text colour (Catppuccin's here), unless colours are switched off; each task's mark and
+    // title are in herdr's colour for its state (working yellow, idle green).
+    const raw = s.v.render(120), text0 = "\x1b[38;2;205;214;244m", yellow = "\x1b[38;2;249;226;175m", green = "\x1b[38;2;166;227;161m";
+    assert.ok(raw.every((l) => (process.env.NO_COLOR ? !l.includes("\x1b[38;2;") : l.startsWith(text0))));
+    if (!process.env.NO_COLOR) {
+      assert.ok(raw.some((l) => l.includes(`${yellow}●\x1b[39m${text0} ${yellow}\x1b[1mMy own task`)), "a working task's mark and title are herdr's working colour");
+      assert.ok(raw.some((l) => l.includes(`${green}○\x1b[39m${text0} ${green}Write the docs`)), "an idle task's mark and title are herdr's idle colour");
+      assert.ok(raw.some((l) => l.includes(`${yellow} 50%`)), "progress is in the working colour while working");
+    }
     assert.match(text, /0 blocked · 0 error · 1 working · 0 done · 1 idle/);
     assert.match(text, /● My own task {2}half way/); assert.match(text, /○ Write the docs {2}idle/);
     assert.match(text, /│ {2}My own task/); assert.match(text, /you are on it/); assert.match(text, /Permissions {6}full access/);

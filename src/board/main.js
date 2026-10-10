@@ -1,14 +1,14 @@
 // Opens the board: full screen in the current terminal, or inside herdr's popup when run as the plugin's pane.
 import { TuiAltScreen, ProcessTerminal } from "@earendil-works/pi-tui";
 import { View } from "./view.js";
-import { theme, loadTheme, detectLight, setLight } from "./theme.js";
+import { theme, loadTheme, askTerminal, setTerminal } from "./theme.js";
 import { ensureKeeper } from "../keeper.js";
 import * as F from "../flow.js";
 import { userEnv } from "../runner.js";
 
 export async function openBoard({ folder }) {
   userEnv(); // the popup starts with herdr's server environment: helpers and git need the user's PATH
-  try { if (loadTheme()) setLight(await detectLight()); } catch {} // herdr's theme; the terminal is asked only when herdr follows its appearance
+  try { if (loadTheme()) { const t = await askTerminal(); setTerminal(t.light, t.ansi); } } catch {} // herdr's theme; the terminal is asked only when the theme follows its appearance or paints with its colours
   // The board opening is one of the keeper's starters; the how-to files are refreshed here too.
   try { ensureKeeper(); } catch {}
   try { const X = await import("../extras.js"); X.syncSkill(F.shim()); X.removePopups(); } catch {}

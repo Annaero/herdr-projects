@@ -116,7 +116,7 @@ export const DEFAULTS = {
   remoteUser: "",
   max: 4,                 // agents working at once
   skill: true,            // write a small how-to into each installed agent program's own skills folder, so any chat knows the board
-  theme: "auto",          // the board's colours are herdr's: "auto" (herdr's own theme), or its "dark" or "light" one
+  theme: "auto",          // the board's colours are herdr's: "auto" (the theme set in herdr's config here, else the terminal's colours), "herdr" (herdr's config exactly, its default included), "terminal", or herdr's "dark" or "light" theme
   trust: true,            // mark a new task's repo as trusted in the agent's own settings, so no dialog blocks the start
   agentArgs: {},          // per agent kind: extra arguments after `--` for `herdr agent start`; replaces the built-in default
 };
@@ -137,7 +137,7 @@ function coerce(key, value) {
     if (v.toLowerCase() === "default") v = "";
     if (key === "reviewer") v = ["false", "off", "no", "none"].includes(v.toLowerCase()) ? "off" : v.toLowerCase();
     if (key === "watcher") v = ["false", "off", "no", "none"].includes(v.toLowerCase()) ? "off" : "on";
-    if (key === "theme") { v = v.toLowerCase() || "auto"; if (!["auto", "dark", "light"].includes(v)) throw new Error("theme must be auto, dark or light"); }
+    if (key === "theme") { v = v.toLowerCase() || "auto"; if (!["auto", "herdr", "terminal", "dark", "light"].includes(v)) throw new Error("theme must be auto, herdr, terminal, dark or light"); }
     if (["agent", "coordinator", "watcherAgent"].includes(key)) { v = v.toLowerCase(); if (v && !/^[a-z][a-z0-9_-]*$/.test(v)) throw new Error(`${key} must be an agent kind such as claude or codex`); }
   }
   if (key === "review") { v = REVIEW_WORDS[String(value).trim().toLowerCase()]; if (!v) throw new Error("review must be repos, all or none"); }
