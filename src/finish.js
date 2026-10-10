@@ -420,7 +420,7 @@ async function runReview(id, g, { text, change, toLand, ch }) {
   try {
     preTrust(rkind, t.root || S.folderOf(t.id));
     await closeReviewer(id); // a pane left over from an interrupted round
-    pane = api.paneSplit(t.link.pane, { cwd: folder });
+    pane = api.paneSplit(t.link.pane, { cwd: folder, env: S.boardEnv() });
     const taken = api.agents().map((a) => a.name).filter(Boolean);
     let name = `${t.link.agent || `sw-task-${t.n}`}-r`.slice(0, 32);
     if (taken.includes(name)) name = `${name.slice(0, 27)}-${String(Date.now() % 10000).padStart(4, "0")}`;

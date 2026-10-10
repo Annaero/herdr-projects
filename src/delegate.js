@@ -187,7 +187,7 @@ export async function delegateJob(id) {
         copyIncludes(root, dir, repoCfg.include || []);
         patch = { worktree: dir, branch, from, baseSha: S.gitOut(root, ["rev-parse", from]), repoCfg, fresh: true };
       } else {
-        res = api.workspaceCreate({ cwd: root, label });
+        res = api.workspaceCreate({ cwd: root, label, env: S.boardEnv() });
         if (S.isRepo(root)) excludeRuleDir(root);
         patch = { repoCfg: t.repoCfg || S.repoConfig(root), fresh: !t.startedOnce };
       }
@@ -237,9 +237,9 @@ export async function restartJob(id) {
     if (!pane) {
       const ws = t.link?.workspace ? api.workspaceGet(t.link.workspace) : null;
       let res;
-      if (ws) { const first = api.panes(ws.workspace_id)[0]; pane = first ? api.paneSplit(first.pane_id, { cwd: S.cwdOf(t) }) : null; }
+      if (ws) { const first = api.panes(ws.workspace_id)[0]; pane = first ? api.paneSplit(first.pane_id, { cwd: S.cwdOf(t), env: S.boardEnv() }) : null; }
       if (!pane) {
-        res = t.worktree && fs.existsSync(t.worktree) ? api.worktreeOpen({ cwd: root, path: t.worktree, label: t.title.slice(0, 60) }) : api.workspaceCreate({ cwd: S.cwdOf(t), label: t.title.slice(0, 60) });
+        res = t.worktree && fs.existsSync(t.worktree) ? api.worktreeOpen({ cwd: root, path: t.worktree, label: t.title.slice(0, 60) }) : api.workspaceCreate({ cwd: S.cwdOf(t), label: t.title.slice(0, 60), env: S.boardEnv() });
         pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
       }
       t = g.set((t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true, reviewer: null }; });

@@ -30,6 +30,9 @@ export function configDir() {
   if (process.env.HERDR_SUPERWORK_CONFIG_DIR) return process.env.HERDR_SUPERWORK_CONFIG_DIR;
   return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), "herdr-superwork");
 }
+// The board's own folders as resolved here, for a process started somewhere that does not inherit this environment
+// (an agent's herdr space): both always, since either may come from XDG_* or the home folder rather than its variable.
+export const boardEnv = () => ({ HERDR_SUPERWORK_DATA_DIR: path.resolve(dataDir()), HERDR_SUPERWORK_CONFIG_DIR: path.resolve(configDir()) });
 const tasksDir = () => path.join(dataDir(), "tasks");
 export const hasTasks = () => fs.existsSync(tasksDir());
 export const dirOf = (id) => path.join(tasksDir(), ...String(id).split("/"));

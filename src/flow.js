@@ -142,9 +142,17 @@ export const promptTail = (t) => [
 ].filter(Boolean).join("\n\n");
 export const withTail = (t, text) => [text, promptTail(t)].filter(Boolean).join("\n\n");
 // The absolute path of the command, kept in the data folder, so agents and hooks find it without `npm link`.
+// It names its own board: herdr cannot hand a worktree's space any environment, so an agent's `add` and `report` would
+// otherwise land on the default board when this one is kept in another folder.
+const quote = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 export function shim() {
   const dir = path.join(S.dataDir(), "bin"), file = path.join(dir, "herdr-superwork");
-  try { if (!fs.existsSync(file)) { fs.mkdirSync(dir, { recursive: true }); fs.symlinkSync(S.BIN, file); } } catch {}
+  const text = `#!/bin/sh\n${Object.entries(S.boardEnv()).map(([k, v]) => `export ${k}=${quote(v)}\n`).join("")}exec node ${quote(S.BIN)} "$@"\n`;
+  try {
+    let have = null;
+    try { if (!fs.lstatSync(file).isSymbolicLink()) have = fs.readFileSync(file, "utf8"); } catch {}
+    if (have !== text) { fs.mkdirSync(dir, { recursive: true }); const tmp = `${file}.${process.pid}`; fs.writeFileSync(tmp, text, { mode: 0o755 }); fs.renameSync(tmp, file); }
+  } catch {}
   return file;
 }
 export const noteRule = (t) => `Before you stop, write your closing summary (or your question to the human, if you cannot continue) to ${RULE_DIR}/closing-${t.n}.md in this folder.`;

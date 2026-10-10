@@ -17,6 +17,7 @@ const ok = (result) => { save(); process.stdout.write(JSON.stringify({ id: "fake
 const fail = (code, message) => { save(); process.stderr.write(JSON.stringify({ id: "fake", error: { code, message: message || code } }) + "\n"); process.exit(1); };
 const flag = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
 const has = (name) => argv.includes(name);
+const envOf = () => Object.fromEntries(argv.flatMap((a, i) => (a === "--env" ? [argv[i + 1].split(/=(.*)/s).slice(0, 2)] : [])));
 const git = (cwd, args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 
 const wsOut = (w) => ({ workspace_id: w.workspace_id, label: w.label, pane_count: st.panes.filter((p) => p.workspace_id === w.workspace_id).length, ...(w.worktree ? { worktree: w.worktree } : {}) });
@@ -69,7 +70,7 @@ function play(p, prompt) {
 const [area, verb] = argv;
 if (area === "workspace") {
   if (verb === "list") ok({ type: "workspace_list", workspaces: st.workspaces.map(wsOut) });
-  if (verb === "create") ok({ type: "workspace_created", ...newWorkspace(path.resolve(flag("--cwd") || "."), flag("--label")) });
+  if (verb === "create") { const made = newWorkspace(path.resolve(flag("--cwd") || "."), flag("--label")); findPane(made.root_pane.pane_id).env = envOf(); ok({ type: "workspace_created", ...made }); }
   const w = st.workspaces.find((x) => x.workspace_id === argv[2]);
   if (!w) fail("workspace_not_found", `workspace ${argv[2]} not found`);
   if (verb === "get") ok({ type: "workspace_info", workspace: wsOut(w) });
@@ -109,7 +110,7 @@ if (area === "pane") {
   const p = findPane(argv[2]);
   if (!p) fail("pane_not_found", `pane ${argv[2]} not found`);
   if (verb === "get") ok({ type: "pane_info", pane: paneOut(p) });
-  if (verb === "split") { const n = st.panes.filter((x) => x.workspace_id === p.workspace_id).length + 1; const q = { pane_id: `${p.workspace_id}:p${n}`, workspace_id: p.workspace_id, tab_id: p.tab_id, terminal_id: `term_${st.nextP++}`, cwd: path.resolve(flag("--cwd") || p.cwd), agent: null }; while (findPane(q.pane_id)) q.pane_id += "x"; st.panes.push(q); ok({ type: "pane_split", pane: paneOut(q) }); }
+  if (verb === "split") { const n = st.panes.filter((x) => x.workspace_id === p.workspace_id).length + 1; const q = { pane_id: `${p.workspace_id}:p${n}`, workspace_id: p.workspace_id, tab_id: p.tab_id, terminal_id: `term_${st.nextP++}`, cwd: path.resolve(flag("--cwd") || p.cwd), env: envOf(), agent: null }; while (findPane(q.pane_id)) q.pane_id += "x"; st.panes.push(q); ok({ type: "pane_split", pane: paneOut(q) }); }
   if (verb === "close") { st.panes = st.panes.filter((x) => x !== p); ok({ type: "ok" }); }
   if (verb === "read") { save(); process.stdout.write(p.agent?.screen || p.screen || ""); process.exit(0); }
   if (verb === "report-metadata") { st.metadata.push({ pane: p.pane_id, args: argv.slice(3) }); ok({ type: "ok" }); }

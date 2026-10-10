@@ -55,7 +55,7 @@ export function herdr(socket = null) {
     // ---- layout
     workspaces: () => call(["workspace", "list"]).workspaces || [],
     workspaceGet: (id) => quiet(() => call(["workspace", "get", id]).workspace),
-    workspaceCreate: ({ cwd, label }) => call(["workspace", "create", "--cwd", cwd, ...(label ? ["--label", label] : []), "--no-focus"]),
+    workspaceCreate: ({ cwd, label, env = {} }) => call(["workspace", "create", "--cwd", cwd, ...(label ? ["--label", label] : []), ...Object.entries(env).flatMap(([k, v]) => ["--env", `${k}=${v}`]), "--no-focus"]),
     workspaceClose: (id) => call(["workspace", "close", id]),
     workspaceFocus: (id) => call(["workspace", "focus", id]),
     tabFocus: (id) => call(["tab", "focus", id]),
@@ -65,7 +65,7 @@ export function herdr(socket = null) {
     // ---- panes
     panes: (workspace) => call(["pane", "list", ...(workspace ? ["--workspace", workspace] : [])]).panes || [],
     paneGet: (id) => quiet(() => call(["pane", "get", id]).pane),
-    paneSplit: (id, { cwd, direction = "right" } = {}) => call(["pane", "split", id, "--direction", direction, ...(cwd ? ["--cwd", cwd] : []), "--no-focus"]).pane,
+    paneSplit: (id, { cwd, direction = "right", env = {} } = {}) => call(["pane", "split", id, "--direction", direction, ...(cwd ? ["--cwd", cwd] : []), ...Object.entries(env).flatMap(([k, v]) => ["--env", `${k}=${v}`]), "--no-focus"]).pane,
     paneClose: (id) => quiet(() => call(["pane", "close", id])),
     paneRead: (id, { source = "visible", lines } = {}) => call(["pane", "read", id, "--source", source, ...(lines ? ["--lines", String(lines)] : [])], { raw: true }),
     metadata: (id, args) => quiet(() => call(["pane", "report-metadata", id, "--source", "plugin:herdr-superwork", ...args])),
