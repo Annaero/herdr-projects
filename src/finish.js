@@ -74,7 +74,7 @@ async function finishOnce(id, { force = false } = {}) {
   const g = guardFor(id);
   try {
     const a = api.agentGet(t.link.pane);
-    const comp = a?.completion_seq ?? null;
+    const comp = a?.completion_seq ?? null, seq = a?.state_change_seq ?? null, term = a?.terminal_id ?? null;
     const note = F.noteStat(t);
     const freshNote = note && note.mtime > (t.armedAt || 0) && note.mtime !== t.handled?.note ? note : null;
     let turn = null;
@@ -92,7 +92,7 @@ async function finishOnce(id, { force = false } = {}) {
       S.countMark(`hook:${kind}`, ver, true);
       if (turn && !(newer(turn, t) && ((turn.finished && turn.id !== t.handled?.msg) || turn.error))) return true; // a repeat, or an earlier turn
       if (t.selfBlocked && t.stage === "asks") { // it reported itself blocked, then stopped: that is not a finish
-        S.update(id, (t) => { t.handled = { ...(t.handled || {}), comp, at: Date.now(), msg: turn?.id ?? t.handled?.msg ?? null, pos: turn?.pos ?? t.handled?.pos ?? 0 }; t.selfBlocked = null; t.turnOpen = false; if (turn?.said) t.said = turn.said; if (ev.session) t.session = ev.session; }, { waitMs: 10000 });
+        S.update(id, (t) => { t.handled = { ...(t.handled || {}), comp, seq, term, at: Date.now(), msg: turn?.id ?? t.handled?.msg ?? null, pos: turn?.pos ?? t.handled?.pos ?? 0 }; t.selfBlocked = null; t.turnOpen = false; if (turn?.said) t.said = turn.said; if (ev.session) t.session = ev.session; }, { waitMs: 10000 });
         return true;
       }
       // A turn that ended in a stage other than "working" was the human's, typed in the agent's own terminal.
@@ -120,8 +120,8 @@ async function finishOnce(id, { force = false } = {}) {
     g.expect(t);
     // 3. What the agent said, and why it stopped.
     const wake = t.expectedWake;
-    const handled = { comp, note: freshNote ? freshNote.mtime : t.handled?.note ?? null, at: Date.now(), msg: turn?.id ?? t.handled?.msg ?? null, pos: turn?.pos ?? t.handled?.pos ?? 0 };
-    const keep = (t) => { t.handled = handled; t.turnOpen = false; if (turn) { if (turn.said) t.said = turn.said; if (turn.usage) t.usage = turn.usage; if (turn.model) t.model = turn.model; t.transcript = turn.file; } if (ev?.session) t.session = ev.session; };
+    const handled = { comp, seq, term, note: freshNote ? freshNote.mtime : t.handled?.note ?? null, at: Date.now(), msg: turn?.id ?? t.handled?.msg ?? null, pos: turn?.pos ?? t.handled?.pos ?? 0 };
+    const keep = (t) => { t.handled = handled; t.turnOpen = false; t.turnBy = null; F.seeTerminal(t, term); if (turn) { if (turn.said) t.said = turn.said; if (turn.usage) t.usage = turn.usage; if (turn.model) t.model = turn.model; t.transcript = turn.file; } if (ev?.session) t.session = ev.session; };
     if (turn && (turn.error || turn.stop === "length" || turn.stop === "refusal")) {
       const why = turn.error || (turn.stop === "length" ? "The agent's reply was cut off: it ran out of room (context or output limit)." : "The model refused to continue.");
       g.set(keep);
@@ -161,6 +161,30 @@ export async function pipelineJob(id) {
   g.expect(t);
   try { await pipeline(id, g, t.said || t.screen || t.msg || "", null); }
   catch (e) { if (!e.aborted) try { fail(g, { stage: "workflow", title: "The finish line failed", detail: e.stack || e.message, next: "Investigate the error, then finish again." }); } catch {} else await closeReviewer(id); }
+  finally { release(id); }
+}
+
+// A finished turn that was re-armed by mistake (F.reopened) and would stand in "working" for ever. The status hook
+// only suspects it, from a reading that may be old: this runner asks herdr itself, holding the task, and does nothing
+// unless the agent is at rest right now in the newest terminal with no turn finished since the handled one.
+// It never finishes the task: what the saved state shows cannot prove that nothing was asked or changed since, so
+// nothing is committed, checked or put up for approval here. The task goes to the human as a turn that stopped
+// without a summary: "finish anyway" runs the finish line, a reply continues the work. If the agent turns out to be
+// working after all, its next status re-arms the task as any typing does.
+export async function recoverJob(id) {
+  let t = claim(id, "recover");
+  if (!t) return;
+  const g = guardFor(id);
+  try {
+    if (!F.isAgentTask(t) || t.archivedAt || t.stage !== "working") return;
+    const api = F.h(t), a = api.agentGet(t.link.pane);
+    if (!a || (a.agent_status !== "idle" && a.agent_status !== "done")) return;
+    if (a.terminal_id && t.terms?.length && t.terms.at(-1) !== a.terminal_id) return; // a terminal the hook has not seen yet: it decides first
+    if (!F.reopened(t, a.completion_seq ?? null) || S.pendingText(id).length) return;
+    const screen = lastLines(readScreen(api, t.link.pane, a.agent_status, 60));
+    g.expect(t);
+    g.set((t) => { t.stage = "nosummary"; t.msg = "stopped, and nothing finished it: finish anyway, or reply"; t.screen = screen; t.turnOpen = false; t.seen = false; t.since = Date.now(); });
+  } catch (e) { if (!e.aborted) process.stderr.write(`${new Date().toISOString()} recover ${id}: ${e.stack || e}\n`); }
   finally { release(id); }
 }
 

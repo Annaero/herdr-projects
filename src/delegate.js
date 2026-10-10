@@ -127,7 +127,7 @@ export function startAgent(id, g, { prompt, resume = null }) {
   start(hooked);
   // The send time arms the pipeline: nothing older than this counts as the turn's end.
   t = g.set((t) => {
-    t.stage = "working"; t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.msg = ""; t.link = { ...t.link, agent: name }; t.startedAgentAt = Date.now(); t.exitedAt = null;
+    t.stage = "working"; t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.turnBy = "start"; t.msg = ""; t.link = { ...t.link, agent: name }; t.startedAgentAt = Date.now(); t.exitedAt = null;
     t.hooked = hooked; t.agentVersion = x.version || "";
     const session = resume || x.session || null;
     if (session !== (t.session || null)) { t.session = session; t.transcript = null; t.handled = { ...(t.handled || {}), msg: null, pos: 0 }; }
@@ -165,7 +165,7 @@ export async function delegateJob(id) {
     // 1. A place to work, unless the task still has a live pane from an earlier run.
     const livePane = t.link.pane ? api.paneGet(t.link.pane) : null;
     if (livePane && api.agentGet(t.link.pane)) { // delegate again on a task whose agent is still there: just continue it
-      t = g.set((t) => { t.stage = "working"; t.armedAt = Date.now(); t.turnOpen = true; });
+      t = g.set((t) => { t.stage = "working"; t.armedAt = Date.now(); t.turnOpen = true; t.turnBy = "start"; });
       return void F.deliver(t, F.withTail(t, "Continue this task."));
     }
     if (!livePane) {

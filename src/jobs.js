@@ -11,6 +11,7 @@ export async function runJob(job, id, extra = []) {
     else if (job === "restart") await (await import("./delegate.js")).restartJob(id);
     else if (job === "finish") await (await import("./finish.js")).finishJob(id, { force: extra.includes("--force") });
     else if (job === "pipeline") await (await import("./finish.js")).pipelineJob(id);
+    else if (job === "recover") await (await import("./finish.js")).recoverJob(id);
     else if (job === "land") await (await import("./land.js")).landJob(id);
     else if (job === "cleanup") await (await import("./land.js")).cleanupJob(id);
     else if (job === "prpoll") await (await import("./housekeeping.js")).pollPrs();

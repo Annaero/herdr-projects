@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import * as S from "./store.js";
 import { herdr, currentSocket, sessionName, socketExists } from "./herdr.js";
 import { show } from "./state.js";
-import { adapter, needsNote } from "./agents.js";
+import { adapter, needsNote, readTurnOf } from "./agents.js";
 
 export const RULE_DIR = ".herdr-superwork";
 export const noteFile = (t) => path.join(S.cwdOf(t), RULE_DIR, `closing-${t.n}.md`);
@@ -59,6 +59,18 @@ export function assertLive(t) {
   const here = currentSocket();
   if (t.link.socket !== here) throw new Error(`${t.id} lives in herdr session ${sessionName(t.link.socket)}. Open the board there.`);
   if (!socketExists(here) || !herdr(here).alive()) throw new Error("herdr is not running.");
+}
+
+// The terminals a task's agent has been read in, oldest first. herdr gives a pane a new terminal_id when it restarts
+// and never an old one again, so a reading from any terminal but the newest was taken before that restart. Returns
+// false for such a reading; a terminal not seen before becomes the newest.
+export function seeTerminal(t, term) {
+  if (!term) return true;
+  const seen = t.terms || [t.handled?.term || t.link?.terminal].filter(Boolean);
+  if (seen.includes(term)) { if (seen.at(-1) !== term) return false; }
+  else seen.push(term);
+  t.terms = seen.slice(-8);
+  return true;
 }
 
 // ---- telling herdr's own sidebar -------------------------------------------------------------------------------------
@@ -163,3 +175,27 @@ export function changeOf(t) {
 export const headOf = (dir) => { try { return S.gitOut(dir, ["rev-parse", "HEAD"]); } catch { return ""; } };
 export const dirty = (dir) => { try { return S.gitOut(dir, ["status", "--porcelain"]); } catch { return ""; } };
 export const noteStat = (t) => { try { const s = fs.statSync(noteFile(t)); return { mtime: s.mtimeMs, text: fs.readFileSync(noteFile(t), "utf8").trim() }; } catch { return null; } };
+
+// ---- a turn that is already handled ------------------------------------------------------------------------------------
+// The saved conversation still ends in the message the finish line already handled.
+export function sameTurn(t) {
+  if (!t.handled?.msg) return false;
+  const turn = readTurnOf(t.agent, { file: t.transcript || null, session: t.session, cwd: S.cwdOf(t) });
+  return !!turn && turn.id === t.handled.msg;
+}
+// A task opened for a turn that never came. Versions before the status hook told a late "working" from a new turn
+// (hook.js afterHandled) re-armed a turn the moment its finish line had handled it, and nothing would ever move it
+// again: it is handed to the human instead (finish.js recoverJob). Only that state qualifies:
+//   - nobody is known to have opened the turn. Everything that opens one now says who (turnBy: a reply, a start, or
+//     herdr seeing the agent work), so a real turn, however quiet its agent looks, is never taken for this;
+//   - it was armed within seconds of the handled turn, which is what a late reading does and a person does not;
+//   - herdr counts no turn finished since, and the agent has written nothing since.
+const REOPEN_MS = () => (process.env.HERDR_SUPERWORK_REOPEN_MS !== undefined ? Number(process.env.HERDR_SUPERWORK_REOPEN_MS) : 60000);
+export function reopened(t, comp) {
+  if (t.stage !== "working" || comp == null || !t.handled || comp !== t.handled.comp || !t.turnOpen || t.turnBy || t.expectedWake) return false;
+  const gap = (t.armedAt || 0) - (t.handled.at || 0);
+  if (!(gap >= 0 && gap <= 15000) || Date.now() - (t.armedAt || 0) < REOPEN_MS()) return false;
+  if (t.handled.msg) return sameTurn(t);
+  const note = noteStat(t);
+  return !!note && note.mtime === t.handled.note;
+}

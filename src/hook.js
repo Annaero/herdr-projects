@@ -10,7 +10,6 @@ import * as F from "./flow.js";
 import { herdr, currentSocket } from "./herdr.js";
 import { spawnRunner, runnerAlive } from "./runner.js";
 import { housekeeping } from "./housekeeping.js";
-import { readTurnOf } from "./agents.js";
 import { ensureKeeper } from "./keeper.js";
 
 // Stages in which a finished turn nobody saw start (a short turn, a herdr restart, a lock wait) still counts.
@@ -52,13 +51,28 @@ export function onPane(socket, paneId) {
 }
 const sameDir = (a, b) => { if (!a || !b) return false; try { return fs.realpathSync(a) === fs.realpathSync(b); } catch { return a === b; } };
 
+const newestTerminal = (t, term) => !!t && (t.terms || [t.handled?.term || t.link?.terminal].filter(Boolean)).at(-1) === term;
 // One live reading of a worker pane, applied to its task under the task lock.
 export function apply(id, a, api) {
-  const status = a.agent_status, seq = a.state_change_seq ?? 0, comp = a.completion_seq ?? null;
+  const status = a.agent_status, seq = a.state_change_seq ?? 0, comp = a.completion_seq ?? null, term = a.terminal_id ?? null;
+  // A terminal that is not the newest one known for this task is either the pane's new terminal after herdr
+  // restarted, or an old one in a reading that arrives late. Arrival order cannot tell which: herdr is asked.
+  const known = S.get(id);
+  if (term && !newestTerminal(known, term)) {
+    let now = null;
+    try { now = api.agentGet(a.pane_id || known?.link?.pane); } catch { return; }
+    if (!now || now.terminal_id !== term) return;
+  }
   let then = null; // what to do after the lock is released: never a herdr call or a spawn under it
   const t = S.update(id, (t) => {
     if (t.archivedAt || !F.isAgentTask(t)) return false;
-    t.last = { status, seq, comp, at: Date.now() };
+    // A reading that is not the newest is not acted on at all: one from a terminal herdr has since replaced, or an
+    // older state of this terminal than the last one applied (a hook that waited for the lock). Acting on an old
+    // "done" could finish a task whose agent is working by now.
+    // (A task saved before readings kept their terminal answers with the one it was linked to.)
+    const prev = t.last, sameTerm = !term || !(prev?.term ?? t.link?.terminal) || (prev?.term ?? t.link?.terminal) === term;
+    if (!F.seeTerminal(t, term) || (term && prev && sameTerm && (prev.term ?? t.link?.terminal) && seq < (prev.seq || 0))) return false;
+    t.last = { status, seq, comp, term, at: Date.now() };
     if (a.agent_session?.value) t.session = a.agent_session.value;
     if (t.stage === "stopped") {
       // A late hook cannot undo the stop: `working` re-arms only with a higher seq and an idle seen in between.
@@ -71,17 +85,22 @@ export function apply(id, a, api) {
       if (t.expectedWake) { if (t.stage !== "working" && !runnerAlive(t)) t.stage = "working"; return; } // the plugin's own turn: flaps change nothing
       // The turn is the human's: typing in the agent's own terminal re-arms the pipeline.
       if (!t.turnOpen || t.stage !== "working") {
+        if (!afterHandled(t, a, sameTerm ? prev : null)) return; // still the turn the finish line handled, not a new one
         then = t.autoMerge ? "cancel-auto" : null;
         if (t.mergeIntent || t.stage === "approval") t.requireApproval = true;
         t.mergeIntent = null;
         if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
         t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0;
-        t.armedAt = Date.now(); t.turnOpen = true;
+        t.armedAt = Date.now(); t.turnOpen = true; t.turnBy = "typed";
         t.stage = "working"; t.msg = ""; t.kind = undefined; t.watch = null; t.seen = false; t.since = Date.now(); t.mergeFailed = false;
         if (t.failure?.auth) t.failure = null; // typing after a login problem is how "fixed" is said
         then = then || "unlabel";
       } else {
         // A second `working` in the same human turn (a flap) only moves armedAt if no closing note is newer than it.
+        // Only a reading from after the handled turn counts: an older one that arrives late says nothing about this
+        // turn, and must not make a turn that was re-armed by mistake look real (F.reopened) or move when it was armed.
+        if (!afterHandled(t, a, sameTerm ? prev : null)) return;
+        t.turnBy = t.turnBy || "typed"; // herdr has seen the agent work in this turn
         const note = F.noteStat(t);
         if (!(note && note.mtime > (t.armedAt || 0))) t.armedAt = Date.now();
       }
@@ -92,15 +111,16 @@ export function apply(id, a, api) {
       // delivered when the dialog is answered.
       if (S.pendingText(id).length) { then = "inbox"; return; }
       if (t.selfBlocked && t.stage === "asks") { // it said it is blocked, then stopped: that is not a finish
-        t.handled = { ...(t.handled || {}), comp, note: F.noteStat(t)?.mtime ?? t.handled?.note ?? null, at: Date.now() }; t.selfBlocked = null; t.turnOpen = false;
+        t.handled = { ...(t.handled || {}), comp, seq: a.state_change_seq ?? null, term: a.terminal_id ?? null, note: F.noteStat(t)?.mtime ?? t.handled?.note ?? null, at: Date.now() }; t.selfBlocked = null; t.turnOpen = false;
         return;
       }
       if (t.stage === "working") {
         // completion_seq is absent until an agent's first completed turn: absent means "no finished turn yet".
         if (comp != null && comp !== t.handled?.comp && !runnerAlive(t)) then = "finish";
+        else if (!runnerAlive(t) && F.reopened(t, comp)) then = "recover"; // the runner looks again itself, and only hands the task to the human
         return;
       }
-      if (WAITING.includes(t.stage) && !runnerAlive(t) && sameTurn(t)) { if (comp != null) t.handled = { ...(t.handled || {}), comp }; return; } // herdr counted a turn the agent's own report already finished
+      if (WAITING.includes(t.stage) && !runnerAlive(t) && F.sameTurn(t)) { if (comp != null) t.handled = { ...(t.handled || {}), comp }; return; } // herdr counted a turn the agent's own report already finished
       if (WAITING.includes(t.stage) && !runnerAlive(t) && missedTurn(t, comp)) { humanTurnEnded(t); then = "finish-force"; }
       return;
     }
@@ -117,18 +137,34 @@ export function apply(id, a, api) {
     F.labelPane(t, null);
   }
   if (then === "unlabel") F.labelPane(t, null);
+  if (then === "recover") spawnRunner("recover", id);
   if (then === "finish") spawnRunner("finish", id);
   if (then === "finish-force") spawnRunner("finish", id, ["--force"]);
+}
+// Is this reading from after the handled turn? A `working` that is not belongs to the turn already handled: the
+// agent's own turn-end hook runs inside its turn, so herdr still says "working" when the finish line is done with
+// it, and a status hook may apply a reading it took earlier. Such a reading never re-arms the task.
+// herdr's state_change_seq is one counter for the whole server, so within one server run a new turn always has a
+// higher one than the reading the turn was handled with, however late the old reading arrives. The counter starts
+// over when herdr restarts, and so does terminal_id: a reading from another terminal than the handled turn's is
+// after it (one from an older terminal never gets this far).
+// Tasks saved before that reading was kept have neither. The terminal the task was linked to answers for the
+// terminal. For the counter there are two witnesses, and both must agree that the reading is newer: completion_seq
+// (the counter when a turn completed; but a turn handled through the agent's own hook was handled before herdr
+// counted it, so this is then the turn before) and `prev`, the last reading applied in this terminal: a reading
+// with the same number shows a state already seen, which is no new turn whoever handled what in between.
+function afterHandled(t, a, prev) {
+  const h = t.handled, seq = a.state_change_seq;
+  if (seq == null) return true;
+  const term = h?.term ?? t.link?.terminal;
+  if (h && a.terminal_id && term && a.terminal_id !== term) return true;
+  if (prev?.seq != null && seq <= prev.seq) return false;
+  const was = h?.seq ?? h?.comp;
+  return was == null || seq > was;
 }
 // A human turn that has already ended without the hook seeing it start: a completion newer than the last handled
 // one, a closing note newer than the last consumed one, or a worktree HEAD or dirty tree different from the
 // recorded reviewed commit.
-// The saved conversation still ends in the message the finish line already handled.
-function sameTurn(t) {
-  if (!t.handled?.msg) return false;
-  const turn = readTurnOf(t.agent, { file: t.transcript || null, session: t.session, cwd: S.cwdOf(t) });
-  return !!turn && turn.id === t.handled.msg;
-}
 function missedTurn(t, comp) {
   if (comp != null && t.handled && comp !== t.handled.comp && comp > (t.handled.comp || 0)) return true;
   const note = F.noteStat(t);

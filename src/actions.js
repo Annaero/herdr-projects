@@ -129,7 +129,7 @@ export function tell(id, text, { keepIntent = false } = {}) {
 }
 // What every human-started turn does to a task.
 export function rearm(t, keepIntent = false) {
-  t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.selfBlocked = null;
+  t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.turnBy = "reply"; t.selfBlocked = null;
   if (t.failure?.auth) t.failure = null; // a reply or a retry after a login problem is how "fixed" is said
   if (!keepIntent) { if (t.mergeIntent || t.stage === "approval") t.requireApproval = true; t.mergeIntent = null; }
   if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
