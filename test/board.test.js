@@ -295,6 +295,12 @@ test("the board: a row waiting for approval keeps its name, with the PR, verdict
   assert.match(row(failedMerge, 120), / review 2 merge 5\/5 #12 +0s$/);
   assert.match(row({ ...failedMerge, pr: undefined }, 120), / review 2 +0s$/);
   assert.match(stripVTControlCharacters(v.pageLines({ ...failedMerge, owner: "me" }, 80).join("\n")), /blocked · permission · review 2 · /);
+  // behind main and not brought up to date yet: neither the row nor the full details say it is ready
+  const behind = { ...pr, owner: "me", summary: "Did the work.", syncBlocked: { why: "main could not be fetched (network is down)" }, msg: "Behind main, and not up to date yet: main could not be fetched (network is down). The board keeps trying; it cannot be approved until then." };
+  assert.match(row(behind, 120), /Build a flying game {2}Behind main, and not up to date yet/); assert.doesNotMatch(row(behind, 120), /approve to merge\?/);
+  const behindPage = stripVTControlCharacters(v.pageLines(behind, 80, true).join("\n"));
+  assert.match(behindPage, /Behind main \(cannot be approved yet\)/); assert.match(behindPage, /main could not be fetched \(network is down\)/); assert.doesNotMatch(behindPage, /Ready to merge/);
+  assert.match(stripVTControlCharacters(v.pageLines({ ...pr, owner: "me", summary: "Did the work." }, 80, true).join("\n")), /Ready to merge \(approve on board\)/);
   assert.match(row({ ...second, stage: "merging", state: "working", kind: undefined, msg: "merging" }, 120), / review 2 don't merge 3\/5 #12 +0s$/);
   assert.doesNotMatch(row({ ...second, state: "done", stage: "done" }, 120), /review 2/);
   const under = { ...working, stage: "reviewing", reviewRound: 3, msg: "Running the tests." };

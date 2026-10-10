@@ -106,7 +106,8 @@ running. At each turn end the hook runs `herdr-superwork turn-ended` (silent, at
 per-launch secret), and the finish line reads the end of that agent's saved conversation: its last message, an API or
 login error, token use. With the board open or closed it then:
 
-1. commits anything left over, runs the repo's `check` (a failure goes straight back to the agent, three tries);
+1. commits anything left over, brings the branch up to date with main in the task's own worktree (see "Staying
+   current with main"), and runs the repo's `check` (a failure goes straight back to the agent, three tries);
 2. pushes the branch and opens a draft pull request, when there is an `origin` remote and `gh`;
 3. has a second agent review it adversarially, in a visible split of the same herdr space; it rates the work 1 to 5
    and brings evidence; whatever it changed is put back. A reviewer that ends its turn with no verdict fails the
@@ -138,10 +139,36 @@ opening the board starts it again if it died; it replaces itself when the plugin
 gone. It looks after this machine's tasks only. The sidebar shows only tasks with a live agent pane; the others
 (queued, your own) are on the board only.
 
-**Approving** brings the branch up to date with main in the task's own worktree, re-checks and re-reviews if that
-changed anything, then merges through the pull request (remembered when GitHub's checks are still running) or
-locally, squashed by default. Conflicts are rolled back and saved; `Ctrl+G` hands them to the task's agent, and
-`conflictAuto` per task does so by itself. A checkout with unsaved files is never forced.
+**Staying current with main** is the board's job, not the agent's: nothing in an agent's rules asks for it. Tasks
+run in parallel and touch the same files, so the board itself fetches main and merges it into each task's branch, in
+that task's own worktree:
+
+- *before review*: when an agent finishes, before the check and the review, so the reviewer sees the work as it
+  will really land;
+- *whenever main moves* (another task merged, a merge on GitHub, your own push; the remote is asked every two
+  minutes): every task waiting for your approval is updated, and a task under review the moment its review ends;
+- *after you approve*, once more, as the last safety net. It should rarely find anything.
+
+A clean update is silent. If it changed the commit, the check runs again on the result; the review is repeated only
+when the update touched a file the task itself changed. Otherwise the verdict you already have stands and the task
+does not ask for your eyes again. A real conflict is rolled back at once (your branch and the task's are as they
+were) and goes straight to the task's agent as a plain message: the conflicting files, the target commit, and that
+it should resolve them in its own worktree and finish again. Until it has, the task is not waiting for approval: its
+row says "resolving a conflict with main" and herdr's sidebar says "conflict". After `rounds` repairs in a row that
+still conflict, you are asked, with the details kept. `conflictAuto false` on a task keeps its conflicts for you to
+send with `Ctrl+G`. Only a task at rest is ever updated: its worktree clean, on exactly the commit that was reviewed.
+A fetch that fails is never taken for a sync: a finished turn is saved as "Could not synchronize main" instead of
+going on to review (and as "Task is on the wrong branch" when its worktree has left the task's own branch). A waiting task whose main cannot be fetched, or that was not at rest when main moved, is held
+as "behind main": its row and herdr's sidebar say so, `Ctrl+A` is refused with the reason, and the board tries again
+every minute until the branch really is up to date.
+"Main" is where the task will land: the remote's main when it lands through a pull request; otherwise (no remote,
+or `pr` off) the branch your checkout was on when the task first finished. For those, checking out another one
+merges nothing into waiting tasks, and they are held as "behind main" until your checkout is back on it.
+
+**Approving** makes that last sync, re-checks (and re-reviews, by the same rule) if it changed anything, then merges
+through the pull request (remembered when GitHub's checks are still running) or locally, squashed by default. A
+conflict found here goes back to the agent the same way, and the merge you approved is retried after its repair. A
+checkout with unsaved files is never forced.
 
 **Agents run with full access by default**, as pi-work's did: `claude --dangerously-skip-permissions`,
 `codex --dangerously-bypass-approvals-and-sandbox --no-daemon`. They can run anything as you without asking; the
@@ -172,7 +199,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `theme` | `auto` | the board and the review page use herdr's own colours and status marks. herdr's sidebar is drawn by the client with the config of the device it runs on, and herdr does not pass that on to the board. `auto`: when herdr's `config.toml` on this machine sets a theme (`[theme]`, with its custom colours), the board follows it as herdr resolves it; when it sets none, the board paints with the terminal's own colours, as herdr's `terminal` theme does, which fits whatever device you look from. `herdr` follows this machine's config exactly, Catppuccin by default: choose it if you run an unconfigured herdr on this very machine and want the board to match it; `terminal` always uses the terminal's colours; `dark` or `light` picks herdr's dark or light theme by hand. `ui.status_indicators` is always followed |
 | `review` | `repos` | what gets reviewed: `repos`, `all` or `none` |
 | `artifacts`, `serve` | `true`, `tailscale` | evidence pages, linked privately on your tailnet (`local` for 127.0.0.1; also used, and said on the task, when Tailscale is not installed) |
-| `reviewAuto`, `rounds` | `false`, `3` | send reviews below 5/5 back by themselves, at most this often |
+| `reviewAuto`, `rounds` | `false`, `3` | send reviews below 5/5 back by themselves, at most this often; `rounds` also caps conflict repairs |
 | `worktree`, `base` | `auto`, `fresh` | `none`: work in your checkout; `head`: start from your commit |
 | `pr`, `merge`, `cleanup` | `true`, `squash`, `true` | pull requests, how work lands, remove merged worktrees |
 | `max` | `4` | agents working at once |
@@ -181,7 +208,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `machines`, `remoteUser` | `auto` | other machines: herdr's saved machines, names, or `off` |
 
 Per task (`--id <id>`, or options to `delegate`): `agent`, `model`, `effort`, `reviewer`, `reviewerModel`,
-`reviewerEffort`, `watcher`, `review`, `reviewAuto`, `rounds`, `artifacts`, `serve`, `conflictAuto`.
+`reviewerEffort`, `watcher`, `review`, `reviewAuto`, `rounds`, `artifacts`, `serve`, `conflictAuto` (on by default).
 
 Data lives in `~/.local/state/herdr-superwork` (`HERDR_SUPERWORK_DATA_DIR` overrides it): one folder per task with
 `task.json`, `inbox.jsonl` and `artifacts/`.

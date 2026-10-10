@@ -12,6 +12,7 @@ import { whyStopped } from "./turn.js";
 import { launchExtras, taskLine } from "./delegate.js";
 import { publishReview } from "./review-page.js";
 import { reviewMessage, reviewFindings } from "./actions.js";
+import * as Y from "./sync.js";
 
 const ms = (name, fallback) => (process.env[name] !== undefined ? Number(process.env[name]) : fallback);
 const lastLines = (text, n = 12) => String(text || "").split("\n").map((l) => l.trimEnd()).filter((l) => l.trim()).slice(-n).join("\n");
@@ -45,7 +46,7 @@ function humanTurn(t) {
   if (t.mergeIntent || t.stage === "approval") t.requireApproval = true;
   t.mergeIntent = null;
   if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
-  t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0;
+  t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
   t.armedAt = t.handled?.at || t.armedAt || 0; t.expectedWake = null; t.turnOpen = false;
   t.stage = "working"; t.msg = ""; t.kind = undefined; t.mergeFailed = false;
   if (t.failure?.auth) t.failure = null;
@@ -164,6 +165,41 @@ export async function pipelineJob(id) {
   finally { release(id); }
 }
 
+// Main moved while a task waits for your approval (another task merged, or anything else): the board brings the
+// task's branch up to date by itself. Started by the housekeeping pass. Only a task at rest is touched: waiting for
+// approval, its worktree clean and on exactly the commit that was reviewed.
+// `force`: main could not even be asked about (the periodic fetch failed), so look whatever is known locally.
+export async function syncJob(id, { force = false } = {}) {
+  let t = claim(id, "sync");
+  if (!t) return;
+  const g = guardFor(id);
+  try {
+    const tree = Y.treeOf(t);
+    if (!Y.resyncable(t) || !tree || (Y.knownTarget(t) === t.syncSeen && !t.syncBlocked && !force)) return;
+    g.expect(t);
+    // Only a task at rest is merged into. One that is not, or whose main cannot be read, is held as "behind main":
+    // it no longer invites an approval, and the sync is tried again soon.
+    let r = null, why = "";
+    if (S.branchOf(tree) !== t.branch) why = `its worktree is not on its own branch ${t.branch}`;
+    else if (F.dirty(tree)) why = "its worktree has unsaved files";
+    else if (t.reviewedHead && F.headOf(tree) !== t.reviewedHead) why = "its branch changed after the review";
+    else r = Y.syncMain(t, tree);
+    if (r?.status === "error") why = `main could not be fetched (${S.oneLine(firstLine(r.detail), 200) || "git fetch failed"})`;
+    if (r?.status === "skip") why = Y.skipWhy(r);
+    if (why) {
+      const b = g.set((t) => ({ ...Y.seenPatch(t, null), seen: t.syncBlocked ? t.seen : false, syncBlocked: { why, at: Date.now() }, msg: Y.behindMsg(why) }));
+      return void F.labelPane(b, "behind main");
+    }
+    if (r.status === "conflict") return void Y.conflictBack(id, g, tree, r, (failure, seen) => { fail(g, failure, { patch: seen }); });
+    if (r.status !== "merged") { // already current: asked again when main moves
+      const c = g.set((t) => ({ ...Y.seenPatch(t, r), ...(t.syncBlocked ? { syncBlocked: null, msg: approvalMessage(t) } : {}) }));
+      return void F.labelPane(c, F.labelOf(c));
+    }
+    await pipeline(id, g, t.summary || "", { reason: "sync" }, r);
+  } catch (e) { if (!e.aborted) try { fail(g, { stage: "workflow", title: "The finish line failed", detail: e.stack || e.message, next: "Investigate the error, then finish again." }); } catch {} else await closeReviewer(id); }
+  finally { release(id); }
+}
+
 // A finished turn that was re-armed by mistake (F.reopened) and would stand in "working" for ever. The status hook
 // only suspects it, from a reading that may be old: this runner asks herdr itself, holding the task, and does nothing
 // unless the agent is at rest right now in the newest terminal with no turn finished since the handled one.
@@ -189,8 +225,11 @@ export async function recoverJob(id) {
 }
 
 // ---- the pipeline -------------------------------------------------------------------------------------------------------
-export async function pipeline(id, g, text, wake) {
-  let t = g.set((t) => { t.stage = "checking"; t.msg = "checking the result"; t.watch = null; t.summary = String(text || "").trim(); });
+// `synced`: the caller already brought the branch up to date with main (a re-sync, or the sync after an approval)
+// and this is its result.
+export async function pipeline(id, g, text, wake, synced = null) {
+  const sawBefore = !!S.get(id)?.seen;
+  let t = g.set((t) => { t.stage = "checking"; t.syncBlocked = null; t.msg = synced ? "checking the branch updated with main" : "checking the result"; t.watch = null; t.summary = String(text || "").trim(); });
   const folder = S.cwdOf(t), root = S.folderOf(t.id), tree = F.isAgentTask(t) && t.worktree && fs.existsSync(t.worktree) ? t.worktree : "";
   const repo = t.repoCfg || {};
   const env = { HERDR_SUPERWORK_ID: t.id, HERDR_SUPERWORK_WORKTREE: folder, HERDR_SUPERWORK_REPO: root };
@@ -201,7 +240,24 @@ export async function pipeline(id, g, text, wake) {
     try { if (F.dirty(tree)) { S.gitOut(tree, ["add", "-A"]); S.gitOut(tree, ["commit", "-m", `${t.title || id}\n\nTask: ${id}`]); } }
     catch (e) { return void fail(g, { stage: "commit", title: "Could not commit the work", detail: outputOf(e), next: "Fix the Git error in your own worktree, commit the work and finish again." }); }
   }
-  g.check();
+  t = g.check();
+  // Bring the branch up to date with main before anything is checked or reviewed, so the reviewer sees the work as
+  // it will really land. The board does it; the agent hears nothing unless there is a real conflict.
+  let sync = synced;
+  if (!sync && Y.treeOf(t)) {
+    // Work on another branch than the task's own cannot be brought up to date, pushed or landed as this task: it is
+    // not checked or reviewed as if it could.
+    const on = S.branchOf(tree);
+    if (on !== t.branch) return void fail(g, { stage: "merge", phase: "branch", title: "Task is on the wrong branch", detail: `Worktree: ${tree}\nIt is on: ${on || "no branch"}\nThe task's own branch: ${t.branch}\n\nNothing was checked, reviewed or merged.`, next: `In ${tree}, bring the work onto ${t.branch} and switch back to it (git switch ${t.branch}), then finish again. Do not alter the human's checkout.`, agentCanFix: true, auth: false }, { keepIntent: true });
+    sync = Y.syncMain(t, tree);
+    if (sync.status === "conflict") return void Y.conflictBack(id, g, tree, sync, (failure, seen) => { fail(g, failure, { keepIntent: true, patch: seen }); });
+    // Main could not be read: work that was not brought up to date is never reviewed or put up for approval as if it were.
+    if (sync.status === "error") return void fail(g, { stage: "merge", phase: "fetch", title: "Could not synchronize main", detail: `Branch: ${t.branch}\nFolder: ${tree}\n\n${sync.detail}`, next: "Investigate the fetch/Git error and fix what you safely can without altering the human's checkout. Finish again so the board retries the sync." }, { keepIntent: true });
+  }
+  if (sync) t = g.set((t) => Y.seenPatch(t, sync));
+  // A clean update that touched none of the files the task changed leaves its review standing: the check runs again
+  // on the merged result, the reviewer is not asked twice about the same change.
+  const kept = sync?.status === "merged" && sync.overlap && !sync.overlap.length && t.reviewedHead === sync.before ? S.currentReview(t) : null;
   if (t.setupPending && repo.setup) {
     const setup = await sh(repo.setup, folder, env, { alive });
     if (setup.aborted) return;
@@ -258,7 +314,8 @@ export async function pipeline(id, g, text, wake) {
   // 4. An adversarial review before it reaches you.
   let review = null;
   const reviewNeeded = ch.review !== "none";
-  if (reviewNeeded) {
+  if (reviewNeeded && kept && toLand) review = { ...kept, head: change.head, keptAt: Date.now() };
+  else if (reviewNeeded) {
     const r = await runReview(id, g, { text, change, toLand, ch });
     if (r.aborted) return;
     if (!r.review) return void fail(g, { stage: "review", auth: r.auth ? true : undefined, title: r.auth ? "Needs a login" : "Review failed", msg: r.auth ? "The reviewer needs a login" : `Review failed: ${S.oneLine(r.error, 200)}. Retry the task to review again.`, detail: `Review failed: ${r.error}`, next: "Investigate the reviewer failure, then finish again for a fresh review. Do not bypass review or merge approval." }, { patch: { review: null } });
@@ -267,14 +324,14 @@ export async function pipeline(id, g, text, wake) {
   t = g.set({ failure: null });
   // The loop, off unless reviewAuto is on: anything below 5 goes straight back, at most `rounds` times.
   const rounds = t.reviewRounds || 0;
-  if (review && (ch.reviewAuto || t.mergeIntent) && review.score < 5 && rounds < ch.rounds) {
+  if (review && !review.keptAt && (ch.reviewAuto || t.mergeIntent) && review.score < 5 && rounds < ch.rounds) {
     F.sendOwn(id, reviewMessage(review), { reason: "review", keepIntent: !!t.mergeIntent, patch: { review: { ...review, stale: true }, reviewRounds: rounds + 1 } });
     return;
   }
   const head = change?.head || F.headOf(folder) || null;
   const { landCore } = await import("./land.js");
   if (t.mergeIntent) { // an approved merge being re-verified after a sync with main or a conflict repair
-    if (review && (review.score < 4 || review.recommend === false)) return void fail(g, { stage: "review", title: "Approved merge repair is not ready", detail: `A reviewer went through the repair and found it not ready.\n\n${reviewFindings(review)}`, next: "The agent could not make this repair pass review. Address the findings before retrying.", agentCanFix: true });
+    if (review && !review.keptAt && (review.score < 4 || review.recommend === false)) return void fail(g, { stage: "review", title: "Approved merge repair is not ready", detail: `A reviewer went through the repair and found it not ready.\n\n${reviewFindings(review)}`, next: "The agent could not make this repair pass review. Address the findings before retrying.", agentCanFix: true });
     t = g.set((t) => { t.review = review; t.stat = change?.stat; t.reviewedHead = head; t.mergeIntent = { ...t.mergeIntent, verifiedHead: head }; });
     if (holdPrFailure(g, t)) return;
     t = g.set({ stage: "merging", msg: "merging" });
@@ -284,13 +341,17 @@ export async function pipeline(id, g, text, wake) {
   t = g.set((t) => { t.review = review; t.stat = change.stat; t.reviewedHead = head; t.mergeFailed = false; });
   if (holdPrFailure(g, t)) return;
   // 5. A repo that lands by itself still wants a good review first: below 4, you are asked.
-  if (repo.land === "auto" && !t.requireApproval && (!reviewNeeded || (review && review.score >= 4 && review.recommend !== false))) {
+  if (repo.land === "auto" && !t.requireApproval && sync?.status !== "skip" && (!reviewNeeded || (review && review.score >= 4 && review.recommend !== false))) {
     t = g.set((t) => { t.stage = "merging"; t.msg = "merging"; t.mergeIntent = { approvedAt: Date.now(), repairs: 0, verifiedHead: head, auto: true }; });
     return void (await landCore(id, g));
   }
   // Finished work that waits for your yes is not done: it is blocked on you.
-  t = g.set((t) => { t.stage = "approval"; t.msg = approvalMessage(t, note); t.seen = false; });
-  F.labelPane(t, review ? F.verdictLabel(t, review) : "approve?");
+  // An update with main that left the verdict standing does not ask for your eyes again.
+  const quiet = sawBefore && wake?.reason === "sync" && (review ? !!review.keptAt : !reviewNeeded);
+  // Checked and reviewed, but not against where it would land (your checkout is on another branch): not approvable yet.
+  const behind = sync?.status === "skip" ? Y.skipWhy(sync) : "";
+  t = g.set((t) => { t.stage = "approval"; t.msg = behind ? Y.behindMsg(behind) : approvalMessage(t, note); t.seen = quiet; if (behind) t.syncBlocked = { why: behind, at: Date.now() }; });
+  F.labelPane(t, F.labelOf(t));
 }
 // A pull-request blocker found by polling survives a passing local check: remote CI must confirm.
 function holdPrFailure(g, t) {

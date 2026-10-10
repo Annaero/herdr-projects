@@ -120,7 +120,7 @@ export const DEFAULTS = {
   trust: true,            // mark a new task's repo as trusted in the agent's own settings, so no dialog blocks the start
   agentArgs: {},          // per agent kind: extra arguments after `--` for `herdr agent start`; replaces the built-in default
 };
-export const TASK_DEFAULTS = { conflictAuto: false }; // per task only
+export const TASK_DEFAULTS = { conflictAuto: true }; // per task only. A conflict with main goes back to the task's agent by itself.
 const REVIEW_WORDS = { repos: "repos", repo: "repos", true: "repos", on: "repos", yes: "repos", all: "all", always: "all", everything: "all", none: "none", off: "none", false: "none", no: "none", never: "none" };
 function coerce(key, value) {
   const shape = key in TASK_DEFAULTS ? TASK_DEFAULTS[key] : DEFAULTS[key];

@@ -1,6 +1,7 @@
 // The housekeeping pass. It rides on every hook run (for any pane, in any task), every board tick and the startup
 // hook, rate-limited by timestamps in the data folder, so nothing important depends on the board being open:
-// start queued tasks when a slot is free, reconcile each linked task with herdr, and poll open pull requests.
+// start queued tasks when a slot is free, reconcile each linked task with herdr, bring waiting tasks up to date when
+// main moved, and poll open pull requests.
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
@@ -11,6 +12,7 @@ import { herdr, currentSocket, socketExists } from "./herdr.js";
 import { userEnv, inline, runnerAlive, spawnRunner } from "./runner.js";
 import { reconcile } from "./hook.js"; // a cycle, used only at call time
 import { startQueued } from "./actions.js";
+import * as Y from "./sync.js";
 
 const key = (socket) => createHash("sha1").update(String(socket)).digest("hex").slice(0, 8);
 
@@ -27,10 +29,37 @@ export function housekeeping(socket = currentSocket(), { force = false } = {}) {
       if (ok) for (const t of linked) { try { reconcile(S.get(t.id) || t, api); } catch {} }
     }
     if (tasks.some((t) => t.stage === "queued")) { try { startQueued(socket); } catch {} }
+    try { resync(tasks, socket); } catch {}
   }
-  if (tasks.some((t) => t.pr && !t.prMerged) && (force === "pr" || S.due("prpoll", 120000))) {
+  if (tasks.some((t) => (t.pr && !t.prMerged) || (Y.resyncable(t) && t.worktree)) && (force === "pr" || S.due("prpoll", 120000))) {
     if (inline()) (globalThis.__swJobs ||= []).push(["prpoll", "-", []]);
     else spawnLoose(["run", "prpoll", "-"]);
+  }
+}
+// Main moved (another task merged, or anything else): every task that waits for approval is brought up to date in
+// its own worktree, each by a runner of its own. A task under review is reached the moment its review ends. Only
+// what git already knows locally is read here; the periodic fetch below and every merge keep that current.
+function resync(tasks, socket) {
+  const known = new Map();
+  for (const t of tasks) {
+    if (!Y.resyncable(t) || t.link.socket !== socket || !Y.treeOf(t) || runnerAlive(t)) continue;
+    const now = Y.knownTarget(t, known);
+    if (now && (now !== t.syncSeen || t.syncBlocked) && Date.now() >= (t.syncRetryAt || 0)) spawnRunner("sync", t.id);
+  }
+}
+// Ask the remote where main is, for every repo with a task waiting: main also moves without the board (a merge on
+// GitHub, your own push). The housekeeping pass that follows sees the difference.
+// A fetch that fails says nothing about main, so nothing may go on looking ready: each waiting task of that repo
+// gets a sync runner anyway, which finds the same failure and holds the task as "behind main" until a fetch works.
+function fetchMains() {
+  const done = new Map(); // repo and branch -> did the fetch work
+  for (const t of S.list()) {
+    if (!Y.resyncable(t) || !Y.treeOf(t) || runnerAlive(t)) continue;
+    const root = S.folderOf(t.id);
+    if (!Y.viaRemote(root, t)) continue;
+    const b = Y.mainBranch(root, t), key = `${root}|${b}`;
+    if (!done.has(key)) { let ok = true; try { Y.fetchMain(root, b); } catch { ok = false; } done.set(key, ok); }
+    if (!done.get(key) && !t.syncBlocked) spawnRunner("sync", t.id, ["--force"]);
   }
 }
 // A detached job that belongs to no single task.
@@ -47,13 +76,14 @@ export function spawnLoose(args) {
 }
 
 // ---- pull requests are watched: failed checks, a requested change or new feedback wake the agent; a merge made
-// elsewhere marks the task done. Conflicts wait for merge time. ------------------------------------------------------
+// elsewhere marks the task done. Conflicts with main are found by the board's own sync (sync.js), not here. ------------------------------------------------------
 // A task waiting on a login is the human's: pull-request feedback does not wake its agent until that is cleared. The
 // blocker itself stays saved, so the next poll after the login wakes the agent in the usual way.
 const needsLogin = (t) => !!t.failure?.auth || (t.stage === "asks" && t.kind === "auth");
 const BAD = ["FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "STALE"];
 const GOOD = ["SUCCESS", "NEUTRAL", "SKIPPED"];
 export async function pollPrs() {
+  try { fetchMains(); } catch {}
   for (const first of S.list()) {
     if (!first.pr || first.prMerged || runnerAlive(first) || (first.stage === "working" && !first.autoMerge) || needsLogin(first)) continue;
     const r = F.gh(["pr", "view", F.prNumber(first.pr), "--json", "state,reviewDecision,statusCheckRollup,author,comments,reviews,headRefOid"], S.folderOf(first.id), 60000);

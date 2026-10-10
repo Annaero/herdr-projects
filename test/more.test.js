@@ -384,6 +384,7 @@ test("a merge conflict with your checkout is rolled back and saved; ctrl+g sends
   try {
     w.script({ worker: [{ files: { "a.txt": "from the agent\n" }, commit: "agent", note: "Changed a.txt." }] });
     const id = A.add(w.root, "Conflict").id;
+    S.setTaskConfig(id, "conflictAuto", false); // by hand for this task; by itself is the default (sync.test.js)
     A.delegate(id);
     let t = await settle(id);
     assert.equal(t.stage, "approval");

@@ -35,7 +35,7 @@ const findPane = (id) => st.panes.find((p) => p.pane_id === id);
 const findAgent = (target) => st.panes.find((p) => p.agent && (p.pane_id === target || p.agent.name === target));
 const bump = (p, status, complete) => { st.seq += 1; p.agent.status = status; p.agent.seq = st.seq; if (complete) p.agent.completion = st.seq; };
 
-// One scripted turn. Steps: { files: {path: text}, commit: "message", note: "closing note", verdict: {...},
+// One scripted turn. Steps: { merge: "commit to merge first", files: {path: text}, commit: "message", note: "closing note", verdict: {...},
 // status: "done" | "unknown" | "blocked" | "working", session: "id", screen: "text" }
 function play(p, prompt) {
   const script = read(path.join(dir, "script.json"), {});
@@ -46,6 +46,7 @@ function play(p, prompt) {
   fs.writeFileSync(path.join(dir, "script.json"), JSON.stringify({ ...script, [role]: queue }));
   (p.agent.prompts ||= []).push(prompt);
   bump(p, "working", false);
+  if (step.merge) { try { git(p.cwd, ["merge", "-q", "--no-edit", String(step.merge)]); } catch {} } // conflicts are resolved by `files` and `commit`
   for (const [rel, text] of Object.entries(step.files || {})) { fs.mkdirSync(path.dirname(path.join(p.cwd, rel)), { recursive: true }); fs.writeFileSync(path.join(p.cwd, rel), text); }
   if (step.commit) { git(p.cwd, ["add", "-A"]); git(p.cwd, ["-c", "user.email=agent@test", "-c", "user.name=agent", "commit", "-qm", String(step.commit)]); }
   if (step.note !== undefined && step.note !== null) { const f = path.join(p.cwd, ".herdr-superwork", `closing-${n}.md`); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, step.note); const t = new Date(Date.now() + 5); fs.utimesSync(f, t, t); }

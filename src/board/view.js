@@ -30,7 +30,7 @@ const MARK_STATES = ["working", "error", "done"];
 const isAgent = (r) => !!r.agent && !["todo", "progress"].includes(r.stage);
 const failureFor = (r) => (r.stage === "nosummary" ? null : A.failureOf(r));
 const canSendError = (r) => !!r && !r.host ? A.canSendError(r) : !!r && (r.stage === "nosummary" || (r.stage === "failed" && !r.failure?.auth));
-const inReview = (r) => r.state === "blocked" && r.kind === "permission" && r.stage === "approval" && !r.mergeFailed;
+const inReview = (r) => r.state === "blocked" && r.kind === "permission" && r.stage === "approval" && !r.mergeFailed && !r.syncBlocked;
 const kindOf = (r) => (inReview(r) ? "review" : r.kind || "");
 const kindColor = (r) => (inReview(r) ? "teal" : "red");
 const reviewing = (r) => r.state !== "done" && (r.stage === "reviewing" || r.stage === "reviewneeds");
@@ -651,7 +651,7 @@ export class View {
         : failure ? `${failureAction} · ctrl+e full details · space to preview and reply${r.stage === "approval" && r.kind === "permission" ? " · ctrl+a retry merge" : ""}`
         : r?.stage === "nosummary" ? "ctrl+r tell it to continue · ctrl+y finish anyway · enter to go in · space to preview"
         : canSendError(r) ? "ctrl+r send error to agent · ctrl+e full details · enter to go in · space to preview"
-        : this.peek && r ? `${hasEvidence ? "ctrl+e evidence & details" : "ctrl+e full details"} · ctrl+b sidebar · ${agentOn && r.stage === "approval" ? `ctrl+a to approve and merge${r.review && r.review.score < 5 ? " · ctrl+r to send the review to the agent" : ""} · or type what should change` : agentOn && r.state === "blocked" && r.kind === "permission" ? "ctrl+a to say yes · or type your answer" : agentOn ? "type and enter to reply" : "type and enter to change it"} · enter to go in · space or esc to close`
+        : this.peek && r ? `${hasEvidence ? "ctrl+e evidence & details" : "ctrl+e full details"} · ctrl+b sidebar · ${agentOn && r.stage === "approval" && r.syncBlocked ? "behind main: the board keeps trying to update it · or type what should change" : agentOn && r.stage === "approval" ? `ctrl+a to approve and merge${r.review && r.review.score < 5 ? " · ctrl+r to send the review to the agent" : ""} · or type what should change` : agentOn && r.state === "blocked" && r.kind === "permission" ? "ctrl+a to say yes · or type your answer" : agentOn ? "type and enter to reply" : "type and enter to change it"} · enter to go in · space or esc to close`
         : v ? "enter to send to the Coordinator · tab to delegate · shift+enter/ctrl+j newline · ↑↓/PgUp/PgDn edit · esc clear" : this.job() ? "ctrl+x to stop it · enter to take it back and change it · ctrl+↑ back to the list" : `${this.filter ? `filter: ${this.filter} (esc clears) · ` : ""}enter go in · tab delegate · ctrl+e details · ctrl+b sidebar · alt+a archive · alt+h archives · ctrl+x stop/delete · ? shortcuts`));
       let top;
       const session = sessionName(currentSocket());
@@ -823,7 +823,9 @@ export class View {
     // The footer belongs only in full details; the sidebar ends at the task facts.
     if (full && (result.length || merging)) {
       L.push("", " " + t.fg("surface_dim", "─".repeat(Math.max(1, w))));
-      if (merging && !failure) L.push(...head("Ready to merge (approve on board)", statusColor(r)), ...block(r.summary || note || ""));
+      // Behind main and not brought up to date yet: not ready, and the reason is said here as on the row.
+      if (merging && !failure && r.syncBlocked) L.push(...head("Behind main (cannot be approved yet)", "peach"), ...block(`${r.syncBlocked.why}. The board keeps trying to bring it up to date.`), "", ...block(r.summary || ""));
+      else if (merging && !failure) L.push(...head("Ready to merge (approve on board)", statusColor(r)), ...block(r.summary || note || ""));
       if (result.length) { L.push(""); table(result); }
     }
     return L;

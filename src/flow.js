@@ -95,14 +95,15 @@ export const verdictLabel = (t, rv) => `${S.reviewLabel(t) || "review"}${S.revie
 export function labelOf(t) {
   const rv = S.currentReview(t);
   switch (t.stage) {
-    case "approval": return t.mergeFailed ? "merge blocked" : t.prFailure ? "pr blocked" : rv ? verdictLabel(t, rv) : "approve?";
+    case "approval": return t.mergeFailed ? "merge blocked" : t.syncBlocked ? "behind main" : t.prFailure ? "pr blocked" : rv ? verdictLabel(t, rv) : "approve?";
     case "asks": return t.kind === "auth" ? "needs login" : "needs you";
     case "nosummary": return "needs you";
     case "reviewneeds": return [S.reviewLabel(t), "needs you"].filter(Boolean).join(" · ");
-    case "failed": return t.failure?.auth ? "needs login" : "failed";
+    case "failed": return t.failure?.auth ? "needs login" : t.failure?.phase === "sync" ? "conflict" : "failed";
     case "merging": return t.autoMerge ? "merges on green" : "merging";
     case "reviewing": return S.reviewLabel(t) || "in review";
     case "checking": case "pushing": return "checking";
+    case "working": return t.expectedWake?.reason === "conflict" ? "conflict" : "";
   }
   return "";
 }
@@ -170,10 +171,14 @@ export function cancelAutoMerge(t) {
 // The change a task would land, against where its worktree started.
 export function changeOf(t) {
   if (!t.worktree || !fs.existsSync(t.worktree)) return null;
-  try {
-    const range = `${t.baseSha || t.from || "HEAD"}...HEAD`;
-    return { stat: S.gitOut(t.worktree, ["diff", "--shortstat", range]), diff: S.gitOut(t.worktree, ["diff", "--stat", range]), head: S.gitOut(t.worktree, ["rev-parse", "HEAD"]), range };
-  } catch { return null; }
+  // Once the branch holds a newer main (sync.js), the change is what it adds to that main, not to where it started.
+  for (const from of [t.syncedTo, t.baseSha || t.from || "HEAD"].filter(Boolean)) {
+    try {
+      const range = `${from}...HEAD`;
+      return { stat: S.gitOut(t.worktree, ["diff", "--shortstat", range]), diff: S.gitOut(t.worktree, ["diff", "--stat", range]), head: S.gitOut(t.worktree, ["rev-parse", "HEAD"]), range };
+    } catch {}
+  }
+  return null;
 }
 export const headOf = (dir) => { try { return S.gitOut(dir, ["rev-parse", "HEAD"]); } catch { return ""; } };
 export const dirty = (dir) => { try { return S.gitOut(dir, ["status", "--porcelain"]); } catch { return ""; } };

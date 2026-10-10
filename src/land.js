@@ -7,6 +7,7 @@ import * as S from "./store.js";
 import * as F from "./flow.js";
 import { herdr, currentSocket, socketExists } from "./herdr.js";
 import { claim, release, guardFor, sh, outputOf } from "./runner.js";
+import * as Y from "./sync.js";
 
 const git = S.gitOut;
 
@@ -50,15 +51,6 @@ export async function cleanupJob(id) {
   try { await tidy(id); } finally { release(id); }
 }
 
-// The branch main lives on at the remote: what the worktree started from, else origin's default, else main.
-function mainBranch(root, t) {
-  const from = String(t.from || "");
-  if (/^origin\/(?!HEAD$)/.test(from)) return from.slice(7);
-  try { return git(root, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]).replace(/^origin\//, ""); } catch {}
-  for (const b of ["main", "master"]) { try { git(root, ["rev-parse", "--verify", `refs/remotes/origin/${b}`]); return b; } catch {} }
-  return "main";
-}
-
 export async function landJob(id) {
   const t = claim(id, "land");
   if (!t || t.stage !== "merging") { if (t) release(id); return; }
@@ -86,13 +78,12 @@ export async function landCore(id, g) {
     F.labelPane(d, null);
     await tidy(id);
   };
-  const reverify = async (why) => {
+  const reverify = async (why, synced = null) => {
     const { pipeline } = await import("./finish.js");
     g.set({ msg: why });
-    await pipeline(id, g, t.summary || "Branch updated with main.", { keepIntent: true, reason: "sync" });
+    await pipeline(id, g, t.summary || "Branch updated with main.", { keepIntent: true, reason: "sync" }, synced);
   };
   if (tree) {
-    let target, base;
     try {
       if (!t.pr && F.dirty(root)) return void fail("Merge needs a clean checkout", `Checkout: ${root}\n${F.dirty(root)}`, "Commit, stash or move your own unsaved files, then approve again. The agent must not alter your checkout.", { agentCanFix: false, auth: false });
       if (git(tree, ["symbolic-ref", "--short", "HEAD"]) !== t.branch) return void fail("Task is on the wrong branch", tree, "Restore the task's own branch before retrying.", { agentCanFix: false, auth: false });
@@ -100,29 +91,23 @@ export async function landCore(id, g) {
       // otherwise the finish line runs again first, under the approval already given.
       if (F.dirty(tree) || (t.mergeIntent?.verifiedHead && F.headOf(tree) !== t.mergeIntent.verifiedHead)) return void (await reverify("checking work that changed after its review"));
       if (!t.mergeIntent) t = g.set({ mergeIntent: { approvedAt: Date.now(), repairs: 0, verifiedHead: F.headOf(tree) } });
-      if (F.hasOrigin(root)) { const b = mainBranch(root, t); git(tree, ["fetch", "origin", b], { timeout: 60000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } }); target = git(tree, ["rev-parse", "FETCH_HEAD"]); base = `origin/${b}`; }
-      else { target = git(root, ["rev-parse", "HEAD"]); base = S.branchOf(root) || "HEAD"; }
     } catch (e) { return void fail("Could not synchronize main", outputOf(e), "Investigate the fetch/Git error, then retry after fixing it."); }
-    let current = false;
-    try { git(tree, ["merge-base", "--is-ancestor", target, "HEAD"]); current = true; } catch {}
-    if (!current) {
-      try { git(tree, ["merge", "--no-edit", target]); }
-      catch (e) {
-        let files = ""; try { files = git(tree, ["diff", "--name-only", "--diff-filter=U"]); } catch {}
-        let restored = true; try { git(tree, ["merge", "--abort"]); } catch { restored = false; }
-        const ch = S.choices(t), repairs = t.mergeIntent?.repairs || 0;
-        const auto = !!files && restored && ch.conflictAuto && repairs < ch.rounds;
-        fail(files ? "Merge conflict with main" : "Could not update task from main",
-          `Conflicting files:\n${files || "none reported"}\n\nTask branch: ${t.branch}\nTarget branch: ${base}\nTarget commit: ${target}\nWorktree: ${tree}\n\nGit output:\n${outputOf(e)}\n\n${restored ? "The private merge attempt was rolled back. The human's checkout is unchanged." : "The private merge could not be rolled back; inspect it before continuing."}`,
-          `In ${tree} on ${t.branch}, merge target commit ${target} (${base}), resolve and commit the conflicts, then finish. The board re-runs checks/review and retries the approved merge. Never alter the human's checkout.`,
-          { agentCanFix: restored, auth: false, extra: { phase: "sync", target, base }, keepIntent: true });
-        if (auto) { const { sendFailure } = await import("./actions.js"); try { sendFailure(id); } catch {} }
-        else if (files && ch.conflictAuto && repairs >= ch.rounds) { try { S.update(id, (t) => { t.stage = "asks"; t.kind = "question"; t.msg = `The agent could not resolve the main conflict after ${repairs} repairs. Full details are kept; you are needed.`; }, { waitMs: 10000 }); } catch {} }
-        return;
-      }
-      // A clean update changed the commit: it is checked and reviewed again, then merged under the approval given.
-      return void (await reverify("checking branch updated with main"));
+    // The last safety net: the branch was brought up to date before its review and whenever main moved since, so
+    // this rarely finds anything. What it finds is handled the same way.
+    const r = Y.syncMain(t, tree);
+    // Never onto a branch the task was not brought up to date with, even at the very same commit.
+    if (r.status === "skip") return void fail("Your checkout is on another branch", `Checkout: ${root}\nIt is on: ${r.onto || "no branch"}\nThis task lands on: ${r.want}\n\nNothing was merged.`, `Switch your checkout back to ${r.want}, then approve again.`, { agentCanFix: false, auth: false });
+    if (r.status === "error") return void fail("Could not synchronize main", r.detail, "Investigate the fetch/Git error, then retry after fixing it.");
+    if (r.status === "conflict") {
+      return void Y.conflictBack(id, g, tree, r, (failure, seen) => {
+        const f = g.set((t) => { Object.assign(t, S.failurePatch(failure), seen); t.stage = "approval"; t.mergeFailed = true; t.msg = failure.title; });
+        F.labelPane(f, "merge blocked");
+      });
     }
+    // A clean update changed the commit: it is checked (and, when it touched the task's own files, reviewed) again,
+    // then merged under the approval given.
+    if (r.status === "merged") return void (await reverify("checking branch updated with main", r));
+    g.set((t) => Y.seenPatch(t, r));
   }
   t = g.check();
   if (t.pr) {

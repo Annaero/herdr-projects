@@ -63,7 +63,7 @@ export function delegate(id, opts = {}) {
     if (opts.base === "fresh" || opts.base === "head") t.base = opts.base;
     // Work that already landed and was cleaned up starts a new round in a fresh worktree, never in your checkout.
     if (t.cleaned || (t.stage === "done" && t.worktree && !fs.existsSync(t.worktree))) {
-      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "handled", "session", "said", "summary", "stat", "kept", "exitedAt", "repoCfg"]) delete t[k];
+      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "syncedTo", "syncSeen", "syncBranch", "syncRepairs", "syncRetryAt", "syncBlocked", "handled", "session", "said", "summary", "stat", "kept", "exitedAt", "repoCfg"]) delete t[k];
       t.link = {};
     }
     t.agent = S.choices(t).agent || "claude";
@@ -72,7 +72,7 @@ export function delegate(id, opts = {}) {
     t.link = { ...(t.link || {}), socket };
     t.mergeIntent = null; t.requireApproval = t.requireApproval || !!t.review; t.failure = null; t.expectedWake = null; t.turnOpen = false;
     if (t.review) t.review = { ...t.review, stale: true };
-    t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0;
+    t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
   });
   F.labelPane(t, null);
   startQueued(socket);
@@ -133,7 +133,7 @@ export function rearm(t, keepIntent = false) {
   if (t.failure?.auth) t.failure = null; // a reply or a retry after a login problem is how "fixed" is said
   if (!keepIntent) { if (t.mergeIntent || t.stage === "approval") t.requireApproval = true; t.mergeIntent = null; }
   if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
-  t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0;
+  t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
   t.stage = "working"; t.msg = ""; t.kind = undefined; t.watch = null; t.app = t.agent || t.app; t.seen = false; t.since = Date.now(); t.mergeFailed = false;
 }
 // Stop: the stage is set first and the pane's state_change_seq recorded, then the interrupt key is sent, so a late
@@ -165,6 +165,8 @@ export function approve(id) {
   if (cur.stage !== "approval") throw new Error(`${cur.id} is not waiting for an approval to merge.`);
   const t = S.update(cur.id, (t) => {
     if (t.stage !== "approval") throw new Error(`${t.id} is not waiting for an approval to merge.`);
+    // Main moved and the board could not bring this branch up to date yet: what was reviewed is not what would land.
+    if (t.syncBlocked) throw new Error(`${t.id} is behind main and cannot be approved yet: ${t.syncBlocked.why}. The board keeps trying to bring it up to date.`);
     if (runnerAlive(t)) throw new Error(`${t.id} is busy. Try again in a moment.`);
     t.stage = "merging"; t.msg = "merging"; t.requireApproval = false; t.since = Date.now(); t.mergeFailed = false;
     t.mergeIntent = { approvedAt: Date.now(), repairs: t.mergeIntent?.repairs || 0, verifiedHead: t.reviewedHead || null };

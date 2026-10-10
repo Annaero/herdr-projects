@@ -22,7 +22,7 @@ export function show(t, live) {
     case "progress": return out("working", { app: t.owner, progress: t.watch?.progress }); // your own task: the progress you reported
     case "done": return out("done");
     case "failed": return t.failure?.auth ? out("blocked", { kind: "auth" }) : out("error");
-    case "approval": return out("blocked", { kind: "permission", review: !t.mergeFailed });
+    case "approval": return out("blocked", { kind: "permission", review: !t.mergeFailed && !t.syncBlocked });
     case "asks": return out("blocked", { kind: t.kind || "question" });
     case "nosummary": return out("error", { msg: t.msg || "stopped without a summary" });
     case "reviewneeds": return out("blocked", { msg: t.msg || "the reviewer needs you" });
