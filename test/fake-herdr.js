@@ -63,7 +63,7 @@ function play(p, prompt) {
   const role = /-r(-\d+)?$/.test(p.agent.name) ? "reviewer" : "worker";
   const n = (p.agent.name.match(/-(\d+)(?:-[0-9a-f]{4})?(?:-r(?:-\d+)?)?$/) || [])[1];
   const queue = script[role] || [];
-  const step = queue.shift() || (role === "reviewer" ? { verdict: { score: 5, recommend: true, text: "Looks right. Nothing found." } } : { note: "Done." });
+  const step = queue.shift() || (role === "reviewer" ? { verdict: { meets: true, findings: [], text: "Looks right. Nothing found." } } : { note: "Done." });
   fs.writeFileSync(path.join(dir, "script.json"), JSON.stringify({ ...script, [role]: queue }));
   (p.agent.prompts ||= []).push(prompt);
   bump(p, "working", false);

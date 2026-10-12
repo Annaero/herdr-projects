@@ -39,7 +39,7 @@ test("main is merged into the task's branch before the check and the review; the
     assert.equal(t.stage, "approval", JSON.stringify(t.failure));
     assert.ok(holds(t.worktree, target), "the branch holds main");
     assert.equal(t.syncedTo, target);
-    assert.equal(t.review.score, 5); assert.equal(t.reviewedHead, git(t.worktree, "rev-parse", "HEAD"));
+    assert.equal(t.review.pass, true); assert.equal(t.reviewedHead, git(t.worktree, "rev-parse", "HEAD"));
     assert.match(t.stat, /^1 file changed/); // the change is what it adds to main: g.txt is not part of it
     assert.equal(paneOf(w, t).agent.prompts.length, 2); // its task and your answer: nothing about main
     assert.equal(git(w.root, "status", "--porcelain"), "");
@@ -76,7 +76,7 @@ test("a conflict with main goes to the agent by itself, before any approval; the
     endTurn(w, t, "Resolved the conflict.");
     t = await settle(id);
     assert.equal(t.stage, "approval", JSON.stringify(t.failure));
-    assert.equal(t.failure, null); assert.equal(t.syncRepairs, 0); assert.equal(t.review.score, 5); assert.ok(holds(t.worktree, target));
+    assert.equal(t.failure, null); assert.equal(t.syncRepairs, 0); assert.equal(t.review.pass, true); assert.ok(holds(t.worktree, target));
     A.approve(id);
     t = await settle(id);
     assert.equal(t.stage, "done", JSON.stringify(t.failure));
@@ -374,7 +374,7 @@ test("a worktree that left the task's own branch is not checked, reviewed or put
     A.sendFailure(id);
     assert.match(paneOf(w, S.get(id)).agent.prompts.at(-1), /Task is on the wrong branch/);
     t = await settle(id);
-    assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.ok(holds(t.worktree, target)); assert.equal(t.review.score, 5);
+    assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.ok(holds(t.worktree, target)); assert.equal(t.review.pass, true);
   } finally { w.cleanup(); }
 });
 

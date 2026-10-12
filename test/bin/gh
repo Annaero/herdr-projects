@@ -7,7 +7,7 @@ let c = {}; try { c = JSON.parse(fs.readFileSync(path.join(dir, "gh.json"), "utf
 fs.appendFileSync(path.join(dir, "gh.log"), a.join(" ") + "\n");
 const fail = (m) => { process.stderr.write(m + "\n"); process.exit(1); };
 if (a[0] === "pr" && a[1] === "create") { if (c.createFail) fail(c.createFail); console.log("https://github.com/o/r/pull/7"); }
-else if (a[0] === "pr" && a[1] === "ready") {}
+else if (a[0] === "pr" && (a[1] === "ready" || a[1] === "comment")) {}
 else if (a[0] === "pr" && a[1] === "merge") {
   const only = a.includes("--match-head-commit") ? a[a.indexOf("--match-head-commit") + 1] : "";
   if (c.head && only && only !== c.head && !a.includes("--disable-auto")) fail("Head branch was modified. Review and try the merge again.");

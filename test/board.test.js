@@ -50,7 +50,7 @@ test("the task panel beside the list cuts a long description short and says wher
     // Every setting shows beside the list, also one that is only your default.
     const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Conflicts", "Permissions"];
     for (const fact of SETTINGS) assert.match(text, new RegExp(`│  ${fact} `), fact);
-    assert.match(text, /│ {2}Reviewed {5}work in a repo *\n[^\n]*│ {2}Send back {4}by hand · 3 rounds at most *\n[^\n]*│ {2}Evidence {5}on · local links/);
+    assert.match(text, /│ {2}Reviewed {5}work in a repo *\n[^\n]*│ {2}Send back {4}major or worse · 3 rounds max *\n[^\n]*│ {2}Evidence {5}on · local links/);
     // A short window keeps every setting too: the long parts give way, never the table.
     { const low = open(w, { rows: 24 }); low.v.sel = big.id; low.v.load(); const t24 = low.text(120);
       for (const fact of SETTINGS) assert.match(t24, new RegExp(`│  ${fact} `), `${fact} in a 24-row window`);
@@ -77,9 +77,9 @@ test("the task panel beside the list cuts a long description short and says wher
     assert.match(text, /Line 80 of/);
     for (const fact of SETTINGS) assert.match(text, new RegExp(`\\n ${fact} `), fact);
     // A choice made for this task alone shows in both, and is starred on the full screen.
-    for (const [k, v] of [["review", "all"], ["reviewAuto", "true"], ["rounds", "5"], ["artifacts", "false"]]) S.setTaskConfig(big.id, k, v);
+    for (const [k, v] of [["review", "all"], ["gate", "minor"], ["rounds", "5"], ["artifacts", "false"]]) S.setTaskConfig(big.id, k, v);
     s.v.load(); s.v.panelTop = 1e9; text = s.text(120);
-    assert.match(text, /\n Reviewed {5}all work \*/); assert.match(text, /\n Send back {4}automatic below 5\/5 · 5 rounds at most \*/); assert.match(text, /\n Evidence {5}off \*/);
+    assert.match(text, /\n Reviewed {5}all work \*/); assert.match(text, /\n Send back {4}minor or worse · 5 rounds max \*/); assert.match(text, /\n Evidence {5}off \*/);
     assert.match(text, /opus · default effort \*/); assert.match(text, /\* this task's own, not your default/);
     s.press("up"); assert.ok(s.v.panelTop < s.v.panelLength); assert.equal(s.v.sel, big.id); // the arrows scroll the panel, they do not move the selection
     s.press("esc"); assert.equal(s.v.full, false);
@@ -357,7 +357,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
 test("while the text box holds text it owns the keyboard: no shortcut fires in the middle of a draft", async () => {
   const w = await world({ settings: { helper: "off", coordinator: "off" } });
   try {
-    w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f." }], reviewer: [{ verdict: { score: 4, recommend: true, text: "Good." } }] });
+    w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f." }], reviewer: [{ verdict: { meets: true, text: "Good.", findings: [{ severity: "minor", subject: "f.txt has no title", where: "f.txt" }] } }] });
     const id = A.add(w.root, "Make f").id; A.add(w.root, "Other");
     A.delegate(id); await settle(id);
     const s = open(w);
@@ -384,17 +384,17 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
 test("the board: ready to approve, the merge asks first, the ? menu acts, delete asks, messages stay", async () => {
   const w = await world({ settings: { helper: "off" } });
   try {
-    w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f." }], reviewer: [{ verdict: { score: 4, recommend: true, text: "Good." } }] });
+    w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f." }], reviewer: [{ verdict: { meets: true, text: "Good.", findings: [{ severity: "minor", subject: "f.txt has no title", where: "f.txt" }] } }] });
     const id = A.add(w.root, "Make f").id; A.add(w.root, "Other");
     A.delegate(id); await settle(id);
     const s = open(w);
     s.v.sel = id; s.v.load();
     // Finished, reviewed work is good news: its own group, the reviewer's advice in words, no "approve to merge?" on every row.
-    assert.match(s.text(80), /\n ready to approve *\n ✓ Make f {2}4\/5 reviewer says yes +\ds ago *\n/); assert.doesNotMatch(s.text(80), /blocked|approve to merge|r1/);
+    assert.match(s.text(80), /\n ready to approve *\n ✓ Make f {2}Pass · 1 minor +\ds ago *\n/); assert.doesNotMatch(s.text(80), /blocked|approve to merge|r1/);
     let text = s.text();
     assert.match(text, /│ {2}✓ ready to approve · claude · \ds ago/);
-    assert.match(text, /│ {2}Reviews {6}1 · 4\/5 yes *\n[^\n]*│ {2}Latest {7}4\/5, says merge · 1st review ·[^\n]*\n(?:[^\n]*\n)?[^\n]*│ {15}Good\./); assert.match(text, /│ {2}Change {7}1 file, \+1 −0/);
-    assert.equal(S.get(id).reviews.length, 1); assert.deepEqual([S.get(id).reviews[0].round, S.get(id).reviews[0].score, S.get(id).reviews[0].recommend, S.get(id).reviews[0].text], [1, 4, true, "Good."]); // the task keeps every review it had assert.match(text, /│ {2}The agent said *\n[^\n]*│ {2}Made f\./);
+    assert.match(text, /│ {2}Reviews {6}1 · pass *\n[^\n]*│ {2}Latest {7}Pass · 1 minor · 1st review ·[^\n]*\n(?:[^\n]*\n)?[^\n]*│ {15}Good\./); assert.match(text, /│ {2}Change {7}1 file, \+1 −0/);
+    assert.equal(S.get(id).reviews.length, 1); assert.deepEqual([S.get(id).reviews[0].round, S.get(id).reviews[0].pass, S.get(id).reviews[0].findings.length, S.get(id).reviews[0].text], [1, true, 1, "Good."]); // the task keeps every review it had assert.match(text, /│ {2}The agent said *\n[^\n]*│ {2}Made f\./);
     assert.match(text, /\n {2}ctrl\+a approve and merge · ctrl\+r send back · space reply · \? more/);
     // ctrl+a asks once before the merge; esc says no and nothing happened
     s.press("ctrl+a");
@@ -760,7 +760,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     { round: 1, at: Date.now() - 7200000, score: 2, recommend: false, text: "Crashes on start.", problems: ["game.js: null plane."], checks: ["Ran it."], limitations: [], head: "1111111aaaa" },
     { round: 2, at: Date.now() - 3600000, error: "the reviewer finished without a verdict" },
     { round: 3, at: Date.now() - 60000, score: 4, recommend: true, text: "Fine now.", problems: [], checks: ["Ran the tests: all pass."], limitations: ["Not tried on a phone."], head: "abcdef12345" }] };
-  assert.match(page(spiral), /\n Reviews {6}3 · 2\/5 no → failed → 4\/5 yes\n Latest {7}4\/5, says merge · 3rd review · 1m ago\n {14}Fine now\.\n/);
+  assert.match(page(spiral), /\n Reviews {6}3 · 2\/5 no → no verdict → 4\/5 yes\n Latest {7}4\/5, says merge · 3rd review · 1m ago\n {14}Fine now\.\n/);
   assert.doesNotMatch(page(spiral), /Crashes on start|the newest first/); // beside the list: only the latest
   const whole = page(spiral, true);
   assert.match(whole, /\n Reviews · 3, the newest first\n 3rd review · 4\/5, says merge · 1m ago · commit abcdef1\n Fine now\.\n Checked\n {3}- Ran the tests: all pass\.\n Could not verify\n {3}- Not tried on a phone\.\n\n 2nd review · failed, no verdict · 1h ago\n the reviewer finished without a verdict\n\n 1st review · 2\/5, says don't merge · 2h ago · commit 1111111\n Crashes on start\.\n Problems\n {3}- game\.js: null plane\.\n Checked\n {3}- Ran it\.$/);
@@ -801,6 +801,18 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     const line = row(r, width, [r, working]);
     assert.ok(line.length <= width, `fits ${width}`); assert.ok(!/Skylark|\*\*|Reviewed|approve to merge/.test(line)); assert.match(line, /^ \S Build a flying game/);
   }
+  // a review judged by the gate: the result and a short tally in place of a score, in the row, the facts and the history
+  const tagged = { meets: true, gate: "major", pass: true, text: "Works.", findings: [{ id: "F1", severity: "minor", subject: "A name is unclear", where: "game.js", proof: "" }, { id: "F2", severity: "minor", subject: "A comment is stale", where: "sky.js", proof: "" }] };
+  const failing = { meets: false, gate: "major", pass: false, text: "No fix.", left: 1, findings: [{ id: "F1", severity: "critical", subject: "The plane never takes off", where: "game.js", proof: "ran it" }, { id: "F2", severity: "major", subject: "Crashes without a sky", where: "sky.js", proof: "ran it" }, { id: "F3", severity: "minor", subject: "A name is unclear", where: "game.js", proof: "" }, { id: "F4", severity: "major", subject: "The old menu flickers", where: "menu.js", proof: "", preexisting: true, task: "proj/7" }] };
+  const gated = { ...pr, msg: "Approve to merge? Review: Pass · 2 minor. Built **Skylark**.", review: tagged };
+  assert.match(row(gated, 120), /^ ✓ Build a flying game {2}Pass · 2 minor +PR#12 ✓ {2}0s ago$/);
+  assert.match(row({ ...gated, review: failing }, 120), /^ ✓ Build a flying game {2}Fail · 1 critical, 1 major, 1 minor, 1 pre-existing +PR#12 ✓ {2}0s ago$/);
+  assert.match(row({ ...gated, reviewRound: 2 }, 120), / {2}Pass · 2 minor · 2nd review +PR#12/); assert.match(row({ ...gated, review: { ...tagged, findings: [] } }, 120), / {2}Pass +PR#12/);
+  assert.match(row({ ...gated, reviewRound: 2 }, 54), /^ ✓ Build a flying game {2}Pass · 2 minor +PR#12 ✓ {2}0s( ago)?$/); assert.match(row({ ...gated, reviewRound: 2 }, 34), /^ ✓ Build a flying game {2}Pass +0s$/); // never cut: shorter, then the one word
+  { const paint = { ...theme, fg: (c, s) => `<${c}>${s}</>` }, cv = Object.create(View.prototype); Object.assign(cv, v, { theme: paint }); assert.ok(cv.row(gated, 120, cv.rowLayout([gated], 120)).includes("<green>Pass</>")); assert.ok(cv.row({ ...gated, review: failing }, 120, cv.rowLayout([gated], 120)).includes("<red>Fail</>")); }
+  const loop = { ...gated, reviewRound: 3, reviews: [{ round: 1, at: Date.now() - 7200000, ...failing, head: "1111111aaaa" }, { round: 2, at: Date.now() - 3600000, score: 4, recommend: true, text: "An old one.", problems: ["game.js: old."] }, { round: 3, at: Date.now() - 60000, ...tagged, head: "abcdef12345" }] };
+  assert.match(page(loop), /\n Reviews {6}3 · fail → 4\/5 yes → pass\n Latest {7}Pass · 2 minor · 3rd review · 1m ago\n {14}Works\.\n/); assert.doesNotMatch(page(loop), /Skylark[^\n]*Review:|Review: Pass/); // the board's own words about the review are not said twice
+  assert.match(page(loop, true), /\n 3rd review · Pass · 2 minor · 1m ago · commit abcdef1\n Works\.\n Findings\n {3}- \[minor\] A name is unclear \(game\.js\) · not required\n {3}- \[minor\] A comment is stale \(sky\.js\) · not required\n\n 2nd review · 4\/5, says merge · 1h ago\n An old one\.\n Problems\n {3}- game\.js: old\.\n\n 1st review · Fail · 1 critical, 1 major, 1 minor, 1 pre-existing · 2h ago\n commit 1111111\n No fix\.\n Findings\n {3}- \[critical\] The plane never takes off \(game\.js\)\n {3}- \[major\] Crashes without a sky \(sky\.js\)\n {3}- \[minor\] A name is unclear \(game\.js\) · not required\n {3}- \[major\] The old menu flickers \(menu\.js\) · pre-existing, filed as proj\/7\n {3}- 1 smaller finding noticed late, left out$/);
   // what a row needs from you outranks its bar
   const stuck = { ...working, state: "blocked", kind: "question", stage: "asks", title: "Build a flying game", msg: "Which colour should the plane be?" };
   assert.match(row(stuck, 72), /^ × Build a flying game {2}Which colour should the plane be\? +50% +0s ago$/); assert.match(row(stuck, 120), /be\? +█+░+ +50% +0s ago$/);
@@ -1078,7 +1090,7 @@ test("a word longer than the text box is cut at its edge, and a long paste wraps
 test("a reply to a task's agent wraps in the same box, under the agent's latest message", async () => {
   const w = await world({ settings: { helper: "off", coordinator: "off" } });
   try {
-    w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f." }], reviewer: [{ verdict: { score: 4, recommend: true, text: "Good." } }] });
+    w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f." }], reviewer: [{ verdict: { meets: true, text: "Good.", findings: [{ severity: "minor", subject: "f.txt has no title", where: "f.txt" }] } }] });
     const id = A.add(w.root, "Make f").id;
     A.delegate(id); await settle(id);
     const s = open(w, { rows: 24 });

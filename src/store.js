@@ -8,6 +8,7 @@ import os from "node:os";
 import { spawnSync, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { stripVTControlCharacters } from "node:util";
+import { GATES, DEFAULT_GATE, gateOfAuto, isTagged } from "./gate.js";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const BIN = path.join(ROOT, "bin", "herdr-superwork.js");
@@ -108,7 +109,7 @@ export const DEFAULTS = {
   review: "repos",        // what gets reviewed when finished: "repos", "all" or "none"
   artifacts: true,        // the reviewer brings evidence: screenshots, a recording, a link, test output
   serve: "tailscale",     // how review pages are linked: "tailscale" (private tailnet link) or "local"
-  reviewAuto: false,      // true: a review below 5/5 goes straight back to the agent
+  gate: DEFAULT_GATE,     // what a review must clear: "critical", "major", "minor" or "trivial" (a finding that bad or worse goes straight back to the agent and holds a merge), or "off" (nothing goes back by itself)
   rounds: 3,              // how many times they may go back and forth by themselves
   worktree: "auto",       // "none": agents work in your checkout
   base: "fresh",          // "head": worktrees start from your current commit
@@ -141,6 +142,7 @@ function coerce(key, value) {
     if (v.toLowerCase() === "default") v = "";
     if (key === "reviewer") v = ["false", "off", "no", "none"].includes(v.toLowerCase()) ? "off" : v.toLowerCase();
     if (key === "watcher") v = ["false", "off", "no", "none"].includes(v.toLowerCase()) ? "off" : "on";
+    if (key === "gate" && v) { v = v.toLowerCase(); if (["false", "no", "none", "manual"].includes(v)) v = "off"; if (!GATES.includes(v)) throw new Error(`gate must be ${GATES.slice(0, -1).join(", ")} or off`); }
     if (key === "theme") { v = v.toLowerCase() || "auto"; if (!["auto", "herdr", "terminal", "dark", "light"].includes(v)) throw new Error("theme must be auto, herdr, terminal, dark or light"); }
     if (["agent", "coordinator", "watcherAgent"].includes(key)) { v = v.toLowerCase(); if (v && !/^[a-z][a-z0-9_-]*$/.test(v)) throw new Error(`${key} must be an agent kind such as claude or codex`); }
   }
@@ -160,29 +162,39 @@ export const config = () => {
   delete c.bell; // a setting of older versions: nothing rings any more
   for (const [old, now] of Object.entries(ALIAS)) { if (file[old] !== undefined && file[now] === undefined) c[now] = file[old]; delete c[old]; }
   c.review = REVIEW_WORDS[String(c.review)] || "repos";
+  // `reviewAuto` (true or false) was the setting before the gate: a file that still has it behaves as it did.
+  if (file.gate === undefined && file.reviewAuto !== undefined) c.gate = gateOfAuto(file.reviewAuto);
+  delete c.reviewAuto;
+  if (!GATES.includes(c.gate)) c.gate = DEFAULT_GATE;
   return c;
 };
+const isReset = (value) => ["", "default"].includes(String(value ?? "").trim().toLowerCase());
+// The old name still sets the gate: true is the default gate, false is "off".
+const gateKey = (key, value) => (key === "reviewAuto" ? ["gate", isReset(value) ? "" : gateOfAuto(value)] : [key, value]);
 export function setConfig(key, value) {
-  key = ALIAS[key] || key;
+  [key, value] = gateKey(ALIAS[key] || key, value);
   if (!(key in DEFAULTS)) throw new Error(`Unknown setting "${key}". Settings: ${Object.keys(DEFAULTS).join(", ")}`);
   const now = { ...(readJson(configFile()) || {}) };
   const v = coerce(key, value);
-  if (["", "default"].includes(String(value ?? "").trim().toLowerCase())) delete now[key]; else now[key] = v;
+  if (isReset(value)) delete now[key]; else now[key] = v;
+  if (key === "gate") delete now.reviewAuto;
   writeJson(configFile(), now);
   return config();
 }
 // Who does the work and how the review loop runs can also be chosen for one task. That wins over your default.
-export const PER_TASK = ["agent", "model", "effort", "reviewer", "reviewerModel", "reviewerEffort", "watcher", "review", "reviewAuto", "rounds", "artifacts", "serve", "conflictAuto"];
+export const PER_TASK = ["agent", "model", "effort", "reviewer", "reviewerModel", "reviewerEffort", "watcher", "review", "gate", "rounds", "artifacts", "serve", "conflictAuto"];
 export function setTaskConfig(id, key, value) {
+  [key, value] = gateKey(key, value);
   if (!PER_TASK.includes(key)) throw new Error(`Per task you can set: ${PER_TASK.join(", ")}. Other settings are yours as a whole.`);
-  const reset = ["", "default"].includes(String(value ?? "").trim().toLowerCase());
-  const t = update(id, (t) => { assertUnarchived(t); t.own = { ...(t.own || {}) }; if (reset) delete t.own[key]; else t.own[key] = coerce(key, value); });
+  const reset = isReset(value);
+  const t = update(id, (t) => { assertUnarchived(t); t.own = { ...(t.own || {}) }; if (reset) delete t.own[key]; else t.own[key] = coerce(key, value); if (key === "gate") delete t.own.reviewAuto; });
   return choices(t);
 }
 export function choices(t) {
   const c = config(), own = t?.own || {};
   const out = {};
   for (const k of PER_TASK) out[k] = own[k] !== undefined && own[k] !== null ? own[k] : k in TASK_DEFAULTS ? TASK_DEFAULTS[k] : c[k];
+  if ((own.gate === undefined || own.gate === null) && own.reviewAuto !== undefined && own.reviewAuto !== null) out.gate = gateOfAuto(own.reviewAuto); // a task's own choice from before the gate
   if (out.reviewer === "off") out.review = "none"; // no reviewer is no review
   return out;
 }
@@ -398,11 +410,13 @@ export function failurePatch(failure) {
 export const currentReview = (t) => (t?.review?.stale ? null : t?.review);
 // Which review a task is on: 1 for its first, counted up each time a reviewer starts on it. "" before any review.
 export const reviewRound = (t) => Math.max(0, Math.floor(Number(t?.reviewRound) || 0));
-// Every review a task has had, oldest first: which one it was, its score, its advice, its short summary. A review
-// that failed is kept too, with why. Nothing is ever dropped from the list.
-const reviewEntry = (rv, round, at) => ({ round, at, ...(rv.error ? { error: oneLine(rv.error, 400) } : { score: rv.score, recommend: rv.recommend, text: rv.text, problems: rv.problems || [], checks: rv.checks || [], limitations: rv.limitations || [], head: rv.head || null }) });
+// Every review a task has had, oldest first: which one it was, how it came out, what it found, its short summary.
+// A review that failed is kept too, with why. Nothing is ever dropped from the list. A review from before the gate
+// keeps its score and its advice as they were.
+const reviewEntry = (rv, round, at) => ({ round, at, ...(rv.error ? { error: oneLine(rv.error, 400) }
+  : { ...(isTagged(rv) ? { meets: rv.meets, findings: rv.findings, gate: rv.gate, pass: rv.pass, left: rv.left || 0 } : { score: rv.score, recommend: rv.recommend, problems: rv.problems || [] }), text: rv.text, checks: rv.checks || [], limitations: rv.limitations || [], head: rv.head || null }) });
 // The one review saved on a task from before the list existed. `round`: which review it was.
-const savedReview = (t, round) => (t?.review && Number.isInteger(t.review.score) ? [reviewEntry(t.review, Math.max(1, round), t.review.at)] : []);
+const savedReview = (t, round) => (t?.review && (Number.isInteger(t.review.score) || isTagged(t.review)) ? [reviewEntry(t.review, Math.max(1, round), t.review.at)] : []);
 // A review saved before the list existed has no number of its own: it is the one the counter stands at. So it is
 // put on the list, under that number, before the counter moves for the next review: a later review that is stopped
 // half way can then never shift it to a wrong number.

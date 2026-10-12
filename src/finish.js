@@ -11,7 +11,7 @@ import { startArgs, preTrust, adapter, readTurnOf, versionOf, installed } from "
 import { whyStopped } from "./turn.js";
 import { launchExtras, taskLine } from "./delegate.js";
 import { publishReview } from "./review-page.js";
-import { reviewMessage, reviewFindings } from "./actions.js";
+import * as G from "./gate.js";
 import * as Y from "./sync.js";
 
 const ms = (name, fallback) => (process.env[name] !== undefined ? Number(process.env[name]) : fallback);
@@ -19,7 +19,7 @@ const lastLines = (text, n = 12) => String(text || "").split("\n").map((l) => l.
 const firstLine = (text) => String(text || "").split("\n").find((l) => l.trim())?.trim() || "";
 export const approvalMessage = (t, note = "") => {
   const rv = S.currentReview(t);
-  return `Approve to merge?${rv ? ` Reviewed ${rv.score}/5${rv.recommend === true ? ", says merge" : rv.recommend === false ? ", says don't merge" : ""}.` : ""} ${firstLine(t.summary) || "The work is finished."}${note}`;
+  return `Approve to merge?${rv ? ` ${G.sentence(rv)}` : ""} ${firstLine(t.summary) || "The work is finished."}${note}`;
 };
 function fail(g, failure, extra = {}) {
   const t = g.set((t) => { t.stage = "failed"; t.msg = failure.msg || failure.title; t.mergeIntent = extra.keepIntent ? t.mergeIntent : null; Object.assign(t, S.failurePatch(failure), extra.patch || {}); });
@@ -323,28 +323,32 @@ export async function pipeline(id, g, text, wake, synced = null) {
     g.set((t) => { S.logReview(t, r.review || { error: r.error }); }); // the task keeps every review it had
     if (!r.review) return void fail(g, { stage: "review", auth: r.auth ? true : undefined, title: r.auth ? "Needs a login" : "Review failed", msg: r.auth ? "The reviewer needs a login" : `Review failed: ${S.oneLine(r.error, 200)}. Retry the task to review again.`, detail: `Review failed: ${r.error}`, next: "Investigate the reviewer failure, then finish again for a fresh review. Do not bypass review or merge approval." }, { patch: { review: null } });
     review = r.review;
+    // The pull request says what the review found, the findings below the gate marked as not required.
+    if (t.pr && toLand) { try { F.gh(["pr", "comment", F.prNumber(t.pr), "--body", G.prComment(review, S.reviewRound(S.get(id)))], root, 60000); } catch {} }
   }
   t = g.set({ failure: null });
-  // The loop, off unless reviewAuto is on: anything below 5 goes straight back, at most `rounds` times.
+  // The loop, unless the gate is "off": a review that fails the gate goes straight back, at most `rounds` times.
+  // Then, still failing, it stops and waits for you.
   const rounds = t.reviewRounds || 0;
-  if (review && !review.keptAt && (ch.reviewAuto || t.mergeIntent) && review.score < 5 && rounds < ch.rounds) {
-    F.sendOwn(id, reviewMessage(review), { reason: "review", keepIntent: !!t.mergeIntent, patch: { review: { ...review, stale: true }, reviewRounds: rounds + 1 } });
+  const passed = !review || G.passes(review);
+  if (review && !review.keptAt && (ch.gate !== "off" || t.mergeIntent) && !passed && rounds < ch.rounds) {
+    F.sendOwn(id, G.reviewMessage(review), { reason: "review", keepIntent: !!t.mergeIntent, patch: { review: { ...review, stale: true }, reviewRounds: rounds + 1 } });
     return;
   }
   const head = change?.head || F.headOf(folder) || null;
   const { landCore } = await import("./land.js");
   if (t.mergeIntent) { // an approved merge being re-verified after a sync with main or a conflict repair
-    if (review && !review.keptAt && (review.score < 4 || review.recommend === false)) return void fail(g, { stage: "review", title: "Approved merge repair is not ready", detail: `A reviewer went through the repair and found it not ready.\n\n${reviewFindings(review)}`, next: "The agent could not make this repair pass review. Address the findings before retrying.", agentCanFix: true });
+    if (review && !review.keptAt && !passed) return void fail(g, { stage: "review", title: "Approved merge repair is not ready", detail: `A reviewer went through the repair and found it not ready: ${G.result(review)}.\n\n${G.findingsText(review)}`, next: "The agent could not make this repair pass review. Address the findings before retrying.", agentCanFix: true });
     t = g.set((t) => { t.review = review; t.stat = change?.stat; t.reviewedHead = head; t.mergeIntent = { ...t.mergeIntent, verifiedHead: head }; });
     if (holdPrFailure(g, t)) return;
     t = g.set({ stage: "merging", msg: "merging" });
     return void (await landCore(id, g));
   }
-  if (!toLand) { done(`${review ? `Reviewed ${review.score}/5${review.recommend === true ? ", says accept" : review.recommend === false ? ", says don't accept" : ""}. ` : ""}${firstLine(text) || "finished"}${note}`, { review }); return void (await tidyDone(id)); }
+  if (!toLand) { done(`${review ? `${G.sentence(review, "accept")} ` : ""}${firstLine(text) || "finished"}${note}`, { review }); return void (await tidyDone(id)); }
   t = g.set((t) => { t.review = review; t.stat = change.stat; t.reviewedHead = head; t.mergeFailed = false; });
   if (holdPrFailure(g, t)) return;
-  // 5. A repo that lands by itself still wants a good review first: below 4, you are asked.
-  if (repo.land === "auto" && !t.requireApproval && sync?.status !== "skip" && (!reviewNeeded || (review && review.score >= 4 && review.recommend !== false))) {
+  // 5. A repo that lands by itself still wants a review that passed the gate: one that failed it, you are asked.
+  if (repo.land === "auto" && !t.requireApproval && sync?.status !== "skip" && (!reviewNeeded || (review && passed))) {
     t = g.set((t) => { t.stage = "merging"; t.msg = "merging"; t.mergeIntent = { approvedAt: Date.now(), repairs: 0, verifiedHead: head, auto: true }; });
     return void (await landCore(id, g));
   }
@@ -369,11 +373,16 @@ async function closeReviewer(id) {
   try { F.h(t).paneClose(t.link.reviewer.pane); } catch {}
   try { S.update(id, (t) => { if (t.link) t.link = { ...t.link, reviewer: null }; }, { waitMs: 10000 }); } catch {}
 }
-export function reviewBrief(t, { text, change, toLand, ch }) {
+// `earlier`: the findings of the round before, when the agent was sent back with them (null on a first review).
+// `filed`: the faults from before the task that are tasks of their own by now, whichever round found them.
+export function reviewBrief(t, { text, change, toLand, ch, earlier = null, filed = [] }) {
   const dir = `${F.RULE_DIR}/review-${t.n}`;
   const share = ch.serve === "tailscale"
     ? "If you start something for the human to try (a dev server, a page), bind it to 127.0.0.1 and share it privately on their tailnet: run `tailscale serve status` first so you replace nothing, then `tailscale serve --bg --https=<a free port> <your port>`; the link is https://<this machine's tailnet name>:<that port>/. Never use tailscale funnel or anything public. Leave it running."
     : "If you start something for the human to try (a dev server, a page), bind it to 127.0.0.1, leave it running, and give its http://127.0.0.1:<port>/ link.";
+  const open = (earlier || []).filter((f) => !f.board && !f.preexisting);
+  const old = [...(earlier || []).filter((f) => f.preexisting), ...filed].filter((f, n, all) => all.findIndex((x) => G.sameFault(x, f)) === n);
+  const known = old.length ? `Already filed as tasks of their own (they were there before this change): do not report these again, in these words or in others.\n${old.map((f) => `- ${G.findingLine(f)}`).join("\n")}` : "";
   return [
     "You are an adversarial reviewer. Another agent says the task below is finished. Assume it is not until the evidence says so: your job is to find what is wrong, missing or risky, and to prove what works.",
     (toLand ? "You are in the repository, on the branch with the change, with all your tools." : "You are in the folder where the work was done, with all your tools. There is no diff: find what the agent made or changed from what it says below.") + " Read the changed files and what surrounds them. Then actually exercise the change: run it, run its tests, open it in a browser if it has a screen, try the awkward inputs. Check it against what was asked: does it do all of it, correctly? Does it break anything nearby? Ignore taste and style nits.",
@@ -382,18 +391,38 @@ export function reviewBrief(t, { text, change, toLand, ch }) {
     `Task: ${t.title}`, t.description ? `Details:\n${t.description.slice(0, 3000)}` : "",
     `What the agent says it did:\n${String(text || "").slice(0, 2000)}`,
     toLand ? `The change is everything on this branch since it started${change.stat ? ` (${change.stat})` : ""}. The commit under review is ${change.head}. See all of it yourself, it is not pasted here: \`git diff ${change.range}\`` : "",
-    toLand ? "Then give one clear recommendation, separate from the score: should the human merge this as it stands, yes (true) or no (false)? A 4 with a harmless nit can be a yes; a 4 with something that must not ship is a no." : "Then give one clear recommendation, separate from the score: should the human accept this work as it stands, yes (true) or no (false)?",
-    "Rate it: 5 = ready to merge, nothing found. 4 = fine, minor points only. 3 = works but has a real problem worth fixing. 2 = significant problems. 1 = does not do the job or is unsafe.",
-    `Last of all, save your verdict as JSON in ${dir}/verdict.json, then stop. The board waits for that file. Its shape: {"commit": "${change?.head || "<the commit you reviewed>"}", "score": <1 to 5>, "recommend": <true or false>, "text": "<two or three plain sentences: your overall judgement>", "problems": ["<each real problem, one sentence, naming the file>", ...], "checks": ["<what you actually exercised and the result>", ...], "limitations": ["<important areas you could not verify>", ...], "artifacts": [{"file": "<file name you saved in that folder>" or "url": "<link to try it>", "caption": "<what it shows, a few words>", "detail": "<why it matters or what to try>"}, ...]}  (artifacts may be an empty list; do not invent checks or proof)`,
+    `First answer one fixed question, true or false: ${G.QUESTION} All of it, and working. That answer is \`meets\`.`,
+    "Then report what you found as a list of findings, one fault each. A finding has a `subject` (one sentence saying what is wrong), a `where` (the file or the place), a `proof` (what you actually ran or saw that shows it; leave it empty if you did not show it), `preexisting` (true when the fault was already there before this change and the task did not cause it) and a `severity`. Choose the severity by what the fault does, never by whether you would like this merged:\n- critical: the work does not do what was asked, breaks something that worked, or risks security or data loss.\n- major: a real fault in an unusual case; or a claim that is not proven (a fix not shown to work, a test that cannot catch the bug it is for); or a document that states something false.\n- minor: correct but could be better: wording, naming, a small inaccuracy, a narrow gap.\n- trivial: a note. Nothing to do.",
+    `You do not decide whether this ${toLand ? "merges" : "is accepted"} or goes back, and you give no score: the board decides from your findings by a fixed rule. A critical finding with an empty proof is counted as major. If nothing qualifies, return an empty list and say so. Do not invent findings to have something to report.`,
+    earlier ? `This is a later round: the agent was sent back with the findings of the round before, listed below. Your job now is narrower. Check that each one is fixed, and that the fixes broke nothing. Return each one that is still not fixed, with its \`id\`; leave out the ones that are fixed. You may add a new finding (with no id) only if it is critical. Anything smaller that you notice only now is left out: do not report it. The one exception is a fault that was already there before this change: report it, marked \`preexisting\`, and it is filed as a task of its own.\n${open.length ? `Earlier findings:\n${open.map((f) => `- ${f.id} ${G.findingLine(f)}`).join("\n")}` : "Earlier findings: none of the task's own."}${known ? `\n${known}` : ""}` : known,
+    `Last of all, save your verdict as JSON in ${dir}/verdict.json, then stop. The board waits for that file. Its shape: {"commit": "${change?.head || "<the commit you reviewed>"}", "meets": <true or false>, "text": "<two or three plain sentences: your overall judgement>", "findings": [{${earlier ? '"id": "<the earlier finding\'s id; leave out for a new one>", ' : ""}"severity": "<critical, major, minor or trivial>", "subject": "<one sentence: what is wrong>", "where": "<the file or place>", "proof": "<what you ran or saw; may be empty>", "preexisting": <true or false>}, ...], "checks": ["<what you actually exercised and the result>", ...], "limitations": ["<important areas you could not verify>", ...], "artifacts": [{"file": "<file name you saved in that folder>" or "url": "<link to try it>", "caption": "<what it shows, a few words>", "detail": "<why it matters or what to try>"}, ...]}  (findings and artifacts may be empty lists; do not invent findings, checks or proof)`,
   ].filter(Boolean).join("\n\n");
 }
-export function parseVerdict(raw, head) {
+// `earlier` and `used` as in G.settle: the board's rules are applied here, to whatever the reviewer wrote.
+export function parseVerdict(raw, head, { earlier = null, used = [] } = {}) {
   const j = JSON.parse(raw);
-  if (!Number.isInteger(j.score) || j.score < 1 || j.score > 5 || typeof j.text !== "string" || !j.text.trim()) throw new Error("no valid verdict");
+  if (typeof j.meets !== "boolean" || typeof j.text !== "string" || !j.text.trim() || (j.findings !== undefined && !Array.isArray(j.findings))) throw new Error("no valid verdict");
   // The verdict must name the commit it reviewed; a verdict for another commit is ignored.
   if (head) { const c = String(j.commit || "").trim().toLowerCase(); if (c.length < 7 || !head.toLowerCase().startsWith(c)) return null; }
   const sentences = (xs) => (Array.isArray(xs) ? xs : []).map((x) => String(x).replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 8);
-  return { score: j.score, recommend: typeof j.recommend === "boolean" ? j.recommend : undefined, text: j.text.replace(/\s+/g, " ").trim(), problems: sentences(j.problems), checks: sentences(j.checks), limitations: sentences(j.limitations), listed: j.artifacts, artifacts: [], at: Date.now(), head: head || null };
+  const { findings, left } = G.settle(j.meets, G.readFindings(j.findings), earlier, used);
+  return { meets: j.meets, findings, left, text: j.text.replace(/\s+/g, " ").trim(), checks: sentences(j.checks), limitations: sentences(j.limitations), listed: j.artifacts, artifacts: [], at: Date.now(), head: head || null };
+}
+// A fault that was there before the task never sends the work back: each becomes a task of its own, filed once
+// however many rounds name it, and started by nobody.
+function fileFaults(id, g, review) {
+  const t = S.get(id), filed = Array.isArray(t.filedFaults) ? [...t.filedFaults] : [];
+  let changed = false;
+  for (const f of review.findings) {
+    if (!f.preexisting || f.task) continue;
+    let was = filed.find((x) => G.sameFault(x, f));
+    if (!was) {
+      try { was = { task: S.create(S.folderOf(id), S.oneLine(f.subject, 120), { description: `${f.subject}\n\nWhere: ${f.where || "not said"}\nSeverity: ${f.severity}\n${f.proof ? `What the reviewer saw: ${f.proof}\n` : ""}\nFound by the reviewer of ${id} (${t.title}). It was there before that task, so it was not fixed there.` }).id, severity: f.severity, subject: f.subject, where: f.where, proof: f.proof }; filed.push(was); changed = true; }
+      catch { continue; }
+    }
+    f.task = was.task;
+  }
+  if (changed) g.set({ filedFaults: filed });
 }
 async function runReview(id, g, { text, change, toLand, ch }) {
   let t = g.set({ stage: "reviewing", msg: "under review", watch: null });
@@ -410,7 +439,11 @@ async function runReview(id, g, { text, change, toLand, ch }) {
   if (!installed(rkind) && installed(t.agent)) { rkind = t.agent; rmodel = ""; reffort = ""; }
   const round = (t.reviewRound || 0) + 1;
   t = g.set((t) => { S.keepSavedReview(t); t.reviewRound = round; t.reviewSession = null; t.fallbacks = { ...(t.fallbacks || {}), reviewer: rkind !== ch.reviewer ? `reviewed by ${rkind}: ${ch.reviewer} is not installed here` : undefined }; });
-  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch })}`;
+  // From the second round of a send-back on, the reviewer checks the earlier findings instead of starting over.
+  const before = S.reviewHistory(t).filter((e) => G.isTagged(e));
+  const earlier = (t.reviewRounds || 0) > 0 && before.length ? before.at(-1).findings : null;
+  const used = before.flatMap((e) => e.findings.map((f) => f.id));
+  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, filed: Array.isArray(t.filedFaults) ? t.filedFaults : [] })}`;
   let pane = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0;
   // The reviewer ended its turn with no verdict: its own error when it has one, else its last message.
   const noVerdict = (cur, ev) => {
@@ -440,7 +473,7 @@ async function runReview(id, g, { text, change, toLand, ch }) {
       // The verdict file appearing is the finish signal.
       if (fs.existsSync(verdictFile)) {
         await sleep(Math.min(every, 300)); // let the write complete
-        try { review = parseVerdict(fs.readFileSync(verdictFile, "utf8"), toLand ? change.head : null); if (review) break; fs.rmSync(verdictFile, { force: true }); }
+        try { review = parseVerdict(fs.readFileSync(verdictFile, "utf8"), toLand ? change.head : null, { earlier, used }); if (review) break; fs.rmSync(verdictFile, { force: true }); }
         catch (e) { error = String(e.message || e).replace(/\s+/g, " ").slice(0, 400) || "no valid verdict"; break; }
       }
       if (Date.now() > until) { error = "review timed out"; break; }
@@ -479,6 +512,8 @@ async function runReview(id, g, { text, change, toLand, ch }) {
   await closeReviewer(id);
   try { if (S.get(id).stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "review complete" }); } } catch (e) { if (e.aborted) return { aborted: true }; }
   if (!review) return { error: error || "no valid verdict", auth };
+  G.stamp(review, ch.gate);
+  try { fileFaults(id, g, review); } catch (e) { if (e.aborted) return { aborted: true }; }
   // Move the folder to the task's artifacts and publish the evidence page.
   const art = S.artifactsDir(id);
   try { fs.rmSync(art, { recursive: true, force: true }); fs.mkdirSync(path.dirname(art), { recursive: true }); fs.cpSync(dir, art, { recursive: true }); fs.rmSync(dir, { recursive: true, force: true }); } catch {}

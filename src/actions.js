@@ -6,6 +6,7 @@ import { herdr, currentSocket } from "./herdr.js";
 import * as F from "./flow.js";
 import { spawnRunner, runnerAlive } from "./runner.js";
 import { interruptKey } from "./agents.js";
+import * as G from "./gate.js";
 
 const AGENT_STAGES = ["queued", ...S.SLOT_STAGES];
 const say = (t, msg) => ({ task: t, msg });
@@ -54,7 +55,7 @@ const clampPct = (p) => Math.max(0, Math.min(100, Math.round(Number(p)) || 0));
 // Records the request (stage "queued") and lets the housekeeping pass start it when a slot is free.
 export function delegate(id, opts = {}) {
   const cur = S.find(id);
-  for (const k of S.PER_TASK) if (opts[k] !== undefined && opts[k] !== null && opts[k] !== "") S.setTaskConfig(cur.id, k, opts[k]);
+  for (const k of [...S.PER_TASK, "reviewAuto"]) if (opts[k] !== undefined && opts[k] !== null && opts[k] !== "") S.setTaskConfig(cur.id, k, opts[k]);
   const socket = currentSocket();
   let old = null; // the last round's space, when its clean-up had not managed to close it yet
   const t = S.update(cur.id, (t) => {
@@ -195,16 +196,14 @@ export function approve(id, seen = null) {
   spawnRunner("land", t.id);
   return say(t, `${t.id}: approved, merging`);
 }
-export const reviewFindings = (rv) => `${rv.text}${rv.problems && rv.problems.length ? `\n\nProblems it found:\n${rv.problems.map((p) => `- ${p}`).join("\n")}` : ""}`;
-export const reviewMessage = (rv) => `A reviewer went through your change and rated it ${rv.score} out of 5.\n\n${reviewFindings(rv)}\n\nAddress these, then finish again.`;
-// Hand the reviewer's findings to the working agent. By hand any time; by itself when reviewAuto is on.
+// Hand the reviewer's findings to the working agent. By hand any time; by itself when the review fails the gate.
 export function sendReview(id) {
   const cur = S.find(id);
   S.assertUnarchived(cur);
   const rv = cur.review;
   if (!rv || !rv.text) throw new Error(`${cur.id} has no review to send.`);
-  if (rv.score >= 5) throw new Error(`${cur.id} was rated 5 out of 5: there is nothing to send back.`);
-  const out = tell(cur.id, reviewMessage(rv));
+  if (!G.sendable(rv)) throw new Error(G.isTagged(rv) ? `${cur.id}: the review found nothing for the agent to fix, so there is nothing to send back.` : `${cur.id} was rated 5 out of 5: there is nothing to send back.`);
+  const out = tell(cur.id, G.reviewMessage(rv, { all: true }));
   S.update(cur.id, (t) => { t.reviewRounds = (cur.reviewRounds || 0) + 1; });
   return say(out.task, `${cur.id}: review sent to the agent`);
 }

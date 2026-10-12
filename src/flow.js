@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import * as S from "./store.js";
+import * as G from "./gate.js";
 import { herdr, currentSocket, sessionName, socketExists } from "./herdr.js";
 import { show } from "./state.js";
 import { adapter, needsNote, readTurnOf } from "./agents.js";
@@ -106,7 +107,7 @@ function sidebarRows() {
 export function labelOf(t) {
   const rv = S.currentReview(t);
   switch (t.stage) {
-    case "approval": return t.mergeFailed || t.prFailure || t.prState === "failing" ? "failed" : t.syncBlocked ? "needs you" : rv && Number.isInteger(rv.score) ? `approve? ${rv.score}/5` : "approve?";
+    case "approval": return t.mergeFailed || t.prFailure || t.prState === "failing" ? "failed" : t.syncBlocked ? "needs you" : rv && G.isTagged(rv) ? `approve? ${G.word(rv).toLowerCase()}` : rv && Number.isInteger(rv.score) ? `approve? ${rv.score}/5` : "approve?";
     case "asks": case "nosummary": case "reviewneeds": return "needs you";
     case "failed": return t.failure?.auth ? "needs you" : "failed";
     case "reviewing": return "reviewing";

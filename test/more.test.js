@@ -335,10 +335,10 @@ test("an agent that reports itself blocked gets the right kind, and stopping aft
 });
 
 test("review: a verdict for another commit is ignored, a missing verdict is a saved failure, reviewer edits are put back", async () => {
-  const w = await world();
+  const w = await world({ settings: { gate: "off" } });
   try {
     process.env.HERDR_SUPERWORK_REVIEW_MS = "600";
-    w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }], reviewer: [{ verdict: { score: 5, recommend: true, text: "Fine.", commit: "deadbeefdeadbeef" } }] });
+    w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }], reviewer: [{ verdict: { meets: true, findings: [], text: "Fine.", commit: "deadbeefdeadbeef" } }] });
     const id = A.add(w.root, "Wrong commit").id;
     A.delegate(id);
     let t = await settle(id);
@@ -346,38 +346,40 @@ test("review: a verdict for another commit is ignored, a missing verdict is a sa
     assert.equal(stateOf(id).state, "error");
     process.env.HERDR_SUPERWORK_REVIEW_MS = "4000";
     // ctrl+r sends the error back; this time the reviewer answers properly but also touches the tree
-    w.script({ worker: [{ note: "Nothing to change." }], reviewer: [{ dirtyTree: true, verdict: { score: 3, recommend: false, text: "Has a real problem.", problems: ["f.txt is wrong"] }, evidence: { "out.txt": "test output\n" } }] });
+    w.script({ worker: [{ note: "Nothing to change." }], reviewer: [{ dirtyTree: true, verdict: { meets: true, text: "Has a real problem.", findings: [{ severity: "major", subject: "f.txt is wrong", where: "f.txt", proof: "cat f.txt" }] }, evidence: { "out.txt": "test output\n" } }] });
     A.sendError(id);
     t = await settle(id);
-    assert.equal(t.stage, "approval"); assert.equal(t.review.score, 3); assert.equal(t.review.recommend, false);
+    assert.equal(t.stage, "approval"); assert.equal(t.review.pass, false); assert.match(t.msg, /^Approve to merge\? Review: Fail · 1 major\./); // gate "off": a failed review waits for you
     assert.equal(git(t.worktree, "status", "--porcelain"), ""); // what you approve is exactly what the agent committed
     assert.ok(!fs.existsSync(path.join(t.worktree, ".herdr-superwork", "review-1", "verdict.json")));
     assert.ok(fs.existsSync(path.join(S.artifactsDir(id), "verdict.json")));
     // ctrl+r now hands the findings to the agent
     w.script({ worker: [{ files: { "f.txt": "v2\n" }, commit: "v2", note: "Fixed it." }] });
     assert.match(A.sendReview(id).msg, /review sent/);
-    assert.match(paneOf(w, S.get(id)).agent.prompts.at(-1), /rated it 3 out of 5[\s\S]*f\.txt is wrong/);
+    assert.match(paneOf(w, S.get(id)).agent.prompts.at(-1), /Result: Fail · 1 major\.[\s\S]*Required: fix each of these\.\n- \[major\] f\.txt is wrong \(f\.txt\)\n  Proof: cat f\.txt/);
     t = await settle(id);
-    assert.equal(t.stage, "approval"); assert.equal(t.review.score, 5);
+    assert.equal(t.stage, "approval"); assert.equal(t.review.pass, true);
   } finally { process.env.HERDR_SUPERWORK_REVIEW_MS = "4000"; w.cleanup(); }
 });
 
-test("reviewAuto sends anything below 5 straight back, as the plugin's own turn, up to `rounds` times", async () => {
+test("a review that fails the gate goes straight back, as the plugin's own turn, up to `rounds` times; an old reviewAuto: true is gate major", async () => {
   const w = await world({ settings: { reviewAuto: true, rounds: 2 } });
   try {
     w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "v1" }, { files: { "f.txt": "2\n" }, commit: "2", note: "v2" }, { files: { "f.txt": "3\n" }, commit: "3", note: "v3" }],
-      reviewer: [{ verdict: { score: 2, recommend: false, text: "Bad." } }, { verdict: { score: 3, recommend: false, text: "Better." } }, { verdict: { score: 4, recommend: true, text: "Good enough." } }] });
+      reviewer: [{ verdict: { meets: true, text: "Bad.", findings: [{ severity: "major", subject: "f.txt holds the wrong number", where: "f.txt", proof: "cat f.txt" }] } }, { verdict: { meets: true, text: "Better.", findings: [{ id: "F1", severity: "major", subject: "f.txt still holds the wrong number", where: "f.txt", proof: "cat f.txt" }] } }, { verdict: { meets: true, text: "Still not it.", findings: [{ id: "F1", severity: "major", subject: "f.txt still holds the wrong number", where: "f.txt", proof: "cat f.txt" }] } }] });
+    assert.equal(S.config().gate, "major"); assert.equal(S.config().reviewAuto, undefined);
     const id = A.add(w.root, "Loop").id;
     A.delegate(id);
     const t = await settle(id, { max: 30 });
-    assert.equal(t.stage, "approval"); assert.equal(t.reviewRounds, 2); assert.equal(t.review.score, 4);
+    assert.equal(t.stage, "approval"); assert.equal(t.reviewRounds, 2); assert.equal(t.review.pass, false); // the cap is reached with the gate still failing: it waits for you
+    assert.match(t.msg, /^Approve to merge\? Review: Fail · 1 major\./);
     assert.equal(paneOf(w, t).agent.prompts.length, 3);
     // three reviews ran: the task says which one it is on, to herdr's sidebar too
-    assert.equal(S.reviewRound(t), 3); assert.equal(F.labelOf(t), "approve? 4/5"); // herdr's sidebar says what to do
+    assert.equal(S.reviewRound(t), 3); assert.equal(F.labelOf(t), "approve? fail"); assert.equal(F.labelOf({ ...t, review: { score: 4, recommend: true, text: "Old." } }), "approve? 4/5"); // herdr's sidebar says what to do
     assert.equal(F.labelOf({ ...t, stage: "reviewing" }), "reviewing"); assert.equal(F.labelOf({ ...t, stage: "reviewing", reviewRound: 0 }), "reviewing");
     assert.equal(F.labelOf({ ...t, stage: "reviewneeds" }), "needs you"); assert.equal(F.labelOf({ ...t, stage: "reviewneeds", reviewRound: 0 }), "needs you");
-    // Four labels in all: needs you, approve? n/5, reviewing, failed. The exact reason is on the board.
-    const labels = new Set([{ stage: "approval" }, { stage: "approval", mergeFailed: true }, { stage: "approval", prFailure: {} }, { stage: "approval", syncBlocked: {} }, { stage: "asks" }, { stage: "asks", kind: "auth" }, { stage: "nosummary" }, { stage: "failed" }, { stage: "failed", failure: { auth: true } }, { stage: "failed", failure: { phase: "sync" } }, { stage: "merging" }, { stage: "merging", autoMerge: true }, { stage: "checking" }, { stage: "pushing" }, { stage: "working", expectedWake: { reason: "conflict" } }, { stage: "reviewing" }, { stage: "reviewneeds" }].map((x) => F.labelOf({ ...t, ...x }).replace(/ \d\/5$/, "")));
+    // Four labels in all: needs you, approve? pass or fail, reviewing, failed. The exact reason is on the board.
+    const labels = new Set([{ stage: "approval" }, { stage: "approval", mergeFailed: true }, { stage: "approval", prFailure: {} }, { stage: "approval", syncBlocked: {} }, { stage: "asks" }, { stage: "asks", kind: "auth" }, { stage: "nosummary" }, { stage: "failed" }, { stage: "failed", failure: { auth: true } }, { stage: "failed", failure: { phase: "sync" } }, { stage: "merging" }, { stage: "merging", autoMerge: true }, { stage: "checking" }, { stage: "pushing" }, { stage: "working", expectedWake: { reason: "conflict" } }, { stage: "reviewing" }, { stage: "reviewneeds" }].map((x) => F.labelOf({ ...t, ...x }).replace(/ (?:pass|fail)$/, "")));
     assert.deepEqual([...labels].sort(), ["", "approve?", "failed", "needs you", "reviewing"]);
   } finally { w.cleanup(); }
 });

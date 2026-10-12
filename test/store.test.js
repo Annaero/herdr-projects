@@ -135,5 +135,12 @@ test("a task keeps every review it had: which one, the score, the advice, the su
   assert.deepEqual(S.reviewHistory(failed).map((e) => [e.round, e.score ?? e.error]), [[1, 3], [2, "timed out"]]);
   // a task reviewed before the list existed: its one saved review, numbered by the review it was
   assert.deepEqual(S.reviewHistory({ reviewRound: 2, review: { score: 4, recommend: true, text: "Fine.", stale: true } }).map((e) => [e.round, e.score, e.text]), [[2, 4, "Fine."]]);
+  // a review judged by the gate is kept with what it found and how it came out; one from before keeps its score
+  const mixed = { reviewRound: 1, review: { score: 4, recommend: true, text: "Old.", at: 5, stale: true } };
+  S.keepSavedReview(mixed); mixed.reviewRound = 2;
+  S.logReview(mixed, { meets: true, gate: "major", pass: true, left: 1, text: "New.", findings: [{ id: "F1", severity: "minor", subject: "A nit", where: "a.js", proof: "", preexisting: false }], checks: ["ran it"], limitations: [], head: "abc1234", artifacts: [{ file: "x.png" }] });
+  assert.deepEqual(S.reviewHistory(mixed).map((e) => [e.round, e.score ?? null, e.pass ?? null, e.gate ?? null, e.left ?? null, (e.findings || e.problems).length, e.text]), [[1, 4, null, null, null, 0, "Old."], [2, null, true, "major", 1, 1, "New."]]);
+  assert.equal("artifacts" in S.reviewHistory(mixed)[1], false); assert.equal("score" in S.reviewHistory(mixed)[1], false);
+  assert.deepEqual(S.reviewHistory({ reviewRound: 1, review: { meets: false, gate: "major", pass: false, text: "No.", findings: [] } }).map((e) => [e.round, e.pass, e.text]), [[1, false, "No."]]);
   assert.deepEqual(S.reviewHistory({}), []); assert.deepEqual(S.reviewHistory(null), []);
 });

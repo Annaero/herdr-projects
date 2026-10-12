@@ -26,7 +26,7 @@ block sits between two marker lines, and a change herdr rejects is rolled back:
 - a key that opens the board (it suggests one herdr does not use; `prefix+w` is herdr's own workspace picker);
 - sidebar rows, so herdr's sidebar shows each task's stage, its "doing now" line, its progress and the minutes left. herdr's default
   sidebar shows none of these: without the rows the plugin puts a short status into the agent's name instead
-  (`approve? 4/5 · claude`), which works with no setup. With the rows in place the name is left alone, so the
+  (`approve? pass · claude`), which works with no setup. With the rows in place the name is left alone, so the
   status is not said twice on one line.
 
 Nothing else is needed: no herdr integration, no hooks in your own agent settings. To add the blocks by hand instead:
@@ -73,12 +73,12 @@ name, a sentence, then on the right the progress bar, the percent and the minute
 
 ```
  ready to approve
- ✓ Add an undo for clear  3/5 reviewer says no · 2nd review      PR#18 ✓ 12m ago
+ ✓ Add an undo for clear  Fail · 1 critical, 1 major · 2nd review   PR#18 ✓ 12m ago
  working
  ◐ Tidy the first-run questions  review · Running the tests  ███░░░░░  40% 12m PR#17    5m
 ```
 
-The score says the reviewer's advice in words. Which review it was shows only from the second on. While the
+The row says how the review came out and a short tally of what it found (`Pass · 2 minor`, `Fail · 1 critical, 1 major`). Which review it was shows only from the second on. While the
 reviewer works, the mark, the bar, the percent and the minutes left take a colour no other state uses, and the sentence starts with
 `review` (`review (2nd)` from the second on). `PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
 since it stopped. A row never repeats what its heading says.
@@ -133,15 +133,16 @@ every width. Both have one shape: where it stands and what it needs from you, th
 fact in one tight table (the reviews, the change, every setting, also one that is only your default), then what the
 agent said (while you talk to its agent that is in the chat instead). Headings and labels are greyed out; what
 they name is in the text colour. Beside the list a description is cut after about 400 characters. The settings
-are the project, the worktree, the agent, the reviewer, what gets reviewed, who sends a review back and how many
+are the project, the worktree, the agent, the reviewer, what gets reviewed, what sends a review back and how many
 rounds, the evidence, the watcher, conflict repair and permissions. In a short window the long parts give way and
 the facts keep to a line each, so no setting drops out of the side panel.
 
 **Every review is kept.** The table says how many there were and how each went, oldest first
-(`Reviews  3 · 2/5 no → failed → 4/5 yes`), then the latest one: its score, its advice and its summary. The full
-screen ends with all of them, the newest first: which review it was, the score, the advice, when, the commit, the
-summary, the problems it found, what it checked and what it could not verify. A review that failed is in the list
-too, with why. `herdr-superwork details <id>` prints the same list as `reviews`.
+(`Reviews  3 · fail → no verdict → pass`), then the latest one: its result, its tally and its summary. The full
+screen ends with all of them, the newest first: which review it was, the result, when, the commit, the summary,
+each finding with its severity (one that did not hold the work back is marked `not required` or `pre-existing`),
+what it checked and what it could not verify. A review that gave no verdict is in the list too, with why. A review
+from before the gate keeps its score and its advice as they were (`4/5, says merge`). `herdr-superwork details <id>` prints the same list as `reviews`.
 
 **The board asks before what cannot be undone**, always the same way, in a small box: `Merge PR#18?  enter = yes ·
 esc = no`. Merging, deleting a task and closing the board ask; nothing else does. A result stays on screen until
@@ -154,7 +155,7 @@ your next key press, an error until `Esc` dismisses it.
 | `Space` | talk to this task's agent: the chat says so, and `Space` or `Esc` goes back to the Coordinator. On a task with no agent, your message puts one on it |
 | `Tab` | put an agent on the task. With text typed for the Coordinator: send it, and every task it files from that message gets an agent at once, with nothing more to confirm (a message that files nothing delegates nothing) |
 | `Ctrl+A` | yes, to whatever the task waits for: approve the merge (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary as it is |
-| `Ctrl+R` | send it back: whatever went wrong (a failed check, a conflict, an error, a review below 5/5) goes to the task's agent to fix; a stopped agent is told to continue |
+| `Ctrl+R` | send it back: whatever went wrong (a failed check, a conflict, an error, a review with findings) goes to the task's agent to fix; a stopped agent is told to continue |
 | `Ctrl+X` | stop the agent. The selection stays on that row |
 | `Ctrl+F` | find |
 | `?` | a menu of everything else for the selected task, picked with `↑` `↓` and `Enter`: the whole task full screen, the side panel, archive, pin, delete, undo, the archive, group by repo, show all done, other machines, the Coordinator |
@@ -241,12 +242,47 @@ login error, token use. With the board open or closed it then:
 1. commits anything left over, brings the branch up to date with main in the task's own worktree (see "Staying
    current with main"), and runs the repo's `check` (a failure goes straight back to the agent, three tries);
 2. pushes the branch and opens a draft pull request, when there is an `origin` remote and `gh`;
-3. has a second agent review it adversarially, in a visible split of the same herdr space; it rates the work 1 to 5
+3. has a second agent review it adversarially, in a visible split of the same herdr space; it says what it found
    and brings evidence; whatever it changed is put back. A reviewer that ends its turn with no verdict fails the
-   review at once, with its own error or last message. The row says the score and the reviewer's advice in words
-   (`3/5 reviewer says no`), and from the second review on which one it was (`· 2nd review`); the task panel has
-   its summary, and every earlier review of the task;
+   review at once, with its own error or last message. The board decides from the findings (see "The gate"): a
+   review that fails goes straight back to the agent. The row says the result and a tally (`Pass · 2 minor`), and
+   from the second review on which one it was (`· 2nd review`); the task panel has its summary, and every earlier
+   review of the task;
 4. waits for your approval (`Ctrl+A`).
+
+### The gate
+
+The reviewer describes; the board decides. The reviewer gives no score and no merge advice. Every round it answers
+one fixed question, "Does the change do what the task asked?" (`meets`), and lists its findings. Each finding has a
+severity, a subject, where it is, a proof (what the reviewer actually ran or saw) and whether it was there before
+the task (`preexisting`). The severity says what the fault does:
+
+| Severity | Means |
+| --- | --- |
+| `critical` | the work does not do what was asked, breaks something that worked, or risks security or data loss |
+| `major` | a real fault in an unusual case; a claim that is not proven (a fix not shown to work, a test that cannot catch its bug); a document that states something false |
+| `minor` | correct but could be better: wording, naming, a small inaccuracy, a narrow gap |
+| `trivial` | a note; nothing to do |
+
+The board then applies fixed rules to what came back:
+
+- `meets: false` always counts as a critical finding, even with an empty list.
+- A critical finding with an empty proof is treated as major.
+- A pre-existing finding never sends the work back. Each is filed as a new task of its own (not delegated), once,
+  however many rounds name it.
+- The work **passes** when no finding of its own sits at or above the `gate` setting (`major` by default). A pass
+  is what "may merge" means everywhere: a repo with `"land": "auto"` merges it, an approved merge that was repaired
+  goes through, and the board says `Pass`.
+- A **fail** goes back to the agent by itself, at most `rounds` times: the findings at or above the gate as
+  required, the rest as optional. When the cap is reached and it still fails, it stops and waits for you.
+- From the second round on the reviewer gets the earlier findings and only checks that each is fixed and that the
+  fixes broke nothing. It may add a new finding only if it is critical, with proof; anything smaller it notices
+  late is left out (a pre-existing fault is still filed). A reply from you starts a full review again.
+- `gate off` sends nothing back by itself: findings wait for you (`Ctrl+R` sends them). The result shown and an
+  automatic merge are then judged at `major`.
+
+Findings below the gate still show on the review page, in the task panel and in a comment on the pull request,
+marked as not required.
 
 An error, a usage limit, a cut-off or a refusal is saved as "Agent stopped" with the real text; a login error makes
 the task "Needs a login", and that comes first: older failure details are not sent and pull-request feedback does not
@@ -266,7 +302,7 @@ cancellation that fails is saved as a visible failure), the old review marked st
 **With the board closed** a small background process, the keeper (`herdr-superwork keeper`), does what the open
 board's tick does: it polls pull requests, starts queued tasks, runs the Watcher, keeps herdr's sidebar labels
 current. There are four labels, each saying what to do: `needs you` (a question, a login, a branch that could not be
-brought up to date), `approve? 3/5`, `reviewing` and `failed`; the exact reason is on the board. It raises no notification, pop-up or sound: what needs you is on the board and in
+brought up to date), `approve? pass` (or `approve? fail`), `reviewing` and `failed`; the exact reason is on the board. It raises no notification, pop-up or sound: what needs you is on the board and in
 herdr's sidebar. herdr starts it with its server; any herdr event or
 opening the board starts it again if it died; it replaces itself when the plugin is updated, and exits when herdr is
 gone. An open board does the same: after an update it loads the new version by itself, in place, once nothing is half
@@ -352,7 +388,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `theme` | `auto` | the board and the review page use herdr's own colours and status marks. herdr's sidebar is drawn by the client with the config of the device it runs on, and herdr does not pass that on to the board. `auto`: when herdr's `config.toml` on this machine sets a theme (`[theme]`, with its custom colours), the board follows it as herdr resolves it; when it sets none, the board paints with the terminal's own colours, as herdr's `terminal` theme does, which fits whatever device you look from. `herdr` follows this machine's config exactly, Catppuccin by default: choose it if you run an unconfigured herdr on this very machine and want the board to match it; `terminal` always uses the terminal's colours; `dark` or `light` picks herdr's dark or light theme by hand. `ui.status_indicators` is always followed. A task under review takes the theme's mauve; where that looks like another state's colour (the terminal's colours, Vesper), it is the terminal's magenta, so review never shares a colour with to do, working or any other state |
 | `review` | `repos` | what gets reviewed: `repos`, `all` or `none` |
 | `artifacts`, `serve` | `true`, `tailscale` | evidence pages, linked privately on your tailnet (`local` for 127.0.0.1; also used, and said on the task, when Tailscale is not installed) |
-| `reviewAuto`, `rounds` | `false`, `3` | send reviews below 5/5 back by themselves, at most this often; `rounds` also caps conflict repairs |
+| `gate`, `rounds` | `major`, `3` | what a review must clear: `critical`, `major`, `minor`, `trivial` or `off`. A finding that bad or worse sends the work back by itself, at most `rounds` times, and holds a merge; `off` sends nothing back by itself. `rounds` also caps conflict repairs. (`gate` replaces `reviewAuto`: a config that still has `reviewAuto: true` behaves as `gate: major`, `false` as `gate: off`) |
 | `worktree`, `base` | `auto`, `fresh` | `none`: work in your checkout; `head`: start from your commit |
 | `pr`, `merge`, `cleanup` | `true`, `squash`, `true` | pull requests, how work lands, remove a done task's space, worktree and branch |
 | `max` | `4` | agents working at once |
@@ -361,7 +397,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `machines`, `remoteUser` | `auto` | other machines: herdr's saved machines, names, or `off` |
 
 Per task (`--id <id>`, or options to `delegate`): `agent`, `model`, `effort`, `reviewer`, `reviewerModel`,
-`reviewerEffort`, `watcher`, `review`, `reviewAuto`, `rounds`, `artifacts`, `serve`, `conflictAuto` (on by default).
+`reviewerEffort`, `watcher`, `review`, `gate`, `rounds`, `artifacts`, `serve`, `conflictAuto` (on by default).
 
 Data lives in `~/.local/state/herdr-superwork` (`HERDR_SUPERWORK_DATA_DIR` overrides it): one folder per task with
 `task.json`, `inbox.jsonl` and `artifacts/`.

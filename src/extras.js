@@ -38,12 +38,16 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
   (\`--repo <name or path>\` for another). Filing starts nothing. Add \`--delegate\` only if the human asked for an agent.
 - \`herdr-superwork delegate <id>\`: put an agent on a task. It works in its own git worktree, as an ordinary herdr
   agent in its own herdr space. Options for this one task: \`--agent claude|codex|pi\`, \`--model\`, \`--effort\`,
-  \`--reviewer <kind>|off\`, \`--no-worktree\` (work in the human's checkout), \`--base head\` (start from their current commit).
+  \`--reviewer <kind>|off\`, \`--gate critical|major|minor|trivial|off\`, \`--no-worktree\` (work in the human's checkout),
+  \`--base head\` (start from their current commit).
 - \`herdr-superwork tell <id> "<text>"\`: send a message to a task's agent (on a task with no agent yet: starts one with it).
 - \`herdr-superwork stop <id>\`: interrupt a task's agent.
 - \`herdr-superwork report <id> --state <idle|working|done> [--msg "<one line>"] [--progress <0-100>] [--eta <minutes left>]\`: say where one of
   the human's own tasks stands. \`--title\` renames it. \`herdr-superwork describe <id> "<text>"\` replaces its description.
 - \`herdr-superwork approve <id>\`: merge finished work that waits for approval. Only when the human plainly says so.
+- Finished work is reviewed by a second agent. It lists findings tagged critical, major, minor or trivial; the board
+  decides from them. A finding at or above the \`gate\` setting (major by default) fails the review and goes back to
+  the agent by itself; anything milder passes (\`Pass · 2 minor\`). \`gate off\`: nothing goes back by itself.
 - \`herdr-superwork review <id>\` sends the reviewer's findings back to the agent; \`retry <id>\` sends a saved error back;
   \`fix <id>\` sends failure details; \`details <id>\` reads them.
 - \`herdr-superwork archive <id>\` hides a task and keeps everything; \`restore <id>\` brings it back; \`clear <id>\` deletes it

@@ -76,30 +76,30 @@ test("a board kept in its own folder: the agent's command and its herdr space bo
 test("the finish line: commit leftovers, check, review, then wait for approval; approve merges and cleans up", async () => {
   const w = await world({ repoSettings: { check: "test -f hello.txt" } });
   try {
-    w.script({ worker: [{ files: { "hello.txt": "hello\n", "left.txt": "uncommitted\n" }, note: "Added the greeting." }], reviewer: [{ verdict: { score: 4, recommend: true, text: "Works. One nit.", problems: ["hello.txt lacks a newline check"] } }] });
+    w.script({ worker: [{ files: { "hello.txt": "hello\n", "left.txt": "uncommitted\n" }, note: "Added the greeting." }], reviewer: [{ verdict: { meets: true, text: "Works. One nit.", findings: [{ severity: "minor", subject: "hello.txt lacks a newline check", where: "hello.txt", proof: "" }] } }] });
     const id = A.add(w.root, "Add a greeting").id;
     A.delegate(id);
     let t = await settle(id);
     assert.equal(t.stage, "approval", JSON.stringify(t.failure));
-    assert.equal(t.review.score, 4); assert.equal(t.review.recommend, true); assert.equal(t.summary, "Added the greeting.");
+    assert.equal(t.review.pass, true); assert.equal(t.review.gate, "major"); assert.deepEqual(t.review.findings.map((f) => [f.id, f.severity, f.where]), [["F1", "minor", "hello.txt"]]); assert.equal(t.reviewRounds || 0, 0); // only minor findings: no other round assert.equal(t.summary, "Added the greeting.");
     assert.equal(t.reviewedHead, git(t.worktree, "rev-parse", "HEAD"));
     assert.equal(git(t.worktree, "status", "--porcelain"), ""); // leftovers were committed
-    assert.match(t.msg, /^Approve to merge\? Reviewed 4\/5, says merge\. Added the greeting\./);
+    assert.match(t.msg, /^Approve to merge\? Review: Pass · 1 minor\. Added the greeting\./);
     let s = stateOf(id);
     assert.deepEqual([s.state, s.kind, s.asReview], ["blocked", "permission", true]);
     const st = w.state();
     assert.deepEqual(st.notifications, []); // nothing pops up when a task lands in review
     // herdr's own sidebar says what to do. With no sidebar rows in herdr's config the label rides on the agent's name too.
-    assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=approve? 4/5") && m.args.join(" ").includes("--display-agent approve? 4/5 · claude")));
+    assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=approve? pass") && m.args.join(" ").includes("--display-agent approve? pass · claude")));
     // Once the plugin's sidebar rows are installed, the state text shows beside the agent's name: renaming the agent
     // as well would say the label twice on one line, so the name is left alone.
     const cfg = path.join(w.root, "..", "herdr-config.toml"), oldCfg = process.env.HERDR_CONFIG_PATH;
     fs.writeFileSync(cfg, "# >>> herdr-superwork sidebar (added by the herdr-superwork plugin)\n[ui.sidebar.agents]\nrows = [[\"agent\", \"state_text\"]]\n# <<< herdr-superwork sidebar\n");
     process.env.HERDR_CONFIG_PATH = cfg;
     try {
-      F.labelPane(t, "approve? 4/5");
+      F.labelPane(t, "approve? pass");
       const last = w.state().metadata.map((m) => m.args.join(" ")).filter((x) => x.includes("--state-label")).at(-1);
-      assert.ok(last.includes("idle=approve? 4/5") && last.includes("--clear-display-agent") && !last.includes("--display-agent approve"), last);
+      assert.ok(last.includes("idle=approve? pass") && last.includes("--clear-display-agent") && !last.includes("--display-agent approve"), last);
     } finally { if (oldCfg === undefined) delete process.env.HERDR_CONFIG_PATH; else process.env.HERDR_CONFIG_PATH = oldCfg; }
     assert.ok(!st.panes.some((p) => p.agent?.name === "sw-proj-1-r")); // the reviewer pane is closed again
     assert.equal(st.panes.find((p) => p.pane_id === t.link.pane).agent.kind, "claude");

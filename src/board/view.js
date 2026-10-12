@@ -21,6 +21,7 @@ import { DraftEditor } from "./editor.js";
 import { lookHeld } from "./held.js";
 import { artifactLine, artifactLines, reviewArtifacts } from "./artifact-lines.js";
 import * as C from "../coordinator.js";
+import * as G from "../gate.js";
 
 // The groups, in the order they need you. A task's state stays herdr's; the group is how the board files it.
 const GROUPS = ["needs you", "ready to approve", "working", "done", "to do"];
@@ -42,16 +43,19 @@ const groupOf = (r) => (inReview(r) ? "ready to approve" : needsYou(r) ? "needs 
 // The mark, the bar and the percent take the colour of the task's group; a task's own words (its title and what it
 // says) stay in herdr's text colours whatever its state. While the reviewer works they are a colour no other state uses.
 const statusColor = (r) => (r.archivedAt ? "overlay0" : reviewing(r) && r.state === "working" ? "review" : GROUP_COLOR[groupOf(r)]);
-// The reviewer's advice is said in words; the score's colour only repeats it.
-const scoreColor = (r, rv) => (rv.recommend === true ? "green" : rv.recommend === false ? "red" : "subtext0");
+// A review's result is said in words; its colour only repeats it. One from before the gate: its advice, as it was.
+const resultColor = (rv) => (G.isTagged(rv) ? (rv.pass ? "green" : "red") : rv.recommend === true ? "green" : rv.recommend === false ? "red" : "subtext0");
 const ordinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"}`;
 // Nothing on the first review; from the second on, in words: "2nd review".
 const roundWords = (r) => (S.reviewRound(r) >= 2 ? `${ordinal(S.reviewRound(r))} review` : "");
 const currentReview = (r) => S.currentReview(r);
 // Strip only board-generated review metadata; task descriptions and agent wording stay intact.
-const reviewNote = (r) => (isAgent(r) ? String(r.msg || "").replace(/^(Approve to merge\?\s*)?Reviewed [1-5]\/5(?:, says (?:don't )?(?:merge|accept))?\.\s*/, "$1") : r.msg);
-// One review in a few words: "4/5 yes" in a list of them, "4/5, says merge" on its own. The colour repeats the advice.
-const verdict = (t, e, long = false) => (e.error ? t.fg("red", long ? "failed, no verdict" : "failed") : t.fg(e.recommend === true ? "green" : e.recommend === false ? "red" : "subtext0", `${e.score}/5`) + (e.recommend === true ? (long ? ", says merge" : " yes") : e.recommend === false ? (long ? ", says don't merge" : " no") : ""));
+const reviewNote = (r) => (isAgent(r) ? String(r.msg || "").replace(G.SENTENCE, "$1") : r.msg);
+// One review in a few words: "pass" in a list of them, "Pass · 2 minor" on its own. The colour repeats the result.
+// One from before the gate keeps its score and advice: "4/5 yes", "4/5, says merge".
+const verdict = (t, e, long = false) => (e.error ? t.fg("red", long ? "failed, no verdict" : "no verdict")
+  : G.isTagged(e) ? t.fg(resultColor(e), long ? G.word(e) : G.word(e).toLowerCase()) + (long && G.tally(e) ? ` · ${G.tally(e)}` : "")
+  : t.fg(resultColor(e), `${e.score}/5`) + (e.recommend === true ? (long ? ", says merge" : " yes") : e.recommend === false ? (long ? ", says don't merge" : " no") : ""));
 // A long text's beginning, for the panel beside the list: cut between words, a few lines at most.
 const brief = (text, max = 400, mark = " …") => {
   let s = String(text ?? "").trim().replace(/\n{2,}/g, "\n");
@@ -262,7 +266,7 @@ export class View {
   // on enter, so a yes is never given to something other than what was asked.
   confirm(q, yes, quit = false, valid = null) { this.ask = { q, yes, quit, valid }; }
   // What a merge question is about: this pull request, at this reviewed commit, in this state.
-  mergeMark(id) { const x = this.items.find((i) => i.id === id); return x ? JSON.stringify([x.stage, x.pr ?? null, x.reviewedHead ?? null, x.review?.score ?? null, x.review?.recommend ?? null, !!x.review?.stale, !!x.mergeFailed, !!x.syncBlocked, !!x.prFailure, x.prState === "failing", !!x.archivedAt]) : ""; }
+  mergeMark(id) { const x = this.items.find((i) => i.id === id); return x ? JSON.stringify([x.stage, x.pr ?? null, x.reviewedHead ?? null, x.review?.score ?? null, x.review?.recommend ?? null, x.review?.pass ?? null, x.review?.findings?.length ?? null, !!x.review?.stale, !!x.mergeFailed, !!x.syncBlocked, !!x.prFailure, x.prState === "failing", !!x.archivedAt]) : ""; }
   // For a board run as a plain command: its tasks as OSC 7501 records on its own terminal. Output only: nothing
   // reads OSC 7501. No bell, sound or message says that a task newly needs you.
   announce() {
@@ -1090,7 +1094,7 @@ export class View {
     const failure = failureFor(r), rv = currentReview(r), reply = ["space", "reply"], open = ["enter", "open the agent"];
     let main;
     if (r.archivedAt) main = [["?", "restore or delete"], ...(this.archiveView && !this.full ? [["esc", "back to the board"]] : [])];
-    else if (inReview(r)) main = [["ctrl+a", "approve and merge"], rv && rv.score < 5 && ["ctrl+r", "send back"], reply];
+    else if (inReview(r)) main = [["ctrl+a", "approve and merge"], rv && G.sendable(rv) && ["ctrl+r", "send back"], reply];
     else if (r.stage === "approval" && r.syncBlocked) main = [reply, open];
     else if (r.stage === "approval" && r.state === "blocked") main = [failure?.agentCanFix && !failure.sentAt && ["ctrl+r", "send it to the agent to fix"], ["ctrl+a", "retry the merge"], reply];
     else if (r.stage === "nosummary") main = [["ctrl+r", "tell it to continue"], ["ctrl+a", "use it as it is"], open];
@@ -1236,7 +1240,7 @@ export class View {
     rows.push(["Reviewer", noReview ? "off" : `${ch.reviewer} · ${ch.reviewerModel || "default model"} · ${ch.reviewerEffort || "default effort"}`, mine("reviewer", "reviewerModel", "reviewerEffort", "review")]);
     // How this task is reviewed: what gets a review, who sends a review back, and the evidence the reviewer brings.
     rows.push(["Reviewed", noReview ? "nothing" : ch.review === "all" ? "all work" : "work in a repo", mine("review", "reviewer")]);
-    rows.push(["Send back", `${ch.reviewAuto ? "automatic below 5/5" : "by hand"} · ${ch.rounds ?? "?"} round${ch.rounds === 1 ? "" : "s"} at most`, mine("reviewAuto", "rounds")]);
+    rows.push(["Send back", `${!ch.gate || ch.gate === "off" ? "by hand" : ch.gate === "trivial" ? "any finding" : ch.gate === "critical" ? "critical only" : `${ch.gate} or worse`} · ${ch.rounds ?? "?"} round${ch.rounds === 1 ? "" : "s"} max`, mine("gate", "reviewAuto", "rounds")]);
     rows.push(["Evidence", ch.artifacts === false ? "off" : `on · ${ch.serve === "local" ? "local links" : `${ch.serve || "tailscale"} links`}`, mine("artifacts", "serve")]);
     const conf = RX ? RX.config || {} : S.config();
     rows.push(["Watcher", ch.watcher === "off" ? "off" : `${conf.watcherAgent || conf.helper || "claude"} · ${conf.watcherModel || conf.helperModel || "default model"}`, mine("watcher")]);
@@ -1254,7 +1258,7 @@ export class View {
     const stacked = w - kw < 16; // stack labels at narrow widths instead of clipping the values beside them
     const indent = stacked ? 2 : kw;
     const room = Math.max(1, w - indent);
-    // How each review went, oldest first: "2/5 no → 3/5 no → 4/5 yes". Short of room, the oldest ones go.
+    // How each review went, oldest first: "fail → no verdict → pass". Short of room, the oldest ones go.
     const trail = (count, oneLine) => {
       const steps = hist.map((e) => verdict(t, e)), arrow = dim(" → "), lead = `${count}${dim(" · ")}`;
       const all = lead + steps.join(arrow);
@@ -1285,11 +1289,13 @@ export class View {
 
     if (full) {
       if (evidence.length) sec(artifactLines(t, evidence, width, "Evidence").slice(0, -1));
-      // Every review, the newest first: which one, its score and advice, its summary, and what it found.
+      // Every review, the newest first: which one, its result, its summary, and what it found. A finding says how
+      // bad it is, and whether it held the work back: one below the gate, or there before the task, did not.
+      const found = (e) => { const s = G.split(e); return [...s.required.map((f) => G.findingLine(f)), ...s.optional.map((f) => `${G.findingLine(f)} · not required`), ...s.preexisting.map((f) => `${G.findingLine(f)} · pre-existing${f.task ? `, filed as ${f.task}` : ""}`), ...(e.left ? [`${e.left} smaller finding${e.left === 1 ? "" : "s"} noticed late, left out`] : [])]; };
       const list = (label, xs) => ((xs || []).length ? [" " + dim(label), ...xs.flatMap((x) => wrap(`- ${x}`, w - 2).map((l, n) => "   " + (n ? "  " + l : l)))] : []);
       for (const [n, e] of [...hist].reverse().entries()) {
         sec([...(n ? [""] : head(`Reviews · ${hist.length}, the newest first`)), ...flow([t.bold(`${ordinal(e.round)} review`), verdict(t, e, true), e.at ? dim(`${age(Date.now() - e.at)} ago`) : "", e.head ? dim(`commit ${String(e.head).slice(0, 7)}`) : ""]),
-          ...block(e.error || e.text || "No comment."), ...list("Problems", e.problems), ...list("Checked", e.checks), ...list("Could not verify", e.limitations)]);
+          ...block(e.error || e.text || "No comment."), ...(G.isTagged(e) ? list("Findings", found(e)) : list("Problems", e.problems)), ...list("Checked", e.checks), ...list("Could not verify", e.limitations)]);
       }
     }
 
@@ -1381,10 +1387,16 @@ export class View {
     const failure = failureFor(r);
     if (failure && !failure.sentAt && (r.failure || r.prFailure)) return { text: quiet(words(failure.msg || failure.title)) };
     if (inReview(r)) {
-      // The score, and the reviewer's advice in words. Which review it was only from the second on.
+      // The result and a short tally: "Pass · 2 minor". Which review it was only from the second on.
       const rv = currentReview(r);
+      if (G.isTagged(rv)) {
+        const res = t.fg(resultColor(rv), G.word(rv)), tally = res + quiet(G.tally(rv) ? ` · ${G.tally(rv)}` : "");
+        const all = tally + (roundWords(r) ? quiet(` · ${roundWords(r)}`) : "");
+        return { text: all, forms: [all, tally, res] }; // never cut: it shows whole, or shorter, or as the one word
+      }
+      // A review from before the gate: its score, and the reviewer's advice in words.
       if (!rv || !Number.isInteger(rv.score)) return { text: r.review?.stale ? quiet("the work changed since its review") : "" };
-      const score = t.fg(scoreColor(r, rv), `${rv.score}/5`);
+      const score = t.fg(resultColor(rv), `${rv.score}/5`);
       const advice = score + quiet(rv.recommend === true ? " reviewer says yes" : rv.recommend === false ? " reviewer says no" : "");
       const all = advice + (roundWords(r) ? quiet(` · ${roundWords(r)}`) : "");
       return { text: all, forms: [all, advice, score] }; // never cut: it shows whole, or shorter, or as the score alone

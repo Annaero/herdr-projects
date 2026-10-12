@@ -14,6 +14,7 @@ const HELP = `herdr-superwork: a work board for herdr
                          [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
   herdr-superwork describe <id> <text>          write or replace a task's description
   herdr-superwork delegate <id> [--agent KIND] [--model M] [--effort E] [--reviewer KIND|off] [--no-worktree] [--base head|fresh]
+                           [--gate critical|major|minor|trivial|off] [--rounds N]
   herdr-superwork tell <id> <text>              send a message to the task's agent
   herdr-superwork stop <id>                     stop its agent
   herdr-superwork approve <id>                  merge finished work that waits for approval
@@ -221,7 +222,7 @@ export async function main(argv) {
 }
 function pickChoices(flags) {
   const o = {};
-  for (const k of S.PER_TASK) if (flags[k] !== undefined) o[k] = flags[k];
+  for (const k of [...S.PER_TASK, "reviewAuto"]) if (flags[k] !== undefined) o[k] = flags[k];
   if (flags.worktree === false) o.worktree = false; else if (flags.worktree === true) o.worktree = true;
   if (flags.base) o.base = flags.base;
   return o;
