@@ -22,6 +22,9 @@ export const needsYou = (r) => r.state === "blocked" || r.state === "error";
 export const waitOf = (r) => waitingOf(r);
 export const reviewerWord = (r) => (waitOf(r) ? "reviewer was cut off" : "reviewer is working");
 export const groupOf = (r) => (inReview(r) ? "ready to approve" : needsYou(r) ? "needs you" : r.state === "working" ? "working" : r.state === "done" ? "done" : "to do");
+// A live task: an agent, the reviewer or the board's check is on it, or it waits for you. Its row has two lines, the
+// second for what it says (row.js); a done, to-do or archived task has nothing to say and keeps one.
+export const isLive = (r) => !r.archivedAt && ["needs you", "ready to approve", "working"].includes(groupOf(r));
 // The mark, the bar and the percent take the colour of the task's group; a task's own words (its title and what it
 // says) stay in herdr's text colours whatever its state. While the reviewer works they are "review": a blue of its
 // own (theme.js), so amber says only that the agent works and green only that the work passed and is ready.

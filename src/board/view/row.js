@@ -1,9 +1,9 @@
-// One row of the list: its mark, its name, what it says, and its columns on the right.
+// One row of the list: its mark, its name, its columns on the right and, for a live task, a second line that says what it does.
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import * as G from "../../gate.js";
 import { herdr } from "../../herdr.js";
 import { short, clean, age, prTag, bar, left } from "./words.js";
-import { MARK_STATES, failureFor, inReview, needsYou, statusColor, waitOf } from "./states.js";
+import { MARK_STATES, failureFor, inReview, isLive, needsYou, statusColor, waitOf } from "./states.js";
 import { ETA_STEADY, labelRoom, shownFrom } from "./row-fit.js";
 import { resultColor, reviewTagInk, currentReview, reviewNote, verdict } from "./review-words.js";
 
@@ -34,7 +34,8 @@ export class Row {
     return { bar: has ? paint(color, bar(r.progress)) : "", percent: has ? paint(color, `${String(r.progress).padStart(3)}%`) : "", eta: live && r.eta !== undefined ? paint(color, left(r.eta)) : "", // minutes left show with no percent too
       review: reviewTagInk(t, r), pr: prTag(t, r), elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
   }
-  // What a row says after its name. Never what its heading already says ("to do", "approve?").
+  // What a row says: under its name on a live task's row, after its name on any other. Never what its heading
+  // already says ("to do", "approve?").
   sentence(r) {
     const t = this.theme;
     const words = (s) => clean(s || "").replace(/\*\*|`/g, "");
@@ -49,13 +50,13 @@ export class Row {
       const rv = currentReview(r);
       if (G.isTagged(rv)) {
         const res = t.fg(resultColor(rv), G.word(rv)), tally = res + quiet(G.tally(rv) ? ` · ${G.tally(rv)}` : "");
-        return { text: tally, forms: [tally, res] }; // never cut: it shows whole, or as the one word
+        return { text: tally };
       }
       // A review from before the gate: its score, and the reviewer's advice in words.
       if (!rv || !Number.isInteger(rv.score)) return { text: r.review?.stale ? quiet("the work changed since its review") : "" };
       const score = t.fg(resultColor(rv), `${rv.score}/5`);
       const advice = score + quiet(rv.recommend === true ? " reviewer says yes" : rv.recommend === false ? " reviewer says no" : "");
-      return { text: advice, forms: [advice, score] }; // never cut: it shows whole, or as the score alone
+      return { text: advice };
     }
     // Checks that fail with nothing saved about them yet: the row still says why it is not ready.
     if (r.stage === "approval" && r.prState === "failing" && !r.mergeFailed && !r.syncBlocked) return { text: quiet("the pull request's checks fail") };
@@ -67,9 +68,11 @@ export class Row {
     if (needsYou(r)) return { text: quiet(msg || { question: "has a question", permission: "asks for your OK", auth: "needs a login" }[r.kind] || (r.state === "error" ? "failed" : "")) };
     return { text: quiet(msg) };
   }
+  // What a row says on its first line, after its name: nothing on a live task's row, which says it on its second.
+  saysBeside(r) { return isLive(r) ? { text: "" } : this.sentence(r); }
   rowTitle(r) { return clean(r.title || r.id) + (r.archivedAt ? " [archived]" : ""); }
   // The fewest cells a row needs to say something: a sentence cut to a few letters says nothing.
-  sayNeed(said) { return said.forms ? Math.min(...said.forms.map((f) => visibleWidth(f))) : Math.min(visibleWidth(said.text || ""), SENTENCE_MIN); }
+  sayNeed(said) { return Math.min(visibleWidth(said.text || ""), SENTENCE_MIN); }
   // The columns on the right are laid out first, once for the whole list: which there are and how wide each is. Every
   // row draws them at those widths, so each column starts at the same place on every row. What is shown of them is
   // decided one section at a time (row-fit.js): a section's rows give the same things up together, from the left.
@@ -99,7 +102,7 @@ export class Row {
       // What the rows say goes the same way: every row of the section that says something has room for it, or none says it.
       // A row's name and what it says are drawn in the room decided here, so neither moves as the numbers tick.
       const rooms = recs.map((r, m) => Math.max(0, labelRoom(parts[n][m], steady, from)));
-      const says = recs.every((r, m) => { const said = this.sentence(r); return !visibleWidth(said.text || "") || rooms[m] - visibleWidth(this.rowName(r, rooms[m])) - 2 >= this.sayNeed(said); });
+      const says = recs.every((r, m) => { const said = this.saysBeside(r); return !visibleWidth(said.text || "") || rooms[m] - visibleWidth(this.rowName(r, rooms[m])) - 2 >= this.sayNeed(said); });
       recs.forEach((r, m) => layout.show.set(r, { from, says, room: rooms[m] }));
     });
     return layout;
@@ -127,26 +130,41 @@ export class Row {
   }
   // A row's name in `w` cells. In the all-machines view the machine's name sits before the task's, in what the
   // task's name leaves: it is cut first.
-  rowName(r, w) {
+  rowNameParts(r, w) {
     const t = this.theme, bright = r.state === "working" || r.state === "blocked";
     // The title is plain text whatever the task's state: the mark and the group's heading carry the state's colour.
     const shown = truncateToWidth(bright ? t.bold(this.rowTitle(r)) : this.rowTitle(r), w, "…");
     const host = r.host && this.scope === "*" ? clean(r.host) : "", hostRoom = w - visibleWidth(shown) - 1;
-    return (host && hostRoom >= Math.min(3, visibleWidth(host)) ? t.fg("overlay0", truncateToWidth(host, hostRoom, "…")) + " " : "") + shown;
+    return { host: host && hostRoom >= Math.min(3, visibleWidth(host)) ? t.fg("overlay0", truncateToWidth(host, hostRoom, "…")) + " " : "", shown };
+  }
+  rowName(r, w) { const { host, shown } = this.rowNameParts(r, w); return host + shown; }
+  // A row's first line, measured: its mark, the columns it keeps, and the room they leave its name.
+  rowRoom(r, width, layout) {
+    const prefix = ` ${this.mark(r)} `, room = Math.max(0, width - visibleWidth(prefix));
+    const { metadata } = this.rowKeeps(r, width, layout), show = layout.show.get(r);
+    return { prefix, room, metadata, show, labelRoom: Math.min(show?.room ?? room, Math.max(0, room - visibleWidth(metadata) - (metadata ? 2 : 0))) };
   }
   row(r, width, layout = this.rowLayout([r], width)) {
-    const prefix = ` ${this.mark(r)} `;
-    const room = Math.max(0, width - visibleWidth(prefix));
     // One rule for every row. The columns first, at the list's widths, as many as the row's section shows; the name
     // in what they leave; what the row says in what is then left, when its section's rows say anything.
-    const { metadata } = this.rowKeeps(r, width, layout);
-    const show = layout.show.get(r), labelRoom = Math.min(show?.room ?? room, Math.max(0, room - visibleWidth(metadata) - (metadata ? 2 : 0)));
-    const said = (show?.says ?? true) ? this.sentence(r) : { text: "" }, sayW = visibleWidth(said.text || "");
+    const { prefix, room, metadata, show, labelRoom } = this.rowRoom(r, width, layout);
+    const said = (show?.says ?? true) ? this.saysBeside(r) : { text: "" }, sayW = visibleWidth(said.text || "");
     const renderedTitle = this.rowName(r, labelRoom);
     const sayRoom = labelRoom - visibleWidth(renderedTitle) - 2;
     // A sentence cut to a few letters says nothing: it shows whole, or with at least SENTENCE_MIN cells.
-    const tail = !sayW || sayRoom < this.sayNeed(said) ? "" : said.forms ? said.forms.find((f) => visibleWidth(f) <= sayRoom) || "" : truncateToWidth(said.text, sayRoom, "…");
+    const tail = !sayW || sayRoom < this.sayNeed(said) ? "" : truncateToWidth(said.text, sayRoom, "…");
     const label = renderedTitle + (tail ? "  " + tail : "");
     return prefix + label + " ".repeat(Math.max(0, room - visibleWidth(label) - visibleWidth(metadata))) + metadata;
   }
+  // A live task's second line: what it says, under its name, with the row's whole width. It starts where the task's
+  // name starts: right of the mark and, in the all-machines view, right of the machine's name. Too long, it is cut at
+  // its end, never wrapped. The line is there from the start, so a row does not grow when its words arrive: until then a
+  // working task has a quiet "…" on it, and a task that waits with nothing to say an empty line.
+  statusLine(r, width, layout = this.rowLayout([r], width)) {
+    const t = this.theme, { prefix, labelRoom } = this.rowRoom(r, width, layout);
+    const lead = " ".repeat(visibleWidth(prefix) + visibleWidth(this.rowNameParts(r, labelRoom).host));
+    return truncateToWidth(lead + (this.sentence(r).text || (r.state === "working" ? t.muted("…") : "")), width, "…");
+  }
+  // A row as the list draws it: one line, or two for a live task.
+  rowLines(r, width, layout = this.rowLayout([r], width)) { return isLive(r) ? [this.row(r, width, layout), this.statusLine(r, width, layout)] : [this.row(r, width, layout)]; }
 }

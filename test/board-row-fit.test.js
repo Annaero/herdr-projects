@@ -12,7 +12,8 @@ const done = { state: "done", stage: "done", at }, todo = { state: "idle", stage
 const GROUPS = ["ready to approve", "working", "done", "to do"];
 const group = (r) => (r.kind ? GROUPS[0] : r.state === "working" ? GROUPS[1] : r.state === "done" ? GROUPS[2] : GROUPS[3]);
 const board = () => { const v = Object.create(View.prototype); return Object.assign(v, { theme, scope: "", byRepo: false, top: 0, sel: "" }); };
-// The list as the board draws it, under its headings: one line for each task, in the order given.
+// The list as the board draws it, under its headings: each task's first line (its name and its columns), in the order
+// given. A live task's second line, what it says, is not part of the fit: test/board-rows.test.js.
 const draw = (v, list, width) => {
   v.rows = GROUPS.flatMap((g) => [{ header: g }, ...list.filter((r) => group(r) === g).map((rec) => ({ rec }))]);
   const lines = v.listLines(width, 80).map((l) => stripVTControlCharacters(l));
@@ -33,7 +34,7 @@ const shown = (list, lines, width) => Object.fromEntries(GROUPS.map((g) => {
     if (group(r) !== g) return;
     const here = places(lines[n]);
     for (const key of has(r)) { set[key] ??= key in here; assert.equal(key in here, set[key], `${g}: ${key} is on some rows and not on others at ${width}:\n${lines.join("\n")}`); }
-    if (r.msg) { set.says ??= says(r, lines[n]); assert.equal(says(r, lines[n]), set.says, `${g}: some rows say what they do and others do not at ${width}:\n${lines.join("\n")}`); }
+    if (r.msg && !["working", "blocked"].includes(r.state)) { set.says ??= says(r, lines[n]); assert.equal(says(r, lines[n]), set.says, `${g}: some rows say what they do and others do not at ${width}:\n${lines.join("\n")}`); }
   });
   return [g, set];
 }));
@@ -51,7 +52,7 @@ const MIX = [
   { ...work, id: "p/7", title: "Start", msg: "Looking around." },
   { ...done, id: "p/8", title: "An old thing", pr: 12, prState: "merged" },
   { ...done, id: "p/9", title: "Rewrite the whole of the first-run screen and what it asks", pr: 7, prState: "merged", reviewRound: 2, review: pass },
-  { ...todo, id: "p/10", title: "Not begun" },
+  { ...todo, id: "p/10", title: "Not begun", msg: "Waits for the first-run screen." },
 ];
 
 test("the rows of a section show the same things at every width, in one order, and the columns line up down the whole list", () => {
@@ -85,7 +86,8 @@ test("the rows of a section show the same things at every width, in one order, a
   }
   assert.deepEqual([...seen].sort(), [...ORDER].sort()); // every column was looked at
   // Wide enough, everything shows; narrow enough, only names.
-  assert.deepEqual(shown(MIX, draw(v, MIX, 200), 200).working, { bar: true, percent: true, eta: true, time: true, says: true, review: true, pr: true });
+  assert.deepEqual(shown(MIX, draw(v, MIX, 200), 200).working, { bar: true, percent: true, eta: true, time: true, review: true, pr: true });
+  assert.deepEqual(shown(MIX, draw(v, MIX, 200), 200)["to do"], { time: true, says: true });
   assert.ok(draw(v, MIX, 24).every((line, n) => group(MIX[n]) === "to do" || !Object.keys(places(line)).length));
 });
 
@@ -135,31 +137,40 @@ test("a long name is cut a little before its section loses a column, never for a
   for (const width of WIDTHS) { const line = draw(v, list, width)[1]; if (Object.keys(places(line)).length) assert.ok(line.slice(3).startsWith("Fix login ")); }
 });
 
-test("what a row says shows on every row of its section that says something, or on none", () => {
+test("what a one-line row says shows on every row of its section that says something, or on none", () => {
   const v = board();
+  // Only a row of one line says anything beside its name: a task that is to do, with a note. (A live task says it
+  // on its second line.)
   const list = [
-    { ...work, id: "p/1", title: "Fix login", msg: "Tracing why the login form rejects valid passwords.", progress: 55, pr: 3 },
-    { ...work, id: "p/2", title: "Fix layout for task names in narrow terminal board", msg: "Writing the tests for every width.", progress: 20 },
-    { ...work, id: "p/3", title: "Quiet", progress: 20 },
+    { ...todo, id: "p/1", title: "Fix login", msg: "Tracing why the login form rejects valid passwords.", pr: 3 },
+    { ...todo, id: "p/2", title: "Fix layout for task names in narrow terminal board", msg: "Writing the tests for every width." },
+    { ...todo, id: "p/3", title: "Quiet" },
   ];
-  let lines = draw(v, list, 110);
-  assert.match(lines[0], /^ ◐ Fix login {2}Tracing why the login form rejects valid passwords\. +█/); assert.match(lines[1], /board {2}Writing the tests for every w[^…]*… +█/); // each cut to its own room
-  lines = draw(v, list, 95); // the long name leaves too little to say anything worth reading: the short one says nothing either
-  assert.match(lines[0], /^ ◐ Fix login +█{4}░{4} {2}55% {2}PR#3 +2h$/); assert.match(lines[1], /board +█/); assert.match(lines[2], /^ ◐ Quiet +█/);
+  let lines = draw(v, list, 96);
+  assert.match(lines[0], /^ ○ Fix login {2}Tracing why the login form rejects valid passwords\. +PR#3/); assert.match(lines[1], /board {2}Writing the tests for every w[^…]*… +2h ago$/); // each cut to its own room
+  lines = draw(v, list, 82); // the long name leaves too little to say anything worth reading: the short one says nothing either
+  assert.match(lines[0], /^ ○ Fix login +PR#3 +2h ago$/); assert.match(lines[1], /board +2h ago$/); assert.match(lines[2], /^ ○ Quiet +2h ago$/);
   for (const width of WIDTHS) shown(list, draw(v, list, width), width);
   // A row with nothing to say does not count: beside it the others still say what they do.
-  assert.match(draw(v, [list[0], list[2]], 95)[0], /^ ◐ Fix login {2}Tracing why the login form rejects valid pa/);
+  assert.match(draw(v, [list[0], list[2]], 82)[0], /^ ○ Fix login {2}Tracing why the login form rejects valid pa/);
+  // A live task never says anything beside its name, whatever the room.
+  assert.match(draw(v, [{ ...work, id: "p/4", title: "Fix login", msg: "Tracing why.", progress: 55 }], 200)[0], /^ ◐ Fix login {3,}█/);
 });
 
 test("what is shown does not change as percents, minutes left and times tick", () => {
   const v = board();
   const ticks = [[0, 1, at], [9, 9, at], [10, 10, at - 3600000], [55, 99, at - 9 * 3600000], [100, 100, at - 20 * 3600000], [99, 240, at], [50, 999, at], [50, 1000, at], [5, 1007, at], [5, 99999, at], [3, 7, at]];
   for (const width of WIDTHS.concat([95, 94, 93, 92, 91, 89, 88, 87, 86, 85, 75, 74, 73, 71])) {
-    const sets = ticks.map(([progress, eta, since]) => {
+    // What a row shows is what the layout decided for it (where its section's columns start, whether it says anything,
+    // its room, the word "ago"): that is compared at every tick, and the drawn lines at the first and the last.
+    const sets = ticks.map(([progress, eta, since], n) => {
       const list = MIX.map((r) => ({ ...r, at: since, ...(r.progress !== undefined ? { progress } : {}), ...(r.eta !== undefined ? { eta } : {}) }));
-      return JSON.stringify(shown(list, draw(v, list, width), width));
+      const sections = GROUPS.map((g) => list.filter((r) => group(r) === g)), layout = v.rowLayout(sections.flat(), width, sections);
+      const drawn = n === 0 || n === ticks.length - 1 ? shown(list, draw(v, list, width), width) : null;
+      return [JSON.stringify([layout.ago, layout.cols.map(([key]) => key), sections.map((recs) => recs.map((r) => layout.show.get(r)))]), JSON.stringify(drawn)];
     });
-    assert.deepEqual([...new Set(sets)], [sets[0]], `the things shown change with the numbers at ${width}`);
+    assert.deepEqual([...new Set(sets.map(([decided]) => decided))], [sets[0][0]], `the things shown change with the numbers at ${width}`);
+    assert.equal(sets.at(-1)[1], sets[0][1], `the lines drawn change with the numbers at ${width}`);
   }
 });
 
@@ -175,7 +186,7 @@ test("minutes left are never wider than four cells, and a machine's name beside 
   assert.match(draw(v, pair(999), 80)[1], /% 999m +2h$/); assert.match(draw(v, pair(1000), 80)[1], /% 17h +2h$/); assert.match(draw(v, pair(1e7), 80)[1], /% 999h +2h$/);
   // All machines: a machine's name sits in the room the fit counted, never in room the row's words were promised.
   v.scope = "*";
-  const far = [{ ...work, id: "p/1", title: "A title that is forty cells long, exactly", host: "long-machine-name", msg: "X", progress: 50, eta: 1 }, { ...work, id: "p/2", title: "Fix login", msg: "X", progress: 50, eta: 1 }];
+  const far = [{ ...todo, id: "p/1", title: "A title that is forty cells long, exactly", host: "long-machine-name", msg: "X", progress: 50, eta: 1 }, { ...todo, id: "p/2", title: "Fix login", msg: "X", progress: 50, eta: 1 }];
   for (let width = 30; width <= 120; width++) {
     draw(v, far, width); // with a machine's name before it a line does not start with its task's name: found by it anywhere
     const all = v.listLines(width, 20).map((l) => stripVTControlCharacters(l)), lines = far.map((r) => all.find((l) => l.includes(r.title.slice(0, 6)))), said = lines.map((l) => / {2}X( |$)/.test(l));

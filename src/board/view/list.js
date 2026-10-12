@@ -6,8 +6,15 @@ import * as F from "../../flow.js";
 import * as C from "../../coordinator.js";
 import { herdr, currentSocket, sessionName } from "../../herdr.js";
 import { short, repoLabel } from "./words.js";
-import { GROUPS, GROUP_COLOR, groupOf, asRow } from "./states.js";
+import { GROUPS, GROUP_COLOR, groupOf, asRow, isLive } from "./states.js";
 import { name as keyName } from "../keys.js";
+
+// A long done list folds to its latest few. A list taller than its room shows fewer still, down to one.
+const DONE_SHOWN = 5;
+const isDone = (r) => r.state === "done" && !r.pinned && !r.archivedAt;
+const rank = (r) => (r.archivedAt ? -2 : r.pinned ? -1 : GROUPS.indexOf(groupOf(r)));
+// The lines a list of rows takes: an empty line and a heading for each group, two lines for a live task's row.
+const linesOf = (rows) => rows.reduce((n, row) => n + (row.header ? 2 : row.rec && isLive(row.rec) ? 2 : 1), 0);
 
 export class List {
   load() {
@@ -25,27 +32,12 @@ export class List {
     const eligible = this.items.filter((r) => held(r) || (this.archiveView ? !!r.archivedAt : !!f || !r.archivedAt));
     const shown = f ? eligible.filter((r) => held(r) || `${r.id} ${r.title} ${r.msg} ${r.state} ${r.app} ${r.archivedAt ? "archived" : ""} ${r.description || ""} ${r.failure?.title || ""} ${r.failure?.detail || ""}`.toLowerCase().includes(f)) : eligible;
     const layout = JSON.stringify([this.scope, this.byRepo, this.allDone, this.archiveView, f]);
-    const rows = [];
     const repoOf = (r) => r.id.split("/")[0];
     const groups = this.byRepo
       ? [...new Set(shown.map(repoOf))].sort((a, b) => (a === this.repo.name ? -1 : b === this.repo.name ? 1 : a.localeCompare(b))).map((g) => [g, shown.filter((r) => repoOf(r) === g)])
       : [["archived", shown.filter((r) => r.archivedAt)], ["pinned", shown.filter((r) => r.pinned && !r.archivedAt)], ...GROUPS.map((g) => [g, shown.filter((r) => groupOf(r) === g && !r.pinned && !r.archivedAt)])];
-    const isDone = (r) => r.state === "done" && !r.pinned && !r.archivedAt;
-    const rank = (r) => (r.archivedAt ? -2 : r.pinned ? -1 : GROUPS.indexOf(groupOf(r)));
-    for (const [name, recs] of groups) {
-      if (!recs.length) continue;
-      rows.push({ header: name });
-      // Inside a project: pinned first, then the order of the status groups, so what needs you is on top.
-      // A long done list folds to the latest few, newest first.
-      const list = [...recs].sort((a, b) => (this.byRepo ? rank(a) - rank(b) : 0) || (a.archivedAt && b.archivedAt ? b.archivedAt - a.archivedAt : 0) || (isDone(a) && isDone(b) ? b.at - a.at : 0));
-      const done = list.filter(isDone);
-      const folded = !this.allDone && !f ? done.slice(5).filter((r) => r.id !== this.sel) : [];
-      for (const r of list) {
-        if (!folded.includes(r)) rows.push({ rec: r });
-        if (folded.length && r === done[done.length - 1]) rows.push({ note: `… ${folded.length} more (? shows all done)` });
-      }
-    }
-    this.rows = rows;
+    this.grouped = { groups, whole: this.allDone || !!f };
+    const rows = this.rows = this.foldRows();
     const selectable = [...rows.filter((r) => r.rec).map((r) => r.rec), ...this.jobs];
     // Only the selected task's ordering data matters. New rows, progress updates and other tasks moving must not
     // steal selection.
@@ -103,6 +95,32 @@ export class List {
     if (this.replyId && !this.items.some((r) => r.id === this.replyId)) { this.reply = false; this.full = false; this.panelTop = 0; }
     else { this.replyId = this.current() ? this.sel : ""; this.panelTop = 0; }
   }
+  // The rows under their headings. A long done list folds to its latest few, newest first. When the list is still
+  // taller than its room (`listRoom`: what the last draw had for it), the done rows are what gives way: fewer of them
+  // show, down to the newest one, so that the live tasks stay on the screen. Only then does the list scroll. The
+  // selected task is never folded away, and neither is anything while you search or ask for all done.
+  foldRows() {
+    const { groups, whole } = this.grouped;
+    const lay = (keep) => {
+      const rows = [];
+      for (const [name, recs] of groups) {
+        if (!recs.length) continue;
+        rows.push({ header: name });
+        // Inside a project: pinned first, then the order of the status groups, so what needs you is on top.
+        const list = [...recs].sort((a, b) => (this.byRepo ? rank(a) - rank(b) : 0) || (a.archivedAt && b.archivedAt ? b.archivedAt - a.archivedAt : 0) || (isDone(a) && isDone(b) ? b.at - a.at : 0));
+        const done = list.filter(isDone);
+        const folded = whole ? [] : done.slice(keep).filter((r) => r.id !== this.sel);
+        for (const r of list) {
+          if (!folded.includes(r)) rows.push({ rec: r });
+          if (folded.length && r === done[done.length - 1]) rows.push({ note: `… ${folded.length} more (? shows all done)` });
+        }
+      }
+      return rows;
+    };
+    let keep = DONE_SHOWN, rows = lay(keep);
+    while (!whole && this.listRoom && keep > 1 && linesOf(rows) > this.listRoom) rows = lay(--keep);
+    return rows;
+  }
   move(d) {
     const ids = [...this.rows.filter((r) => r.rec).map((r) => r.rec.id), ...this.jobs.map((j) => j.id)]; // the dispatcher's rows sit below the list
     if (ids.length) this.sel = ids[Math.max(0, Math.min(ids.length - 1, ids.indexOf(this.sel) + d))];
@@ -122,6 +140,8 @@ export class List {
   }
   listLines(width, h) {
     const t = this.theme;
+    // The room the list has decides how many done rows show (foldRows): when it changes, they are folded again.
+    if (h !== this.listRoom) { this.listRoom = h; if (this.grouped) this.rows = this.foldRows(); }
     if (!this.rows.length) {
       const out = ["", " " + t.fg("overlay0", this.filter || this.mode === "find" ? "nothing matches." : this.archiveView ? "No archived tasks." : "Nothing here yet. Type what needs doing.")];
       while (out.length < h) out.push("");
@@ -136,13 +156,19 @@ export class List {
     this.rows.forEach((row) => {
       if (row.header) lines.push({ text: "", sel: false }, { text: " " + (this.byRepo ? t.bold(t.fg("subtext0", repoLabel(row.header))) : t.fg(GROUP_COLOR[row.header] || "subtext0", row.header)), sel: false });
       else if (row.note) lines.push({ text: "   " + t.fg("overlay0", row.note), sel: false });
-      else lines.push({ text: this.row(row.rec, width, layout), sel: row.rec.id === this.sel });
+      // A live task's row is two lines, and both are the selected row's: the highlight covers the two.
+      else this.rowLines(row.rec, width, layout).forEach((text, n) => lines.push({ text, sel: row.rec.id === this.sel, second: n > 0 }));
     });
-    const at = lines.findIndex((l) => l.sel);
+    const at = lines.findIndex((l) => l.sel), end = lines.findLastIndex((l) => l.sel);
     if (at < this.top + 2) this.top = Math.max(0, at - 2);
-    if (at >= this.top + h) this.top = at - h + 1;
+    if (end >= this.top + h) this.top = Math.min(at, end - h + 1); // with room for one line only, the one with its name
     this.top = Math.max(0, Math.min(this.top, Math.max(0, lines.length - h)));
-    const out = lines.slice(this.top, this.top + h).map((l) => (l.sel ? this.hl(l.text, width) : l.text));
+    // The list scrolls by whole rows, so a two-line row is never shown half: at the top it comes into view whole
+    // (or goes, when the selected row needs the line), and at the bottom its first line alone is left empty.
+    if (lines[this.top]?.second && !lines[this.top].sel) this.top += end < this.top - 1 + h ? -1 : 1;
+    const shown = lines.slice(this.top, this.top + h);
+    if (shown.length === h && lines[this.top + h]?.second && !shown[h - 1].sel) shown[h - 1] = { text: "", sel: false };
+    const out = shown.map((l) => (l.sel ? this.hl(l.text, width) : l.text));
     while (out.length < h) out.push("");
     return out;
   }

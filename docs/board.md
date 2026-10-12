@@ -20,18 +20,45 @@ list of its own, newest first, and no part of this order.
 
 Each state has a mark of its own (`◐` working, `×` needs you, `✗` went wrong, `✓` done or ready, `○` to do), so no
 two are told apart by colour alone (herdr's `status_indicators = "dots"` brings its dots back). A row reads: the
-name, a sentence, then on the right two groups with a wider gap between them: the progress (the bar, the percent and
-the minutes left), and then the review, the pull request and the time:
+name, then on the right two groups with a wider gap between them: the progress (the bar, the percent and the minutes
+left), and then the review, the pull request and the time:
 
 ```
  ready to approve
- ✓ Add an undo for clear  Fail · 1 critical, 1 major                 R#2 PR#18 12m ago
+ ✓ Add an undo for clear                                             R#2 PR#18 12m ago
+   Fail · 1 critical, 1 major
  working
- ◐ Tidy the first-run questions  Running the tests            ███░░░░░  40% 12m    R#1 PR#17    5m
+ ◐ Tidy the first-run questions                           ███░░░░░  40% 12m    R#1 PR#17    5m
+   Running the tests
+ done
+ ✓ Blue while the reviewer works                                     R#1 PR#76  1h ago
 ```
 
-The row says how the review came out and a short tally of what it found (`Pass · 2 minor`, `Fail · 1 critical, 1 major`). While the
-reviewer works, the sentence says only what the reviewer is doing.
+**A live task's row is two lines.** Live is every task under `needs you`, `ready to approve` and `working`: an agent,
+the reviewer or the board's own check is on it, or it waits for you. The first line is the mark, the name and the
+columns. The second is what the task says, greyed, under the name and starting where the name starts: what it is
+doing now, how its review came out with a short tally of what it found (`Pass · 2 minor`, `Fail · 1 critical, 1
+major`, the result in its own colour), or what it waits for. While the reviewer works, it says only what the reviewer
+is doing. In the all-machines view, where a machine's name sits before a task's, the second line still starts under
+the task's name, right of the machine's. That line has the row's whole width, so it is rarely cut; one longer than the window is cut at its end with
+`…`, never wrapped onto a third line.
+
+A done or to-do task has nothing to say and keeps one line, so that many of them show at once. (A to-do task that
+carries a note says it after its name, on that one line.)
+
+The second line is there from the start, so a row does not grow, and nothing under it moves, when its words arrive.
+Until then a working task has a quiet `…` on it: its words are on their way. A task that waits for you with nothing
+to say (ready to approve with no review) has an empty line: nothing is coming, and `…` would say something is.
+
+The highlight of the selected task covers both its lines. `↑` and `↓` go task by task, never onto a second line.
+
+**A list taller than the window.** The done rows give way first: the list shows the latest five of them, and when it
+still does not fit, one fewer for each line it is short, down to the newest one (the line under them says how many
+more there are, and `?` has the key that shows all of them). So the live tasks, which are the ones that need your
+eye, stay on the screen. The task you have selected is never folded away, and nothing is while you search or have
+asked for all done. Only when the list is still too tall does it scroll, and then by whole rows: a row of two lines is
+never shown half. Its two lines come into view together, and where only one would fit at the bottom that line is left
+empty. (In a list squeezed to a single line, the selected task shows its name.)
 
 **Each colour has one meaning.** Amber: the agent is working. Blue: the reviewer is working. Green: it passed and is
 ready for you. Red: it failed, or it needs you. For as long as the reviewer works, the row's mark, its bar, the
@@ -68,8 +95,9 @@ long name under `done` costs `working` nothing, and the columns still start at t
 
 Things give way in this order, first to last, and the name wins over all of them:
 
-1. what the rows say: each is cut to its own room, and when one of them has not even 20 cells (or its whole
-   length, when that is less), none of the group's rows says anything;
+1. what one-line rows say after their name (a to-do task's note): each is cut to its own room, and when one of them
+   has not even 20 cells (or its whole length, when that is less), none of the group's rows says anything. A live
+   task's words are on its second line and take no part in this;
 2. the bar;
 3. the word `ago`, on the whole list at once since it sits right of every column: it goes when that keeps a column
    other than a bar, or cuts a name less, somewhere on the list;
@@ -84,10 +112,16 @@ Step 4 is why one long title does not cost a whole group its columns: a title is
 ([titles](titles.md)), so it loses a third at the very most, and a name of 40 cells or fewer is never cut while a
 column shows. A name is never cut for a bar.
 
+With what a live task says on a line of its own, its name is alone beside the columns, so they fit far more often: a
+title is at most 60 characters, and from 110 columns on every live row has all of them, the bar too, whatever its
+name (before, a bar needed a short name or a much wider window, and what the row said was nearly always cut). The
+order above was looked at again with that in mind and is unchanged: the bar is still what a row can best do without,
+since the percent beside it says the same.
+
 What is shown does not jump as the numbers tick: the minutes left are counted at their widest, four cells, when
 this is decided, so `9m` turning into `10m` hides nothing. They are never wider: from a thousand minutes on a row
-shows them as hours (`17h`). A name and what the row says are drawn in the room counted that way too, so neither
-is cut at another place from one minute to the next.
+shows them as hours (`17h`). A name is drawn in the room counted that way too, so it is not cut at another place
+from one minute to the next.
 
 `PR#18` is the pull request, and its colour says how its checks went, by the same rule as the `R#` tag and with
 no mark beside it: green, they pass; red, they fail; plain, there is no result yet (they are running, or there are

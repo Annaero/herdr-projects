@@ -82,7 +82,7 @@ test("the task panel never opens full screen by itself: something going wrong on
     s.v.load();
     assert.equal(s.v.sel, id); assert.equal(s.v.full, false); assert.equal(s.v.reply, false);
     let text = s.text(80);
-    assert.match(text, /\n needs you *\n ✗ Match the colors {2}Merge conflict with main/);
+    assert.match(text, /\n needs you *\n ✗ Match the colors [^\n]*\n {3}Merge conflict with main/);
     assert.doesNotMatch(text, /Conflicting files/);
     // The hint line: what matters now, the main thing first, never more than four.
     assert.match(text, /\n {2}ctrl\+r send it to the agent to fix · ctrl\+l retry · space reply · \? more *$/);

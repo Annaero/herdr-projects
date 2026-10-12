@@ -27,7 +27,7 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     const raw = s.v.render(120), text0 = "\x1b[38;2;205;214;244m", yellow = "\x1b[38;2;249;226;175m", grey = "\x1b[38;2;108;112;134m";
     assert.ok(raw.every((l) => (process.env.NO_COLOR ? !l.includes("\x1b[38;2;") : l.startsWith(text0))));
     if (!process.env.NO_COLOR) {
-      assert.ok(raw.some((l) => l.includes(`${yellow}◐\x1b[39m${text0} \x1b[1mMy own task\x1b[22m  `)), "a working task's mark is the working colour, its title plain text");
+      assert.ok(raw.some((l) => l.includes(`${yellow}◐\x1b[39m${text0} \x1b[1mMy own task\x1b[22m `)), "a working task's mark is the working colour, its title plain text");
       assert.ok(raw.some((l) => l.includes(`${grey}○\x1b[39m${text0} Write the docs `)), "a task nobody started is grey, not green");
       assert.ok(raw.some((l) => l.includes(`${yellow}working\x1b[39m`)) && raw.some((l) => l.includes(`${grey}to do\x1b[39m`)), "the headings are in their group's colour");
       assert.ok(raw.some((l) => l.includes(`${yellow} 50%`)), "progress is in the working colour while working");
@@ -35,7 +35,7 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     }
     // A row does not repeat its heading ("idle" under "to do"), and its time says which kind it is.
     assert.match(text, /\n working +│/); assert.match(text, /\n to do +│/);
-    assert.match(text, /◐ My own task {2}half way +█+░+ +50% 12m +\ds {5}│/); assert.match(text, /│ {2}Progress {5}█+░+ 50% · 12m left *\n/); // on the row and in the task panel assert.match(text, /○ Write the docs {6,}\ds ago │/);
+    assert.match(text, /◐ My own task +█+░+ +50% 12m +\ds {5}│[^\n]*\n {3}half way +│/); assert.match(text, /│ {2}Progress {5}█+░+ 50% · 12m left *\n/); // on the row and in the task panel assert.match(text, /○ Write the docs {6,}\ds ago │/);
     assert.match(text, /│ {2}My own task/); assert.match(text, /│ {2}State {8}◐ working · for \ds *\n/); assert.match(text, /│ {2}On it {8}you *\n[^\n]*│ {2}Task {9}proj\/2 *\n/);
     // The text box names who gets your words, and its empty line says only "what's next?".
     assert.match(text, /\n *\n \+ New task {2}[^\n]*\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(text, /Coordinator|sidebar/);
@@ -43,9 +43,9 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     assert.ok(!/│ {2}My own task/.test(s.text(80)), "no panel beside the list below 90 columns");
     // ctrl+b is herdr's own prefix key: the board has no use for it.
     s.press("ctrl+b"); assert.match(s.text(120), /│ {2}My own task/); assert.equal(s.v.value(), "");
-    // alt+p closes the side panel and opens it again: closed, each row has the whole width for what it says.
+    // alt+p closes the side panel and opens it again: closed, the list has the whole width.
     s.press("alt+p"); text = s.text(120);
-    assert.equal(s.v.side, false); assert.doesNotMatch(text, /│/); assert.match(text, /◐ My own task {2}half way {60,}█/); assert.match(text, /Side panel off\. alt\+p shows it\./);
+    assert.equal(s.v.side, false); assert.doesNotMatch(text, /│/); assert.match(text, /◐ My own task {70,}█[^\n]*\n {3}half way *\n/); assert.match(text, /Side panel off\. alt\+p shows it\./);
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).side, false); // your choice is remembered
     s.press("?"); assert.match(s.text(120), /alt\+p +show the side panel/);
     // what a row's R# tag says is the menu's last lines, under the keys. A window too short for the whole menu cuts

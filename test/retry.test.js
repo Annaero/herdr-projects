@@ -215,7 +215,7 @@ test("the working agent: a turn cut off by a passing provider error is told to c
     const v = new View({ terminal: { rows: 40, columns: 130 }, requestRender() {}, stop() {}, start() {} }, theme, () => {}, { cwd: w.root, canReload: true });
     clearInterval(v.timer); v.side = true;
     const screen = v.render(130).map((l) => stripVTControlCharacters(l)).join("\n");
-    assert.match(screen, /\n working\s[^\n]*\n . Dropped  agent's connection dropped, trying again in 2m /); assert.doesNotMatch(screen, /needs you|Agent cut off/);
+    assert.match(screen, /\n working\s[^\n]*\n . Dropped [^\n]*\n {3}agent's connection dropped, trying again in 2m /); assert.doesNotMatch(screen, /needs you|Agent cut off/);
     assert.match(screen, /Cut off ─+[\s\S]*Trying again by itself[\s\S]*Cut off by[\s\S]*The socket connection was closed/);
     housekeeping(w.socket, { force: true }); // too early: nothing is sent
     assert.equal(paneOf(w, t).agent.prompts.length, 1);

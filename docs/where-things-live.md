@@ -102,7 +102,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `remotes.js` | Other machines: ask each for its board, send each action to the machine that owns the task, and whose board you see |
 | `review-words.js` | A review in a few words: its result, its colour, which round it was |
 | `row-fit.js` | What a section of the list shows when space is short: its rows give the same things up together, in one order |
-| `row.js` | One row of the list: its mark, its name, what it says, and its columns on the right |
+| `row.js` | One row of the list: its mark, its name, its columns on the right and, for a live task, a second line that says what it does |
 | `setup.js` | The first run: one screen asks what the plugin may add to herdr's settings |
 | `size.js` | The board's size: the window, what herdr shows of it, and another viewer holding the terminal at its own size |
 | `states.js` | Where a task stands, as the board sorts it: its group, its colour, whether an agent is on it, whether it waits for you |

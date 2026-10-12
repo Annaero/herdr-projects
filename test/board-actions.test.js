@@ -19,7 +19,7 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, remove
     const s = open(w);
     s.v.sel = id; s.v.load();
     // Finished, reviewed work is good news: its own group, the reviewer's advice in words, no "approve to merge?" on every row.
-    assert.match(s.text(80), /\n ready to approve *\n ✓ Make f {2}Pass · 1 minor +R#1 +\d+s ago *\n/); assert.doesNotMatch(s.text(80), /blocked|approve to merge|r1/);
+    assert.match(s.text(80), /\n ready to approve *\n ✓ Make f +R#1 +\d+s ago *\n {3}Pass · 1 minor *\n/); assert.doesNotMatch(s.text(80), /blocked|approve to merge|r1/);
     let text = s.text();
     assert.match(text, /│ {2}State {8}✓ ready to approve · \d+s ago *\n/);
     assert.match(text, /│ {2}Review ─+ *\n[^\n]*│ {2}Review 1 {5}✓ Pass · 1 minor · \d+s ago *\n[^\n]*│ {15}Good\./); assert.match(text, /│ {2}Change {7}1 file, \+1 −0/);

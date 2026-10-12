@@ -110,7 +110,7 @@ test("resizing the real screen keeps the chat on the last line and the working r
       // The working row: its columns sit at the window's right edge, however wide the window is.
       const row = lines.find((l) => /Pin the chat to the bottom/.test(l)) || "";
       if (rows >= 20) assert.ok(row, `${note}: the working row is in view`);
-      if (row && columns >= 120) { assert.match(row, /Checking every window size\. +█+░+ +55% 12m {2}PR#3 {2}6m {4}$/, note); assert.equal(visibleWidth(row), columns, note); }
+      if (row && columns >= 120) { assert.match(row, /Pin the chat to the bottom +█+░+ +55% 12m {2}PR#3 {2}6m {4}$/, note); assert.equal(visibleWidth(row), columns, note); assert.match(lines[lines.indexOf(row) + 1], /^ {3}Checking every window size\. *$/, note); }
       else if (row) { assert.match(row, /6m *$/, note); if (columns >= 50) assert.match(row, /55% 12m {2}PR#3 +6m *$/, note); }
       // All spare height is the list's.
       if (rows >= 20) assert.ok(lines.slice(0, head).filter((l) => /Task number \d+/.test(l)).length >= head - 7, `${note}: the list fills the space above the chat`);
