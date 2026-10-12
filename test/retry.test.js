@@ -86,6 +86,8 @@ test("the wait: growing, a few times; the row says why and when; only while the 
   assert.equal(S.waitLine({ who: "agent", reason: "connection dropped", until: now - 5 }, now), "agent's connection dropped, trying again now");
   assert.equal(S.gaveUp("reviewer", "model is at capacity", 5), "the reviewer's model is at capacity, still after 5 tries over 15m");
   const rv = { who: "reviewer", reason: "model is at capacity", until: Date.now() + 120000 };
+  // a review waiting to start again is still the review the task is on: its row keeps the R# tag (the counter is put back for the wait)
+  assert.equal(S.reviewNumber({ stage: "reviewing", reviewRound: 0, waiting: rv }), 1); assert.equal(S.reviewNumber({ stage: "reviewing", reviewRound: 2, waiting: rv }), 3); assert.equal(S.reviewNumber({ stage: "failed", reviewRound: 0, waiting: { ...rv, who: "agent" } }), 0);
   assert.equal(S.waitingOf({ stage: "reviewing", waiting: rv }), rv);
   assert.equal(S.waitingOf({ stage: "failed", waiting: rv }), null);
   const ag = { who: "agent", reason: "connection dropped", until: Date.now() + 60000, for: 7 };

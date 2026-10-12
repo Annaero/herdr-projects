@@ -44,8 +44,9 @@ export class Menu {
     const items = this.menuItems();
     const enter = matchesKey(data, "return") || matchesKey(data, "enter");
     if (matchesKey(data, "escape") || matchesKey(data, "ctrl+c") || data === "?") { this.menu = null; return; }
-    if (matchesKey(data, "up")) this.menu.at = Math.max(0, this.menu.at - 1);
-    else if (matchesKey(data, "down")) this.menu.at = Math.min(items.length - 1, this.menu.at + 1);
+    // Past the last line ↓ scrolls what is under the list into view (see menuLines); ↑ scrolls back first.
+    if (matchesKey(data, "up")) { if (this.menu.more > 0) this.menu.more--; else this.menu.at = Math.max(0, this.menu.at - 1); }
+    else if (matchesKey(data, "down")) { if (this.menu.at < items.length - 1) this.menu.at++; else this.menu.more = (this.menu.more || 0) + 1; }
     else if (enter) { const pick = items[Math.min(this.menu.at, items.length - 1)]; this.menu = null; if (pick) pick.run(); }
     // any other key is neither swallowed into an action nor closes the menu
   }
@@ -58,8 +59,17 @@ export class Menu {
     const first = L.length;
     items.forEach((it, n) => { const line = ` ${n === this.menu.at ? t.fg("accent", "❯") : " "} ${it.label.padEnd(kw)}${t.fg("overlay0", it.key)}`; L.push(n === this.menu.at ? this.hl(line, width) : line); });
     L.push("", " " + t.fg("subtext0", "keys"), ...KEYS.map(([k, d]) => `   ${t.fg("text", k.padEnd(8))}${t.fg("overlay0", d)}`));
-    // The picked line stays in view on a short window.
-    const at = first + this.menu.at;
-    return at < h ? L : [L[0], ...L.slice(at - h + 2)];
+    // What a row's review tag says: each state is named with its mark, in its colour. In a narrow window it wraps,
+    // word by word, so none of the three is cut off.
+    const words = [["overlay0", "the review it is on or last had:"], ["green", "✓ passed,"], ["red", "✗ failed,"], ["review", "no mark: running now"]].flatMap(([c, x]) => x.split(" ").map((w) => [c, w]));
+    const legend = [[]], lineW = (l) => l.reduce((n, [, w]) => n + w.length + 1, -1), pad = 11;
+    for (const w of words) { const l = legend.at(-1); if (l.length && pad + lineW(l) + 1 + w[1].length > width) legend.push([w]); else l.push(w); }
+    L.push("", " " + t.fg("subtext0", "on a row"), ...legend.map((l, n) => (n ? " ".repeat(pad) : `   ${t.fg("text", "R#2".padEnd(8))}`) + l.map(([c, w]) => t.fg(c, w)).join(" ")));
+    // The picked line stays in view on a short window. What is under the list (the keys, the review tag) is cut
+    // there: ↓ on the menu's last line scrolls on down to it, a line at a time, and ↑ comes back the same way.
+    const body = L.slice(1), from = first + this.menu.at < h ? 0 : first + this.menu.at - h + 1;
+    const start = Math.min(Math.max(from, body.length - (h - 1)), from + (this.menu.more || 0));
+    this.menu.more = start - from;
+    return [L[0], ...body.slice(start)];
   }
 }

@@ -20,7 +20,7 @@ closes. Any other key, or the wait running out, takes the hint away, and that ke
 | `Ctrl+R` | send it back: whatever went wrong (a failed check, a conflict, an error, a review with findings) goes to the task's agent to fix; a stopped agent is told to continue |
 | `Ctrl+X` | stop the agent. The selection stays on that row |
 | `Ctrl+F` | find |
-| `?` | a menu of everything else for the selected task, picked with `↑` `↓` and `Enter`: the whole task full screen, the side panel, archive, pin, delete, undo, the archive, group by repo, show all done, other machines, the Coordinator |
+| `?` | a menu of everything else for the selected task, picked with `↑` `↓` and `Enter`: the whole task full screen, the side panel, archive, pin, delete, undo, the archive, group by repo, show all done, other machines, the Coordinator. Under them, the keys worth remembering and what a row's `R#2 ✓` review tag says; where the window is too short for all of it, `↓` on the menu's last line scrolls on down, and `↑` comes back |
 | `Alt+V` | show or hide the chat's latest message, the Coordinator's or a task agent's. The one key for it, both ways |
 | `Esc` | back, one step at a time, and nothing else: find is left, a draft is put away, then the whole task, the filter and the archive close. With none of those left it shows the same hint as `Ctrl+C`. It never shows or hides the chat, never changes who you talk to, and never closes the board by itself |
 | `Ctrl+C` | twice: close the board. With text typed it does nothing (`Esc` puts the draft away first) |

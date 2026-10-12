@@ -26,7 +26,7 @@ method in another as `this.name()`. A new area is a new file there, added to tha
 | To change | File in `src/board/view/` | Its tests |
 |---|---|---|
 | Which rows the list has, selection, the header line, the groups | `list.js` | `test/board-list.test.js` |
-| One row: its mark, name, sentence, columns (bar, percent, PR, time) | `row.js` | `test/board-rows.test.js` |
+| One row: its mark, name, sentence, columns (bar, percent, review tag, PR, time) | `row.js` | `test/board-rows.test.js` |
 | The chat: who it talks to, its first line, the latest message | `chat.js` | `test/coordinator-chat.test.js` |
 | The text box and its placeholder | `textbox.js` (the editor itself: `../editor.js`) | `test/board-textbox.test.js` |
 | A task agent's pane: its screen, its last message, going into it | `agent-pane.js` | `test/board-keys.test.js` |
@@ -47,7 +47,7 @@ method in another as `this.name()`. A new area is a new file there, added to tha
 | Other machines on the board, whose board you see | `remotes.js` | `test/remote.test.js` |
 | Tasks told to the terminal (OSC 7501) | `osc.js` | |
 | A task's group and colour; whether it waits for you | `states.js` | |
-| A review's result in words and colour | `review-words.js` | |
+| A review's result in words and colour; a row's `R#2 ✓` tag | `review-words.js` | `test/board-review.test.js` |
 | Small shared words: ages, PR numbers, cut text | `words.js` | |
 
 Colours and herdr's theme are `src/board/theme.js` (`test/theme.test.js`). Evidence lines are

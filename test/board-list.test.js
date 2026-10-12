@@ -47,7 +47,30 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     s.press("ctrl+p"); text = s.text(120);
     assert.equal(s.v.side, false); assert.doesNotMatch(text, /│/); assert.match(text, /◐ My own task {2}half way {60,}█/); assert.match(text, /Side panel off\. ctrl\+p shows it\./);
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).side, false); // your choice is remembered
-    s.press("?"); assert.match(s.text(120), /show the side panel +ctrl\+p/); s.press("esc");
+    s.press("?"); assert.match(s.text(120), /show the side panel +ctrl\+p/); 
+    // what a row's R# tag says is the menu's last lines, under the keys. A window too short for the whole menu cuts
+    // them: ↓ on the menu's last line scrolls on down to them, however little room the chat leaves, and ↑ comes back
+    { const tall = s.v.tui.terminal.rows, legend = /\n on a row *\n {3}R#2 {5}the review it is on or last had: ✓ passed, ✗ failed, no mark: running now/, n = s.v.menuItems().length;
+      for (const rows of [60, 34, 24, 18, 14]) {
+        s.v.tui.terminal.rows = rows; const top = s.text(120);
+        if (rows === 60) assert.match(top, legend); if (rows <= 24) assert.doesNotMatch(top, legend);
+        let downs = 0; while (!legend.test(s.text(120)) && downs < 80) { s.press("down"); downs++; }
+        assert.match(s.text(120), legend, `reached with ${rows} lines`); assert.match(s.text(120), /^ menu /, "the menu's first line stays");
+        for (let k = 0; k < 80; k++) s.press("down");
+        const end = s.text(120); assert.match(end, legend); s.press("down", "down"); assert.equal(s.text(120), end, "nothing under the end"); assert.equal(s.v.menu.at, n - 1);
+        for (let k = 0; k < 80; k++) s.press("up");
+        assert.equal(s.v.menu.at, 0); assert.equal(s.text(120), top, "↑ goes back the way ↓ came");
+      }
+      // narrow: the line wraps, so every state it names can be read, at any width a word fits in, and nothing is cut
+      for (const [cols, rows] of [[60, 18], [44, 18], [36, 24], [80, 14]]) {
+        s.v.tui.terminal.rows = rows; let seen = ""; const flat = () => s.text(cols).replace(/\s+/g, " ");
+        for (let k = 0; k < 90; k++) { s.press("down"); seen = flat(); }
+        assert.match(seen, /R#2 the review it is on or last had: ✓ passed, ✗ failed, no mark: running now/, `whole at ${cols}×${rows}`); assert.ok(!/R#2[^\n]*…/.test(s.text(cols)), "not cut");
+        for (const l of s.screen(cols)) assert.ok(l.length <= cols, `fits ${cols}`);
+        for (let k = 0; k < 95; k++) s.press("up");
+      }
+      s.v.tui.terminal.rows = tall; }
+    s.press("esc");
     // Closed, it stays closed while you talk to a task's agent: only ctrl+p opens it.
     s.press("space"); assert.equal(s.v.reply, true); assert.doesNotMatch(s.text(120), /│ {2}My own task/); assert.equal(s.v.full, false);
     s.press("space"); assert.equal(s.v.reply, false);

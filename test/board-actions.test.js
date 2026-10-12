@@ -19,7 +19,7 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     const s = open(w);
     s.v.sel = id; s.v.load();
     // Finished, reviewed work is good news: its own group, the reviewer's advice in words, no "approve to merge?" on every row.
-    assert.match(s.text(80), /\n ready to approve *\n ✓ Make f {2}Pass · 1 minor +\ds ago *\n/); assert.doesNotMatch(s.text(80), /blocked|approve to merge|r1/);
+    assert.match(s.text(80), /\n ready to approve *\n ✓ Make f {2}Pass · 1 minor +R#1 ✓ +\ds ago *\n/); assert.doesNotMatch(s.text(80), /blocked|approve to merge|r1/);
     let text = s.text();
     assert.match(text, /│ {2}✓ ready to approve · claude · \ds ago/);
     assert.match(text, /│ {2}Review ─+ *\n[^\n]*│ {2}╭─ Review 1 ─[^\n]*\n[^\n]*│ {2}│ Pass · 1 minor +│ *\n[^\n]*│ {2}│ Good\./); assert.match(text, /│ {2}1 file, \+1 −0/);
@@ -54,7 +54,7 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     assert.match(s.text(), /proj\/1: approved, merging/); // a result stays until the next key press, however long that takes
     s.v.beat(); s.v.beat(); assert.match(s.text(), /proj\/1: approved, merging/);
     await settle(id); s.v.load();
-    assert.match(s.text(80), /\n done *\n ✓ Make f *\d/); assert.doesNotMatch(s.text(80), /unread/); // a done row says nothing more than its name and time
+    assert.match(s.text(80), /\n done *\n ✓ Make f +R#1 ✓ +\d/); assert.doesNotMatch(s.text(80), /unread/); // a done row says nothing more than its name and time
     // the ? menu: lines to act from, each with its old chord beside it, and the few keys worth remembering
     s.v.sel = "proj/2"; s.v.load(); s.press("?");
     text = s.text();

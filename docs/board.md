@@ -12,18 +12,31 @@
 
 Each state has a mark of its own (`◐` working, `×` needs you, `✗` went wrong, `✓` done or ready, `○` to do), so no
 two are told apart by colour alone (herdr's `status_indicators = "dots"` brings its dots back). A row reads: the
-name, a sentence, then on the right the progress bar, the percent and the minutes left, the pull request, and the time:
+name, a sentence, then on the right the progress bar, the percent and the minutes left, the review, the pull request, and the time:
 
 ```
  ready to approve
- ✓ Add an undo for clear  Fail · 1 critical, 1 major · 2nd review   PR#18 ✓ 12m ago
+ ✓ Add an undo for clear  Fail · 1 critical, 1 major             R#2 ✗ PR#18 ✓ 12m ago
  working
- ◐ Tidy the first-run questions  Running the tests           ███░░░░░  40% 12m PR#17    5m
+ ◐ Tidy the first-run questions  Running the tests           ███░░░░░  40% 12m R#1   PR#17    5m
 ```
 
-The row says how the review came out and a short tally of what it found (`Pass · 2 minor`, `Fail · 1 critical, 1 major`). Which review it was shows only from the second on. While the
+The row says how the review came out and a short tally of what it found (`Pass · 2 minor`, `Fail · 1 critical, 1 major`). While the
 reviewer works, the mark, the bar, the percent and the minutes left are the green of `ready to approve` (the same holds in the task panel, on the details screen and on the chat line): a green `◐` with a bar says a review is running, a green `✓` that it is ready for you,
-and the sentence says only what the reviewer is doing. `PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
+and the sentence says only what the reviewer is doing.
+
+`R#2` is the review the task is on, or the last one it had, in a column of its own left of the pull request. A mark
+beside it, like the pull request's, says how that review went, and the colour repeats it: `R#2 ✓` in green, it
+passed; `R#2 ✗` in red, it failed, and it stays so while the agent fixes what the review found; `R#2` with no mark,
+in the row's review colour, the reviewer is on it right now: that colour is now a green too, so the mark is what
+tells a running review from one that passed. A review from before the gate goes by its advice. A
+task that was never reviewed has no tag. Every row that has had a review keeps it: under review, back with the
+agent, waiting for your yes, done.
+
+A window too narrow for a row's name takes that row's columns away one at a time, so the name stays readable: the
+bar, the word `ago`, the minutes left, the percent, the `R#` tag, the pull request and, last, the time.
+
+`PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
 since it stopped. A row never repeats what its heading says.
 
 **One chat, at the bottom.** The text box is a chat, and it is the same chat whoever you talk to. It always talks to

@@ -30,6 +30,20 @@ export function logReview(t, rv) {
 export function reviewHistory(t) {
   return Array.isArray(t?.reviews) && t.reviews.length ? t.reviews : savedReview(t, reviewRound(t));
 }
+// A review cut off by its provider waits and starts again as the same review: the counter is put back for the wait
+// (finish.js), so during it the review the task is on is the next one.
+const retrying = (t) => t?.waiting?.who === "reviewer" && (t.stage === "reviewing" || t.stage === "reviewneeds");
+// The number of the review a task is on or last had. A review saved before reviews were counted was its first.
+export const reviewNumber = (t) => (retrying(t) ? reviewRound(t) + 1 : reviewRound(t) || reviewHistory(t).at(-1)?.round || 0);
+// How the review a task is on (or last had) came out: "pass", "fail", or "" with no verdict to go by. A review that
+// ended with no verdict failed. One from before the gate goes by its advice. It holds while the agent fixes what the
+// review found: the saved verdict is stale then, but it is still how that review went.
+export function reviewResult(t) {
+  const round = reviewNumber(t), e = reviewHistory(t).findLast((e) => e.round === round);
+  if (!round || !e) return "";
+  if (e.error) return "fail";
+  return isTagged(e) ? (e.pass ? "pass" : "fail") : e.recommend === true ? "pass" : e.recommend === false ? "fail" : "";
+}
 // The last review of the work, when it passed: the review itself (as the task holds it, also when the work moved on
 // since) and `head`, the commit the reviewer looked at. Null when there was none, it failed, or it gave no verdict.
 export function passedReview(t) {
