@@ -7,7 +7,7 @@ your next key press, an error until `Esc` dismisses it.
 
 **Closing the board takes `Ctrl+C` twice**, as leaving Claude Code does. The first one shows `Press ctrl+c
 again to close the board` on the bottom line; `Ctrl+C` again while it shows (0.8 seconds, Claude Code's own wait)
-closes. Any other key, or the wait running out, takes the hint away, and that key does what it always does.
+closes, with a draft in the text box too. Any other key, or the wait running out, takes the hint away, and that key does what it always does.
 
 | Key | Does |
 |---|---|
@@ -23,7 +23,7 @@ closes. Any other key, or the wait running out, takes the hint away, and that ke
 | `?` | a menu of everything else for the selected task, picked with `↑` `↓` and `Enter`: the whole task full screen, the side panel, archive, pin, delete, undo, the archive, group by repo, show all done, other machines, the Coordinator. Under them, the keys worth remembering and what a row's `R#2 ✓` review tag says; where the window is too short for all of it, `↓` on the menu's last line scrolls on down, and `↑` comes back |
 | `Alt+V` | show or hide the chat's latest message, the Coordinator's or a task agent's. The one key for it, both ways |
 | `Esc` | back, one step at a time, and nothing else: find is left, a draft is put away, then the whole task, the filter and the archive close. With none of those left it shows the same hint as `Ctrl+C`. It never shows or hides the chat, never changes who you talk to, and never closes the board by itself |
-| `Ctrl+C` | twice: close the board. With text typed it does nothing (`Esc` puts the draft away first) |
+| `Ctrl+C` | twice: close the board, with text typed too: the draft is kept and is back when the board reopens |
 
 The bottom line shows only what matters right now, the main thing first, at most four. The older chords still work
 when the text box is empty, and the menu shows each beside its line: `Ctrl+E` the whole task, `Ctrl+P` the side panel, `Alt+A` archive or

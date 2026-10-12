@@ -122,9 +122,9 @@ With text in the box, every key below edits it. On an empty box the ones marked 
 | `ctrl+-` | undo the last edit |
 | `shift+enter`, `alt+enter`, `ctrl+j` | new line |
 | `shift+space` | a plain space (on an empty box too, where `space` alone is the board's "talk to this task's agent") |
-| `ctrl+c` | nothing (with text it does not close the board; `esc` puts the draft away first) |
+| `ctrl+c` | twice: close the board, as on an empty box; the draft is kept and is back when the board reopens |
 | paste | inserted as text; keys inside a paste never act on the board |
-| `enter` `tab` `esc` | the only keys that still act on the board: send, send and start an agent, put the draft away |
+| `enter` `tab` `esc` `ctrl+c` | the only keys that still act on the board: send, send and start an agent, put the draft away, close |
 
 After the change: `ctrl+d` and `ctrl+y` lose their † (no board meaning any more, decision 3 for `ctrl+y`). `alt+s` and `alt+o` are not editor keys at all, so they clash with nothing.
 

@@ -73,9 +73,10 @@ export class Keys {
       return this.load();
     }
     if (this.mode === "find" && enter) { this.filter = text; this.mode = "new"; this.setValue(""); return this.load(); }
-    // While the text box holds text it owns the keyboard: only enter, tab and esc act on the board, so no shortcut
-    // fires in the middle of a draft (ctrl+a is "start of line" there, not "merge").
-    if (this.value() && !enter && !matchesKey(data, "tab")) { this.input.handleInput(data); if (this.mode === "find") this.load(); return; }
+    // While the text box holds text it owns the keyboard: only enter, tab, esc and ctrl+c act on the board, so no
+    // shortcut fires in the middle of a draft (ctrl+a is "start of line" there, not "merge"). ctrl+c twice closes with
+    // a draft too: the draft is saved with the board and is back when it reopens.
+    if (this.value() && !enter && !matchesKey(data, "tab") && !matchesKey(data, "ctrl+c")) { this.input.handleInput(data); if (this.mode === "find") this.load(); return; }
     if (matchesKey(data, "ctrl+c")) return this.closeHint();
     if (this.mode === "find") { if (!matchesKey(data, "tab")) { this.input.handleInput(data); this.load(); } return; }
 

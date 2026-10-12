@@ -98,7 +98,8 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     s.press("up");
     // any other key takes the hint away and still does its own thing; ctrl+c after it is a first press again
     s.press("ctrl+c"); assert.match(s.text(), hint); s.type("x"); assert.doesNotMatch(s.text(), hint); assert.equal(s.v.value(), "x");
-    s.press("ctrl+c"); assert.equal(s.closed(), undefined); assert.equal(s.v.value(), "x", "with text typed ctrl+c does not close");
+    // with text typed ctrl+c is a first press too: the hint shows and the draft stays as it was
+    s.press("ctrl+c"); assert.equal(s.closed(), undefined); assert.equal(s.v.value(), "x"); assert.match(s.text(), hint);
     s.press("esc", "ctrl+c"); assert.equal(s.closed(), undefined); assert.match(s.text(), hint);
     s.press("?"); assert.ok(s.v.menu); assert.match(s.text(), /ctrl\+c +twice: close the board/); s.press("ctrl+c"); assert.equal(s.v.menu, null); assert.equal(s.closed(), undefined);
     // a short wait takes it away too: ctrl+c after it only shows the hint again
@@ -112,5 +113,9 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     const s2 = open(w); s2.press("ctrl+a"); assert.match(s2.text(), /\? Merge [^\n]*y = yes · n = no/);
     s2.press("ctrl+c"); assert.equal(s2.v.ask, null); assert.equal(s2.closed(), undefined); assert.equal(S.get(id).stage, "approval");
     s2.press("ctrl+c", "ctrl+c"); assert.equal(s2.closed(), null);
+    // ctrl+c twice closes with a draft in the text box, for the Coordinator or for a task's agent, and the draft is kept
+    const s3 = open(w); s3.type("half a thought"); s3.press("ctrl+c"); assert.equal(s3.closed(), undefined); assert.match(s3.text(), hint);
+    s3.press("ctrl+c"); assert.equal(s3.closed(), null); assert.equal(s3.v.value(), "half a thought");
+    const s4 = open(w); s4.press("space"); assert.equal(s4.v.reply, true); s4.type("to the agent"); s4.press("ctrl+c", "ctrl+c"); assert.equal(s4.closed(), null); assert.equal(s4.v.value(), "to the agent");
   } finally { w.cleanup(); }
 });
