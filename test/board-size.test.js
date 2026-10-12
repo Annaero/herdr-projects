@@ -45,7 +45,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     s.v.chatOf = () => ({ mark: "○", name: "Coordinator", status: "idle", color: "green", enter: true, said: true, always: true, text: "Tasks 31 and 32 are both waiting." });
     // Not held: the board is the terminal's size, as before.
     let lines = s.screen(435);
-    assert.equal(lines.length, 58); assert.match(lines[57], /^ {2}\S/); assert.match(lines.find((l) => /Pin the chat/.test(l)), /55% 12m PR#3 {2}6m {4}$/); assert.doesNotMatch(lines.join("\n"), /Another viewer/);
+    assert.equal(lines.length, 58); assert.match(lines[57], /^ {2}\S/); assert.match(lines.find((l) => /Pin the chat/.test(l)), /55% 12m {2}PR#3 {2}6m {4}$/); assert.doesNotMatch(lines.join("\n"), /Another viewer/);
     // Held at 435x58 while a 412x56 window shows it: everything is inside the 412x56 that can be seen.
     s.v.shown = { cols: 412, rows: 56, split: false };
     lines = s.screen(435);
@@ -58,14 +58,14 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     assert.equal(lines[53], "╰" + "─".repeat(409) + "╯"); assert.match(lines[52], /^│ ❯ .* │$/); assert.match(lines[51], /^│ +│$/); assert.match(lines[50], /^│ Tasks 31 and 32 are both waiting\. +│$/); assert.equal(lines[49], "╭" + "─".repeat(409) + "╮");
     assert.ok([49, 50, 51, 52].every((n) => lines[n].length === 411));
     const row = lines.find((l) => /Pin the chat/.test(l));
-    assert.match(row, /Checking every window size\. +█+░+ +55% 12m PR#3 {2}6m {4}$/); assert.equal(row.length, 411); // the columns are back in view
+    assert.match(row, /Checking every window size\. +█+░+ +55% 12m {2}PR#3 {2}6m {4}$/); assert.equal(row.length, 411); // the columns are back in view
     assert.equal(lines.find((l) => /^ ○ Coordinator/.test(l)).trimEnd(), " ○ Coordinator  idle"); assert.match(lines[55], /alt\+c hide the chat · \? more *$/); // the chat's key is on the hint line, whole
     // Held at 435x58 while a taller, narrower window shows it: the width is cut down, the rows are all there are.
     s.v.shown = { cols: 184, rows: 78, split: false };
     lines = s.screen(435);
     assert.equal(lines.length, 58); assert.match(lines[57], /^ {2}\S.* · /); assert.match(lines[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78/);
     for (const l of lines) assert.ok(l.trimEnd().length <= 183);
-    assert.match(lines.find((l) => /Pin the chat/.test(l)), /55% 12m PR#3 {2}6m {4}$/);
+    assert.match(lines.find((l) => /Pin the chat/.test(l)), /55% 12m {2}PR#3 {2}6m {4}$/);
     // The board takes its terminal back by itself: seen held twice in a row, the other viewer is disconnected and herdr
     // gives the terminal the window's size, so the chat is on the window's last row again with no key pressed.
     {

@@ -23,19 +23,19 @@ test("a tight row keeps the task's name, then the columns on the right; the sent
     const draw = (width) => { const layout = s.v.rowLayout(records, width); return records.map((r) => stripVTControlCharacters(s.v.row(r, width, layout))); };
     for (const width of [200, 120, 90, 72, 64, 50, 40, 30, 20]) assert.ok(draw(width).every((l) => l.length <= width), `fits ${width}`);
     let rows = draw(200); // room for everything. The columns, in order: bar, percent, PR, time
-    assert.match(rows[0], /Remove notification pop-ups {2}Removing pop-up calls from plugin, fixing tests, writing closing note\. +█+ +95% {7}6m {4}$/);
-    assert.match(rows[1], /Fix ugly blocked row on the board {2}Fixing layout so approval names keep width\. +█+░+ +55% PR#3 {2}6m {4}$/);
+    assert.match(rows[0], /Remove notification pop-ups {2}Removing pop-up calls from plugin, fixing tests, writing closing note\. +█+ +95% {8}6m {4}$/);
+    assert.match(rows[1], /Fix ugly blocked row on the board {2}Fixing layout so approval names keep width\. +█+░+ +55% {2}PR#3 {2}6m {4}$/);
     assert.match(rows[2], /Truncate long descriptions in sidebar +PR#2 {2}6m ago$/); // "ago" on what has ended, a bare time on what still runs
     assert.equal(rows[1].indexOf("PR#3"), rows[2].indexOf("PR#2")); // the PR numbers sit in one column, next to the time
     rows = draw(92); // the sentence is cut, the name and the columns are whole
     assert.match(rows[0], /Remove notification pop-ups {2}Removing pop-up calls[^…]*… +█+ +95% +6m {4}$/);
-    assert.match(rows[1], /Fix ugly blocked row on the board {2}Fixing layout[^#]*… +█+░+ +55% PR#3 {2}6m {4}$/);
+    assert.match(rows[1], /Fix ugly blocked row on the board {2}Fixing layout[^#]*… +█+░+ +55% {2}PR#3 {2}6m {4}$/);
     rows = draw(72); // too little left for a sentence worth reading: none at all
     assert.match(rows[0], /Remove notification pop-ups +\S.* 95% +6m {4}$/); assert.doesNotMatch(rows[0], /Remov[^ ]* {2}Re/);
-    assert.match(rows[1], /Fix ugly blocked row on the board +█+░+ +55% PR#3 {2}6m {4}$/);
+    assert.match(rows[1], /Fix ugly blocked row on the board +█+░+ +55% {2}PR#3 {2}6m {4}$/);
     rows = draw(56); // a name needs its bar's room, so no row has a bar; "ago" stays wherever there is room for it
     assert.match(rows[0], /Remove notification pop-ups +95% +6m {4}$/);
-    assert.match(rows[1], /Fix ugly blocked row on the board +55% PR#3 +6m {4}$/); // a PR row keeps its percent while it fits
+    assert.match(rows[1], /Fix ugly blocked row on the board +55% {2}PR#3 +6m {4}$/); // a PR row keeps its percent while it fits
     assert.match(rows[2], /Truncate long descriptions in sidebar +PR#2 +6m ago$/);
     { // narrow, a finished task still reads differently from a working one
       const pair = [{ id: "proj/5", state: "working", title: "Still going", at }, { id: "proj/6", state: "done", title: "All done", at }];
@@ -55,11 +55,11 @@ test("a tight row keeps the task's name, then the columns on the right; the sent
       const lines = (width) => { const lay = s.v.rowLayout(eta, width); return eta.map((r) => stripVTControlCharacters(s.v.row(r, width, lay))); };
       for (const width of [200, 120, 90, 72, 64, 50, 40, 30, 20]) assert.ok(lines(width).every((l) => l.length <= width), `fits ${width}`);
       let e = lines(200);
-      assert.match(e[0], /█+ +95% {3}3m {7}6m {4}$/); assert.equal(e[0].indexOf("3m"), e[1].indexOf("130m") + 2); assert.match(e[1], /█+░+ +55% 130m PR#3 {2}6m {4}$/);
-      assert.match(e[2], /sidebar +PR#2 {2}6m ago$/); assert.match(e[3], /No guess yet +░+ {3}0% {12}6m {4}$/); // no guess: no "m", the percent stays in line
+      assert.match(e[0], /█+ +95% {3}3m {8}6m {4}$/); assert.equal(e[0].indexOf("3m"), e[1].indexOf("130m") + 2); assert.match(e[1], /█+░+ +55% 130m {2}PR#3 {2}6m {4}$/);
+      assert.match(e[2], /sidebar +PR#2 {2}6m ago$/); assert.match(e[3], /No guess yet +░+ {3}0% {13}6m {4}$/); // no guess: no "m", the percent stays in line
       assert.equal(e[0].indexOf("95%"), e[1].indexOf("55%"));
-      e = lines(56); // no bars: the minutes left stay beside the percent
-      assert.match(e[0], /Remove notification pop-ups +95% {3}3m +6m$/); assert.match(e[1], /Fix ugly blocked row on the board +55% 130m PR#3 +6m$/);
+      e = lines(57); // no bars: the minutes left stay beside the percent
+      assert.match(e[0], /Remove notification pop-ups +95% {3}3m +6m$/); assert.match(e[1], /Fix ugly blocked row on the board +55% 130m {2}PR#3 +6m$/);
       assert.match(e[2], /sidebar +PR#2 +6m$/); // the list gives up the word "ago" so that a row keeps its percent
       e = lines(52); // short of room, the rows give up their percent and their minutes left together: no row keeps either
       assert.match(e[1], /Fix ugly blocked row on the board +PR#3 +6m$/); assert.match(e[0], /pop-ups +6m$/); assert.match(e[3], /No guess yet +6m$/);
@@ -82,15 +82,15 @@ test("a tight row keeps the task's name, then the columns on the right; the sent
       { id: "proj/8", state: "working", title: "Fix login", msg: "Tracing why the login form rejects valid passwords.", progress: 55, pr: 3, at },
       { id: "proj/9", state: "working", title: "Fix layout for task names in narrow terminal board", msg: "Working.", progress: 20, at });
     rows = draw(100);
-    assert.match(rows[0], /Fix login {2}Tracing why the login form rejects valid passwords\. +█+░+ +55% PR#3 +6m$/); assert.match(rows[1], /board {2}Working\. +█+░+ +20% +6m$/);
+    assert.match(rows[0], /Fix login {2}Tracing why the login form rejects valid passwords\. +█+░+ +55% {2}PR#3 +6m$/); assert.match(rows[1], /board {2}Working\. +█+░+ +20% +6m$/);
     rows = draw(72); // the long name has no room for a bar: neither row has one
-    assert.match(rows[0], /Fix login +55% PR#3 +6m$/); assert.match(rows[1], /Fix layout for task names in narrow terminal board +20% +6m$/);
+    assert.match(rows[0], /Fix login +55% {2}PR#3 +6m$/); assert.match(rows[1], /Fix layout for task names in narrow terminal board +20% +6m$/);
     // All machines: the machine's name is cut before the task's, and before any column goes.
     s.v.scope = "*";
     const far = { ...records[0], host: "very-long-machine-name-on-the-tailnet" };
     const one = (width) => stripVTControlCharacters(s.v.row(far, width, s.v.rowLayout([far], width)));
     assert.match(one(120), /very-long-machine-name-on-the-tailnet Fix login {2}Tracing/);
-    assert.match(one(50), /very-long-m\S*… Fix login +█+░+ +55% PR#3 +6m$/); assert.match(one(40), /^ \S ve… Fix login +█+░+ +55% PR#3 +6m$/);
+    assert.match(one(50), /very-long-m\S*… Fix login +█+░+ +55% {2}PR#3 +6m$/); assert.match(one(41), /^ \S ve… Fix login +█+░+ +55% {2}PR#3 +6m$/);
     assert.match(one(26), /^ \S ve… Fix login +PR#3 +6m$/); assert.match(one(24), /^ \S Fix login +PR#3 +6m$/); assert.match(one(18), /^ \S Fix login +6m$/);
     for (const width of [200, 60, 40, 30, 24, 16]) assert.ok(one(width).length <= width, `fits ${width}`);
   } finally { w.cleanup(); }

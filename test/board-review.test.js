@@ -149,10 +149,10 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   assert.doesNotMatch(row({ ...second, state: "done", stage: "done" }, 120), /review|3\/5/);
   // while the reviewer works the row's sentence is only what the reviewer is doing
   const under = { ...working, stage: "reviewing", reviewRound: 3, msg: "Running the tests." };
-  assert.match(row(under, 120), /^ ◐ Other {2}Running the tests\. +█+░+ +50% R#3 +0s$/); // no word "review", whichever review it is: the colour says it
+  assert.match(row(under, 120), /^ ◐ Other {2}Running the tests\. +█+░+ +50% {2}R#3 +0s$/); // no word "review", whichever review it is: the colour says it
   assert.match(row({ ...under, reviewRound: 1 }, 120), /^ ◐ Other {2}Running the tests\. /);
   assert.match(row({ ...under, reviewRound: 1, msg: "under review" }, 120), /^ ◐ Other +█/);
-  assert.match(row(under, 30), /^ ◐ Other +50% R#3 +0s$/); // no room for the sentence: the row never falls back to a word
+  assert.match(row(under, 30), /^ ◐ Other +50% {2}R#3 +0s$/); // no room for the sentence: the row never falls back to a word
   assert.match(row({ ...under, stage: "reviewneeds", state: "blocked", progress: undefined, msg: "the reviewer shows a dialog" }, 120), /^ × Other {2}the reviewer shows a dialog +R#3 {2}0s ago$/);
   assert.doesNotMatch(row({ ...working, reviewRound: 3 }, 120), /review/); // back with the agent: no review is running
   assert.match(page(under), /◐ reviewer is working · 3rd review · for 0s · proj\/2/);
@@ -179,7 +179,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     assert.equal(tag(pr), "red R#1 ✗"); assert.equal(tag({ ...pr, review: { ...review, recommend: true } }), "green R#1 ✓"); // before the gate: by its advice
     // back with the agent to fix what the review found: the verdict is stale, the tag stays red
     const fixing = { ...working, pr: 12, reviewRound: 2, review: { ...failing, stale: true } };
-    assert.equal(tag(fixing), "red R#2 ✗"); assert.match(row(fixing, 120), /50% R#2 ✗ PR#12 +0s$/);
+    assert.equal(tag(fixing), "red R#2 ✗"); assert.match(row(fixing, 120), /50% {2}R#2 ✗ PR#12 +0s$/);
     assert.equal(tag({ ...fixing, stage: "reviewing", reviewRound: 3 }), "review R#3"); // the next review runs: the review colour and no mark, whatever the last one said
     assert.equal(tag({ ...fixing, reviews: [{ round: 1, pass: true, meets: true, findings: [] }, { round: 2, error: "no verdict" }], review: undefined }), "red R#2 ✗"); // ended with no verdict: it failed
     assert.equal(tag({ ...gated, state: "done", stage: "done", reviewRound: 3 }), "green R#3 ✓"); // done rows keep it
@@ -189,14 +189,20 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     assert.equal(tag({ ...fixing, stage: "reviewing", reviewRound: 2, waiting: cut }), "review R#3"); // after two reviews: the third, not the second again
     assert.equal(tag({ ...working, reviewRound: 0, waiting: { ...cut, who: "agent" } }), ""); // an agent cut off before any review: nothing
     assert.equal(tag(working), ""); assert.equal(tag(base), ""); assert.doesNotMatch(row(working, 120), /R#/); // never reviewed: nothing
-    // the tags line up under each other, and a row with none leaves the column blank
+    // the tags end under each other, where the pull request starts, and a row with none leaves the column blank
     const ten = { ...gated, id: "proj/8", reviewRound: 10 }, brief = { ...fixing, msg: "Fixing it." }, both = [gated, ten, brief, working];
-    assert.equal(row(gated, 120, both).indexOf("R#1 "), row(ten, 120, both).indexOf("R#10")); assert.equal(row(gated, 120, both).indexOf("✓ PR"), row(ten, 120, both).indexOf("✓ PR")); assert.equal(row(gated, 120, both).indexOf("PR#12"), row(ten, 120, both).indexOf("PR#12"));
-    assert.equal(row(brief, 120, both).indexOf("R#2"), row(ten, 120, both).indexOf("R#10")); assert.match(row({ ...working, msg: "Busy." }, 120, both), /50% {15}0s {4}$/);
-    // narrow: the tag goes after the percent and before the PR number, and the title stays whole
+    assert.equal(row(gated, 120, both).indexOf("R#1 "), row(ten, 120, both).indexOf("R#10") + 1); assert.equal(row(gated, 120, both).indexOf("✓ PR"), row(ten, 120, both).indexOf("✓ PR")); assert.equal(row(gated, 120, both).indexOf("PR#12"), row(ten, 120, both).indexOf("PR#12"));
+    assert.equal(row(brief, 120, both).indexOf("R#2"), row(ten, 120, both).indexOf("R#10") + 1); assert.match(row({ ...working, msg: "Busy." }, 120, both), /50% {16}0s {4}$/);
+    // the tag belongs to the pull request, not to the progress: one cell before the PR with a mark or with none (a
+    // review that runs), and the wider gap left of it, after the minutes left
+    const running = { ...brief, id: "proj/9", stage: "reviewing", reviewRound: 3, eta: 2 }, list = [...both, running];
+    assert.match(row(running, 120, list), /50% 2m {5}R#3 PR#12 {2}0s {4}$/); assert.match(row(ten, 120, list), / {2}R#10 ✓ PR#12 {2}0s ago$/);
+    assert.match(row({ ...running, pr: undefined }, 120, list), /50% 2m {5}R#3 {8}0s {4}$/); assert.match(row({ ...running, reviewRound: 0, stage: "working", review: undefined }, 120, list), /50% 2m {9}PR#12 {2}0s {4}$/);
+    assert.equal(row(running, 120, list).indexOf("PR#12"), row(ten, 120, list).indexOf("PR#12"));
+    // narrow: the tag goes after the percent, together with the PR number, and the title stays whole
     const long = { ...fixing, title: "Fix login" };
-    assert.match(row(long, 34), /^ ◐ Fix login +50% R#2 ✗ PR#12 +0s$/); assert.match(row(long, 30), /^ ◐ Fix login +R#2 ✗ PR#12 +0s$/);
-    assert.match(row(long, 24), /^ ◐ Fix login +PR#12 +0s$/); assert.match(row(long, 20), /^ ◐ Fix login +0s$/);
+    assert.match(row(long, 35), /^ ◐ Fix login +50% {2}R#2 ✗ PR#12 +0s$/); assert.match(row(long, 34), /^ ◐ Fix login +R#2 ✗ PR#12 +0s$/); assert.match(row(long, 29), /^ ◐ Fix login +R#2 ✗ PR#12 +0s$/);
+    assert.match(row(long, 28), /^ ◐ Fix login +0s$/); assert.match(row(long, 20), /^ ◐ Fix login +0s$/); // never a tag with no PR beside it, nor a PR that lost its tag
   }
   { const paint = { ...theme, fg: (c, s) => `<${c}>${s}</>` }, cv = Object.create(View.prototype); Object.assign(cv, v, { theme: paint }); assert.ok(cv.row(gated, 160, cv.rowLayout([gated], 160)).includes("<green>Pass</>")); assert.ok(cv.row({ ...gated, review: failing }, 160, cv.rowLayout([gated], 160)).includes("<red>Fail</>")); } // 160: this paint's tags take cells
   const loop = { ...gated, reviewRound: 3, reviews: [{ round: 1, at: Date.now() - 7200000, ...failing, head: "1111111aaaa" }, { round: 2, at: Date.now() - 3600000, score: 4, recommend: true, text: "An old one.", problems: ["game.js: old."] }, { round: 3, at: Date.now() - 60000, ...tagged, head: "abcdef12345" }] };
@@ -208,7 +214,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   assert.match(row(stood, 120), / {2}Pass · 2 minor +R#3 ✓ PR#12/);
   // what a row needs from you is cut like any other sentence: it never costs the row a column
   const stuck = { ...working, state: "blocked", kind: "question", stage: "asks", title: "Build a flying game", msg: "Which colour should the plane be?" };
-  assert.match(row(stuck, 72), /^ × Build a flying game {2}Which colour should the … +█+░+ +50% +0s ago$/); assert.match(row(stuck, 120), /be\? +█+░+ +50% +0s ago$/);
+  assert.match(row(stuck, 72), /^ × Build a flying game {2}Which colour should the… +█+░+ +50% +0s ago$/); assert.match(row(stuck, 120), /be\? +█+░+ +50% +0s ago$/);
   // rows that need you say what blocks them, after the name and without Markdown marks; with nothing said, in plain words
   const ask = "Which colour should the plane be, and should the **islands** have `palm` trees?";
   for (const r of [{ ...base, stage: "", kind: "question", msg: ask }, { ...base, mergeFailed: true, msg: ask }, { ...base, state: "error", kind: "", stage: "failed", msg: ask }])

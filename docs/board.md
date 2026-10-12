@@ -12,20 +12,22 @@
 
 Each state has a mark of its own (`◐` working, `×` needs you, `✗` went wrong, `✓` done or ready, `○` to do), so no
 two are told apart by colour alone (herdr's `status_indicators = "dots"` brings its dots back). A row reads: the
-name, a sentence, then on the right the progress bar, the percent and the minutes left, the review, the pull request, and the time:
+name, a sentence, then on the right two groups with a wider gap between them: the progress (the bar, the percent and
+the minutes left), and then the review, the pull request and the time:
 
 ```
  ready to approve
  ✓ Add an undo for clear  Fail · 1 critical, 1 major               R#2 ✗ PR#18 12m ago
  working
- ◐ Tidy the first-run questions  Running the tests           ███░░░░░  40% 12m R#1   PR#17    5m
+ ◐ Tidy the first-run questions  Running the tests          ███░░░░░  40% 12m    R#1 PR#17    5m
 ```
 
 The row says how the review came out and a short tally of what it found (`Pass · 2 minor`, `Fail · 1 critical, 1 major`). While the
 reviewer works, the mark, the bar, the percent and the minutes left are the green of `ready to approve` (the same holds in the task panel, on the details screen and on the chat line): a green `◐` with a bar says a review is running, a green `✓` that it is ready for you,
 and the sentence says only what the reviewer is doing.
 
-`R#2` is the review the task is on, or the last one it had, in a column of its own left of the pull request. A mark
+`R#2` is the review the task is on, or the last one it had. It belongs to the pull request, not to the progress: it
+sits one cell left of the `PR#`, with or without a mark, and the tags end under each other down the list. A mark
 beside it, like the pull request's, says how that review went, and the colour repeats it: `R#2 ✓` in green, it
 passed; `R#2 ✗` in red, it failed, and it stays so while the agent fixes what the review found; `R#2` with no mark,
 in the row's review colour, the reviewer is on it right now: that colour is now a green too, so the mark is what
@@ -47,10 +49,10 @@ Things give way in this order, first to last, and the name wins over all of them
    other than a bar, or cuts a name less, somewhere on the list;
 4. the end of a name longer than 40 cells: it is cut with `…`, down to 40, before its group loses a column;
 5. the percent and the minutes left, together;
-6. the `R#` tag;
-7. the pull request;
-8. the time;
-9. the rest of the name.
+6. the `R#` tag and the pull request, together: a review is never shown without its pull request, nor the other
+   way round;
+7. the time;
+8. the rest of the name.
 
 Step 4 is why one long title does not cost a whole group its columns: a title is at most 60 characters
 ([titles](titles.md)), so it loses a third at the very most, and a name of 40 cells or fewer is never cut while a

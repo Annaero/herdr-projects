@@ -1,7 +1,7 @@
 // What a section of the list shows when space is short: its rows give the same things up together, in one order.
 //
 // The order, first to go to last: what a row says, the bar, the word "ago", the part of a name past NAME_OWED cells,
-// the percent with the minutes left, the review tag, the pull request, the time, and then the rest of the name.
+// the percent with the minutes left, the review tag with the pull request, the time, and then the rest of the name.
 // A row is { room, name, has }: the cells right of its mark, its name's width, which columns it has something in.
 // A cell is { key, w }: one column of the list, left to right, at the width it is decided with.
 
@@ -10,6 +10,8 @@
 export const NAME_OWED = 40;
 // The minutes left are decided at this width whatever they read now: "9m" turning "10m" must not hide a bar.
 export const ETA_STEADY = 4;
+// Columns given up in one step, never one without the other.
+const TOGETHER = [["percent", "eta"], ["review", "pr"]];
 
 // The columns from `from` to the right edge: a cell between each, two before them.
 export const wide = (cells, from) => cells.slice(from).reduce((n, c) => n + c.w + 1, 1);
@@ -23,8 +25,9 @@ export const labelRoom = (row, cells, from) => { const at = ownFrom(row, cells, 
 // the columns right of the bar it does not show, then the cells cut off its names.
 export function shownFrom(rows, cells) {
   const fits = (from, owed) => rows.every((row) => ownFrom(row, cells, from) === cells.length || labelRoom(row, cells, from) >= Math.min(row.room, row.name, owed));
-  // The minutes left go with their percent: alone beside the time they would read as a second time.
-  const stops = [...cells.keys(), cells.length].filter((n) => !(cells[n]?.key === "eta" && cells[n - 1]?.key === "percent"));
+  // The minutes left go with their percent: alone beside the time they would read as a second time. The pull request
+  // goes with its review tag: the two are one thing to read.
+  const stops = [...cells.keys(), cells.length].filter((n) => !TOGETHER.some(([a, b]) => cells[n]?.key === b && cells[n - 1]?.key === a));
   // A bar is never worth a cut name: names are cut only for the columns right of it.
   const from = Math.min(stops.find((n) => fits(n, Infinity)), stops.find((n) => cells[n]?.key !== "bar" && fits(n, NAME_OWED)));
   const cut = rows.reduce((n, row) => n + Math.max(0, Math.min(row.room, row.name) - labelRoom(row, cells, from)), 0);

@@ -18,8 +18,9 @@ const draw = (v, list, width) => {
   const lines = v.listLines(width, 80).map((l) => stripVTControlCharacters(l));
   return list.map((r) => lines.find((l) => l.slice(3).startsWith(r.title.slice(0, 8))));
 };
-// Where each column sits on a line: the bar and the PR number by their first cell, the right-aligned ones by their last.
-const COLS = { bar: /[█░]{8}/, percent: /\d%/, eta: /\d[mh](?= .*\dh)/, review: /(?<!P)R#/, pr: /PR#/, time: /\dh(?=( ago)? *$)/ };
+// Where each column sits on a line: the bar and the PR number by their first cell, the right-aligned ones by their
+// last. The review tag is one of those, with its mark: it ends where the pull request starts.
+const COLS = { bar: /[█░]{8}/, percent: /\d%/, eta: /\d[mh](?= .*\dh)/, review: /(?<=(?<!P)R#\d+( [✓✗])?) (?![✓✗])/, pr: /PR#/, time: /\dh(?=( ago)? *$)/ };
 const ORDER = Object.keys(COLS);
 const places = (line) => Object.fromEntries(Object.entries(COLS).map(([key, re]) => [key, line.slice(3).search(re)]).filter(([, n]) => n >= 0));
 const has = (r) => ORDER.filter((key) => ({ bar: r.progress !== undefined, percent: r.progress !== undefined, eta: r.eta !== undefined, review: !!r.reviewRound, pr: !!r.pr, time: true }[key]));
@@ -72,6 +73,7 @@ test("the rows of a section show the same things at every width, in one order, a
       const set = sets[g], kept = ORDER.filter((key) => set[key]), could = ORDER.filter((key) => key in set);
       assert.deepEqual(kept, could.slice(could.length - kept.length), `${g} shows the right end of its columns at ${width}`);
       if ("eta" in set) assert.equal(set.percent, set.eta, `${g}: percent and minutes go together at ${width}`);
+      if ("review" in set && "pr" in set) assert.equal(set.review, set.pr, `${g}: review tag and pull request go together at ${width}`);
       // Narrower never brings a column back (the bar aside: the word "ago" going can make room for it again).
       const count = kept.filter((key) => key !== "bar").length;
       assert.ok(count <= (was[g] ?? count), `${g} shows more columns at ${width} than in a wider window`); was[g] = count;
@@ -104,8 +106,8 @@ test("one row with no room for its bar takes the bar off every row of its sectio
   assert.ok(lines.every((l) => /[█░]{8}/.test(l)), lines.join("\n")); // room for the longest name's bar: every row has its bar
   // The scope is the section: a long name under another heading leaves the bars of `working` alone.
   const two = [five[2], five[4], { ...ready, id: "p/8", title: "Rewrite the whole of the first-run screen and what it asks", progress: 100, pr: 7 }, { ...ready, id: "p/9", title: "Add an undo", progress: 100, pr: 12 }];
-  lines = draw(v, two, 90);
-  assert.match(lines[0], /^ ◐ Coordinator as a tab in the home space +█{6}░░ {2}72% {2}3m {12}2h {4}$/); assert.match(lines[1], /[█░]{8}/);
+  lines = draw(v, two, 91);
+  assert.match(lines[0], /^ ◐ Coordinator as a tab in the home space +█{6}░░ {2}72% {2}3m {13}2h {4}$/); assert.match(lines[1], /[█░]{8}/);
   assert.match(lines[2], /^ ✓ Rewrite the whole of the first-run screen and what it asks +100% +PR#7 +2h ago$/); assert.match(lines[3], /^ ✓ Add an undo +100% +PR#12 +2h ago$/); // its bar went with its neighbour's
   // One column down the whole list, whatever each section shows of it.
   assert.equal(lines[1].indexOf("PR#61"), lines[2].indexOf("PR#7")); assert.equal(lines[2].indexOf("PR#7"), lines[3].indexOf("PR#12")); assert.equal(lines[0].indexOf("72%") + 3, lines[3].indexOf("100%") + 4);
@@ -115,16 +117,16 @@ test("a long name is cut a little before its section loses a column, never for a
   const v = board();
   const long = { ...work, id: "p/1", title: "Rewrite the whole of the first-run screen and what it asks", progress: 40, eta: 12, pr: 7 }; // 58 cells
   const list = [long, { ...work, id: "p/2", title: "Fix login", progress: 55, eta: 3, pr: 35 }];
-  const columns = 2 + 4 + 1 + 4 + 1 + 5 + 1 + 3, room = (width) => width - 3 - columns; // gap, percent, minutes (at their widest), PR#35, time
+  const columns = 2 + 4 + 1 + 4 + 2 + 5 + 1 + 3, room = (width) => width - 3 - columns; // gap, percent, minutes (at their widest), the gap between the groups, PR#35, time
   assert.equal(long.title.length, 58);
   let lines = draw(v, list, 3 + 58 + columns); // the whole name beside every column but the bar
-  assert.match(lines[0], /^ ◐ Rewrite the whole of the first-run screen and what it asks +40% 12m PR#7 +2h$/); assert.match(lines[1], /^ ◐ Fix login +55% {2}3m PR#35 +2h$/);
+  assert.match(lines[0], /^ ◐ Rewrite the whole of the first-run screen and what it asks +40% 12m {2}PR#7 +2h$/); assert.match(lines[1], /^ ◐ Fix login +55% {2}3m {2}PR#35 +2h$/);
   lines = draw(v, list, 3 + 58 + columns + 8); // not yet room for a bar: the name is not cut for one
   assert.ok(lines.every((l) => !/[█░]/.test(l)) && lines[0].includes(long.title));
   assert.ok(draw(v, list, 3 + 58 + columns + 9).every((l) => /[█░]{8}/.test(l)));
   for (const width of [3 + 56 + columns, 70, 3 + NAME_OWED + columns]) { // narrower: the long name is cut, and both rows keep every column
     lines = draw(v, list, width);
-    assert.match(lines[0], /^ ◐ Rewrite the whole of the first-run scre[^…]*… +40% 12m PR#7 +2h$/, `cut at ${width}`); assert.match(lines[1], /^ ◐ Fix login +55% {2}3m PR#35 +2h$/);
+    assert.match(lines[0], /^ ◐ Rewrite the whole of the first-run scre[^…]*… +40% 12m {2}PR#7 +2h$/, `cut at ${width}`); assert.match(lines[1], /^ ◐ Fix login +55% {2}3m {2}PR#35 +2h$/);
     assert.ok(lines[0].slice(3).indexOf("…") + 1 >= Math.min(NAME_OWED, room(width)), `the name keeps its first ${NAME_OWED} cells at ${width}`);
   }
   lines = draw(v, list, 3 + NAME_OWED + columns - 1); // under that the name wins: the percent and the minutes go, on both rows
@@ -141,9 +143,9 @@ test("what a row says shows on every row of its section that says something, or 
     { ...work, id: "p/3", title: "Quiet", progress: 20 },
   ];
   let lines = draw(v, list, 110);
-  assert.match(lines[0], /^ ◐ Fix login {2}Tracing why the login form rejects valid passwords\. +█/); assert.match(lines[1], /board {2}Writing the tests for every wi… +█/); // each cut to its own room
+  assert.match(lines[0], /^ ◐ Fix login {2}Tracing why the login form rejects valid passwords\. +█/); assert.match(lines[1], /board {2}Writing the tests for every w[^…]*… +█/); // each cut to its own room
   lines = draw(v, list, 95); // the long name leaves too little to say anything worth reading: the short one says nothing either
-  assert.match(lines[0], /^ ◐ Fix login +█{4}░{4} {2}55% PR#3 +2h$/); assert.match(lines[1], /board +█/); assert.match(lines[2], /^ ◐ Quiet +█/);
+  assert.match(lines[0], /^ ◐ Fix login +█{4}░{4} {2}55% {2}PR#3 +2h$/); assert.match(lines[1], /board +█/); assert.match(lines[2], /^ ◐ Quiet +█/);
   for (const width of WIDTHS) shown(list, draw(v, list, width), width);
   // A row with nothing to say does not count: beside it the others still say what they do.
   assert.match(draw(v, [list[0], list[2]], 95)[0], /^ ◐ Fix login {2}Tracing why the login form rejects valid pa/);

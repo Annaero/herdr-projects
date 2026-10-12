@@ -9,6 +9,8 @@ import { resultColor, reviewTag, reviewCheck, reviewTagColor, currentReview, rev
 
 // The fewest cells a cut "doing now" sentence is still worth showing in.
 const SENTENCE_MIN = 20;
+// The progress columns, the left group of a row's columns. Right of them: the review tag, the pull request, the time.
+const PROGRESS = ["bar", "percent", "eta"];
 
 export class Row {
   mark(r) {
@@ -71,6 +73,8 @@ export class Row {
   // The columns on the right are laid out first, once for the whole list: which there are and how wide each is. Every
   // row draws them at those widths, so each column starts at the same place on every row. What is shown of them is
   // decided one section at a time (row-fit.js): a section's rows give the same things up together, from the left.
+  // They are two groups, the progress and then the review, the pull request and the time, with a wider gap between
+  // the two than inside either.
   rowLayout(records, width, sections = [records]) {
     const now = Date.now(), fields = new Map(records.map((r) => [r, this.rowFields(r, now)]));
     const max = (key) => Math.max(0, ...[...fields.values()].map((f) => visibleWidth(f[key])));
@@ -78,6 +82,9 @@ export class Row {
     // Extremely long PR identifiers may shorten, but must never push time off-screen.
     const pr = Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), review = max("review"), reviewCheck = max("reviewCheck");
     const cols = [["bar", max("bar")], ["percent", max("percent")], ["eta", max("eta")], ["review", review + (reviewCheck ? 2 : 0)], ["pr", pr], ["time", elapsed]].filter(([, w]) => w);
+    // The wider gap is a column with nothing in it, left of the review tag: the cell on each side of it makes two.
+    const group = cols.findIndex(([key]) => !PROGRESS.includes(key));
+    if (group > 0) cols.splice(group, 0, ["gap", 0]);
     const layout = { now, review, reviewCheck, pr, elapsed, cols, ago: [...fields.values()].some((f) => f.ago), show: new Map() };
     // Decided at widths that do not move as the numbers tick: the minutes left count as their widest (words.js: left).
     const cells = (ago) => cols.map(([key, w]) => ({ key, w: key === "eta" ? Math.max(w, ETA_STEADY) : w + (key === "time" && ago ? 4 : 0) }));
@@ -103,17 +110,19 @@ export class Row {
     const fill = (s, n, left) => { const gap = " ".repeat(Math.max(0, n - visibleWidth(s))); return left ? s + gap : gap + s; }; // by terminal cells, not string length
     const text = {
       bar: f.bar, percent: f.percent, eta: f.eta,
-      // R#2 is left-aligned, so the tags line up; the mark for how the review went sits in a column of its own.
-      review: f.review ? fill(f.review, layout.review, true) + (layout.reviewCheck ? " " + (f.reviewCheck || " ") : "") : "",
+      // R#2 and the mark for how the review went end where the pull request starts, so a tag with no mark sits
+      // against its PR like one with a mark does: the review belongs to the pull request, not to the progress.
+      review: f.review + (f.reviewCheck ? " " + f.reviewCheck : ""),
       // PR#16 the same way, so the "PR#" parts line up. Its colour says how its checks went: it has no mark.
       pr: f.pr ? fill(truncateToWidth(f.pr, layout.pr, "…"), layout.pr, true) : "",
+      gap: "",
       time: t.fg("overlay0", f.elapsed.padStart(layout.elapsed) + (layout.ago ? (f.ago ? " ago" : "    ") : "")),
     };
     const cells = layout.cols.map(([key, w]) => ({ key, text: text[key], w: w + (key === "time" && layout.ago ? 4 : 0) }));
     // Blank cells left of a row's first own column are not columns to that row: its words run into them.
     let from = layout.show.get(r)?.from ?? 0;
     while (from < cells.length && !cells[from].text) from++;
-    return { metadata: cells.slice(from).map((c) => fill(c.text, c.w, c.key === "pr" || c.key === "review")).join(" ") };
+    return { metadata: cells.slice(from).map((c) => fill(c.text, c.w, c.key === "pr")).join(" ") };
   }
   // A row's name in `w` cells. In the all-machines view the machine's name sits before the task's, in what the
   // task's name leaves: it is cut first.
