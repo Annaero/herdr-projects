@@ -1,4 +1,4 @@
-// The reviewer: a visible herdr agent in a split of the task's own space. Starting it, waiting for it, trying again.
+// The reviewer: a visible herdr agent in a tab of its own in the task's space. Starting it, waiting for it, trying again.
 import fs from "node:fs";
 import path from "node:path";
 import * as S from "../store.js";
@@ -14,11 +14,11 @@ import { ms, fail } from "./shared.js";
 import { reviewBrief, parseVerdict } from "./review-brief.js";
 import { suggestFaults, knownFaults } from "./faults.js";
 
-// ---- the reviewer: a visible herdr agent in a split of the task's own space ----------------------------------------------
+// ---- the reviewer: a visible herdr agent in a tab of its own in the task's space (flow/tabs.js) -------------------------
 export async function closeReviewer(id) {
   const t = S.get(id);
   if (!t?.link?.reviewer?.pane) return;
-  try { F.h(t).paneClose(t.link.reviewer.pane); } catch {}
+  try { F.closeReviewerTab(F.h(t), t.link.reviewer); } catch {}
   try { S.update(id, (t) => { if (t.link) t.link = { ...t.link, reviewer: null }; }, { waitMs: 10000 }); } catch {}
 }
 // A reviewer whose turn ended in a provider error did not review anything: that is not a round. It uses up none of
@@ -63,7 +63,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   const earlier = (t.reviewRounds || 0) > 0 && before.length ? before.at(-1).findings : null;
   const used = before.flatMap((e) => e.findings.map((f) => f.id));
   const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, filed: knownFaults(t), check })}`;
-  let pane = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0, cut = null, mark = null;
+  let pane = null, tab = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0, cut = null, mark = null;
   // The reviewer ended its turn with no verdict. Its saved conversation says why: a turn that ended in the provider's
   // error was cut off (`cut`), and only one that really finished is "finished without a verdict", with its last message.
   // Its own turn-end report can come before the end is on disk: the file is read again for a few seconds.
@@ -76,14 +76,16 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   };
   try {
     preTrust(rkind, t.root || S.folderOf(t.id));
-    await closeReviewer(id); // a pane left over from an interrupted round
-    pane = api.paneSplit(t.link.pane, { cwd: folder, env: S.boardEnv() });
+    await closeReviewer(id); // a tab left over from an interrupted round
+    // Its own tab, never focused: the human stays where they are, and the agent's tab and the board keep their size.
+    const made = F.openReviewerTab(api, t, round, { cwd: folder, env: S.boardEnv() });
+    tab = made.tab; pane = { pane_id: made.pane };
     const taken = api.agents().map((a) => a.name).filter(Boolean);
     let name = `${t.link.agent || `sw-task-${t.n}`}-r`.slice(0, 32);
     if (taken.includes(name)) name = `${name.slice(0, 27)}-${String(Date.now() % 10000).padStart(4, "0")}`;
     const startedAt = Date.now(); // a turn-end report older than this is from a try of this review that was cut off
     const x = launchExtras(t, "reviewer", { kind: rkind, round });
-    t = g.set((t) => { t.link = { ...t.link, reviewer: { pane: pane.pane_id, agent: name, kind: rkind } }; t.reviewSession = x.session; });
+    t = g.set((t) => { t.link = { ...t.link, reviewer: { pane: pane.pane_id, tab, agent: name, kind: rkind } }; t.reviewSession = x.session; });
     const start = (hook) => {
       const args = startArgs(rkind, { model: rmodel, effort: reffort, fast: ch.reviewerFast, session: x.session, extra: hook });
       try { api.agentStart(name, rkind, pane.pane_id, args); settle(api, pane.pane_id, [rkind, ...args].join(" ")); } // up before its brief is typed (submit.js)
@@ -136,7 +138,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
       await sleep(every);
     }
   } catch (e) {
-    if (e.aborted) { await closeReviewer(id); return { aborted: true }; }
+    if (e.aborted) { await closeReviewer(id); if (pane) F.closeReviewerTab(api, { tab, pane: pane.pane_id }); return { aborted: true }; } // also one the task had not noted yet
     error = `${e.message || e}`.replace(/\s+/g, " ").slice(0, 400);
   }
   // Put back anything the reviewer changed: what you approve is exactly what the agent committed.

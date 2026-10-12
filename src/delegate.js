@@ -114,6 +114,7 @@ export function startAgent(id, g, { prompt, resume = null }) {
   preTrust(kind, t.root || S.folderOf(t.id));
   const taken = api.agents().filter((a) => a.pane_id !== t.link.pane).map((a) => a.name).filter(Boolean);
   const name = agentName(t, taken);
+  F.nameAgentTab(api, t.link.tab);
   const x = launchExtras(t, "agent", { kind, standing: rules(t), resume });
   const args = (hooked) => startArgs(kind, { model: ch.model, effort: ch.effort, fast: ch.fast, resume, session: x.session, extra: [...(hooked ? x.hook : []), ...x.rules] });
   let blocked = false, hooked = x.hooked;
@@ -280,6 +281,7 @@ export function reopen(id, { restart = false } = {}) {
     const res = F.openingWorktree(api, S.folderOf(t.id), () => api.worktreeOpen({ cwd: S.folderOf(t.id), path: t.worktree, label: String(t.title).slice(0, 60) }));
     pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
     t = S.update(t.id, (t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true }; });
+    F.nameAgentTab(api, pane.tab_id);
   }
   let hasAgent = !!api.agentGet(pane.pane_id);
   if (!hasAgent && restart && resumable(t) && !S.markerAlive(t.runner)) {

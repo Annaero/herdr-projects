@@ -19,7 +19,8 @@ test("[real programs] the fake herdr answers the same called in the test's proce
     const steps = [["workspace", "create", "--cwd", w.root, "--label", "proj", "--env", "A=b=c"], ["workspace", "list"], ["pane", "split", "w1:p1", "--cwd", w.root], ["pane", "layout", "--pane", "w1:p2"],
       ["agent", "start", "sw-proj-1", "--pane", "w1:p1", "--kind", "claude", "--", "--session-id", "abc"], ["agent", "start", "again", "--pane", "w1:p1", "--kind", "claude"], // a busy pane: an error, exit 1
       ["agent", "get", "sw-proj-1"], ["agent", "prompt", "sw-proj-1", "Do the work"], ["agent", "read", "sw-proj-1"], ["agent", "get", "sw-proj-1"], ["agent", "prompt", "sw-proj-1", "Once more"],
-      ["agent", "get", "nobody"], ["pane", "close", "w1:p2"], ["notification", "show", "Hello", "--body", "there"], ["machine", "list"], ["workspace", "close", "w9"], ["frobnicate"]];
+      ["agent", "get", "nobody"], ["pane", "close", "w1:p2"],
+      ["tab", "rename", "w1:t1", "Agent"], ["tab", "create", "--workspace", "w1", "--cwd", w.root, "--label", "Reviewer #1", "--no-focus"], ["tab", "list"], ["tab", "close", "w1:t2"], ["tab", "close", "w1:t2"], ["notification", "show", "Hello", "--body", "there"], ["machine", "list"], ["workspace", "close", "w9"], ["frobnicate"]];
     const tidy = (commit) => { S.gitOut(w.root, ["reset", "-q", "--hard", commit]); S.gitOut(w.root, ["clean", "-fdq"]); };
     const got = {};
     for (const args of steps) {

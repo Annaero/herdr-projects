@@ -71,7 +71,7 @@ export function stop(id) {
   });
   if (t.runner && t.runner.pid !== process.pid && S.markerAlive(t.runner)) { try { process.kill(-t.runner.pid, "SIGTERM"); } catch { try { process.kill(t.runner.pid, "SIGTERM"); } catch {} } }
   if (a && ["working", "blocked", "unknown"].includes(a.agent_status)) { try { F.h(t).agentKeys(t.link.pane, interruptKey(t.agent)); } catch {} }
-  if (t.link.reviewer?.pane) F.h(t).paneClose(t.link.reviewer.pane);
+  if (t.link.reviewer?.pane) F.closeReviewerTab(F.h(t), t.link.reviewer);
   F.labelPane(t, null);
   return S.get(t.id);
 }

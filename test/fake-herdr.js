@@ -41,8 +41,14 @@ function answer(argv, env) {
     st.workspaces.push(w);
     const p = { pane_id: `${id}:p1`, workspace_id: id, tab_id: `${id}:t1`, terminal_id: `term_${st.nextP++}`, cwd, agent: null };
     st.panes.push(p);
-    return { workspace: wsOut(w), tab: { tab_id: p.tab_id, workspace_id: id }, root_pane: paneOut(p) };
+    return { workspace: wsOut(w), tab: tabOut(newTab(w, p.tab_id, "1")), root_pane: paneOut(p) };
   }
+  // Tabs: a space starts with one, labelled "1" as herdr's are; a tab's number is never given out again.
+  const tabs = () => (st.tabs ||= []);
+  const tabOut = (t) => ({ tab_id: t.tab_id, workspace_id: t.workspace_id, label: t.label, pane_count: st.panes.filter((p) => p.tab_id === t.tab_id).length, focused: t.tab_id === `${t.workspace_id}:t1` });
+  function newTab(w, id, label) { w.nextT = Math.max(w.nextT || 1, Number(id.split(":t")[1]) + 1); const t = { tab_id: id, workspace_id: w.workspace_id, label }; tabs().push(t); return t; }
+  // A pane closed (or gone with its space): a tab with no pane left is gone too.
+  const dropEmptyTabs = () => { st.tabs = tabs().filter((t) => st.panes.some((p) => p.tab_id === t.tab_id)); };
   const findPane = (id) => st.panes.find((p) => p.pane_id === id);
   const findAgent = (target) => st.panes.find((p) => p.agent && (p.pane_id === target || p.agent.name === target));
   const bump = (p, status, complete) => { st.seq += 1; p.agent.status = status; p.agent.seq = st.seq; if (complete) p.agent.completion = st.seq; };
@@ -143,7 +149,7 @@ function answer(argv, env) {
     if (verb === "get") ok({ type: "workspace_info", workspace: wsOut(w) });
     if (verb === "focus") { st.focus.push(`workspace ${w.workspace_id}`); ok({ type: "workspace_info", workspace: wsOut(w) }); }
     if (verb === "close" && st.closeFails) fail("timeout", "timed out"); // a test's stand-in for a close herdr did not do
-    if (verb === "close") { st.workspaces = st.workspaces.filter((x) => x !== w); st.panes = st.panes.filter((p) => p.workspace_id !== w.workspace_id); ok({ type: "ok" }); }
+    if (verb === "close") { st.workspaces = st.workspaces.filter((x) => x !== w); st.panes = st.panes.filter((p) => p.workspace_id !== w.workspace_id); dropEmptyTabs(); ok({ type: "ok" }); }
   }
   if (area === "worktree") {
     const repoOf = (cwd) => path.dirname(git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
@@ -169,11 +175,30 @@ function answer(argv, env) {
       if (!w || !w.worktree?.is_linked_worktree) fail("workspace_not_found", "not a linked worktree workspace");
       if (st.removeFails) fail("timeout", "timed out");
       try { git(w.worktree.repo_root, ["worktree", "remove", ...(has("--force") ? ["--force"] : []), w.cwd]); } catch (e) { fail("worktree_remove_failed", String(e.stderr || e.message)); }
-      st.workspaces = st.workspaces.filter((x) => x !== w); st.panes = st.panes.filter((p) => p.workspace_id !== w.workspace_id);
+      st.workspaces = st.workspaces.filter((x) => x !== w); st.panes = st.panes.filter((p) => p.workspace_id !== w.workspace_id); dropEmptyTabs();
       ok({ type: "worktree_removed" });
     }
   }
   if (area === "tab" && verb === "focus") { st.focus.push(`tab ${argv[2]}`); ok({ type: "ok" }); }
+  if (area === "tab") {
+    if (verb === "list") { const w = flag("--workspace"); ok({ type: "tab_list", tabs: tabs().filter((t) => !w || t.workspace_id === w).map(tabOut) }); }
+    // A new tab is one pane at its shell. It is never the focused one: the first tab of a space stays that.
+    if (verb === "create") {
+      const w = st.workspaces.find((x) => x.workspace_id === flag("--workspace"));
+      if (!w) fail("workspace_not_found", `workspace ${flag("--workspace")} not found`);
+      if (st.tabFails) fail("timeout", "timed out"); // a test's stand-in for a tab herdr did not open
+      const n = Math.max(w.nextT || 2, 2), t = newTab(w, `${w.workspace_id}:t${n}`, flag("--label") || String(n));
+      const q = { pane_id: `${w.workspace_id}:p${st.panes.filter((x) => x.workspace_id === w.workspace_id).length + 1}`, workspace_id: w.workspace_id, tab_id: t.tab_id, terminal_id: `term_${st.nextP++}`, cwd: path.resolve(flag("--cwd") || w.cwd), env: envOf(), agent: null };
+      while (findPane(q.pane_id)) q.pane_id += "x";
+      st.panes.push(q);
+      ok({ type: "tab_created", tab: tabOut(t), root_pane: paneOut(q) });
+    }
+    const t = tabs().find((x) => x.tab_id === argv[2]);
+    if (!t) fail("tab_not_found", `tab ${argv[2]} not found`);
+    if (verb === "get") ok({ type: "tab_info", tab: tabOut(t) });
+    if (verb === "rename") { t.label = argv.slice(3).join(" "); ok({ type: "tab_info", tab: tabOut(t) }); }
+    if (verb === "close") { st.panes = st.panes.filter((p) => p.tab_id !== t.tab_id); dropEmptyTabs(); ok({ type: "ok" }); }
+  }
   if (area === "pane") {
     if (verb === "process-info") { const p = findPane(flag("--pane")); if (!p) fail("pane_not_found", "pane not found"); const shell = 4194400; ok({ type: "pane_process_info", process_info: { pane_id: p.pane_id, shell_pid: p.job ? 1 : shell, /* `job`: the shell has a background job beside the foreground program */ foreground_process_group_id: p.busy ? shell + 1 : shell, foreground_processes: [{ pid: st.pids && p.agent ? p.agent.pid /* `pids`: an agent is a process of its own, which can be ended */ : p.tool ? 1 : p.busy ? shell + 1 : shell, name: p.tool ? "agent" : p.busy ? "sleep" : "bash" }] } }); } // `tool`: a program with children of its own (pid 1 always has some)
     // `layouts`: a test's own answer per pane; without one the pane has its whole tab, 120x34.
@@ -183,7 +208,7 @@ function answer(argv, env) {
     if (!p) fail("pane_not_found", `pane ${argv[2]} not found`);
     if (verb === "get") ok({ type: "pane_info", pane: paneOut(p) });
     if (verb === "split") { const n = st.panes.filter((x) => x.workspace_id === p.workspace_id).length + 1; const q = { pane_id: `${p.workspace_id}:p${n}`, workspace_id: p.workspace_id, tab_id: p.tab_id, terminal_id: `term_${st.nextP++}`, cwd: path.resolve(flag("--cwd") || p.cwd), env: envOf(), agent: null }; while (findPane(q.pane_id)) q.pane_id += "x"; st.panes.push(q); ok({ type: "pane_split", pane: paneOut(q) }); }
-    if (verb === "close") { st.panes = st.panes.filter((x) => x !== p); ok({ type: "ok" }); }
+    if (verb === "close") { st.panes = st.panes.filter((x) => x !== p); dropEmptyTabs(); ok({ type: "ok" }); }
     if (verb === "read" && p.agent?.boot > 0) { p.agent.boot -= 1; out(`user@host:${p.cwd}$ ${[p.agent.kind, ...p.agent.args].join(" ")}\n`); } // not drawn yet: only the command that started it
     if (verb === "read") out(p.agent?.screen || p.screen || "");
     if (verb === "report-metadata") { st.metadata.push({ pane: p.pane_id, args: argv.slice(3) }); ok({ type: "ok" }); }

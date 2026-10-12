@@ -122,7 +122,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `pipeline.js` | The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval |
 | `recover-job.js` | A finished turn re-armed by mistake: hand the task to the human as stopped without a summary |
 | `review-brief.js` | What the reviewer is told, and reading the verdict it writes back |
-| `review.js` | The reviewer: a visible herdr agent in a split of the task's own space |
+| `review.js` | The reviewer: a visible herdr agent in a tab of its own in the task's space |
 | `shared.js` | The finish line's shared pieces: the approval question's words, and marking a task as failed |
 | `sync-job.js` | Main moved while a task waits for approval: bring its branch up to date and check it again |
 | `turn-ended.js` | The finish runner: an agent's turn ended |
@@ -137,6 +137,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `send.js` | Sending text to an agent: delivering or queueing it, the closing-note rule, the command's path, a cut-off turn tried again |
 | `sidebar.js` | Telling herdr's own sidebar where a task stands: the label on its pane |
 | `spaces.js` | herdr spaces the board opened and owes closing: a repo's own space, a done task's clean-up, spaces left over |
+| `tabs.js` | A task's tabs in its herdr space: the agent's tab is named `Agent`, and each reviewer has a tab of its own, named after its review round |
 | `task.js` | A task's own places and its herdr: the closing note, the review folder, whether an agent is on it |
 
 ## `src/store/`
@@ -187,6 +188,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [roles-and-commands.md](roles-and-commands.md) | Roles and commands |
 | [settings.md](settings.md) | Settings: two places |
 | [suggestions.md](suggestions.md) | Suggested tasks |
+| [tabs.md](tabs.md) | A task's tabs in herdr |
 | [task-panel.md](task-panel.md) | The task panel |
 | [testing.md](testing.md) | Tests |
 | [where-things-live.md](where-things-live.md) | Where things live |
@@ -244,6 +246,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `sync-conflict.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `sync-merge.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `sync-remote.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
+| `tabs.test.js` | A task's tabs in its herdr space: the agent's tab is named Agent, each reviewer has a tab of its own |
 | `theme.test.js` | The board takes its colours and status marks from herdr's own config, resolved the way herdr resolves them |
 | `turns.test.js` |  |
 | `watcher.test.js` | The hidden helper: the watcher's line and guess |

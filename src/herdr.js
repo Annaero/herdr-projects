@@ -102,6 +102,10 @@ export function herdr(socket = null) {
     workspaceClose: (id) => call(["workspace", "close", id]),
     workspaceFocus: (id) => call(["workspace", "focus", id]),
     tabFocus: (id) => call(["tab", "focus", id]),
+    // A new tab in a space, with one pane at its shell: { tab, root_pane }. Never focused: the human stays where they are.
+    tabCreate: ({ workspace, cwd, label, env = {} }) => call(["tab", "create", "--workspace", workspace, ...(cwd ? ["--cwd", cwd] : []), ...(label ? ["--label", label] : []), ...Object.entries(env).flatMap(([k, v]) => ["--env", `${k}=${v}`]), "--no-focus"]),
+    tabRename: (id, label) => call(["tab", "rename", id, label]),
+    tabClose: (id) => quiet(() => call(["tab", "close", id])),
     worktreeCreate: ({ cwd, branch, base, label }) => call(["worktree", "create", "--cwd", cwd, "--branch", branch, ...(base ? ["--base", base] : []), ...(label ? ["--label", label] : []), "--no-focus"], { timeout: 120000 }),
     worktreeOpen: ({ cwd, path: p, label }) => call(["worktree", "open", "--cwd", cwd, "--path", p, ...(label ? ["--label", label] : []), "--no-focus"], { timeout: 60000 }),
     worktreeRemove: (workspace, force = false) => call(["worktree", "remove", "--workspace", workspace, ...(force ? ["--force"] : [])], { timeout: 120000 }),
