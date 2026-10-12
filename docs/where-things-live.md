@@ -117,6 +117,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | File | Holds |
 |---|---|
+| `auto-merge.js` | Auto-merge, the setting: a task that may merge does so by itself while `autoMerge` is on, and waits for you while it is off |
 | `faults.js` | Faults a reviewer found that were there before the task: suggested to the human, never filed, and what the next reviewer is told is known already |
 | `pipeline.js` | The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval |
 | `recover-job.js` | A finished turn re-armed by mistake: hand the task to the human as stopped without a summary |
@@ -196,6 +197,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 
 | File | Tests |
 |---|---|
+| `auto-merge.test.js` | The autoMerge setting: a green task merges by itself, your choice wins over the repo's "land", and a change counts for tasks already under way |
 | `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, stop or delete, retry |
 | `board-chat.test.js` | The chat's box: the latest message, an empty line, the line you type on |
 | `board-helpers.js` | Shared by the board's tests (test/board-*.test.js): the keys, and a board opened on a test world |

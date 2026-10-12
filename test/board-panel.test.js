@@ -23,7 +23,7 @@ test("the task panel beside the list cuts a long description short and says wher
     assert.match(text, /│ {2}Long one *\n[^\n]*│ {2}○ to do · \ds ago · proj\/2 *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n/);
     assert.match(text, /│ {2}Settings ─+ *\n[^\n]*│ {2}Project {6}\S+ *\n[^\n]*│ {2}Worktree {5}on *\n[^\n]*│ {2}Branch {7}main *\n[^\n]*│ {2}Agent /);
     // Every setting shows beside the list, also one that is only your default.
-    const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Conflicts", "Permissions"];
+    const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Merge", "Conflicts", "Permissions"];
     for (const fact of SETTINGS) assert.match(text, new RegExp(`│  ${fact} `), fact);
     assert.match(text, /│ {2}Reviewed {5}work in a repo *\n[^\n]*│ {2}Send back {4}major or worse · 3 rounds max *\n[^\n]*│ {2}Evidence {5}on · local links/);
     // A short window keeps every setting too: the long parts give way, never the settings.

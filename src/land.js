@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import { herdr, currentSocket, socketExists, readScreen } from "./herdr.js";
 import { claim, release, guardFor, sh, outputOf, sleep } from "./runner.js";
 import * as Y from "./sync.js";
+import { calledOff } from "./finish/auto-merge.js";
 import { readTurnOf } from "./agents.js";
 
 const git = S.gitOut;
@@ -169,6 +170,7 @@ export async function landJob(id) {
 
 // Runs with the task in stage "merging" and this runner's guard standing on it.
 export async function landCore(id, g) {
+  if (calledOff(g)) return; // autoMerge was turned off before this merge of the board's own began
   let t = g.check();
   const root = S.folderOf(t.id);
   const tree = t.worktree && fs.existsSync(t.worktree) && path.resolve(t.worktree) !== path.resolve(root) ? t.worktree : "";
@@ -229,6 +231,7 @@ export async function landCore(id, g) {
       let remote = ""; try { remote = JSON.parse(F.gh(["pr", "view", pr, "--json", "headRefOid"], root, 60000).stdout).headRefOid || ""; } catch {}
       if (remote && remote !== reviewed) return void fail("Pull request has commits that were not reviewed", `Pull request: ${t.pr}\nBranch: ${t.branch || "unknown"}\nReviewed here: ${reviewed}\nOn the pull request: ${remote}`, `Bring the pull request's commits into your own worktree (git pull origin ${t.branch || "<branch>"}), or push what was reviewed, then finish again so it is checked and reviewed before it merges.`, { auth: false });
     }
+    if (calledOff(g)) return;
     F.gh(["pr", "ready", pr], root, 60000);
     const m = F.gh(["pr", "merge", pr, `--${how}`, ...only], root);
     if (m.status !== 0) {
@@ -268,6 +271,7 @@ export async function landCore(id, g) {
     // The commit that was checked and reviewed is the one merged, by its id: a commit that reaches the branch while
     // this runs is neither merged unseen nor deleted as merged.
     const head = t.mergeIntent?.verifiedHead || git(root, ["rev-parse", "--verify", `refs/heads/${t.branch}`]);
+    if (calledOff(g)) return;
     if (how === "squash") {
       try { git(root, ["merge", "--squash", head]); } catch (e) { return void conflict(e); }
       if (git(root, ["diff", "--cached", "--name-only"])) try { git(root, ["commit", "-m", message]); } catch (e) { return void conflict(e); }

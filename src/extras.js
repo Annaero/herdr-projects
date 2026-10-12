@@ -42,13 +42,15 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
   drops it: both only when the human plainly says so.
 - \`herdr-superwork delegate <id>\`: put an agent on a task. It works in its own git worktree, as an ordinary herdr
   agent in its own herdr space. Options for this one task: \`--agent claude|codex|pi\`, \`--model\`, \`--effort\`,
-  \`--reviewer <kind>|off\`, \`--gate critical|major|minor|trivial|off\`, \`--no-worktree\` (work in the human's checkout),
+  \`--reviewer <kind>|off\`, \`--gate critical|major|minor|trivial|off\`, \`--autoMerge true|false\`, \`--no-worktree\` (work in the human's checkout),
   \`--base head\` (start from their current commit).
 - \`herdr-superwork tell <id> "<text>"\`: send a message to a task's agent (on a task with no agent yet: starts one with it).
 - \`herdr-superwork stop <id>\`: interrupt a task's agent.
 - \`herdr-superwork report <id> --state <idle|working|done> [--msg "<one line>"] [--progress <0-100>] [--eta <minutes left>]\`: say where one of
   the human's own tasks stands. \`--title\` renames it. \`herdr-superwork describe <id> "<text>"\` replaces its description.
 - \`herdr-superwork approve <id>\`: merge finished work that waits for approval. Only when the human plainly says so.
+  With the \`autoMerge\` setting on (\`config autoMerge true\`, or \`--id <id>\` for one task) work that passed its review
+  merges by itself; off, the default, it waits for that approval. Only the human turns it on.
 - Finished work is reviewed by a second agent. It lists findings tagged critical, major, minor or trivial; the board
   decides from them. A finding at or above the \`gate\` setting (major by default) fails the review and goes back to
   the agent by itself; anything milder passes (\`Pass · 2 minor\`). \`gate off\`: nothing goes back by itself.

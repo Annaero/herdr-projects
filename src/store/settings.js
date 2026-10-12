@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { GATES, DEFAULT_GATE, gateOfAuto } from "../gate.js";
 import { configDir, readJson, writeJson } from "./files.js";
-import { gitOut } from "./repos.js";
+import { gitOut, folderOf } from "./repos.js";
 import { assertUnarchived, update } from "./tasks.js";
 import { DEFAULTS, TASK_DEFAULTS, PER_TASK } from "./settings-list.js";
 
@@ -43,8 +43,8 @@ function coerce(key, value) {
 const configFile = () => path.join(configDir(), "config.json");
 // `helper` and `helperModel` were the Watcher's settings before the Coordinator existed: an existing file keeps working.
 const ALIAS = { helper: "watcherAgent", helperModel: "watcherModel" };
-export const config = () => {
-  const file = readJson(configFile()) || {};
+const saved = () => readJson(configFile()) || {};
+export const config = (file = saved()) => {
   const c = { ...DEFAULTS, ...file };
   delete c.bell; // a setting of older versions: nothing rings any more
   for (const [old, now] of Object.entries(ALIAS)) { if (file[old] !== undefined && file[now] === undefined) c[now] = file[old]; delete c[old]; }
@@ -73,19 +73,28 @@ export function setTaskConfig(id, key, value) {
   [key, value] = gateKey(key, value);
   if (!PER_TASK.includes(key)) throw new Error(`Per task you can set: ${PER_TASK.join(", ")}. Other settings are yours as a whole.`);
   const reset = isReset(value);
-  const t = update(id, (t) => { assertUnarchived(t); t.own = { ...(t.own || {}) }; if (reset) delete t.own[key]; else t.own[key] = coerce(key, value); if (key === "gate") delete t.own.reviewAuto; });
+  const t = update(id, (t) => {
+    assertUnarchived(t); t.own = { ...(t.own || {}) }; if (reset) delete t.own[key]; else t.own[key] = coerce(key, value); if (key === "gate") delete t.own.reviewAuto;
+    // "Auto-merge this one" is your word on this very task: an approval it owed you from before is not asked for again.
+    if (key === "autoMerge" && t.own.autoMerge === true) t.requireApproval = false;
+  });
   return choices(t);
 }
+// What the repo's own file says about merging by itself, as the task took it when it started (else as it is now).
+const repoLands = (t) => { try { return (t?.repoCfg || (t?.id ? repoConfig(folderOf(t.id)) : {})).land === "auto"; } catch { return false; } };
 export function choices(t) {
-  const c = config(), own = t?.own || {};
+  const file = saved(), c = config(file), own = t?.own || {};
   const out = {};
   for (const k of PER_TASK) out[k] = own[k] !== undefined && own[k] !== null ? own[k] : k in TASK_DEFAULTS ? TASK_DEFAULTS[k] : c[k];
+  // autoMerge is the one that counts. Where you chose nothing, for this task or as a whole, the repo's "land" says.
+  if ((own.autoMerge === undefined || own.autoMerge === null) && file.autoMerge === undefined) out.autoMerge = repoLands(t);
   if ((own.gate === undefined || own.gate === null) && own.reviewAuto !== undefined && own.reviewAuto !== null) out.gate = gateOfAuto(own.reviewAuto); // a task's own choice from before the gate
   if (out.reviewer === "off") out.review = "none"; // no reviewer is no review
   return out;
 }
 // 2. Facts about a repo: .herdr-superwork.json, committed in that repo. Read from the commit a worktree starts
-//    from, so an agent's own branch cannot change the rules it is checked by.
+//    from, so an agent's own branch cannot change the rules it is checked by. Its "land" ("auto" or "ask") is only
+//    that repo's default for the autoMerge setting: your own choice wins (choices, above).
 export const REPO_FILE = ".herdr-superwork.json";
 export function repoConfig(root, ref) {
   let text = "";

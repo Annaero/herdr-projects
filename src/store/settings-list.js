@@ -42,6 +42,7 @@ export const SETTINGS = [
   { key: "base", default: "fresh", doc: "`head`: worktrees start from your current commit" },
   { key: "pr", default: true, doc: "push the branch and open a draft pull request after the check passes" },
   { key: "merge", default: "squash", doc: "how approved work lands: `squash`, `merge` or `rebase`" },
+  { key: "autoMerge", default: false, shown: "the repo's `land`, else `false`", task: true, doc: "`true`: a task merges by itself the moment it may: its review passed the gate, its checks pass, nothing conflicts. `false`: it waits for your yes. Changing it counts from that moment, for tasks under way too. Never chosen by you: a repo whose `.herdr-superwork.json` says `\"land\": \"auto\"` merges by itself, every other repo asks. More: [the gate](gate.md#merging-by-itself)" },
   { key: "cleanup", default: true, doc: "remove a done task's space, worktree and branch" },
   // other machines
   { key: "machines", default: "auto", doc: "other machines: `auto` (herdr's saved machines), names (`exedev@vm-a, vm-b`) or `off`" },

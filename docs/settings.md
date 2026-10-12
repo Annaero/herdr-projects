@@ -7,6 +7,9 @@ started from, so an agent's branch cannot change the rules it is checked by:
 { "setup": "npm ci", "check": "npm test", "land": "ask", "teardown": "docker compose down", "include": [".env"] }
 ```
 
+`land` (`"ask"` or `"auto"`) is only that repo's default for the `autoMerge` setting below: it counts where you have
+chosen nothing yourself, for the task or as a whole ([merging by itself](gate.md#merging-by-itself)).
+
 Your own preferences live in `~/.config/herdr-superwork/config.json`; change them with
 `herdr-superwork config <key> <value>` or by saying so in the text box.
 
@@ -37,6 +40,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `base` | `fresh` |  | `head`: worktrees start from your current commit |
 | `pr` | `true` |  | push the branch and open a draft pull request after the check passes |
 | `merge` | `squash` |  | how approved work lands: `squash`, `merge` or `rebase` |
+| `autoMerge` | the repo's `land`, else `false` | yes | `true`: a task merges by itself the moment it may: its review passed the gate, its checks pass, nothing conflicts. `false`: it waits for your yes. Changing it counts from that moment, for tasks under way too. Never chosen by you: a repo whose `.herdr-superwork.json` says `"land": "auto"` merges by itself, every other repo asks. More: [the gate](gate.md#merging-by-itself) |
 | `cleanup` | `true` |  | remove a done task's space, worktree and branch |
 | `machines` | `auto` |  | other machines: `auto` (herdr's saved machines), names (`exedev@vm-a, vm-b`) or `off` |
 | `remoteUser` | yours |  | the user to reach other machines as |

@@ -19,7 +19,7 @@ const HELP = `herdr-superwork: a work board for herdr
                          [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
   herdr-superwork describe <id> <text>          write or replace a task's description
   herdr-superwork delegate <id> [--agent KIND] [--model M] [--effort E] [--fast] [--reviewer KIND|off] [--no-reviewerFast] [--no-worktree] [--base head|fresh]
-                           [--gate critical|major|minor|trivial|off] [--rounds N]
+                           [--gate critical|major|minor|trivial|off] [--rounds N] [--autoMerge true|false]
   herdr-superwork tell <id> <text>              send a message to the task's agent
   herdr-superwork stop <id>                     stop its agent
   herdr-superwork approve <id>                  merge finished work that waits for approval

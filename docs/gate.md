@@ -20,8 +20,8 @@ The board then applies fixed rules to what came back:
   [suggestion](suggestions.md) on the task, once, however many rounds or other tasks' reviews name it: you make it
   a task or dismiss it.
 - The work **passes** when no finding of its own sits at or above the `gate` setting (`major` by default). A pass
-  is what "may merge" means everywhere: a repo with `"land": "auto"` merges it, an approved merge that was repaired
-  goes through, and the board says `Pass`.
+  is what "may merge" means everywhere: a task with `autoMerge` on merges it ([merging by itself](#merging-by-itself)),
+  an approved merge that was repaired goes through, and the board says `Pass`.
 - A **fail** goes back to the agent by itself, at most `rounds` times: the findings at or above the gate as
   required, the rest as optional. When the cap is reached and it still fails, it stops and waits for you.
 - From the second round on the reviewer gets the earlier findings and only checks that each is fixed and that the
@@ -29,6 +29,33 @@ The board then applies fixed rules to what came back:
   late is left out (a pre-existing fault is still suggested). A reply from you starts a full review again.
 - `gate off` sends nothing back by itself: findings wait for you (`Ctrl+R` sends them). The result shown and an
   automatic merge are then judged at `major`.
+
+## Merging by itself
+
+Finished work waits for your yes. The `autoMerge` setting makes it merge by itself instead, the moment it is green:
+
+- **Green** means: the check passed, the review passed the gate (or the task is not reviewed at all), the branch is up
+  to date with main with no conflict, and the pull request has no failed check or requested change.
+- **Only the reviewed commit merges.** The board remembers the commit the review saw and merges exactly that. A
+  commit that reached the branch or the pull request afterwards stops the merge and is checked and reviewed first.
+- **What needs you still stops and asks**: a review that fails the gate after its rounds, a merge that failed, a
+  login, a question or a request for permission from the agent, a checkout of yours on another branch. A task you
+  stepped into after it asked you (a reply to its agent, a turn in its terminal, delegating it again) asks you
+  again too, once; `config autoMerge true --id <id>` on that task says you do not need to be asked.
+- **Set it like any other setting**: `herdr-superwork config autoMerge true` for every task,
+  `config autoMerge true --id <id>` or `delegate <id> --autoMerge true` for one, `default` to take a choice back;
+  or tell the Coordinator "auto-merge this one" or "always auto-merge". The task panel shows it as `Merge`.
+- **It counts from the moment you change it**, for tasks under way too. Turned on: a running task merges when it
+  turns green, and a green task that already waits for your yes merges at once (turned on for every task, that is
+  every such task: look at what waits first). Turned off: a task that waits to merge by itself, for GitHub's checks
+  or a merge queue, goes back to waiting for your yes, and so does one whose merge the board had started but not
+  yet made (the setting is asked again right before the merge).
+
+The repo's own file lives beside it. `"land": "auto"` in a repo's committed `.herdr-superwork.json` used to be the
+only way to merge by itself. It still works, as that repo's default: it counts for a task when you have set
+`autoMerge` neither on that task nor as a whole. Once you set `autoMerge` yourself, `true` or `false`, yours is the
+one that counts in every repo; `config autoMerge default` hands the choice back to the repos. `config` alone shows
+your own value; `config --id <id>` shows what that task really runs on, the repo's default included.
 
 Findings below the gate still show on the review page, in the task panel and in a comment on the pull request,
 marked as not required.

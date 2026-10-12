@@ -102,7 +102,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   for (const fit of [30, 20, 16, 14]) {
     const lines = v.panel({ owner: "me", ...busy }, 45, false, fit).map((l) => stripVTControlCharacters(l));
     assert.ok(lines.length <= fit, `fits in ${fit} lines`);
-    for (const fact of ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Conflicts", "Permissions"]) assert.ok(lines.some((l) => l.startsWith(` ${fact} `)), `${fact} with room for ${fit} lines`);
+    for (const fact of ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Merge", "Conflicts", "Permissions"]) assert.ok(lines.some((l) => l.startsWith(` ${fact} `)), `${fact} with room for ${fit} lines`);
     assert.ok(lines.some((l) => /^ (╭─ )?Review 3 /.test(l)), `the latest review with room for ${fit} lines`);
     assert.match(lines[lines.length - 1], /^ alt\+t shows the whole task$/);
   }

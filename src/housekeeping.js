@@ -14,6 +14,7 @@ import { reconcile } from "./hook.js"; // a cycle, used only at call time
 import { startQueued } from "./actions.js";
 import * as Y from "./sync.js";
 import { owedFaults, suggestOwed } from "./finish/faults.js";
+import { autoMergePass } from "./finish/auto-merge.js";
 
 const key = (socket) => createHash("sha1").update(String(socket)).digest("hex").slice(0, 8);
 
@@ -41,6 +42,8 @@ export function housekeeping(socket = currentSocket(), { force = false } = {}) {
       if (S.due(`tidy-${key(t.id)}`, 30000)) spawnRunner("cleanup", t.id, t.tidy.deleteBranch === "merged" ? ["--merged"] : []);
     }
     try { resync(tasks, socket); } catch {}
+    // The autoMerge setting changed under a task that waits: it merges now, or waits for your yes after all.
+    try { autoMergePass(tasks, socket); } catch {}
     // An agent whose turn a passing provider error cut off is told to carry on once its wait is over.
     for (const t of tasks) { const w = S.waitingOf(t); if (w?.who === "agent" && t.link?.socket === socket && Date.now() >= w.until && !runnerAlive(t)) { try { F.resumeCut(t.id); } catch {} } }
   }

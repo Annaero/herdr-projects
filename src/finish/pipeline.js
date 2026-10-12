@@ -135,7 +135,8 @@ export async function pipeline(id, g, text, wake, synced = null) {
     // The pull request says what the review found, the findings below the gate marked as not required.
     if (t.pr && toLand) { try { F.gh(["pr", "comment", F.prNumber(t.pr), "--body", G.prComment(review, S.reviewRound(S.get(id)))], root, 60000); } catch {} }
   }
-  t = g.set({ failure: null });
+  // A merge the board itself was on its way to (autoMerge) is only kept while that setting is still on.
+  t = g.set((t) => { t.failure = null; if (t.mergeIntent?.auto && !S.choices(t).autoMerge) t.mergeIntent = null; });
   // The loop, unless the gate is "off": a review that fails the gate goes straight back, at most `rounds` times.
   // Then, still failing, it stops and waits for you.
   const rounds = t.reviewRounds || 0;
@@ -156,8 +157,9 @@ export async function pipeline(id, g, text, wake, synced = null) {
   if (!toLand) { done(`${review ? `${G.sentence(review, "accept")} ` : ""}${firstLine(text) || "finished"}${note}`, { review }); return void (await tidyDone(id)); }
   t = g.set((t) => { t.review = review; t.stat = change.stat; t.reviewedHead = head; t.mergeFailed = false; });
   if (holdPrFailure(g, t)) return;
-  // 5. A repo that lands by itself still wants a review that passed the gate: one that failed it, you are asked.
-  if (repo.land === "auto" && !t.requireApproval && sync?.status !== "skip" && (!reviewNeeded || (review && passed))) {
+  // 5. A task that merges by itself (the autoMerge setting, read now: it may have changed while this ran) still
+  // wants a review that passed the gate: one that failed it, you are asked.
+  if (S.choices(t).autoMerge && !t.requireApproval && sync?.status !== "skip" && (!reviewNeeded || (review && passed))) {
     t = g.set((t) => { t.stage = "merging"; t.msg = "merging"; t.mergeIntent = { approvedAt: Date.now(), repairs: 0, verifiedHead: head, auto: true }; });
     return void (await landCore(id, g));
   }
