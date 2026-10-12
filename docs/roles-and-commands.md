@@ -1,8 +1,8 @@
 # Roles and commands
 
 **Four roles.** The **Agent** does the work. The **Reviewer** attacks finished work. The **Watcher** is a small
-model that writes the "doing now" line and guesses one number: how far along the work is, in percent (it skips a look
-when the screen has not changed). It is shown the task and its description, the last lines on the agent's screen, how
+model that writes the "doing now" line and guesses one number: how far along the work is, in percent (about once a minute, and it skips a look
+when the screen has not changed: [the Watcher](watcher.md)). It is shown the task and its description, the last lines on the agent's screen, how
 long the work has run and its own previous guess, which it keeps unless the screen gives a reason to change it. The
 guess goes down as well as up: a failing test, a merge conflict or review findings to fix mean more work, so a lower
 percent. The board works out the minutes left from that percent and the time spent: time spent × (100 − percent) ÷

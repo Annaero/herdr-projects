@@ -29,7 +29,8 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `coordinatorEffort` | the Coordinator's own |  | the Coordinator's effort level |
 | `watcherAgent` | `claude` |  | the Watcher: a small model behind the "doing now" line; any kind with a one-shot entry in `src/agents/kinds.js` (`helper` is still read as this) |
 | `watcherModel` | `claude-haiku-5-5` |  | the Watcher's model (`helperModel` is still read as this) |
-| `watcher` | `on` | yes | the "doing now" line, the progress guess and the minutes left worked out from it, a look about every 15 seconds per working agent, board open or closed. `off`: none of the three |
+| `watcher` | `on` | yes | the "doing now" line, the progress guess and the minutes left worked out from it, board open or closed. `off`: none of the three |
+| `watcherEvery` | `60` |  | seconds between two looks of the Watcher at one working agent, at the least. One hidden model call covers every agent whose look is due (an agent may wait up to half as long again for another to share the call), one call runs at a time on the machine, a screen that has not changed costs none, and a busy machine is looked at up to five times less often. The minutes left keep counting between looks. More: [the Watcher](watcher.md) |
 | `review` | `repos` | yes | what gets reviewed when finished: `repos`, `all` or `none` |
 | `gate` | `major` | yes | what a review must clear: `critical`, `major`, `minor`, `trivial` or `off`. A finding that bad or worse sends the work back by itself, at most `rounds` times, and holds a merge; `off` sends nothing back by itself. (`gate` replaces `reviewAuto`: a config that still has `reviewAuto: true` behaves as `gate: major`, `false` as `gate: off`) |
 | `rounds` | `3` | yes | how many times agent and reviewer may go back and forth by themselves. Also caps conflict repairs |

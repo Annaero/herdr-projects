@@ -161,6 +161,14 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `tasks.js` | Tasks on disk: reading, listing, changing, creating |
 | `titles.js` | A title's one length limit, and how a longer one is shortened without losing what it said |
 
+## `src/watcher/`
+
+| File | Holds |
+|---|---|
+| `one.js` | One Watcher call at a time on the whole machine: the turn is a small file in the data folder, so an open board and a keeper that tick at the same moment cannot both start one |
+| `pace.js` | The Watcher's pace: how often it looks, how much it gives way when the machine is busy, and which screens count as changed |
+| `prompt.js` | What the Watcher is asked and how its answer is read: one prompt for every agent in the call, one line and one percent each |
+
 ## `bin/`
 
 | File | Holds |
@@ -198,6 +206,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [task-panel.md](task-panel.md) | The task panel |
 | [testing.md](testing.md) | Tests |
 | [titles.md](titles.md) | Titles |
+| [watcher.md](watcher.md) | The Watcher: how often it looks, and what it costs |
 | [where-things-live.md](where-things-live.md) | Where things live |
 
 ## The tests: `test/`
@@ -262,4 +271,5 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `theme.test.js` | The board takes its colours and status marks from herdr's own config, resolved the way herdr resolves them |
 | `titles.test.js` | A title's length limit: one number, the same for a task typed, renamed, suggested, or made from a reviewer's finding |
 | `turns.test.js` |  |
+| `watcher-pace.test.js` | The Watcher's pace: how often it looks, what it skips, one call at a time, and giving way on a busy machine |
 | `watcher.test.js` | The hidden helper: the watcher's line and guess |

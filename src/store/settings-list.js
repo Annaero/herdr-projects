@@ -29,7 +29,8 @@ export const SETTINGS = [
   // the Watcher
   { key: "watcherAgent", default: "claude", doc: "the Watcher: a small model behind the \"doing now\" line; any kind with a one-shot entry in `src/agents/kinds.js` (`helper` is still read as this)" },
   { key: "watcherModel", default: "claude-haiku-5-5", doc: "the Watcher's model (`helperModel` is still read as this)" },
-  { key: "watcher", default: "on", task: true, doc: "the \"doing now\" line, the progress guess and the minutes left worked out from it, a look about every 15 seconds per working agent, board open or closed. `off`: none of the three" },
+  { key: "watcher", default: "on", task: true, doc: "the \"doing now\" line, the progress guess and the minutes left worked out from it, board open or closed. `off`: none of the three" },
+  { key: "watcherEvery", default: 60, doc: "seconds between two looks of the Watcher at one working agent, at the least. One hidden model call covers every agent whose look is due (an agent may wait up to half as long again for another to share the call), one call runs at a time on the machine, a screen that has not changed costs none, and a busy machine is looked at up to five times less often. The minutes left keep counting between looks. More: [the Watcher](watcher.md)" },
   // the review
   { key: "review", default: "repos", task: true, doc: "what gets reviewed when finished: `repos`, `all` or `none`" },
   { key: "gate", default: DEFAULT_GATE, task: true, doc: "what a review must clear: `critical`, `major`, `minor`, `trivial` or `off`. A finding that bad or worse sends the work back by itself, at most `rounds` times, and holds a merge; `off` sends nothing back by itself. (`gate` replaces `reviewAuto`: a config that still has `reviewAuto: true` behaves as `gate: major`, `false` as `gate: off`)" },

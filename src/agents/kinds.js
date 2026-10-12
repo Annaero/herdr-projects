@@ -69,7 +69,10 @@ export const AGENTS = {
     model: (m) => ["--model", m],
     effort: (e) => ["--effort", e],
     // The prompt goes in on stdin: --tools takes a list and would swallow a trailing prompt.
-    oneShot: ({ model, effort, prompt, system }) => ({ command: "claude", stdin: prompt, args: ["-p", ...(model ? ["--model", model] : []), ...(effort ? ["--effort", effort] : []), ...(system ? ["--append-system-prompt", system] : []), "--no-session-persistence", "--tools", ""] }),
+    // `lean` starts it with nothing of yours loaded (no MCP servers, plugins, hooks, skills or CLAUDE.md) and with the
+    // helper's few words in place of Claude Code's own long instructions. Measured on 2.1.296, one Watcher call:
+    // 0.9 s of processor time and 2.6 s in all, against 1.55 s and 5.1 s without. Logging in works as always.
+    oneShot: ({ model, effort, prompt, system, lean }) => ({ command: "claude", stdin: prompt, args: ["-p", ...(model ? ["--model", model] : []), ...(effort ? ["--effort", effort] : []), ...(lean ? ["--safe-mode", "--strict-mcp-config", "--disable-slash-commands"] : []), ...(system ? [lean ? "--system-prompt" : "--append-system-prompt", system] : []), "--no-session-persistence", "--tools", ""] }),
     // Claude keeps trust per repository root, in ~/.claude.json. Verified on 2.1.295: with the flag set, a brand-new
     // worktree of that repo starts without the "trust this folder?" dialog.
     trust(root) {

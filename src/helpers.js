@@ -9,20 +9,23 @@ import { herdr } from "./herdr.js";
 import { adapter } from "./agents.js";
 import { began, etaOf } from "./state.js";
 import { userEnv } from "./runner.js";
+import * as P from "./watcher/pace.js";
+import { CALL_MS, takeTurn, giveTurn } from "./watcher/one.js";
+import { SYSTEM, watcherPrompt, readAnswer } from "./watcher/prompt.js";
 
 // Tests replace the model call with a stand-in: a JSON argv; the prompt arrives on stdin.
 const override = () => { try { const a = JSON.parse(process.env.HERDR_SUPERWORK_HELPER_CMD || "null"); return Array.isArray(a) && a.length ? a : null; } catch { return null; } };
-function helperCommand({ prompt, system }) {
+function helperCommand({ prompt, system, lean }) {
   const o = override();
   if (o) return { command: o[0], args: o.slice(1), stdin: `${system ? `${system}\n\n` : ""}${prompt}` };
   const c = S.config();
   const a = adapter(c.watcherAgent);
-  return a.oneShot ? a.oneShot({ model: c.watcherModel, prompt, system }) : null;
+  return a.oneShot ? a.oneShot({ model: c.watcherModel, prompt, system, lean }) : null;
 }
 export const helpersReady = () => !!override() || !!adapter(S.config().watcherAgent).oneShot;
 // Helper calls are detached from the board's terminal (own session, no tty), so herdr does not mistake them for an
 // agent in the board's pane.
-function runHelper(cmd, { cwd, env = {}, timeoutMs = 45000 }, done) {
+function runHelper(cmd, { cwd, env = {}, timeoutMs = CALL_MS }, done) {
   let out = "", err = "", ended = false;
   const child = spawn(cmd.command, cmd.args, { cwd, detached: true, stdio: ["pipe", "pipe", "pipe"], env: { ...helperEnv(), ...env } });
   const end = (code) => { if (ended) return; ended = true; clearTimeout(kill); done(code, out, err); };
@@ -44,68 +47,94 @@ function helperEnv() {
 }
 
 // ---- the watcher --------------------------------------------------------------------------------------------------------
-// Every 15 seconds per working task, the last screen lines (the reviewer's pane while reviewing, otherwise the
-// worker's) go to the helper with the task, the time spent so far and its previous guess, and it answers
-// {"msg", "progress"}. It starts fresh on every look. It guesses no minutes: those follow from the percent (state.js).
-const watching = new Map(); // id -> { at, child }
-const MAX_WATCHERS = 4;
-export function watchTick(tasks, now = Date.now()) {
+// About once a minute per working task (the `watcherEvery` setting; less often on a busy machine: watcher/pace.js),
+// the last screen lines (the reviewer's pane while reviewing, otherwise the worker's) go to the helper with the task,
+// the time spent so far and its previous guess, and it answers a line and a percent. One call covers every agent
+// whose look is due, and only one call runs at a time on the machine (watcher/one.js). A screen that says what it said at the last look costs no
+// call. It starts fresh on every look. It guesses no minutes: those follow from the percent (state.js), so they keep
+// counting between looks.
+const looks = new Map(); // id -> { at, role, words, toldAt }
+const pace = { seen: new Map(), callAt: 0, running: false, fails: 0 };
+let lean = true; // start the helper's program with as little loaded as it allows (agents/kinds.js)
+export function watcherReset() { looks.clear(); Object.assign(pace, { seen: new Map(), callAt: 0, running: false, fails: 0 }); lean = true; }
+// The turn a look belongs to. Not armedAt: herdr's status flaps between tools move that every few seconds.
+const turnOf = (c) => `${c.since || 0}:${c.handled?.at || 0}:${c.reviewRound || 0}`;
+const roleIn = (t) => (t.stage === "reviewing" ? "reviewer" : "agent");
+const paneOf = (t, role) => (role === "reviewer" ? t.link.reviewer?.pane : t.link.pane);
+// To herdr as pane metadata tokens, so herdr's own sidebar can show the line, the percent and the minutes left.
+function tell(t, watch, role, now) {
+  const pane = paneOf(t, role);
+  if (!pane) return;
+  const eta = etaOf(watch.progress, began(t, role), now);
+  herdr(t.link.socket).metadata(pane, ["--token", `summary=${watch.msg}`, "--token", `progress=${watch.progress}%`, ...(eta === undefined ? [] : ["--token", `eta=${eta}m`]), "--ttl-ms", String(P.TOLD_TTL_MS)]);
+  if (t.link.workspace && t.link.ownsWorkspace) { try { herdr(t.link.socket).call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", "--token", `summary=${watch.msg}`, "--ttl-ms", String(P.TOLD_TTL_MS)]); } catch {} }
+}
+export function watchTick(tasks, now = Date.now(), { load = P.loadNow(), run = runHelper } = {}) {
+  // The keeper hands over the same tasks once per herdr session, each time as that session sees them.
+  const view = tasks.find((t) => t.live && !t.live.away)?.link?.socket || "";
+  const seen = pace.seen.get(view);
+  if (seen !== undefined && now >= seen && now - seen < P.TICK_MS) return;
+  pace.seen.set(view, now);
   if (!helpersReady()) return;
-  for (const [id, w] of watching) if (!tasks.some((t) => t.id === id)) { try { w.child && process.kill(-w.child.pid, "SIGKILL"); } catch {} watching.delete(id); }
+  for (const id of looks.keys()) if (!tasks.some((t) => t.id === id)) looks.delete(id);
+  // Only an agent that is working is looked at: not one that is idle, waiting for you or finished.
+  const busy = [];
   for (const t of tasks) {
-    const role = t.stage === "reviewing" ? "reviewer" : "agent";
-    const busy = !t.archivedAt && F.isAgentTask(t) && t.state === "working" && (t.stage === "reviewing" || (t.stage === "working" && t.live?.status === "working"));
-    if (!busy || S.choices(t).watcher === "off") continue;
-    const w = watching.get(t.id) || { at: 0, child: null };
-    if (w.child || now - w.at < 15000 || [...watching.values()].filter((x) => x.child).length >= MAX_WATCHERS) continue;
-    const pane = role === "reviewer" ? t.link.reviewer?.pane : t.link.pane;
-    if (!pane) continue;
+    const role = roleIn(t);
+    const working = !t.archivedAt && F.isAgentTask(t) && t.state === "working" && (t.stage === "reviewing" || (t.stage === "working" && t.live?.status === "working"));
+    if (!working || !paneOf(t, role) || S.choices(t).watcher === "off") continue;
+    let w = looks.get(t.id);
+    if (!w || w.role !== role) looks.set(t.id, w = { at: 0, role, words: null, toldAt: 0 }); // a review is a new assignment: its first look is due at once
+    busy.push({ id: t.id, at: w.at, t, role, w });
+    // Between looks herdr's sidebar still gets the minutes left, worked out again from the last guess.
+    if (t.watch?.role === role && t.watch.msg && now - w.toldAt >= P.TOLD_MS) { w.toldAt = now; try { tell(t, t.watch, role, now); } catch {} }
+  }
+  if (pace.running || !busy.length) return;
+  const slow = P.slowdown(load) * P.afterFailures(pace.fails);
+  if (now - pace.callAt < P.GAP_MS * slow) return;
+  const every = Math.max(5, Number(S.config().watcherEvery) || 60) * 1000 * slow;
+  const batch = [], sessions = new Map();
+  // A reviewer counts as working while herdr says so of its own pane, as the agent does of its: asked once per herdr
+  // session, and only when a look is due.
+  const reviewing = (b) => {
+    const socket = b.t.link.socket;
+    if (!sessions.has(socket)) { try { sessions.set(socket, herdr(socket).agents()); } catch { sessions.set(socket, []); } }
+    return sessions.get(socket).find((a) => a.pane_id === paneOf(b.t, b.role))?.agent_status === "working";
+  };
+  for (const b of P.riders(busy, now, every)) {
+    if (batch.length >= P.BATCH) break;
+    if (b.role === "reviewer" && !reviewing(b)) continue; // idle, waiting for you or finished: no look
     let screen = "";
-    try { screen = herdr(t.link.socket).agentRead(pane, { source: "visible" }); } catch { continue; } // never a deep read: it would scroll a working agent's view
-    const lines = screen.split("\n").map((l) => l.trimEnd()).filter((l) => l.trim()).slice(-40).join("\n").slice(-5000);
-    if (!lines || lines === w.lines) { w.at = now; watching.set(t.id, w); continue; } // an unchanged screen costs no call
-    w.lines = lines;
-    const from = began(t, role);
-    const mins = from ? Math.max(0, Math.round((now - from) / 60000)) : 0;
-    const spent = mins < 1 ? "under a minute" : mins === 1 ? "1 minute" : `${mins} minutes`;
-    const about = S.oneLine(t.description, 6000).slice(0, 1500);
-    const prompt = [
-      role === "reviewer" ? "You are watching an adversarial reviewer check finished work. Write its status for a dashboard. Estimate progress through this review only, not through the agent's task." : "You are watching a coding agent work on a task. Write its status for a dashboard.",
-      `Task: ${t.title}`,
-      ...(about ? ["What the task asks for:", about] : []),
-      `The ${role === "reviewer" ? "reviewer has been on this review" : "agent has been on this"} for ${spent} so far.`,
-      `The last lines on the ${role}'s terminal right now:`, lines,
-      t.watch?.role === role
-        ? `Your previous guess was ${t.watch.progress} percent. Keep it unless something on the screen is a reason to change it. Raise it as work gets done. Lower it when new work shows up: ${role === "reviewer" ? "more to check than it looked" : "a failing test, a merge conflict, review findings to fix, a bigger job than it looked"}.`
-        : "This is your first look at it.",
-      "The percent is the share of the whole job's time that is already spent: the dashboard works out the minutes left from it and the time spent so far, so do not guess high while much is left to do.",
-      'Reply with only this JSON and nothing else: {"msg": "<what it is doing right now: at most 8 plain words, present tense, no tool or command names>", "progress": <whole number 0 to 99: your best guess of how far through its current assignment it is>}',
-    ].join("\n");
-    const cmd = helperCommand({ prompt });
-    if (!cmd) return;
-    // The turn this look belongs to. Not armedAt: herdr's status flaps between tools move that every few seconds.
-    const turnOf = (c) => `${c.since || 0}:${c.handled?.at || 0}:${c.reviewRound || 0}`;
-    const mine = turnOf(t), stage = t.stage;
-    w.at = now;
-    // "Only the watcher should have autocompact 100k."
-    w.child = runHelper(cmd, { cwd: S.dataDir(), env: { CLAUDE_CODE_AUTO_COMPACT_WINDOW: "100000" } }, (_code, out) => {
-      w.child = null;
+    try { screen = herdr(b.t.link.socket).agentRead(paneOf(b.t, b.role), { source: "visible" }); } catch { continue; } // never a deep read: it would scroll a working agent's view
+    const lines = P.lastLines(screen), words = P.wordsOf(lines);
+    if (!lines) { b.w.at = now; continue; }
+    if (words === b.w.words && b.t.watch?.role === b.role) { b.w.at = now; continue; } // an unchanged screen costs no call
+    batch.push({ ...b, lines, words, turn: turnOf(b.t), stage: b.t.stage });
+  }
+  if (!batch.length) return;
+  const cmd = helperCommand({ prompt: watcherPrompt(batch, now), system: SYSTEM, lean });
+  if (!cmd || !takeTurn()) return; // another process's call is under way: this one waits its turn
+  for (const b of batch) { b.w.at = now; b.w.words = b.words; }
+  pace.callAt = now; pace.running = true;
+  // "Only the watcher should have autocompact 100k."
+  run(cmd, { cwd: S.dataDir(), env: { CLAUDE_CODE_AUTO_COMPACT_WINDOW: "100000" } }, (code, out, err) => {
+    pace.running = false; giveTurn();
+    const found = readAnswer(out, batch.length);
+    // A program too old for the lean start says so: from then on it is started the plain way, and these looks are due again.
+    if (!found.size && lean && code && /unknown (option|argument)|unrecognized|unexpected argument/i.test(err || "")) { lean = false; for (const b of batch) { b.w.at = 0; b.w.words = null; } return; }
+    pace.fails = found.size ? 0 : pace.fails + 1;
+    const at = Date.now();
+    batch.forEach((b, i) => {
+      const got = found.get(i + 1);
+      if (!got) { b.w.words = null; return; } // no answer for this one: its next look is not skipped as unchanged
       try {
-        const j = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
-        if (!j.msg) return;
-        const watch = { msg: S.oneLine(j.msg, 120), progress: Math.max(0, Math.min(99, Math.round(Number(j.progress)) || 0)), at: Date.now(), role };
+        const watch = { ...got, at, role: b.role };
         // A late answer cannot overwrite a newer turn or its result.
-        const cur = S.update(t.id, (c) => { if (c.stage !== stage || turnOf(c) !== mine || S.choices(c).watcher === "off") return false; c.watch = watch; });
-        // Also to herdr as pane metadata tokens, so herdr's own sidebar can show it.
-        if (cur.watch === watch || cur.watch?.at === watch.at) {
-          const eta = etaOf(watch.progress, began(cur, role)); // herdr's sidebar holds it until the next look
-          herdr(t.link.socket).metadata(pane, ["--token", `summary=${watch.msg}`, "--token", `progress=${watch.progress}%`, ...(eta === undefined ? [] : ["--token", `eta=${eta}m`]), "--ttl-ms", "120000"]);
-          if (t.link.workspace && t.link.ownsWorkspace) { try { herdr(t.link.socket).call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", "--token", `summary=${watch.msg}`, "--ttl-ms", "120000"]); } catch {} }
-        }
+        const cur = S.update(b.id, (c) => { if (c.stage !== b.stage || turnOf(c) !== b.turn || S.choices(c).watcher === "off") return false; c.watch = watch; });
+        if (cur.watch === watch || cur.watch?.at === watch.at) { b.w.toldAt = at; tell(cur, watch, b.role, at); }
       } catch {}
     });
-    watching.set(t.id, w);
-  }
+  });
 }
 
 // ---- instructions sent to another machine's Coordinator: a row on this board until that machine answers -----------------

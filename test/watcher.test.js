@@ -20,7 +20,8 @@ test("the hidden helper: the watcher writes a line and a guess", async () => {
     w.script({ worker: [{ status: "working", screen: "● Writing greet.sh\n" }] });
     A.delegate("proj/1"); await settle("proj/1");
     S.update("proj/1", (t) => { t.since = Date.now() - 40 * 60000; t.workAt = 0; }); // forty minutes into the work
-    H.watchTick(F.board());
+    H.watcherReset();
+    H.watchTick(F.board(), Date.now(), { load: 0 });
     await until(() => S.get("proj/1").watch); // the helper is a program of its own
     // It guesses the line and the percent only; the minutes left are worked out, never stored.
     assert.deepEqual([S.get("proj/1").watch.msg, S.get("proj/1").watch.progress, "eta" in S.get("proj/1").watch], ["editing the greeting file", 42, false]);
@@ -29,13 +30,14 @@ test("the hidden helper: the watcher writes a line and a guess", async () => {
     assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("summary=editing the greeting file") && m.args.join(" ").includes("progress=42% --token eta=55m")));
     // What it was told: the task's description (cut short), the time spent, and no rule against going lower.
     const first = fs.readFileSync(seen, "utf8");
-    assert.match(first, /Task: build a login page\nWhat the task asks for:\nIt needs a password field\. x+\n/); assert.ok(!first.includes("x".repeat(1600)));
+    assert.match(first, /Task: build a login page\nWhat the task asks for:\nIt needs a password field\. x+\n/); assert.ok(!first.includes("x".repeat(900)));
+    assert.match(first, /^You write short status lines for a dashboard/); // the few words that stand in for the program's own long instructions
     assert.match(first, /The agent has been on this for 40 minutes so far\./); assert.match(first, /This is your first look at it\./);
     assert.doesNotMatch(first, /"eta"|minutes are left|started over/);
     // The next look gets the previous guess, and may lower it when new work shows up.
     w.patchState((st) => { st.panes.find((p) => p.pane_id === S.get("proj/1").link.pane).agent.screen = "● 3 tests failed\n"; });
     const at = S.get("proj/1").watch.at;
-    H.watchTick(F.board(), Date.now() + 20000);
+    H.watchTick(F.board(), Date.now() + 61000, { load: 0 }); // a minute later: the next look is due
     await until(() => S.get("proj/1").watch.at !== at);
     const second = fs.readFileSync(seen, "utf8");
     assert.match(second, /Your previous guess was 42 percent\. Keep it unless something on the screen is a reason to change it\./); assert.match(second, /Lower it when new work shows up: a failing test/);

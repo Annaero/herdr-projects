@@ -3,5 +3,10 @@
 let input = ""; process.stdin.setEncoding("utf8");
 for await (const chunk of process.stdin) input += chunk;
 if (process.env.FAKE_HELPER_PROMPT) (await import("node:fs")).writeFileSync(process.env.FAKE_HELPER_PROMPT, input);
-if (/Write its status for a dashboard/.test(input)) { console.log(`{"msg": "editing the greeting file", "progress": ${process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW === "100000" ? 42 : 1}}`); process.exit(0); }
+// One entry for every numbered agent in the prompt.
+if (/Write (its status|the status of each) for a dashboard/.test(input)) {
+  const progress = process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW === "100000" ? 42 : 1;
+  console.log(JSON.stringify([...input.matchAll(/^--- (\d+) ---$/gm)].map((m) => ({ n: Number(m[1]), msg: "editing the greeting file", progress }))));
+  process.exit(0);
+}
 console.error("no instruction"); process.exit(1);
