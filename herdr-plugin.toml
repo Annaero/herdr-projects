@@ -23,7 +23,7 @@ command = ["sh", "bin/run.sh", "open-coordinator"]
 
 [[actions]]
 id = "approve-current"
-title = "Approve the task in the focused pane"
+title = "Approve the task in the focused pane (the board asks first)"
 contexts = ["pane"]
 command = ["sh", "bin/run.sh", "approve-current"]
 

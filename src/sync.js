@@ -115,7 +115,7 @@ export function seenPatch(t, r) {
 }
 
 // ---- a real conflict ---------------------------------------------------------------------------------------------------
-// The saved failure: the row, the details and ctrl+g show and send it.
+// The saved failure: the row, the details and ctrl+r show and send it.
 export function conflictFailure(t, tree, r) {
   return { stage: "merge", phase: "sync", target: r.target, base: r.base, agentCanFix: r.restored, auth: false,
     title: r.files ? "Merge conflict with main" : "Could not update task from main",

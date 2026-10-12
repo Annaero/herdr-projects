@@ -1,6 +1,6 @@
 // The box at the bottom. pi-tui owns editing, word wrapping, Unicode cursor movement and undo; this adapter only
 // keeps its viewport inside the board and expands pasted drafts visibly, as pi-work's did.
-import { CURSOR_MARKER, Editor } from "@earendil-works/pi-tui";
+import { CURSOR_MARKER, Editor, visibleWidth } from "@earendil-works/pi-tui";
 
 export class DraftEditor extends Editor {
   hiddenAbove = 0; hiddenBelow = 0; viewportTop = 0; paste = undefined;
@@ -36,8 +36,10 @@ export class DraftEditor extends Editor {
   }
   renderTopBorder(width, hidden) { this.hiddenAbove = hidden; return super.renderTopBorder(width, hidden); }
   renderBottomBorder(width, hidden) { this.hiddenBelow = hidden; return super.renderBottomBorder(width, hidden); }
-  renderWithin(width, maxBodyRows, accent) {
-    const lines = super.render(Math.max(1, width - 2));
+  // `label` names who gets the text ("new task ❯"); it stays on the first line while you type.
+  renderWithin(width, maxBodyRows, label) {
+    const lw = visibleWidth(label) + 1;
+    const lines = super.render(Math.max(1, width - lw));
     const body = lines.slice(1, -1);
     const height = Math.max(1, maxBodyRows);
     const cursor = Math.max(0, body.findIndex((line) => line.includes(CURSOR_MARKER)));
@@ -46,7 +48,7 @@ export class DraftEditor extends Editor {
     this.viewportTop = Math.max(0, Math.min(this.viewportTop, body.length - height));
     const visible = body.slice(this.viewportTop, this.viewportTop + height);
     return [super.renderTopBorder(width, this.hiddenAbove + this.viewportTop),
-      ...visible.map((line, n) => (n === 0 ? accent("❯") + " " : "  ") + line),
+      ...visible.map((line, n) => (n === 0 ? label + " " : " ".repeat(lw)) + line),
       super.renderBottomBorder(width, this.hiddenBelow + body.length - this.viewportTop - visible.length)];
   }
 }

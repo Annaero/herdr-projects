@@ -89,7 +89,18 @@ test("the finish line: commit leftovers, check, review, then wait for approval; 
     assert.deepEqual([s.state, s.kind, s.asReview], ["blocked", "permission", true]);
     const st = w.state();
     assert.deepEqual(st.notifications, []); // nothing pops up when a task lands in review
-    assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=review 1 · 4/5"))); // herdr's own sidebar shows it
+    // herdr's own sidebar says what to do. With no sidebar rows in herdr's config the label rides on the agent's name too.
+    assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=approve? 4/5") && m.args.join(" ").includes("--display-agent approve? 4/5 · claude")));
+    // Once the plugin's sidebar rows are installed, the state text shows beside the agent's name: renaming the agent
+    // as well would say the label twice on one line, so the name is left alone.
+    const cfg = path.join(w.root, "..", "herdr-config.toml"), oldCfg = process.env.HERDR_CONFIG_PATH;
+    fs.writeFileSync(cfg, "# >>> herdr-superwork sidebar (added by the herdr-superwork plugin)\n[ui.sidebar.agents]\nrows = [[\"agent\", \"state_text\"]]\n# <<< herdr-superwork sidebar\n");
+    process.env.HERDR_CONFIG_PATH = cfg;
+    try {
+      F.labelPane(t, "approve? 4/5");
+      const last = w.state().metadata.map((m) => m.args.join(" ")).filter((x) => x.includes("--state-label")).at(-1);
+      assert.ok(last.includes("idle=approve? 4/5") && last.includes("--clear-display-agent") && !last.includes("--display-agent approve"), last);
+    } finally { if (oldCfg === undefined) delete process.env.HERDR_CONFIG_PATH; else process.env.HERDR_CONFIG_PATH = oldCfg; }
     assert.ok(!st.panes.some((p) => p.agent?.name === "sw-proj-1-r")); // the reviewer pane is closed again
     assert.equal(st.panes.find((p) => p.pane_id === t.link.pane).agent.kind, "claude");
     // approve

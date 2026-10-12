@@ -373,13 +373,16 @@ test("reviewAuto sends anything below 5 straight back, as the plugin's own turn,
     assert.equal(t.stage, "approval"); assert.equal(t.reviewRounds, 2); assert.equal(t.review.score, 4);
     assert.equal(paneOf(w, t).agent.prompts.length, 3);
     // three reviews ran: the task says which one it is on, to herdr's sidebar too
-    assert.equal(S.reviewRound(t), 3); assert.equal(F.labelOf(t), "review 3 · 4/5");
-    assert.equal(F.labelOf({ ...t, stage: "reviewing" }), "review 3"); assert.equal(F.labelOf({ ...t, stage: "reviewing", reviewRound: 0 }), "in review");
-    assert.equal(F.labelOf({ ...t, stage: "reviewneeds" }), "review 3 · needs you"); assert.equal(F.labelOf({ ...t, stage: "reviewneeds", reviewRound: 0 }), "needs you");
+    assert.equal(S.reviewRound(t), 3); assert.equal(F.labelOf(t), "approve? 4/5"); // herdr's sidebar says what to do
+    assert.equal(F.labelOf({ ...t, stage: "reviewing" }), "reviewing"); assert.equal(F.labelOf({ ...t, stage: "reviewing", reviewRound: 0 }), "reviewing");
+    assert.equal(F.labelOf({ ...t, stage: "reviewneeds" }), "needs you"); assert.equal(F.labelOf({ ...t, stage: "reviewneeds", reviewRound: 0 }), "needs you");
+    // Four labels in all: needs you, approve? n/5, reviewing, failed. The exact reason is on the board.
+    const labels = new Set([{ stage: "approval" }, { stage: "approval", mergeFailed: true }, { stage: "approval", prFailure: {} }, { stage: "approval", syncBlocked: {} }, { stage: "asks" }, { stage: "asks", kind: "auth" }, { stage: "nosummary" }, { stage: "failed" }, { stage: "failed", failure: { auth: true } }, { stage: "failed", failure: { phase: "sync" } }, { stage: "merging" }, { stage: "merging", autoMerge: true }, { stage: "checking" }, { stage: "pushing" }, { stage: "working", expectedWake: { reason: "conflict" } }, { stage: "reviewing" }, { stage: "reviewneeds" }].map((x) => F.labelOf({ ...t, ...x }).replace(/ \d\/5$/, "")));
+    assert.deepEqual([...labels].sort(), ["", "approve?", "failed", "needs you", "reviewing"]);
   } finally { w.cleanup(); }
 });
 
-test("a merge conflict with your checkout is rolled back and saved; ctrl+g sends it to the agent; it lands after repair", async () => {
+test("a merge conflict with your checkout is rolled back and saved; ctrl+r sends it to the agent; it lands after repair", async () => {
   const w = await world({ settings: { reviewer: "off" } });
   try {
     w.script({ worker: [{ files: { "a.txt": "from the agent\n" }, commit: "agent", note: "Changed a.txt." }] });
@@ -402,7 +405,7 @@ test("a merge conflict with your checkout is rolled back and saved; ctrl+g sends
     fs.writeFileSync(path.join(w.fake, "resolve.sh"), `cd ${t.worktree} && git merge -q ${target} || { printf 'merged\\n' > a.txt; git add -A; git commit -qm resolve; }`);
     const { execFileSync } = await import("node:child_process");
     execFileSync("sh", [path.join(w.fake, "resolve.sh")], { stdio: "ignore" });
-    assert.match(A.sendFailure(id).msg, /failure details sent/);
+    assert.match(A.sendFailure(id).msg, /sent to the agent to fix/);
     assert.match(paneOf(w, S.get(id)).agent.prompts.at(-1), /already approved this merge/);
     t = await settle(id, { max: 30 });
     assert.equal(t.stage, "done", JSON.stringify([t.stage, t.msg, t.failure?.title]));

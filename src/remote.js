@@ -74,23 +74,24 @@ export async function remoteMain([what, payload]) {
       const A = await import("./actions.js");
       const t = S.find(a.id);
       const acts = {
-        archive: () => { A.archive(t.id); return `${t.id}: archived. alt+a restores it in the archive.`; },
+        archive: () => { A.archive(t.id); return `${t.id}: archived. ? has undo, and the archive.`; },
         restore: () => { A.restore(t.id); return `${t.id}: restored`; },
         delegate: () => { A.delegate(t.id); return `${t.id}: an agent is on it`; },
         tell: () => A.tell(t.id, String(a.text || "")).msg,
-        approve: () => A.approve(t.id).msg,
+        approve: () => A.approve(t.id, a.seen || null).msg,
         fix: () => A.sendFailure(t.id).msg,
         retry: () => A.sendError(t.id).msg,
+        again: () => A.retry(t.id).msg,
         review: () => A.sendReview(t.id).msg,
         finish: () => A.finishAnyway(t.id).msg,
         pin: () => { A.pin(t.id); return ""; },
         seen: () => { A.seen(t.id); return ""; },
-        stop: () => { A.stop(t.id); return `${t.id}: stopped, idle. ctrl+x again clears the task.`; },
+        stop: () => { A.stop(t.id); return `${t.id}: stopped.`; },
       };
       // Going into a task from another machine: reopen its space and restart its exited agent here first, with the
       // same function the local board calls, and answer with the pane to attach to.
       if (a.action === "reopen") { const D = await import("./delegate.js"); const r = D.reopen(t.id, { restart: true }); return say({ ok: true, msg: "", pane: r.pane.pane_id, hasAgent: r.hasAgent }); }
-      if (a.action === "clear") { const out = await A.clear(t.id); return say({ ok: true, msg: out.kept.length ? `${t.id} cleared. Kept, so no work is lost: ${out.kept.join(", ")}` : `${t.id} cleared` }); }
+      if (a.action === "clear") { const out = await A.clear(t.id); return say({ ok: true, msg: out.kept.length ? `${t.id} deleted. Kept, so no work is lost: ${out.kept.join(", ")}` : `${t.id} deleted` }); }
       if (!acts[a.action]) return say({ ok: false, msg: `Unknown action ${a.action}` });
       return say({ ok: true, msg: acts[a.action]() });
     }
@@ -106,7 +107,7 @@ export async function remoteMain([what, payload]) {
       }
       // This machine's own Coordinator takes it, in its one conversation; its answer shows on this machine's board.
       C.send(cwd, String(a.text || ""), { delegate: !!a.delegate, about: a.about || null });
-      return say({ ok: true, msg: `sent to the Coordinator on ${os.hostname()}` });
+      return say({ ok: true, msg: `sent to ${os.hostname()}` });
     }
     say({ ok: false, msg: `Unknown request ${what}` });
   } catch (e) { say({ ok: false, msg: String((e && e.message) || e) }); }

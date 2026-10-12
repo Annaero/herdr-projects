@@ -128,6 +128,11 @@ export function offers() {
     sidebar: !/^\s*\[ui\.sidebar/m.test(text) && x.sidebarAnswer !== "no" ? {} : null,
   };
 }
+// The key that opens the board, as herdr's config binds it ("prefix+w"), or "" when none is bound.
+export function boardKey() {
+  const m = /\[\[keys\.command\]\][^\[]*?command\s*=\s*"herdr-superwork\.open"/.exec(read());
+  return m ? (/^\s*key\s*=\s*"([^"]+)"/m.exec(m[0]) || [])[1] || "" : "";
+}
 export const answer = (patch) => save({ asked: true, ...patch });
 // Add one marked block. The edit is checked on a copy first, the file is backed up, and herdr is told to reload; if
 // herdr rejects the result the backup comes back and herdr reloads again. Returns { ok, msg, paste? }.

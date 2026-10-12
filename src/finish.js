@@ -188,7 +188,7 @@ export async function syncJob(id, { force = false } = {}) {
     if (r?.status === "skip") why = Y.skipWhy(r);
     if (why) {
       const b = g.set((t) => ({ ...Y.seenPatch(t, null), seen: t.syncBlocked ? t.seen : false, syncBlocked: { why, at: Date.now() }, msg: Y.behindMsg(why) }));
-      return void F.labelPane(b, "behind main");
+      return void F.labelPane(b, "needs you");
     }
     if (r.status === "conflict") return void Y.conflictBack(id, g, tree, r, (failure, seen) => { fail(g, failure, { patch: seen }); });
     if (r.status !== "merged") { // already current: asked again when main moves
@@ -219,7 +219,7 @@ export async function recoverJob(id) {
     if (!F.reopened(t, a.completion_seq ?? null) || S.pendingText(id).length) return;
     const screen = lastLines(readScreen(api, t.link.pane, a.agent_status, 60));
     g.expect(t);
-    g.set((t) => { t.stage = "nosummary"; t.msg = "stopped, and nothing finished it: finish anyway, or reply"; t.screen = screen; t.turnOpen = false; t.seen = false; t.since = Date.now(); });
+    g.set((t) => { t.stage = "nosummary"; t.msg = "stopped without a summary"; t.screen = screen; t.turnOpen = false; t.seen = false; t.since = Date.now(); });
   } catch (e) { if (!e.aborted) process.stderr.write(`${new Date().toISOString()} recover ${id}: ${e.stack || e}\n`); }
   finally { release(id); }
 }
@@ -360,7 +360,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
 function holdPrFailure(g, t) {
   if (!t.prFailure) return false;
   const h = g.set((t) => { t.stage = "approval"; t.failure = null; t.seen = false; t.msg = `Local checks passed; pull request still blocked: ${t.prFailure.title}. Wait for remote confirmation or send the details to the agent.`; });
-  F.labelPane(h, "pr blocked");
+  F.labelPane(h, "failed");
   return true;
 }
 
@@ -458,7 +458,7 @@ async function runReview(id, g, { text, change, toLand, ch }) {
       // herdr status is used only to notice a reviewer that is blocked: "review needs you".
       const blocked = a?.agent_status === "blocked";
       const cur = S.get(id);
-      if (blocked && cur.stage === "reviewing") { g.set({ stage: "reviewneeds", msg: "the reviewer shows a dialog: go in and answer it", seen: false }); g.allow("reviewing"); }
+      if (blocked && cur.stage === "reviewing") { g.set({ stage: "reviewneeds", msg: "the reviewer shows a dialog: open it and answer", seen: false }); g.allow("reviewing"); }
       else if (!blocked && cur.stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "under review" }); g.allow("reviewneeds"); }
       if (!sent && a && (a.agent_status === "idle" || a.agent_status === "done")) { try { api.agentPrompt(pane.pane_id, brief); sent = true; sentAt = Date.now(); } catch (e) { if (e.code !== "agent_blocked" && e.code !== "agent_not_ready") { sent = true; sentAt = Date.now(); } } }
       else if (sent && a && adapter(rkind).readTurn && Date.now() - sentAt > 5000) {

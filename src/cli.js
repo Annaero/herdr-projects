@@ -110,14 +110,16 @@ export async function main(argv) {
   // Into the Coordinator's chat: herdr moves to its real pane, as for any agent. No board in between.
   if (cmd === "open-coordinator") { const C = await import("./coordinator.js"); try { await C.goIn(); } catch (e) { console.error(e.message); return 1; } return 0; }
   if (cmd === "approve-current") {
-    // Approves the task that owns the focused pane, from the invocation context; does nothing otherwise.
+    // For the task that owns the focused pane, from the invocation context; does nothing otherwise.
     let pane = "";
     try { pane = JSON.parse(process.env.HERDR_PLUGIN_CONTEXT_JSON || "{}").focused_pane_id || ""; } catch {}
     const { currentSocket } = await import("./herdr.js");
     const t = pane && S.list().find((t) => t.link?.socket === currentSocket() && (t.link.pane === pane || t.link.reviewer?.pane === pane));
     if (!t || t.stage !== "approval") return 0;
+    // A merge cannot be undone and this action has no screen to ask on: the board opens on the task and asks first.
     const A = await import("./actions.js");
-    try { A.approve(t.id); } catch {}
+    const { herdr } = await import("./herdr.js");
+    try { A.askApprove(t.id); herdr().openBoard(); } catch {}
     return 0;
   }
   if (cmd === "serve") { const { serveMain } = await import("./review-page.js"); await serveMain(); return 0; }

@@ -38,7 +38,7 @@ export function show(t, live) {
   if (live.away) return out(lastKnown(t), { msg: `in session ${live.away}`, stale: true });
   if (live.gone) return out("error", { msg: "the agent's terminal is gone" });
   if (live.status == null) return out("error", { msg: "the agent has exited", exited: true });
-  if (live.status === "blocked") return out("blocked", { kind: t.pendingText ? "permission" : undefined, msg: t.pendingText ? "queued: go in to answer its dialog first" : "needs you" });
+  if (live.status === "blocked") return out("blocked", { kind: t.pendingText ? "permission" : undefined, msg: t.pendingText ? "queued: open the agent and answer its dialog first" : "needs you" });
   if (live.status === "working") return out("working", { msg: t.watch?.msg || t.msg || "working", progress: t.watch?.progress ?? 0 });
   if (live.status === "unknown") return out("working", { msg: "herdr can't tell if it stopped" });
   return out("working", { msg: "finishing" }); // idle or done, and the runner has not finished the turn yet

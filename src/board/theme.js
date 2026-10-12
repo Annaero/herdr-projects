@@ -62,6 +62,12 @@ export function readHerdrConfig(file = herdrConfig()) { try { return parseToml(f
 // null when unknown); `want` is the board's own `theme` setting: "herdr" resolves the config exactly as herdr does,
 // "auto" does too when the config sets a theme and is the terminal's colours when it sets none, "terminal" is always
 // herdr's "terminal" theme, "dark" and "light" pick herdr's dark or light theme by hand.
+// The colour of a task under review: the theme's mauve, the board's one colour no other state uses. Where a theme
+// gives mauve the look of another state's colour (the terminal theme's mauve is its "to do" grey; Vesper's is its
+// "working" peach), it is the terminal's magenta instead, so review never shares a state's colour.
+const STATE_TOKENS = ["red", "green", "yellow", "teal", "overlay0"];
+const alike = (a, b) => a === b || (a >= 0 && b >= 0 && Math.hypot((a >> 16) - (b >> 16), ((a >> 8) & 255) - ((b >> 8) & 255), (a & 255) - (b & 255)) < 48);
+const reviewColor = (palette) => [palette.mauve, A + 5, A + 13, palette.blue, palette.peach].find((c) => typeof c === "number" && !STATE_TOKENS.some((k) => alike(c, palette[k]))) ?? palette.mauve;
 const THEME_KEYS = ["name", "dark_name", "light_name", "auto_switch", "custom"];
 export function resolve(cfg = {}, light = null, want = "herdr") {
   const th = cfg.theme || {}, ui = cfg.ui || {};
@@ -77,19 +83,23 @@ export function resolve(cfg = {}, light = null, want = "herdr") {
   over(th.custom);
   if (typeof ui.accent === "string" && ui.accent !== "cyan" && typeof th.custom?.accent !== "string") palette.accent = parseColor(ui.accent); // herdr's older accent setting
   if (mode && th.auto_switch === true) over(th.custom?.[mode]);
-  return { name: canonical(name) || name, palette, symbols: ui.status_indicators === "symbols" };
+  palette.review = reviewColor(palette);
+  return { name: canonical(name) || name, palette, symbols: ui.status_indicators === "symbols", dots: ui.status_indicators === "dots" };
 }
 
-let cfg = {}, P = resolve().palette, symbols = false;
+// The board marks each state with its own symbol (◐ × ✓ ○), so no two states are told apart by colour alone. Only a
+// herdr config that asks for "dots" by name gets herdr's dots.
+let cfg = {}, P = resolve().palette, symbols = true;
+const marksOf = (r) => !r.dots;
 const want = () => String(config().theme || "auto");
 // Read herdr's theme. Answers whether the terminal has to be asked to finish it: for its appearance (herdr's auto_switch).
 export function loadTheme(light = null) {
   cfg = readHerdrConfig();
-  ({ palette: P, symbols } = resolve(cfg, light, want()));
+  { const r = resolve(cfg, light, want()); P = r.palette; symbols = marksOf(r); }
   return ["auto", "herdr"].includes(want()) && cfg.theme?.auto_switch === true;
 }
 // What the terminal answered: its appearance.
-export const setTerminal = (light) => { ({ palette: P, symbols } = resolve(cfg, light, want())); };
+export const setTerminal = (light) => { const r = resolve(cfg, light, want()); P = r.palette; symbols = marksOf(r); };
 // Ask the terminal for its background (light, dark or null when it does not say). herdr answers for its panes with the
 // colours of the terminal the client runs in. The question for the terminal's kind goes last: every terminal answers
 // it, so no answer is waited for longer than the terminal takes to say that it has none.
@@ -112,8 +122,8 @@ export function askTerminal(ms = 250) {
 }
 const plain = () => process.env.NO_COLOR !== undefined && process.env.NO_COLOR !== "";
 const sgr = (c, bg) => (c < 0 ? String((c - A < 8 ? (bg ? 40 : 30) : (bg ? 92 : 82)) + (c - A)) : `${bg ? 48 : 38};2;${c >> 16};${(c >> 8) & 255};${c & 255}`);
-// herdr's mark for each state (src/client/shell.rs, status_icon): dots by default, distinct symbols when herdr's
-// `ui.status_indicators` is "symbols". A failure has no herdr state; it takes the cross herdr's own CLI prints.
+// herdr's mark for each state (src/client/shell.rs, status_icon): its distinct symbols, or its dots when herdr's
+// `ui.status_indicators` says "dots". A failure has no herdr state; it takes the cross herdr's own CLI prints.
 const MARKS = table({ working: ["●", "◐"], blocked: ["●", "×"], done: ["●", "✓"], idle: ["○", "○"], unknown: ["·", "·"], error: ["✗", "✗"] });
 export const theme = {
   fg(token, s) { const c = P[token]; return plain() || typeof c !== "number" ? String(s) : `\x1b[${sgr(c, false)}m${s}\x1b[39m`; },
