@@ -18,7 +18,7 @@ export const gateOfAuto = (v) => (v === true || ["true", "on", "yes", "auto"].in
 export function readFindings(list) {
   return (Array.isArray(list) ? list : []).filter((f) => f && typeof f === "object" && line(f.subject, 1)).map((f) => {
     const severity = String(f.severity ?? "").trim().toLowerCase();
-    return { id: line(f.id, 16), severity: SEVERITIES.includes(severity) ? severity : "major", subject: line(f.subject, 400), where: line(f.where, 200), proof: line(f.proof, 600), preexisting: f.preexisting === true };
+    return { id: line(f.id, 16), severity: SEVERITIES.includes(severity) ? severity : "major", subject: line(f.subject, 400), ...(line(f.title, 1) ? { title: line(f.title, 200) } : {}), where: line(f.where, 200), proof: line(f.proof, 600), preexisting: f.preexisting === true };
   });
 }
 // The board's rules, applied to what came back.

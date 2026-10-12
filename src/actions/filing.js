@@ -12,7 +12,9 @@ import { details } from "./finish-line.js";
 export function add(folder, title, { description = "", repo } = {}) {
   return S.create(S.folderFor(repo, folder), title, { description });
 }
-export function rename(id, title) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.title = S.oneLine(title, 192) || t.title; }); }
+// A new title follows the same limit as a first one: too long, it is shortened and its full text opens the description.
+const retitle = (t, title) => { const now = S.titled(title, t.description); if (now.title) { t.title = now.title; t.description = now.description; if (now.subject) t.subject = now.subject; else delete t.subject; } };
+export function rename(id, title) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); retitle(t, title); }); }
 export function describe(id, text) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.description = String(text || "").replace(/\r/g, "").trim(); }); }
 export function pin(id) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.pinned = !t.pinned; }); }
 
@@ -29,7 +31,7 @@ export function report(id, { state, kind, msg, title, progress, eta, asAgent = f
   const mark = state === "done" ? F.tidyMark(cur, "merged") : null;
   const t = S.update(cur.id, (t) => {
     S.assertUnarchived(t);
-    if (title) t.title = S.oneLine(title, 192) || t.title;
+    if (title) retitle(t, title);
     if (state === "blocked") {
       t.stage = "asks"; t.kind = S.KINDS.includes(kind) ? kind : "question"; t.msg = S.oneLine(msg) || "needs you"; t.turnOpen = false;
       if (asAgent) t.selfBlocked = Date.now(); // the turn that follows this report is not a finish

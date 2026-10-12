@@ -49,7 +49,7 @@ test("an agent's add or suggest is a suggestion on its own task, never a task; t
     S.update(one.id, (t) => { t.link = { socket: w.socket, pane: "w1:p1" }; t.stage = "working"; t.agent = "claude"; });
     S.update(two.id, (t) => { t.link = { socket: w.socket, pane: "w2:p1", reviewer: { pane: "w2:p2" } }; t.stage = "reviewing"; t.agent = "claude"; });
     // The rules an agent starts with name the command, and say it is the human's to decide.
-    assert.match(agentRules(S.get(one.id)), /do not do it and do not file it: suggest it to the human with \S+ suggest "<short title>" --desc "[^"]*" --from proj\/1 and carry on\. It becomes a task only if they accept it\./);
+    assert.match(agentRules(S.get(one.id)), /do not do it and do not file it: suggest it to the human with \S+ suggest "<short title: a few words, at most 60 characters>" --desc "[^"]*" --from proj\/1 and carry on\. It becomes a task only if they accept it\./);
     // From an agent's pane: "add" files nothing (an old habit), and so does "suggest".
     process.env.HERDR_PANE_ID = "w1:p1";
     assert.match(await board("add", "The importer drops the last row", "--desc", "In import.js. Seen on main too.", "--repo", w.root, "--delegate"), /^S1 on proj\/1: suggested to the human\. It becomes a task only if they accept it\. Carry on with your own task\.\n$/);

@@ -18,6 +18,7 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork report <id> --state idle|working|blocked|done|error [--kind question|permission|auth] [--msg TEXT] [--title TEXT]
                          [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
   herdr-superwork describe <id> <text>          write or replace a task's description
+  (a title is at most 60 characters: a longer one is shortened at a word, its full text kept in the description)
   herdr-superwork delegate <id> [--agent KIND] [--model M] [--effort E] [--fast] [--reviewer KIND|off] [--no-reviewerFast] [--no-worktree] [--base head|fresh]
                            [--gate critical|major|minor|trivial|off] [--rounds N] [--autoMerge true|false]
   herdr-superwork tell <id> <text>              send a message to the task's agent
@@ -157,7 +158,7 @@ export async function main(argv) {
       if (cmd === "suggest" && !from) throw new Error("suggest needs --from <the id of the task you are on>. Try: herdr-superwork help");
       if (from) {
         const r = A.suggest(from.id, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "" });
-        result = [{ suggestion: r.suggestion || null, on: r.on || null, known: r.known || null }, `${r.msg} Carry on with your own task.`];
+        result = [{ suggestion: r.suggestion || null, on: r.on || null, known: r.known || null }, `${r.msg}${r.suggestion ? S.titleNote(rest(1)) : ""} Carry on with your own task.`];
         break;
       }
       const t = A.add(here, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "", repo: flags.repo });
@@ -165,7 +166,7 @@ export async function main(argv) {
       let tab = false;
       if (!flags.delegate && process.env.HERDR_PANE_ID && !process.env.HERDR_PLUGIN_ID) { try { tab = (await import("./coordinator.js")).tabTurn(process.env.HERDR_PANE_ID); } catch {} }
       if (flags.delegate || tab) A.delegate(t.id, pickChoices(flags));
-      result = [brief(shownOf(t.id)), `${t.id}: filed${flags.delegate || tab ? `, an agent is on it${tab ? ` (the message was sent with ${keyName("delegate")})` : ""}` : ""}`];
+      result = [brief(shownOf(t.id)), `${t.id}: filed${flags.delegate || tab ? `, an agent is on it${tab ? ` (the message was sent with ${keyName("delegate")})` : ""}` : ""}${S.titleNote(rest(1))}`];
       break;
     }
     case "list": case "ls": {
@@ -184,12 +185,12 @@ export async function main(argv) {
     case "dismiss": { const r = A.dismissSuggestion(need(1, "an id"), pos[2]); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "report": {
       const me = callerTask();
-      if (!pos[1] && flags.title && !me) { const t = A.add(here, flags.title, { description: flags.msg || flags.desc || "", repo: flags.repo }); result = [brief(shownOf(t.id)), `${t.id}: filed`]; break; }
+      if (!pos[1] && flags.title && !me) { const t = A.add(here, flags.title, { description: flags.msg || flags.desc || "", repo: flags.repo }); result = [brief(shownOf(t.id)), `${t.id}: filed${S.titleNote(flags.title)}`]; break; }
       const id = pos[1] || me?.id;
       if (!id) throw new Error("report needs an id, or --title to file a new task.");
       const target = S.find(id);
       const t = A.report(target.id, { state: flags.state, kind: flags.kind, msg: flags.msg, title: flags.title, progress: flags.progress, eta: flags.eta, asAgent: !!me && me.id === target.id });
-      result = [brief(shownOf(t.id)), me && me.id === t.id && flags.state === "blocked" ? "Reported. Stop now; the human's answer arrives as your next message." : `${t.id}: ${flags.state || "updated"}`];
+      result = [brief(shownOf(t.id)), me && me.id === t.id && flags.state === "blocked" ? "Reported. Stop now; the human's answer arrives as your next message." : `${t.id}: ${flags.state || "updated"}${flags.title ? S.titleNote(flags.title) : ""}`];
       break;
     }
     case "describe": { const t = A.describe(need(1, "an id"), rest(2)); result = [brief(shownOf(t.id)), `${t.id}: description saved`]; break; }

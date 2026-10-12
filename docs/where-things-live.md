@@ -155,6 +155,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `settings.js` | Settings as saved and read: yours, one task's own, and the repo's file |
 | `suggestions.js` | Suggested tasks |
 | `tasks.js` | Tasks on disk: reading, listing, changing, creating |
+| `titles.js` | A title's one length limit, and how a longer one is shortened without losing what it said |
 
 ## `bin/`
 
@@ -191,6 +192,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [tabs.md](tabs.md) | A task's tabs in herdr |
 | [task-panel.md](task-panel.md) | The task panel |
 | [testing.md](testing.md) | Tests |
+| [titles.md](titles.md) | Titles |
 | [where-things-live.md](where-things-live.md) | Where things live |
 
 ## The tests: `test/`
@@ -248,5 +250,6 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `sync-remote.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `tabs.test.js` | A task's tabs in its herdr space: the agent's tab is named Agent, each reviewer has a tab of its own |
 | `theme.test.js` | The board takes its colours and status marks from herdr's own config, resolved the way herdr resolves them |
+| `titles.test.js` | A title's length limit: one number, the same for a task typed, renamed, suggested, or made from a reviewer's finding |
 | `turns.test.js` |  |
 | `watcher.test.js` | The hidden helper: the watcher's line and guess |

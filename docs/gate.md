@@ -2,8 +2,8 @@
 
 The reviewer describes; the board decides. The reviewer gives no score and no merge advice. Every round it answers
 one fixed question, "Does the change do what the task asked?" (`meets`), and lists its findings. Each finding has a
-severity, a subject, where it is, a proof (what the reviewer actually ran or saw) and whether it was there before
-the task (`preexisting`). The severity says what the fault does:
+severity, a subject (and a [short title](titles.md) of it), where it is, a proof (what the reviewer actually ran or
+saw) and whether it was there before the task (`preexisting`). The severity says what the fault does:
 
 | Severity | Means |
 | --- | --- |

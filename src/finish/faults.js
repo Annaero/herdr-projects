@@ -9,7 +9,9 @@ import * as G from "../gate.js";
 // busy it waits, and tries once more; a fault that still could not be saved says so on the finding (`unsuggested`),
 // where the human reads the review, and the board tries it again by itself (`suggestOwed`). No reviewer has to
 // name it a second time: the next one is told it is known.
-const wordsFor = (t, f) => ({ title: S.oneLine(f.subject, 120), where: f.where, by: "reviewer", severity: f.severity,
+// Its title is the reviewer's own short one; a finding without one gets its sentence, shortened. The sentence itself
+// stays whole in `subject` and at the top of the description.
+const wordsFor = (t, f) => ({ title: S.shortTitle(f.title || f.subject), subject: S.oneLine(f.subject, Infinity), where: f.where, by: "reviewer", severity: f.severity,
   description: `${f.subject}\n\nWhere: ${f.where || "not said"}\nSeverity: ${f.severity}\n${f.proof ? `What the reviewer saw: ${f.proof}\n` : ""}\nIt was there before ${t.id} (${t.title}), so it was not fixed there.` });
 // Where it went, written on the finding: an existing task, or a suggestion (new, or raised before).
 const went = (out) => (out.known?.task ? { task: out.known.task } : { suggested: out.known ? { on: out.known.on, id: out.known.id } : { on: out.on, id: out.suggestion.id } });
@@ -58,4 +60,4 @@ export function suggestOwed(id, { waitMs = 2000 } = {}) {
 }
 // What reviewers in this repo are told is known already: every suggestion still open or dismissed, and what an older
 // version of the board filed from this task's own reviews.
-export const knownFaults = (t) => [...(Array.isArray(t.filedFaults) ? t.filedFaults : []), ...S.repoSuggestions(t.repo).map((s) => ({ severity: s.severity || "", subject: s.title, where: s.where }))];
+export const knownFaults = (t) => [...(Array.isArray(t.filedFaults) ? t.filedFaults : []), ...S.repoSuggestions(t.repo).map((s) => ({ severity: s.severity || "", subject: s.subject || s.title, where: s.where }))];

@@ -74,7 +74,8 @@ added, the board looks through its repo for the same work:
 If it finds one, nothing is added. The finding in the review says where it is (`pre-existing, suggested as a task`
 or `pre-existing, task proj/12`), and an agent is told `Already suggested (S1 on proj/7)`.
 
-Two descriptions are taken for the same work when their titles are made of mostly the same telling words, or share
+Two descriptions are taken for the same work when their titles (for a [shortened title](titles.md), the whole
+sentence it stands for) are made of mostly the same telling words, or share
 a fair part of them and name the same file (line numbers aside). Words that say the same count as one (`drops`,
 `loses`, `omits`; `last`, `final`; `importer`, `importing`), so `The importer drops the last row` and `Importing
 loses the final row of the file` are one. Words that say the opposite make two (`the first row`, `the last row`;

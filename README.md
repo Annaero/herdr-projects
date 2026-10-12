@@ -41,6 +41,7 @@ One page per topic, in [docs/](docs/):
 - [A turn cut off by the provider](docs/provider-errors.md)
 - [The gate](docs/gate.md)
 - [Suggested tasks](docs/suggestions.md)
+- [Titles and their length limit](docs/titles.md)
 - [Settings](docs/settings.md)
 - [Other machines](docs/other-machines.md)
 - [What was checked on herdr 0.9.3](docs/checked-on-herdr.md)

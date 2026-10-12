@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { STAGES, tasksDir, dirOf, me, readJson, writeJson, withLock, withTaskLock } from "./files.js";
 import { repoOf } from "./repos.js";
+import { titled } from "./titles.js";
 
 // ---- tasks ----------------------------------------------------------------------------------------------------------
 const SEGMENT = /^[A-Za-z0-9_.+-]{1,32}$/;
@@ -55,14 +56,15 @@ export function update(id, fn, opts) {
 }
 export function create(folder, title, extra = {}) {
   const { name, root } = repoOf(folder);
-  const text = oneLine(title, 192);
+  // A title longer than the limit is shortened, and its full text opens the description (store/titles.js).
+  const { title: text, description, subject = oneLine(extra.subject, Infinity) } = titled(title, extra.description);
   if (!text) throw new Error("A task needs a title.");
   return withLock(`seq:${name}`, () => {
     const seq = path.join(tasksDir(), name, "seq");
     const n = (Number(readJson(seq, 0)) || 0) + 1;
     writeJson(seq, n);
     const now = Date.now();
-    const t = { id: `${name}/${n}`, repo: name, n, root, title: text, description: String(extra.description || "").trim(), owner: extra.owner || me(), app: null,
+    const t = { id: `${name}/${n}`, repo: name, n, root, title: text, ...(subject && subject !== text ? { subject } : {}), description, owner: extra.owner || me(), app: null,
       stage: "todo", msg: "", created: now, at: now, pinned: false, archivedAt: null, own: {} };
     writeJson(taskFile(t.id), t);
     return t;

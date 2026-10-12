@@ -3,6 +3,7 @@
 // accepts it; a dismissed one is kept, so the same thing is not asked twice.
 import { withLock, withTaskLock } from "./files.js";
 import { get, list, update, create, remove, oneLine } from "./tasks.js";
+import { titled } from "./titles.js";
 import { folderOf } from "./repos.js";
 
 export const suggestionsOf = (t) => (Array.isArray(t?.suggestions) ? t.suggestions : []);
@@ -39,6 +40,8 @@ const alike = (a, b) => a === b || (Math.min(a.length, b.length) >= 4 && (a.star
 const plain = (x) => wordsOf(x).sort().join(" ");
 export function sameWork(a, b, { exact = false } = {}) {
   // Where it is: the title and `where`; one that says no `where` (an agent's, a task) names its files in its description.
+  // What it says: its whole sentence when its title is a short form of one.
+  a = { ...a, title: a.subject || a.title }; b = { ...b, title: b.subject || b.title };
   const text = (x) => `${x.title} ${x.where || x.description || ""}`;
   const fa = filesOf(text(a)), fb = filesOf(text(b));
   const file = fa.some((f) => fb.some((g) => f === g || f.endsWith(`/${g}`) || g.endsWith(`/${f}`)));
@@ -64,7 +67,7 @@ export function sameWork(a, b, { exact = false } = {}) {
 // are one fault each, however alike their words; a task among them is named by its id alone. `exact`: only what
 // has a title of the very same words.
 const open = (t) => !!t && !t.archivedAt && t.stage !== "done";
-const sameTask = (all, s, but = [], exact = false) => all.find((t) => !but.includes(t.id) && open(t) && sameWork({ title: t.title, description: t.description }, s, { exact }));
+const sameTask = (all, s, but = [], exact = false) => all.find((t) => !but.includes(t.id) && open(t) && sameWork({ title: t.title, subject: t.subject, description: t.description }, s, { exact }));
 export function knownWork(repo, s, { apart = [], exact = false } = {}) {
   const all = list({ includeArchived: true }).filter((t) => t.repo === repo);
   const onBoard = (id) => open(all.find((x) => x.id === id));
@@ -85,12 +88,15 @@ export function repoSuggestions(repo, max = 30) {
 // ---- raising, accepting, dismissing ---------------------------------------------------------------------------------
 // Raise one on task `id`. Never a task, and never a second time: when the board knows the same work already, nothing
 // is added and `known` says where it is. Returns { suggestion, on } for a new one, { known } otherwise.
-export function suggest(id, { title, description = "", where = "", by = "agent", severity = "", round = 0, waitMs = 2000, apart = [] } = {}) {
+export function suggest(id, { title, subject = "", description = "", where = "", by = "agent", severity = "", round = 0, waitMs = 2000, apart = [] } = {}) {
   const t = get(id);
   if (!t) throw new Error(`No task ${id}`);
-  const text = oneLine(title, 192);
-  if (!text) throw new Error("A suggestion needs a title.");
-  const s = { title: text, description: String(description || "").trim(), where: oneLine(where, 200) };
+  // The title keeps to the limit (store/titles.js). `subject` is the whole sentence a short title stands for (a
+  // reviewer's finding, or a title that had to be cut): the same work is known by it, not by the few words shown.
+  // It is never cut itself: two sentences may differ only in their last words, however long they are.
+  const short = titled(title, description), whole = oneLine(subject, Infinity) || short.subject || "";
+  if (!short.title) throw new Error("A suggestion needs a title.");
+  const s = { title: short.title, ...(whole && whole !== short.title ? { subject: whole } : {}), description: short.description, where: oneLine(where, 200) };
   return withLock(`suggest:${t.repo}`, () => {
     const known = knownWork(t.repo, s, { apart });
     if (known) return { known };
@@ -126,7 +132,7 @@ export function acceptSuggestion(id, sid) {
   return decide(id, (t) => {
     const s = one(t, sid);
     const there = sameTask(list({ includeArchived: true }).filter((x) => x.repo === t.repo), s, [id]);
-    const made = there || create(folderOf(id), s.title, { description: [s.description || (s.where ? `Where: ${s.where}` : ""), `Suggested by ${suggestedBy(s)} of ${t.id} (${t.title}).`].filter(Boolean).join("\n\n") });
+    const made = there || create(folderOf(id), s.title, { subject: s.subject, description: [s.description || (s.where ? `Where: ${s.where}` : ""), `Suggested by ${suggestedBy(s)} of ${t.id} (${t.title}).`].filter(Boolean).join("\n\n") });
     try { update(id, (t) => { t.suggestions = suggestionsOf(t).map((x) => (x.id === s.id ? { ...x, state: "accepted", task: made.id, decided: Date.now() } : x)); }, { waitMs: 10000 }); }
     catch (e) { if (!there) { try { remove(made.id); } catch {} } throw e; }
     return { task: made, suggestion: s, existing: !!there };
