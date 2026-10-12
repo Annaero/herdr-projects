@@ -27,7 +27,7 @@ const GROUPS = ["needs you", "ready to approve", "working", "done", "to do"];
 // yes is green, and a task nobody has started is grey.
 const GROUP_COLOR = { "needs you": "red", "ready to approve": "green", working: "yellow", done: "teal", "to do": "overlay0" };
 const MARK_STATES = ["working", "error", "done"];
-// The side panel shows from this width on; below it the same panel opens full screen.
+// The side panel fits from this width on, when you have it open (ctrl+p); below it the same panel opens full screen.
 const WIDE = 90;
 const isAgent = (r) => !!r.agent && !["todo", "progress"].includes(r.stage);
 const failureFor = (r) => (r.stage === "nosummary" ? null : A.failureOf(r));
@@ -49,11 +49,24 @@ const roundWords = (r) => (S.reviewRound(r) >= 2 ? `${ordinal(S.reviewRound(r))}
 const currentReview = (r) => S.currentReview(r);
 // Strip only board-generated review metadata; task descriptions and agent wording stay intact.
 const reviewNote = (r) => (isAgent(r) ? String(r.msg || "").replace(/^(Approve to merge\?\s*)?Reviewed [1-5]\/5(?:, says (?:don't )?(?:merge|accept))?\.\s*/, "$1") : r.msg);
+// One review in a few words: "4/5 yes" in a list of them, "4/5, says merge" on its own. The colour repeats the advice.
+const verdict = (t, e, long = false) => (e.error ? t.fg("red", long ? "failed, no verdict" : "failed") : t.fg(e.recommend === true ? "green" : e.recommend === false ? "red" : "subtext0", `${e.score}/5`) + (e.recommend === true ? (long ? ", says merge" : " yes") : e.recommend === false ? (long ? ", says don't merge" : " no") : ""));
+// A long text's beginning, for the panel beside the list: cut between words, a few lines at most.
+const brief = (text, max = 400, mark = " …") => {
+  let s = String(text ?? "").trim().replace(/\n{2,}/g, "\n");
+  const lines = s.split("\n");
+  if (lines.length > 8) { s = lines.slice(0, 8).join("\n"); if (s.length <= max) return s + mark; }
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  return cut.slice(0, Math.max(cut.lastIndexOf(" "), cut.lastIndexOf("\n"), max - 40)).trimEnd() + mark;
+};
+// The facts in the task panel that are not settings: in a window too short for all of it, these go first.
+const NOT_SETTINGS = ["Latest", "Change", "Branch", "Note", "Context", "Tokens", "herdr"];
 const ASKS = { question: "Asks you", permission: "Asks for your OK", auth: "Needs a login" };
 // The keys worth remembering. Everything else is a line in the menu.
 const KEYS = [
   ["↑ ↓", "move between tasks"], ["enter", "send, or open the agent"], ["space", "talk to this task's agent"], ["tab", "put an agent on it"],
-  ["ctrl+a", "yes: approve, retry, continue"], ["ctrl+r", "send it back to fix"], ["ctrl+x", "stop the agent"], ["ctrl+f", "find"], ["?", "this menu"], ["esc", "back"],
+  ["ctrl+a", "yes: approve, retry, continue"], ["ctrl+r", "send it back to fix"], ["ctrl+x", "stop the agent"], ["ctrl+f", "find"], ["ctrl+p", "side panel, on or off"], ["ctrl+e", "the whole task, full screen"], ["?", "this menu"], ["esc", "back"],
 ];
 const short = S.tilde;
 const clean = (s) => String(s ?? "").replace(/[\x00-\x1f\x7f]+/g, " ");
@@ -76,9 +89,10 @@ export class View {
   items = []; rows = []; selectionRows = []; selectionLayout = "";
   sel = ""; top = 0;
   allDone = false; archiveView = false; archiveBack = null; archiveUndo = null;
-  // The task panel: beside the list when the window is wide, full screen (`full`) when it is narrow or asked for.
+  // The task panel: beside the list when you have it open (`side`, ctrl+p) and the window is wide, full screen
+  // (`full`) when asked for. Most of the time it is closed, so each row has the width for what it says.
   // `reply` says who the chat at the bottom talks to: the selected task's agent after space, the Coordinator otherwise.
-  reply = false; replyId = ""; full = false; panelTop = 0; panelHeight = 1; panelLength = 0; width = 120;
+  reply = false; replyId = ""; side = false; full = false; panelTop = 0; panelHeight = 1; panelLength = 0; width = 120;
   mode = "new"; menu = null; ask = null; byRepo = false; draftAway = null;
   scope = ""; // whose board you see: "" this machine, "*" every machine, or one other machine by name
   remotes = {}; machinesAt = 0;
@@ -99,7 +113,7 @@ export class View {
     // Opened from the Coordinator's own pane (you went into it and came back): its folder is nobody's repo. The board
     // is where it was when you left it, so the draft that comes back is still sent from the repo it was typed in.
     try { if (C.inHome(ctx.cwd)) ctx.cwd = prefs.cwd && fs.existsSync(prefs.cwd) ? prefs.cwd : os.homedir(); } catch {}
-    this.byRepo = !!prefs.byRepo; this.scope = String(prefs.scope || ""); this.told = Number(prefs.told) || 0;
+    this.byRepo = !!prefs.byRepo; this.side = !!prefs.side; this.scope = String(prefs.scope || ""); this.told = Number(prefs.told) || 0;
     // The board closes each time you open an agent: selection, filter and draft come back when it reopens.
     this.sel = String(prefs.sel || ""); this.filter = String(prefs.filter || ""); if (prefs.draft) this.input.setText(String(prefs.draft));
     // So do words that were put away: ctrl+z still brings them back after the board closed or reloaded itself.
@@ -202,7 +216,7 @@ export class View {
   invalidate() { this.input.invalidate(); }
   get focused() { return this.input.focused; }
   set focused(value) { this.input.focused = value; }
-  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, scope: this.scope, sel: this.sel, filter: this.filter, told: this.told, draft: this.mode === "new" && !this.reply ? this.value() : "", chat: this.chatOpen ? "open" : "closed", cwd: this.ctx.cwd, away: this.reply && this.value().trim() ? { text: this.value(), to: this.replyId } : this.draftAway }); } catch {} }
+  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, side: this.side, scope: this.scope, sel: this.sel, filter: this.filter, told: this.told, draft: this.mode === "new" && !this.reply ? this.value() : "", chat: this.chatOpen ? "open" : "closed", cwd: this.ctx.cwd, away: this.reply && this.value().trim() ? { text: this.value(), to: this.replyId } : this.draftAway }); } catch {} }
   // A message stays until the next key press; an error stays until esc dismisses it.
   flash(text, kind = "overlay0") { this.msg = clean(text); this.msgKind = kind; }
   value() { return this.input.getText(); }
@@ -527,6 +541,12 @@ export class View {
     });
   }
   closePanel() { this.reply = false; this.full = false; this.panelTop = 0; this.load(); }
+  // The side panel, on demand. Your choice is remembered.
+  toggleSide() {
+    this.side = !this.side; this.savePrefs();
+    if (this.side && this.width < WIDE) return this.flash("The side panel needs a wider window. ctrl+e shows the task full screen.", "yellow");
+    this.flash(this.side ? "Side panel on. ctrl+p hides it." : "Side panel off. ctrl+p shows it.");
+  }
   // Only the whole panel goes: who the chat talks to is space's to change, never the panel's.
   foldPanel() { this.full = false; this.panelTop = 0; this.load(); }
   openPanel() { const r = this.current(); if (!r && !this.job()) return this.flash("Select a task first."); this.full = true; this.panelTop = 0; }
@@ -721,6 +741,7 @@ export class View {
     add("delete", "delete", () => this.remove(r), !!r);
     add(this.draftAway ? "bring back what you typed" : "undo the archive", "ctrl+z", () => this.undo(), !!this.draftAway || !!this.archiveUndo);
     add(this.archiveView ? "back to the board" : "open the archive", "alt+h", () => this.toggleArchive());
+    add(this.side ? "hide the side panel" : "show the side panel", "ctrl+p", () => this.toggleSide(), !this.full);
     add(this.byRepo ? "group by state" : "group by repo", "ctrl+s", () => { this.byRepo = !this.byRepo; this.savePrefs(); this.load(); });
     add(this.allDone ? "show only the latest done" : "show all done", "ctrl+d", () => { this.allDone = !this.allDone; this.load(); });
     // The chat's own lines: for whoever it talks to now.
@@ -861,6 +882,7 @@ export class View {
     // The quiet extras: every one of them is also a line in the ? menu.
     if (matchesKey(data, "ctrl+y") && r) { if (r.host) return this.act(r, "finish"); return this.try(() => { const out = A.finishAnyway(r.id); this.flash(out.msg, "green"); }); }
     if (matchesKey(data, "ctrl+e")) return this.full ? this.foldPanel() : this.openPanel();
+    if (matchesKey(data, "ctrl+p")) return this.full ? undefined : this.toggleSide();
     if (matchesKey(data, "alt+h")) return this.toggleArchive();
     if (matchesKey(data, "alt+a")) return r ? this.archiveSelected(r) : this.flash("Select a task to archive or restore.");
     if (matchesKey(data, "ctrl+z")) return this.undo();
@@ -918,8 +940,8 @@ export class View {
       let top;
       if (this.menu) top = this.menuLines(width, h);
       else if (this.full && shown) top = this.fullPanel(shown, width, h);
-      else if (width >= WIDE) {
-        // Wide: the task panel sits on the right, on herdr's sidebar colour when the theme gives it one.
+      else if (width >= WIDE && this.side) {
+        // The task panel on the right, while you have it open, on herdr's sidebar colour when the theme gives it one.
         const paneW = Math.max(38, Math.min(70, Math.floor(width * 0.38)));
         const listW = width - paneW - 3;
         const left = [...this.headLines(listW), ...this.listLines(listW, Math.max(1, h - 1))];
@@ -1038,17 +1060,20 @@ export class View {
     const end = Math.min(lines.length, this.panelTop + this.panelHeight);
     return [" " + t.bold("task panel") + t.fg("overlay0", ` · ${idLabel(r.id)}${lines.length > this.panelHeight ? `  ·  lines ${this.panelTop + 1}–${end} of ${lines.length}` : ""}`), t.fg("surface_dim", "─".repeat(width)), ...lines.slice(this.panelTop, end)];
   }
-  // The task panel. One shape, in the order you need it: where it stands, what it needs from you, what the reviewer
-  // said, the change, what the agent said, then the rest. `fit` is the height beside the list: the long parts are cut
-  // to it (what the agent said from its start, a description from its end) so nothing below drops out of view.
+  // The task panel. One shape, beside the list and full screen: where it stands and what it needs from you, the
+  // description, then every other fact in one tight table (the reviews, the change, each setting), then what the
+  // agent said. Headings and labels are greyed out; what they name is in the text colour. Full screen it ends with
+  // every review the task had. `fit` is the height beside the list: there the description is short, and the long
+  // parts are cut to the height so nothing below drops out of view.
   panel(r, width, full = false, fit = 0) {
     const t = this.theme;
     const w = Math.max(10, width - 2);
-    const dim = (s) => t.fg("overlay0", s);
+    const dim = (s) => t.muted(s);
     const plain = (text) => String(text ?? "").replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, "$1 $2").replace(/\*\*([^*]+)\*\*/g, "$1");
     const wrap = (text, room = w) => plain(text).split("\n").flatMap((line) => { const x = wrapTextWithAnsi(clean(line), Math.max(1, room)); return x.length ? x : [""]; });
     const block = (text) => wrap(text).map((l) => " " + l);
-    const head = (label, color = "subtext0") => ["", ...wrapTextWithAnsi(t.fg(color, label), w).map((line) => " " + line)];
+    // A heading is grey. Only one that says something is wrong, or what is going on right now, takes that state's colour.
+    const head = (label, color = "") => ["", ...wrapTextWithAnsi(color ? t.fg(color, label) : dim(label), w).map((line) => " " + line)];
     // Facts on one line, broken only between them: "12m ago" is never split.
     const flow = (parts) => {
       const out = []; let line = "";
@@ -1059,20 +1084,21 @@ export class View {
     if (r.title === undefined) { // words on their way to another machine
       return ["", ...block(r.text || ""), ...flow([r.state === "error" ? t.fg("red", `${t.mark("error")} could not be sent`) : t.fg("yellow", `${t.mark("working")} on its way`), dim(r.remote ? `to ${r.remote}` : "on this machine"), dim(`${age(Date.now() - (r.created || Date.now()))} ago`)]), ...(r.msg ? [...head(r.state === "error" ? "Went wrong" : "Now", r.state === "error" ? "red" : "yellow"), ...block(r.msg)] : [])];
     }
-    const agent = isAgent(r), failure = failureFor(r), rv = currentReview(r), c = statusColor(r);
+    const agent = isAgent(r), failure = failureFor(r), c = statusColor(r);
     const underReview = reviewing(r) && r.state === "working";
     const approval = r.state === "blocked" && r.stage === "approval";
     const sections = [];
-    const sec = (lines, cut = "") => { if (lines.length) sections.push({ lines, cut }); };
+    const sec = (lines, cut = "") => { const s = { lines, cut }; if (lines.length) sections.push(s); return s; };
 
     // Where it stands: the mark, the group, who is on it, since when, and its id.
     const who = underReview ? "" : r.app ? (!agent && r.app === S.me() ? "you" : r.app) : "";
     const when = `${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`;
-    const stand = flow([this.mark(r) + " " + t.fg(c, t.bold(r.archivedAt ? "archived" : underReview ? "reviewer is working" : groupOf(r))), (reviewing(r) || r.stage === "approval") && roundWords(r) ? t.fg(c, roundWords(r)) : "", who && t.fg("subtext0", who), dim(when), dim(idLabel(r.id))]);
+    const stand = flow([this.mark(r) + " " + t.fg(c, t.bold(r.archivedAt ? "archived" : underReview ? "reviewer is working" : groupOf(r))), (reviewing(r) || r.stage === "approval") && roundWords(r) ? t.fg(c, roundWords(r)) : "", who, dim(when), dim(idLabel(r.id))]);
     if (r.progress !== undefined && r.state !== "done") stand.push(" " + t.fg(c, bar(r.progress, Math.min(24, w - 6))) + t.fg(c, ` ${r.progress}%${r.eta !== undefined ? ` ${r.eta}m` : ""}`));
     else if (r.eta !== undefined && r.state !== "done") stand.push(" " + t.fg(c, `${r.eta}m`) + dim(" left"));
-    sec(["", ...wrapTextWithAnsi(t.bold(clean(r.title || "(no title)")), w).map((l) => " " + l), ...stand]);
-    if (r.archivedAt) sec([...head("Archived", "overlay0"), ...block("Read-only. ? has restore. Its state and all its data are kept.")]);
+    const titleLines = wrapTextWithAnsi(t.bold(clean(r.title || "(no title)")), w).map((l) => " " + l);
+    const top = sec(["", ...titleLines, ...stand]);
+    if (r.archivedAt) sec([...head("Archived"), ...block("Read-only. ? has restore. Its state and all its data are kept.")]);
 
     // What it needs from you.
     const said = agent ? this.lastSaid(r) : "";
@@ -1087,42 +1113,33 @@ export class View {
     else if (r.state === "error") { told = (r.stage === "nosummary" ? r.screen : "") || note || said || "It failed."; sec([...head(r.stage === "nosummary" ? "Stopped without a summary" : "Went wrong", "red"), ...block(told)], "end"); }
     else if (r.state === "working" && note) sec([...head(underReview ? "The reviewer, now" : "Now", c), ...block(note)]);
 
-    // What the reviewer said: the score, the advice in words, the comment.
-    const KW = 11;
-    const fact = (label, lines) => lines.map((l, n) => " " + (n ? " ".repeat(KW) : t.fg("subtext0", label.padEnd(KW))) + l);
-    if (r.state !== "done" || full) {
-      if (rv && Number.isInteger(rv.score)) {
-        const verdict = t.fg(scoreColor(r, rv), `${rv.score}/5`) + (rv.recommend === true ? ", says merge" : rv.recommend === false ? ", says don't merge" : "") + (roundWords(r) ? ` (${roundWords(r)})` : "");
-        sec(["", ...fact("Reviewer", [verdict, ...wrap(rv.text || "No comment.", w - KW), ...(full ? (rv.problems || []).flatMap((p) => wrap(`- ${p}`, w - KW)) : [])])], "end");
-      } else if (r.review?.stale) sec(["", ...fact("Reviewer", [dim("the work changed since its review")])]);
-      else if (inReview(r)) sec(["", ...fact("Reviewer", [dim("no review")])]);
-    }
-    const evidence = reviewArtifacts(r.review?.artifacts);
-    if (evidence.length) sec(full ? artifactLines(t, evidence, width, "Evidence").slice(0, -1) : ["", artifactLine(t, evidence[0], width), ...(evidence.length > 1 ? [" " + dim(`… ${evidence.length - 1} more: ctrl+e`)] : [])]);
+    // The description: whole on the full screen, its first few hundred characters beside the list.
+    const desc = this.desc(r).trim();
+    const start = full ? desc : brief(desc, 400, "");
+    if (desc) sec([...head("Description"), ...block(start), ...(start === desc ? [] : [" " + dim("… ctrl+e shows all of it")])], "end");
+    else if (!agent && !r.archivedAt && r.state === "idle") sec(["", ...block("No agent is on this yet. tab puts one on it.").map((l) => dim(l))]);
 
+    // Every other fact, in one table: [label, value, is it this task's own choice, lines it keeps when room is short].
+    const rows = [];
+    // The reviews: how many, how each one went, and the latest in a few words.
+    const hist = S.reviewHistory(r), last = hist[hist.length - 1];
+    const stale = !!r.review?.stale;
+    if (hist.length) {
+      rows.push(["Reviews", [`${hist.length}`, "trail"], false]);
+      rows.push(["Latest", `${verdict(t, last, true)}${dim(` · ${ordinal(last.round)} review${last.at ? ` · ${age(Date.now() - last.at)} ago` : ""}`)}${stale && !last.error ? dim(" · the work changed since") : ""}\n${full ? clean(last.error || last.text || "No comment.") : brief(clean(last.error || last.text || "No comment."), 280)}`, false, 2]);
+    } else rows.push(["Reviews", stale ? dim("the work changed since its review") : dim(underReview ? "the first is under way" : "none yet"), false]);
     // The change: how big, and its pull request with a mark for its checks.
     const st = /(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?/.exec(String(r.stat || ""));
     const size = st ? `${st[1]} file${st[1] === "1" ? "" : "s"}, +${st[2] || 0} −${st[3] || 0}` : String(r.stat || "").trim();
     const pr = r.pr ? t.fg(prColor(r), prNumber(r) + (prCheck(r) ? ` ${prCheck(r)}` : "")) + (r.prMerged || r.prState === "merged" ? dim(" merged") : "") : "";
-    if ((size && (r.state !== "done" || full)) || pr) sec(["", ...fact("Change", [...wrapTextWithAnsi([size && (r.state !== "done" || full) ? size : "", pr].filter(Boolean).join(" · "), Math.max(1, w - KW)), ...(r.pr && /^https?:/.test(String(r.pr)) ? [dim(truncateToWidth(String(r.pr), Math.max(1, w - KW), "…"))] : [])])]);
-
-    // What the agent said: its last message, or its screen while a dialog or a review is on it.
-    if (agent && !(r.state === "error" && r.stage !== "nosummary") && !this.chatShows(r)) {
-      const pv = this.previewOf(r);
-      const text = pv.text || (approval ? r.summary : "") || "";
-      if (text && text !== told) sec([...head(pv.label === "on its screen now" ? "On its screen now" : "The agent said"), ...block(text)], "start");
-    }
-
-    // The rest: the description, then the settings. Beside the list only the settings this task has of its own.
-    const desc = this.desc(r);
-    if (desc) sec([...head("Description"), ...block(desc)], "end");
-    else if (!agent && !r.archivedAt && r.state === "idle") sec(["", ...block("No agent is on this yet. tab puts one on it.").map((l) => dim(l))]);
+    if (size || pr) rows.push(["Change", [size, pr].filter(Boolean).join(dim(" · ")) + (r.pr && /^https?:/.test(String(r.pr)) ? `\n${dim(clean(r.pr))}` : ""), false]);
+    // Every setting, always: one that is only your default is still what this task runs on. What is not a setting
+    // (the tokens, where it runs in herdr) comes after them, so a short window cuts those first.
     const RX = r.host ? r.snap || {} : null;
     const folder = RX ? RX.folder : S.folderOf(r.id);
     const tree = RX ? RX.tree : r.worktree && fs.existsSync(r.worktree) ? r.worktree : "";
     const ch = RX ? RX.choices || {} : S.choices(r);
-    // Each setting: its name, its value, and whether this task differs from your defaults in it.
-    const rows = [["Project", short(folder || ""), !r.host && !!this.repo && path.resolve(String(folder || "")) !== path.resolve(this.repo.root)]];
+    rows.push(["Project", short(folder || ""), !r.host && !!this.repo && path.resolve(String(folder || "")) !== path.resolve(this.repo.root)]);
     if (r.host) rows.push(["Machine", r.host, true]);
     const wtMode = r.worktreeMode || (RX ? RX.worktree : S.config().worktree);
     rows.push(["Worktree", tree ? `on · ${short(tree)}` : !r.startedOnce && wtMode !== "none" && (RX ? RX.canWorktree : S.canWorktree(folder)) ? "on" : "off", !!r.worktreeMode]);
@@ -1136,8 +1153,14 @@ export class View {
     // No reviewer, or no review at all for this task, reads as "off".
     const noReview = !ch.reviewer || ch.reviewer === "off" || ch.review === "none";
     rows.push(["Reviewer", noReview ? "off" : `${ch.reviewer} · ${ch.reviewerModel || "default model"} · ${ch.reviewerEffort || "default effort"}`, mine("reviewer", "reviewerModel", "reviewerEffort", "review")]);
+    // How this task is reviewed: what gets a review, who sends a review back, and the evidence the reviewer brings.
+    rows.push(["Reviewed", noReview ? "nothing" : ch.review === "all" ? "all work" : "work in a repo", mine("review", "reviewer")]);
+    rows.push(["Send back", `${ch.reviewAuto ? "automatic below 5/5" : "by hand"} · ${ch.rounds ?? "?"} round${ch.rounds === 1 ? "" : "s"} at most`, mine("reviewAuto", "rounds")]);
+    rows.push(["Evidence", ch.artifacts === false ? "off" : `on · ${ch.serve === "local" ? "local links" : `${ch.serve || "tailscale"} links`}`, mine("artifacts", "serve")]);
     const conf = RX ? RX.config || {} : S.config();
     rows.push(["Watcher", ch.watcher === "off" ? "off" : `${conf.watcherAgent || conf.helper || "claude"} · ${conf.watcherModel || conf.helperModel || "default model"}`, mine("watcher")]);
+    rows.push(["Conflicts", ch.conflictAuto ? "repaired automatically" : "repaired by hand", mine("conflictAuto")]);
+    rows.push(["Permissions", (RX ? RX.fullAccess : fullAccess(kind)) ? "full access" : "asks before acting", false]);
     // Context fullness and token use come from the agent's saved conversation; blank when it cannot be read, and the
     // fullness only for a model whose window is known.
     const usage = agent ? r.usage : null;
@@ -1145,37 +1168,88 @@ export class View {
     if (usage) rows.push(["Tokens", `${tokens(usage.in)} in · ${tokens(usage.out)} out`, false]);
     const fell = Object.values(r.fallbacks || {}).filter(Boolean);
     if (fell.length) rows.push(["Note", fell.join("\n"), true]);
-    rows.push(["Conflict repair", ch.conflictAuto ? "automatic" : "by hand", mine("conflictAuto")]);
-    rows.push(["Permissions", (RX ? RX.fullAccess : fullAccess(kind)) ? "full access" : "asks before acting", false]);
     if (r.link?.pane) rows.push(["herdr", `${r.link.socket && !r.host ? `session ${sessionName(r.link.socket)} · ` : ""}space ${r.link.workspace || "?"} · pane ${r.link.pane}${r.link.agent ? ` · ${r.link.agent}` : ""}`, false]);
-    const table = (list) => {
-      const kw = Math.max(...list.map(([k]) => k.length)) + 2;
-      const stacked = w - kw < 16; // stack labels at narrow widths instead of clipping the values beside them
-      const indent = stacked ? 2 : kw;
-      return list.flatMap(([k, v, differs]) => {
-        const parts = String(v).split("\n").flatMap((line) => { const x = wrapTextWithAnsi(line, Math.max(1, w - indent)); return x.length ? x : [""]; });
-        if (full && differs) parts[parts.length - 1] += t.fg("accent", " *");
-        return [...(stacked ? [" " + t.fg("subtext0", k)] : []), " " + (stacked ? " ".repeat(indent) : t.fg("subtext0", k.padEnd(kw))) + (parts[0] ?? ""), ...parts.slice(1).map((x) => " " + " ".repeat(indent) + x)];
-      });
+    const kw = Math.max(...rows.map(([k]) => k.length)) + 2;
+    const stacked = w - kw < 16; // stack labels at narrow widths instead of clipping the values beside them
+    const indent = stacked ? 2 : kw;
+    const room = Math.max(1, w - indent);
+    // How each review went, oldest first: "2/5 no → 3/5 no → 4/5 yes". Short of room, the oldest ones go.
+    const trail = (count, oneLine) => {
+      const steps = hist.map((e) => verdict(t, e)), arrow = dim(" → "), lead = `${count}${dim(" · ")}`;
+      const all = lead + steps.join(arrow);
+      if (!oneLine) return wrapTextWithAnsi(all, room);
+      let from = 0;
+      const line = () => lead + (from ? dim("… ") : "") + steps.slice(from).join(arrow);
+      while (from < steps.length - 1 && visibleWidth(line()) > room) from++;
+      return [truncateToWidth(line(), room, "…")];
     };
-    const unusual = rows.filter(([, , differs]) => differs);
-    if (full) sec([...head("Settings"), ...table(rows), ...(unusual.length ? ["", " " + t.fg("accent", "*") + dim(" this task's own, not your default")] : [])]);
-    else if (unusual.length) sec(["", ...table(unusual)]);
+    // `limits`: how many lines each fact keeps when room is short, so none of them drops out of view.
+    const table = (limits = null) => rows.flatMap(([k, v, differs], n) => {
+      const tight = !!limits, keep = tight ? limits[n] : 0;
+      let parts = Array.isArray(v) ? trail(v[0], tight) : String(v).split("\n").flatMap((line) => { const x = wrapTextWithAnsi(line, room); return x.length ? x : [""]; });
+      if (tight && parts.length > keep) parts = [...parts.slice(0, keep - 1), truncateToWidth(parts[keep - 1] + " …", room, "…")];
+      if (full && differs) parts[parts.length - 1] += t.fg("accent", " *");
+      return [...(stacked ? [" " + dim(k)] : []), " " + (stacked ? " ".repeat(indent) : dim(k.padEnd(kw))) + (parts[0] ?? ""), ...parts.slice(1).map((x) => " " + " ".repeat(indent) + x)];
+    });
+    const facts = sec(["", ...table(), ...(full && rows.some(([, , differs]) => differs) ? [" " + t.fg("accent", "*") + dim(" this task's own, not your default")] : [])]);
+    const evidence = reviewArtifacts(r.review?.artifacts);
+    if (evidence.length && !full) sec([artifactLine(t, evidence[0], width), ...(evidence.length > 1 ? [" " + dim(`… ${evidence.length - 1} more: ctrl+e`)] : [])]);
+
+    // What the agent said: its last message, or its screen while a dialog or a review is on it.
+    if (agent && !(r.state === "error" && r.stage !== "nosummary") && !this.chatShows(r)) {
+      const pv = this.previewOf(r);
+      const text = pv.text || (approval ? r.summary : "") || "";
+      if (text && text !== told) sec([...head(pv.label === "on its screen now" ? "On its screen now" : "The agent said"), ...block(text)], "start");
+    }
+
+    if (full) {
+      if (evidence.length) sec(artifactLines(t, evidence, width, "Evidence").slice(0, -1));
+      // Every review, the newest first: which one, its score and advice, its summary, and what it found.
+      const list = (label, xs) => ((xs || []).length ? [" " + dim(label), ...xs.flatMap((x) => wrap(`- ${x}`, w - 2).map((l, n) => "   " + (n ? "  " + l : l)))] : []);
+      for (const [n, e] of [...hist].reverse().entries()) {
+        sec([...(n ? [""] : head(`Reviews · ${hist.length}, the newest first`)), ...flow([t.bold(`${ordinal(e.round)} review`), verdict(t, e, true), e.at ? dim(`${age(Date.now() - e.at)} ago`) : "", e.head ? dim(`commit ${String(e.head).slice(0, 7)}`) : ""]),
+          ...block(e.error || e.text || "No comment."), ...list("Problems", e.problems), ...list("Checked", e.checks), ...list("Could not verify", e.limitations)]);
+      }
+    }
 
     const total = () => sections.reduce((n, s) => n + s.lines.length, 0);
     if (full || !fit || total() <= fit) return sections.flatMap((s) => s.lines);
-    // Too tall for its place beside the list: the long parts give up lines, and the last line says where the rest is.
-    const room = Math.max(1, fit - 1);
+    // Too tall for its place beside the list. Every fact stays: the table keeps to two lines a fact (the latest
+    // review to four), then the long parts give up lines, then the facts keep to one line, one at a time from the
+    // last, and only then do the long parts go altogether (what the agent said first, what it needs from you last).
+    // The last line says where the rest is.
+    const limits = rows.map(([, , , more = 0]) => 2 + more);
+    facts.lines = ["", ...table(limits)];
+    const space = Math.max(1, fit - 1);
+    const over = () => total() - space;
     const shrink = (s, least) => {
-      const over = total() - room;
-      if (over <= 0 || s.lines.length <= least + 1) return;
-      const keep = Math.max(least, s.lines.length - over - 1);
+      if (over() <= 0 || s.lines.length <= least + 1) return;
+      const keep = Math.max(least, s.lines.length - over() - 1);
       s.lines = s.cut === "start" ? [...s.lines.slice(0, 2), " " + dim("…"), ...s.lines.slice(s.lines.length - (keep - 2))] : [...s.lines.slice(0, keep), " " + dim("…")];
     };
-    for (const s of sections.filter((s) => s.cut === "start")) shrink(s, 6);
-    for (const s of sections.filter((s) => s.cut === "end").reverse()) shrink(s, 5);
-    for (const s of sections.filter((s) => s.cut)) shrink(s, 3);
-    return [...sections.flatMap((s) => s.lines).slice(0, room), " " + dim("more: ctrl+e shows the whole panel")];
+    const long = [...sections.filter((s) => s.cut === "start"), ...sections.filter((s) => s.cut === "end").reverse()];
+    for (const s of long) shrink(s, s.cut === "start" ? 6 : 5);
+    for (const s of long) shrink(s, 3);
+    for (let n = rows.length - 1; n >= 0 && over() > 0; n--) if (limits[n] > 1) { limits[n] = 1; facts.lines = ["", ...table(limits)]; }
+    // What is not a setting and sits below them (the tokens, where it runs in herdr) goes before any long part does.
+    while (over() > 0 && NOT_SETTINGS.includes(rows[rows.length - 1][0])) { rows.pop(); limits.pop(); facts.lines = ["", ...table(limits)]; }
+    for (const s of long) if (over() > 0) s.lines = [];
+    // A very short window. Before any setting goes: whatever else is still there (what it is doing now, the
+    // evidence), the empty lines, all but the first line of the title and of the status, and last the facts that are not settings, which
+    // move below the settings so the cut takes them first.
+    for (const s of [...sections].reverse()) if (over() > 0 && s !== top && s !== facts) s.lines = [];
+    let gap = [""];
+    if (over() > 0) { gap = []; facts.lines.shift(); }
+    if (over() > 0) top.lines.shift();
+    if (over() > 0 && titleLines.length > 1) top.lines.splice(0, titleLines.length, " " + truncateToWidth(t.bold(clean(r.title || "(no title)")), w, "…"));
+    if (over() > 0) top.lines.splice(Math.max(2, top.lines.length - over())); // then the status keeps to its first line
+    if (over() > 0) {
+      const rank = ([k]) => (k === "Reviews" ? 0 : NOT_SETTINGS.includes(k) ? 2 : 1);
+      const sorted = rows.map((row, n) => [row, limits[n]]).sort((a, b) => rank(a[0]) - rank(b[0]));
+      rows.splice(0, rows.length, ...sorted.map((x) => x[0])); limits.splice(0, limits.length, ...sorted.map((x) => x[1]));
+      facts.lines = [...gap, ...table(limits)];
+    }
+    return [...sections.flatMap((s) => s.lines).slice(0, space), " " + dim("more: ctrl+e shows the whole panel")];
   }
   listLines(width, h) {
     const t = this.theme;
@@ -1221,27 +1295,29 @@ export class View {
   sentence(r) {
     const t = this.theme;
     const words = (s) => clean(s || "").replace(/\*\*|`/g, "");
+    // What a row says is greyed out, never the title's colour: the two are told apart at a glance.
+    const quiet = (s) => (s ? t.muted(s) : "");
     const failure = failureFor(r);
-    if (failure && !failure.sentAt && (r.failure || r.prFailure)) return { text: words(failure.msg || failure.title) };
+    if (failure && !failure.sentAt && (r.failure || r.prFailure)) return { text: quiet(words(failure.msg || failure.title)) };
     if (inReview(r)) {
       // The score, and the reviewer's advice in words. Which review it was only from the second on.
       const rv = currentReview(r);
-      if (!rv || !Number.isInteger(rv.score)) return { text: r.review?.stale ? t.fg("subtext0", "the work changed since its review") : "" };
+      if (!rv || !Number.isInteger(rv.score)) return { text: r.review?.stale ? quiet("the work changed since its review") : "" };
       const score = t.fg(scoreColor(r, rv), `${rv.score}/5`);
-      const advice = score + (rv.recommend === true ? " reviewer says yes" : rv.recommend === false ? " reviewer says no" : "");
-      const all = advice + (roundWords(r) ? t.fg("subtext0", ` · ${roundWords(r)}`) : "");
+      const advice = score + quiet(rv.recommend === true ? " reviewer says yes" : rv.recommend === false ? " reviewer says no" : "");
+      const all = advice + (roundWords(r) ? quiet(` · ${roundWords(r)}`) : "");
       return { text: all, forms: [all, advice, score] }; // never cut: it shows whole, or shorter, or as the score alone
     }
     // Checks that fail with nothing saved about them yet: the row still says why it is not ready.
-    if (r.stage === "approval" && r.prState === "failing" && !r.mergeFailed && !r.syncBlocked) return { text: "the pull request's checks fail" };
+    if (r.stage === "approval" && r.prState === "failing" && !r.mergeFailed && !r.syncBlocked) return { text: quiet("the pull request's checks fail") };
     const raw = words((r.review?.stale ? reviewNote(r) : r.msg) || "");
     const msg = ["working", "needs you", "under review", "idle"].includes(raw) ? "" : raw;
     // While the reviewer works the row starts with the word: the colour alone does not say it, and its bar starts again from zero.
     // It always starts with "review"; which one it is follows, from the second on: "review (2nd) · Running the tests".
-    if (reviewing(r) && r.state === "working") { const word = t.fg("review", "review"), nth = S.reviewRound(r) >= 2 ? t.fg("review", ` (${ordinal(S.reviewRound(r))})`) : ""; return { text: word + nth + (msg ? t.fg("subtext0", ` · ${msg}`) : ""), short: word }; }
+    if (reviewing(r) && r.state === "working") { const word = t.fg("review", "review"), nth = S.reviewRound(r) >= 2 ? t.fg("review", ` (${ordinal(S.reviewRound(r))})`) : ""; return { text: word + nth + (msg ? quiet(` · ${msg}`) : ""), short: word }; }
     if (r.state === "done") return { text: "" };
-    if (needsYou(r)) return { text: msg || { question: "has a question", permission: "asks for your OK", auth: "needs a login" }[r.kind] || (r.state === "error" ? "failed" : "") };
-    return { text: msg ? t.fg("subtext0", msg) : "" };
+    if (needsYou(r)) return { text: quiet(msg || { question: "has a question", permission: "asks for your OK", auth: "needs a login" }[r.kind] || (r.state === "error" ? "failed" : "")) };
+    return { text: quiet(msg) };
   }
   rowLayout(records, width) {
     const layout = { pr: 0, check: 0, progress: 0, percent: 0, eta: 0, elapsed: 3, ago: false, bars: width >= 64, now: Date.now() };

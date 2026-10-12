@@ -110,3 +110,30 @@ test("command line parsing and agent names", () => {
   assert.match(agentName(t, ["sw-my-repo-with-a-l-12"]), /^sw-my-repo-with-a-l-12-[0-9a-f]{4}$/);
   assert.match(agentName(t, ["sw-my-repo-with-a-l-12"]), /^[a-z][a-z0-9_-]{0,31}$/);
 });
+
+test("a task keeps every review it had: which one, the score, the advice, the summary; a failed one with why", () => {
+  const t = { reviewRound: 1 };
+  S.logReview(t, { score: 2, recommend: false, text: "Crashes.", problems: ["a.js: null"], checks: ["ran it"], limitations: [], head: "abc1234", artifacts: [{ file: "x.png" }] });
+  t.reviewRound = 2; S.logReview(t, { error: "the reviewer\nfinished without a verdict" });
+  t.reviewRound = 3; S.logReview(t, { score: 5, recommend: true, text: "Good." });
+  assert.deepEqual(S.reviewHistory(t).map((e) => [e.round, e.score ?? "failed", e.recommend ?? null, e.text || e.error]), [[1, 2, false, "Crashes."], [2, "failed", null, "the reviewer finished without a verdict"], [3, 5, true, "Good."]]);
+  assert.ok(S.reviewHistory(t).every((e) => e.at > 0)); assert.equal(S.reviewHistory(t)[0].artifacts, undefined); assert.equal(S.reviewHistory(t)[0].head, "abc1234");
+  for (let n = 0; n < 60; n++) S.logReview(t, { score: 3, text: "Again." });
+  assert.equal(t.reviews.length, 63); assert.equal(S.reviewHistory(t)[0].text, "Crashes."); // every one of them, however long the spiral
+  // a task reviewed before the list existed keeps that review when it is reviewed again
+  const old = { reviewRound: 3, review: { score: 2, recommend: false, text: "Old one.", at: 5, stale: true } };
+  S.logReview(old, { score: 4, recommend: true, text: "New one." });
+  assert.deepEqual(S.reviewHistory(old).map((e) => [e.round, e.score, e.text]), [[2, 2, "Old one."], [3, 4, "New one."]]); assert.equal(old.reviews[0].at, 5);
+  // its number is fixed before the next review starts, so a review stopped half way cannot shift it
+  const stopped = { reviewRound: 1, review: { score: 2, recommend: false, text: "First.", at: 5 } };
+  S.keepSavedReview(stopped); stopped.reviewRound = 2; // the second review starts, and is stopped with no verdict
+  assert.deepEqual(S.reviewHistory(stopped).map((e) => [e.round, e.text]), [[1, "First."]]);
+  S.keepSavedReview(stopped); stopped.reviewRound = 3; S.logReview(stopped, { score: 4, recommend: true, text: "Third." });
+  assert.deepEqual(S.reviewHistory(stopped).map((e) => [e.round, e.text]), [[1, "First."], [3, "Third."]]);
+  const none = { reviewRound: 0 }; S.keepSavedReview(none); assert.equal(none.reviews, undefined);
+  const failed = { reviewRound: 2, review: { score: 3, text: "Before." } }; S.logReview(failed, { error: "timed out" });
+  assert.deepEqual(S.reviewHistory(failed).map((e) => [e.round, e.score ?? e.error]), [[1, 3], [2, "timed out"]]);
+  // a task reviewed before the list existed: its one saved review, numbered by the review it was
+  assert.deepEqual(S.reviewHistory({ reviewRound: 2, review: { score: 4, recommend: true, text: "Fine.", stale: true } }).map((e) => [e.round, e.score, e.text]), [[2, 4, "Fine."]]);
+  assert.deepEqual(S.reviewHistory({}), []); assert.deepEqual(S.reviewHistory(null), []);
+});

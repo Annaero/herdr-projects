@@ -295,7 +295,7 @@ export function takeApprove(socket = currentSocket()) {
 }
 export function details(id) {
   const t = S.find(id);
-  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null };
+  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null };
 }
 
 // ---- archive, restore, clear -----------------------------------------------------------------------------------------

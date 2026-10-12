@@ -128,6 +128,7 @@ test("the board paints with what it read: true colour, the terminal's 16 colours
     assert.equal(loadTheme(), true);
     assert.equal(theme.fg("red", "x"), "\x1b[91mx\x1b[39m"); assert.equal(theme.fg("green", "x"), "\x1b[32mx\x1b[39m"); assert.equal(theme.fg("text", "x"), "x");
     assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.line("a"), "a");
+    assert.equal(theme.muted("x"), "\x1b[2m\x1b[37mx\x1b[39m\x1b[22m"); // this theme's grey is most terminals' text colour: greyed-out words are faint too
     assert.equal(theme.selected("x"), "\x1b[100mx\x1b[49m"); // no selection colour in this theme: herdr's active row colour
     assert.deepEqual(["working", "blocked", "done", "idle", "error"].map(theme.mark), ["◐", "×", "✓", "○", "✗"]);
     setTerminal(true);
@@ -143,6 +144,7 @@ test("the board paints with what it read: true colour, the terminal's 16 colours
     assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.fg("teal", "x"), "\x1b[36mx\x1b[39m"); assert.equal(theme.line("a b"), "a b");
     process.env.HERDR_CONFIG_PATH = cfg(`[theme]\nname = "catppuccin"\n`);
     assert.equal(loadTheme(), false); // no auto_switch: nothing to ask
+    assert.equal(theme.muted("x"), "\x1b[38;2;108;112;134mx\x1b[39m"); // a theme with a grey of its own: that grey
     assert.equal(theme.fg("nonesuch", "x"), "x"); assert.equal(theme.dim("x"), "\x1b[2mx\x1b[22m");
     assert.equal(theme.fg("yellow", "x"), "\x1b[38;2;249;226;175mx\x1b[39m");
     // Uncoloured text is herdr's text colour, and stays so after a coloured word; a background survives resets too.

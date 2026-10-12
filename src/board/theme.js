@@ -134,6 +134,10 @@ export const theme = {
   under(token, s) { const on = this.bg(token, "\0").split("\0")[0]; return on ? this.bg(token, String(s).replace(/\x1b\[(?:0|49)?m/g, (m) => m + on)) : String(s); },
   // One finished line in herdr's text colour: whatever the board leaves uncoloured is herdr's `text`, not the terminal's.
   line(s) { const on = this.fg("text", "\0").split("\0")[0]; return on ? this.fg("text", String(s).replace(/\x1b\[(?:0|39)?m/g, (m) => m + on)) : String(s); },
+  // Greyed-out words: a heading, a label, a row's status line. herdr's overlay0; where that is one of the terminal's
+  // own 16 colours (the "terminal" theme, whose grey is most terminals' text colour) it is faint as well, so it never
+  // reads as the text beside it.
+  muted(s) { const c = P.overlay0; return typeof c === "number" && c >= 0 ? this.fg("overlay0", s) : this.dim(this.fg("overlay0", s)); },
   mark: (state) => (MARKS[state] || MARKS.unknown)[symbols ? 1 : 0],
   bold: (s) => (plain() ? String(s) : `\x1b[1m${s}\x1b[22m`),
   dim: (s) => (plain() ? String(s) : `\x1b[2m${s}\x1b[22m`),

@@ -17,12 +17,14 @@ import { remoteMain, machines, sshCommand, attachCommand } from "../src/remote.j
 import { execFileSync } from "node:child_process";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const KEY = { enter: "\r", tab: "\t", esc: "\x1b", space: " ", right: "\x1b[C", down: "\x1b[B", up: "\x1b[A", "ctrl+a": "\x01", "ctrl+e": "\x05", "ctrl+x": "\x18", "ctrl+t": "\x14", "ctrl+r": "\x12", "ctrl+y": "\x19", "ctrl+g": "\x07", "ctrl+z": "\x1a", "ctrl+b": "\x02", "ctrl+f": "\x06", "ctrl+s": "\x13", "alt+a": "\x1ba", "alt+h": "\x1bh", "ctrl+d": "\x04", delete: "\x1b[3~" };
-function open(w, { rows = 34 } = {}) {
+const KEY = { enter: "\r", tab: "\t", esc: "\x1b", space: " ", right: "\x1b[C", down: "\x1b[B", up: "\x1b[A", "ctrl+a": "\x01", "ctrl+e": "\x05", "ctrl+x": "\x18", "ctrl+t": "\x14", "ctrl+r": "\x12", "ctrl+y": "\x19", "ctrl+g": "\x07", "ctrl+z": "\x1a", "ctrl+b": "\x02", "ctrl+p": "\x10", "ctrl+f": "\x06", "ctrl+s": "\x13", "alt+a": "\x1ba", "alt+h": "\x1bh", "ctrl+d": "\x04", delete: "\x1b[3~" };
+// The side panel is closed until you ask for it; most of these tests read it, so they start with it open.
+function open(w, { rows = 34, side = true } = {}) {
   let closed;
   const tui = { terminal: { rows, columns: 120 }, requestRender() {}, stop() {}, start() {} };
   const v = new View(tui, theme, (x) => { closed = x ?? null; }, { cwd: w.root, canReload: true });
   clearInterval(v.timer);
+  v.side = side;
   const screen = (width = 120) => v.render(width).map((l) => stripVTControlCharacters(l).replace(/\x1b_pi:c\x07/g, ""));
   const press = (...keys) => { for (const k of keys) v.handleInput(KEY[k] ?? k); };
   const type = (text) => { for (const ch of text) v.handleInput(ch); };
@@ -35,31 +37,56 @@ test("the task panel beside the list cuts a long description short and says wher
     const long = Array.from({ length: 80 }, (_, i) => `Line ${i + 1} of a very long description.`).join("\n");
     A.add(w.root, "Short one", { description: "Brief." });
     const big = A.add(w.root, "Long one", { description: long });
-    const s = open(w);
+    const s = open(w, { rows: 44 });
     s.v.sel = big.id; s.v.load();
     let text = s.text(120);
     assert.match(text, /│ {2}Long one/); assert.match(text, /Line 1 of a very long/);
-    assert.match(text, /│ {2}more: ctrl\+e shows the whole panel/); // the pointer is the panel's last line, not its first
-    assert.doesNotMatch(text, /Line 80 of/);
-    // A setting shows beside the list only when this task differs from your defaults in it.
-    for (const fact of ["Project", "Permissions", "Worktree", "Agent", "Reviewer", "Watcher"]) assert.doesNotMatch(text, new RegExp(`│  ${fact} `), fact);
+    // Beside the list the description is short: a few lines, then where the rest is.
+    assert.match(text, /Line 8 of a very long description\. *\n[^\n]*│ {2}… ctrl\+e shows all of it/);
+    assert.doesNotMatch(text, /Line 9 of/); assert.doesNotMatch(text, /Line 80 of/);
+    // Status first, then the description, then every other fact in one tight table: no empty line between them.
+    assert.match(text, /│ {2}Long one *\n[^\n]*│ {2}○ to do · \ds ago · proj\/2 *\n[^\n]*│ *\n[^\n]*│ {2}Description/);
+    assert.match(text, /│ {2}Reviews {6}none yet *\n[^\n]*│ {2}Project {6}\S+ *\n[^\n]*│ {2}Worktree {5}on *\n[^\n]*│ {2}Branch {7}main *\n[^\n]*│ {2}Agent /);
+    // Every setting shows beside the list, also one that is only your default.
+    const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Conflicts", "Permissions"];
+    for (const fact of SETTINGS) assert.match(text, new RegExp(`│  ${fact} `), fact);
+    assert.match(text, /│ {2}Reviewed {5}work in a repo *\n[^\n]*│ {2}Send back {4}by hand · 3 rounds at most *\n[^\n]*│ {2}Evidence {5}on · local links/);
+    // A short window keeps every setting too: the long parts give way, never the table.
+    { const low = open(w, { rows: 24 }); low.v.sel = big.id; low.v.load(); const t24 = low.text(120);
+      for (const fact of SETTINGS) assert.match(t24, new RegExp(`│  ${fact} `), `${fact} in a 24-row window`);
+      assert.match(t24, /│ {2}more: ctrl\+e shows the whole panel/); assert.doesNotMatch(t24, /Line 1 of/); }
     S.setTaskConfig(big.id, "model", "opus"); s.v.load();
     text = s.text(120);
-    assert.match(text, /│ {2}Agent {2}\S+ · opus · default effort/); assert.doesNotMatch(text, /│ {2}Reviewer /);
+    assert.match(text, /│ {2}Agent {8}\S+ · opus · default effort/); assert.match(text, /│ {2}Reviewer {5}codex · default model/);
+    // A long text with no line breaks is cut between words after a few hundred characters.
+    const prose = A.add(w.root, "Prose", { description: "word ".repeat(400).trim() });
+    s.v.sel = prose.id; s.v.load();
+    const shown = s.screen(160).map((l) => l.split("│")[1] || "").join(" ").match(/Description\s+((?:word\s+)+)… ctrl\+e shows all of it/);
+    assert.ok(shown && shown[1].replace(/\s+/g, " ").length <= 400 && shown[1].replace(/\s+/g, " ").length >= 280, "a description beside the list keeps to 280 to 400 characters");
+    s.v.sel = big.id; s.v.load();
+    if (!process.env.NO_COLOR) {
+      // A heading and a label are greyed out; what they name is in the text colour.
+      const raw = s.v.render(120).join("\n"), grey = "\x1b[38;2;108;112;134m", ink = "\x1b[38;2;205;214;244m";
+      assert.ok(raw.includes(`${grey}Description\x1b[39m`) && raw.includes(`${grey}Agent        \x1b[39m${ink}`) && raw.includes(`${ink}  Line 1 of a very long`), "headings are grey, the text is not");
+    }
     // The whole panel: the same panel full screen, scrolled, with every setting at its end.
     s.press("ctrl+e");
     assert.equal(s.v.full, true);
     assert.match(s.text(120), /^ task panel · proj\/2 {2}· {2}lines 1–\d+ of \d+/);
     s.v.panelTop = 1e9; text = s.text(120);
-    assert.match(text, /Line 80 of/); assert.match(text, /\n Settings/);
-    for (const fact of ["Project", "Permissions", "Worktree", "Agent", "Reviewer", "Watcher"]) assert.match(text, new RegExp(`\\n ${fact} `), fact);
+    assert.match(text, /Line 80 of/);
+    for (const fact of SETTINGS) assert.match(text, new RegExp(`\\n ${fact} `), fact);
+    // A choice made for this task alone shows in both, and is starred on the full screen.
+    for (const [k, v] of [["review", "all"], ["reviewAuto", "true"], ["rounds", "5"], ["artifacts", "false"]]) S.setTaskConfig(big.id, k, v);
+    s.v.load(); s.v.panelTop = 1e9; text = s.text(120);
+    assert.match(text, /\n Reviewed {5}all work \*/); assert.match(text, /\n Send back {4}automatic below 5\/5 · 5 rounds at most \*/); assert.match(text, /\n Evidence {5}off \*/);
     assert.match(text, /opus · default effort \*/); assert.match(text, /\* this task's own, not your default/);
     s.press("up"); assert.ok(s.v.panelTop < s.v.panelLength); assert.equal(s.v.sel, big.id); // the arrows scroll the panel, they do not move the selection
     s.press("esc"); assert.equal(s.v.full, false);
     s.v.sel = "proj/1"; s.v.load();
     text = s.text(120);
     assert.match(text, /Brief\./);
-    assert.doesNotMatch(text, /shows the whole panel/); // a short one is left alone
+    assert.doesNotMatch(text, /shows the whole panel|shows all of it/); // a short one is left alone
     assert.doesNotMatch(text, /None\./); // and nothing is an empty box
   } finally { w.cleanup(); }
 });
@@ -95,8 +122,20 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     assert.match(text, /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(text, /Coordinator|sidebar/);
     assert.equal(s.screen(120).length, 34); assert.ok(s.screen(120).every((l) => l.length <= 120));
     assert.ok(!/│ {2}My own task/.test(s.text(80)), "no panel beside the list below 90 columns");
-    // ctrl+b is herdr's own prefix key: the board has no use for it, the panel simply follows the width.
+    // ctrl+b is herdr's own prefix key: the board has no use for it.
     s.press("ctrl+b"); assert.match(s.text(120), /│ {2}My own task/); assert.equal(s.v.value(), "");
+    // ctrl+p closes the side panel and opens it again: closed, each row has the whole width for what it says.
+    s.press("ctrl+p"); text = s.text(120);
+    assert.equal(s.v.side, false); assert.doesNotMatch(text, /│/); assert.match(text, /◐ My own task {2}half way {60,}█/); assert.match(text, /Side panel off\. ctrl\+p shows it\./);
+    assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).side, false); // your choice is remembered
+    s.press("?"); assert.match(s.text(120), /show the side panel +ctrl\+p/); s.press("esc");
+    // Closed, it stays closed while you talk to a task's agent: only ctrl+p opens it.
+    s.press("space"); assert.equal(s.v.reply, true); assert.doesNotMatch(s.text(120), /│ {2}My own task/); assert.equal(s.v.full, false);
+    s.press("space"); assert.equal(s.v.reply, false);
+    s.press("ctrl+p"); assert.equal(s.v.side, true); assert.match(s.text(120), /│ {2}My own task/);
+    s.screen(80); s.press("ctrl+p", "ctrl+p"); assert.match(s.text(80), /The side panel needs a wider window\. ctrl\+e shows the task full screen\./); s.screen(120);
+    // A board opened for the first time has it closed.
+    { const fresh = open(w, { side: false }); fs.rmSync(path.join(S.dataDir(), "view.json"), { force: true }); const first = new View(fresh.v.tui, theme, () => {}, { cwd: w.root }); clearInterval(first.timer); assert.equal(first.side, false); }
     s.press("down", "ctrl+e");
     text = s.text(80);
     assert.match(text, /^ task panel · proj\/1/); assert.match(text, /○ to do · \ds ago · proj\/1/); assert.match(text, /Description *\n All of them\./);
@@ -354,7 +393,8 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     assert.match(s.text(80), /\n ready to approve *\n ✓ Make f {2}4\/5 reviewer says yes +\ds ago *\n/); assert.doesNotMatch(s.text(80), /blocked|approve to merge|r1/);
     let text = s.text();
     assert.match(text, /│ {2}✓ ready to approve · claude · \ds ago/);
-    assert.match(text, /│ {2}Reviewer {3}4\/5, says merge *\n[^\n]*│ {13}Good\./); assert.match(text, /│ {2}Change {5}1 file, \+1 −0/); assert.match(text, /│ {2}The agent said *\n[^\n]*│ {2}Made f\./);
+    assert.match(text, /│ {2}Reviews {6}1 · 4\/5 yes *\n[^\n]*│ {2}Latest {7}4\/5, says merge · 1st review ·[^\n]*\n(?:[^\n]*\n)?[^\n]*│ {15}Good\./); assert.match(text, /│ {2}Change {7}1 file, \+1 −0/);
+    assert.equal(S.get(id).reviews.length, 1); assert.deepEqual([S.get(id).reviews[0].round, S.get(id).reviews[0].score, S.get(id).reviews[0].recommend, S.get(id).reviews[0].text], [1, 4, true, "Good."]); // the task keeps every review it had assert.match(text, /│ {2}The agent said *\n[^\n]*│ {2}Made f\./);
     assert.match(text, /\n {2}ctrl\+a approve and merge · ctrl\+r send back · space reply · \? more/);
     // ctrl+a asks once before the merge; esc says no and nothing happened
     s.press("ctrl+a");
@@ -705,16 +745,45 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   // a failed merge needs you: it says why, and the panel still has the score and which review gave it
   const failedMerge = { ...second, mergeFailed: true, review: { ...review, recommend: true, score: 5 }, msg: "The merge failed: conflict in src/game.js" };
   assert.match(row(failedMerge, 120), /^ × Build a flying game {2}The merge failed: conflict in src\/game\.js +PR#12 ✓ {2}0s ago$/);
-  assert.match(page(failedMerge), /× needs you · 2nd review · claude · 0s ago · proj\/1/); assert.match(page(failedMerge), /Reviewer {3}5\/5, says merge \(2nd review\)/);
+  assert.match(page(failedMerge), /× needs you · 2nd review · claude · 0s ago · proj\/1/); assert.match(page(failedMerge), /Reviews {6}1 · 5\/5 yes\n Latest {7}5\/5, says merge · 2nd review\n {14}Crashes\./);
   // behind main and not brought up to date yet: neither the row nor the panel say it is ready
   const behind = { ...pr, summary: "Did the work.", syncBlocked: { why: "main could not be fetched (network is down)" }, msg: "Behind main, and not up to date yet: main could not be fetched (network is down). The board keeps trying; it cannot be approved until then." };
   assert.match(row(behind, 120), /^ × Build a flying game {2}Behind main, and not up to date yet/);
   assert.match(page(behind), /Behind main, cannot be approved yet/); assert.match(page(behind), /main could not be fetched \(network is down\)/); assert.doesNotMatch(page(behind), /ready to approve/);
   // the panel, in the order you need it: where it stands, the reviewer, the change, what the agent said
   const ready = page({ ...second, summary: "Did the work.", said: "Built Skylark.", stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" });
-  assert.match(ready, /^\n Build a flying game\n ✓ ready to approve · 2nd review · claude · 0s ago · proj\/1\n\n Reviewer {3}3\/5, says don't merge \(2nd review\)\n {12}Crashes\.\n\n Change {5}4 files, \+120 −31 · PR#12 ✓\n {12}https:\/\/github\.com\/a\/b\/pull\/12\n\n The agent said\n Built Skylark\./);
-  assert.doesNotMatch(ready, /Description|None\.|Permissions|Watcher/);
-  assert.match(page({ ...second, summary: "Did the work." }, true), /\n Settings\n Project /); // every setting, at the end of the whole panel
+  assert.match(ready, /^\n Build a flying game\n ✓ ready to approve · 2nd review · claude · 0s ago · proj\/1\n\n Reviews {6}1 · 3\/5 no\n Latest {7}3\/5, says don't merge · 2nd review\n {14}Crashes\.\n Change {7}4 files, \+120 −31 · PR#12 ✓\n {14}https:\/\/github\.com\/a\/b\/pull\/12\n Project /);
+  assert.match(ready, /\n Permissions {2}[^\n]+\n\n The agent said\n Built Skylark\.$/); // every setting, tightly, then what the agent said
+  assert.doesNotMatch(ready, /Description|None\./);
+  // Every review the task had: how many, how each went, and the latest, on both shapes of the panel.
+  const spiral = { ...second, reviewRound: 3, review: { score: 4, recommend: true, text: "Fine now.", stale: false }, reviews: [
+    { round: 1, at: Date.now() - 7200000, score: 2, recommend: false, text: "Crashes on start.", problems: ["game.js: null plane."], checks: ["Ran it."], limitations: [], head: "1111111aaaa" },
+    { round: 2, at: Date.now() - 3600000, error: "the reviewer finished without a verdict" },
+    { round: 3, at: Date.now() - 60000, score: 4, recommend: true, text: "Fine now.", problems: [], checks: ["Ran the tests: all pass."], limitations: ["Not tried on a phone."], head: "abcdef12345" }] };
+  assert.match(page(spiral), /\n Reviews {6}3 · 2\/5 no → failed → 4\/5 yes\n Latest {7}4\/5, says merge · 3rd review · 1m ago\n {14}Fine now\.\n/);
+  assert.doesNotMatch(page(spiral), /Crashes on start|the newest first/); // beside the list: only the latest
+  const whole = page(spiral, true);
+  assert.match(whole, /\n Reviews · 3, the newest first\n 3rd review · 4\/5, says merge · 1m ago · commit abcdef1\n Fine now\.\n Checked\n {3}- Ran the tests: all pass\.\n Could not verify\n {3}- Not tried on a phone\.\n\n 2nd review · failed, no verdict · 1h ago\n the reviewer finished without a verdict\n\n 1st review · 2\/5, says don't merge · 2h ago · commit 1111111\n Crashes on start\.\n Problems\n {3}- game\.js: null plane\.\n Checked\n {3}- Ran it\.$/);
+  assert.ok(whole.indexOf("\n Reviews      3 ·") < whole.indexOf("\n Permissions") && whole.indexOf("\n Permissions") < whole.indexOf("Reviews · 3, the newest first")); // the same table, then the history at the end
+  // many reviews in a narrow panel: the trail keeps the newest and says that older ones are left out
+  const many = { ...spiral, reviews: Array.from({ length: 12 }, (_, n) => ({ round: n + 1, score: 2, recommend: false, text: "Still broken." })) };
+  assert.match(stripVTControlCharacters(v.panel({ owner: "me", ...many }, 44, false, 20).join("\n")), /\n Reviews {6}12 · … 2\/5 no → 2\/5 no/);
+  // a short window never costs a setting: what it is doing now, the long parts and the facts that are not settings go first
+  const busy = { ...spiral, title: "Build a flying game with a very long name that wraps onto two lines", state: "working", kind: undefined, stage: "working", progress: 40, eta: 12, msg: "Running the whole test suite again after the last fix", said: "Working on it.", description: "Long. ".repeat(200), usage: { in: 1000, out: 2000, context: 5000, window: 200000 }, link: { pane: "p1", workspace: "w1" } };
+  for (const fit of [30, 20, 16, 14]) {
+    const lines = v.panel({ owner: "me", ...busy }, 45, false, fit).map((l) => stripVTControlCharacters(l));
+    assert.ok(lines.length <= fit, `fits in ${fit} lines`);
+    for (const fact of ["Reviews", "Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Conflicts", "Permissions"]) assert.ok(lines.some((l) => l.startsWith(` ${fact} `)), `${fact} with room for ${fit} lines`);
+    assert.match(lines[lines.length - 1], /more: ctrl\+e shows the whole panel/);
+  }
+  assert.match(stripVTControlCharacters(v.panel({ owner: "me", ...busy }, 45, false, 30).join("\n")), /\n Now\n Running the whole test suite/); // with room, what it is doing is there
+  if (!process.env.NO_COLOR) {
+    // what a row says is greyed out, never in the title's colour
+    const grey = "\x1b[38;2;108;112;134m";
+    assert.ok(v.row(working, 120).includes(`${grey}A long sentence about what the other agent`), "a working row's status line is grey");
+    assert.ok(v.row({ ...working, state: "blocked", kind: "question", stage: "asks", msg: "Which colour?" }, 120).includes(`${grey}Which colour?`), "and so is a row that needs you");
+    assert.ok(!v.row(working, 120).includes(`${grey}Other`), "the title is not");
+  }
   assert.match(row({ ...second, stage: "merging", state: "working", kind: undefined, msg: "merging" }, 120), /^ ◐ Build a flying game {2}merging +PR#12 ✓ {2}0s$/);
   assert.doesNotMatch(row({ ...second, state: "done", stage: "done" }, 120), /review|3\/5/);
   // while the reviewer works the row's sentence starts with the word, and says which review from the second on

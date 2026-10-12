@@ -32,6 +32,7 @@ function open(w, { rows = 34 } = {}) {
   const tui = { terminal: { rows, columns: 120 }, requestRender() {}, stop() { calls.push("stop"); }, start() { calls.push("start"); } };
   const v = new View(tui, theme, (x) => closed.push(x), { cwd: w.root });
   clearInterval(v.timer);
+  v.side = true; // the side panel is closed until asked for; these tests read it
   const screen = (width = 120) => v.render(width).map((l) => stripVTControlCharacters(l).replace(/\x1b_pi:c\x07/g, ""));
   const press = (...keys) => { for (const k of keys) v.handleInput(KEY[k] ?? k); };
   const type = (text) => { for (const ch of text) v.handleInput(ch); };

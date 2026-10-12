@@ -320,6 +320,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
   else if (reviewNeeded) {
     const r = await runReview(id, g, { text, change, toLand, ch });
     if (r.aborted) return;
+    g.set((t) => { S.logReview(t, r.review || { error: r.error }); }); // the task keeps every review it had
     if (!r.review) return void fail(g, { stage: "review", auth: r.auth ? true : undefined, title: r.auth ? "Needs a login" : "Review failed", msg: r.auth ? "The reviewer needs a login" : `Review failed: ${S.oneLine(r.error, 200)}. Retry the task to review again.`, detail: `Review failed: ${r.error}`, next: "Investigate the reviewer failure, then finish again for a fresh review. Do not bypass review or merge approval." }, { patch: { review: null } });
     review = r.review;
   }
@@ -408,7 +409,7 @@ async function runReview(id, g, { text, change, toLand, ch }) {
   let rkind = ch.reviewer, rmodel = ch.reviewerModel, reffort = ch.reviewerEffort;
   if (!installed(rkind) && installed(t.agent)) { rkind = t.agent; rmodel = ""; reffort = ""; }
   const round = (t.reviewRound || 0) + 1;
-  t = g.set((t) => { t.reviewRound = round; t.reviewSession = null; t.fallbacks = { ...(t.fallbacks || {}), reviewer: rkind !== ch.reviewer ? `reviewed by ${rkind}: ${ch.reviewer} is not installed here` : undefined }; });
+  t = g.set((t) => { S.keepSavedReview(t); t.reviewRound = round; t.reviewSession = null; t.fallbacks = { ...(t.fallbacks || {}), reviewer: rkind !== ch.reviewer ? `reviewed by ${rkind}: ${ch.reviewer} is not installed here` : undefined }; });
   const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch })}`;
   let pane = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0;
   // The reviewer ended its turn with no verdict: its own error when it has one, else its last message.
