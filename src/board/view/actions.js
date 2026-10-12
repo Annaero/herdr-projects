@@ -4,7 +4,6 @@ import * as A from "../../actions.js";
 import { herdr } from "../../herdr.js";
 import { clean, prNumber } from "./words.js";
 import { isAgent, failureFor } from "./states.js";
-import { WIDE } from "./size.js";
 
 export class Actions {
   // herdr's "approve the task in the focused pane" action lands here: the board opens on that task and asks first.
@@ -19,12 +18,12 @@ export class Actions {
     if (!this.archiveView) {
       this.archiveBack = { sel: this.sel, top: this.top, filter: this.filter, mode: this.mode, value: this.value() };
       this.archiveView = true;
-      this.filter = ""; this.mode = "new"; this.setValue(""); this.reply = false; this.full = false; this.top = 0;
+      this.filter = ""; this.mode = "new"; this.setValue(""); this.full = false; this.top = 0;
     } else {
       this.archiveView = false;
       const back = this.archiveBack;
       if (back) { this.sel = back.sel; this.top = back.top; this.filter = back.filter; this.mode = back.mode; this.setValue(back.value); }
-      this.reply = false; this.full = false;
+      this.full = false;
       this.archiveBack = null;
     }
     this.load();
@@ -34,7 +33,7 @@ export class Actions {
     if (r.host) return this.act(r, action);
     this.try(() => {
       if (action === "archive") { A.archive(r.id); this.archiveUndo = r; } else A.restore(r.id);
-      this.reply = false; this.full = false;
+      this.full = false;
       this.flash(action === "archive" ? `${r.id}: archived. ? has undo, and the archive.` : `${r.id}: restored.`, "green");
     });
   }
@@ -77,7 +76,9 @@ export class Actions {
     });
   }
   undo() {
-    // A draft comes back to whoever it was for: a reply stays a reply to that task, never a new task.
+    // A draft comes back only to whoever it was for: a reply stays a reply to that task, never a new task. ctrl+z
+    // never changes who you talk to (that is space's, and the arrows' while you talk to an agent): when the chat
+    // names somebody else, it says who the words were for and how to get there, and the words stay put away.
     if (this.draftAway) {
       const d = this.draftAway;
       // Its task is gone: the words are not lost, and not turned into something else unasked. A second ctrl+z says so.
@@ -85,9 +86,14 @@ export class Actions {
         if (!d.warned) { d.warned = true; return this.flash("The task that reply was for is gone. ctrl+z again brings the words back as a draft of their own.", "yellow"); }
         d.to = "";
       }
+      const now = this.reply && this.current() ? this.sel : "";
+      if (d.to !== now) {
+        const name = d.to ? `"${truncateToWidth(clean(this.items.find((r) => r.id === d.to)?.title || d.to), 40, "…")}"` : "";
+        return this.flash(!d.to ? "Those words were for the Coordinator. space goes back to it, then ctrl+z brings them back."
+          : now ? `Those words were for ${name}. Move to it, then ctrl+z brings them back.`
+          : `Those words were for the agent on ${name}. Select it and press space, then ctrl+z brings them back.`, "yellow");
+      }
       this.draftAway = null;
-      if (d.to) { this.sel = d.to; this.replyId = d.to; this.reply = true; if (this.width < WIDE) { this.full = true; this.panelTop = 0; } }
-      else if (this.reply || this.full) this.closePanel();
       this.setValue(d.text); this.load();
       return;
     }

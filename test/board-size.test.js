@@ -57,7 +57,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     assert.equal(lines[53], "─".repeat(411)); assert.match(lines[52], /^❯ /); assert.equal(lines[51], "─".repeat(411));
     const row = lines.find((l) => /Pin the chat/.test(l));
     assert.match(row, /Checking every window size\. +█+░+ +55% 12m PR#3 {2}6m {4}$/); assert.equal(row.length, 411); // the columns are back in view
-    assert.match(lines.find((l) => /^ ○ Coordinator/.test(l)).trimEnd(), /alt\+c open its chat · esc hide its message$/); // whole, not cut after the dot
+    assert.match(lines.find((l) => /^ ○ Coordinator/.test(l)).trimEnd(), /alt\+c open its chat · alt\+v hide its message$/); // whole, not cut after the dot
     // Held at 435x58 while a taller, narrower window shows it: the width is cut down, the rows are all there are.
     s.v.shown = { cols: 184, rows: 78, split: false };
     lines = s.screen(435);

@@ -6,8 +6,8 @@ import { short, clean } from "./words.js";
 
 // The keys worth remembering. Everything else is a line in the menu.
 const KEYS = [
-  ["↑ ↓", "move between tasks"], ["enter", "send, or open the agent"], ["space", "talk to this task's agent"], ["tab", "put an agent on it"],
-  ["ctrl+a", "yes: approve, retry, continue"], ["y  n", "answer a question: y yes, n or esc no (enter never confirms)"], ["ctrl+r", "send it back to fix"], ["ctrl+x", "stop the agent"], ["ctrl+f", "find"], ["ctrl+p", "side panel, on or off"], ["ctrl+e", "the whole task, full screen"], ["?", "this menu"], ["esc", "one step back: the chat's message first"], ["ctrl+c", "twice: close the board"],
+  ["↑ ↓", "move between tasks"], ["enter", "send, or open the agent"], ["space", "talk to this task's agent, or back to the Coordinator"], ["tab", "put an agent on it"],
+  ["ctrl+a", "yes: approve, retry, continue"], ["y  n", "answer a question: y yes, n or esc no (enter never confirms)"], ["ctrl+r", "send it back to fix"], ["ctrl+x", "stop the agent"], ["ctrl+f", "find"], ["ctrl+p", "side panel, on or off"], ["ctrl+e", "the whole task, full screen"], ["?", "this menu"], ["esc", "one step back: a draft, find, the whole task, the filter, the archive"], ["ctrl+c", "twice: close the board"],
 ];
 
 export class Menu {

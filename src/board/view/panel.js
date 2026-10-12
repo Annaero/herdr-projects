@@ -11,7 +11,6 @@ const NOT_SETTINGS = ["Branch", "Note"];
 const READ = 100;
 
 export class Panel {
-  closePanel() { this.reply = false; this.full = false; this.panelTop = 0; this.load(); }
   // The side panel, on demand. Your choice is remembered.
   toggleSide() {
     this.side = !this.side; this.savePrefs();

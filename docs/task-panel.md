@@ -2,9 +2,9 @@
 
 **The task panel** shows the selected task. Beside the list it is closed until you ask for it: `Ctrl+P` opens and
 closes it (in a window of 90 columns or more), and your choice is remembered. Closed, each row has the whole width
-for what it says. `Ctrl+E` shows the whole task full screen (as does `Space` in a narrow window, with the chat set
-to that task's agent). Opening or folding the whole panel never changes who you talk to: only `Space` does, at
-every width.
+for what it says. `Ctrl+E` shows the whole task full screen, and `Esc` leaves it. Opening or folding the whole panel
+never changes who you talk to or whether the chat's message shows, and `Space` never opens or folds it, at any
+width.
 
 Both have the same parts, in the same order, each standing on its own under a bold headline on a thin rule, with an
 empty line between:

@@ -34,7 +34,7 @@ export class Remotes {
       if (j && j.ok && (action === "archive" || action === "restore")) {
         r.archivedAt = action === "archive" ? Date.now() : null;
         if (action === "archive") this.archiveUndo = r;
-        this.closePanel();
+        this.foldPanel();
       }
       after?.(!!j?.ok);
       this.pollRemotes(true); this.tui.requestRender();

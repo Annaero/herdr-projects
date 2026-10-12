@@ -90,15 +90,16 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     C.fresh(C.pickOf({ agent: "nope" })); C.send(w.root, "second"); await drainJobs(runJob);
     assert.match(C.look().error, /"nope" is not installed here/); assert.equal(C.get().queue.length, 1);
     s.beat(); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n(?: ›[^\n]*\n)* It could not be started: "nope" is not installed here/); // also with its message hidden
-    // esc hides that too, as the chat's line says, and does nothing else; only the next esc asks about closing.
+    // alt+v hides that too, as the chat's line says; esc does not.
     s.v.chatOpen = false; s.v.setValue(""); s.v.reply = false; s.v.full = false; s.v.filter = ""; s.v.msg = "";
-    assert.match(s.text(), /esc hide its message/);
-    s.press("esc"); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []);
+    assert.match(s.text(), /alt\+v hide its message/);
+    s.press("esc"); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []); assert.match(s.text(), /It could not be started:/);
+    s.press("alt+v");
     assert.doesNotMatch(s.text(), /It could not be started:/); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*alt\+v show its message/);
     s.beat(); assert.doesNotMatch(s.text(), /It could not be started:/, "the same error stays hidden");
     s.press("esc"); assert.ok(s.v.closing); s.v.closeSoon();
     // alt+v shows it again and hides it again, shown by the setting or not.
-    s.press("alt+v"); assert.match(s.text(), /It could not be started:/); s.press("esc"); assert.doesNotMatch(s.text(), /It could not be started:/); assert.equal(s.v.ask, null);
+    s.press("alt+v"); assert.match(s.text(), /It could not be started:/); s.press("alt+v"); assert.doesNotMatch(s.text(), /It could not be started:/); assert.equal(s.v.ask, null);
     s.v.errHid = ""; s.v.chatOpen = true; assert.match(s.text(), /It could not be started:/); s.press("alt+v"); assert.doesNotMatch(s.text(), /It could not be started:/);
     assert.throws(() => C.pickOf({ agent: "not a kind" }), /must be an agent kind/);
   } finally { delete process.env.HERDR_SUPERWORK_HANDLED_MS; w.cleanup(); }

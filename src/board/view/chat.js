@@ -9,8 +9,9 @@ import { isAgent, reviewing, groupOf, statusColor } from "./states.js";
 export class Chat {
   // ---- the chat ---------------------------------------------------------------------------------------------------------
   // One chat at the bottom of the board, the same for everyone you can talk to. Who that is follows one rule: the
-  // task you pressed space on, its agent; otherwise the Coordinator. Only its latest message is drawn here: the whole
-  // conversation is the agent's own pane, which `openChat` goes into.
+  // Coordinator, until space flips it to the selected task's agent (and space flips it back). Only its latest message
+  // is drawn here, and one key (alt+v) shows and hides it, whoever it is from: the whole conversation is the agent's
+  // own pane, which `openChat` goes into.
   // A start that failed says why even while the chat is hidden, so hiding it also puts that one error away: the
   // same error stays hidden, the next one shows again.
   toggleChat() {
@@ -18,10 +19,6 @@ export class Chat {
     if (c?.always) { this.errHid = this.coord.error; this.chatOpen = false; } else this.chatOpen = !this.chatOpen;
     this.savePrefs(); this.syncCoord();
   }
-  // The chat's latest message is up, the Coordinator's or a task agent's: the first thing esc backs out of.
-  previewOpen(r) { const c = this.chatOf(r); return !!c?.said && (this.chatOpen || !!c.always); }
-  // The key that hides it: esc while the text box is empty (a draft is put away first), alt+v always.
-  hideKey() { return this.value() ? "alt+v" : "esc"; }
   openChat() { const r = this.current(); return this.reply && r ? this.chat(r) : this.enterCoord(); }
   // A reply to this task goes to an agent of its own (not, with its task named, to the Coordinator).
   hasAgent(r) { return isAgent(r) && (!!r.host || F.isAgentTask(r) || F.cleanedUp(r)); }
@@ -73,7 +70,7 @@ export class Chat {
     const bits = [c.word && "  " + t.fg(c.color, c.word), c.meta && t.fg("overlay0", "  " + c.meta), c.label && this.chatOpen && t.fg("overlay0", "  · " + c.label)].filter(Boolean);
     // The chat's two keys, in full or in short. Where neither fits beside the name, the hint line below says alt+v.
     const up = this.chatOpen || c.always;
-    const toggle = up ? `${this.hideKey()} hide` : "alt+v show";
+    const toggle = `alt+v ${up ? "hide" : "show"}`;
     const forms = [[c.enter && "alt+c open its chat", c.said && `${toggle} its message`], [c.enter && "alt+c chat", c.said && toggle]].map((f) => f.filter(Boolean).join(" · "));
     let keys = forms[0];
     const fits = (n, withKeys) => visibleWidth(name + bits.slice(0, n).join("")) + (withKeys && keys ? 3 + visibleWidth(keys) : 0) <= room;
@@ -82,7 +79,7 @@ export class Chat {
     while (n > 1 && !fits(n, true)) n--;
     if (!fits(n, true)) { keys = forms[1]; n = bits.length; while (n > 1 && !fits(n, true)) n--; }
     if (!fits(n, true)) { showKeys = false; n = bits.length; while (n && !fits(n, false)) n--; }
-    this.chatKeyHint = c.said && !showKeys ? [toggle.split(" ")[0], `${up ? "hide" : "show"} its message`] : null;
+    this.chatKeyHint = c.said && !showKeys ? ["alt+v", `${up ? "hide" : "show"} its message`] : null;
     // A name longer than the window takes a second line before it is cut (in a short window that line is the draft's).
     if (!fits(0, false) && tight) return [lead + truncateToWidth(name, room, "…")];
     if (!fits(0, false)) { const [a, b, more] = wrapTextWithAnsi(name, room); return [lead + a, ...(b ? ["   " + (more ? truncateToWidth(b, room - 1, "") + "…" : b)] : [])]; }

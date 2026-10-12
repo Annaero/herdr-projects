@@ -26,13 +26,21 @@ reviewer works, the mark, the bar, the percent and the minutes left are the gree
 and the sentence says only what the reviewer is doing. `PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
 since it stopped. A row never repeats what its heading says.
 
-**One chat, at the bottom.** The text box is a chat, and it is the same chat whoever you talk to. One rule decides
-who that is: press `Space` on a task and you talk to that task's agent; otherwise you talk to the Coordinator. Ask it
-something, tell it to do something, or just say what needs doing.
+**One chat, at the bottom.** The text box is a chat, and it is the same chat whoever you talk to. It always talks to
+someone and always says who: the Coordinator, until `Space` (on an empty text box) flips it to the selected task's
+agent; `Space` again flips it back. Ask it something, tell it to do something, or just say what needs doing.
+
+The arrow keys only move the selection; they never change who you talk to. While you talk to a task's agent the
+chat follows the selection: move to another task and you talk to that task's agent, with its latest message shown.
+A task with no agent to talk to is still named, with where your message goes instead: it starts an agent on a task
+that is to do, goes to the Coordinator about that task otherwise, and an archived task is read-only. With no task
+selected (words on their way to another machine, an empty list) the chat names the Coordinator until a task is
+selected again. If the task you talk to goes away (deleted, cleared), you are back with the Coordinator, never on
+to a neighbour's agent.
 
 ```
 ──────────────────────────────────────────────────────────────────────────────────────────────
- ○ Coordinator  idle  claude · default model · default effort    alt+c open its chat · esc hide its message
+ ○ Coordinator  idle  claude · default model · default effort    alt+c open its chat · alt+v hide its message
  › file the undo task
  Filed proj/4: Add an undo. An agent is on it.
 ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -44,9 +52,13 @@ The chat's first line says who you talk to, on the whole width of the window: th
 full name with where it stands and which agent is on it (a name longer than the window takes a second line; in a
 window too short for that, the draft keeps the line). The text box and its hints are never pushed off the window: the
 chat gives way first. The
-prompt is only `❯`. Under that line is the latest thing they said (their screen while a dialog is up): `Alt+V` hides
-it and shows it again, in a narrow window too (where the key does not fit beside the name, the hint line says it),
-and the board remembers which. `Esc` hides it too, as its first step back (with nothing typed): while the message is up, `Esc` does only that, and the chat's line names `esc` as the key. A Coordinator that could not be started says why even while the message is hidden; `Esc` (or `Alt+V`) puts that error away too, until the next one. `Alt+C` goes into the whole chat of whoever it names. Where the
+prompt is only `❯`. Under that line is the latest thing they said (their screen while a dialog is up). One key shows
+and hides it, the same key both ways and the same for the Coordinator and a task's agent: `Alt+V` (on an empty text
+box, like `Ctrl+P` for the side panel), in a narrow window too (where the key does not fit beside the name, the
+hint line says it), and the board remembers which. Hidden, the line that says who you talk to stays, so a message is
+never sent blind. Nothing else shows or hides it: `Esc` never does. A Coordinator that could not be started says why
+even while the message is hidden; `Alt+V` puts that error away too, until the next one. `Alt+C` goes into the whole
+chat of whoever it names. Where the
 Coordinator stands (starting, working, needs you, a new reply) is said on that first line and nowhere else.
 
 **A board that looks cut off or half empty.** The board takes its pane's size back by itself within a few seconds:
@@ -65,5 +77,7 @@ Closing that view, or stopping the process it names, gives the pane its own size
 in the popup (which has no pane of its own), outside herdr, or in a tmux inside the pane.
 
 While the text box holds text it owns the keyboard: only `Enter`, `Tab` and `Esc` act on the board, so no shortcut
-fires in the middle of a draft. `Esc` puts a draft away; `Ctrl+Z` brings it back to whoever it was for, so a reply
-stays a reply.
+fires in the middle of a draft. `Esc` puts a draft away; `Ctrl+Z` brings it back only to whoever it was for, so a reply
+stays a reply. It never changes who you talk to: when the chat names somebody else, it says who the words were for
+(the Coordinator: `Space` goes back to it; a task's agent: select that task, and `Space` if you talk to the
+Coordinator), and the words stay put away until you are there.

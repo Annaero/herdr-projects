@@ -37,11 +37,13 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     assert.match(s.text(), /Sent to the agent/);
     const t = S.get("proj/1");
     assert.match(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.at(-1), /also say goodbye/);
-    // esc, one step at a time: the agent's message in the chat is hidden first, and only the next esc leaves the reply
-    assert.match(s.text(), /esc hide its message/); assert.doesNotMatch(s.text(), /esc back/);
-    s.press("esc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.equal(s.v.ask, null); assert.match(s.text(), /alt\+v show its message/); assert.match(s.text(), /esc back/);
-    s.press("esc"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯/);
+    // esc has nothing to go back from here: it never hides the chat's message, never changes who you talk to, never
+    // closes the board. alt+v is the one key for the message, space the one key for who.
+    assert.match(s.text(), /alt\+v hide its message/); assert.doesNotMatch(s.text(), /esc hide|esc back/); assert.match(s.text(), /space back to the Coordinator *$/);
+    s.press("esc"); assert.equal(s.v.chatOpen, true); assert.equal(s.v.reply, true); assert.equal(s.v.ask, null); assert.equal(s.closed(), undefined); assert.ok(s.v.closing); assert.match(s.text(), /Press ctrl\+c again to close the board *$/); s.v.closeSoon();
+    s.press("\x1bv"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.match(s.text(), /\n─+\n . Add a greeting {2}[^\n]*alt\+v show its message/);
     s.press("\x1bv"); assert.equal(s.v.chatOpen, true);
+    s.press("space"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯/);
     // enter: focus the agent's real pane by pane id and close the board; selection and filter come back on reopen
     s.press("enter");
     assert.deepEqual(s.closed(), { entered: "proj/1" });

@@ -50,12 +50,12 @@ Bold rows change.
 | `ctrl+↑` `ctrl+↓` | into and out of the words on their way to another machine | board |
 | `enter` | with text: send. Empty: open the task's agent | text box / task's agent |
 | `→` | open the task's agent | task's agent |
-| `space` | talk to this task's agent (again: back to the Coordinator) | text box |
+| `space` | flip who you talk to: this task's agent, again: back to the Coordinator. While it is a task's agent, the chat follows the selection | text box |
 | `tab` | put an agent on the task; with text: add it and start an agent | task |
 | `shift+enter` | new line | text box |
 | `delete` | delete the task (asks first) | task |
 | `?` | the menu | board |
-| `esc` | one step back: draft, the chat's latest message, open task, filter, archive; last step shows the `ctrl+c` hint | board |
+| `esc` | one step back: find, draft, the whole task, filter, archive; last step shows the `ctrl+c` hint. Never the chat, never who you talk to | board |
 
 Arrows always move, whatever is held with them, so `alt+↑` and `ctrl+↑` belong here.
 
@@ -64,7 +64,7 @@ Arrows always move, whatever is held with them, so `alt+↑` and `ctrl+↑` belo
 | Key | What it does |
 |---|---|
 | `ctrl+c` | close the board: twice, the first shows `Press ctrl+c again to close the board` for 0.8 seconds, as Claude Code does |
-| `ctrl+z` | undo: bring back a draft, or undo the archive |
+| `ctrl+z` | undo: bring back a draft (only to whoever it was for; it never changes who you talk to), or undo the archive |
 | `ctrl+f` | find |
 
 ### `ctrl`: the selected task

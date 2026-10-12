@@ -101,7 +101,7 @@ test("resizing the real screen keeps the chat on the last line and the working r
       // Who you talk to: its keys end at the right edge, whole, never on a dangling separator.
       const who = lines[head + 1].trimEnd();
       assert.match(who, /^ ○ Coordinator/, note); assert.doesNotMatch(who, /·$/, note);
-      if (columns >= 120) { assert.match(who, /alt\+c open its chat · esc hide its message$/, note); assert.ok(visibleWidth(who) >= columns - 1, note); }
+      if (columns >= 120) { assert.match(who, /alt\+c open its chat · alt\+v hide its message$/, note); assert.ok(visibleWidth(who) >= columns - 1, note); }
       // The working row: its columns sit at the window's right edge, however wide the window is.
       const row = lines.find((l) => /Pin the chat to the bottom/.test(l)) || "";
       if (rows >= 20) assert.ok(row, `${note}: the working row is in view`);

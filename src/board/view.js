@@ -43,7 +43,8 @@ export class View {
   allDone = false; archiveView = false; archiveBack = null; archiveUndo = null;
   // The task panel: beside the list when you have it open (`side`, ctrl+p) and the window is wide, full screen
   // (`full`) when asked for. Most of the time it is closed, so each row has the width for what it says.
-  // `reply` says who the chat at the bottom talks to: the selected task's agent after space, the Coordinator otherwise.
+  // `reply` says who the chat at the bottom talks to: the selected task's agent after space (whichever task that is,
+  // as you move), the Coordinator otherwise.
   reply = false; replyId = ""; side = false; full = false; panelTop = 0; panelHeight = 1; panelLength = 0; width = 120;
   mode = "new"; menu = null; ask = null; byRepo = false; draftAway = null;
   scope = ""; // whose board you see: "" this machine, "*" every machine, or one other machine by name
@@ -115,7 +116,7 @@ export class View {
   invalidate() { this.input.invalidate(); }
   get focused() { return this.input.focused; }
   set focused(value) { this.input.focused = value; }
-  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, side: this.side, scope: this.scope, sel: this.sel, filter: this.filter, told: this.told, draft: this.mode === "new" && !this.reply ? this.value() : "", chat: this.chatOpen ? "open" : "closed", cwd: this.ctx.cwd, away: this.reply && this.value().trim() ? { text: this.value(), to: this.replyId } : this.draftAway }); } catch {} }
+  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, side: this.side, scope: this.scope, sel: this.sel, filter: this.filter, told: this.told, draft: this.mode === "new" && !this.reply ? this.value() : "", chat: this.chatOpen ? "open" : "closed", cwd: this.ctx.cwd, away: this.mode === "new" && this.reply && this.value().trim() ? { text: this.value(), to: this.replyId } : this.draftAway }); } catch {} }
   // A message stays until the next key press; an error stays until esc dismisses it.
   flash(text, kind = "overlay0") { this.msg = clean(text); this.msgKind = kind; }
   value() { return this.input.getText(); }

@@ -4,7 +4,6 @@ import * as A from "../../actions.js";
 import * as F from "../../flow.js";
 import * as H from "../../helpers.js";
 import { isAgent } from "./states.js";
-import { WIDE } from "./size.js";
 
 // Closing takes ctrl+c twice, as leaving Claude Code does ("Press Ctrl-C again to exit", shown for 0.8s): this long
 // the first one is remembered. Codex is no model here: it leaves on the first ctrl+c (its two-press code is off).
@@ -52,7 +51,8 @@ export class Keys {
     this.stick = "";
     // A draft owns the chat's keys too, wherever it is going: alt+c, alt+v, alt+r and alt+n act only on an empty text box.
     if (!!this.value() && ["alt+c", "alt+v", "alt+r", "alt+n"].some((k) => matchesKey(data, k))) return this.input.handleInput(data);
-    // alt+c: into the whole chat of whoever the chat talks to (the board closes). alt+v: its latest message, shown or not.
+    // alt+c: into the whole chat of whoever the chat talks to (the board closes). alt+v: its latest message, shown or
+    // hidden: the one key for that, the same both ways and whoever the chat talks to.
     if (matchesKey(data, "alt+c")) return this.openChat();
     if (matchesKey(data, "alt+v")) return this.toggleChat();
     if (this.going && (esc || matchesKey(data, "ctrl+c"))) { this.going = 0; return this.flash("Stayed on the board. The Coordinator keeps starting."); }
@@ -61,12 +61,12 @@ export class Keys {
     const text = this.value().trim();
     const r = this.current();
     if (esc) {
-      // One step back at a time. A draft is put away, not thrown away; the chat's latest message is hidden before
-      // anything behind it closes; the last step only shows how the board closes.
+      // One step back at a time, and nothing else: a draft is put away, not thrown away; then the whole task, the
+      // filter and the archive close; the last step only shows how the board closes. esc never shows or hides the
+      // chat and never changes who you talk to.
       if (this.mode !== "new") { this.mode = "new"; this.setValue(""); }
       else if (this.value()) { if (text) { this.draftAway = { text: this.value(), to: this.reply && r ? r.id : "" }; this.flash("Put away. ctrl+z brings it back."); } this.setValue(""); }
-      else if (this.previewOpen(r)) return this.toggleChat();
-      else if (this.full || this.reply) return this.closePanel();
+      else if (this.full) return this.foldPanel();
       else if (this.filter) this.filter = "";
       else if (this.archiveView) return this.toggleArchive();
       else return this.closeHint();
@@ -88,9 +88,10 @@ export class Keys {
     }
     if (enter) {
       if (!text) { if (r) this.chat(r); return; } // with nothing typed, enter opens the selected task's agent
-      // Who gets it is who the chat names: the selected task's agent after space, the Coordinator otherwise.
+      // Who gets it is who the chat names: the selected task's agent after space, the Coordinator otherwise (also
+      // while no task is selected).
       if (this.reply && r?.archivedAt) return this.flash("Archived tasks are read-only. ? has restore.", "yellow");
-      if (this.reply && (!r || r.id !== this.replyId)) return this.flash("The task you were replying to is gone. Nothing was sent.", "yellow");
+      if (this.reply && r && r.id !== this.replyId) return this.flash("The task you were replying to is gone. Nothing was sent.", "yellow");
       // A reply to one of this machine's tasks that never had an agent starts one with that message.
       const fresh = this.reply && r && !r.host && !r.archivedAt && !F.isAgentTask(r) && ["todo", "progress"].includes(r.stage);
       if (fresh) { if (!this.try(() => { const out = A.tell(r.id, text); this.flash(out.msg, "green"); })) return; }
@@ -99,11 +100,11 @@ export class Keys {
         // Busy/refused replies keep the draft; only a successful send clears it.
         if (r.host) { this.act(r, "tell", { text }, false, (ok) => { if (ok && this.sel === r.id && this.value().trim() === text) this.setValue(""); }); return; }
         if (!this.try(() => { const out = A.tell(r.id, text); this.flash(out.msg, out.msg.startsWith("queued") ? "yellow" : "green"); })) return;
-      } else this.dispatch(text, false, this.reply ? r : undefined);
+      } else this.dispatch(text, false, this.reply && r ? r : undefined);
       return this.setValue("");
     }
     if (matchesKey(data, "tab")) {
-      if (text) { if (this.reply || this.mode !== "new") return; this.dispatch(text, true); return this.setValue(""); }
+      if (text) { if ((this.reply && r) || this.mode !== "new") return; this.dispatch(text, true); return this.setValue(""); }
       if (r?.archivedAt) return this.flash("Archived tasks are read-only. ? has restore.", "yellow");
       if (r && r.host) this.act(r, "delegate"); else if (r) this.try(() => { const t = A.delegate(r.id); this.flash(t.stage === "queued" ? `${r.id}: waiting for a free slot` : `${r.id}: an agent is on it`, "green"); });
       return;
@@ -127,12 +128,13 @@ export class Keys {
     if (matchesKey(data, "pageUp")) return this.move(-10);
     if (matchesKey(data, "pageDown")) return this.move(10);
     if (data === "?") { this.menu = { at: 0 }; return; }
-    if (matchesKey(data, "ctrl+f")) { this.mode = "find"; this.reply = false; this.full = false; this.setValue(this.filter); return; }
+    if (matchesKey(data, "ctrl+f")) { this.mode = "find"; this.full = false; this.setValue(this.filter); return; }
     if (data === " ") {
       if (!r) return;
-      if (this.reply) return this.closePanel(); // back to the Coordinator, at every width
+      // The one key that changes who you talk to: the selected task's agent, and back to the Coordinator.
+      if (this.reply) { this.reply = false; this.panelTop = 0; return this.load(); }
       if (r.archivedAt) return this.flash("Archived tasks are read-only. ? has restore.", "yellow");
-      this.reply = true; this.replyId = r.id; if (this.width < WIDE) { this.full = true; this.panelTop = 0; }
+      this.reply = true; this.replyId = r.id;
       return;
     }
     if (matchesKey(data, "right") && r) return this.chat(r);

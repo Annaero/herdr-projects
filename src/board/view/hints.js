@@ -18,13 +18,12 @@ export class Hints {
       return [["enter", "add a task"], ["tab", "add it and start an agent"], ["esc", "put away"], ["shift+enter", "new line"]];
     }
     if (this.job()) return [["ctrl+x", "stop it"], ["enter", "take it back to change"], ["ctrl+↑", "back to the list"]];
-    // While the chat's message is up, esc hides it (the chat says so beside the name): "back" is the press after.
-    const up = this.previewOpen(r);
-    if (!r) return [["", this.archiveView && !up ? "esc back to the board" : "type what needs doing"], ...(this.chatKeyHint ? [this.chatKeyHint] : []), more];
-    const tail = this.full ? [["↑↓", "scroll"], ...(up ? [] : [["esc", "back"]])] : this.reply ? [up ? more : ["esc", "back"]] : [more];
+    if (!r) return [["", this.archiveView ? "esc back to the board" : "type what needs doing"], ...(this.chatKeyHint ? [this.chatKeyHint] : []), more];
+    // esc leaves the whole task; who you talk to is space's to flip back.
+    const tail = this.full ? [["↑↓", "scroll"], ["esc", "back"]] : this.reply ? [["space", "back to the Coordinator"]] : [more];
     const failure = failureFor(r), rv = currentReview(r), reply = ["space", "reply"], open = ["enter", "open the agent"];
     let main;
-    if (r.archivedAt) main = [["?", "restore or delete"], ...(this.archiveView && !this.full && !up ? [["esc", "back to the board"]] : [])];
+    if (r.archivedAt) main = [["?", "restore or delete"], ...(this.archiveView && !this.full ? [["esc", "back to the board"]] : [])];
     else if (inReview(r)) main = [["ctrl+a", "approve and merge"], rv && G.sendable(rv) && ["ctrl+r", "send back"], reply];
     else if (r.stage === "approval" && r.syncBlocked) main = [reply, open];
     else if (r.stage === "approval" && r.state === "blocked") main = [failure?.agentCanFix && !failure.sentAt && ["ctrl+r", "send it to the agent to fix"], ["ctrl+a", "retry the merge"], reply];
@@ -41,7 +40,7 @@ export class Hints {
     main = main.filter(Boolean);
     if (this.reply && !r.archivedAt) main = [["", agentOn && r.state === "blocked" && r.kind === "question" ? "type your answer" : "type your reply"], ...main.filter(([k]) => k !== "space")];
     const key = this.chatKeyHint ? [this.chatKeyHint] : [];
-    // In a narrow window the hint line carries the chat's key: where it is esc, it stands last, as "esc back" does.
-    return [...main.slice(0, 4 - tail.length - key.length), ...(up && key.length && this.full ? [...tail, ...key] : [...key, ...tail])];
+    // In a narrow window the hint line carries the chat's key.
+    return [...main.slice(0, 4 - tail.length - key.length), ...key, ...tail];
   }
 }

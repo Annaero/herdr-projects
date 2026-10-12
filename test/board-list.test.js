@@ -63,9 +63,9 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     s.press("space"); assert.equal(s.v.reply, true); assert.equal(s.v.full, true);
     assert.match(s.text(80), /\n─+\n . Write the docs {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ your message starts an agent on it/);
     s.press("ctrl+e"); assert.equal(s.v.full, false); assert.equal(s.v.reply, true, "folding the panel keeps who you talk to");
-    s.press("ctrl+e", "space"); assert.equal(s.v.reply, false); assert.equal(s.v.full, false);
-    s.press("ctrl+e"); assert.equal(s.v.full, true); assert.equal(s.v.reply, false);
-    s.press("esc");
+    s.press("ctrl+e", "space"); assert.equal(s.v.reply, false); assert.equal(s.v.full, true, "space never opens or folds the panel");
+    // esc leaves the whole task, and who you talk to stays as it was: also a task's agent.
+    s.press("space", "esc"); assert.equal(s.v.full, false); assert.equal(s.v.reply, true); s.press("space");
     assert.match(s.text(120), /^ herdr-superwork/); assert.equal(s.v.reply, false);
     for (const width of [24, 40, 64, 89, 90, 200]) assert.ok(s.screen(width).every((l) => l.length <= width), `fits ${width}`);
   } finally { w.cleanup(); }

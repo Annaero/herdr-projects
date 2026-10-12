@@ -75,17 +75,30 @@ export class List {
     if (this.ask?.valid && !this.ask.valid()) { this.ask = null; this.flash("It changed while you were asked, so nothing was merged. Look at it again, then ctrl+a.", "yellow"); }
     // A reply belongs to the task it was started for. When that task is gone the words are never left pointing at
     // whichever task is selected next: they are put away, and nothing is sent.
-    if (this.reply && this.value() && this.replyId && this.sel !== this.replyId) {
+    // The same for words typed for the Coordinator on a row with no task (`replyId` is empty there): when that row
+    // goes and a task is selected, they do not become a reply to it.
+    if (this.reply && this.mode === "new" && this.value() && this.sel !== this.replyId && (this.replyId || this.current())) {
       if (this.value().trim()) this.draftAway = { text: this.value(), to: this.replyId };
-      this.setValue(""); this.reply = false; this.full = false;
-      this.flash("The task you were replying to is gone. Nothing was sent; your words are put away.", "yellow");
+      this.setValue(""); this.full = false;
+      if (this.replyId) { this.reply = false; this.flash("The task you were replying to is gone. Nothing was sent; your words are put away.", "yellow"); }
+      else this.flash("The row you were on is gone. Nothing was sent; your words for the Coordinator are put away.", "yellow");
     }
     this.syncReply();
     if (this.sel !== selected) this.load(); // rebuild the done fold for the new selection
   }
-  // You talk to a task's agent only while the task you pressed space on is the selected one. Moving to another task
-  // (or that task going away) is back to the Coordinator: the chat never follows the selection to an agent unasked.
-  syncReply() { if (this.reply && this.sel !== this.replyId) { this.reply = false; this.full = false; this.panelTop = 0; } }
+  // While you talk to a task's agent the chat follows the selection: moving to another task makes that task's agent
+  // the one you talk to. Only space changes whether it is a task's agent or the Coordinator, with one exception: the
+  // task you talk to going away (deleted, cleared) is back to the Coordinator, never on to a neighbour's agent.
+  // A row with no agent to talk to is still named, with where your message goes instead (it starts an agent, goes to
+  // the Coordinator about that task, or the task is archived and read-only). With no task selected at all (words on
+  // their way to another machine, an empty list) the chat names the Coordinator until a task is selected again.
+  // `replyId` is always the task the chat names: empty on a row with no task, so words typed or brought back there
+  // are the Coordinator's, never a reply to the task you were on before.
+  syncReply() {
+    if (!this.reply || this.sel === this.replyId) return;
+    if (this.replyId && !this.items.some((r) => r.id === this.replyId)) { this.reply = false; this.full = false; this.panelTop = 0; }
+    else { this.replyId = this.current() ? this.sel : ""; this.panelTop = 0; }
+  }
   move(d) {
     const ids = [...this.rows.filter((r) => r.rec).map((r) => r.rec.id), ...this.jobs.map((j) => j.id)]; // the dispatcher's rows sit below the list
     if (ids.length) this.sel = ids[Math.max(0, Math.min(ids.length - 1, ids.indexOf(this.sel) + d))];
