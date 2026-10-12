@@ -111,7 +111,7 @@ export class View {
     try { this.announce(); } catch {}
     this.tui.requestRender();
   }
-  dispose() { this.disposed = true; clearInterval(this.timer); this.savePrefs(); if (this.sent.size) { try { process.stdout.write([...this.sent.keys()].map(oscClear).join("")); } catch {} } }
+  dispose() { this.disposed = true; clearInterval(this.timer); this.closeSoon(); this.savePrefs(); if (this.sent.size) { try { process.stdout.write([...this.sent.keys()].map(oscClear).join("")); } catch {} } }
   invalidate() { this.input.invalidate(); }
   get focused() { return this.input.focused; }
   set focused(value) { this.input.focused = value; }

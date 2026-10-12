@@ -96,7 +96,7 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     s.press("esc"); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []);
     assert.doesNotMatch(s.text(), /It could not be started:/); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*alt\+v show its message/);
     s.beat(); assert.doesNotMatch(s.text(), /It could not be started:/, "the same error stays hidden");
-    s.press("esc"); assert.equal(s.v.ask.q, "Close the board?"); s.press("esc");
+    s.press("esc"); assert.ok(s.v.closing); s.v.closeSoon();
     // alt+v shows it again and hides it again, shown by the setting or not.
     s.press("alt+v"); assert.match(s.text(), /It could not be started:/); s.press("esc"); assert.doesNotMatch(s.text(), /It could not be started:/); assert.equal(s.v.ask, null);
     s.v.errHid = ""; s.v.chatOpen = true; assert.match(s.text(), /It could not be started:/); s.press("alt+v"); assert.doesNotMatch(s.text(), /It could not be started:/);

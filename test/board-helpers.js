@@ -6,7 +6,7 @@ import { View } from "../src/board/view.js";
 import { theme } from "../src/board/theme.js";
 
 export const here = path.dirname(fileURLToPath(import.meta.url));
-export const KEY = { enter: "\r", tab: "\t", esc: "\x1b", space: " ", right: "\x1b[C", down: "\x1b[B", up: "\x1b[A", "ctrl+a": "\x01", "ctrl+e": "\x05", "ctrl+x": "\x18", "ctrl+t": "\x14", "ctrl+r": "\x12", "ctrl+y": "\x19", "ctrl+g": "\x07", "ctrl+z": "\x1a", "ctrl+b": "\x02", "ctrl+p": "\x10", "ctrl+f": "\x06", "ctrl+s": "\x13", "alt+a": "\x1ba", "alt+h": "\x1bh", "ctrl+d": "\x04", delete: "\x1b[3~" };
+export const KEY = { enter: "\r", tab: "\t", esc: "\x1b", space: " ", right: "\x1b[C", down: "\x1b[B", up: "\x1b[A", "ctrl+a": "\x01", "ctrl+c": "\x03", "ctrl+e": "\x05", "ctrl+x": "\x18", "ctrl+t": "\x14", "ctrl+r": "\x12", "ctrl+y": "\x19", "ctrl+g": "\x07", "ctrl+z": "\x1a", "ctrl+b": "\x02", "ctrl+p": "\x10", "ctrl+f": "\x06", "ctrl+s": "\x13", "alt+a": "\x1ba", "alt+h": "\x1bh", "ctrl+d": "\x04", delete: "\x1b[3~" };
 // The side panel is closed until you ask for it; most of these tests read it, so they start with it open.
 export function open(w, { rows = 34, side = true } = {}) {
   let closed;

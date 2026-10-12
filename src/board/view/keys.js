@@ -6,15 +6,31 @@ import * as H from "../../helpers.js";
 import { isAgent } from "./states.js";
 import { WIDE } from "./size.js";
 
+// Closing takes ctrl+c twice, as leaving Claude Code does ("Press Ctrl-C again to exit", shown for 0.8s): this long
+// the first one is remembered. Codex is no model here: it leaves on the first ctrl+c (its two-press code is off).
+const CLOSE_WAIT = 800;
+
 export class Keys {
   handleInput(data) {
     try { if (this.off && matchesKey(data, "alt+w")) this.takeBack(); else this.handle(data); } catch (e) { this.flash(e.message, "red"); }
     this.syncReply();
     this.tui.requestRender();
   }
+  // Closing the board is not a question: the first ctrl+c (or the last esc) shows a hint where the key hints are,
+  // and ctrl+c again while it shows closes. Any other key, or a short wait, and the board carries on as before.
+  closeHint() {
+    this.closeSoon();
+    this.closing = setTimeout(() => { this.closing = null; if (!this.disposed) this.tui.requestRender(); }, CLOSE_WAIT);
+    this.closing.unref?.();
+  }
+  closeSoon() { clearTimeout(this.closing); this.closing = null; }
   handle(data) {
     if (this.leaving) return;
     if (data === "\x1b\x1b") data = "\x1b"; // esc tapped twice arrives as one read: it is still esc
+    // ctrl+c while the hint shows closes the board; any other key takes the hint away and then does what it always does.
+    const again = !!this.closing;
+    this.closeSoon();
+    if (again && matchesKey(data, "ctrl+c")) return this.done(undefined);
     if (this.pasteText) { this.pasteText = ""; return; }
     const esc = matchesKey(data, "escape");
     // An error stays until esc dismisses it; anything else is gone with the next key.
@@ -22,11 +38,10 @@ export class Keys {
     if (this.setup) return this.setupKey(data);
     const enter = data !== "\n" && (matchesKey(data, "return") || matchesKey(data, "enter"));
     if (this.ask) {
-      const { yes, quit } = this.ask;
-      // y = yes, n or esc = no, in either case; enter never confirms. Closing the board (`quit`) is the one question
-      // left as it was: enter or a second ctrl+c = yes, esc = no.
-      const letter = (c) => !quit && (data === c || data === c.toUpperCase() || matchesKey(data, c) || matchesKey(data, `shift+${c}`));
-      if (quit ? enter || matchesKey(data, "ctrl+c") : letter("y")) {
+      const { yes } = this.ask;
+      // y = yes, n or esc = no, in either case; enter never confirms.
+      const letter = (c) => data === c || data === c.toUpperCase() || matchesKey(data, c) || matchesKey(data, `shift+${c}`);
+      if (letter("y")) {
         if (this.ask.valid) { try { this.load(); } catch {} if (!this.ask) return; } // the newest state decides, not the one drawn a second ago
         this.ask = null; return yes();
       }
@@ -47,21 +62,21 @@ export class Keys {
     const r = this.current();
     if (esc) {
       // One step back at a time. A draft is put away, not thrown away; the chat's latest message is hidden before
-      // anything behind it closes; the last step asks before the board closes.
+      // anything behind it closes; the last step only shows how the board closes.
       if (this.mode !== "new") { this.mode = "new"; this.setValue(""); }
       else if (this.value()) { if (text) { this.draftAway = { text: this.value(), to: this.reply && r ? r.id : "" }; this.flash("Put away. ctrl+z brings it back."); } this.setValue(""); }
       else if (this.previewOpen(r)) return this.toggleChat();
       else if (this.full || this.reply) return this.closePanel();
       else if (this.filter) this.filter = "";
       else if (this.archiveView) return this.toggleArchive();
-      else return this.confirm("Close the board?", () => this.done(undefined), true);
+      else return this.closeHint();
       return this.load();
     }
     if (this.mode === "find" && enter) { this.filter = text; this.mode = "new"; this.setValue(""); return this.load(); }
     // While the text box holds text it owns the keyboard: only enter, tab and esc act on the board, so no shortcut
     // fires in the middle of a draft (ctrl+a is "start of line" there, not "merge").
     if (this.value() && !enter && !matchesKey(data, "tab")) { this.input.handleInput(data); if (this.mode === "find") this.load(); return; }
-    if (matchesKey(data, "ctrl+c")) return this.confirm("Close the board?", () => this.done(undefined), true);
+    if (matchesKey(data, "ctrl+c")) return this.closeHint();
     if (this.mode === "find") { if (!matchesKey(data, "tab")) { this.input.handleInput(data); this.load(); } return; }
 
     const j = this.job();

@@ -1,9 +1,13 @@
 # Keys, questions and the ? menu
 
 **The board asks before what cannot be undone**, always the same way, in a small box: `Merge PR#18?  y = yes ·
-n = no`. `y` says yes, `n` or `Esc` says no, in upper or lower case; `Enter` never confirms, and no other key answers. Closing
-the board is the one question left as it was (`Close the board?  enter = yes · esc = no`; `Ctrl+C` again also says yes). Merging, deleting a task and closing the board ask; nothing else does. A result stays on screen until
+n = no`. `y` says yes, `n` or `Esc` says no, in upper or lower case; `Enter` never confirms, and no other key answers.
+Merging and deleting a task ask; nothing else does. A result stays on screen until
 your next key press, an error until `Esc` dismisses it.
+
+**Closing the board takes `Ctrl+C` twice**, as leaving Claude Code does. The first one shows `Press ctrl+c
+again to close the board` on the bottom line; `Ctrl+C` again while it shows (0.8 seconds, Claude Code's own wait)
+closes. Any other key, or the wait running out, takes the hint away, and that key does what it always does.
 
 | Key | Does |
 |---|---|
@@ -17,7 +21,8 @@ your next key press, an error until `Esc` dismisses it.
 | `Ctrl+X` | stop the agent. The selection stays on that row |
 | `Ctrl+F` | find |
 | `?` | a menu of everything else for the selected task, picked with `↑` `↓` and `Enter`: the whole task full screen, the side panel, archive, pin, delete, undo, the archive, group by repo, show all done, other machines, the Coordinator |
-| `Esc` | back, one step at a time: a draft is put away, then the chat's latest message is hidden (the Coordinator's or a task agent's), then the open task, the filter and the archive close. Only with none of those left does it ask before the board closes |
+| `Esc` | back, one step at a time: a draft is put away, then the chat's latest message is hidden (the Coordinator's or a task agent's), then the open task, the filter and the archive close. With none of those left it shows the same hint as `Ctrl+C`, and never closes the board by itself |
+| `Ctrl+C` | twice: close the board. With text typed it does nothing (`Esc` puts the draft away first) |
 
 The bottom line shows only what matters right now, the main thing first, at most four. The older chords still work
 when the text box is empty, and the menu shows each beside its line: `Ctrl+E` the whole task, `Ctrl+P` the side panel, `Alt+A` archive or

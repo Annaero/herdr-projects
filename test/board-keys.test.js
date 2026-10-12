@@ -87,13 +87,28 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     s.press("esc"); assert.equal(s.v.value(), ""); assert.match(s.text(), /Put away\. ctrl\+z brings it back\./);
     s.press("ctrl+z"); assert.match(s.v.value(), /half a thought/);
     s.press("esc");
-    // one esc too many does not close the board: it asks, and esc again says no
-    s.press("esc"); assert.equal(s.closed(), undefined); assert.match(s.text(), /\n \? Close the board\? {2}enter = yes · esc = no/);
-    s.press("ctrl+a", "x", "space"); assert.ok(s.v.ask, "a question takes its own keys, nothing else"); assert.equal(S.get(id).stage, "approval");
-    s.press("y", "Y", "n"); assert.ok(s.v.ask, "closing is not a y/n question: it keeps enter and ctrl+c"); assert.equal(s.closed(), undefined);
-    s.press("esc"); assert.equal(s.v.ask, null); assert.equal(s.closed(), undefined);
-    s.press("\x03"); assert.match(s.text(), /\n \? Close the board\? {2}enter = yes · esc = no/); assert.equal(s.closed(), undefined); s.press("esc");
-    s.press("esc", "enter"); assert.equal(s.closed(), null); // enter still says yes to closing
-    const c = open(w); c.press("\x03", "y"); assert.equal(c.closed(), undefined); c.press("\x03"); assert.equal(c.closed(), null, "and ctrl+c twice still closes");
+    // one esc too many does not close the board: it shows the hint, in place of the key hints, and asks nothing
+    const hint = /\n {2}Press ctrl\+c again to close the board *$/;
+    s.press("esc"); assert.equal(s.closed(), undefined); assert.equal(s.v.ask, null); assert.match(s.text(), hint); assert.doesNotMatch(s.text(), /Close the board\?/);
+    // closing is not a question: y and n are just typed, and enter no longer confirms: the hint goes, and enter does what it always does on an empty box (here: no agent to open)
+    s.press("down", "esc"); assert.match(s.text(), hint);
+    s.press("enter"); assert.equal(s.closed(), undefined); assert.doesNotMatch(s.text(), hint); assert.match(s.text(), /No agent has been on this yet/);
+    s.press("up");
+    // any other key takes the hint away and still does its own thing; ctrl+c after it is a first press again
+    s.press("ctrl+c"); assert.match(s.text(), hint); s.type("x"); assert.doesNotMatch(s.text(), hint); assert.equal(s.v.value(), "x");
+    s.press("ctrl+c"); assert.equal(s.closed(), undefined); assert.equal(s.v.value(), "x", "with text typed ctrl+c does not close");
+    s.press("esc", "ctrl+c"); assert.equal(s.closed(), undefined); assert.match(s.text(), hint);
+    s.press("?"); assert.ok(s.v.menu); assert.match(s.text(), /ctrl\+c +twice: close the board/); s.press("ctrl+c"); assert.equal(s.v.menu, null); assert.equal(s.closed(), undefined);
+    // a short wait takes it away too: ctrl+c after it only shows the hint again
+    s.press("ctrl+c"); assert.match(s.text(), hint);
+    await new Promise((r) => setTimeout(r, 900));
+    assert.doesNotMatch(s.text(), hint); s.press("ctrl+c"); assert.equal(s.closed(), undefined); assert.match(s.text(), hint);
+    // esc again is not a yes and not a no: only ctrl+c closes, after esc's hint as after its own
+    s.press("esc"); assert.equal(s.closed(), undefined); assert.match(s.text(), hint);
+    s.press("ctrl+c"); assert.equal(s.closed(), null);
+    // the other questions keep y = yes · n = no, and ctrl+c is a no there
+    const s2 = open(w); s2.press("ctrl+a"); assert.match(s2.text(), /\? Merge [^\n]*y = yes · n = no/);
+    s2.press("ctrl+c"); assert.equal(s2.v.ask, null); assert.equal(s2.closed(), undefined); assert.equal(S.get(id).stage, "approval");
+    s2.press("ctrl+c", "ctrl+c"); assert.equal(s2.closed(), null);
   } finally { w.cleanup(); }
 });

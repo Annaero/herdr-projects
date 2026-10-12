@@ -8,6 +8,7 @@ export class Hints {
   hints(r) {
     const more = ["?", "more"];
     if (this.ask) return [];
+    if (this.closing) return [["", "Press ctrl+c again to close the board"]];
     if (this.menu) return [["↑↓", "pick"], ["enter", "do it"], ["esc", "close"]];
     if (this.mode === "find") return [["enter", "keep the filter"], ["esc", "cancel"]];
     const agentOn = !!r && isAgent(r);

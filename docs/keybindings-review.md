@@ -55,7 +55,7 @@ Bold rows change.
 | `shift+enter` | new line | text box |
 | `delete` | delete the task (asks first) | task |
 | `?` | the menu | board |
-| `esc` | one step back: draft, the chat's latest message, open task, filter, archive; last step asks to close | board |
+| `esc` | one step back: draft, the chat's latest message, open task, filter, archive; last step shows the `ctrl+c` hint | board |
 
 Arrows always move, whatever is held with them, so `alt+↑` and `ctrl+↑` belong here.
 
@@ -63,7 +63,7 @@ Arrows always move, whatever is held with them, so `alt+↑` and `ctrl+↑` belo
 
 | Key | What it does |
 |---|---|
-| `ctrl+c` | close the board (asks first) |
+| `ctrl+c` | close the board: twice, the first shows `Press ctrl+c again to close the board` for 0.8 seconds, as Claude Code does |
 | `ctrl+z` | undo: bring back a draft, or undo the archive |
 | `ctrl+f` | find |
 
@@ -135,7 +135,7 @@ Two undo keys exist and stay apart: `ctrl+-` undoes an edit inside the draft, `c
 | Where | Keys |
 |---|---|
 | The `?` menu | `↑` `↓` choose, `enter` runs the line, `esc` / `ctrl+c` / `?` close it |
-| A question ("Merge?", "Delete?", "Close the board?") | "Merge?", "Delete?" and the like: `y` yes, `n` / `esc` / `ctrl+c` no; `enter` never confirms. "Close the board?" is as it was: `enter` / `ctrl+c` yes, `esc` no |
+| A question ("Merge?", "Delete?") | `y` yes, `n` / `esc` / `ctrl+c` no; `enter` never confirms |
 | First-run setup | `1` `2` switch a choice, `k` type another key, `enter` save, `esc` ask next time |
 | Find | every key types into the search; `enter` keeps the filter, `esc` leaves |
 

@@ -45,7 +45,7 @@ export class Actions {
     if (r.stage === "approval" && r.state === "blocked") {
       if (r.syncBlocked) return this.flash(`Behind main, so it cannot be approved yet: ${r.syncBlocked.why}. The board keeps trying to bring it up to date.`, "yellow");
       const mark = this.mergeMark(r.id), seen = { pr: r.pr ?? null, head: r.reviewedHead ?? null };
-      return this.confirm(`Merge ${prNumber(r) || `"${truncateToWidth(clean(r.title || r.id), 32, "…")}"`}?`, () => (r.host ? this.act(r, "approve", { seen }) : this.try(() => { const out = A.approve(r.id, seen); this.flash(out.msg, "green"); })), false, () => this.mergeMark(r.id) === mark);
+      return this.confirm(`Merge ${prNumber(r) || `"${truncateToWidth(clean(r.title || r.id), 32, "…")}"`}?`, () => (r.host ? this.act(r, "approve", { seen }) : this.try(() => { const out = A.approve(r.id, seen); this.flash(out.msg, "green"); })), () => this.mergeMark(r.id) === mark);
     }
     if (isAgent(r) && r.state === "blocked" && r.kind === "permission") return r.host ? this.act(r, "approve") : this.try(() => { const out = A.approve(r.id); this.flash(out.msg, "green"); });
     // Stopped without a summary: yes takes the work as it is, through the check and the review.

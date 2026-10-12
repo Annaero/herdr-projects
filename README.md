@@ -57,11 +57,14 @@ Your running herdr server must be 0.9.3 or newer: an older server refuses the pl
 Type what needs doing and press `Enter`: that adds a task. `Tab` puts an agent on the selected task. Nothing is
 edited by hand: to change a title, a description or a state, say so in the text box or run the command.
 
+To close the board press `Ctrl+C` twice, as you leave Claude Code: the first shows `Press ctrl+c again to close the
+board`, the second closes. Any other key, or a short wait, and the board carries on ([keys](docs/keys.md)).
+
 The rest is one page per topic:
 
 - [The board: the list and the chat](docs/board.md): the list and its groups, the chat at the bottom, a board that looks cut off
 - [The task panel](docs/task-panel.md): the side panel and the full-screen details, and how reviews show there
-- [Keys, questions and the ? menu](docs/keys.md): every key, what the board asks before doing, the hint line
+- [Keys, questions and the ? menu](docs/keys.md): every key, how the board closes, what it asks before doing, the hint line
 - [The Coordinator](docs/coordinator.md): the agent behind the chat, `Tab`, going into its pane
 - [Roles and commands](docs/roles-and-commands.md): Agent, Reviewer, Watcher, Coordinator; the how-to skill; the command line
 - [How work gets done](docs/how-work-gets-done.md): delegating, finishing, the keeper, staying current with main, approving, cleanup

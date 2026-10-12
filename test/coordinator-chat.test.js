@@ -55,12 +55,12 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     s.press("alt+v"); assert.equal(s.v.chatOpen, false);
     assert.doesNotMatch(s.text(), /Filed proj\/1\./); assert.match(s.text(), /\n─+\n ○ Coordinator {2}idle {2}[^\n]*alt\+v show its message *\n─+\n❯ ask or tell it anything/);
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).chat, "closed");
-    s.press("esc"); assert.equal(s.v.ask.q, "Close the board?", "esc has nothing of the chat to close"); s.press("esc");
-    // Shown, esc hides it first and does nothing else: no question, the board stays. Only the next esc asks about closing.
+    s.press("esc"); assert.ok(s.v.closing, "esc has nothing of the chat to close"); assert.match(s.text(), /Press ctrl\+c again to close the board/); s.v.closeSoon();
+    // Shown, esc hides it first and does nothing else: no question, the board stays. Only the next esc says how the board closes.
     s.press("alt+v"); assert.equal(s.v.chatOpen, true); assert.match(s.text(), /Filed proj\/1\./); assert.match(s.text(), /esc hide its message/);
     s.press("esc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []); assert.doesNotMatch(s.text(), /Filed proj\/1\./);
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).chat, "closed");
-    s.press("esc"); assert.equal(s.v.ask.q, "Close the board?"); s.press("esc"); assert.equal(s.v.ask, null);
+    s.press("esc"); assert.ok(s.v.closing); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []); s.v.closeSoon();
     // A draft comes before it: esc puts the words away and the message stays up; while you type, the chat names alt+v.
     s.press("alt+v"); s.type("half"); assert.match(s.text(), /alt\+v hide its message/); s.press("esc"); assert.equal(s.v.value(), ""); assert.equal(s.v.chatOpen, true);
     s.press("esc"); assert.equal(s.v.chatOpen, false);
