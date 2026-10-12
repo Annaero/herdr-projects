@@ -58,7 +58,7 @@ to a neighbour's agent.
 
 ```
 ──────────────────────────────────────────────────────────────────────────────────────────────
- ○ Coordinator  idle  claude · default model · default effort    alt+c open its chat · alt+v hide its message
+ ○ Coordinator  idle · claude · default model · default effort
  › file the undo task
  Filed proj/4: Add an undo. An agent is on it.
 ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -66,14 +66,17 @@ to a neighbour's agent.
 ──────────────────────────────────────────────────────────────────────────────────────────────
 ```
 
-The chat's first line says who you talk to, on the whole width of the window: the Coordinator, or the task by its
-full name with where it stands and which agent is on it (a name longer than the window takes a second line; in a
-window too short for that, the draft keeps the line). The text box and its hints are never pushed off the window: the
+The chat's first line says who you talk to, and it is what herdr's sidebar says about that agent, drawn with the
+board's own mark: the mark and colour of its state (the one its row has), its name in bold, and what it is doing now,
+greyed. For a task's agent that is its row's sentence (the Watcher's "doing now" line, or where it stands when there
+is none); for the Coordinator, where it stands and which program and model it runs on; for a task with no agent,
+where your message goes. The name is never cut to make room: the status takes what is left and is cut with `…` (a
+name longer than the window takes a second line; in a window too short for that, the draft keeps the line). The line
+names no keys: `Alt+C` and `Alt+V` are in the `?` menu and on the [keys](keys.md) page. The text box and its hints are never pushed off the window: the
 chat gives way first. The
 prompt is only `❯`. Under that line is the latest thing they said (their screen while a dialog is up). One key shows
 and hides it, the same key both ways and the same for the Coordinator and a task's agent: `Alt+V` (on an empty text
-box, like `Ctrl+P` for the side panel), in a narrow window too (where the key does not fit beside the name, the
-hint line says it), and the board remembers which. Hidden, the line that says who you talk to stays, so a message is
+box, like `Ctrl+P` for the side panel), and the board remembers which. Hidden, the line that says who you talk to stays, so a message is
 never sent blind. Nothing else shows or hides it: `Esc` never does. A Coordinator that could not be started says why
 even while the message is hidden; `Alt+V` puts that error away too, until the next one. `Alt+C` goes into the whole
 chat of whoever it names. Where the

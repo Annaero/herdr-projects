@@ -42,7 +42,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     const s = open(w, { rows: 58, side: false });
     const first = s.v.rows.find((row) => row.rec).rec;
     Object.assign(first, { title: "Pin the chat to the bottom", state: "working", msg: "Checking every window size.", progress: 55, eta: 12, pr: 3, at: Date.now() - 6 * 60000 });
-    s.v.chatOf = () => ({ mark: "○", name: "Coordinator", word: "idle", color: "green", meta: "claude · default model · default effort", label: "last message", enter: true, said: true, always: true, notes: [], text: "Tasks 31 and 32 are both waiting." });
+    s.v.chatOf = () => ({ mark: "○", name: "Coordinator", status: "idle · claude · default model · default effort", enter: true, said: true, always: true, notes: [], text: "Tasks 31 and 32 are both waiting." });
     // Not held: the board is the terminal's size, as before.
     let lines = s.screen(435);
     assert.equal(lines.length, 58); assert.match(lines[57], /^ {2}\S/); assert.match(lines.find((l) => /Pin the chat/.test(l)), /55% 12m PR#3 {2}6m {4}$/); assert.doesNotMatch(lines.join("\n"), /Another viewer/);
@@ -57,7 +57,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     assert.equal(lines[53], "─".repeat(411)); assert.match(lines[52], /^❯ /); assert.equal(lines[51], "─".repeat(411));
     const row = lines.find((l) => /Pin the chat/.test(l));
     assert.match(row, /Checking every window size\. +█+░+ +55% 12m PR#3 {2}6m {4}$/); assert.equal(row.length, 411); // the columns are back in view
-    assert.match(lines.find((l) => /^ ○ Coordinator/.test(l)).trimEnd(), /alt\+c open its chat · alt\+v hide its message$/); // whole, not cut after the dot
+    assert.equal(lines.find((l) => /^ ○ Coordinator/.test(l)).trimEnd(), " ○ Coordinator  idle · claude · default model · default effort"); // the name and its status, no keys
     // Held at 435x58 while a taller, narrower window shows it: the width is cut down, the rows are all there are.
     s.v.shown = { cols: 184, rows: 78, split: false };
     lines = s.screen(435);

@@ -1,10 +1,11 @@
 // The chat at the bottom: who it talks to, the line that names them, and their latest message.
+import { stripVTControlCharacters } from "node:util";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import * as F from "../../flow.js";
 import * as C from "../../coordinator.js";
 import { herdr } from "../../herdr.js";
 import { short, clean } from "./words.js";
-import { isAgent, reviewing, groupOf, statusColor, reviewerWord } from "./states.js";
+import { isAgent, reviewing, groupOf, reviewerWord } from "./states.js";
 import { name as keyName } from "../keys.js";
 
 export class Chat {
@@ -25,23 +26,27 @@ export class Chat {
   hasAgent(r) { return isAgent(r) && (!!r.host || F.isAgentTask(r) || F.cleanedUp(r)); }
   // The task panel leaves "The agent said" to the chat while the chat shows that same message.
   chatShows(r) { return !!r && this.reply && this.chatOpen && this.mode !== "find" && r.id === this.sel && !r.archivedAt && this.hasAgent(r); }
-  // Who the chat talks to, as the chat draws it: a mark and a name, where they stand, and the latest thing they said.
+  // Who the chat talks to, as the chat draws it: a mark and a name, what they are doing, and the latest thing they said.
   // The same shape for the Coordinator and for a task's agent. `enter`: there is a chat of theirs to go into.
   chatOf(r) {
     const t = this.theme;
     if (this.mode === "find") return null;
     if (this.reply && r) {
-      const color = statusColor(r), toAgent = this.hasAgent(r);
-      const word = r.archivedAt ? "archived" : reviewing(r) && r.state === "working" ? reviewerWord(r) : groupOf(r);
+      const toAgent = this.hasAgent(r);
+      const word = reviewing(r) && r.state === "working" ? reviewerWord(r) : groupOf(r);
       const starts = !r.host && !isAgent(r) && ["todo", "progress"].includes(r.stage);
-      const meta = r.archivedAt ? "read-only" : toAgent ? `its agent · ${clean(r.app || r.agent || "agent")}` : starts ? "no agent yet: your message starts one" : this.canDispatch || r.host ? "no agent on it: your message goes to the Coordinator, about this task" : "no agent on it: your message is added to its description";
+      const meta = r.archivedAt ? "archived: read-only" : starts ? "no agent yet: your message starts one" : this.canDispatch || r.host ? "no agent on it: your message goes to the Coordinator, about this task" : "no agent on it: your message is added to its description";
       const pv = this.chatShows(r) ? this.previewOf(r) : null;
-      return { mark: this.mark(r), color, name: clean(r.title || r.id), word, meta, label: pv?.text ? pv.label : "", text: pv?.text || "", raw: pv?.label === "on its screen now", notes: [], enter: toAgent && !r.archivedAt && (!!r.host || F.isAgentTask(r)), said: toAgent && !r.archivedAt };
+      // An agent's status is its row's sentence (the Watcher's "doing now" line), or where it stands when it says
+      // nothing; a task with no agent says where your message goes instead. Always greyed: a review's verdict keeps
+      // its colour on the row, not here.
+      const status = t.muted(toAgent && !r.archivedAt ? stripVTControlCharacters(this.sentence(r).text) || word : meta);
+      return { mark: this.mark(r), name: clean(r.title || r.id), status, text: pv?.text || "", raw: pv?.label === "on its screen now", notes: [], enter: toAgent && !r.archivedAt && (!!r.host || F.isAgentTask(r)), said: toAgent && !r.archivedAt };
     }
     const far = this.scope && this.scope !== "*" && this.remotes[this.scope] ? this.scope : "";
-    if (far) return { mark: t.fg("overlay0", t.mark("unknown")), color: "overlay0", name: `Coordinator on ${far}`, word: "", meta: `what you type goes to ${far}`, label: "", text: "", notes: [] };
+    if (far) return { mark: t.fg("overlay0", t.mark("unknown")), name: `Coordinator on ${far}`, status: t.muted(`what you type goes to ${far}`), text: "", notes: [] };
     // No Coordinator (it is off, its program is not installed, or herdr is not running): the same box files tasks.
-    if (!this.canDispatch) return { mark: t.fg("overlay0", "+"), color: "overlay0", name: "New task", word: "", meta: "what you type is filed as a task, word for word", label: "", text: "", notes: [] };
+    if (!this.canDispatch) return { mark: t.fg("overlay0", "+"), name: "New task", status: t.muted("what you type is filed as a task, word for word"), text: "", notes: [] };
     const v = this.coord;
     const fresh = !!v.unseen && !this.chatOpen;
     const color = fresh ? "green" : { working: "yellow", starting: "yellow", blocked: "red", idle: "green" }[v.state] || "overlay0";
@@ -60,37 +65,24 @@ export class Chat {
     if (v.stale) notes.push(`your default is now ${C.describe(v.def)}: ${keyName("coordNew")} starts a new one on it`);
     for (const m of v.waiting || []) notes.push(`› ${clean(m)}  (waiting to be sent)`);
     if (!v.queue && v.last && v.state !== "none") notes.push(`› ${clean(v.last)}`);
-    return { mark, color: v.error ? "red" : color, name: "Coordinator", word, meta: `${v.run ? C.describe(v.run) : "off"}${v.oneOff ? " (this one only)" : ""}`, label, text, tone, raw: label === "on its screen now", notes, enter: true, said: true, always: !!v.error && this.errHid !== v.error };
+    return { mark, name: "Coordinator", status: t.muted(`${word} · ${v.run ? C.describe(v.run) : "off"}${v.oneOff ? " (this one only)" : ""}`), text, tone, raw: label === "on its screen now", notes, enter: true, said: true, always: !!v.error && this.errHid !== v.error };
   }
-  // The chat's first line names who you talk to, on the whole width: the name is never cut to make room for the rest.
-  // What stands beside it goes first when the window is narrow: the keys, then the label, the program, the state.
+  // The chat's first line is what herdr's sidebar says about that agent, with the board's own mark: the mark, the name
+  // in bold, and what it is doing now, greyed. The name is never cut to make room: the status takes what is left and
+  // is cut with "…", however little that is. The chat's keys are not named here: they are in the ? menu.
   chatHead(c, width, tight = false) {
     const t = this.theme;
     const lead = " " + c.mark + " ", room = Math.max(1, width - visibleWidth(lead));
-    const name = t.bold(c.name);
-    const bits = [c.word && "  " + t.fg(c.color, c.word), c.meta && t.fg("overlay0", "  " + c.meta), c.label && this.chatOpen && t.fg("overlay0", "  · " + c.label)].filter(Boolean);
-    // The chat's two keys, in full or in short. Where neither fits beside the name, the hint line below says alt+v.
-    const up = this.chatOpen || c.always;
-    const toggle = `${keyName("chatMessage")} ${up ? "hide" : "show"}`;
-    const forms = [[c.enter && `${keyName("chat")} open its chat`, c.said && `${toggle} its message`], [c.enter && `${keyName("chat")} chat`, c.said && toggle]].map((f) => f.filter(Boolean).join(" · "));
-    let keys = forms[0];
-    const fits = (n, withKeys) => visibleWidth(name + bits.slice(0, n).join("")) + (withKeys && keys ? 3 + visibleWidth(keys) : 0) <= room;
-    // The keys outlast the label and the program; the state outlasts the keys.
-    let n = bits.length, showKeys = !!keys;
-    while (n > 1 && !fits(n, true)) n--;
-    if (!fits(n, true)) { keys = forms[1]; n = bits.length; while (n > 1 && !fits(n, true)) n--; }
-    if (!fits(n, true)) { showKeys = false; n = bits.length; while (n && !fits(n, false)) n--; }
-    this.chatKeyHint = c.said && !showKeys ? [keyName("chatMessage"), `${up ? "hide" : "show"} its message`] : null;
+    const name = t.bold(c.name), nameW = visibleWidth(name);
     // A name longer than the window takes a second line before it is cut (in a short window that line is the draft's).
-    if (!fits(0, false) && tight) return [lead + truncateToWidth(name, room, "…")];
-    if (!fits(0, false)) { const [a, b, more] = wrapTextWithAnsi(name, room); return [lead + a, ...(b ? ["   " + (more ? truncateToWidth(b, room - 1, "") + "…" : b)] : [])]; }
-    const left = name + bits.slice(0, n).join("");
-    return [lead + left + (showKeys ? " ".repeat(room - visibleWidth(left) - visibleWidth(keys) - 1) + t.fg("overlay0", keys) : "")];
+    if (nameW > room && tight) return [lead + truncateToWidth(name, room, "…")];
+    if (nameW > room) { const [a, b, more] = wrapTextWithAnsi(name, room); return [lead + a, ...(b ? ["   " + (more ? truncateToWidth(b, room - 1, "") + "…" : b)] : [])]; }
+    const left = room - nameW - 2;
+    return [lead + name + (c.status && left >= 1 ? "  " + truncateToWidth(c.status, left, "…") : "")];
   }
   // The chat above the text box: a rule, who you talk to, and (unless you hid it) the latest thing they said.
   chatLines(width, maxH, r, tight = false) {
     const t = this.theme, c = this.chatOf(r);
-    this.chatKeyHint = null;
     if (!c) return [];
     const out = [t.fg("surface_dim", "─".repeat(width)), ...this.chatHead(c, width, tight)];
     this.chatHeadRows = out.length;

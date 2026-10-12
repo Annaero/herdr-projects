@@ -11,12 +11,12 @@ test("only space flips between the Coordinator and a task's agent: the arrows on
   try {
     const alpha = A.add(w.root, "Alpha"), beta = A.add(w.root, "Beta");
     const s = open(w); s.v.sel = alpha.id; s.v.load(); s.screen(120);
-    s.press("space"); assert.equal(s.v.reply, true); assert.equal(s.v.replyId, alpha.id); assert.match(s.text(), /\n─+\n . Alpha {2}to do {2}no agent yet: your message starts one/);
+    s.press("space"); assert.equal(s.v.reply, true); assert.equal(s.v.replyId, alpha.id); assert.match(s.text(), /\n─+\n . Alpha {2}no agent yet: your message starts one/);
     // Up or down selects the other task and nothing else: you still talk to a task's agent, now that task's.
     const toBeta = s.v.rows.filter((x) => x.rec).map((x) => x.rec.id).indexOf(alpha.id) ? "up" : "down", toAlpha = toBeta === "up" ? "down" : "up";
     s.press(toBeta);
     assert.equal(s.v.sel, beta.id); assert.equal(s.v.reply, true); assert.equal(s.v.replyId, beta.id);
-    assert.match(s.text(), /\n─+\n . Beta {2}to do {2}no agent yet: your message starts one/); assert.doesNotMatch(s.text(), /\n─+\n . Alpha {2}|New task/);
+    assert.match(s.text(), /\n─+\n . Beta {2}no agent yet: your message starts one/); assert.doesNotMatch(s.text(), /\n─+\n . Alpha {2}|New task/);
     s.press(toAlpha); assert.equal(s.v.replyId, alpha.id); assert.match(s.text(), /\n─+\n . Alpha {2}/);
     // Find, and leaving it with esc, changes nothing about who you talk to; nor is the search kept as a put-away reply.
     s.press("ctrl+f"); s.type("Alp"); assert.doesNotMatch(s.text(), /\n─+\n . Alpha {2}/); s.press("esc");

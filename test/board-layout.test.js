@@ -81,7 +81,7 @@ test("resizing the real screen keeps the chat on the last line and the working r
     // One task an agent works on: the bar, the percent, the minutes left, the PR number and the time are its columns on the right.
     const first = v.rows.find((row) => row.rec).rec;
     Object.assign(first, { title: "Pin the chat to the bottom", state: "working", msg: "Checking every window size.", progress: 55, eta: 12, pr: 3, at: Date.now() - 6 * 60000 });
-    v.chatOf = () => ({ mark: "○", name: "Coordinator", word: "idle", color: "green", meta: "claude · default model · default effort", label: "last message", enter: true, said: true, always: true, notes: [], text: "Tasks 31 and 32 are both waiting." });
+    v.chatOf = () => ({ mark: "○", name: "Coordinator", status: "idle · claude · default model · default effort", enter: true, said: true, always: true, notes: [], text: "Tasks 31 and 32 are both waiting." });
     tui.addChild(v); tui.setFocus(v); tui.start();
     const frame = async (columns, rows) => {
       terminal.columns = columns; terminal.rows = rows; resized(); // what a window resize does
@@ -98,10 +98,12 @@ test("resizing the real screen keeps the chat on the last line and the working r
       assert.equal(lines[rows - 2], "─".repeat(columns), note); assert.match(lines[rows - 3], /^❯ /, note); assert.equal(lines[rows - 4], "─".repeat(columns), note);
       const head = lines.findIndex((l) => /^─+$/.test(l));
       for (let n = head; n < rows; n++) assert.notEqual(lines[n].trim(), "", `${note}: an empty line inside the chat block`);
-      // Who you talk to: its keys end at the right edge, whole, never on a dangling separator.
+      // Who you talk to: the name, then its status in what is left, cut with "…" and never on a dangling separator. No keys.
       const who = lines[head + 1].trimEnd();
       assert.match(who, /^ ○ Coordinator/, note); assert.doesNotMatch(who, /·$/, note);
-      if (columns >= 120) { assert.match(who, /alt\+c open its chat · alt\+v hide its message$/, note); assert.ok(visibleWidth(who) >= columns - 1, note); }
+      assert.doesNotMatch(who, /alt\+/, note);
+      if (columns >= 120) assert.equal(who, " ○ Coordinator  idle · claude · default model · default effort", note);
+      if (columns === 40) assert.equal(who, " ○ Coordinator  idle · claude · default…", note);
       // The working row: its columns sit at the window's right edge, however wide the window is.
       const row = lines.find((l) => /Pin the chat to the bottom/.test(l)) || "";
       if (rows >= 20) assert.ok(row, `${note}: the working row is in view`);

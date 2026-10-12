@@ -18,7 +18,7 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     assert.equal(C.get().queue.length, 1); assert.equal(C.look().state, "blocked");
     const s = open(w);
     assert.match(s.text(), /Coordinator {2}needs you/); assert.match(s.text(), /› first {2}\(waiting to be sent\)/);
-    s.press("alt+v"); assert.match(s.text(), /\n . Coordinator {2}needs you {2}/); assert.doesNotMatch(s.text(), /waiting to be sent/); // hidden: its one line still says it
+    s.press("alt+v"); assert.match(s.text(), /\n . Coordinator {2}needs you · /); assert.doesNotMatch(s.text(), /waiting to be sent/); // hidden: its one line still says it
     // You answer the dialog in its chat; the tick then types the waiting words in.
     w.patchState((st) => { const p = st.panes.find((x) => x.agent); p.agent.status = "idle"; });
     fs.rmSync(S.stampFile(`coordinator-default`), { force: true });
@@ -90,12 +90,12 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     C.fresh(C.pickOf({ agent: "nope" })); C.send(w.root, "second"); await drainJobs(runJob);
     assert.match(C.look().error, /"nope" is not installed here/); assert.equal(C.get().queue.length, 1);
     s.beat(); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n(?: ›[^\n]*\n)* It could not be started: "nope" is not installed here/); // also with its message hidden
-    // alt+v hides that too, as the chat's line says; esc does not.
+    // alt+v hides that too (the chat's line does not say so: the ? menu does); esc does not.
     s.v.chatOpen = false; s.v.setValue(""); s.v.reply = false; s.v.full = false; s.v.filter = ""; s.v.msg = "";
-    assert.match(s.text(), /alt\+v hide its message/);
+    assert.doesNotMatch(s.text(), /alt\+v/);
     s.press("esc"); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []); assert.match(s.text(), /It could not be started:/);
     s.press("alt+v");
-    assert.doesNotMatch(s.text(), /It could not be started:/); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*alt\+v show its message/);
+    assert.doesNotMatch(s.text(), /It could not be started:/); assert.match(s.text(), /Coordinator {2}could not be started · [^\n]*\n─+\n❯ /); assert.doesNotMatch(s.text(), /alt\+v/);
     s.beat(); assert.doesNotMatch(s.text(), /It could not be started:/, "the same error stays hidden");
     s.press("esc"); assert.ok(s.v.closing); s.v.closeSoon();
     // alt+v shows it again and hides it again, shown by the setting or not.

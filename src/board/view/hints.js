@@ -19,7 +19,7 @@ export class Hints {
       return [[enter, "add a task"], [tab, "add it and start an agent"], put, line];
     }
     if (this.job()) return [hint("stop", "stop it"), [enter, "take it back to change"], hint("jobUp")];
-    if (!r) return [["", this.archiveView ? `${esc} back to the board` : "type what needs doing"], ...(this.chatKeyHint ? [this.chatKeyHint] : []), more];
+    if (!r) return [["", this.archiveView ? `${esc} back to the board` : "type what needs doing"], more];
     // esc leaves the whole task; who you talk to is space's to flip back.
     const tail = this.full ? [[arrows, "scroll"], hint("back")] : this.reply ? [hint("talk", "back to the Coordinator")] : [more];
     const failure = failureFor(r), rv = currentReview(r), reply = hint("talk"), open = hint("enter"), fix = hint("sendBack"), retry = hint("yes"), stop = hint("stop"), agent = hint("delegate");
@@ -40,8 +40,6 @@ export class Hints {
     else main = [agent, reply];
     main = main.filter(Boolean);
     if (this.reply && !r.archivedAt) main = [["", agentOn && r.state === "blocked" && r.kind === "question" ? "type your answer" : "type your reply"], ...main.filter(([k]) => k !== name("talk"))];
-    const key = this.chatKeyHint ? [this.chatKeyHint] : [];
-    // In a narrow window the hint line carries the chat's key.
-    return [...main.slice(0, 4 - tail.length - key.length), ...key, ...tail];
+    return [...main.slice(0, 4 - tail.length), ...tail];
   }
 }
