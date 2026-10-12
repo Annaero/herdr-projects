@@ -1405,9 +1405,8 @@ export class View {
     if (r.stage === "approval" && r.prState === "failing" && !r.mergeFailed && !r.syncBlocked) return { text: quiet("the pull request's checks fail") };
     const raw = words((r.review?.stale ? reviewNote(r) : r.msg) || "");
     const msg = ["working", "needs you", "under review", "idle"].includes(raw) ? "" : raw;
-    // While the reviewer works the row starts with the word: the colour alone does not say it, and its bar starts again from zero.
-    // It always starts with "review"; which one it is follows, from the second on: "review (2nd) · Running the tests".
-    if (reviewing(r) && r.state === "working") { const word = t.fg("review", "review"), nth = S.reviewRound(r) >= 2 ? t.fg("review", ` (${ordinal(S.reviewRound(r))})`) : ""; return { text: word + nth + (msg ? quiet(` · ${msg}`) : ""), short: word }; }
+    // While the reviewer works the row says only what the reviewer is doing: the colour of its mark, its bar, its
+    // percent and its minutes left says a review is running.
     if (r.state === "done") return { text: "" };
     if (needsYou(r)) return { text: quiet(msg || { question: "has a question", permission: "asks for your OK", auth: "needs a login" }[r.kind] || (r.state === "error" ? "failed" : "")) };
     return { text: quiet(msg) };
@@ -1472,7 +1471,7 @@ export class View {
       const renderedTitle = labelName(b.labelRoom);
       const sayRoom = b.labelRoom - visibleWidth(renderedTitle) - 2;
       // A sentence cut to a few letters says nothing: it shows whole, or with at least SENTENCE_MIN cells, or not at all.
-      const tail = !sayW ? "" : said.forms ? said.forms.find((f) => visibleWidth(f) <= sayRoom) || "" : sayRoom >= Math.min(sayW, SENTENCE_MIN) ? truncateToWidth(said.text, sayRoom, "…") : said.short && sayRoom >= visibleWidth(said.short) ? said.short : "";
+      const tail = !sayW ? "" : said.forms ? said.forms.find((f) => visibleWidth(f) <= sayRoom) || "" : sayRoom >= Math.min(sayW, SENTENCE_MIN) ? truncateToWidth(said.text, sayRoom, "…") : "";
       return { metadata: b.metadata, tail, label: renderedTitle + (tail ? "  " + tail : "") };
     };
     // The word "ago" goes when that is what lets the sentence show: at all, whole, or as a fuller verdict. A sentence

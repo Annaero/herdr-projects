@@ -726,7 +726,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     for (const r of [pr, working, { ...working, state: "error", stage: "failed" }, { ...working, state: "done" }, { ...working, state: "idle" }]) assert.match(v.row(r, 120), /^ \S+ (\x1b\[1m)?[A-Z]/);
     // while the reviewer works, the mark, the bar and the percent are a colour no other state uses
     const reviewed = v.row({ ...working, stage: "reviewing", reviewRound: 1 }, 120);
-    assert.ok(reviewed.includes(`${mauve}◐`) && reviewed.includes(`${mauve} 50%`) && reviewed.includes(`${mauve}█`) && reviewed.includes(`${mauve}review`) && !reviewed.includes(yellow));
+    assert.ok(reviewed.includes(`${mauve}◐`) && reviewed.includes(`${mauve} 50%`) && reviewed.includes(`${mauve}█`) && !reviewed.includes(`${mauve}review`) && !reviewed.includes(yellow));
     const plainWork = v.row(working, 120);
     assert.ok(plainWork.includes(`${yellow}◐`) && !plainWork.includes(mauve));
   }
@@ -786,12 +786,12 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   }
   assert.match(row({ ...second, stage: "merging", state: "working", kind: undefined, msg: "merging" }, 120), /^ ◐ Build a flying game {2}merging +PR#12 ✓ {2}0s$/);
   assert.doesNotMatch(row({ ...second, state: "done", stage: "done" }, 120), /review|3\/5/);
-  // while the reviewer works the row's sentence starts with the word, and says which review from the second on
+  // while the reviewer works the row's sentence is only what the reviewer is doing
   const under = { ...working, stage: "reviewing", reviewRound: 3, msg: "Running the tests." };
-  assert.match(row(under, 120), /^ ◐ Other {2}review \(3rd\) · Running the tests\. +█+░+ +50% +0s$/);
-  assert.match(row({ ...under, reviewRound: 1 }, 120), /^ ◐ Other {2}review · Running the tests\. /);
-  assert.match(row({ ...under, reviewRound: 1, msg: "under review" }, 120), /^ ◐ Other {2}review +█/);
-  assert.match(row(under, 30), /^ ◐ Other {2}review +50% +0s$/); // always the word "review" first, whichever review it is
+  assert.match(row(under, 120), /^ ◐ Other {2}Running the tests\. +█+░+ +50% +0s$/); // no word "review", whichever review it is: the colour says it
+  assert.match(row({ ...under, reviewRound: 1 }, 120), /^ ◐ Other {2}Running the tests\. /);
+  assert.match(row({ ...under, reviewRound: 1, msg: "under review" }, 120), /^ ◐ Other +█/);
+  assert.match(row(under, 30), /^ ◐ Other +50% +0s$/); // no room for the sentence: the row never falls back to a word
   assert.match(row({ ...under, stage: "reviewneeds", state: "blocked", progress: undefined, msg: "the reviewer shows a dialog" }, 120), /^ × Other {2}the reviewer shows a dialog +0s ago$/);
   assert.doesNotMatch(row({ ...working, reviewRound: 3 }, 120), /review/); // back with the agent: no review is running
   assert.match(page(under), /◐ reviewer is working · 3rd review · for 0s · proj\/2/);

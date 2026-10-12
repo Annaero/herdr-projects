@@ -75,12 +75,12 @@ name, a sentence, then on the right the progress bar, the percent and the minute
  ready to approve
  ✓ Add an undo for clear  Fail · 1 critical, 1 major · 2nd review   PR#18 ✓ 12m ago
  working
- ◐ Tidy the first-run questions  review · Running the tests  ███░░░░░  40% 12m PR#17    5m
+ ◐ Tidy the first-run questions  Running the tests           ███░░░░░  40% 12m PR#17    5m
 ```
 
 The row says how the review came out and a short tally of what it found (`Pass · 2 minor`, `Fail · 1 critical, 1 major`). Which review it was shows only from the second on. While the
-reviewer works, the mark, the bar, the percent and the minutes left take a colour no other state uses, and the sentence starts with
-`review` (`review (2nd)` from the second on). `PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
+reviewer works, the mark, the bar, the percent and the minutes left take a colour no other state uses: that alone says a review is
+running, and the sentence says only what the reviewer is doing. `PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
 since it stopped. A row never repeats what its heading says.
 
 **One chat, at the bottom.** The text box is a chat, and it is the same chat whoever you talk to. One rule decides
