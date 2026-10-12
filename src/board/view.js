@@ -32,6 +32,7 @@ import { Panel } from "./view/panel.js";
 import { PanelStatus } from "./view/panel-status.js";
 import { PanelReviews } from "./view/panel-reviews.js";
 import { PanelSettings } from "./view/panel-settings.js";
+import { Suggestions } from "./view/suggestions.js";
 
 export { asRow } from "./view/states.js";
 export { fitShown } from "./view/size.js";
@@ -149,6 +150,7 @@ const PARTS = [
   PanelStatus,
   PanelReviews,
   PanelSettings,
+  Suggestions,
 ];
 for (const part of PARTS) {
   for (const [name, d] of Object.entries(Object.getOwnPropertyDescriptors(part.prototype))) if (name !== "constructor") Object.defineProperty(View.prototype, name, d);

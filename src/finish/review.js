@@ -11,6 +11,7 @@ import { publishReview } from "../review-page.js";
 import * as G from "../gate.js";
 import { ms, fail } from "./shared.js";
 import { reviewBrief, parseVerdict } from "./review-brief.js";
+import { suggestFaults, knownFaults } from "./faults.js";
 
 // ---- the reviewer: a visible herdr agent in a split of the task's own space ----------------------------------------------
 export async function closeReviewer(id) {
@@ -18,22 +19,6 @@ export async function closeReviewer(id) {
   if (!t?.link?.reviewer?.pane) return;
   try { F.h(t).paneClose(t.link.reviewer.pane); } catch {}
   try { S.update(id, (t) => { if (t.link) t.link = { ...t.link, reviewer: null }; }, { waitMs: 10000 }); } catch {}
-}
-// A fault that was there before the task never sends the work back: each becomes a task of its own, filed once
-// however many rounds name it, and started by nobody.
-function fileFaults(id, g, review) {
-  const t = S.get(id), filed = Array.isArray(t.filedFaults) ? [...t.filedFaults] : [];
-  let changed = false;
-  for (const f of review.findings) {
-    if (!f.preexisting || f.task) continue;
-    let was = filed.find((x) => G.sameFault(x, f));
-    if (!was) {
-      try { was = { task: S.create(S.folderOf(id), S.oneLine(f.subject, 120), { description: `${f.subject}\n\nWhere: ${f.where || "not said"}\nSeverity: ${f.severity}\n${f.proof ? `What the reviewer saw: ${f.proof}\n` : ""}\nFound by the reviewer of ${id} (${t.title}). It was there before that task, so it was not fixed there.` }).id, severity: f.severity, subject: f.subject, where: f.where, proof: f.proof }; filed.push(was); changed = true; }
-      catch { continue; }
-    }
-    f.task = was.task;
-  }
-  if (changed) g.set({ filedFaults: filed });
 }
 // A reviewer whose turn ended in a provider error did not review anything: that is not a round. It uses up none of
 // the task's rounds and is not on the list of its reviews. When the error is one that passes by itself, the board
@@ -76,7 +61,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch }) {
   const before = S.reviewHistory(t).filter((e) => G.isTagged(e));
   const earlier = (t.reviewRounds || 0) > 0 && before.length ? before.at(-1).findings : null;
   const used = before.flatMap((e) => e.findings.map((f) => f.id));
-  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, filed: Array.isArray(t.filedFaults) ? t.filedFaults : [] })}`;
+  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, filed: knownFaults(t) })}`;
   let pane = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0, cut = null;
   // The reviewer ended its turn with no verdict. Its saved conversation says why: a turn that ended in the provider's
   // error was cut off (`cut`), and only one that really finished is "finished without a verdict", with its last message.
@@ -155,7 +140,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch }) {
   }
   if (!review) return { error: error || "no valid verdict", auth };
   G.stamp(review, ch.gate);
-  try { fileFaults(id, g, review); } catch (e) { if (e.aborted) return { aborted: true }; }
+  try { suggestFaults(id, review); } catch (e) { if (e.aborted) return { aborted: true }; }
   // Move the folder to the task's artifacts and publish the evidence page.
   const art = S.artifactsDir(id);
   try { fs.rmSync(art, { recursive: true, force: true }); fs.mkdirSync(path.dirname(art), { recursive: true }); fs.cpSync(dir, art, { recursive: true }); fs.rmSync(dir, { recursive: true, force: true }); } catch {}

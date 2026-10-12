@@ -23,8 +23,10 @@ running herdr: the chat says "New task", and what you type is filed word for wor
 It gives the command by its full path, so `npm link` is not needed. `herdr-superwork config skill off` removes
 exactly what was written; a folder of that name the plugin did not write is left alone.
 
-Commands: `add`, `list`, `report`, `describe`, `delegate`, `tell`, `stop`, `approve`, `review`, `retry`, `fix`,
+Commands: `add`, `suggest`, `suggestions`, `accept`, `dismiss`, `list`, `report`, `describe`, `delegate`, `tell`, `stop`, `approve`, `review`, `retry`, `fix`,
 `finish`, `details`, `pin`, `archive`, `restore`, `clear`, `config`, `remove-extras`; `herdr-superwork help` lists
-them. An agent the board itself started may only run `add`, `list`, `details` and `report <its own task> --state
-blocked` (its reviewer: `list` and `details`); the rest is refused with one line. That is a guard against mistakes,
+them. An agent the board itself started may only run `suggest`, `suggestions`, `list`, `details` and `report <its
+own task> --state blocked` (its reviewer: `list` and `details`); the rest is refused with one line. It files no
+task: work it comes across outside its own task is a [suggestion](suggestions.md) you accept or dismiss, and an
+`add` from it is taken as one. That is a guard against mistakes,
 not a security boundary.

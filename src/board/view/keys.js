@@ -45,6 +45,7 @@ export class Keys {
         if (this.ask.valid) { try { this.load(); } catch {} if (!this.ask) return; } // the newest state decides, not the one drawn a second ago
         this.ask = null; return yes();
       }
+      if (K.is(data, "sayNo") && this.ask.no) { const { no } = this.ask; this.ask = null; return no(); }
       if (esc || K.is(data, "sayNo") || close) this.ask = null;
       return; // a question takes its own keys, nothing else: no other key answers it or is typed into the text box
     }

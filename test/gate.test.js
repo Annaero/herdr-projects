@@ -9,7 +9,7 @@ import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
 import * as G from "../src/gate.js";
 import { main } from "../src/cli.js";
-import { parseVerdict, reviewBrief } from "../src/finish.js";
+import { parseVerdict, reviewBrief, knownFaults } from "../src/finish.js";
 import { renderReviewPage } from "../src/review-page.js";
 
 const finding = (severity, subject, extra = {}) => ({ severity, subject, where: "f.txt", proof: "ran it", ...extra });
@@ -50,8 +50,8 @@ test("the board's rules: what counts as critical, what a gate lets through, and 
   const rv = reviewOf(true, [finding("major", "Crashes on an empty file"), finding("minor", "A name is unclear"), finding("major", "The old importer drops rows", { preexisting: true })], "major");
   rv.findings[2].task = "proj/9";
   const msg = G.reviewMessage(rv);
-  assert.match(msg, /Result: Fail · 1 major, 1 minor, 1 pre-existing\.\n\nT\.\n\nRequired: fix each of these\.\n- \[major\] Crashes on an empty file \(f\.txt\)\n  Proof: ran it\n\nOptional: [^\n]*\n- \[minor\] A name is unclear \(f\.txt\)\n  Proof: ran it\n\nNot yours to fix: [^\n]*\n- \[major\] The old importer drops rows \(f\.txt\) → filed as proj\/9\n\nFix what is required/);
-  assert.match(G.prComment(rv, 2), /^\*\*Review 2 · Fail · 1 major, 1 minor, 1 pre-existing\*\*[\s\S]*\*\*Required\*\*\n- \*\*major\*\*: Crashes[\s\S]*\*\*Not required \(below the gate\)\*\*\n- \*\*minor\*\*: A name is unclear[\s\S]*\*\*Not required \(there before this change, filed separately\)\*\*\n- \*\*major\*\*: The old importer[\s\S]*Filed as proj\/9\./);
+  assert.match(msg, /Result: Fail · 1 major, 1 minor, 1 pre-existing\.\n\nT\.\n\nRequired: fix each of these\.\n- \[major\] Crashes on an empty file \(f\.txt\)\n  Proof: ran it\n\nOptional: [^\n]*\n- \[minor\] A name is unclear \(f\.txt\)\n  Proof: ran it\n\nNot yours to fix: [^\n]*\n- \[major\] The old importer drops rows \(f\.txt\) → task proj\/9\n\nFix what is required/);
+  assert.match(G.prComment(rv, 2), /^\*\*Review 2 · Fail · 1 major, 1 minor, 1 pre-existing\*\*[\s\S]*\*\*Required\*\*\n- \*\*major\*\*: Crashes[\s\S]*\*\*Not required \(below the gate\)\*\*\n- \*\*minor\*\*: A name is unclear[\s\S]*\*\*Not required \(there before this change\)\*\*\n- \*\*major\*\*: The old importer[\s\S]*Task proj\/9\./);
   // by hand, a review that passed still has something to send: then nothing in it is optional
   assert.match(G.reviewMessage(reviewOf(true, mixed, "major"), { all: true }), /Required: fix each of these\.\n- \[minor\] A name is unclear/);
   // a review from before the gate keeps its own words and its own rule (4 or 5, and not "don't merge")
@@ -90,7 +90,7 @@ test("a later round checks the earlier findings: it cannot grow the list with ne
   assert.match(one, /"meets": <true or false>/); assert.doesNotMatch(one, /"score"|recommend|later round|"id"|1 to 5/i);
   const filed = [...first.findings, { id: "F9", severity: "major", subject: "The old importer drops rows", where: "import.js", proof: "", preexisting: true, task: "proj/9" }, { id: "meets", severity: "critical", subject: "The change does not do what the task asked.", where: "", proof: "", preexisting: false, board: true }];
   const two = reviewBrief(t, { ...opts, earlier: filed });
-  assert.match(two, /This is a later round[^\n]*You may add a new finding \(with no id\) only if it is critical\.[^\n]*\nEarlier findings:\n- F1 \[major\] Crashes on an empty file \(f\.txt\)\n- F2 \[minor\] A name is unclear \(f\.txt\)\nAlready filed as tasks of their own[^\n]*\n- \[major\] The old importer drops rows \(import\.js\)\n/);
+  assert.match(two, /This is a later round[^\n]*You may add a new finding \(with no id\) only if it is critical\.[^\n]*\nEarlier findings:\n- F1 \[major\] Crashes on an empty file \(f\.txt\)\n- F2 \[minor\] A name is unclear \(f\.txt\)\nAlready known to the human[^\n]*\n- \[major\] The old importer drops rows \(import\.js\)\n/);
   assert.match(two, /"id": "<the earlier finding's id/); assert.doesNotMatch(two, /- meets /);
 });
 
@@ -158,7 +158,7 @@ test("a review where `meets` is false goes back even if the reviewer listed noth
   } finally { w.cleanup(); }
 });
 
-test("a pre-existing fault produces a new board task and no extra round, and is filed once across rounds", async () => {
+test("a pre-existing fault is suggested, never filed: no new task, no extra round, and one suggestion across rounds", async () => {
   const w = await world();
   try {
     const old = finding("critical", "The importer drops the last row", { where: "import.js", proof: "ran it on main too", preexisting: true });
@@ -168,38 +168,38 @@ test("a pre-existing fault produces a new board task and no extra round, and is 
     let t = await settle(id, { max: 30 });
     assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.equal(S.reviewRound(t), 1); assert.equal(paneOf(w, t).agent.prompts.length, 1); // no extra round
     assert.deepEqual([t.review.pass, G.result(t.review)], [true, "Pass · 1 pre-existing"]);
-    let filed = S.list().filter((x) => x.id !== id);
-    assert.deepEqual(filed.map((x) => [x.title, x.stage, !!x.link]), [["The importer drops the last row", "todo", false]]); // a task of its own, started by nobody
-    assert.match(filed[0].description, /Where: import\.js\nSeverity: critical\nWhat the reviewer saw: ran it on main too\n\nFound by the reviewer of proj\/1 \(Add a column\)/);
-    assert.equal(t.review.findings[0].task, filed[0].id);
+    assert.deepEqual(S.list().map((x) => x.id), [id]); // nothing was filed
+    assert.deepEqual(t.suggestions.map((s) => [s.id, s.title, s.where, s.by, s.severity, s.round, s.state]), [["S1", "The importer drops the last row", "import.js", "reviewer", "critical", 1, "open"]]);
+    assert.match(t.suggestions[0].description, /Where: import\.js\nSeverity: critical\nWhat the reviewer saw: ran it on main too\n\nIt was there before proj\/1 \(Add a column\)/);
+    assert.deepEqual(t.review.findings[0].suggested, { on: id, id: "S1" });
     assert.throws(() => A.sendReview(id), /nothing for the agent to fix/);
-    // later rounds name it again, under its id, in the same words and in other words about the same place: still one task
-    w.script({ worker: [work(2), work(3)], reviewer: [verdict([finding("major", "f.txt holds the wrong number"), { ...old, subject: "The importer drops the last row." }]), verdict([{ ...old, id: "F1" }, { ...old, proof: "ran it again" }, { ...old, subject: "Importing loses the final row of the file", severity: "major" }, finding("minor", "The old exporter is slow", { where: "export.js", preexisting: true })])] });
+    // later rounds name it again, under its id, in the same words and in other words about the same place: still one
+    w.script({ worker: [work(2), work(3)], reviewer: [verdict([finding("major", "f.txt holds the wrong number"), { ...old, subject: "The importer drops the last row." }]), verdict([{ ...old, id: "F1" }, { ...old, proof: "ran it again" }, { ...old, subject: "The last row is dropped by the importer", severity: "major" }, finding("minor", "The old exporter is slow", { where: "export.js", preexisting: true })])] });
     A.tell(id, "Change the number.");
     t = await settle(id, { max: 30 });
     assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.equal(S.reviewRound(t), 3); assert.equal(t.review.pass, true);
-    filed = S.list().filter((x) => x.id !== id);
-    // a fault from before the task that is first seen in a later round is filed too, and still holds nothing back.
-    // One in other words is not guessed to be the same, even with the same proof: it may be another fault.
-    assert.deepEqual(filed.map((x) => x.title).sort(), ["Importing loses the final row of the file", "The importer drops the last row", "The old exporter is slow"]);
-    const first = filed.find((x) => x.title.startsWith("The importer")).id, late = filed.find((x) => x.title.startsWith("The old exporter")).id, other = filed.find((x) => x.title.startsWith("Importing")).id;
-    assert.deepEqual(t.review.findings.map((f) => f.task), [first, first, other, late]);
-    // the same fault is one that says the same thing about the same place, whatever its proof. Words that resemble
-    // each other are not that, nor is a shared proof: a first-row bug and a last-row bug in one file are two tasks.
-    assert.ok(!G.sameFault(old, { ...old, subject: "The importer drops the first row" })); assert.ok(G.sameFault(old, { ...old, subject: "the importer drops the last row!", proof: "other" })); assert.ok(!G.sameFault(old, { subject: "The importer drops the first row", where: "import.js", proof: "ran it with a header" })); assert.ok(!G.sameFault(old, { subject: "The importer drops the first row", where: "import.js", proof: "" }));
-    assert.ok(!G.sameFault(old, { ...old, where: "import-json.js" })); assert.ok(!G.sameFault(old, { ...old, where: "" })); assert.ok(!G.sameFault({ ...old, where: "import-csv.js" }, { ...old, where: "import_csv.js", proof: "another run" })); assert.ok(!G.sameFault(old, { ...old, where: "Import.js" })); assert.ok(G.sameFault(old, { ...old, where: " import.js " })); assert.ok(G.sameFault(old, { ...old, proof: "" })); // the same words about another place are another fault
-    assert.ok(!G.sameFault(old, { subject: "Dates are parsed as text", where: "import.js", proof: "read it" })); assert.ok(!G.sameFault(old, { subject: "Something else entirely", where: "", proof: "ran it on main too" }));
-    // a full review after your reply is told what is filed already, and what is filed is not filed twice
-    // ... while the same summary about another file, with its own proof, is a task of its own that keeps its details
-    const json = { ...old, where: "import-json.js", proof: "ran the JSON import on main" };
-    w.script({ worker: [work(4)], reviewer: [verdict([{ ...old, subject: "Importing loses the final row of the file", severity: "major" }, json])] });
+    // a fault from before the task that is first seen in a later round is suggested too, and still holds nothing back
+    assert.deepEqual(S.list().map((x) => x.id), [id]);
+    assert.deepEqual(t.suggestions.map((s) => [s.id, s.title, s.round]), [["S1", "The importer drops the last row", 1], ["S2", "The old exporter is slow", 3]]);
+    assert.deepEqual(t.review.findings.map((f) => f.suggested.id), ["S1", "S1", "S1", "S2"]);
+    // word for word the same finding is one that says the same thing about the same place, whatever its proof
+    assert.ok(!G.sameFault(old, { ...old, subject: "The importer drops the first row" })); assert.ok(G.sameFault(old, { ...old, subject: "the importer drops the last row!", proof: "other" }));
+    assert.ok(!G.sameFault(old, { ...old, where: "import-json.js" })); assert.ok(!G.sameFault(old, { ...old, where: "" })); assert.ok(!G.sameFault(old, { ...old, where: "Import.js" })); assert.ok(G.sameFault(old, { ...old, where: " import.js " })); assert.ok(G.sameFault(old, { ...old, proof: "" }));
+    // the agent is told it is not theirs, and where it went; the next reviewer is told what is known already
+    assert.match(paneOf(w, t).agent.prompts.at(-1), /Required: fix each of these\.\n- \[major\] f\.txt holds the wrong number[\s\S]*Not yours to fix:[^\n]*The human is asked[^\n]*\n- \[critical\] The importer drops the last row\. \(import\.js\) → suggested as a task/);
+    assert.match(reviewBrief(t, { text: "", change: { head: "abc", range: "a..b" }, toLand: true, ch: {}, filed: knownFaults(t) }), /\nAlready known to the human \(they were there before this change\): do not report these again, in these words or in others\.\n- \[minor\] The old exporter is slow \(export\.js\)\n- \[critical\] The importer drops the last row \(import\.js\)\n/);
+    // the human says no to one and yes to the other: a dismissed one is never raised again, an accepted one is a task
+    A.dismissSuggestion(id, "S2");
+    const made = A.acceptSuggestion(id, "S1").task;
+    assert.deepEqual([made.id, made.title, made.stage, !!made.link], ["proj/2", "The importer drops the last row", "todo", false]); // started by nobody
+    assert.match(made.description, /Where: import\.js\n[\s\S]*Suggested by the reviewer of proj\/1 \(Add a column\)\.$/);
+    w.script({ worker: [work(4)], reviewer: [verdict([{ ...old, subject: "The importer still drops the last row" }, finding("minor", "The exporter is slow, as of old", { where: "export.js:12", preexisting: true })])] });
     A.tell(id, "And once more.");
     t = await settle(id, { max: 30 });
-    const all = S.list().filter((x) => x.id !== id);
-    assert.equal(all.length, 4); assert.equal(t.review.findings[0].task, other); assert.ok(![first, other, late].includes(t.review.findings[1].task));
-    assert.match(S.get(t.review.findings[1].task).description, /Where: import-json\.js\nSeverity: critical\nWhat the reviewer saw: ran the JSON import on main\n/);
-    assert.match(reviewBrief(t, { text: "", change: { head: "abc", range: "a..b" }, toLand: true, ch: {}, filed: t.filedFaults }), /\n\nAlready filed as tasks of their own[^\n]*\n- \[critical\] The importer drops the last row \(import\.js\)\n- \[major\] Importing loses the final row of the file \(import\.js\)\n- \[minor\] The old exporter is slow \(export\.js\)\n- \[critical\] The importer drops the last row \(import-json\.js\)\n\n/);
-    assert.match(paneOf(w, t).agent.prompts.at(-2), /Required: fix each of these\.\n- \[major\] f\.txt holds the wrong number[\s\S]*Not yours to fix:[^\n]*\n- \[critical\] The importer drops the last row\. \(import\.js\) → filed as proj\/2/);
+    assert.equal(t.stage, "approval", JSON.stringify(t.failure));
+    assert.deepEqual(S.list().map((x) => x.id).sort(), [id, made.id]); assert.equal(t.suggestions.length, 2);
+    assert.deepEqual(t.review.findings.map((f) => [f.task || "", f.suggested?.id || ""]), [[made.id, ""], ["", "S2"]]);
+    assert.match(G.findingsText(t.review), /→ task proj\/2\n- [^\n]* → suggested as a task$/);
   } finally { w.cleanup(); }
 });
 
@@ -265,7 +265,7 @@ test("the pull request and the review page show every finding, those below the g
     assert.match(page, /<div class="score warning">Fail<\/div><p class="decision">1 critical, 1 major, 1 minor, 1 pre-existing<\/p><p>Does the change do what the task asked\? <strong>No<\/strong>/);
     assert.match(page, /<h4>Required<\/h4><ul class="findings"><li><span class="sev critical">critical<\/span> The change does not do what the task asked\.<\/li><li><span class="sev major">major<\/span> Crashes on &lt;empty&gt; files <code>f\.txt<\/code><div class="proof">Proof: ran it<\/div><\/li><\/ul>/);
     assert.match(page, /<h4>Not required: below the gate<\/h4><ul class="findings"><li><span class="sev minor">minor<\/span> A name is unclear <code>f\.txt<\/code> <span class="tag">not required<\/span>/);
-    assert.match(page, /<h4>Not required: there before this change<\/h4>[^\n]*<span class="tag">not required · filed as proj\/9<\/span>/); assert.match(page, /2 smaller findings noticed only in this later round were left out\./);
+    assert.match(page, /<h4>Not required: there before this change<\/h4>[^\n]*<span class="tag">not required · task proj\/9<\/span>/); assert.match(page, /2 smaller findings noticed only in this later round were left out\./);
     assert.match(renderReviewPage({ id, title: "T", summary: "Did it.", review: { ...reviewOf(true, [], "major"), at: Date.now() }, evidence: [], dir: w.base }), /No findings reported by the reviewer\.[\s\S]*<div class="score success">Pass<\/div><p class="decision">Nothing found<\/p>/);
   } finally { w.cleanup(); }
 });

@@ -37,6 +37,9 @@ empty line between:
   the size of the change and its pull request (its number is a link; full screen the address is printed too).
 - **What it needs from you**, or what it is doing right now, sits behind a bar in its state's colour: the question,
   what went wrong and the next step, or the agent's current line.
+- **Suggested tasks**, when the task's agent or reviewer came across work outside it: each open
+  [suggestion](suggestions.md) with who raised it, and the key that decides (`Ctrl+N`). Full screen, the ones you
+  made a task or dismissed stay listed, greyed.
 - **The description**: whole on the full screen, cut after about 400 characters beside the list.
 - **The reviews**, each one a box of its own (below).
 - **What the agent said** (while you talk to its agent that is in the chat instead).

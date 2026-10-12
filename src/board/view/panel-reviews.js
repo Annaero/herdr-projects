@@ -18,7 +18,7 @@ export class PanelReviews {
     // did not. Beside the list only the latest review shows.
     const hist = S.reviewHistory(r), last = hist[hist.length - 1];
     const stale = !!r.review?.stale;
-    const found = (e) => { const s = G.split(e); return [...s.required.map((f) => G.findingLine(f)), ...s.optional.map((f) => `${G.findingLine(f)} · not required`), ...s.preexisting.map((f) => `${G.findingLine(f)} · pre-existing${f.task ? `, filed as ${f.task}` : ""}`), ...(e.left ? [`${e.left} smaller finding${e.left === 1 ? "" : "s"} noticed late, left out`] : [])]; };
+    const found = (e) => { const s = G.split(e); return [...s.required.map((f) => G.findingLine(f)), ...s.optional.map((f) => `${G.findingLine(f)} · not required`), ...s.preexisting.map((f) => `${G.findingLine(f)} · pre-existing${G.wentTo(f) ? `, ${G.wentTo(f)}` : ""}`), ...(e.left ? [`${e.left} smaller finding${e.left === 1 ? "" : "s"} noticed late, left out`] : [])]; };
     const iw = Math.max(1, w - 4);
     const list = (label, xs) => ((xs || []).length ? ["", dim(label), ...xs.flatMap((x) => wrap(x, iw - 2).map((l, n) => (n ? "  " : dim("•") + " ") + l))] : []);
     const name = (e) => `Review ${e.round}`;

@@ -45,6 +45,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `finish-line.js` | The finish line's keys: approve, send the review or the failure back, finish anyway, retry |
 | `shared.js` | What the actions share: the stages an agent holds a slot in, and an action's answer |
 | `start.js` | Putting an agent on a task: the request, and starting queued tasks while slots are free |
+| `suggestions.js` | Suggested tasks: work an agent or a reviewer came across that is not theirs to do |
 | `talk.js` | Talking to a task's agent: a reply, what every human-started turn does to a task, stop |
 
 ## `src/agents/`
@@ -96,6 +97,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `setup.js` | The first run: one screen asks what the plugin may add to herdr's settings |
 | `size.js` | The board's size: the window, what herdr shows of it, and another viewer holding the terminal at its own size |
 | `states.js` | Where a task stands, as the board files it: its group, its colour, whether an agent is on it, whether it waits for you |
+| `suggestions.js` | Suggested tasks: work a reviewer or an agent came across outside its own task |
 | `textbox.js` | The text box you type in |
 | `words.js` | Small words and numbers the board's parts share: a time as "12m", a pull request as "PR#16", a long text cut short |
 
@@ -114,6 +116,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | File | Holds |
 |---|---|
+| `faults.js` | Faults a reviewer found that were there before the task: suggested to the human, never filed, and what the next reviewer is told is known already |
 | `pipeline.js` | The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval |
 | `recover-job.js` | A finished turn re-armed by mistake: hand the task to the human as stopped without a summary |
 | `review-brief.js` | What the reviewer is told, and reading the verdict it writes back |
@@ -147,6 +150,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `reviews.js` | A task's reviews: the current one, which round, and every one it had |
 | `settings-list.js` | The settings, each one defined once: its name, its default, whether one task can have its own, and what it means |
 | `settings.js` | Settings as saved and read: yours, one task's own, and the repo's file |
+| `suggestions.js` | Suggested tasks |
 | `tasks.js` | Tasks on disk: reading, listing, changing, creating |
 
 ## `bin/`
@@ -179,6 +183,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [provider-errors.md](provider-errors.md) | A turn cut off by the provider |
 | [roles-and-commands.md](roles-and-commands.md) | Roles and commands |
 | [settings.md](settings.md) | Settings: two places |
+| [suggestions.md](suggestions.md) | Suggested tasks |
 | [task-panel.md](task-panel.md) | The task panel |
 | [testing.md](testing.md) | Tests |
 | [where-things-live.md](where-things-live.md) | Where things live |
@@ -229,6 +234,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `remote.test.js` | Other machines: the door, actions where the task lives, the SSH line |
 | `retry.test.js` | A turn cut off by the model's provider: recognised from the agent's own conversation file, retried by the board when the error is one that passes, and never taken for a finished turn or a review |
 | `store.test.js` |  |
+| `suggestions.test.js` | Suggested tasks: nothing files a task by itself |
 | `sync-conflict.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `sync-merge.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `sync-remote.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |

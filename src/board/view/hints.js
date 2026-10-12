@@ -3,6 +3,7 @@ import * as G from "../../gate.js";
 import { isAgent, failureFor, canSendError, inReview } from "./states.js";
 import { currentReview } from "./review-words.js";
 import { hint, name } from "../keys.js";
+import { openSuggestions } from "../../store.js";
 
 export class Hints {
   // The hint line: what matters right now, the main thing first, at most four.
@@ -40,6 +41,9 @@ export class Hints {
     else main = [agent, reply];
     main = main.filter(Boolean);
     if (this.reply && !r.archivedAt) main = [["", agentOn && r.state === "blocked" && r.kind === "question" ? "type your answer" : "type your reply"], ...main.filter(([k]) => k !== name("talk"))];
-    return [...main.slice(0, 4 - tail.length), ...tail];
+    // A suggested task waits on this one: its key, when there is room. It never takes a hint's place.
+    const shown = main.slice(0, 4 - tail.length);
+    const asked = !this.reply && r.title !== undefined && openSuggestions(r).length && shown.length + tail.length < 4 ? [hint("suggested")] : [];
+    return [...shown, ...asked, ...tail];
   }
 }

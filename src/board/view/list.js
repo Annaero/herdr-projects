@@ -113,6 +113,8 @@ export class List {
     if (this.scope === "*") parts.push(`all machines: ${Object.keys(this.remotes).length ? Object.values(this.remotes).map((m) => (m.ok ? m.label : `${m.label} (no answer)`)).join(", ") : "no others found"}`);
     else if (this.all) parts.push(`only ${this.scope}${this.remotes[this.scope] && this.remotes[this.scope].ok ? "" : " (no answer)"}`);
     if (this.filter && this.mode !== "find") parts.push(`find: ${this.filter}`);
+    const asked = this.archiveView ? 0 : this.suggestionCount();
+    if (asked) parts.push(`${asked} suggested task${asked === 1 ? "" : "s"} (${keyName("suggested")})`);
     return [truncateToWidth(" " + t.bold("herdr-superwork") + t.fg("overlay0", "  " + parts.join(" · ")), w, "…")];
   }
   listLines(width, h) {

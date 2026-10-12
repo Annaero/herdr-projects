@@ -7,3 +7,4 @@ export * from "./finish/pipeline.js";
 export * from "./finish/sync-job.js";
 export * from "./finish/recover-job.js";
 export * from "./finish/review-brief.js";
+export * from "./finish/faults.js";

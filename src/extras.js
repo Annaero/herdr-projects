@@ -36,6 +36,10 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
   \`--query TEXT\` searches, \`--archived\` shows the archive, \`--all\` includes it.
 - \`herdr-superwork add "<short title>" --desc "<full description>"\`: file a new task in the current repo
   (\`--repo <name or path>\` for another). Filing starts nothing. Add \`--delegate\` only if the human asked for an agent.
+  File a task only when the human asked for it: nothing files tasks by itself.
+- \`herdr-superwork suggestions [<id>]\`: work that agents and reviewers came across outside their own task. Each is a
+  suggestion on the task that raised it, waiting for the human. \`accept <id> [S1]\` makes one a task, \`dismiss <id> [S1]\`
+  drops it: both only when the human plainly says so.
 - \`herdr-superwork delegate <id>\`: put an agent on a task. It works in its own git worktree, as an ordinary herdr
   agent in its own herdr space. Options for this one task: \`--agent claude|codex|pi\`, \`--model\`, \`--effort\`,
   \`--reviewer <kind>|off\`, \`--gate critical|major|minor|trivial|off\`, \`--no-worktree\` (work in the human's checkout),
@@ -55,8 +59,9 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
 - \`herdr-superwork config\` shows the settings; \`config <key> <value>\` changes one; \`config <key> <value> --id <id>\` sets it
   for one task.
 
-If you are an agent the board itself started on a task, your rules were given to you at the start: you may only file
-new tasks (\`add\`) and report yourself blocked (\`report <your id> --state blocked --kind question|permission|auth --msg "<why>"\`).
+If you are an agent the board itself started on a task, your rules were given to you at the start: you may only suggest
+work that is not yours (\`suggest "<title>" --desc "<what and why>" --from <your id>\`: the human decides whether it
+becomes a task) and report yourself blocked (\`report <your id> --state blocked --kind question|permission|auth --msg "<why>"\`).
 The board refuses your other commands: the human does those.
 `;
 }

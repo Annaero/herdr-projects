@@ -2,7 +2,9 @@
 
 **The board asks before what cannot be undone**, always the same way, in a small box: `Merge PR#18?  y = yes ·
 n = no`. `y` says yes, `n` or `Esc` says no, in upper or lower case; `Enter` never confirms, and no other key answers.
-Merging and deleting a task ask; nothing else does. A result stays on screen until
+Merging and deleting a task ask; nothing else does by itself. (A [suggested task](suggestions.md) is asked about
+only when you press its key, and its box has three answers: `y` makes it a task, `n` dismisses it, `Esc` leaves it
+for later.) A result stays on screen until
 your next key press, an error until `Esc` dismisses it.
 
 **Closing the board takes `Ctrl+C` twice**, as leaving Claude Code does. The first one shows `Press ctrl+c
@@ -46,6 +48,7 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 | `Ctrl+X` | stop the agent, when one is running (working, starting, checking, under review, or waiting for your answer); the selection stays on that row. On a task with no agent running (idle, never started, stopped, finished, archived) it asks to delete the task instead: `y` deletes it, its worktree too. A stop never goes on to that question by itself: deleting takes a second `Ctrl+X`, and a `y` |
 | `Ctrl+A` | archive the selected task, or restore it from the archive |
 | `Ctrl+P` | pin the selected task to the top, or unpin it |
+| `Ctrl+N` | suggested tasks: asks about the selected task's first open suggestion, or goes to the first task that has one. In that question `y` makes it a task, `n` dismisses it and `Esc` leaves it for later ([suggestions.md](suggestions.md)) |
 | `Ctrl+Z` | undo: bring back a draft that was put away, or take the last archiving back |
 | `Ctrl+F` | find |
 | `Ctrl+C` | twice: close the board, with text typed too: the draft is kept and is back when the board reopens |

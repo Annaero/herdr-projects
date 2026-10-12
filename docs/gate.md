@@ -16,8 +16,9 @@ The board then applies fixed rules to what came back:
 
 - `meets: false` always counts as a critical finding, even with an empty list.
 - A critical finding with an empty proof is treated as major.
-- A pre-existing finding never sends the work back. Each is filed as a new task of its own (not delegated), once,
-  however many rounds name it.
+- A pre-existing finding never sends the work back, and never becomes a task by itself. Each is a
+  [suggestion](suggestions.md) on the task, once, however many rounds or other tasks' reviews name it: you make it
+  a task or dismiss it.
 - The work **passes** when no finding of its own sits at or above the `gate` setting (`major` by default). A pass
   is what "may merge" means everywhere: a repo with `"land": "auto"` merges it, an approved merge that was repaired
   goes through, and the board says `Pass`.
@@ -25,7 +26,7 @@ The board then applies fixed rules to what came back:
   required, the rest as optional. When the cap is reached and it still fails, it stops and waits for you.
 - From the second round on the reviewer gets the earlier findings and only checks that each is fixed and that the
   fixes broke nothing. It may add a new finding only if it is critical, with proof; anything smaller it notices
-  late is left out (a pre-existing fault is still filed). A reply from you starts a full review again.
+  late is left out (a pre-existing fault is still suggested). A reply from you starts a full review again.
 - `gate off` sends nothing back by itself: findings wait for you (`Ctrl+R` sends them). The result shown and an
   automatic merge are then judged at `major`.
 

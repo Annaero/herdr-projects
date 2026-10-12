@@ -13,6 +13,7 @@ import { userEnv, inline, runnerAlive, spawnRunner } from "./runner.js";
 import { reconcile } from "./hook.js"; // a cycle, used only at call time
 import { startQueued } from "./actions.js";
 import * as Y from "./sync.js";
+import { owedFaults, suggestOwed } from "./finish/faults.js";
 
 const key = (socket) => createHash("sha1").update(String(socket)).digest("hex").slice(0, 8);
 
@@ -20,6 +21,8 @@ export function housekeeping(socket = currentSocket(), { force = false } = {}) {
   if (!S.hasTasks()) return;
   if (!force && !S.due(`housekeep-${key(socket)}`, 2000)) return;
   const tasks = S.list();
+  // A reviewer's old fault the board was too busy to save as a suggestion is tried again, until it is saved.
+  for (const t of tasks) { if (owedFaults(t).length) { try { suggestOwed(t.id); } catch {} } }
   if (socketExists(socket)) {
     const linked = tasks.filter((t) => F.isAgentTask(t) && t.link.socket === socket && !["done", "todo", "progress", "queued"].includes(t.stage));
     if (linked.length) {

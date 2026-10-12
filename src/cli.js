@@ -10,6 +10,10 @@ const HELP = `herdr-superwork: a work board for herdr
 
   herdr-superwork                     open the board here (in herdr: bind a key to the plugin action "open")
   herdr-superwork add <title> [--desc TEXT] [--repo NAME|PATH] [--delegate]
+  herdr-superwork suggest <title> [--desc TEXT] --from <id>   (an agent: work you came across that is not yours; the human decides)
+  herdr-superwork suggestions [<id>]            the suggested tasks still open (of one task, or all)
+  herdr-superwork accept <id> [S1]              make a suggestion a task (only when the human says so)
+  herdr-superwork dismiss <id> [S1]             drop a suggestion (only when the human says so)
   herdr-superwork list [--archived] [--all] [--query TEXT] [--json]
   herdr-superwork report <id> --state idle|working|blocked|done|error [--kind question|permission|auth] [--msg TEXT] [--title TEXT]
                          [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
@@ -92,8 +96,8 @@ function refuse(cmd, pos, flags) {
   if (!c) return "";
   const own = !pos[1] || (() => { try { return S.find(pos[1]).id === c.task.id; } catch { return false; } })();
   const ok = c.role === "reviewer" ? ["list", "ls", "details"].includes(cmd)
-    : ["add", "new", "list", "ls", "details"].includes(cmd) || (cmd === "report" && flags.state === "blocked" && own);
-  return ok ? "" : `Refused: as the ${c.role === "reviewer" ? "reviewer" : "agent"} of ${c.task.id} you may only run ${c.role === "reviewer" ? "list and details" : `add, list, details and "report ${c.task.id} --state blocked"`}. The human does the rest from the board.`;
+    : ["suggest", "suggestions", "add", "new", "list", "ls", "details"].includes(cmd) || (cmd === "report" && flags.state === "blocked" && own);
+  return ok ? "" : `Refused: as the ${c.role === "reviewer" ? "reviewer" : "agent"} of ${c.task.id} you may only run ${c.role === "reviewer" ? "list and details" : `suggest, suggestions, list, details and "report ${c.task.id} --state blocked"`}. The human does the rest from the board.`;
 }
 const line = (t) => `${t.id.padEnd(14)} ${String(t.state).padEnd(8)}${t.kind ? ` ${t.kind}` : ""}${t.shownApp ? ` [${t.shownApp}]` : ""}  ${t.title}${t.note ? `  · ${t.note}` : ""}${t.archivedAt ? "  (archived)" : ""}`;
 const brief = (t) => ({ id: t.id, state: t.state, kind: t.kind, app: t.shownApp, title: t.title, msg: t.note, stage: t.stage, progress: t.progress, eta: t.eta, pr: t.pr || undefined, archivedAt: t.archivedAt || undefined, review: S.currentReview(t) || undefined, reviewRound: S.reviewRound(t) || undefined });
@@ -147,7 +151,15 @@ export async function main(argv) {
   const shownOf = (id) => F.board({ includeArchived: true }).find((t) => t.id === id);
   let result;
   switch (cmd) {
-    case "add": case "new": {
+    case "add": case "new": case "suggest": {
+      // An agent files nothing by itself: what it "adds" is a suggestion on its own task, for the human to decide.
+      const from = callerTask() || (cmd === "suggest" ? (flags.from ? S.find(flags.from) : null) : null);
+      if (cmd === "suggest" && !from) throw new Error("suggest needs --from <the id of the task you are on>. Try: herdr-superwork help");
+      if (from) {
+        const r = A.suggest(from.id, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "" });
+        result = [{ suggestion: r.suggestion || null, on: r.on || null, known: r.known || null }, `${r.msg} Carry on with your own task.`];
+        break;
+      }
       const t = A.add(here, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "", repo: flags.repo });
       // Filed by the Coordinator from a message the human sent with tab: delegated here, flag or no flag.
       let tab = false;
@@ -163,6 +175,13 @@ export async function main(argv) {
       result = [all.map(brief), all.length ? all.map(line).join("\n") : "No tasks."];
       break;
     }
+    case "suggestions": {
+      const open = (pos[1] ? [S.find(pos[1])] : S.list()).flatMap((t) => S.openSuggestions(t).map((s) => ({ ...s, on: t.id })));
+      result = [open, open.length ? open.map((s) => `${s.on} ${s.id}  ${s.title}  · from ${S.suggestedBy(s)}`).join("\n") : "No open suggestions."];
+      break;
+    }
+    case "accept": { const r = A.acceptSuggestion(need(1, "an id"), pos[2]); result = [brief(shownOf(r.task.id)), r.msg]; break; }
+    case "dismiss": { const r = A.dismissSuggestion(need(1, "an id"), pos[2]); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "report": {
       const me = callerTask();
       if (!pos[1] && flags.title && !me) { const t = A.add(here, flags.title, { description: flags.msg || flags.desc || "", repo: flags.repo }); result = [brief(shownOf(t.id)), `${t.id}: filed`]; break; }

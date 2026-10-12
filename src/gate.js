@@ -24,7 +24,7 @@ export function readFindings(list) {
 // The board's rules, applied to what came back.
 // `earlier`: the findings of the round before, when this is a later round (null on a first review). Then an earlier
 // finding still open comes back under its id, and anything new stays only if it is critical with proof, or was
-// there before the task: that one holds nothing back, it is only filed as a task of its own.
+// there before the task: that one holds nothing back, it is only suggested to the human as a task of its own.
 // `used`: every finding id this task has had, so a new one never takes an old number.
 export function settle(meets, found, earlier = null, used = []) {
   const prior = new Map((earlier || []).filter((f) => !f.board).map((f) => [f.id, f]));
@@ -38,14 +38,14 @@ export function settle(meets, found, earlier = null, used = []) {
       if (out.some((o) => o.id === was.id)) continue;
       // An earlier finding may not grow on the way, except into a proven critical one. What it was tagged as stays.
       if (severity !== "critical" && rank(severity) > rank(was.severity)) severity = was.severity;
-      out.push({ ...f, id: was.id, severity, preexisting: was.preexisting, ...(was.task ? { task: was.task } : {}) });
+      out.push({ ...f, id: was.id, severity, preexisting: was.preexisting, ...(was.task ? { task: was.task } : {}), ...(was.suggested ? { suggested: was.suggested } : {}), ...(was.unsuggested ? { unsuggested: was.unsuggested } : {}) });
     } else if (earlier && severity !== "critical" && !f.preexisting) left++;
     else out.push({ ...f, id: "", severity });
   }
   // The fixed question answered "no" is a critical finding, whatever the list says.
   if (meets === false && !out.some((f) => f.severity === "critical" && !f.preexisting)) out.unshift({ id: "meets", severity: "critical", subject: "The change does not do what the task asked.", where: "", proof: "", preexisting: false, board: true });
   // A very long list of the task's own findings is cut only now, with the rules applied, and from the mildest up:
-  // what can fail the gate is never what goes. What was there before the task is never cut: each is to be filed.
+  // what can fail the gate is never what goes. What was there before the task is never cut: each is to be suggested.
   const own = out.filter((f) => !f.preexisting);
   if (own.length > MAX_FINDINGS) {
     const gone = new Set([...own].sort((a, b) => rank(b.severity) - rank(a.severity)).slice(MAX_FINDINGS));
@@ -95,7 +95,11 @@ export const SENTENCE = /^(Approve to merge\?\s*)?(?:Reviewed [1-5]\/5(?:, says 
 // ---- words for the agent, the pull request and the board ----------------------------------------------------------------
 export const findingLine = (f) => `[${f.severity}] ${f.subject}${f.where ? ` (${f.where})` : ""}`;
 const withProof = (f) => `- ${findingLine(f)}${f.proof ? `\n  Proof: ${f.proof}` : ""}`;
-const filedAs = (f) => `- ${findingLine(f)}${f.task ? ` → filed as ${f.task}` : ""}`;
+// Where a fault from before the task went: never a task by itself. It is suggested to the human, unless the board
+// knew it already: as a task (`task`), or as a suggestion raised before (`suggested`: { on, id }).
+// `unsuggested`: the board could not save the suggestion (it was busy); the human sees that instead of nothing.
+export const wentTo = (f) => (f.task ? `task ${f.task}` : f.suggested ? "suggested as a task" : f.unsuggested ? "not suggested: the board could not save it" : "");
+const filedAs = (f) => `- ${findingLine(f)}${wentTo(f) ? ` → ${wentTo(f)}` : ""}`;
 // The review as plain text: its summary and what it found. `all`: the human sends it by hand, so nothing is optional.
 export function findingsText(rv, { all = false } = {}) {
   if (!isTagged(rv)) return `${rv.text}${rv.problems && rv.problems.length ? `\n\nProblems it found:\n${rv.problems.map((p) => `- ${p}`).join("\n")}` : ""}`;
@@ -104,7 +108,7 @@ export function findingsText(rv, { all = false } = {}) {
   return [rv.text,
     required.length ? `Required: fix each of these.\n${required.map(withProof).join("\n")}` : "",
     optional.length ? `Optional: these do not hold the work back. Fix one only if it is quick and safe; otherwise leave it.\n${optional.map(withProof).join("\n")}` : "",
-    s.preexisting.length ? `Not yours to fix: these were there before your work and are filed as tasks of their own. Leave them.\n${s.preexisting.map(filedAs).join("\n")}` : "",
+    s.preexisting.length ? `Not yours to fix: these were there before your work. The human is asked whether each becomes a task of its own. Leave them.\n${s.preexisting.map(filedAs).join("\n")}` : "",
   ].filter(Boolean).join("\n\n");
 }
 export function reviewMessage(rv, opts = {}) {
@@ -114,17 +118,15 @@ export function reviewMessage(rv, opts = {}) {
 // What a pull request says about a review: every finding, those below the gate marked as not required.
 export function prComment(rv, round) {
   const s = split(rv);
-  const item = (f) => `- **${f.severity}**: ${f.subject}${f.where ? ` (\`${f.where}\`)` : ""}${f.proof ? `\n  Proof: ${f.proof}` : ""}${f.preexisting && f.task ? `\n  Filed as ${f.task}.` : ""}`;
+  const item = (f) => `- **${f.severity}**: ${f.subject}${f.where ? ` (\`${f.where}\`)` : ""}${f.proof ? `\n  Proof: ${f.proof}` : ""}${f.preexisting && wentTo(f) ? `\n  ${wentTo(f)[0].toUpperCase()}${wentTo(f).slice(1)}.` : ""}`;
   const group = (title, xs) => (xs.length ? `**${title}**\n${xs.map(item).join("\n")}` : "");
   return [`**Review${round ? ` ${round}` : ""} · ${result(rv)}**`, `Does the change do what the task asked? ${rv.meets ? "Yes." : "No."} Gate: ${rv.gate} and worse must be fixed.`, rv.text,
-    group("Required", s.required), group("Not required (below the gate)", s.optional), group("Not required (there before this change, filed separately)", s.preexisting),
+    group("Required", s.required), group("Not required (below the gate)", s.optional), group("Not required (there before this change)", s.preexisting),
     rv.left ? `${rv.left} smaller finding${rv.left === 1 ? "" : "s"} noticed in this later round ${rv.left === 1 ? "was" : "were"} left out.` : "",
     rv.findings.length ? "" : "No findings."].filter(Boolean).join("\n\n");
 }
-// Is this the fault that was filed before? Only when it says the same thing about the same place. The board does
-// not guess beyond that: the same words about another place, another subject backed by the same proof, or words
-// that merely resemble each other are another fault, and a doubt files a second task rather than lose one. What
-// keeps a re-worded fault from being filed twice is the reviewer: every round it is shown what is filed already.
+// Is this the same finding, word for word? The same thing said about the same place. Used to list a finding once.
+// Whether two findings are the same work in other words is the suggestions' question (store/suggestions.js).
 const plain = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 export function sameFault(a, b) {
   // A place is compared as written: import-csv.js and import_csv.js, or a.js and A.js, are different files.

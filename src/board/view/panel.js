@@ -62,6 +62,7 @@ export class Panel {
     Object.assign(p, { r, width, full, agent, failure, c, underReview, approval });
 
     const { top, stand, told } = this.panelStatus(p);
+    if (this.panelSuggestions(p)) cut = true;
 
     // The description: whole on the full screen, its first few hundred characters beside the list.
     const desc = this.desc(r).trim();
