@@ -23,6 +23,10 @@ The bottom line shows only what matters right now, the main thing first, at most
 `Esc` and `Ctrl+C`, a key acts on the board only while the text box is empty: with a draft in it, the keys are the
 draft's (`Ctrl+A` is "start of the line" there, not "archive").
 
+**The key that opens the board is herdr's, not the board's**: it is a line in herdr's `config.toml`, offered at the
+[first run](install.md) as `prefix+a`. The board never takes a key herdr binds itself (`prefix+w` is herdr's
+workspace picker) or one your config already binds: it refuses it and says what the key does today.
+
 Restarting the Coordinator, starting a new one and going into its whole chat are not on the board: see
 [the Coordinator](coordinator.md).
 

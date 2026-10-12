@@ -21,6 +21,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `flow.js` | What the pieces share: reading herdr's view of a task, and sending text to its agent |
 | `gate.js` | The gate |
 | `helpers.js` | The hidden helper, as a hidden model call: the watcher (a status line and a progress guess for whatever is running; the board works out the minutes left) |
+| `herdr-keys.js` | The keys herdr already uses, its own defaults and what the user's config.toml binds, and so which key the board may take: it never takes one that is in use, and says what that key does today |
 | `herdr.js` | The only file that runs the herdr binary |
 | `hook.js` | The event hook entry |
 | `housekeeping.js` | The housekeeping pass |
@@ -253,6 +254,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `gate.test.js` | The gate: tagged findings in, a fixed rule decides what goes back and what may merge |
 | `guard.test.js` | The repo's own rules are part of the check: no source file past its size, no name used and never defined, no made page out of date (scripts/guard.js) |
 | `helpers.js` | Shared test setup: a temporary board, a fake herdr and scripted fake agents |
+| `herdr-keys.test.js` | The key that opens the board: prefix+a is offered, and a key herdr or the user's config already uses is never taken |
 | `keys-list.test.js` | The keys list is the one place a key is defined: moving a key there moves it in the handler, the ? menu, the hints and the messages, with no other file changed |
 | `lifecycle.test.js` |  |
 | `merge.test.js` |  |

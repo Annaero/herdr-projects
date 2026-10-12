@@ -15,7 +15,11 @@ two things it can add to your herdr `config.toml`. Each is your choice, answered
 them on or off, `k` picks another key, `enter` saves, `esc` asks again next time. The file is backed up first, each
 block sits between two marker lines, and a change herdr rejects is rolled back:
 
-- a key that opens the board (it suggests one herdr does not use; `prefix+w` is herdr's own workspace picker);
+- a key that opens the board: it offers `prefix+a`, which herdr does not use itself. If your config already binds
+  `prefix+a`, it offers the next free key (`prefix+y`, then `prefix+u`, `prefix+i`, `prefix+m`) and says why. A key
+  that herdr binds by default, or that your config already binds, is never taken: the screen refuses it and says what
+  the key does today (`prefix+w`, for one, is herdr's own workspace picker), for the offered key and for one you type
+  with `k` alike, and however your config writes a binding (one key, a list of keys, the older `[keys.indexed]`). A key that is already set up for the board is left as it is;
 - sidebar rows, so herdr's sidebar shows each task's stage, its "doing now" line, its progress and the minutes left. herdr's default
   sidebar shows none of these: without the rows the plugin puts a short status into the agent's name instead
   (`approve? pass · claude`), which works with no setup. With the rows in place the name is left alone, so the
@@ -35,6 +39,12 @@ rows = [["state_icon", "machine", "workspace", "tab"], ["agent", "state_text"], 
 [ui.sidebar.spaces]
 rows = [["state_icon", "workspace"], ["branch", "git_status"], [{ token = "$summary", dim = true }]]
 ```
+
+A `[[keys.command]]` wins over herdr's own binding of the same key, without a warning: written by hand on a key
+herdr uses, it switches herdr's action off (an early version of this page showed `prefix+w` here, which took away
+herdr's workspace picker). `herdr --default-config` lists most of the keys herdr binds (not copy mode, `prefix+[`,
+nor swapping panes, `prefix+shift+h` `j` `k` `l`); to move the board, change the `key`
+line and run `herdr server reload-config`.
 
 Optionally bind `herdr-superwork.approve-current` too: for the task that owns the focused pane it opens the board on
 that task with the merge question up (`y` = yes, `n` or `esc` = no), and does nothing anywhere else.

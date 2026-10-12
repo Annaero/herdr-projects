@@ -12,7 +12,7 @@ export class Setup {
     const o = this.ctx.offers ? this.ctx.offers() : X.offers();
     if (o.asked) return;
     if (!o.key && !o.sidebar) { X.answer({}); return; }
-    this.setup = { file: o.file, typing: false, key: o.key ? { on: !!o.key.suggest, value: o.key.suggest || "" } : null, sidebar: o.sidebar ? { on: true } : null };
+    this.setup = { file: o.file, typing: false, key: o.key ? { on: !!o.key.suggest, value: o.key.suggest || "", note: o.key.note || "" } : null, sidebar: o.sidebar ? { on: true } : null };
   }
   // Single keys: 1 and 2 switch a choice on or off, k types another key, enter saves both, esc asks again next time.
   setupKey(data) {
@@ -23,8 +23,11 @@ export class Setup {
       if (esc) { st.typing = false; return this.setValue(""); }
       if (!enter) return this.input.handleInput(data);
       const v = this.value().trim().toLowerCase();
-      st.typing = false; this.setValue("");
-      if (v) { st.key.value = v; st.key.on = true; }
+      // A key herdr or the config already uses is refused here, with what it does today: it is never kept.
+      const c = v ? (this.ctx.checkKey || X.checkKey)(v) : { ok: true };
+      if (!c.ok) { this.setValue(""); return this.flash(c.msg, "red"); }
+      st.typing = false; this.setValue(""); this.msg = ""; // a refusal shown for the last try is over
+      if (v) { st.key.value = v; st.key.on = true; st.key.note = ""; }
       return;
     }
     if (esc) { this.setup = null; return this.flash("Asked again next time. Nothing was changed."); }
@@ -55,7 +58,7 @@ export class Setup {
     const wrap = (text, indent = "  ") => wrapTextWithAnsi(text, Math.max(10, width - 2 - indent.length)).map((l) => indent + l);
     const box = (on) => (on ? t.fg("green", "[x]") : t.fg("overlay0", "[ ]"));
     const L = ["", "  " + t.bold("herdr-superwork · first run"), "", ...wrap(t.fg("subtext0", "Two things the board can add to herdr's settings. Both are optional."))];
-    if (st.key) L.push("", ...wrap(`${t.fg("accent", "1")}  ${box(st.key.on)} ${st.key.value ? `Open this board with ${t.bold(st.key.value)}, from anywhere in herdr` : "Open this board with a key of your own (1 or k: type it)"}`), ...(st.key.value ? wrap(t.fg("overlay0", "k: use another key"), "         ") : []));
+    if (st.key) L.push("", ...wrap(`${t.fg("accent", "1")}  ${box(st.key.on)} ${st.key.value ? `Open this board with ${t.bold(st.key.value)}, from anywhere in herdr` : "Open this board with a key of your own (1 or k: type it)"}`), ...(st.key.note ? wrap(t.fg("yellow", st.key.note), "         ") : []), ...(st.key.value ? wrap(t.fg("overlay0", "k: use another key"), "         ") : []));
     if (st.sidebar) L.push("", ...wrap(`${t.fg("accent", "2")}  ${box(st.sidebar.on)} Show each task's stage, and what it is doing, in herdr's sidebar`));
     L.push("", ...wrap(t.fg("overlay0", `Saved in ${short(st.file)} between two marker lines. The file is backed up first, and herdr-superwork remove-extras takes it all out again.`)), "");
     if (st.typing) L.push(`  ${t.fg("accent", "the key ❯")} ${this.value() || t.fg("overlay0", "for example prefix+a")}`, "", ...wrap(t.fg("overlay0", `${keyName("enter")} keeps it · ${keyName("back")} back`)));

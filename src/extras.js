@@ -10,6 +10,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import * as S from "./store.js";
 import { AGENTS, installed } from "./agents.js";
+import * as K from "./herdr-keys.js";
 
 const stateFile = () => path.join(S.dataDir(), "extras.json");
 export const extras = () => S.readJson(stateFile(), {}) || {};
@@ -118,25 +119,14 @@ const BLOCKS = {
 export const blockText = (what, arg) => `${BEGIN(what)}\n${BLOCKS[what](arg)}\n${END(what)}`;
 const read = () => { try { return fs.readFileSync(herdrConfig(), "utf8"); } catch { return ""; } };
 const has = (text, what) => text.includes(BEGIN(what));
-// The keys herdr binds by default, from `herdr --default-config` (commented `# action = "key"` lines under [keys]).
-export function defaultKeys() {
-  const r = spawnSync(herdrBin(), ["--default-config"], { encoding: "utf8", timeout: 8000 });
-  if (r.status !== 0) return null;
-  const keys = new Set();
-  const part = (String(r.stdout).split(/^\[keys\]/m)[1] || "").split(/^\[(?!\[)/m)[0];
-  for (const m of part.matchAll(/^#\s*[a-z_]+\s*=\s*"([^"]+)"/gm)) if (m[1]) { keys.add(m[1].toLowerCase()); const r9 = /^(.*)1\.\.9$/.exec(m[1]); if (r9) for (let i = 1; i <= 9; i++) keys.add(`${r9[1]}${i}`.toLowerCase()); }
-  return keys;
-}
-const boundKeys = (text) => new Set([...text.matchAll(/^\s*(?:key|[a-z_]+)\s*=\s*"((?:prefix\+|ctrl\+|alt\+|shift\+|cmd\+|super\+)[^"]+|f\d+)"/gim)].map((m) => m[1].toLowerCase()));
 // What the first run can offer, given what herdr's config already holds.
 export function offers() {
   const text = read(), x = extras();
-  const defaults = defaultKeys();
-  const taken = new Set([...(defaults || []), ...boundKeys(text)]);
-  const suggest = defaults ? ["prefix+a", "prefix+y", "prefix+u", "prefix+i", "prefix+m"].find((k) => !taken.has(k)) || "" : "";
+  const offerKey = !/command\s*=\s*["']herdr-superwork\.open["']/.test(text) && x.key !== "no"; // an existing binding is left as it is
+  const s = offerKey && !x.asked ? K.suggest(text, K.defaults()) : { key: "", note: "" };
   return {
     file: herdrConfig(), asked: !!x.asked,
-    key: !/command\s*=\s*"herdr-superwork\.open"/.test(text) && x.key !== "no" ? { suggest, taken } : null,
+    key: offerKey ? { suggest: s.key, note: s.note } : null,
     sidebar: !/^\s*\[ui\.sidebar/m.test(text) && x.sidebarAnswer !== "no" ? {} : null,
   };
 }
@@ -145,6 +135,8 @@ export function boardKey() {
   const m = /\[\[keys\.command\]\][^\[]*?command\s*=\s*"herdr-superwork\.open"/.exec(read());
   return m ? (/^\s*key\s*=\s*"([^"]+)"/m.exec(m[0]) || [])[1] || "" : "";
 }
+// May the board take this key? Asked as soon as one is typed at the first run, and again before it is written.
+export const checkKey = (key) => K.check(key, read(), K.defaults(), S.tilde(herdrConfig()));
 export const answer = (patch) => save({ asked: true, ...patch });
 // Add one marked block. The edit is checked on a copy first, the file is backed up, and herdr is told to reload; if
 // herdr rejects the result the backup comes back and herdr reloads again. Returns { ok, msg, paste? }.
@@ -152,13 +144,10 @@ export function addBlock(what, arg) {
   const file = herdrConfig();
   const text = read();
   if (has(text, what)) return { ok: true, msg: "already there" }; // never added twice
-  const block = blockText(what, arg);
+  const block = blockText(what, what === "key" ? String(arg || "").trim().toLowerCase() : arg);
   if (what === "key") {
-    const key = String(arg || "").trim().toLowerCase();
-    if (!/^[a-z0-9+_.-]+$/.test(key)) return { ok: false, msg: `"${arg}" is not a key herdr understands. Try something like prefix+a.` };
-    const d = defaultKeys();
-    if (boundKeys(text).has(key)) return { ok: false, msg: `${key} is already bound in ${S.tilde(file)}. Choose another.` };
-    if (d && d.has(key)) return { ok: false, msg: `herdr itself uses ${key}. Choose another.` };
+    const c = K.check(arg, text, K.defaults(), S.tilde(file)); // never a key herdr or the user's config already uses
+    if (!c.ok) return c;
   }
   const next = `${text}${text && !text.endsWith("\n") ? "\n" : ""}\n${block}\n`;
   const paste = `Could not change ${S.tilde(file)}. Add this to it yourself, then run: herdr server reload-config\n\n${block}`;
