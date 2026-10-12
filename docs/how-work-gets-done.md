@@ -18,7 +18,8 @@ login error, token use. With the board open or closed it then:
    current with main"), and runs the repo's `check` (a failure goes straight back to the agent, three tries);
 2. pushes the branch and opens a draft pull request, when there is an `origin` remote and `gh`;
 3. has a second agent review it adversarially, in a visible split of the same herdr space; it says what it found
-   and brings evidence; whatever it changed is put back. A reviewer that finishes its turn with no verdict fails the
+   and brings evidence; whatever it changed is put back. When the repo has a `check`, the reviewer is told the
+   command and that it passed on this commit, and to run tests only through it. A reviewer that finishes its turn with no verdict fails the
    review at once, with its last message; one whose turn was ended by its provider is tried again by the board
    (see [A turn cut off by the provider](provider-errors.md)). The board decides from the findings (see [The gate](gate.md)): a
    review that fails goes straight back to the agent. The row says the result and a tally (`Pass · 2 minor`), and

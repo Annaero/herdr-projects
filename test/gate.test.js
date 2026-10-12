@@ -88,6 +88,9 @@ test("a later round checks the earlier findings: it cannot grow the list with ne
   const one = reviewBrief(t, opts);
   assert.match(one, /Does the change do what the task asked\?/); assert.match(one, /- critical: [^\n]*\n- major: [^\n]*\n- minor: [^\n]*\n- trivial: /); assert.match(one, /Do not invent findings/);
   assert.match(one, /"meets": <true or false>/); assert.doesNotMatch(one, /"score"|recommend|later round|"id"|1 to 5/i);
+  // the repo's check is named when it has one, so the reviewer runs the tests that way and no other
+  assert.doesNotMatch(one, /This repo's check/);
+  assert.match(reviewBrief(t, { ...opts, check: "npm run check -- --all" }), /\nThis repo's check is `npm run check -- --all`; it passed on this commit\. Run tests only through it\.\n/);
   const filed = [...first.findings, { id: "F9", severity: "major", subject: "The old importer drops rows", where: "import.js", proof: "", preexisting: true, task: "proj/9" }, { id: "meets", severity: "critical", subject: "The change does not do what the task asked.", where: "", proof: "", preexisting: false, board: true }];
   const two = reviewBrief(t, { ...opts, earlier: filed });
   assert.match(two, /This is a later round[^\n]*You may add a new finding \(with no id\) only if it is critical\.[^\n]*\nEarlier findings:\n- F1 \[major\] Crashes on an empty file \(f\.txt\)\n- F2 \[minor\] A name is unclear \(f\.txt\)\nAlready known to the human[^\n]*\n- \[major\] The old importer drops rows \(import\.js\)\n/);

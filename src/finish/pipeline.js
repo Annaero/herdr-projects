@@ -126,7 +126,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
     g.set((t) => { S.logKept(t, review.kept); }); // the task's history says what happened instead of a review
   }
   else if (reviewNeeded) {
-    const r = await runReview(id, g, { text, change, toLand, ch });
+    const r = await runReview(id, g, { text, change, toLand, ch, check: repo.check });
     if (r.aborted) return;
     // The task keeps every review it had. A review the provider cut off is not one: it is not on the list.
     if (!r.cut) g.set((t) => { S.logReview(t, r.review || { error: r.error }); });

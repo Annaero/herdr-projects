@@ -43,7 +43,7 @@ export async function runReview(id, g, o) {
     }
   }
 }
-async function reviewOnce(id, g, { text, change, toLand, ch }) {
+async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   let t = g.set({ stage: "reviewing", msg: "under review", watch: null, waiting: null, reviewAt: Date.now() });
   g.allow("reviewneeds");
   const api = F.h(t);
@@ -62,7 +62,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch }) {
   const before = S.reviewHistory(t).filter((e) => G.isTagged(e));
   const earlier = (t.reviewRounds || 0) > 0 && before.length ? before.at(-1).findings : null;
   const used = before.flatMap((e) => e.findings.map((f) => f.id));
-  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, filed: knownFaults(t) })}`;
+  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, filed: knownFaults(t), check })}`;
   let pane = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0, cut = null, mark = null;
   // The reviewer ended its turn with no verdict. Its saved conversation says why: a turn that ended in the provider's
   // error was cut off (`cut`), and only one that really finished is "finished without a verdict", with its last message.
