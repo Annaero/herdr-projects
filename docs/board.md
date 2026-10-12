@@ -150,7 +150,8 @@ to show an agent, and for as long as one exists, shown or hidden, no other plugi
 by hand, `herdr plugin pane open ... --placement popup`, the board still works: it closes when you go into an agent
 and reopens where you left it.)
 
-**A board that looks cut off or half empty.** The board takes its pane's size back by itself within a few seconds:
+**A board that looks cut off or half empty.** (What changes the board's size at all, and why a size that lasts a
+moment is not drawn for: [the board's size](board-size.md).) The board takes its pane's size back by itself within a few seconds:
 the remote view described here is disconnected, and until then the board draws inside what herdr's window shows, so
 its text box and hints are never cut off. What follows is what you see with the setting `ownTerminal` off, where the
 view stays (the board has no key that disconnects it: closing that view, or turning the setting on, frees the

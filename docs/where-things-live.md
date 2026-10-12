@@ -71,6 +71,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `keys.js` | The board's keys, each one defined once: the ? menu, the hint line, the words that name a key and docs/keys.md are all made from this list |
 | `main.js` | Opens the board: full screen in the current terminal, which in herdr is a pane, the plugin's own tab included |
 | `place.js` | The board that is running in herdr: where it is, written down while it runs, so that opening the board from anywhere in herdr goes back to that one instead of starting a second one |
+| `reload-screen.js` | A board that loads its new version keeps its screen: the old board's last frame stays until the new one has drawn over it |
 | `tab.js` | The board's own tab: named `herdr-superwork` while the board is open full screen in a pane of herdr, and given the name it had before when the board closes |
 | `theme.js` | The board's colours and status marks are herdr's own (verified against herdr 0.9.3: src/app/state.rs for the palettes, src/client/shell.rs for the marks) |
 | `view.js` | The board: pi-work's screen, powered by herdr |
@@ -189,6 +190,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | Page | About |
 |---|---|
+| [board-size.md](board-size.md) | The board's size: what changes it, and how the board stands still |
 | [board.md](board.md) | The board: the list and the chat |
 | [checked-on-herdr.md](checked-on-herdr.md) | What was checked on herdr 0.9.3 |
 | [compared-with-pi-work.md](compared-with-pi-work.md) | Compared with pi-work |
@@ -232,6 +234,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `board-setup.test.js` | The first run, and the board loading its new version |
 | `board-size.test.js` | A terminal held at another size than herdr shows |
 | `board-stay.test.js` | Going into an agent never ends the board: in a pane of its own it runs on, and opening the board goes back to it |
+| `board-still.test.js` | The board stands still: a size that changes for a moment, a second herdr window on the session, agents starting and ending, its own reload |
 | `board-tab.test.js` | The board's own tab: named herdr-superwork while the board is open in a pane, its old name back when it closes |
 | `board-textbox.test.js` | The text box: wrapping, growing, scrolling, editing keys |
 | `check.js` | The one test command: `npm run check` (`npm test` is the same) |

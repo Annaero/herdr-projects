@@ -31,6 +31,7 @@ One page per topic, in [docs/](docs/):
 
 - [Installing, the first run, and taking it out again](docs/install.md)
 - [The board: the list and the chat](docs/board.md)
+- [The board's size: what changes it, and how the board stands still](docs/board-size.md)
 - [The task panel](docs/task-panel.md)
 - [Keys, questions and the ? menu](docs/keys.md)
 - [The Coordinator](docs/coordinator.md)

@@ -8,11 +8,17 @@ import { name as keyName } from "../keys.js";
 export class Layout {
   render(width) { return this.draw(width).map((l) => this.theme.line(l)); }
   draw(width) {
-    const rows = this.tui.terminal.rows, f = fitShown({ cols: width, rows }, this.shown);
-    this.off = f.held;
-    // The line at the top (lookHeld) says the same with more: while it shows, this one is not needed.
-    this.offNote = f.held && !this.held ? `Another viewer holds this terminal at ${width}×${rows}; herdr shows it at ${this.shown.cols - (this.shown.split ? 2 : 0)}×${this.shown.rows - (this.shown.split ? 2 : 0)}. ${this.takeFailed && this.ownsTerminal ? `Taking it back failed (${this.takeFailed}): trying again.` : "The ownTerminal setting, turned on, takes it back."}` : "";
-    return this.pad(this.drawAt(f.cols, Math.max(8, f.rows)), Math.max(8, rows));
+    const rows = this.tui.terminal.rows, shown = this.shownNow(), f = fitShown({ cols: width, rows }, shown);
+    // A size that is back within a moment is not laid out for: the screen stays as it was, cut to what there is room
+    // for. Rows go from the top, so the text box and its hints stay.
+    const now = { cols: f.cols, rows: Math.max(8, f.rows) }, at = this.steady(now);
+    if (at === now) {
+      this.off = f.held;
+      // The line at the top (lookHeld) says the same with more: while it shows, this one is not needed.
+      this.offNote = f.held && !this.held ? `Another viewer holds this terminal at ${width}×${rows}; herdr shows it at ${shown.cols - (shown.split ? 2 : 0)}×${shown.rows - (shown.split ? 2 : 0)}. ${this.takeFailed && this.ownsTerminal ? `Taking it back failed (${this.takeFailed}): trying again.` : this.gaveUp && this.ownsTerminal ? "A key typed in this window takes it back: another herdr window (a second device, a browser tab) has this session at its own size." : "The ownTerminal setting, turned on, takes it back."}` : "";
+    }
+    const lines = this.drawAt(at.cols, at.rows);
+    return this.pad(at === now ? lines : lines.slice(Math.max(0, lines.length - now.rows)).map((l) => truncateToWidth(l, now.cols, "")), Math.max(8, rows));
   }
   drawAt(width, rowsN) {
     this.width = width;
