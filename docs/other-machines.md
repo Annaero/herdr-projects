@@ -1,8 +1,8 @@
 # Other machines
 
-Every machine keeps its own tasks. `Ctrl+O` goes round: this machine, every machine, then each one by itself.
+Every machine keeps its own tasks. `Alt+M` goes round: this machine, every machine, then each one by itself.
 Machines are found through herdr only: the ones you added with `herdr machine add` (or name them in `machines`);
-with none, `Ctrl+O` says so. There is no Tailscale discovery. The plugin's own commands on another machine still
+with none, `Alt+M` says so. There is no Tailscale discovery. The plugin's own commands on another machine still
 travel over the plugin's own SSH connection, because herdr has no command that runs a plugin's commands there.
 Each one needs, once:
 

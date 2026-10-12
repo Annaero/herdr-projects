@@ -104,15 +104,6 @@ export class List {
     const ids = [...this.rows.filter((r) => r.rec).map((r) => r.rec.id), ...this.jobs.map((j) => j.id)]; // the dispatcher's rows sit below the list
     if (ids.length) this.sel = ids[Math.max(0, Math.min(ids.length - 1, ids.indexOf(this.sel) + d))];
   }
-  jump(d) {
-    const heads = this.rows.map((r, n) => (r.header ? n : -1)).filter((n) => n >= 0);
-    const at = this.rows.findIndex((r) => r.rec && r.rec.id === this.sel);
-    const cur = heads.filter((h) => h < at).pop() ?? 0;
-    if (this.job()) { if (d < 0 && heads.length) this.sel = this.rows[heads[heads.length - 1] + 1].rec.id; return; }
-    const next = d > 0 ? heads.find((h) => h > cur) : heads.filter((h) => h < cur).pop();
-    if (next !== undefined && this.rows[next + 1]?.rec) this.sel = this.rows[next + 1].rec.id;
-    else if (d > 0 && this.jobs.length) this.sel = this.jobs[0].id;
-  }
   // The header: one line. Which project, and anything unusual about what the list shows.
   headLines(w) {
     const t = this.theme;

@@ -48,15 +48,15 @@ test("restart keeps the conversation, new starts a fresh one, and one Coordinato
     await cli("config", "coordinator", "codex");
     assert.deepEqual(C.choice(), { kind: "codex", model: "claude-haiku-5-5", effort: "" });
     const s = open(w);
-    assert.equal(C.look().stale, true); assert.match(s.text(), /your default is now codex · claude-haiku-5-5 · default effort: alt\+n starts a new one on it/);
-    // From the board: alt+r and alt+n ask first, with the board's one question box; a one-off kind is `coordinator new --agent …`.
-    s.press("alt+r"); assert.match(s.text(), /\n \? Restart the Coordinator\? It keeps this conversation; what it is doing right now stops\. {2}y = yes · n = no/); assert.ok(!C.get().want);
-    s.press("esc"); assert.ok(!C.get().want);
-    s.press("alt+r", "enter"); assert.ok(!C.get().want); s.press("y"); assert.equal(C.get().want.what, "restart"); await drainJobs(runJob); assert.equal(w.agents()[0].agent.kind, "claude");
-    // Like every shortcut, the chat's keys act only on an empty text box: a draft owns them, and stays what it was.
-    s.type("pi some-model"); s.press("alt+n", "alt+r", "alt+c", "alt+v"); assert.equal(s.v.ask, null); assert.equal(s.v.chatOpen, true); assert.deepEqual(s.closed, []); assert.match(s.v.value(), /pi some-model/); assert.ok(!C.get().want);
+    assert.equal(C.look().stale, true); assert.match(s.text(), /your default is now codex · claude-haiku-5-5 · default effort: herdr-superwork coordinator new starts a new one on it/);
+    // The board itself neither restarts it nor starts a new one: that is the command line's. The old keys do nothing,
+    // on an empty text box or in a draft, and the menu has no line for either.
+    s.press("alt+r", "alt+n"); assert.equal(s.v.ask, null); assert.ok(!C.get().want);
+    s.press("?"); assert.doesNotMatch(s.text(), /restart the Coordinator|new Coordinator/i); s.press("esc");
+    s.type("pi some-model"); s.press("alt+n", "alt+r", "alt+c"); assert.equal(s.v.ask, null); assert.equal(s.v.chatOpen, true); assert.deepEqual(s.closed, []); assert.match(s.v.value(), /pi some-model/); assert.ok(!C.get().want);
     s.press("esc");
-    s.press("alt+n", "y"); await drainJobs(runJob);
+    await cli("coordinator", "restart"); assert.equal(w.agents()[0].agent.kind, "claude");
+    await cli("coordinator", "new");
     assert.equal(w.agents()[0].agent.kind, "codex"); assert.equal(C.look().stale, false);
     // Stop closes it; off turns the box back into filing word for word.
     await cli("coordinator", "stop"); assert.equal(w.agents().length, 0); assert.equal(w.state().workspaces.length, 0); assert.equal(C.look().state, "exited");

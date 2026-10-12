@@ -1,8 +1,8 @@
 # The task panel
 
-**The task panel** shows the selected task. Beside the list it is closed until you ask for it: `Ctrl+P` opens and
+**The task panel** shows the selected task. Beside the list it is closed until you ask for it: `Alt+P` opens and
 closes it (in a window of 90 columns or more), and your choice is remembered. Closed, each row has the whole width
-for what it says. `Ctrl+E` shows the whole task full screen, and `Esc` leaves it. Opening or folding the whole panel
+for what it says. `Alt+T` shows the whole task full screen, and `Esc` or `Alt+T` leaves it. Opening or folding the whole panel
 never changes who you talk to or whether the chat's message shows, and `Space` never opens or folds it, at any
 width.
 
@@ -47,7 +47,7 @@ empty line between:
 
 Full screen the text keeps to 100 columns, and a last part, **Session**, has the agent's context, its tokens and
 where it runs in herdr. Beside the list, when anything is shorter than on the full screen, the last line says
-`ctrl+e shows the whole task`. In a short window the long parts give up lines (what the agent said first, then the
+`alt+t shows the whole task`. In a short window the long parts give up lines (what the agent said first, then the
 description, then the review), every setting keeps to one line, and in the end the review is one line
 (`Review 3  Pass · 2 minor`): no setting drops out of the side panel. Only a window with fewer lines than there
 are settings cuts them, from the last; the title and the review's line stay. In a box too narrow for a review's

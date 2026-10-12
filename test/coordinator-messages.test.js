@@ -18,7 +18,7 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     assert.equal(C.get().queue.length, 1); assert.equal(C.look().state, "blocked");
     const s = open(w);
     assert.match(s.text(), /Coordinator {2}needs you/); assert.match(s.text(), /› first {2}\(waiting to be sent\)/);
-    s.press("alt+v"); assert.match(s.text(), /\n . Coordinator {2}needs you · /); assert.doesNotMatch(s.text(), /waiting to be sent/); // hidden: its one line still says it
+    s.press("alt+c"); assert.match(s.text(), /\n . Coordinator {2}needs you · /); assert.doesNotMatch(s.text(), /waiting to be sent/); // hidden: its one line still says it
     // You answer the dialog in its chat; the tick then types the waiting words in.
     w.patchState((st) => { const p = st.panes.find((x) => x.agent); p.agent.status = "idle"; });
     fs.rmSync(S.stampFile(`coordinator-default`), { force: true });
@@ -90,17 +90,17 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     C.fresh(C.pickOf({ agent: "nope" })); C.send(w.root, "second"); await drainJobs(runJob);
     assert.match(C.look().error, /"nope" is not installed here/); assert.equal(C.get().queue.length, 1);
     s.beat(); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n(?: ›[^\n]*\n)* It could not be started: "nope" is not installed here/); // also with its message hidden
-    // alt+v hides that too (the chat's line does not say so: the ? menu does); esc does not.
+    // alt+c hides that too (the chat's line does not say so: the ? menu does); esc does not.
     s.v.chatOpen = false; s.v.setValue(""); s.v.reply = false; s.v.full = false; s.v.filter = ""; s.v.msg = "";
-    assert.doesNotMatch(s.text(), /alt\+v/);
+    assert.doesNotMatch(s.text(), /alt\+c/);
     s.press("esc"); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []); assert.match(s.text(), /It could not be started:/);
-    s.press("alt+v");
-    assert.doesNotMatch(s.text(), /It could not be started:/); assert.match(s.text(), /Coordinator {2}could not be started · [^\n]*\n─+\n❯ /); assert.doesNotMatch(s.text(), /alt\+v/);
+    s.press("alt+c");
+    assert.doesNotMatch(s.text(), /It could not be started:/); assert.match(s.text(), /Coordinator {2}could not be started · [^\n]*\n─+\n❯ /); assert.doesNotMatch(s.text(), /alt\+c/);
     s.beat(); assert.doesNotMatch(s.text(), /It could not be started:/, "the same error stays hidden");
     s.press("esc"); assert.ok(s.v.closing); s.v.closeSoon();
-    // alt+v shows it again and hides it again, shown by the setting or not.
-    s.press("alt+v"); assert.match(s.text(), /It could not be started:/); s.press("alt+v"); assert.doesNotMatch(s.text(), /It could not be started:/); assert.equal(s.v.ask, null);
-    s.v.errHid = ""; s.v.chatOpen = true; assert.match(s.text(), /It could not be started:/); s.press("alt+v"); assert.doesNotMatch(s.text(), /It could not be started:/);
+    // alt+c shows it again and hides it again, shown by the setting or not.
+    s.press("alt+c"); assert.match(s.text(), /It could not be started:/); s.press("alt+c"); assert.doesNotMatch(s.text(), /It could not be started:/); assert.equal(s.v.ask, null);
+    s.v.errHid = ""; s.v.chatOpen = true; assert.match(s.text(), /It could not be started:/); s.press("alt+c"); assert.doesNotMatch(s.text(), /It could not be started:/);
     assert.throws(() => C.pickOf({ agent: "not a kind" }), /must be an agent kind/);
   } finally { delete process.env.HERDR_SUPERWORK_HANDLED_MS; w.cleanup(); }
 });
@@ -122,9 +122,9 @@ test("turning the Coordinator on while the board is open takes effect at once, a
     s.v.tick = 4; s.v.beat();
     s.type("third thing"); s.press("enter");
     assert.equal(S.get("proj/2").title, "third thing"); assert.equal(w.agents()[0].agent.prompts.length, 1);
-    // And the chat's key turns up a Coordinator that was switched on after the board opened.
+    // And your next message turns up a Coordinator that was switched on after the board opened.
     const off = open(w); assert.equal(off.v.canDispatch, false); assert.match(off.text(), /\+ New task/);
-    S.setConfig("coordinator", "default"); off.press("alt+c"); assert.equal(off.v.canDispatch, true); assert.match(off.text(), /\n . Coordinator {2}/);
+    S.setConfig("coordinator", "default"); off.type("fourth thing"); off.press("enter"); await drainJobs(runJob); off.v.load(); assert.equal(off.v.canDispatch, true); assert.match(off.text(), /\n . Coordinator {2}/);
   } finally { w.cleanup(); }
 });
 

@@ -4,9 +4,8 @@ import * as S from "../../store.js";
 import { herdr, currentSocket, paneShown, takeTerminal } from "../../herdr.js";
 import { lookHeld } from "../held.js";
 import { clean, age } from "./words.js";
-import { name as keyName } from "../keys.js";
 
-// The side panel fits from this width on, when you have it open (ctrl+p); below it the same panel opens full screen.
+// The side panel fits from this width on, when you have it open (alt+p); below it the same panel opens full screen.
 export const WIDE = 90;
 
 // What the board may draw on: its terminal, cut down to what herdr shows of it. `shown` is herdr's size for the pane
@@ -42,29 +41,28 @@ export class Size {
   // back, and only by disconnecting the other viewer (an attach is exclusive: herdr itself says "retry with
   // --takeover"). So the board does that by itself, every time it has seen the two disagree twice in a row (a resize
   // under way is not a second viewer): the board has the size of the pane it runs in, always. A try that failed is
-  // made again at every look after it. With `ownTerminal` off the viewer stays, and alt+w is the way.
+  // made again at every look after it. With `ownTerminal` off the viewer stays, and the board
+  // only says what holds the terminal: no key disconnects anybody.
   get ownsTerminal() { return (this.ctx.ownTerminal ?? S.config().ownTerminal) !== false; }
   seeShown(shown) {
     const changed = JSON.stringify(shown) !== JSON.stringify(this.shown);
     this.shown = shown;
     const held = fitShown({ cols: this.tui.terminal.columns, rows: this.tui.terminal.rows }, shown).held;
     this.offSeen = held ? (this.offSeen || 0) + 1 : 0;
-    if (held && /^(Another viewer held |Taken back:)/.test(this.msg || "")) this.msg = ""; // it is back: that is no longer true
-    if (this.offSeen >= 2 && this.ownsTerminal) this.takeBack(true);
+    if (held && /^Another viewer held /.test(this.msg || "")) this.msg = ""; // it is back: that is no longer true
+    if (this.offSeen >= 2 && this.ownsTerminal) this.takeBack();
     if (changed || held) this.tui.requestRender();
   }
   // Your window wins: the other viewer is disconnected, and herdr gives the terminal the size it shows it at.
-  takeBack(auto = false) {
+  takeBack() {
     const cols = this.tui.terminal.columns, rows = this.tui.terminal.rows, f = fitShown({ cols, rows }, this.shown);
     try {
       (this.ctx.takeTerminal || takeTerminal)(currentSocket(), this.ctx.pane, { cols: f.cols, rows: f.rows });
       this.offSeen = 0; this.takeFailed = "";
-      this.flash(auto ? `Another viewer held this terminal at ${cols}×${rows}: it was disconnected, and your window has it again.` : "Taken back: the other viewer was disconnected.");
+      this.flash(`Another viewer held this terminal at ${cols}×${rows}: it was disconnected, and your window has it again.`);
     } catch (e) {
       this.takeFailed = clean(e?.message || "herdr refused"); // said in the note, and tried again at the next look
-      if (!auto) this.flash(`Could not take the terminal back: ${this.takeFailed}`, "red");
     }
-    if (!auto) this.askShown();
   }
   // The size warning: one line, and what frees the size comes first, because the right end is what a narrow window
   // or a cut-out loses.
@@ -72,7 +70,7 @@ export class Size {
     const d = this.held;
     if (!d) return [];
     const t = this.theme, who = d.by[0];
-    const text = `Held at ${d.columns}×${d.rows}: ${this.ctx.pane ? `${keyName("takeBack")}, or ` : ""}${who ? `kill ${who.pid}` : "closing its remote view"} frees it. `
+    const text = `Held at ${d.columns}×${d.rows}: ${who ? `kill ${who.pid}` : "closing its remote view"} frees it. `
       + `Drawn for a remote view of this pane, so herdr's own window (${d.room.columns}×${d.room.rows}) shows it cut off or half empty`
       + (who ? ` · herdr terminal attach, open ${age(who.seconds * 1000)}${d.by.length > 1 ? `, and ${d.by.length - 1} more` : ""}` : "");
     return [truncateToWidth(" " + t.fg("yellow", "! " + text), width, "…")];

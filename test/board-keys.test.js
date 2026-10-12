@@ -21,7 +21,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     s.press("enter");
     assert.equal(S.get("proj/1").title, "Add a greeting"); assert.equal(s.v.sel, "proj/1"); assert.equal(s.v.value(), "");
     assert.match(s.text(), /\n {2}tab put an agent on it · space reply · \? more/);
-    s.press("right"); assert.match(s.text(), /No agent has been on this yet/);
+    s.press("enter"); assert.match(s.text(), /No agent has been on this yet/);
     s.press("tab");
     await settle("proj/1"); s.v.load();
     assert.match(s.text(), /\n working +│[^\n]*\n ◐ Add a greeting/);
@@ -38,11 +38,11 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     const t = S.get("proj/1");
     assert.match(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.at(-1), /also say goodbye/);
     // esc has nothing to go back from here: it never hides the chat's message, never changes who you talk to, never
-    // closes the board. alt+v is the one key for the message, space the one key for who. The chat's line names neither key.
-    assert.doesNotMatch(s.text(), /alt\+v|alt\+c/); assert.doesNotMatch(s.text(), /esc hide|esc back/); assert.match(s.text(), /space back to the Coordinator *$/);
+    // closes the board. alt+c is the one key for the message, space the one key for who. The chat's line names neither key.
+    assert.doesNotMatch(s.text(), /alt\+c/); assert.doesNotMatch(s.text(), /esc hide|esc back/); assert.match(s.text(), /space back to the Coordinator *$/);
     s.press("esc"); assert.equal(s.v.chatOpen, true); assert.equal(s.v.reply, true); assert.equal(s.v.ask, null); assert.equal(s.closed(), undefined); assert.ok(s.v.closing); assert.match(s.text(), /Press ctrl\+c again to close the board *$/); s.v.closeSoon();
-    s.press("\x1bv"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.match(s.text(), /\n─+\n . Add a greeting {2}\S[^\n]*\n─+\n❯ /); assert.doesNotMatch(s.text(), /alt\+v/);
-    s.press("\x1bv"); assert.equal(s.v.chatOpen, true);
+    s.press("\x1bc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.match(s.text(), /\n─+\n . Add a greeting {2}\S[^\n]*\n─+\n❯ /); assert.doesNotMatch(s.text(), /alt\+c/);
+    s.press("\x1bc"); assert.equal(s.v.chatOpen, true);
     s.press("space"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯/);
     // enter: focus the agent's real pane by pane id and close the board; selection and filter come back on reopen
     s.press("enter");
@@ -50,14 +50,17 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     assert.ok(w.state().focus.includes(`agent ${t.link.pane}`));
     s.v.dispose();
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).sel, "proj/1");
-    // ctrl+x stops the agent, and the selection stays on that row: a second tap neither stops another task nor deletes
+    // ctrl+x stops the agent, and the selection stays on that row. The stop asks nothing and deletes nothing: only a
+    // second ctrl+x, on the task that now has no agent running, asks to delete it, and only y would.
     A.add(w.root, "Another one"); A.add(w.root, "And one more");
     const s2 = open(w);
     assert.equal(s2.v.sel, "proj/1");
     s2.press("ctrl+x");
-    assert.equal(S.get("proj/1").stage, "stopped"); assert.match(s2.text(), /proj\/1: stopped\./); assert.equal(s2.v.sel, "proj/1");
+    assert.equal(S.get("proj/1").stage, "stopped"); assert.match(s2.text(), /proj\/1: stopped\./); assert.equal(s2.v.sel, "proj/1"); assert.equal(s2.v.ask, null);
+    s2.press("?"); assert.match(s2.text(), /ctrl\+x {2}delete the task/); s2.press("esc");
     s2.press("ctrl+x");
-    assert.equal(s2.v.sel, "proj/1"); assert.ok(S.get("proj/1")); assert.ok(S.get("proj/2")); assert.match(s2.text(), /No agent is working on this/);
+    assert.equal(s2.v.sel, "proj/1"); assert.match(s2.text(), /\n \? Delete "Add a greeting"\? Its worktree goes too\. {2}y = yes · n = no/);
+    s2.press("enter", "ctrl+x"); assert.ok(s2.v.ask); s2.press("n"); assert.equal(s2.v.ask, null); assert.ok(S.get("proj/1")); assert.ok(S.get("proj/2")); assert.ok(S.get("proj/3"));
     // the first few times, the board says how to get back before it closes for an agent
     const tui = { terminal: { rows: 34, columns: 120 }, requestRender() {}, stop() {}, start() {} };
     let closed;
@@ -71,6 +74,65 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
   } finally { delete process.env.HERDR_ENV; w.cleanup(); }
 });
 
+test("ctrl does something, alt only shows or hides: every key of the set, as a terminal sends it, and no old key left", async () => {
+  const w = await world({ settings: { helper: "off", coordinator: "off", reviewer: "off" } });
+  try {
+    const id = A.add(w.root, "One").id; A.add(w.root, "Two");
+    const s = open(w); s.v.sel = id; s.v.load();
+    const tasks = () => JSON.stringify(S.list().map((t) => [t.id, t.stage, !!t.pinned, !!t.archivedAt]));
+    const shown = () => JSON.stringify([s.v.chatOpen, s.v.side, s.v.full, s.v.archiveView, s.v.byRepo, s.v.allDone, s.v.scope]);
+    const first = tasks(), start = shown();
+    // Alt: each key flips one thing you see, and flips it back; no task changes. A terminal sends esc and the letter,
+    // or (kitty keyboard protocol) CSI <letter>;3u: both are the same key.
+    const alt = { c: "chatOpen", p: "side", t: "full", a: "archiveView", s: "byRepo", d: "allDone" };
+    for (const [letter, field] of Object.entries(alt)) for (const seq of [`\x1b${letter}`, `\x1b[${letter.charCodeAt(0)};3u`]) {
+      const was = s.v[field];
+      s.press(seq); assert.equal(s.v[field], !was, `alt+${letter} as ${JSON.stringify(seq)}`); assert.equal(s.v.value(), "");
+      s.press(seq); assert.equal(s.v[field], was, `alt+${letter} again`);
+      assert.equal(tasks(), first, `alt+${letter} changes no task`); assert.equal(s.v.ask, null);
+    }
+    // alt+m goes round whose board you see; with no other machine there is nothing to show, and it says so.
+    s.press("alt+m"); assert.equal(s.v.scope, ""); assert.match(s.text(), /No other machines\./); assert.equal(tasks(), first);
+    assert.equal(shown(), start);
+    // The keys that are gone do nothing at all: not their old action, not a new one, and nothing is typed.
+    for (const k of ["alt+v", "alt+h", "alt+r", "alt+n", "delete", "ctrl+e", "ctrl+s", "ctrl+d", "ctrl+o", "ctrl+t", "ctrl+g", "right", "\x1b[118;3u", "\x1b[101;5u", "\x1b[1;3A", "\x1b[1;3B", "\x1b[1;5A", "\x1b[1;5B", "\x1b[5~", "\x1b[6~", "\x1b[H", "\x1b[F", "\x1bw", "\x1b[1;2A", "\x1b[1;2B", "\x1b[1;2C", "\x1b[1;6A", "\x1b[1;6B", "\x1b[1;4A", "\x1b[1;4B"]) {
+      s.press(k); assert.equal(tasks(), first, k); assert.equal(shown(), start, k); assert.equal(s.v.ask, null, k); assert.equal(s.v.menu, null, k); assert.equal(s.v.value(), "", k); assert.equal(s.v.sel, id, k); assert.equal(s.closed(), undefined, k);
+    }
+    // Ctrl: each does its one thing. ctrl+p pins (it is no longer the side panel), ctrl+a archives (no longer "yes").
+    s.press("ctrl+p"); assert.equal(S.get(id).pinned, true); assert.equal(shown(), start); s.press("\x1b[112;5u"); assert.ok(!S.get(id).pinned);
+    s.press("ctrl+y"); assert.match(s.text(), /Nothing here waits for a yes\./); assert.equal(s.v.ask, null);
+    s.press("ctrl+a"); assert.ok(S.get(id).archivedAt); assert.equal(s.v.ask, null);
+    s.press("ctrl+z"); assert.ok(!S.get(id).archivedAt);
+    s.press("ctrl+f"); assert.equal(s.v.mode, "find"); s.press("esc"); assert.equal(s.v.mode, "new");
+    assert.equal(tasks(), first);
+  } finally { w.cleanup(); }
+});
+
+test("ctrl+x stops whatever agent is alive, also one that waits for your answer; it asks to delete only where none runs", async () => {
+  const w = await world({ settings: { helper: "off", coordinator: "off", reviewer: "off" } });
+  try {
+    const id = A.add(w.root, "One").id;
+    const s = open(w); s.v.sel = id; s.v.load();
+    const row = (over) => ({ ...s.v.current(), ...over });
+    // An agent is alive in each of these: the key is "stop", and so is its line in the menu.
+    for (const live of [{ agent: "claude", stage: "working", state: "working" }, { agent: "claude", stage: "asks", state: "blocked", kind: "question" }, { agent: "claude", stage: "asks", state: "blocked", kind: "permission" },
+      { agent: "claude", stage: "working", state: "blocked", kind: "question" }, { agent: "claude", stage: "reviewing", state: "working" }, { agent: "claude", stage: "checking", state: "working" }, { agent: "claude", stage: "starting", state: "working" },
+      { stage: "queued", state: "idle" }, { stage: "progress", state: "working" }]) assert.equal(s.v.running(row(live)), true, JSON.stringify(live));
+    // No agent runs in these: the same key asks to delete.
+    for (const still of [{ stage: "todo", state: "idle" }, { agent: "claude", stage: "stopped", state: "idle" }, { agent: "claude", stage: "approval", state: "blocked" }, { agent: "claude", stage: "failed", state: "error" },
+      { agent: "claude", stage: "nosummary", state: "blocked" }, { agent: "claude", stage: "done", state: "done" }]) assert.equal(s.v.running(row(still)), false, JSON.stringify(still));
+    // On the board: a task whose agent waits for an answer. ctrl+x stops it and asks nothing; only the next ctrl+x,
+    // with no agent running any more, asks to delete.
+    w.script({ worker: [{ status: "blocked", screen: "Which colour?\n" }] });
+    A.delegate(id); await settle(id);
+    S.update(id, (t) => { t.stage = "asks"; t.kind = "question"; }); s.v.load();
+    assert.equal(s.v.current().stage, "asks"); assert.equal(s.v.current().state, "blocked");
+    s.press("?"); assert.match(s.text(), /ctrl\+x {2}stop the agent/); s.press("esc");
+    s.press("ctrl+x"); assert.equal(s.v.ask, null); assert.equal(S.get(id).stage, "stopped"); assert.match(s.text(), /proj\/1: stopped\./);
+    s.press("ctrl+x"); assert.match(s.text(), /\n \? Delete "One"\? /); s.press("n"); assert.ok(S.get(id));
+  } finally { w.cleanup(); }
+});
+
 test("while the text box holds text it owns the keyboard: no shortcut fires in the middle of a draft", async (tt) => {
   const w = await world({ settings: { helper: "off", coordinator: "off" } });
   try {
@@ -81,7 +143,9 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     s.v.sel = id; s.v.load();
     s.type("half a thought");
     const before = JSON.stringify([S.get(id).stage, S.get(id).pinned, S.get(id).archivedAt, S.list().length]);
-    for (const k of ["ctrl+a", "ctrl+e", "ctrl+y", "ctrl+r", "ctrl+g", "ctrl+t", "ctrl+d", "ctrl+x", "ctrl+x", "ctrl+b", "ctrl+f", "ctrl+s", "alt+a", "alt+h", "\x1bc", "\x1bv", "ctrl+z", "?", "space", "up", "down"]) s.press(k);
+    const prefs = JSON.stringify([s.v.side, s.v.scope]);
+    for (const k of ["ctrl+y", "ctrl+r", "ctrl+x", "ctrl+x", "ctrl+p", "ctrl+f", "alt+c", "alt+p", "alt+t", "alt+a", "alt+s", "alt+d", "alt+m", "ctrl+e", "ctrl+g", "ctrl+t", "ctrl+d", "ctrl+b", "ctrl+s", "ctrl+o", "alt+h", "alt+v", "alt+r", "alt+n", "ctrl+a", "ctrl+e", "?", "space", "up", "down"]) s.press(k);
+    assert.equal(JSON.stringify([s.v.side, s.v.scope]), prefs);
     assert.equal(JSON.stringify([S.get(id).stage, S.get(id).pinned, S.get(id).archivedAt, S.list().length]), before, "nothing happened to any task");
     assert.equal(s.v.sel, id); assert.equal(s.v.ask, null); assert.equal(s.v.menu, null); assert.equal(s.v.full, false); assert.equal(s.v.mode, "new"); assert.equal(s.v.archiveView, false); assert.equal(s.v.allDone, false); assert.equal(s.v.byRepo, false); assert.equal(s.v.chatOpen, true); assert.equal(s.v.msg, "");
     assert.equal(S.get(id).stage, "approval"); assert.equal(s.closed(), undefined);
@@ -112,7 +176,7 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     s.press("esc"); assert.equal(s.closed(), undefined); assert.match(s.text(), hint);
     s.press("ctrl+c"); assert.equal(s.closed(), null);
     // the other questions keep y = yes · n = no, and ctrl+c is a no there
-    const s2 = open(w); s2.press("ctrl+a"); assert.match(s2.text(), /\? Merge [^\n]*y = yes · n = no/);
+    const s2 = open(w); s2.press("ctrl+y"); assert.match(s2.text(), /\? Merge [^\n]*y = yes · n = no/);
     s2.press("ctrl+c"); assert.equal(s2.v.ask, null); assert.equal(s2.closed(), undefined); assert.equal(S.get(id).stage, "approval");
     s2.press("ctrl+c", "ctrl+c"); assert.equal(s2.closed(), null);
     // ctrl+c twice closes with a draft in the text box, for the Coordinator or for a task's agent, and the draft is kept

@@ -78,12 +78,12 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `agent-pane.js` | A task's agent: what its pane shows, what it last said, and going into its real herdr pane |
 | `ask.js` | The one question box: asking, what a merge question is about, and how it is drawn |
 | `chat.js` | The chat at the bottom: who it talks to, the line that names them, and their latest message |
-| `coordinator.js` | The Coordinator from the board: sending it your words, going into its chat, restarting it |
+| `coordinator.js` | The Coordinator from the board: sending it your words, and counting a reply you can see as seen |
 | `hints.js` | The hint line at the bottom of the board |
 | `keys.js` | What a typed key does, where the board's state decides it: a question, a draft, find, esc, enter, tab |
 | `layout.js` | The whole screen: what goes where, and what gives way when the window is small |
 | `list.js` | The task list: which rows there are, which one is selected, the header line, and the list as drawn |
-| `menu.js` | The ? menu: lines you act from, and under them the few keys worth remembering |
+| `menu.js` | The ? menu: every key of the board in its three groups, plain, ctrl and alt, each line with its key |
 | `osc.js` | The same tasks, told to the terminal (OSC 7501) |
 | `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, callouts, boxes, and the list of parts |
 | `panel-reviews.js` | The reviews in the task panel: how each went, each one a box, and the evidence |
@@ -189,7 +189,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 
 | File | Tests |
 |---|---|
-| `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, delete, retry |
+| `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, stop or delete, retry |
 | `board-helpers.js` | Shared by the board's tests (test/board-*.test.js): the keys, and a board opened on a test world |
 | `board-keys.test.js` | The board's keys, and the text box owning the keyboard |
 | `board-layout.test.js` | The whole screen: the chat pinned to the bottom, through a resize |
@@ -208,7 +208,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `cleanup-retry.test.js` |  |
 | `cleanup-space.test.js` |  |
 | `cli.test.js` | The command line |
-| `coordinator-chat.test.js` | The Coordinator's chat: one long-lived agent behind the box, and going into its real pane |
+| `coordinator-chat.test.js` | The Coordinator's chat: one long-lived agent behind the box, and its latest message shown or hidden |
 | `coordinator-helpers.js` | Shared by the Coordinator's tests (test/coordinator-*.test.js): a world with a Coordinator, and a board opened on it |
 | `coordinator-messages.test.js` | What you say to the Coordinator is never lost: dialogs, failed starts, stop, on and off |
 | `coordinator-restart.test.js` | The Coordinator's conversation: restart, new, the agent's own new-chat command, its default program |

@@ -53,7 +53,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     assert.deepEqual(lines.slice(56).map((l) => l.trim()), ["", ""]);
     for (const l of lines) assert.ok(l.trimEnd().length <= 411, "nothing is drawn right of what is shown");
     assert.match(lines[55], /^ {2}\S.* · /); // the hints: the last row that is seen
-    assert.match(lines[54], /^ {2}Another viewer holds this terminal at 435×58; herdr shows it at 412×56\. alt\+w takes it back\. *$/);
+    assert.match(lines[54], /^ {2}Another viewer holds this terminal at 435×58; herdr shows it at 412×56\. The ownTerminal setting, turned on, takes it back\. *$/);
     assert.equal(lines[53], "─".repeat(411)); assert.match(lines[52], /^❯ /); assert.equal(lines[51], "─".repeat(411));
     const row = lines.find((l) => /Pin the chat/.test(l));
     assert.match(row, /Checking every window size\. +█+░+ +55% 12m PR#3 {2}6m {4}$/); assert.equal(row.length, 411); // the columns are back in view
@@ -73,7 +73,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
       a.v.ctx.takeTerminal = (socket, pane, size) => { took.push([pane, size]); if (!comesBack) Object.assign(a.v.tui.terminal, { columns: 184, rows: 78 }); };
       const tall = { cols: 184, rows: 78, split: false };
       a.v.seeShown(tall); assert.deepEqual(took, []); // once is a resize under way
-      assert.match(a.screen(435).join("\n"), /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. alt\+w takes it back\./);
+      assert.match(a.screen(435).join("\n"), /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. The ownTerminal setting, turned on, takes it back\./);
       a.v.seeShown(tall); assert.deepEqual(took, [["w1:p1", { cols: 183, rows: 58 }]]);
       a.v.seeShown(tall);
       let l = a.screen(184);
@@ -83,7 +83,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
       for (let round = 2; round <= 4; round++) {
         Object.assign(a.v.tui.terminal, { columns: 435, rows: 58 });
         a.v.seeShown(tall); assert.equal(took.length, round - 1);
-        assert.match(a.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. alt\+w takes it back\./); // what is true now, not what was done before
+        assert.match(a.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. The ownTerminal setting, turned on, takes it back\./); // what is true now, not what was done before
         a.v.seeShown(tall); assert.equal(took.length, round);
         l = a.screen(184); assert.equal(l.length, 78); assert.match(l[77], /^ {2}\S.* · /); assert.doesNotMatch(l.join("\n"), /holds this terminal/);
       }
@@ -98,11 +98,11 @@ test("a terminal held at another size than herdr shows: the board draws inside w
       fails = false; c.v.seeShown(tall); c.v.seeShown(tall);
       assert.deepEqual(tries, [true, true, true, true, false]);
       l = c.screen(184); assert.equal(l.length, 78); assert.match(l[77], /^ {2}\S.* · /); assert.match(l[76], /it was disconnected, and your window has it again/);
-      // `ownTerminal` off: the other viewer stays. The board draws inside what both see, says so, and alt+w is the way.
+      // `ownTerminal` off: the other viewer stays. The board draws inside what both see, says so, and disconnects nobody.
       const d = open(w, { rows: 58, side: false }), never = [];
       Object.assign(d.v.tui.terminal, { columns: 435 }); d.v.ctx.pane = "w1:p1"; d.v.ctx.ownTerminal = false; d.v.ctx.takeTerminal = (...x) => never.push(x);
       for (let n = 0; n < 5; n++) d.v.seeShown(tall);
-      assert.deepEqual(never, []); assert.match(d.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. alt\+w takes it back\./);
+      assert.deepEqual(never, []); assert.match(d.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. The ownTerminal setting, turned on, takes it back\./);
       delete d.v.ctx.ownTerminal; // the setting itself: on unless turned off
       d.v.seeShown(tall); assert.equal(never.length, 1);
       S.setConfig("ownTerminal", false); d.v.seeShown(tall); d.v.seeShown(tall); assert.equal(never.length, 1);
@@ -113,18 +113,16 @@ test("a terminal held at another size than herdr shows: the board draws inside w
       for (const shown of [tall, tall, { cols: 150, rows: 60, split: false }, tall, { cols: 150, rows: 60, split: false }, tall, null, null]) b.v.seeShown(shown);
       assert.deepEqual(none, []);
     }
-    // alt+w takes the terminal back, also in the middle of a draft: the other viewer is disconnected, and herdr gives
-    // the terminal the size of your window, so the chat is on its last row again. Nothing does this by itself.
+    // No key takes the terminal back: alt+w, the key that once did, disconnects nobody, on an empty text box or in a
+    // draft. (With the setting on, the board does it by itself: above.)
     const taken = [];
-    s.v.tui.terminal.columns = 435; s.v.ctx.pane = "w1:p1"; s.v.ctx.takeTerminal = (socket, pane, size) => { taken.push([pane, size]); Object.assign(s.v.tui.terminal, { columns: 184, rows: 78 }); };
+    s.v.tui.terminal.columns = 435; s.v.ctx.pane = "w1:p1"; s.v.ctx.takeTerminal = (socket, pane, size) => { taken.push([pane, size]); };
     s.v.askShown = () => {};
-    s.type("half a draft"); s.screen(435); assert.deepEqual(taken, []);
-    s.press("\x1bw");
-    assert.deepEqual(taken, [["w1:p1", { cols: 183, rows: 58 }]]); assert.equal(s.v.value(), "half a draft");
+    s.screen(435); s.press("\x1bw"); assert.deepEqual(taken, []); assert.equal(s.v.value(), "");
+    s.type("half a draft"); s.press("\x1bw"); assert.deepEqual(taken, []); assert.equal(s.v.value(), "half a draft");
     s.v.setValue("");
-    lines = s.screen(184);
-    assert.equal(lines.length, 78); assert.match(lines[77], /^ {2}\S.* · /); assert.match(lines[76], /Taken back: the other viewer was disconnected\./); assert.doesNotMatch(lines.join("\n"), /Another viewer/);
-    s.press("\x1bw"); assert.equal(taken.length, 1); // not held: the key is not the board's
+    assert.match(s.screen(435).join("\n"), /Another viewer holds this terminal/);
+    s.v.tui.terminal.columns = 184;
     s.v.msg = "";
     // The other viewer went away: herdr and the terminal agree again, and the note is gone.
     s.v.tui.terminal.rows = 78; s.v.shown = { cols: 184, rows: 78, split: false };
@@ -185,7 +183,7 @@ test("the board says so, top left, when another view holds its pane's size, and 
     assert.match(s.screen(435)[0], /so herdr's own window \(120×34\) shows it cut off or half empty\s*$/);
     assert.match(s.screen(60)[0], /^ ! Held at 120×58: closing its remote view frees/); // what to do survives a narrow window
     // The same line over the whole task and the menu.
-    s.press("ctrl+e"); assert.match(head(), /Held at/); s.press("esc");
+    s.press("alt+t"); assert.match(head(), /Held at/); s.press("esc");
     // Named with its process when one holds this terminal.
     s.v.held = { ...s.v.held, by: [{ pid: 4242, seconds: 2400 }] };
     assert.match(s.screen(435)[0], /half empty · herdr terminal attach, open 40m\s*$/);

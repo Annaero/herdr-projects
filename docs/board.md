@@ -85,32 +85,33 @@ greyed. For a task's agent that is its row's sentence (the Watcher's "doing now"
 is none); for the Coordinator, where it stands and which program and model it runs on; for a task with no agent,
 where your message goes. The name is never cut to make room: the status takes what is left and is cut with `…` (a
 name longer than the window takes a second line; in a window too short for that, the draft keeps the line). The line
-names no keys: `Alt+C` and `Alt+V` are in the `?` menu and on the [keys](keys.md) page. The text box and its hints are never pushed off the window: the
+names no key: `Alt+C` is in the `?` menu and on the [keys](keys.md) page. The text box and its hints are never pushed off the window: the
 chat gives way first. The
 prompt is only `❯`. Under that line is the latest thing they said (their screen while a dialog is up). One key shows
-and hides it, the same key both ways and the same for the Coordinator and a task's agent: `Alt+V` (on an empty text
-box, like `Ctrl+P` for the side panel), and the board remembers which. Hidden, the line that says who you talk to stays, so a message is
+and hides it, the same key both ways and the same for the Coordinator and a task's agent: `Alt+C` (on an empty text
+box, like `Alt+P` for the side panel), and the board remembers which. Hidden, the line that says who you talk to stays, so a message is
 never sent blind. Nothing else shows or hides it: `Esc` never does. A Coordinator that could not be started says why
-even while the message is hidden; `Alt+V` puts that error away too, until the next one. `Alt+C` goes into the whole
-chat of whoever it names. Where the
+even while the message is hidden; `Alt+C` puts that error away too, until the next one. The whole chat of a
+task's agent is its own pane: `Enter`, with nothing typed, goes into it. Where the
 Coordinator stands (starting, working, needs you, a new reply) is said on that first line and nowhere else.
 
 **A board that looks cut off or half empty.** The board takes its pane's size back by itself within a few seconds:
 the remote view described here is disconnected, and until then the board draws inside what herdr's window shows, so
 its text box and hints are never cut off. What follows is what you see with the setting `ownTerminal` off, where the
-view stays and `Alt+W` disconnects it. A remote view of the pane the board runs in (a `herdr terminal attach`,
+view stays (the board has no key that disconnects it: closing that view, or turning the setting on, frees the
+size). A remote view of the pane the board runs in (a `herdr terminal attach`,
 which herdr's web UI starts for each pane it shows) sets that pane's size to its own and holds it for as long as it
 runs, also after its browser tab is gone. herdr's own window then shows a cut-out of a board drawn for another size.
 The board notices within ten seconds and says so on its first line, top left where a cut-out still shows it, with what frees the size first so a narrow window keeps it:
 
 ```
- ! Held at 435×58: alt+w, or kill 2884 frees it. Drawn for a remote view of this pane, so herdr's own window (184×78) shows it cut off or half empty · herdr terminal attach, open 40m
+ ! Held at 435×58: kill 2884 frees it. Drawn for a remote view of this pane, so herdr's own window (184×78) shows it cut off or half empty · herdr terminal attach, open 40m
 ```
 
 Closing that view, or stopping the process it names, gives the pane its own size back at once. The line is not shown
 in the popup (which has no pane of its own), outside herdr, or in a tmux inside the pane.
 
-While the text box holds text it owns the keyboard: only `Enter`, `Tab` and `Esc` act on the board, so no shortcut
+While the text box holds text it owns the keyboard: only `Enter`, `Tab`, `Esc` and `Ctrl+C` act on the board, so no shortcut
 fires in the middle of a draft. `Esc` puts a draft away; `Ctrl+Z` brings it back only to whoever it was for, so a reply
 stays a reply. It never changes who you talk to: when the chat names somebody else, it says who the words were for
 (the Coordinator: `Space` goes back to it; a task's agent: select that task, and `Space` if you talk to the

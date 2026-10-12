@@ -41,7 +41,7 @@ export class View {
   items = []; rows = []; selectionRows = []; selectionLayout = "";
   sel = ""; top = 0;
   allDone = false; archiveView = false; archiveBack = null; archiveUndo = null;
-  // The task panel: beside the list when you have it open (`side`, ctrl+p) and the window is wide, full screen
+  // The task panel: beside the list when you have it open (`side`, alt+p) and the window is wide, full screen
   // (`full`) when asked for. Most of the time it is closed, so each row has the width for what it says.
   // `reply` says who the chat at the bottom talks to: the selected task's agent after space (whichever task that is,
   // as you move), the Coordinator otherwise.
@@ -53,9 +53,8 @@ export class View {
   stick = ""; back = ""; jobs = []; jobTop = 0; tick = 0; disposed = false;
   screens = new Map(); // what an agent's pane shows, read through herdr, cached
   // The chat at the bottom: one place for the Coordinator and for every task's agent. `chatOpen`: whether its latest
-  // message shows above the text box. `going`: when you asked to open the Coordinator's chat while it was not running
-  // yet (it is being started; its chat opens as soon as it is there).
-  chatOpen = true; coord = { state: "none", queue: 0, said: "" }; going = 0;
+  // message shows above the text box.
+  chatOpen = true; coord = { state: "none", queue: 0, said: "" };
   sent = new Map(); setup = null;
 
   constructor(tui, theme, done, ctx) {
@@ -86,7 +85,7 @@ export class View {
   }
   get all() { return this.scope !== ""; }
   // Nothing of yours is open or half typed: the board can be swapped for its new version without losing anything.
-  get atRest() { return !this.value() && !this.ask && !this.menu && !this.setup && !this.pasteText && !this.going && this.mode === "new"; }
+  get atRest() { return !this.value() && !this.ask && !this.menu && !this.setup && !this.pasteText && this.mode === "new"; }
   beat() {
     this.tick++;
     if (this.tick % 2 === 0) this.askShown();

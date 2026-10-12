@@ -23,8 +23,8 @@ export class Panel {
   openPanel() { const r = this.current(); if (!r && !this.job()) return this.flash("Select a task first."); this.full = true; this.panelTop = 0; }
   desc(r) { return String(r.description || ""); }
   scrollPanel(data) {
-    const last = Math.max(0, this.panelLength - this.panelHeight), step = Math.max(1, this.panelHeight - 1);
-    const to = isKey(data, "top") ? 0 : isKey(data, "bottom") ? last : this.panelTop + (isKey(data, "up") ? -1 : isKey(data, "down") ? 1 : isKey(data, "pageUp") ? -step : step);
+    const last = Math.max(0, this.panelLength - this.panelHeight);
+    const to = this.panelTop + (isKey(data, "up") ? -1 : 1);
     this.panelTop = Math.max(0, Math.min(last, to));
   }
   // The task details, full screen: the same parts as beside the list, each whole, and every review the task had.

@@ -33,7 +33,7 @@ export class PanelStatus {
     const note = reviewNote(r);
     let told = ""; // what this part already printed, so "the agent said" does not repeat it
     const alert = (lines) => part(lines, { pri: 4, min: 2, at: (n) => first(lines, n) });
-    if (r.archivedAt) part(callout("overlay0", "Archived", `Read-only. ${keyName("menu")} has restore. Its state and all its data are kept.`));
+    if (r.archivedAt) part(callout("overlay0", "Archived", `Read-only. ${keyName("archive")} restores it. Its state and all its data are kept.`));
     if (failure && waitOf(r)?.who === "agent") { // nothing to do: the board carries on by itself
       told = failure.detail;
       alert(callout(c, "Cut off, trying again by itself", `${note}. A reply, ${keyName("sendBack")} or ${keyName("yes")} tells the agent to continue right away.`, [["What cut it off", waitOf(r).error || failure.detail]]));

@@ -1,10 +1,14 @@
 // What you do to the selected task: yes, send back, stop, delete, undo, archive.
 import { truncateToWidth } from "@earendil-works/pi-tui";
+import * as S from "../../store.js";
 import * as A from "../../actions.js";
 import { herdr } from "../../herdr.js";
 import { clean, prNumber } from "./words.js";
 import { isAgent, failureFor } from "./states.js";
 import { name as keyName } from "../keys.js";
+
+// The stages in which a task's agent (or its reviewer) is alive in its pane. "asks": it waits for your answer.
+const LIVE_STAGES = [...S.SLOT_STAGES, "asks"];
 
 export class Actions {
   // herdr's "approve the task in the focused pane" action lands here: the board opens on that task and asks first.
@@ -35,13 +39,13 @@ export class Actions {
     this.try(() => {
       if (action === "archive") { A.archive(r.id); this.archiveUndo = r; } else A.restore(r.id);
       this.full = false;
-      this.flash(action === "archive" ? `${r.id}: archived. ${keyName("menu")} has undo, and the archive.` : `${r.id}: restored.`, "green");
+      this.flash(action === "archive" ? `${r.id}: archived. ${keyName("undo")} undoes it; ${keyName("archiveView")} shows the archive.` : `${r.id}: restored.`, "green");
     });
   }
   // ---- what the keys do -------------------------------------------------------------------------------------------------
   // "Yes": whatever the selected task waits for. A merge cannot be undone, so that one asks first.
   yes(r) {
-    if (r.archivedAt) return this.flash(`Archived tasks are read-only. ${keyName("menu")} has restore.`, "yellow");
+    if (r.archivedAt) return this.flash(`Archived tasks are read-only. ${keyName("archive")} restores.`, "yellow");
     if (r.stage === "approval" && r.state === "blocked") {
       if (r.syncBlocked) return this.flash(`Behind main, so it cannot be approved yet: ${r.syncBlocked.why}. The board keeps trying to bring it up to date.`, "yellow");
       const mark = this.mergeMark(r.id), seen = { pr: r.pr ?? null, head: r.reviewedHead ?? null };
@@ -56,15 +60,19 @@ export class Actions {
   }
   // "Send it back": whatever went wrong (a failed step, a conflict, the review) goes to the task's agent to fix.
   sendBack(r) {
-    if (r.archivedAt) return this.flash(`Archived tasks are read-only. ${keyName("menu")} has restore.`, "yellow");
+    if (r.archivedAt) return this.flash(`Archived tasks are read-only. ${keyName("archive")} restores.`, "yellow");
     const failure = failureFor(r);
     if (failure && !failure.agentCanFix && !(r.stage === "failed" && r.failure?.auth)) return this.flash(`This needs you first. ${failure.next || ""}`, "yellow");
     if (r.host) return this.act(r, failure && failure.agentCanFix ? "fix" : r.state === "error" ? "retry" : "review");
     return this.try(() => { const out = failure && failure.agentCanFix ? A.sendFailure(r.id) : r.state === "error" ? A.sendError(r.id) : A.sendReview(r.id); this.flash(out.msg, "green"); });
   }
+  // An agent is on it right now: at work, in a step of the finish line, waiting for you to answer it, or waiting
+  // for a free slot. That is what the stop key stops; anything else has no agent running.
+  running(r) { return r.state === "working" && (isAgent(r) || r.stage === "progress") || r.stage === "queued" || (isAgent(r) && LIVE_STAGES.includes(r.stage)); }
+  // Stop the agent while one runs. On a task with none running (idle, never started, stopped, finished) the same key
+  // asks to delete the task. A stop never goes on to that question by itself: that takes the key again, and a yes.
   stop(r) {
-    const running = r.state === "working" && (isAgent(r) || r.stage === "progress") || r.stage === "queued" || (isAgent(r) && r.stage === "working");
-    if (!running) return this.flash(`No agent is working on this. ${keyName("menu")} has delete and archive.`);
+    if (!this.running(r)) return this.remove(r);
     this.stick = r.id; // the selection stays on this row: a second tap never lands on another task
     if (r.host) return this.act(r, "stop");
     return this.try(() => { A.stop(r.id); this.flash(`${r.id}: stopped.`, "yellow"); });

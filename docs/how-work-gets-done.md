@@ -24,14 +24,14 @@ login error, token use. With the board open or closed it then:
    review that fails goes straight back to the agent. The row says the result and a tally (`Pass · 2 minor`), and
    its `R#2 ✓` tag which review it was and, by its mark, how it went; the task panel has its summary, and every earlier
    review of the task;
-4. waits for your approval (`Ctrl+A`).
+4. waits for your approval (`Ctrl+Y`).
 
 **Without a hook** (a crash, a program older than the adapter's minimum version, another agent kind, Codex when you
 have your own `notify` configured, or a hook that failed three turns in a row) herdr's
 status is only a guess from the screen, so "idle" alone never finishes a task. The turn counts as ended when the
 saved conversation ends in a finished message or an error, or a closing note was written to
 `.herdr-superwork/closing-<n>.md` (the rules still ask for one as the fallback). Otherwise the task is held as
-"stopped without a summary": `Ctrl+R` tells the agent to continue, `Ctrl+Y` finishes anyway. Typing in the agent's own
+"stopped without a summary": `Ctrl+R` tells the agent to continue, `Ctrl+Y` takes the work as it is. Typing in the agent's own
 terminal, or replying from the board, re-arms all of this: an approval is revoked, a pending auto-merge cancelled (a
 cancellation that fails is saved as a visible failure), the old review marked stale.
 
@@ -66,7 +66,7 @@ still conflict, you are asked, with the details kept. `conflictAuto false` on a 
 send with `Ctrl+R`. Only a task at rest is ever updated: its worktree clean, on exactly the commit that was reviewed.
 A fetch that fails is never taken for a sync: a finished turn is saved as "Could not synchronize main" instead of
 going on to review (and as "Task is on the wrong branch" when its worktree has left the task's own branch). A waiting task whose main cannot be fetched, or that was not at rest when main moved, is held
-as "behind main": its row says so, `Ctrl+A` is refused with the reason, and the board tries again
+as "behind main": its row says so, `Ctrl+Y` is refused with the reason, and the board tries again
 every minute until the branch really is up to date.
 "Main" is where the task will land: the remote's main when it lands through a pull request; otherwise (no remote,
 or `pr` off) the branch your checkout was on when the task first finished. For those, checking out another one

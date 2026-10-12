@@ -18,13 +18,13 @@ export class Hints {
       if (this.talksToCoord) return [[enter, "send"], [tab, "send, and put an agent on it"], put, line];
       return [[enter, "add a task"], [tab, "add it and start an agent"], put, line];
     }
-    if (this.job()) return [hint("stop", "stop it"), [enter, "take it back to change"], hint("jobUp")];
+    if (this.job()) return [hint("stop", "stop it"), [enter, "take it back to change"], [name("up"), "back to the list"]];
     if (!r) return [["", this.archiveView ? `${esc} back to the board` : "type what needs doing"], more];
     // esc leaves the whole task; who you talk to is space's to flip back.
     const tail = this.full ? [[arrows, "scroll"], hint("back")] : this.reply ? [hint("talk", "back to the Coordinator")] : [more];
     const failure = failureFor(r), rv = currentReview(r), reply = hint("talk"), open = hint("enter"), fix = hint("sendBack"), retry = hint("yes"), stop = hint("stop"), agent = hint("delegate");
     let main;
-    if (r.archivedAt) main = [hint("menu", "restore or delete"), ...(this.archiveView && !this.full ? [[esc, "back to the board"]] : [])];
+    if (r.archivedAt) main = [hint("archive"), hint("stop", "delete"), ...(this.archiveView && !this.full ? [[esc, "back to the board"]] : [])];
     else if (inReview(r)) main = [hint("yes", "approve and merge"), rv && G.sendable(rv) && hint("sendBack", "send back"), reply];
     else if (r.stage === "approval" && r.syncBlocked) main = [reply, open];
     else if (r.stage === "approval" && r.state === "blocked") main = [failure?.agentCanFix && !failure.sentAt && fix, hint("yes", "retry the merge"), reply];

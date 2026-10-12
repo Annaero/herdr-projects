@@ -9,11 +9,11 @@ import { isAgent } from "./states.js";
 // Closing takes ctrl+c twice, as leaving Claude Code does ("Press Ctrl-C again to exit", shown for 0.8s): this long
 // the first one is remembered. Codex is no model here: it leaves on the first ctrl+c (its two-press code is off).
 const CLOSE_WAIT = 800;
-const READ_ONLY = () => `Archived tasks are read-only. ${K.name("menu")} has restore.`;
+const READ_ONLY = () => `Archived tasks are read-only. ${K.name("archive")} restores.`;
 
 export class Keys {
   handleInput(data) {
-    try { if (this.off && K.is(data, "takeBack")) this.takeBack(); else this.handle(data); } catch (e) { this.flash(e.message, "red"); }
+    try { this.handle(data); } catch (e) { this.flash(e.message, "red"); }
     this.syncReply();
     this.tui.requestRender();
   }
@@ -50,13 +50,6 @@ export class Keys {
     }
     if (this.menu) return this.menuKey(data);
     this.stick = "";
-    // The chat's keys act before anything else is looked at: into the whole chat of whoever the chat talks to (the
-    // board closes), its latest message shown or hidden, the Coordinator restarted or started anew. A draft owns
-    // them too, wherever it is going: they act only on an empty text box.
-    const first = K.typed(data, (k) => k.early);
-    if (first && this.value()) return this.input.handleInput(data);
-    if (first && (!first.on || first.on(this))) return first.run(this);
-    if (this.going && (esc || close)) { this.going = 0; return this.flash("Stayed on the board. The Coordinator keeps starting."); }
     if (this.input.isPasting || data.includes("\x1b[200~")) { this.input.handleInput(data); if (this.mode === "find") this.load(); return; }
     const text = this.value().trim();
     const r = this.current();
@@ -74,7 +67,7 @@ export class Keys {
     }
     if (this.mode === "find" && enter) { this.filter = text; this.mode = "new"; this.setValue(""); return this.load(); }
     // While the text box holds text it owns the keyboard: only enter, tab, esc and ctrl+c act on the board, so no
-    // shortcut fires in the middle of a draft (ctrl+a is "start of line" there, not "merge"). ctrl+c twice closes with
+    // shortcut fires in the middle of a draft (ctrl+a is "start of line" there, not "archive"). ctrl+c twice closes with
     // a draft too: the draft is saved with the board and is back when it reopens.
     if (this.value() && !enter && !tab && !close) { this.input.handleInput(data); if (this.mode === "find") this.load(); return; }
     if (close) return this.closeHint();
@@ -84,7 +77,7 @@ export class Keys {
     if (j && !text) {
       // Words on their way to another machine: stop them, or take them back to change and send again.
       if (K.is(data, "stop")) return this.try(() => { H.stopDispatch(j); this.flash("Stopped.", "yellow"); });
-      if (enter || K.is(data, "open")) { this.try(() => H.stopDispatch(j)); return this.setValue(j.text || ""); }
+      if (enter) { this.try(() => H.stopDispatch(j)); return this.setValue(j.text || ""); }
       if (tab) return;
     }
     if (enter) {
@@ -111,21 +104,13 @@ export class Keys {
       return;
     }
     // From here on the text box is empty.
-    const scroll = ["up", "down", "pageUp", "pageDown", "top", "bottom"].some((id) => K.is(data, id));
+    const scroll = K.is(data, "up") || K.is(data, "down");
     if (this.full && scroll) return this.scrollPanel(data);
     // Every other key is an entry in ../keys.js. One that is not the board's right now is typed into the text box.
-    const key = K.typed(data, (k) => k.run && !k.early);
+    const key = K.typed(data, (k) => k.run);
     if (key && (!key.on || key.on(this, r))) return key.run(this, r);
     this.input.handleInput(data);
     if (this.mode === "find") this.load();
-  }
-  // Down to the words on their way to another machine, and back up to the list.
-  stepJob(d) {
-    const at = this.jobs.findIndex((x) => x.id === this.sel);
-    if (at < 0) { if (d > 0 && this.jobs.length) { this.back = this.sel; this.sel = this.jobs[0].id; } else if (d > 0) this.flash("Nothing is on its way to another machine."); return; }
-    const to = at + d;
-    if (to < 0) { this.sel = this.back || ""; this.load(); return; }
-    this.sel = this.jobs[Math.min(this.jobs.length - 1, to)].id;
   }
   // The one key that changes who you talk to: the selected task's agent, and back to the Coordinator.
   flipReply(r) {
@@ -134,8 +119,8 @@ export class Keys {
     if (r.archivedAt) return this.flash(READ_ONLY(), "yellow");
     this.reply = true; this.replyId = r.id;
   }
-  finishAnyway(r) { if (r.host) return this.act(r, "finish"); return this.try(() => { const out = A.finishAnyway(r.id); this.flash(out.msg, "green"); }); }
-  pinTask(r) { if (r.archivedAt) return this.flash(READ_ONLY(), "yellow"); return r.host ? this.act(r, "pin") : this.try(() => A.pin(r.id)); }
+  // The row moves to or from the top; the selection goes with it, so the same key again takes the pin back.
+  pinTask(r) { if (r.archivedAt) return this.flash(READ_ONLY(), "yellow"); this.stick = r.id; return r.host ? this.act(r, "pin") : this.try(() => A.pin(r.id)); }
   toggleAllDone() { this.allDone = !this.allDone; return this.load(); }
   toggleByRepo() { this.byRepo = !this.byRepo; this.savePrefs(); return this.load(); }
 }

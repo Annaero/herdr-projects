@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { KEYS, KEY, name, written } from "../src/board/keys.js";
+import { KEYS, KEY, GROUPS, name, written } from "../src/board/keys.js";
 import { SETTINGS } from "../src/store/settings-list.js";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -27,10 +27,17 @@ function keysTable() {
     if (k.with && !KEY[k.with]?.doc) throw new Error(`src/board/keys.js: the key "${k.id}" is described with "${k.with}", which has no \`doc\``);
     for (const w of [k.help, k.hint]) for (const [, id] of String(w || "").matchAll(/\{(\w+)\}/g)) if (!KEY[id]) throw new Error(`src/board/keys.js: "{${id}}" in the key "${k.id}" names no key`);
     if (k.menu && !k.run) throw new Error(`src/board/keys.js: the key "${k.id}" has a menu line and nothing to run`);
+    if (k.group && !GROUPS.some(([g]) => g === k.group)) throw new Error(`src/board/keys.js: the key "${k.id}" is in the group "${k.group}", which is none of ${GROUPS.map(([g]) => g).join(", ")}`);
+    if (k.group && k.group !== "plain" && !k.keys.every((c) => c.startsWith(`${k.group}+`))) throw new Error(`src/board/keys.js: the key "${k.id}" is in the group "${k.group}" and is pressed with ${k.keys.join(", ")}`);
+    if (k.group && !k.with && !(k.group === "plain" ? k.help : k.menu)) throw new Error(`src/board/keys.js: the key "${k.id}" has no line for the ? menu (\`help\` for a plain key, \`menu\` for a ctrl or alt key)`);
   }
   // Another chord for the same thing is named in its row (the shifted and "return" twins of a key are not).
   const also = (k) => { const more = k.keys.slice(1).filter((c) => !/^shift\+|^return$/.test(c)); return more.length ? `. ${more.map(written).join(", ")} does the same` : ""; };
-  return table(["Key", "Does"], KEYS.filter((k) => k.doc).map((k) => [written(name(k.id, true)), keyWords(k.doc) + also(k)]));
+  // One table for each group, in the ? menu's order, then the keys that are in no group.
+  const rows = (pick) => KEYS.filter((k) => k.doc && pick(k)).map((k) => [written(name(k.id, true)), keyWords(k.doc) + also(k)]);
+  const heads = { plain: ["**Plain keys**", "Does"], ctrl: ["**`Ctrl`: does something**", "Does"], alt: ["**`Alt`: only shows or hides**", "Shows or hides"] };
+  return [...GROUPS.map(([g]) => `${heads[g][0]}\n\n${table(["Key", heads[g][1]], rows((k) => k.group === g))}`),
+    `**The text box's own** (not a key of the board, and not in the \`?\` menu)\n\n${table(["Key", "Does"], rows((k) => !k.group))}`].join("\n\n");
 }
 
 // ---- the settings ----------------------------------------------------------------------------------------------------

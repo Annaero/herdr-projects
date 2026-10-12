@@ -43,11 +43,11 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     assert.ok(!/│ {2}My own task/.test(s.text(80)), "no panel beside the list below 90 columns");
     // ctrl+b is herdr's own prefix key: the board has no use for it.
     s.press("ctrl+b"); assert.match(s.text(120), /│ {2}My own task/); assert.equal(s.v.value(), "");
-    // ctrl+p closes the side panel and opens it again: closed, each row has the whole width for what it says.
-    s.press("ctrl+p"); text = s.text(120);
-    assert.equal(s.v.side, false); assert.doesNotMatch(text, /│/); assert.match(text, /◐ My own task {2}half way {60,}█/); assert.match(text, /Side panel off\. ctrl\+p shows it\./);
+    // alt+p closes the side panel and opens it again: closed, each row has the whole width for what it says.
+    s.press("alt+p"); text = s.text(120);
+    assert.equal(s.v.side, false); assert.doesNotMatch(text, /│/); assert.match(text, /◐ My own task {2}half way {60,}█/); assert.match(text, /Side panel off\. alt\+p shows it\./);
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).side, false); // your choice is remembered
-    s.press("?"); assert.match(s.text(120), /show the side panel +ctrl\+p/); 
+    s.press("?"); assert.match(s.text(120), /alt\+p +show the side panel/);
     // what a row's R# tag says is the menu's last lines, under the keys. A window too short for the whole menu cuts
     // them: ↓ on the menu's last line scrolls on down to them, however little room the chat leaves, and ↑ comes back
     { const tall = s.v.tui.terminal.rows, legend = /\n on a row *\n {3}R#2 {5}the review it is on or last had: ✓ passed, ✗ failed, no mark: running now/, n = s.v.menuItems().length;
@@ -59,7 +59,10 @@ test("the board: one header line, the five groups, a symbol for each state, the 
         for (let k = 0; k < 80; k++) s.press("down");
         const end = s.text(120); assert.match(end, legend); s.press("down", "down"); assert.equal(s.text(120), end, "nothing under the end"); assert.equal(s.v.menu.at, n - 1);
         for (let k = 0; k < 80; k++) s.press("up");
-        assert.equal(s.v.menu.at, 0); assert.equal(s.text(120), top, "↑ goes back the way ↓ came");
+        // ↑ on the first line scrolls on up to what is above the list (the plain keys), and ↓ comes back from there
+        assert.equal(s.v.menu.at, 0); assert.match(s.text(120), /^ menu [^\n]*\n *\n plain keys *\n {3}↑ ↓ /, `the top with ${rows} lines`);
+        for (let k = 0; k < 80 && s.text(120) !== top; k++) s.press("down");
+        assert.equal(s.v.menu.at, 0); assert.equal(s.text(120), top, "↓ goes back the way ↑ came");
       }
       // narrow: the line wraps, so every state it names can be read, at any width a word fits in, and nothing is cut
       for (const [cols, rows] of [[60, 18], [44, 18], [36, 24], [80, 14]]) {
@@ -71,22 +74,22 @@ test("the board: one header line, the five groups, a symbol for each state, the 
       }
       s.v.tui.terminal.rows = tall; }
     s.press("esc");
-    // Closed, it stays closed while you talk to a task's agent: only ctrl+p opens it.
+    // Closed, it stays closed while you talk to a task's agent: only alt+p opens it.
     s.press("space"); assert.equal(s.v.reply, true); assert.doesNotMatch(s.text(120), /│ {2}My own task/); assert.equal(s.v.full, false);
     s.press("space"); assert.equal(s.v.reply, false);
-    s.press("ctrl+p"); assert.equal(s.v.side, true); assert.match(s.text(120), /│ {2}My own task/);
-    s.screen(80); s.press("ctrl+p", "ctrl+p"); assert.match(s.text(80), /The side panel needs a wider window\. ctrl\+e shows the task full screen\./); s.screen(120);
+    s.press("alt+p"); assert.equal(s.v.side, true); assert.match(s.text(120), /│ {2}My own task/);
+    s.screen(80); s.press("alt+p", "alt+p"); assert.match(s.text(80), /The side panel needs a wider window\. alt\+t shows the task full screen\./); s.screen(120);
     // A board opened for the first time has it closed.
     { const fresh = open(w, { side: false }); fs.rmSync(path.join(S.dataDir(), "view.json"), { force: true }); const first = new View(fresh.v.tui, theme, () => {}, { cwd: w.root }); clearInterval(first.timer); assert.equal(first.side, false); }
-    s.press("down", "ctrl+e");
+    s.press("down", "alt+t");
     text = s.text(80);
     assert.match(text, /^ Task details {2}proj\/1/); assert.match(text, /○ to do · \ds ago · proj\/1/); assert.match(text, /Description ─+ *\n All of them\./);
     // The whole panel never changes who you talk to: only space does. Space there talks to the task, space again goes back.
     assert.equal(s.v.reply, false); assert.match(text, /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ what's next\?/);
     s.press("space"); assert.equal(s.v.reply, true); assert.equal(s.v.full, true);
     assert.match(s.text(80), /\n─+\n . Write the docs {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ your message starts an agent on it/);
-    s.press("ctrl+e"); assert.equal(s.v.full, false); assert.equal(s.v.reply, true, "folding the panel keeps who you talk to");
-    s.press("ctrl+e", "space"); assert.equal(s.v.reply, false); assert.equal(s.v.full, true, "space never opens or folds the panel");
+    s.press("alt+t"); assert.equal(s.v.full, false); assert.equal(s.v.reply, true, "folding the panel keeps who you talk to");
+    s.press("alt+t", "space"); assert.equal(s.v.reply, false); assert.equal(s.v.full, true, "space never opens or folds the panel");
     // esc leaves the whole task, and who you talk to stays as it was: also a task's agent.
     s.press("space", "esc"); assert.equal(s.v.full, false); assert.equal(s.v.reply, true); s.press("space");
     assert.match(s.text(120), /^ herdr-superwork/); assert.equal(s.v.reply, false);

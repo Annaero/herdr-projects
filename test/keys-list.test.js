@@ -16,7 +16,7 @@ test("the keys list: a key moved in its entry is moved everywhere, and its old c
   try {
     const s = open(w);
     s.type("First"); s.press("enter"); s.type("Second"); s.press("enter");
-    move("enter", ["alt+e"]); move("down", ["alt+j"]); move("up", ["alt+k"]); move("yes", ["alt+q"]); move("delegate", ["alt+d"]); move("back", ["alt+b"]); move("menu", ["alt+m"]); KEY.menu.raw = undefined;
+    move("enter", ["alt+e"]); move("down", ["alt+j"]); move("up", ["alt+k"]); move("yes", ["ctrl+q"]); move("delegate", ["alt+d"]); move("back", ["alt+b"]); move("menu", ["alt+m"]); KEY.menu.raw = undefined;
     // typing and sending: the old enter is typed text's business now, the new one sends
     s.type("Third"); assert.match(s.text(), /alt\+e add a task · alt\+d add it and start an agent · alt\+b put away/);
     s.press("\x1be"); assert.equal(S.list().length, 3); assert.equal(s.v.value(), "");
@@ -30,8 +30,8 @@ test("the keys list: a key moved in its entry is moved everywhere, and its old c
     s.press("enter"); assert.ok(s.v.menu, "the old enter picks nothing"); s.press("\x1bb"); assert.equal(s.v.menu, null);
     // a message written outside the view names the moved key too
     const id = s.v.sel; S.update(id, (t) => { t.stage = "nosummary"; t.link = { pane: "p1" }; });
-    assert.match(A.failureOf(S.get(id)).next, /ctrl\+r tells the agent to continue; alt\+q takes the work as it is/);
+    assert.match(A.failureOf(S.get(id)).next, /ctrl\+r tells the agent to continue; ctrl\+q takes the work as it is/);
     // and the page made from the list
-    assert.match(pages()["docs/keys.md"], /\| `Alt\+Q` \| yes, to whatever the task waits for/);
+    assert.match(pages()["docs/keys.md"], /\| `Ctrl\+Q` \| yes, to whatever the task waits for/);
   } finally { for (const [id, o] of Object.entries(was)) { KEY[id].keys = o.keys; if (o.show !== undefined) KEY[id].show = o.show; } KEY.menu.raw = ["?"]; w.cleanup(); }
 });

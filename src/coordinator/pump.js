@@ -18,7 +18,7 @@ export function tick(socket = currentSocket()) {
   const c = get(socket);
   if (!c || (!(c.queue || []).length && !c.want) || (pumping(c) && c.pump.pid !== process.pid) || !socketExists(socket)) return;
   if (c.stopped && !c.want) return; // stopped stays stopped, also with words still waiting: your next message starts it
-  if (c.error && !c.want) return; // a start that failed is not tried again by itself: your next message, alt+r or alt+n does
+  if (c.error && !c.want) return; // a start that failed is not tried again by itself: your next message does, or coordinator restart, or coordinator new
   if (S.due(`coordinator-${sessionName(socket)}`, 3000)) kick(socket);
 }
 function closeSpace(api, c) {

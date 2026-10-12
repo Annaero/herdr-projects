@@ -21,16 +21,15 @@ arguments as any working agent: all its tools, nothing held back. It is started 
 its program exited or herdr restarted, your next message starts it again in the same conversation. The agent's own
 new-chat command (`/clear`, `/new`) is followed: the chat and a restart go with the conversation it is in now.
 
-On the board you talk to it through the chat and read its latest message there. For the whole conversation, its
-dialogs, its slash commands and its menus you **go into it**, exactly as into any task's agent: `alt+c` leaves the
-board and herdr shows the Coordinator's own pane (when it is not running it is started first, and you go in as soon
-as it is there). From there you get back to the board, or go anywhere else in herdr, the way you do from every other
-agent: your board key, or `herdr-superwork`. Outside a herdr client (plain SSH) the terminal attaches to it and the
-board returns when the attach ends. To go into it from anywhere in herdr without the board, bind a key to the plugin
-action `herdr-superwork.coordinator`.
+On the board you talk to it through the chat and read its latest message there (`Alt+C` shows and hides it). For the
+whole conversation, its dialogs, its slash commands and its menus you **go into it** in herdr, not from the board:
+it is an ordinary agent in a space named "Coordinator", and the plugin action `herdr-superwork.coordinator` (bind a
+key to it) goes straight to its pane from anywhere in herdr, starting it first when it is not running. From there
+you get back to the board, or go anywhere else in herdr, the way you do from every other agent: your board key, or
+`herdr-superwork`.
 
-While you talk to the Coordinator, `alt+r` restarts it in the same conversation and `alt+n` starts a new one with a
-fresh conversation; both ask first, and like every shortcut they act only while the text box is empty. For a
-different one this once, use `coordinator new --agent …` below: your default stays as it is. From a shell, or by asking it:
+Restarting it (the same conversation) and starting a new one (a fresh conversation) are commands, not keys of the
+board: `coordinator restart` and `coordinator new`. For a different one this once, use `coordinator new --agent …`
+below: your default stays as it is. From a shell, or by asking it:
 `herdr-superwork coordinator` (how it stands), `coordinator tell <text>`, `coordinator restart`,
 `coordinator new [--agent KIND] [--model M] [--effort E]`, `coordinator stop`.

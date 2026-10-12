@@ -7,7 +7,7 @@ import * as S from "../src/store.js";
 import { View } from "../src/board/view.js";
 import { theme } from "../src/board/theme.js";
 
-export const KEY = { enter: "\r", tab: "\t", esc: "\x1b", space: " ", "ctrl+e": "\x05", "alt+c": "\x1bc", "alt+v": "\x1bv", "alt+n": "\x1bn", "alt+r": "\x1br" };
+export const KEY = { enter: "\r", tab: "\t", esc: "\x1b", space: " ", "alt+c": "\x1bc", "alt+t": "\x1bt", "alt+v": "\x1bv", "alt+n": "\x1bn", "alt+r": "\x1br" };
 // A world with a Coordinator: the default one is Claude Code on its defaults. Its folder and Claude's own files are the
 // test's, and both programs count as installed without being run.
 export async function coordWorld(settings = {}) {

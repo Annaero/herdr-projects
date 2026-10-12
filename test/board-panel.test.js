@@ -17,7 +17,7 @@ test("the task panel beside the list cuts a long description short and says wher
     let text = s.text(120);
     assert.match(text, /│ {2}Long one/); assert.match(text, /Line 1 of a very long/);
     // Beside the list the description is short: a few lines, then where the rest is.
-    assert.match(text, /Line 8 of a very long description\. … *\n/); assert.match(text, /│ {2}ctrl\+e shows the whole task/);
+    assert.match(text, /Line 8 of a very long description\. … *\n/); assert.match(text, /│ {2}alt\+t shows the whole task/);
     assert.doesNotMatch(text, /Line 9 of/); assert.doesNotMatch(text, /Line 80 of/);
     // Status first, then the description, then the settings: each part under its own headline, an empty line between.
     assert.match(text, /│ {2}Long one *\n[^\n]*│ {2}○ to do · \ds ago · proj\/2 *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n/);
@@ -29,7 +29,7 @@ test("the task panel beside the list cuts a long description short and says wher
     // A short window keeps every setting too: the long parts give way, never the settings.
     { const low = open(w, { rows: 24 }); low.v.sel = big.id; low.v.load(); const t24 = low.text(120);
       for (const fact of SETTINGS) assert.match(t24, new RegExp(`│  ${fact} `), `${fact} in a 24-row window`);
-      assert.match(t24, /│ {2}ctrl\+e shows the whole task/); assert.doesNotMatch(t24, /Line 1 of/); }
+      assert.match(t24, /│ {2}alt\+t shows the whole task/); assert.doesNotMatch(t24, /Line 1 of/); }
     S.setTaskConfig(big.id, "model", "opus"); s.v.load();
     text = s.text(120);
     assert.match(text, /│ {2}Agent {8}\S+ · opus · default effort/); assert.match(text, /│ {2}Reviewer {5}codex · default model/);
@@ -47,7 +47,7 @@ test("the task panel beside the list cuts a long description short and says wher
       assert.ok(raw.includes(`${grey}Reviewer     \x1b[39m${ink}${quiet}codex`), "a default setting is quieter");
     }
     // The task details: the same parts full screen, scrolled, with every setting.
-    s.press("ctrl+e");
+    s.press("alt+t");
     assert.equal(s.v.full, true);
     assert.match(s.text(120), /^ Task details {2}proj\/2 +lines 1–\d+ of \d+/);
     s.v.panelTop = 1e9; text = s.text(120);
@@ -80,26 +80,26 @@ test("the task panel never opens full screen by itself: something going wrong on
     assert.match(text, /\n needs you *\n ✗ Match the colors {2}Merge conflict with main/);
     assert.doesNotMatch(text, /Conflicting files/);
     // The hint line: what matters now, the main thing first, never more than four.
-    assert.match(text, /\n {2}ctrl\+r send it to the agent to fix · ctrl\+a retry · space reply · \? more *$/);
-    assert.match(s.text(60), /\n {2}ctrl\+r send it to the agent to fix · ctrl\+a retry · \? more *$/); assert.match(s.text(50), /\n {2}ctrl\+r send it to the agent to fix · \? more *$/); // and it never runs off a narrow screen
+    assert.match(text, /\n {2}ctrl\+r send it to the agent to fix · ctrl\+y retry · space reply · \? more *$/);
+    assert.match(s.text(60), /\n {2}ctrl\+r send it to the agent to fix · ctrl\+y retry · \? more *$/); assert.match(s.text(50), /\n {2}ctrl\+r send it to the agent to fix · \? more *$/); // and it never runs off a narrow screen
     // Wide, the panel beside the list already says it, in order: where it stands, then what it needs from you.
     text = s.text(120);
     assert.match(text, /│ {2}✗ needs you · \ds ago · proj\/1 *\n[^\n]*│ *\n[^\n]*│ {2}▎ Merge conflict with main/); assert.match(text, /│ {2}▎ Next step/); assert.match(text, /│ {2}▎ What went wrong *\n[^\n]*│ {2}▎ Conflicting files:/);
-    // Narrow, space does what it does at every width: the chat names the task, and the list stays. ctrl+e opens the
+    // Narrow, space does what it does at every width: the chat names the task, and the list stays. alt+t opens the
     // same panel full screen; esc leaves it, and the chat stays the task's.
     s.screen(80); s.press("space");
     assert.equal(s.v.full, false); assert.equal(s.v.reply, true); assert.match(s.text(80), /^ herdr-superwork/); assert.match(s.text(80), /\n─+\n . Match the colors {2}/);
-    s.press("ctrl+e"); text = s.text(80);
+    s.press("alt+t"); text = s.text(80);
     assert.equal(s.v.full, true); assert.equal(s.v.reply, true);
     assert.match(text, /^ Task details {2}proj\/1/); assert.match(text, /Merge conflict with main/); assert.match(text, /▎ Conflicting files: *\n ▎ src\/board\/view\.js/);
     assert.match(text, /\n─+\n . Match the colors {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯/);
     s.press("esc");
     assert.equal(s.v.full, false); assert.equal(s.v.reply, true); assert.doesNotMatch(s.text(80), /Conflicting files/); assert.match(s.text(80), /\n─+\n . Match the colors {2}/);
     // Nor does coming back from the archive bring it up, and an open panel is not remembered when the board reopens.
-    s.press("ctrl+e"); assert.equal(s.v.full, true);
-    s.press("esc", "alt+h"); assert.equal(s.v.archiveView, true);
-    s.press("alt+h"); assert.equal(s.v.archiveView, false); assert.equal(s.v.sel, id); assert.equal(s.v.full, false);
-    s.press("ctrl+e"); s.v.savePrefs();
+    s.press("alt+t"); assert.equal(s.v.full, true);
+    s.press("esc", "alt+a"); assert.equal(s.v.archiveView, true);
+    s.press("alt+a"); assert.equal(s.v.archiveView, false); assert.equal(s.v.sel, id); assert.equal(s.v.full, false);
+    s.press("alt+t"); s.v.savePrefs();
     const again = open(w);
     again.v.load();
     assert.equal(again.v.sel, id); assert.equal(again.v.full, false); assert.equal(again.v.reply, false);

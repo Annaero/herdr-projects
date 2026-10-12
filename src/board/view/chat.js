@@ -12,8 +12,8 @@ export class Chat {
   // ---- the chat ---------------------------------------------------------------------------------------------------------
   // One chat at the bottom of the board, the same for everyone you can talk to. Who that is follows one rule: the
   // Coordinator, until space flips it to the selected task's agent (and space flips it back). Only its latest message
-  // is drawn here, and one key (alt+v) shows and hides it, whoever it is from: the whole conversation is the agent's
-  // own pane, which `openChat` goes into.
+  // is drawn here, and one key shows and hides it, whoever it is from: the whole conversation is the agent's
+  // own pane (enter, with nothing typed, goes into a task agent's).
   // A start that failed says why even while the chat is hidden, so hiding it also puts that one error away: the
   // same error stays hidden, the next one shows again.
   toggleChat() {
@@ -21,13 +21,12 @@ export class Chat {
     if (c?.always) { this.errHid = this.coord.error; this.chatOpen = false; } else this.chatOpen = !this.chatOpen;
     this.savePrefs(); this.syncCoord();
   }
-  openChat() { const r = this.current(); return this.reply && r ? this.chat(r) : this.enterCoord(); }
   // A reply to this task goes to an agent of its own (not, with its task named, to the Coordinator).
   hasAgent(r) { return isAgent(r) && (!!r.host || F.isAgentTask(r) || F.cleanedUp(r)); }
   // The task panel leaves "The agent said" to the chat while the chat shows that same message.
   chatShows(r) { return !!r && this.reply && this.chatOpen && this.mode !== "find" && r.id === this.sel && !r.archivedAt && this.hasAgent(r); }
   // Who the chat talks to, as the chat draws it: a mark and a name, what they are doing, and the latest thing they said.
-  // The same shape for the Coordinator and for a task's agent. `enter`: there is a chat of theirs to go into.
+  // The same shape for the Coordinator and for a task's agent. `said`: they have a latest message to show or hide.
   chatOf(r) {
     const t = this.theme;
     if (this.mode === "find") return null;
@@ -41,7 +40,7 @@ export class Chat {
       // nothing; a task with no agent says where your message goes instead. Always greyed: a review's verdict keeps
       // its colour on the row, not here.
       const status = t.muted(toAgent && !r.archivedAt ? stripVTControlCharacters(this.sentence(r).text) || word : meta);
-      return { mark: this.mark(r), name: clean(r.title || r.id), status, text: pv?.text || "", raw: pv?.label === "on its screen now", notes: [], enter: toAgent && !r.archivedAt && (!!r.host || F.isAgentTask(r)), said: toAgent && !r.archivedAt };
+      return { mark: this.mark(r), name: clean(r.title || r.id), status, text: pv?.text || "", raw: pv?.label === "on its screen now", notes: [], said: toAgent && !r.archivedAt };
     }
     const far = this.scope && this.scope !== "*" && this.remotes[this.scope] ? this.scope : "";
     if (far) return { mark: t.fg("overlay0", t.mark("unknown")), name: `Coordinator on ${far}`, status: t.muted(`what you type goes to ${far}`), text: "", notes: [] };
@@ -54,7 +53,7 @@ export class Chat {
     const mark = t.fg(v.error ? "red" : color, t.mark(v.error ? "error" : ["working", "starting"].includes(v.state) ? "working" : v.state === "blocked" ? "blocked" : v.state === "idle" ? "idle" : "unknown"));
     let label = "", text = "", tone = "";
     if (v.error) { text = `It could not be started: ${v.error}`; tone = "red"; }
-    else if (v.state === "blocked") { label = "on its screen now"; text = C.screen(v) || `Something on its screen waits for you. ${keyName("chat")} opens its chat.`; }
+    else if (v.state === "blocked") { label = "on its screen now"; text = C.screen(v) || "Something on its screen waits for you: open its pane in herdr."; }
     else if (v.said) { label = v.state === "working" ? "so far" : "last message"; text = v.said; }
     else {
       const on = v.status && (v.state === "working" || !v.readable) ? C.screen(v) : ""; // a program whose conversation cannot be read: its screen
@@ -62,10 +61,10 @@ export class Chat {
       else { tone = "overlay0"; text = { none: "Ask or tell it anything: it starts with your first message, and stays.", starting: "Starting…", idle: "Ready. Ask or tell it anything.", exited: "Your next message starts it again, in the same conversation." }[v.state] || "Nothing said yet."; }
     }
     const notes = [];
-    if (v.stale) notes.push(`your default is now ${C.describe(v.def)}: ${keyName("coordNew")} starts a new one on it`);
+    if (v.stale) notes.push(`your default is now ${C.describe(v.def)}: herdr-superwork coordinator new starts a new one on it`);
     for (const m of v.waiting || []) notes.push(`› ${clean(m)}  (waiting to be sent)`);
     if (!v.queue && v.last && v.state !== "none") notes.push(`› ${clean(v.last)}`);
-    return { mark, name: "Coordinator", status: t.muted(`${word} · ${v.run ? C.describe(v.run) : "off"}${v.oneOff ? " (this one only)" : ""}`), text, tone, raw: label === "on its screen now", notes, enter: true, said: true, always: !!v.error && this.errHid !== v.error };
+    return { mark, name: "Coordinator", status: t.muted(`${word} · ${v.run ? C.describe(v.run) : "off"}${v.oneOff ? " (this one only)" : ""}`), text, tone, raw: label === "on its screen now", notes, said: true, always: !!v.error && this.errHid !== v.error };
   }
   // The chat's first line is what herdr's sidebar says about that agent, with the board's own mark: the mark, the name
   // in bold, and what it is doing now, greyed. The name is never cut to make room: the status takes what is left and
