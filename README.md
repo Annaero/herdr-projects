@@ -34,6 +34,7 @@ One page per topic, in [docs/](docs/):
 - [The board's size: what changes it, and how the board stands still](docs/board-size.md)
 - [The task panel](docs/task-panel.md)
 - [Keys, questions and the ? menu](docs/keys.md)
+- [The mouse: the wheel, and selecting text](docs/mouse.md)
 - [The Coordinator](docs/coordinator.md)
 - [Roles and commands](docs/roles-and-commands.md)
 - [How work gets done](docs/how-work-gets-done.md)

@@ -77,7 +77,7 @@ test("the Coordinator's chat: what you sent stands in the box until it says some
   } finally { w.cleanup(); }
 });
 
-test("a long message wraps inside the box and is cut with …: it never takes the list's rows, at any width", async () => {
+test("a long message wraps inside the box and takes the rows it needs, never the text box's: at any width", async () => {
   const w = await coordWorld();
   try {
     for (let i = 1; i <= 40; i++) A.add(w.root, `Task number ${i}`);
@@ -88,26 +88,23 @@ test("a long message wraps inside the box and is cut with …: it never takes th
     let mine = false;
     s.v.chatOf = (r) => ({ ...base(r), text: said, mine });
     for (const width of [44, 80, 200]) {
-      mine = false;
-      let c = chat(s, width);
-      const body = c.box.slice(0, -2);
-      assert.deepEqual(c.box.slice(-2), ["", "❯ ask or tell it anything"]);
-      assert.equal(body.length, 8, `at most eight lines of it at ${width} columns`); assert.equal(body[0], "…"); // an agent's message keeps its end
-      assert.match(body.at(-1), /narrow window\.$/); assert.doesNotMatch(body.join("\n"), /\*\*/);
-      assert.ok(c.lines.filter((l) => /Task number \d+/.test(l)).length >= 12, "the list keeps its rows");
-      // Your own keeps its start.
-      mine = true; c = chat(s, width);
-      assert.match(c.box[0], /^Line 1 of what it said/); assert.equal(c.box.at(-3), "…"); assert.equal(c.box.length, 10);
+      for (mine of [false, true]) {
+        const c = chat(s, width), body = c.box.slice(0, -2);
+        assert.match(c.box.at(-2), /^ +(alt\+j )?more ↓$/); assert.equal(c.box.at(-1), "❯ ask or tell it anything");
+        // With its box it takes two thirds of the 30 rows: 16 lines of it. It starts at its beginning, whoever said it.
+        assert.equal(body.length, 16, `sixteen lines of it at ${width} columns`); assert.match(body[0], /^Line 1 of what it said/);
+        assert.doesNotMatch(body.join("\n"), /\*\*/);
+        assert.ok(c.lines.filter((l) => /Task number \d+/.test(l)).length >= 4, "the list keeps rows");
+      }
     }
     // A window too short for all of it: the message gives up its lines first; who you talk to and the line you type on stay.
     s.v.tui.terminal.rows = 10; mine = false;
     const c = chat(s, 80);
     assert.equal(c.lines.length, 10); assert.match(c.who, /^ . Coordinator/); assert.equal(c.box.at(-1), "❯ ask or tell it anything"); assert.ok(c.box.length <= 5);
-    // The colours: an agent's message is greyed out, your own is in the text colour; a cut one says so in grey.
+    // The colours: an agent's message is greyed out, your own is in the text colour.
     assert.deepEqual(s.v.chatMessage({ text: "one\ntwo" }, 20, 5), [theme.muted("one"), theme.muted("two")]);
     assert.deepEqual(s.v.chatMessage({ text: "one\ntwo", mine: true }, 20, 5), ["one", "two"]);
-    assert.deepEqual(s.v.chatMessage({ text: "one\ntwo\nthree", mine: true }, 20, 2), ["one", theme.muted("…")]);
-    assert.deepEqual(s.v.chatMessage({ text: "one\ntwo\nthree" }, 20, 2), [theme.muted("…"), theme.muted("three")]);
+    assert.deepEqual(s.v.chatMessage({ text: "one\ntwo\nthree", mine: true }, 20, 2), ["one", "two"]);
     assert.deepEqual(s.v.chatMessage({ text: "one\ntwo\nthree" }, 20, 0), []);
   } finally { w.cleanup(); }
 });

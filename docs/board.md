@@ -102,12 +102,39 @@ The chat is three things, and looks the same for the Coordinator and for a task'
   is named there, and no keys. (One thing gets a greyed line of its own under it: a default that changed while a
   Coordinator runs, with the command that starts a new one on it.)
 - **One rounded box**: their latest message in grey, an empty line, and the line you type on (the prompt is only
-  `❯`). Nothing else is in it. A long message wraps; it takes at most eight lines, and only lines the list can spare,
-  and is cut with `…` (an agent's message keeps its end, where it asks or concludes). While a dialog is up on their
-  screen, the box shows that screen instead.
+  `❯`). Nothing else is in it. A long message wraps, and the box grows with it: it takes the lines the message
+  needs, up to two thirds of the window, and shrinks back for a short one. The list above gives up those rows and
+  keeps the selected task in view. (Under the whole task, `Alt+T`, and the `?` menu, which are there to be read
+  themselves, the message keeps to a third of the window.) While a dialog is up on their screen, the box shows that
+  screen instead.
 - **One greyed hint line under the box**, with only the keys that do something right now. While you type, it says
   what the keys do with your words (`enter send · tab send, and put an agent on it · esc put away · shift+enter new
   line`). In a narrow window the keys between the first and the last go first, the chat's own key last of them.
+
+**A message longer than its box scrolls.** `Alt+U` scrolls it up and `Alt+J` down, half a box at a time (U sits
+above J on the keyboard); the mouse wheel does the same with the pointer over the chat ([the mouse](mouse.md)). Both
+work while you type, and neither touches the draft. The box says where there is more and names the key: `alt+u more
+↑` on its top edge, `alt+j more ↓` at the right of the line under the message (in a narrow window only `more ↓`, then
+only the arrow).
+
+```
+ ● Coordinator  idle
+╭───────────────────────────────────────────────────────────────────────────── alt+u more ↑ ─╮
+│ 3. The check fails on main too: it is not this task's change.                              │
+│ 4. I filed proj/7 for it and put an agent on it.                                           │
+│                                                                               alt+j more ↓ │
+│ ❯ ask or tell it anything                                                                  │
+╰────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+A new message starts at its beginning: an answer is read from its first line down, and one key goes on from there
+(started at its end, you would scroll up to find where it begins and then down again to read it). Only a screen, shown
+while a dialog is up or for a program whose conversation cannot be read, starts at its end, where a terminal has what
+is new. Where you scrolled to is kept while the same message of the same chat shows; a new message (also one in the
+very same words as the last), your own words in its place, or another chat starts over.
+
+A tall draft never takes the message away: in a window too small for both, the draft gives rows back and scrolls
+inside what it keeps, so that three lines of the message stay (one, in a window of eight rows), and they still scroll.
 
 **What you just sent takes the message's place.** Send something and the box shows your words, in the bright text
 colour, where the agent's message was, over an empty line to type on. The old message is never shown under them. When

@@ -22,6 +22,7 @@
 //   run    (v, r) => what it does on the board with the text box empty, and from its menu line. A key with no `run`
 //          is handled where the board's state decides (view/keys.js)
 //   on     (v, r) => whether the key is the board's right now; otherwise it goes to the text box
+//   draft  it is the board's key with a draft in the text box too (it changes nothing, so the draft is safe)
 //
 // The order is the order everywhere: docs/keys.md and the ? menu.
 import { matchesKey } from "@earendil-works/pi-tui";
@@ -94,6 +95,13 @@ export const KEYS = [
     doc: "the chat's latest message, the Coordinator's or a task agent's. The one key for it, both ways",
     menu: (v) => `${v.chatOpen ? "hide" : "show"} the chat's latest message`,
     run: (v) => v.toggleChat() },
+  { id: "chatScrollUp", keys: ["alt+u"], group: "alt", draft: true,
+    doc: "more of a chat message that is longer than its box: {chatScrollUp} scrolls it up, {chatScrollDown} down, half a box at a time, also while you type. The box says where there is more, and names the key (`alt+u more ↑`, `alt+j more ↓`). The mouse wheel does the same with the pointer over the chat ([mouse.md](mouse.md))",
+    menu: () => "scroll the chat's message up",
+    run: (v) => v.scrollChat(-v.chatPage()) },
+  { id: "chatScrollDown", keys: ["alt+j"], group: "alt", with: "chatScrollUp", draft: true,
+    menu: () => "scroll the chat's message down",
+    run: (v) => v.scrollChat(v.chatPage()) },
   { id: "side", keys: ["alt+p"], group: "alt",
     doc: "the side panel",
     menu: (v) => `${v.side ? "hide" : "show"} the side panel`,

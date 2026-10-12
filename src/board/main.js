@@ -21,7 +21,9 @@ export async function openBoard({ folder }) {
   const reloads = Number(process.env.HERDR_SUPERWORK_RELOADS) || 0;
   const named = nameBoardTab(boardPane());
   return new Promise((resolve) => {
-    const tui = new TuiAltScreen(new ProcessTerminal(), { mouse: false });
+    // The mouse is asked for, for its wheel (view/mouse.js). With it on, herdr and the terminal no longer select text
+    // in the board themselves, so pi-tui does: drag selects, and letting go copies it (docs/mouse.md).
+    const tui = new TuiAltScreen(new ProcessTerminal(), { mouse: true, wheelScrollLines: "auto" });
     let view;
     const done = (result) => {
       try { view.dispose(); } catch {}

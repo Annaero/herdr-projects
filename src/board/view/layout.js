@@ -54,11 +54,22 @@ export class Layout {
       // you talk to leaves): a longer draft scrolls inside it, never off-screen.
       const boxRows = Math.min(rowsN - 4 - headN - (selectedJob >= 0 ? 1 : 0), Math.max(5, Math.floor(rowsN / 2)));
       let inputLines = safe("The text box", width, () => (this.ask ? this.askLines(width) : framed ? this.chatBox(width, boxRows, r, []) : this.boxLines(width, boxRows, r)));
-      // The message takes a third of the window at most, and only rows the list can spare: a longer one is cut with ….
+      // The message takes the lines it needs: with its box up to two thirds of the window, and only rows the list can
+      // spare (the list keeps its selected task in view). Under the whole task and the menu, which are there to be
+      // read themselves, it keeps to a third. A longer one scrolls (chat-scroll.js).
+      this.chatFit = null;
+      let messageN = 0;
       if (framed) inputLines = safe("The chat", width, () => {
-        const spare = rowsN - inputLines.length - 1 - said.length - headN - 1 - Math.min(this.jobs.length, 1) - 2;
-        const message = this.chatMessage(who, width - 4, Math.min(spare, Math.max(3, Math.min(8, Math.floor(rowsN / 3) - 2))));
-        return message.length ? this.chatBox(width, boxRows, r, message) : inputLines;
+        let spare = rowsN - inputLines.length - 1 - said.length - headN - 1 - Math.min(this.jobs.length, 1) - 2, draftRows = inputLines.length - 2;
+        // A tall draft never takes the message away: it gives rows back (and scrolls inside what it keeps) until three
+        // lines of the message show. In a window too short even for that, the list keeps one row less for one line.
+        const give = who.text ? Math.max(0, Math.min(draftRows - 1, 3 - spare)) : 0;
+        draftRows -= give; spare += give;
+        if (who.text && spare < 1) spare = Math.min(1, spare + 1);
+        const most = this.full || this.menu ? Math.min(8, Math.floor(rowsN / 3) - 2) : Math.floor((rowsN * 2) / 3) - draftRows - 3;
+        const message = this.chatMessage(who, width - 4, Math.min(spare, Math.max(3, most)));
+        messageN = message.length;
+        return messageN ? this.chatBox(width, draftRows, r, message) : inputLines;
       });
       const extraRows = Math.max(0, rowsN - inputLines.length - 2 - said.length - headN);
       const lastJobTop = Math.max(0, this.jobs.length - extraRows);
@@ -82,6 +93,9 @@ export class Layout {
       // Top left, where a cut-out of the board still shows it.
       const held = rowsN - bottom.length > 3 ? safe("Who holds the terminal", width, () => this.heldLines(width)) : [];
       const h = Math.max(1, rowsN - bottom.length - held.length);
+      // Where the chat is on the screen, for the mouse wheel: from the line that says who you talk to, to its box's end.
+      const chatTop = held.length + h + jobs.length;
+      this.chatRows = messageN ? [chatTop, chatTop + chat.length + inputLines.length] : null;
       const shown = r || this.job();
       let top;
       if (this.menu) top = safe("The menu", width, () => this.menuLines(width, h), [""]);

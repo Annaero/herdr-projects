@@ -25,8 +25,13 @@ export class TextBox {
     const edge = (s) => t.fg("overlay0", s);
     const row = (l) => { const s = visibleWidth(l) > inner ? truncateToWidth(l, inner, "…") : l; return edge("│") + " " + s + " ".repeat(Math.max(0, inner - visibleWidth(s))) + " " + edge("│"); };
     const body = this.boxLines(inner, maxRows, r).slice(1, -1), { above, below } = this.input;
-    // A draft longer than its rows says so on the box's own lines.
-    const top = above && !message.length ? this.input.rule(width - 2, true) : edge("─".repeat(width - 2));
-    return [edge("╭") + top + edge("╮"), ...message.map(row), ...(message.length ? [row(above ? this.input.rule(inner, true) : "")] : []), ...body.map(row), edge("╰") + (below ? this.input.rule(width - 2, false) : edge("─".repeat(width - 2))) + edge("╯")];
+    // A draft longer than its rows says so on the box's own lines. So does a message longer than its rows, with the
+    // key that shows the rest: `alt+u more ↑` on the box's top edge, `alt+j more ↓` at the right of the line under it.
+    const f = message.length ? this.chatFit : null, up = f?.above ? this.moreWord(true, width - 6) : "", down = f?.below ? this.moreWord(false, inner) : "";
+    const line = (n) => edge("─".repeat(Math.max(0, n)));
+    const top = above && !message.length ? this.input.rule(width - 2, true) : up ? line(width - 5 - visibleWidth(up)) + ` ${up} ` + line(1) : line(width - 2);
+    const gap = Math.max(0, inner - visibleWidth(down) - (down ? 1 : 0));
+    const under = (above ? this.input.rule(gap, true) : " ".repeat(down ? gap : 0)) + (down ? " " + down : "");
+    return [edge("╭") + top + edge("╮"), ...message.map(row), ...(message.length ? [row(under)] : []), ...body.map(row), edge("╰") + (below ? this.input.rule(width - 2, false) : line(width - 2)) + edge("╯")];
   }
 }

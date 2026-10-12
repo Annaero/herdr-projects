@@ -59,7 +59,7 @@ export class Chat {
       const text = mine || pv?.text || "";
       // A status line that only starts the message in the box under it says nothing: where the task stands instead.
       const echo = toAgent && status !== word && this.chatOpen && clean(text).startsWith(status.replace(/…$/, ""));
-      return { mark: this.mark(r), name: clean(r.title || r.id), status: t.muted(echo ? word : status), text, mine: !!mine, raw: raw && !mine, said };
+      return { mark: this.mark(r), name: clean(r.title || r.id), status: t.muted(echo ? word : status), text, mine: !!mine, raw: raw && !mine, said, turn: JSON.stringify(this.turnMark(r)) };
     }
     const far = this.scope && this.scope !== "*" && this.remotes[this.scope] ? this.scope : "";
     if (far) return { mark: t.fg("overlay0", t.mark("unknown")), color: "overlay0", name: `Coordinator on ${far}`, status: t.muted(`what you type goes to ${far}`), text: "" };
@@ -81,7 +81,7 @@ export class Chat {
     else if (v.sent) { mine = true; text = v.sent; }
     else if (v.said) text = v.said;
     else if (v.status && (v.state === "working" || !v.readable)) { raw = true; text = C.screen(v); } // a program whose conversation cannot be read: its screen
-    return { mark, color: v.error ? "red" : color, name: "Coordinator", status: t.muted(status), text, tone, raw, mine, note, said: true, always: !!v.error && this.errHid !== v.error };
+    return { mark, color: v.error ? "red" : color, name: "Coordinator", status: t.muted(status), text, tone, raw, mine, note, said: true, turn: String(v.turn?.id || ""), always: !!v.error && this.errHid !== v.error };
   }
   // The line that says who you talk to is what herdr's sidebar says about that agent, with the board's own mark: the
   // mark, the name in bold, and what it is doing now, greyed (a review's verdict keeps its colour on the row, not
@@ -106,15 +106,15 @@ export class Chat {
   // Is the box open on the latest message? A start that failed says why, hidden or not.
   chatUp(c) { return !!c && (this.chatOpen || !!c.always); }
   // The latest message, wrapped to `width`, on at most `max` lines: the agent's in grey, your own just-sent one in the
-  // bright colour. A longer one is cut with …: an agent's keeps its end (where it asks or concludes), yours its start.
+  // bright colour. A longer one shows `max` of its lines, and scrolls (chat-scroll.js says from where, and how).
   chatMessage(c, width, max) {
     const t = this.theme;
+    if (c && !c.text) this.chatAt = null; // nothing said in between: the same words after it are a new message
     if (!c?.text || max < 1) return [];
     const text = c.raw ? c.text : c.text.replace(/\*\*([^*\n]+)\*\*/g, "$1");
     const lines = String(text).split("\n").flatMap((l) => { const w = wrapTextWithAnsi(clean(l), Math.max(1, width)); return w.length ? w : [""]; });
     const paint = (l) => (c.tone ? t.fg(c.tone, l) : c.mine ? l : t.muted(l));
-    if (lines.length <= max) return lines.map(paint);
-    if (max === 1) return [paint(truncateToWidth(lines[c.mine ? 0 : lines.length - 1], Math.max(1, width - 1), "") + "…")];
-    return c.mine ? [...lines.slice(0, max - 1).map(paint), t.muted("…")] : [t.muted("…"), ...lines.slice(1 - max).map(paint)];
+    const top = this.chatWindow(c, lines.length, max);
+    return lines.slice(top, top + max).map(paint);
   }
 }

@@ -19,11 +19,13 @@ import { List } from "./view/list.js";
 import { Row } from "./view/row.js";
 import { Coordinator } from "./view/coordinator.js";
 import { Chat } from "./view/chat.js";
+import { ChatScroll } from "./view/chat-scroll.js";
 import { AgentPane } from "./view/agent-pane.js";
 import { Remotes } from "./view/remotes.js";
 import { Actions } from "./view/actions.js";
 import { Ask } from "./view/ask.js";
 import { Keys } from "./view/keys.js";
+import { Mouse } from "./view/mouse.js";
 import { Menu } from "./view/menu.js";
 import { Hints } from "./view/hints.js";
 import { TextBox } from "./view/textbox.js";
@@ -58,6 +60,7 @@ export class View {
   chatOpen = true; coord = { state: "none", queue: 0, said: "" };
   sent = new Map(); setup = null;
   justSent = new Map(); // what you just sent to a task's agent, until that agent says something new
+  chatAt = null; chatFit = null; chatRows = null; // a message longer than its box: where you scrolled to, what shows, and its rows on the screen
 
   constructor(tui, theme, done, ctx) {
     this.tui = tui; this.theme = theme; this.done = done; this.ctx = ctx;
@@ -138,11 +141,13 @@ const PARTS = [
   Row,
   Coordinator,
   Chat,
+  ChatScroll,
   AgentPane,
   Remotes,
   Actions,
   Ask,
   Keys,
+  Mouse,
   Menu,
   Hints,
   TextBox,

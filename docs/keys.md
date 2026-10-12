@@ -21,7 +21,8 @@ some phone keyboards) loses nothing.
 
 The bottom line shows only what matters right now, the main thing first, at most four. Apart from `Enter`, `Tab`,
 `Esc` and `Ctrl+C`, a key acts on the board only while the text box is empty: with a draft in it, the keys are the
-draft's (`Ctrl+A` is "start of the line" there, not "archive").
+draft's (`Ctrl+A` is "start of the line" there, not "archive"). The two keys that scroll the chat's message, `Alt+U`
+and `Alt+J`, are the one exception: they only show more of it, so they work while you type and leave the draft alone.
 
 **The key that opens the board is herdr's, not the board's**: it is a line in herdr's `config.toml`, offered at the
 [first run](install.md) as `prefix+a`. The board never takes a key herdr binds itself (`prefix+w` is herdr's
@@ -62,6 +63,7 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 | Key | Shows or hides |
 |---|---|
 | `Alt+C` | the chat's latest message, the Coordinator's or a task agent's. The one key for it, both ways |
+| `Alt+U` `Alt+J` | more of a chat message that is longer than its box: `Alt+U` scrolls it up, `Alt+J` down, half a box at a time, also while you type. The box says where there is more, and names the key (`alt+u more ↑`, `alt+j more ↓`). The mouse wheel does the same with the pointer over the chat ([mouse.md](mouse.md)) |
 | `Alt+P` | the side panel |
 | `Alt+T` | the whole task, full screen, and back to the list |
 | `Alt+A` | the archive, and back to the board |

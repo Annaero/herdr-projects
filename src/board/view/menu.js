@@ -11,15 +11,21 @@ export class Menu {
     return K.KEYS.filter((k) => k.menu).map((k) => ({ id: k.id, group: k.group, key: K.name(k.id), label: k.menu(this, r), run: () => k.run(this, r) }));
   }
   menuKey(data) {
-    const items = this.menuItems(), last = items.length - 1, m = this.menu, more = m.more || 0;
+    const items = this.menuItems(), last = items.length - 1, m = this.menu;
     const enter = K.is(data, "enter");
     if (K.is(data, "back") || K.is(data, "close") || K.is(data, "menu")) { this.menu = null; return; }
     // On a short window ↓ past the last line scrolls what is under the list into view, and ↑ past the first what is
     // above it (see menuLines); each scrolls back before the pick moves again.
-    if (K.is(data, "up")) { if (more > 0) m.more = more - 1; else if (m.at > 0) m.at--; else m.more = more - 1; }
-    else if (K.is(data, "down")) { if (more < 0) m.more = more + 1; else if (m.at < last) m.at++; else m.more = more + 1; }
+    if (K.is(data, "up")) this.menuStep(-1);
+    else if (K.is(data, "down")) this.menuStep(1);
     else if (enter) { const pick = items[Math.min(m.at, last)]; this.menu = null; if (pick) pick.run(); }
     // any other key is neither swallowed into an action nor closes the menu
+  }
+  // One line up (-1) or down (1): the pick moves, and at either end what is cut there scrolls into view.
+  menuStep(d) {
+    const last = this.menuItems().length - 1, m = this.menu, more = m.more || 0;
+    if (d < 0) { if (more > 0) m.more = more - 1; else if (m.at > 0) m.at--; else m.more = more - 1; }
+    else if (more < 0) m.more = more + 1; else if (m.at < last) m.at++; else m.more = more + 1;
   }
   menuLines(width, h) {
     const t = this.theme, items = this.menuItems(), r = this.current();

@@ -83,6 +83,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `actions.js` | What you do to the selected task: yes, send back, stop, remove, undo, archive |
 | `agent-pane.js` | A task's agent: what its pane shows, what it last said, and going into its real herdr pane |
 | `ask.js` | The one question box: asking, what a merge question is about, and how it is drawn |
+| `chat-scroll.js` | Scrolling the chat's message: which of its lines show while it is longer than its box, and the words that say so |
 | `chat.js` | The chat at the bottom: who it talks to, the line that names them, and their latest message |
 | `coordinator.js` | The Coordinator from the board: sending it your words, and counting a reply you can see as seen |
 | `hints.js` | The hint line at the bottom of the board |
@@ -90,6 +91,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `layout.js` | The whole screen: what goes where, and what gives way when the window is small |
 | `list.js` | The task list: which rows there are, which one is selected, the header line, and the list as drawn |
 | `menu.js` | The ? menu: every key of the board in its three groups, plain, ctrl and alt, each line with its key |
+| `mouse.js` | The mouse wheel: it scrolls the chat's message under the pointer and the whole-task page, and moves between tasks over the list |
 | `osc.js` | The same tasks, told to the terminal (OSC 7501) |
 | `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, callouts, boxes, and the list of parts |
 | `panel-reviews.js` | The reviews in the task panel: how each went, each one a box, and the evidence |
@@ -200,6 +202,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [how-work-gets-done.md](how-work-gets-done.md) | How work gets done |
 | [install.md](install.md) | Installing, the first run, and taking it out again |
 | [keys.md](keys.md) | Keys, questions and the ? menu |
+| [mouse.md](mouse.md) | The mouse |
 | [other-machines.md](other-machines.md) | Other machines |
 | [provider-errors.md](provider-errors.md) | A turn cut off by the provider |
 | [roles-and-commands.md](roles-and-commands.md) | Roles and commands |
@@ -220,6 +223,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 |---|---|
 | `auto-merge.test.js` | The autoMerge setting: a green task merges by itself, your choice wins over the repo's "land", and a change counts for tasks already under way |
 | `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, stop or remove, retry |
+| `board-chat-scroll.test.js` | The chat's message when it is long: the box grows with it, it scrolls with two keys and the mouse wheel, and the box says where there is more |
 | `board-chat.test.js` | The chat's box: the latest message, an empty line, the line you type on |
 | `board-evidence.test.js` | The task details of a reviewed task with evidence, and what the board shows when a part of it fails to draw |
 | `board-helpers.js` | Shared by the board's tests (test/board-*.test.js): the keys, and a board opened on a test world |

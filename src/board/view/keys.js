@@ -69,8 +69,9 @@ export class Keys {
     if (this.mode === "find" && enter) { this.filter = text; this.mode = "new"; this.setValue(""); return this.load(); }
     // While the text box holds text it owns the keyboard: only enter, tab, esc and ctrl+c act on the board, so no
     // shortcut fires in the middle of a draft (ctrl+a is "start of line" there, not "archive"). ctrl+c twice closes with
-    // a draft too: the draft is saved with the board and is back when it reopens.
-    if (this.value() && !enter && !tab && !close) { this.input.handleInput(data); if (this.mode === "find") this.load(); return; }
+    // a draft too: the draft is saved with the board and is back when it reopens. (A key marked `draft` only shows
+    // something, and does so here too: the draft is not touched.)
+    if (this.value() && !enter && !tab && !close) { const k = this.mode === "new" && K.typed(data, (k) => k.draft); if (k) return k.run(this, r); this.input.handleInput(data); if (this.mode === "find") this.load(); return; }
     if (close) return this.closeHint();
     if (this.mode === "find") { if (!tab) { this.input.handleInput(data); this.load(); } return; }
 

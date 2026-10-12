@@ -22,10 +22,10 @@ export class Panel {
   foldPanel() { this.full = false; this.panelTop = 0; this.load(); }
   openPanel() { const r = this.current(); if (!r && !this.job()) return this.flash("Select a task first."); this.full = true; this.panelTop = 0; }
   desc(r) { return String(r.description || ""); }
-  scrollPanel(data) {
+  scrollPanel(data) { this.scrollPanelBy(isKey(data, "up") ? -1 : 1); }
+  scrollPanelBy(by) {
     const last = Math.max(0, this.panelLength - this.panelHeight);
-    const to = this.panelTop + (isKey(data, "up") ? -1 : 1);
-    this.panelTop = Math.max(0, Math.min(last, to));
+    this.panelTop = Math.max(0, Math.min(last, this.panelTop + by));
   }
   // The task details, full screen: the same parts as beside the list, each whole, and every review the task had.
   // Text keeps to a width that reads well, however wide the window is.
