@@ -41,7 +41,7 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
   \`--reviewer <kind>|off\`, \`--no-worktree\` (work in the human's checkout), \`--base head\` (start from their current commit).
 - \`herdr-superwork tell <id> "<text>"\`: send a message to a task's agent (on a task with no agent yet: starts one with it).
 - \`herdr-superwork stop <id>\`: interrupt a task's agent.
-- \`herdr-superwork report <id> --state <idle|working|done> [--msg "<one line>"] [--progress <0-100>]\`: say where one of
+- \`herdr-superwork report <id> --state <idle|working|done> [--msg "<one line>"] [--progress <0-100>] [--eta <minutes left>]\`: say where one of
   the human's own tasks stands. \`--title\` renames it. \`herdr-superwork describe <id> "<text>"\` replaces its description.
 - \`herdr-superwork approve <id>\`: merge finished work that waits for approval. Only when the human plainly says so.
 - \`herdr-superwork review <id>\` sends the reviewer's findings back to the agent; \`retry <id>\` sends a saved error back;
@@ -101,7 +101,7 @@ const BEGIN = (what) => `# >>> herdr-superwork ${what} (added by the herdr-super
 const END = (what) => `# <<< herdr-superwork ${what}`;
 const BLOCKS = {
   key: (key) => `[[keys.command]]\nkey = "${key}"\ntype = "plugin_action"\ncommand = "herdr-superwork.open"\ndescription = "work board"`,
-  sidebar: () => `[ui.sidebar.agents]\nrows = [["state_icon", "machine", "workspace", "tab"], ["agent", "state_text"], [{ token = "$summary", dim = true }, "$progress"]]\n\n[ui.sidebar.spaces]\nrows = [["state_icon", "workspace"], ["branch", "git_status"], [{ token = "$summary", dim = true }]]`,
+  sidebar: () => `[ui.sidebar.agents]\nrows = [["state_icon", "machine", "workspace", "tab"], ["agent", "state_text"], [{ token = "$summary", dim = true }, "$progress", "$eta"]]\n\n[ui.sidebar.spaces]\nrows = [["state_icon", "workspace"], ["branch", "git_status"], [{ token = "$summary", dim = true }]]`,
 };
 export const blockText = (what, arg) => `${BEGIN(what)}\n${BLOCKS[what](arg)}\n${END(what)}`;
 const read = () => { try { return fs.readFileSync(herdrConfig(), "utf8"); } catch { return ""; } };

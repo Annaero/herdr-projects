@@ -24,7 +24,7 @@ them on or off, `k` picks another key, `enter` saves, `esc` asks again next time
 block sits between two marker lines, and a change herdr rejects is rolled back:
 
 - a key that opens the board (it suggests one herdr does not use; `prefix+w` is herdr's own workspace picker);
-- sidebar rows, so herdr's sidebar shows each task's stage, its "doing now" line and its progress. herdr's default
+- sidebar rows, so herdr's sidebar shows each task's stage, its "doing now" line, its progress and the minutes left. herdr's default
   sidebar shows none of these: without the rows the plugin puts a short status into the agent's name instead
   (`approve? 4/5 · claude`), which works with no setup. With the rows in place the name is left alone, so the
   status is not said twice on one line.
@@ -38,7 +38,7 @@ type = "plugin_action"
 command = "herdr-superwork.open"
 
 [ui.sidebar.agents]
-rows = [["state_icon", "machine", "workspace", "tab"], ["agent", "state_text"], [{ token = "$summary", dim = true }, "$progress"]]
+rows = [["state_icon", "machine", "workspace", "tab"], ["agent", "state_text"], [{ token = "$summary", dim = true }, "$progress", "$eta"]]
 
 [ui.sidebar.spaces]
 rows = [["state_icon", "workspace"], ["branch", "git_status"], [{ token = "$summary", dim = true }]]
@@ -69,17 +69,17 @@ edited by hand: to change a title, a description or a state, say so in the text 
 
 Each state has a mark of its own (`◐` working, `×` needs you, `✗` went wrong, `✓` done or ready, `○` to do), so no
 two are told apart by colour alone (herdr's `status_indicators = "dots"` brings its dots back). A row reads: the
-name, a sentence, then on the right the progress bar and percent, the pull request, and the time:
+name, a sentence, then on the right the progress bar, the percent and the minutes left, the pull request, and the time:
 
 ```
  ready to approve
  ✓ Add an undo for clear  3/5 reviewer says no · 2nd review      PR#18 ✓ 12m ago
  working
- ◐ Tidy the first-run questions  review · Running the tests  ███░░░░░  40% PR#17    5m
+ ◐ Tidy the first-run questions  review · Running the tests  ███░░░░░  40% 12m PR#17    5m
 ```
 
 The score says the reviewer's advice in words. Which review it was shows only from the second on. While the
-reviewer works, the mark, the bar and the percent take a colour no other state uses, and the sentence starts with
+reviewer works, the mark, the bar, the percent and the minutes left take a colour no other state uses, and the sentence starts with
 `review` (`review (2nd)` from the second on). `PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
 since it stopped. A row never repeats what its heading says.
 
@@ -151,7 +151,7 @@ different one this once, use `coordinator new --agent …` below: your default s
 `coordinator new [--agent KIND] [--model M] [--effort E]`, `coordinator stop`.
 
 **Four roles.** The **Agent** does the work. The **Reviewer** attacks finished work. The **Watcher** is a small
-model that writes the "doing now" line and guesses progress (it skips a look when the screen has not changed). The
+model that writes the "doing now" line and guesses progress and how many minutes are left (it skips a look when the screen has not changed). The
 **Coordinator** is the agent behind the text box: one long-lived chat that turns what you type into board commands, and
 can do whatever else an agent chat can. Like the Agent, it is Claude Code on its default model and effort unless you
 say otherwise, whatever the Agent is set to: set `coordinator`, `coordinatorModel`, `coordinatorEffort` (any
@@ -295,7 +295,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `reviewer`, `reviewerModel`, `reviewerEffort` | `codex` | the reviewer; `off` for none. Not installed here: the agent's own kind reviews, on its default model, and the task says so |
 | `coordinator`, `coordinatorModel`, `coordinatorEffort` | `claude`, its defaults | the Coordinator, the one agent behind the text box; `off` for none. For one use: `coordinator new --agent … --model … --effort …` |
 | `watcherAgent`, `watcherModel` | `claude`, `claude-haiku-5-5` | the Watcher's small model (`helper`, `helperModel` are still read as these) |
-| `watcher` | `on` | the "doing now" line and progress guess, about every 15 seconds per working agent, board open or closed |
+| `watcher` | `on` | the "doing now" line, the progress guess and the minutes left, about every 15 seconds per working agent, board open or closed |
 | `skill` | `true` | keep the how-to in each agent program's skills folder |
 | `theme` | `auto` | the board and the review page use herdr's own colours and status marks. herdr's sidebar is drawn by the client with the config of the device it runs on, and herdr does not pass that on to the board. `auto`: when herdr's `config.toml` on this machine sets a theme (`[theme]`, with its custom colours), the board follows it as herdr resolves it; when it sets none, the board paints with the terminal's own colours, as herdr's `terminal` theme does, which fits whatever device you look from. `herdr` follows this machine's config exactly, Catppuccin by default: choose it if you run an unconfigured herdr on this very machine and want the board to match it; `terminal` always uses the terminal's colours; `dark` or `light` picks herdr's dark or light theme by hand. `ui.status_indicators` is always followed. A task under review takes the theme's mauve; where that looks like another state's colour (the terminal's colours, Vesper), it is the terminal's magenta, so review never shares a colour with to do, working or any other state |
 | `review` | `repos` | what gets reviewed: `repos`, `all` or `none` |
@@ -368,7 +368,7 @@ in a separate scratch herdr:
 | pi `-e <file>` | the extension receives `agent_settled`; the session file is `~/.pi/agent/sessions/<folder>/<time>_<id>.jsonl` with `stopReason` and `errorMessage` per message; `--session-id` creates or reopens an exact id |
 | A launch flag for standing rules | Claude `--append-system-prompt-file`, pi `--append-system-prompt <file>`, Codex `-c developer_instructions=…`: all three kept a rule over the session. herdr refuses a launch argument that holds a line break, hence the files |
 | User-level skills folders | `~/.claude/skills`, `~/.codex/skills`, `~/.pi/agent/skills` exist; Claude Code listed the plugin's how-to as a skill right after it was written |
-| herdr's sidebar shows the plugin's pane and workspace metadata | **not by default.** State labels and `$summary` / `$progress` tokens show only when `[ui.sidebar.*] rows` in `config.toml` list them; only `--display-agent` shows with no setup. Hence the name fallback and the first-run offer |
+| herdr's sidebar shows the plugin's pane and workspace metadata | **not by default.** State labels and `$summary` / `$progress` / `$eta` tokens show only when `[ui.sidebar.*] rows` in `config.toml` list them; only `--display-agent` shows with no setup. Hence the name fallback and the first-run offer |
 | A new `[[keys.command]]` after `herdr server reload-config` | works without a restart. A broken file is reported as `failed` and herdr keeps the old config; a key bound twice is `partial`; `herdr config check` validates a candidate given by `HERDR_CONFIG_PATH` |
 | herdr's config path and default keys | `~/.config/herdr/config.toml`; `herdr --default-config` lists the built-in keys (`prefix+w` is herdr's workspace picker; `prefix+a` is free) |
 | What the terminal shows, inside herdr | the board asks the terminal for its background (OSC 11) and its 16 colours (OSC 4) when herdr's `theme.auto_switch` is on or the theme paints with the terminal's own colours; herdr answers for its panes with the colours of the terminal the client runs in. No answer (the scratch session has no real terminal behind it): dark, and xterm's colours. `theme light` chooses by hand |

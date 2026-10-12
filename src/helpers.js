@@ -1,4 +1,4 @@
-// The hidden helper, as a hidden model call: the watcher (a status line and a progress guess for whatever is running).
+// The hidden helper, as a hidden model call: the watcher (a status line, a progress guess and minutes left for whatever is running).
 // It goes through one small table of one-shot commands per agent kind (agents.js); a helper kind without an entry
 // turns it off. The Coordinator is not a helper: it is an ordinary agent of its own (coordinator.js).
 import path from "node:path";
@@ -44,7 +44,7 @@ function helperEnv() {
 
 // ---- the watcher --------------------------------------------------------------------------------------------------------
 // Every 15 seconds per working task, the last screen lines (the reviewer's pane while reviewing, otherwise the
-// worker's) go to the helper, which answers {"msg", "progress"}. It starts fresh on every look.
+// worker's) go to the helper, which answers {"msg", "progress", "eta"}. It starts fresh on every look.
 const watching = new Map(); // id -> { at, child }
 const MAX_WATCHERS = 4;
 export function watchTick(tasks, now = Date.now()) {
@@ -67,8 +67,8 @@ export function watchTick(tasks, now = Date.now()) {
       role === "reviewer" ? "You are watching an adversarial reviewer check finished work. Write its status for a dashboard. Estimate progress through this review only, not through the agent's task." : "You are watching a coding agent work on a task. Write its status for a dashboard.",
       `Task: ${t.title}`,
       `The last lines on the ${role}'s terminal right now:`, lines,
-      `Your previous guess of progress was ${t.watch?.progress ?? 0} percent. Only go lower if it clearly started over.`,
-      'Reply with only this JSON and nothing else: {"msg": "<what it is doing right now: at most 8 plain words, present tense, no tool or command names>", "progress": <whole number 0 to 99: your best guess of how far through its current assignment it is>}',
+      `Your previous guess of progress was ${t.watch?.progress ?? 0} percent${t.watch?.eta !== undefined ? `, with ${t.watch.eta} minutes left` : ""}. Only go lower if it clearly started over.`,
+      'Reply with only this JSON and nothing else: {"msg": "<what it is doing right now: at most 8 plain words, present tense, no tool or command names>", "progress": <whole number 0 to 99: your best guess of how far through its current assignment it is>, "eta": <whole number: your best guess of how many minutes are left until it is done>}',
     ].join("\n");
     const cmd = helperCommand({ prompt });
     if (!cmd) return;
@@ -82,12 +82,12 @@ export function watchTick(tasks, now = Date.now()) {
       try {
         const j = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
         if (!j.msg) return;
-        const watch = { msg: S.oneLine(j.msg, 120), progress: Math.max(0, Math.min(99, Math.round(Number(j.progress)) || 0)), at: Date.now(), role };
+        const watch = { msg: S.oneLine(j.msg, 120), progress: Math.max(0, Math.min(99, Math.round(Number(j.progress)) || 0)), eta: S.minutes(j.eta), at: Date.now(), role };
         // A late answer cannot overwrite a newer turn or its result.
         const cur = S.update(t.id, (c) => { if (c.stage !== stage || turnOf(c) !== mine || S.choices(c).watcher === "off") return false; c.watch = watch; });
         // Also to herdr as pane metadata tokens, so herdr's own sidebar can show it.
         if (cur.watch === watch || cur.watch?.at === watch.at) {
-          herdr(t.link.socket).metadata(pane, ["--token", `summary=${watch.msg}`, "--token", `progress=${watch.progress}%`, "--ttl-ms", "120000"]);
+          herdr(t.link.socket).metadata(pane, ["--token", `summary=${watch.msg}`, "--token", `progress=${watch.progress}%`, ...(watch.eta === undefined ? [] : ["--token", `eta=${watch.eta}m`]), "--ttl-ms", "120000"]);
           if (t.link.workspace && t.link.ownsWorkspace) { try { herdr(t.link.socket).call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", "--token", `summary=${watch.msg}`, "--ttl-ms", "120000"]); } catch {} }
         }
       } catch {}

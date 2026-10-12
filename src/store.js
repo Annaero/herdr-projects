@@ -104,7 +104,7 @@ export const DEFAULTS = {
   coordinatorModel: "", coordinatorEffort: "",
   watcherAgent: "claude", // the Watcher: a small model behind the "doing now" line; any kind with a one-shot entry in agents.js
   watcherModel: "claude-haiku-5-5",
-  watcher: "on",          // "off": no status line and no progress guess
+  watcher: "on",          // "off": no status line, no progress guess and no minutes left
   review: "repos",        // what gets reviewed when finished: "repos", "all" or "none"
   artifacts: true,        // the reviewer brings evidence: screenshots, a recording, a link, test output
   serve: "tailscale",     // how review pages are linked: "tailscale" (private tailnet link) or "local"
@@ -262,6 +262,8 @@ export function folderFor(ref, fallback) {
 
 // ---- tasks ----------------------------------------------------------------------------------------------------------
 const SEGMENT = /^[A-Za-z0-9_.+-]{1,32}$/;
+// Minutes left, as the Watcher or a report gave them: a whole number from 0 up, or undefined when none was given.
+export const minutes = (v) => (v === undefined || v === null || v === "" || !Number.isFinite(Number(v)) ? undefined : Math.max(0, Math.min(99999, Math.round(Number(v)))));
 export const oneLine = (text, max = 2048) => { let t = String(text ?? "").replace(/[\u0000-\u001f\u007f-\u009f]+/g, " ").trim(); while (Buffer.byteLength(t, "utf8") > max) t = t.slice(0, -1); return t; };
 const taskFile = (id) => path.join(dirOf(id), "task.json");
 export function get(id) {

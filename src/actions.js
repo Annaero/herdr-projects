@@ -20,7 +20,7 @@ export function pin(id) { return S.update(S.find(id).id, (t) => { S.assertUnarch
 
 // A report, as in pi-work: the human (or any agent) says where a task stands. A delegated task's own agent may only
 // say it is blocked; it cannot mark itself done: the finish line does that.
-export function report(id, { state, kind, msg, title, progress, asAgent = false } = {}) {
+export function report(id, { state, kind, msg, title, progress, eta, asAgent = false } = {}) {
   const cur = S.find(id);
   if (title && !state) return rename(cur.id, title);
   if (!["idle", "working", "blocked", "done", "error"].includes(state)) throw new Error("state must be one of: idle, working, blocked, done, error");
@@ -40,7 +40,7 @@ export function report(id, { state, kind, msg, title, progress, asAgent = false 
     if (delegated && runnerAlive(t)) throw new Error(`${t.id} is in the middle of a workflow step. Stop it first.`);
     t.kind = undefined; t.msg = S.oneLine(msg); t.failure = state === "error" ? t.failure : null;
     if (state === "idle") { t.stage = F.isAgentTask(t) ? "stopped" : "todo"; if (!F.isAgentTask(t)) t.app = null; }
-    else if (state === "working") { if (F.isAgentTask(t)) throw new Error(`${t.id} has an agent. Reply to it, or delegate it again, to make it work.`); t.stage = "progress"; t.app = t.owner; t.since = Date.now(); if (progress !== undefined) t.watch = { progress: clampPct(progress) }; }
+    else if (state === "working") { if (F.isAgentTask(t)) throw new Error(`${t.id} has an agent. Reply to it, or delegate it again, to make it work.`); t.stage = "progress"; t.app = t.owner; t.since = Date.now(); if (progress !== undefined || eta !== undefined) t.watch = { progress: progress === undefined ? t.watch?.progress : clampPct(progress), eta: eta === undefined ? t.watch?.eta : S.minutes(eta) }; } // one given alone keeps the other
     else if (state === "done") { t.stage = "done"; t.mergeIntent = null; t.tidy = F.isAgentTask(t) ? mark : null; }
     else if (state === "error") { t.stage = "failed"; Object.assign(t, S.failurePatch({ stage: "agent", title: "Marked as failed", detail: S.oneLine(msg) || "No details given.", auth: false })); }
   });

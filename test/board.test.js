@@ -68,7 +68,10 @@ test("the board: one header line, the five groups, a symbol for each state, the 
   const w = await world({ settings: { helper: "off" } });
   try {
     A.add(w.root, "Write the docs", { description: "All of them." });
-    const b = A.add(w.root, "My own task"); A.report(b.id, { state: "working", msg: "half way", progress: 50 });
+    const b = A.add(w.root, "My own task"); A.report(b.id, { state: "working", msg: "half way", progress: 50, eta: 12.4 });
+    // A report with only one of the two keeps the other; minutes alone, on a task with no percent, are kept too.
+    A.report(b.id, { state: "working", msg: "half way", eta: 12 }); assert.deepEqual(S.get(b.id).watch, { progress: 50, eta: 12 });
+    A.report(b.id, { state: "working", msg: "half way", progress: 50 }); assert.deepEqual(S.get(b.id).watch, { progress: 50, eta: 12 });
     const s = open(w);
     let text = s.text(120);
     // One header line, then the list.
@@ -82,10 +85,11 @@ test("the board: one header line, the five groups, a symbol for each state, the 
       assert.ok(raw.some((l) => l.includes(`${grey}○\x1b[39m${text0} Write the docs `)), "a task nobody started is grey, not green");
       assert.ok(raw.some((l) => l.includes(`${yellow}working\x1b[39m`)) && raw.some((l) => l.includes(`${grey}to do\x1b[39m`)), "the headings are in their group's colour");
       assert.ok(raw.some((l) => l.includes(`${yellow} 50%`)), "progress is in the working colour while working");
+      assert.ok(raw.some((l) => l.includes(`${yellow} 50%\x1b[39m${text0} ${yellow}12m\x1b[39m`)), "the minutes left sit right of the percent, in the same colour");
     }
     // A row does not repeat its heading ("idle" under "to do"), and its time says which kind it is.
     assert.match(text, /\n working +│/); assert.match(text, /\n to do +│/);
-    assert.match(text, /◐ My own task {2}half way +█+░+ +50% +\ds {5}│/); assert.match(text, /○ Write the docs {6,}\ds ago │/);
+    assert.match(text, /◐ My own task {2}half way +█+░+ +50% 12m +\ds {5}│/); assert.match(text, /│ +█+░+ 50% 12m *\n/); // on the row and in the task panel assert.match(text, /○ Write the docs {6,}\ds ago │/);
     assert.match(text, /│ {2}My own task/); assert.match(text, /◐ working · you · for \ds · proj\/2/);
     // The text box names who gets your words, and its empty line says only "what's next?".
     assert.match(text, /\nnew task ❯ what's next\? *\n/); assert.doesNotMatch(text, /Coordinator|sidebar/);
@@ -143,6 +147,31 @@ test("a tight row keeps the task's name, then the columns on the right; the sent
     assert.match(rows[0], /Remove notification pop-ups +6m$/); assert.match(rows[2], /^ \S Truncate long descriptions in sidebar$/);
     rows = draw(30); // only now is a name cut
     assert.match(rows[0], /^ \S Remove notification pop-ups$/); assert.match(rows[1], /^ \S Fix ugly blocked row on th…$/);
+    { // the minutes left: right of the percent, always in minutes, in a column of their own so the percents line up
+      const eta = [{ ...records[0], eta: 3 }, { ...records[1], eta: 130 }, records[2], { id: "proj/4", state: "working", title: "No guess yet", progress: 0, at }];
+      const lines = (width) => { const lay = s.v.rowLayout(eta, width); return eta.map((r) => stripVTControlCharacters(s.v.row(r, width, lay))); };
+      for (const width of [200, 120, 90, 72, 64, 50, 40, 30, 20]) assert.ok(lines(width).every((l) => l.length <= width), `fits ${width}`);
+      let e = lines(200);
+      assert.match(e[0], /█+ +95% {3}3m {7}6m {4}$/); assert.match(e[1], /█+░+ +55% 130m PR#3 {2}6m {4}$/);
+      assert.match(e[2], /sidebar +PR#2 {2}6m ago$/); assert.match(e[3], /No guess yet +░+ {3}0% {12}6m {4}$/); // no guess: no "m", the percent stays in line
+      assert.equal(e[0].indexOf("95%"), e[1].indexOf("55%"));
+      e = lines(56); // no bars: the minutes left stay beside the percent
+      assert.match(e[0], /Remove notification pop-ups +95% {3}3m +6m {4}$/); assert.match(e[1], /Fix ugly blocked row on the board +55% 130m PR#3 +6m/);
+      e = lines(52); // short of room, a row gives up its minutes left before its percent
+      assert.match(e[1], /Fix ugly blocked row on the board +55% PR#3 +6m$/);
+      if (!process.env.NO_COLOR) { // the same colour as the percent, whatever the state: the reviewer's colour under review
+        const paint = (r) => s.v.row(r, 120, s.v.rowLayout([r], 120)), yellow = "\x1b[38;2;249;226;175m";
+        assert.ok(paint(eta[1]).includes(`${yellow} 55%\x1b[39m`) && paint(eta[1]).includes(`${yellow}130m\x1b[39m`));
+        const under = paint({ ...eta[1], stage: "reviewing", agent: "claude" }), colour = (s, word) => s.slice(0, s.indexOf(word)).match(/\x1b\[38;2;[\d;]+m(?!.*\x1b\[38)/s)?.[0];
+        assert.ok(colour(under, "130m") && colour(under, "130m") === colour(under, " 55%") && colour(under, "130m") !== yellow);
+      }
+      { // minutes left with no percent still show
+        const only = { id: "proj/7", state: "working", title: "Only minutes", eta: 7, at };
+        assert.match(stripVTControlCharacters(s.v.row(only, 60, s.v.rowLayout([only], 60))), /^ ◐ Only minutes +7m +6m$/);
+        assert.match(stripVTControlCharacters(s.v.row(only, 20, s.v.rowLayout([only], 20))), /^ ◐ Only minutes +6m$/);
+      }
+      assert.match(osc(eta[1]), /:progress=55:eta=130:/); assert.doesNotMatch(osc(eta[3]), /eta=/);
+    }
     // A long name on one row costs the other rows nothing: their columns still come before their sentence.
     records.splice(0, 3,
       { id: "proj/8", state: "working", title: "Fix login", msg: "Tracing why the login form rejects valid passwords.", progress: 55, pr: 3, at },
@@ -550,10 +579,10 @@ test("the hidden helper: the watcher writes a line and a guess", async () => {
     A.delegate("proj/1"); await settle("proj/1");
     H.watchTick(F.board());
     for (let i = 0; i < 60 && !S.get("proj/1").watch; i++) await new Promise((r) => setTimeout(r, 50));
-    assert.deepEqual([S.get("proj/1").watch.msg, S.get("proj/1").watch.progress], ["editing the greeting file", 42]);
+    assert.deepEqual([S.get("proj/1").watch.msg, S.get("proj/1").watch.progress, S.get("proj/1").watch.eta], ["editing the greeting file", 42, 12]);
     const shown = F.board().find((t) => t.id === "proj/1");
-    assert.deepEqual([shown.note, shown.progress], ["editing the greeting file", 42]);
-    assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("summary=editing the greeting file")));
+    assert.deepEqual([shown.note, shown.progress, shown.eta], ["editing the greeting file", 42, 12]);
+    assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("summary=editing the greeting file") && m.args.join(" ").includes("progress=42% --token eta=12m")));
   } finally { delete process.env.HERDR_SUPERWORK_HELPER_CMD; w.cleanup(); }
 });
 

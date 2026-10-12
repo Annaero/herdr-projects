@@ -1024,7 +1024,8 @@ export class View {
     const who = underReview ? "" : r.app ? (!agent && r.app === S.me() ? "you" : r.app) : "";
     const when = `${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`;
     const stand = flow([this.mark(r) + " " + t.fg(c, t.bold(r.archivedAt ? "archived" : underReview ? "reviewer is working" : groupOf(r))), (reviewing(r) || r.stage === "approval") && roundWords(r) ? t.fg(c, roundWords(r)) : "", who && t.fg("subtext0", who), dim(when), dim(idLabel(r.id))]);
-    if (r.progress !== undefined && r.state !== "done") stand.push(" " + t.fg(c, bar(r.progress, Math.min(24, w - 6))) + t.fg(c, ` ${r.progress}%`));
+    if (r.progress !== undefined && r.state !== "done") stand.push(" " + t.fg(c, bar(r.progress, Math.min(24, w - 6))) + t.fg(c, ` ${r.progress}%${r.eta !== undefined ? ` ${r.eta}m` : ""}`));
+    else if (r.eta !== undefined && r.state !== "done") stand.push(" " + t.fg(c, `${r.eta}m`) + dim(" left"));
     sec(["", ...wrapTextWithAnsi(t.bold(clean(r.title || "(no title)")), w).map((l) => " " + l), ...stand]);
     if (r.archivedAt) sec([...head("Archived", "overlay0"), ...block("Read-only. ? has restore. Its state and all its data are kept.")]);
 
@@ -1159,14 +1160,17 @@ export class View {
     const t = this.theme;
     return t.selected(truncateToWidth(line, width, "…", true));
   }
-  // A row's columns, in the order they are drawn: the bar and the percent, the pull request, the time. A cell the row
-  // does not have is the empty string, with no colour codes around nothing: an empty cell must not count as a column.
-  rowFields(r, bars, now) {
+  // A row's columns, in the order they are drawn: the bar, the percent and the minutes left, the pull request, the
+  // time. A cell the row does not have is the empty string, with no colour codes around nothing: an empty cell must
+  // not count as a column. The minutes left ("12m") take the percent's colour and `etaW` cells, so the percents line up.
+  rowFields(r, bars, now, etaW = 0) {
     const t = this.theme;
     const paint = (color, s) => (s ? t.fg(color, s) : "");
     const percent = r.state !== "done" && r.progress !== undefined ? paint(statusColor(r), `${String(r.progress).padStart(3)}%`) : "";
+    const eta = r.state !== "done" && r.eta !== undefined ? `${r.eta}m` : ""; // shown with no percent too
+    const left = etaW && (percent || eta) ? (percent ? " " : "") + (eta ? t.fg(statusColor(r), eta.padStart(etaW)) : " ".repeat(etaW)) : "";
     // The time is "working for" on a working row and "ago" on every other: the word says which.
-    return { pr: paint(prColor(r), prNumber(r)), check: paint(prColor(r), prCheck(r)), progress: percent && bars ? t.fg(statusColor(r), bar(r.progress)) + " " + percent : percent, elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
+    return { pr: paint(prColor(r), prNumber(r)), check: paint(prColor(r), prCheck(r)), eta, progress: (percent && bars ? t.fg(statusColor(r), bar(r.progress)) + " " + percent : percent) + left, elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
   }
   // What a row says after its name. Never what its heading already says ("to do", "approve?").
   sentence(r) {
@@ -1195,7 +1199,7 @@ export class View {
     return { text: msg ? t.fg("subtext0", msg) : "" };
   }
   rowLayout(records, width) {
-    const layout = { pr: 0, check: 0, progress: 0, percent: 0, elapsed: 3, ago: false, bars: width >= 64, now: Date.now() };
+    const layout = { pr: 0, check: 0, progress: 0, percent: 0, eta: 0, elapsed: 3, ago: false, bars: width >= 64, now: Date.now() };
     const fields = records.map((r) => this.rowFields(r, layout.bars, layout.now));
     const max = (key) => Math.max(0, ...fields.map((f) => visibleWidth(f[key])));
     layout.elapsed = Math.max(3, max("elapsed"));
@@ -1204,6 +1208,7 @@ export class View {
     layout.pr = Math.min(max("pr"), Math.max(0, width - 3 - layout.elapsed - 3));
     layout.check = max("check");
     layout.progress = max("progress");
+    layout.eta = max("eta");
     layout.percent = layout.bars ? Math.max(0, ...records.map((r) => visibleWidth(this.rowFields(r, false, layout.now).progress))) : layout.progress;
     return layout;
   }
@@ -1223,24 +1228,26 @@ export class View {
       return (host && hostRoom >= Math.min(3, visibleWidth(host)) ? t.fg("overlay0", truncateToWidth(host, hostRoom, "…")) + " " : "") + shown;
     };
     // The name wins over the columns, and the columns win over the sentence. A row whose name does not fit gives up
-    // its own columns, one at a time: the bar, the word "ago", the percent, the PR number and, last of all, the time.
+    // its own columns, one at a time: the bar, the word "ago", the minutes left, the percent, the PR number and, last of
+    // all, the time.
     const nameNeed = Math.min(room, visibleWidth(name));
     const fill = (s, n, left) => { const gap = " ".repeat(Math.max(0, n - visibleWidth(s))); return left ? s + gap : gap + s; }; // by terminal cells, not string length
     const build = (drop, noAgo = false) => {
       const bars = layout.bars && drop < 1;
-      const fields = this.rowFields(r, bars, layout.now);
+      const etaW = drop < 3 ? layout.eta : 0;
+      const fields = this.rowFields(r, bars, layout.now, etaW);
       // PR#16 is left-aligned, so the "PR#" parts line up; the mark for its checks sits in a column of its own.
-      const prW = drop < 4 && layout.pr ? layout.pr + (layout.check ? 2 : 0) : 0;
+      const prW = drop < 5 && layout.pr ? layout.pr + (layout.check ? 2 : 0) : 0;
       const prCell = fields.pr ? fill(truncateToWidth(fields.pr, layout.pr, "…"), layout.pr, true) + (layout.check ? " " + (fields.check || " ") : "") : "";
-      const cells = [[drop >= 3 ? 0 : bars ? layout.progress : layout.percent, fields.progress, false], [prW, prCell, true]].filter(([n]) => n);
+      const cells = [[drop >= 4 ? 0 : ((n) => n + (etaW && etaW + (n ? 1 : 0)))(bars ? layout.progress : layout.percent), fields.progress, false], [prW, prCell, true]].filter(([n]) => n);
       // Blank cells left of a row's first own column are not columns to that row: its words run into them.
       const own = cells.findIndex(([, s]) => visibleWidth(s) > 0);
-      const time = drop < 5 ? t.fg("overlay0", fields.elapsed.padStart(layout.elapsed) + (layout.ago && drop < 2 && !noAgo ? (fields.ago ? " ago" : "    ") : "")) : "";
+      const time = drop < 6 ? t.fg("overlay0", fields.elapsed.padStart(layout.elapsed) + (layout.ago && drop < 2 && !noAgo ? (fields.ago ? " ago" : "    ") : "")) : "";
       const metadata = [...(own < 0 ? [] : cells.slice(own)).map(([n, s, left]) => fill(s, n, left)), time].filter(Boolean).join(" ");
       return { metadata, labelRoom: Math.max(0, room - visibleWidth(metadata) - (metadata ? 2 : 0)) };
     };
     let drop = 0, built = build(0);
-    while (built.labelRoom < nameNeed && drop < 5) built = build(++drop);
+    while (built.labelRoom < nameNeed && drop < 6) built = build(++drop);
     const said = this.sentence(r);
     // What a row needs from you outranks its bar: the bar goes when the words would be cut beside it.
     const need = needsYou(r) && said.text ? nameNeed + 2 + visibleWidth(said.text) : 0;
@@ -1269,6 +1276,7 @@ export function osc(r) {
   const pairs = [`state=${r.state}`, `id=${r.id}`];
   if (r.kind) pairs.push(`kind=${r.kind}`);
   if (r.progress !== undefined) pairs.push(`progress=${r.progress}`);
+  if (r.eta !== undefined) pairs.push(`eta=${r.eta}`);
   if (r.app && /^[A-Za-z0-9_.+-]{1,32}$/.test(r.app)) pairs.push(`app=${r.app}`);
   if (r.title) pairs.push(`title=${b64(S.oneLine(r.title, 192))}`);
   if (r.msg) pairs.push(`msg=${b64(S.oneLine(r.msg, 600))}`);

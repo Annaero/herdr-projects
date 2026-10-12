@@ -11,6 +11,7 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork add <title> [--desc TEXT] [--repo NAME|PATH] [--delegate]
   herdr-superwork list [--archived] [--all] [--query TEXT] [--json]
   herdr-superwork report <id> --state idle|working|blocked|done|error [--kind question|permission|auth] [--msg TEXT] [--title TEXT]
+                         [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
   herdr-superwork describe <id> <text>          write or replace a task's description
   herdr-superwork delegate <id> [--agent KIND] [--model M] [--effort E] [--reviewer KIND|off] [--no-worktree] [--base head|fresh]
   herdr-superwork tell <id> <text>              send a message to the task's agent
@@ -91,7 +92,7 @@ function refuse(cmd, pos, flags) {
   return ok ? "" : `Refused: as the ${c.role === "reviewer" ? "reviewer" : "agent"} of ${c.task.id} you may only run ${c.role === "reviewer" ? "list and details" : `add, list, details and "report ${c.task.id} --state blocked"`}. The human does the rest from the board.`;
 }
 const line = (t) => `${t.id.padEnd(14)} ${String(t.state).padEnd(8)}${t.kind ? ` ${t.kind}` : ""}${t.shownApp ? ` [${t.shownApp}]` : ""}  ${t.title}${t.note ? `  · ${t.note}` : ""}${t.archivedAt ? "  (archived)" : ""}`;
-const brief = (t) => ({ id: t.id, state: t.state, kind: t.kind, app: t.shownApp, title: t.title, msg: t.note, stage: t.stage, progress: t.progress, pr: t.pr || undefined, archivedAt: t.archivedAt || undefined, review: S.currentReview(t) || undefined, reviewRound: S.reviewRound(t) || undefined });
+const brief = (t) => ({ id: t.id, state: t.state, kind: t.kind, app: t.shownApp, title: t.title, msg: t.note, stage: t.stage, progress: t.progress, eta: t.eta, pr: t.pr || undefined, archivedAt: t.archivedAt || undefined, review: S.currentReview(t) || undefined, reviewRound: S.reviewRound(t) || undefined });
 
 export async function main(argv) {
   const { pos, flags } = parse(argv);
@@ -161,7 +162,7 @@ export async function main(argv) {
       const id = pos[1] || me?.id;
       if (!id) throw new Error("report needs an id, or --title to file a new task.");
       const target = S.find(id);
-      const t = A.report(target.id, { state: flags.state, kind: flags.kind, msg: flags.msg, title: flags.title, progress: flags.progress, asAgent: !!me && me.id === target.id });
+      const t = A.report(target.id, { state: flags.state, kind: flags.kind, msg: flags.msg, title: flags.title, progress: flags.progress, eta: flags.eta, asAgent: !!me && me.id === target.id });
       result = [brief(shownOf(t.id)), me && me.id === t.id && flags.state === "blocked" ? "Reported. Stop now; the human's answer arrives as your next message." : `${t.id}: ${flags.state || "updated"}`];
       break;
     }
