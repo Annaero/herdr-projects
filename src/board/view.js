@@ -18,6 +18,7 @@ import { keeperAlive, tickOnce, codeStamp } from "../keeper.js";
 import * as X from "../extras.js";
 import * as D from "../delegate.js";
 import { DraftEditor } from "./editor.js";
+import { lookHeld } from "./held.js";
 import { artifactLine, artifactLines, reviewArtifacts } from "./artifact-lines.js";
 import * as C from "../coordinator.js";
 
@@ -127,7 +128,17 @@ export class View {
     try { this.takeApprove(); } catch {}
     try { this.stamp = codeStamp(); } catch {}
     try { this.startSetup(); } catch {}
+    this.lookHeld();
     this.timer = setInterval(() => this.beat(), 1000);
+  }
+  // A remote view of this pane (a `herdr terminal attach`, as herdr's web UI starts) can hold its terminal at its own
+  // size: the board is then drawn for that size and herdr's window shows a cut-out of it. Said only after two looks
+  // in a row agree on the size, so a window that is being resized is never taken for one.
+  lookHeld() {
+    let now = null;
+    try { now = lookHeld(herdr(currentSocket()), this.tui.terminal); } catch {}
+    this.held = now && this.heldSeen === `${now.columns}x${now.rows}` ? now : null;
+    this.heldSeen = now ? `${now.columns}x${now.rows}` : "";
   }
   // The first run: one screen asks what the plugin may add to herdr's settings. Only inside herdr, only what is missing.
   startSetup() {
@@ -206,6 +217,7 @@ export class View {
     }
     // The Coordinator can be turned on or off (a setting, herdr starting) while the board is open.
     if (this.tick % 5 === 0) { try { this.canDispatch = C.ready(); } catch {} }
+    if (this.tick % 5 === 0) this.lookHeld();
     try { this.load(); } catch {}
     try { this.takeApprove(); } catch {}
     try { this.syncCoord(); } catch {}
@@ -936,7 +948,9 @@ export class View {
       // Whatever the window, the text box and its hints are whole: the chat, then the rows above it, give way.
       while (jobs.length + chat.length + inputLines.length + said.length + 1 > rowsN && (chat.length || jobs.length || said.length)) (chat.length ? chat : jobs.length ? jobs : said).pop();
       const bottom = [...jobs, ...chat, ...inputLines, ...said, "  " + hints];
-      const h = Math.max(1, rowsN - bottom.length);
+      // Top left, where a cut-out of the board still shows it.
+      const held = rowsN - bottom.length > 3 ? this.heldLines(width) : [];
+      const h = Math.max(1, rowsN - bottom.length - held.length);
       const shown = r || this.job();
       let top;
       if (this.menu) top = this.menuLines(width, h);
@@ -949,7 +963,7 @@ export class View {
         const right = shown ? this.panel(shown, paneW, false, h) : ["", " " + t.fg("overlay0", "nothing selected.")];
         top = Array.from({ length: h }, (_, i) => truncateToWidth(left[i] ?? "", listW, "…", true) + " " + t.fg("surface_dim", "│") + t.under("sidebar_bg", truncateToWidth(" " + (right[i] ?? ""), paneW + 1, "…", true)));
       } else top = [...this.headLines(width), ...this.listLines(width, Math.max(1, h - 1))];
-      return this.pad([...this.pad(top, h), ...bottom].slice(0, rowsN), rowsN).map(fit);
+      return this.pad([...held, ...this.pad(top, h), ...bottom].slice(0, rowsN), rowsN).map(fit);
     } catch (e) {
       const out = [fit(" herdr-superwork view error: " + clean(e?.message)), fit(" press esc to close")];
       while (out.length < rowsN) out.push(fit(""));
@@ -957,6 +971,17 @@ export class View {
     }
   }
   pad(lines, n) { const out = lines.slice(0, n); while (out.length < n) out.push(""); return out; }
+  // The size warning: one line, and what frees the size comes first, because the right end is what a narrow window
+  // or a cut-out loses.
+  heldLines(width) {
+    const d = this.held;
+    if (!d) return [];
+    const t = this.theme, who = d.by[0];
+    const text = `Held at ${d.columns}×${d.rows}: ${who ? `kill ${who.pid}` : "closing its remote view"} frees it. `
+      + `Drawn for a remote view of this pane, so herdr's own window (${d.room.columns}×${d.room.rows}) shows it cut off or half empty`
+      + (who ? ` · herdr terminal attach, open ${age(who.seconds * 1000)}${d.by.length > 1 ? `, and ${d.by.length - 1} more` : ""}` : "");
+    return [truncateToWidth(" " + t.fg("yellow", "! " + text), width, "…")];
+  }
   // The header: one line. Which project, and anything unusual about what the list shows.
   headLines(w) {
     const t = this.theme;

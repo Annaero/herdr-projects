@@ -130,6 +130,8 @@ if (area === "worktree") {
 if (area === "tab" && verb === "focus") { st.focus.push(`tab ${argv[2]}`); ok({ type: "ok" }); }
 if (area === "pane") {
   if (verb === "process-info") { const p = findPane(flag("--pane")); if (!p) fail("pane_not_found", "pane not found"); const shell = 4194400; ok({ type: "pane_process_info", process_info: { pane_id: p.pane_id, shell_pid: p.job ? 1 : shell, /* `job`: the shell has a background job beside the foreground program */ foreground_process_group_id: p.busy ? shell + 1 : shell, foreground_processes: [{ pid: p.tool ? 1 : p.busy ? shell + 1 : shell, name: p.tool ? "agent" : p.busy ? "sleep" : "bash" }] } }); } // `tool`: a program with children of its own (pid 1 always has some)
+  // `layouts`: a test's own answer per pane; without one the pane has its whole tab, 120x34.
+  if (verb === "layout") { const p = findPane(flag("--pane")); if (!p) fail("pane_not_found", "pane not found"); const area = { x: 0, y: 0, width: 120, height: 34 }; ok({ type: "pane_layout", layout: st.layouts?.[p.pane_id] || { area, zoomed: false, focused_pane_id: p.pane_id, panes: [{ pane_id: p.pane_id, focused: true, rect: area }], splits: [], tab_id: p.tab_id, workspace_id: p.workspace_id } }); }
   if (verb === "list") { const w = flag("--workspace"); ok({ type: "pane_list", panes: st.panes.filter((p) => !w || p.workspace_id === w).map(paneOut) }); }
   const p = findPane(argv[2]);
   if (!p) fail("pane_not_found", `pane ${argv[2]} not found`);

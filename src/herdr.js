@@ -65,6 +65,8 @@ export function herdr(socket = null) {
     // ---- panes
     panes: (workspace) => call(["pane", "list", ...(workspace ? ["--workspace", workspace] : [])]).panes || [],
     paneGet: (id) => quiet(() => call(["pane", "get", id]).pane),
+    // Where a pane sits in herdr's own window: its tab's area, every pane's rect, and whether one is zoomed.
+    paneLayout: (id) => quiet(() => call(["pane", "layout", "--pane", id], { timeout: 3000 }).layout),
     paneSplit: (id, { cwd, direction = "right", env = {} } = {}) => call(["pane", "split", id, "--direction", direction, ...(cwd ? ["--cwd", cwd] : []), ...Object.entries(env).flatMap(([k, v]) => ["--env", `${k}=${v}`]), "--no-focus"]).pane,
     // Is nothing but its shell running in the pane? Unknown counts as busy.
     paneIdle: (id) => quiet(() => { const i = call(["pane", "process-info", "--pane", id]).process_info; return Number.isInteger(i.shell_pid) && i.foreground_process_group_id === i.shell_pid && (i.foreground_processes || []).every((p) => p.pid === i.shell_pid) && spawnSync("pgrep", ["-P", String(i.shell_pid)], { stdio: "ignore" }).status === 1; }, false),

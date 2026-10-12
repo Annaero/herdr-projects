@@ -988,3 +988,79 @@ test("a reply to a task's agent wraps in the same box, under the agent's latest 
     assert.ok(d.lines.some((l) => /Make f/.test(l)), "who the reply goes to still shows above the box");
   } finally { w.cleanup(); }
 });
+
+test("a terminal held at another view's size is told from herdr's own window, a zoomed pane and a frame's width", async () => {
+  const { heldSize, holders } = await import("../src/board/held.js");
+  const layout = (rect, more = {}) => ({ area: { x: 0, y: 0, width: 184, height: 78 }, zoomed: false, focused_pane_id: "w1:p1", panes: [{ pane_id: "w1:p1", rect: { x: 0, y: 0, ...rect } }, { pane_id: "w1:p2", rect: { x: 92, y: 0, width: 92, height: 78 } }], ...more });
+  const whole = { width: 184, height: 78 }, half = { width: 92, height: 78 };
+  // What herdr 0.9.3 gives a pane: its place, less a scrollbar column, less a frame when the tab is split.
+  assert.equal(heldSize({ columns: 183, rows: 78 }, layout(whole), "w1:p1"), null);
+  assert.equal(heldSize({ columns: 89, rows: 76 }, layout(half), "w1:p1"), null);
+  // The incident: 435x58 in a pane herdr's window has 184x78 for. Wider or taller than its place is always another view's.
+  assert.deepEqual(heldSize({ columns: 435, rows: 58 }, layout(whole), "w1:p1"), { columns: 435, rows: 58, room: { columns: 184, rows: 78 } });
+  assert.ok(heldSize({ columns: 183, rows: 50 }, layout(whole), "w1:p1"));
+  assert.ok(heldSize({ columns: 100, rows: 76 }, layout(half), "w1:p1"));
+  // A zoomed pane has the whole tab, whatever its place in the split.
+  assert.equal(heldSize({ columns: 181, rows: 76 }, layout(half, { zoomed: true }), "w1:p1"), null);
+  // Its old place in the split is not its size while it is zoomed: 89x76 there is another view's.
+  assert.deepEqual(heldSize({ columns: 89, rows: 76 }, layout(half, { zoomed: true }), "w1:p1"), { columns: 89, rows: 76, room: { columns: 184, rows: 78 } });
+  // The pane beside a zoomed one keeps its place.
+  assert.equal(heldSize({ columns: 89, rows: 76 }, layout(half, { zoomed: true }), "w1:p2"), null);
+  assert.ok(heldSize({ columns: 181, rows: 76 }, layout(half, { zoomed: true }), "w1:p2"));
+  assert.deepEqual(heldSize({ columns: 300, rows: 76 }, layout(half, { zoomed: true }), "w1:p1").room, { columns: 184, rows: 78 });
+  // Nothing known, nothing said.
+  assert.equal(heldSize({ columns: 435, rows: 58 }, null, "w1:p1"), null);
+  assert.equal(heldSize({ columns: 435, rows: 58 }, layout(whole), "w9:p9"), null);
+  assert.equal(heldSize({}, layout(whole), "w1:p1"), null);
+  // Who holds it: the attach processes for this very terminal, the oldest first.
+  const ps = ["  100   2400 /home/u/.local/bin/herdr terminal attach term_aa", "  101     30 herdr terminal attach --takeover term_aa", "  102     99 herdr terminal attach term_bb", "  103     50 bash -c echo herdr terminal attach term_aa", "  104      5 herdr server",
+    "  105    600 herdr --session work terminal attach term_aa", "  106      7 /usr/bin/herdr --session work terminal session observe term_aa", "  107      8 herdr --session terminal attach term_cc", "  108    300 herdr --session terminal terminal attach term_aa",
+    // Another terminal's viewer, in a session named like this terminal: never the one to stop.
+    "  109   9000 herdr --session term_aa terminal attach term_zz", "  110   9001 herdr --session=term_aa terminal attach term_zz", "  111     20 herdr terminal attach term_aa --session work", "  112   9002 herdr terminal session observe term_aa"].join("\n");
+  assert.deepEqual(holders("term_aa", ps), [{ pid: 100, seconds: 2400 }, { pid: 105, seconds: 600 }, { pid: 108, seconds: 300 }, { pid: 101, seconds: 30 }, { pid: 111, seconds: 20 }]);
+  assert.deepEqual(holders("term_zz", ps), [{ pid: 110, seconds: 9001 }, { pid: 109, seconds: 9000 }]);
+  assert.deepEqual(holders("", ps), []);
+});
+
+test("the board says so, top left, when another view holds its pane's size, and stops when the size is its own again", async () => {
+  const w = await world({ settings: { helper: "off" } });
+  const tmux = process.env.TMUX;
+  try {
+    A.add(w.root, "A task");
+    w.patchState((s) => { s.workspaces.push({ workspace_id: "w1", label: "b", cwd: w.root }); s.panes.push({ pane_id: "w1:p1", workspace_id: "w1", tab_id: "w1:t1", terminal_id: "term_board", cwd: w.root, agent: null }); });
+    Object.assign(process.env, { HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1" });
+    delete process.env.TMUX; delete process.env.HERDR_PLUGIN_ID;
+    const s = open(w, { rows: 58 });
+    const head = () => s.screen(120)[0];
+    // The fake pane has 120x34 in herdr's window, the terminal says 120x58: one look is not enough (a resize under way).
+    assert.doesNotMatch(s.text(120), /Held at/);
+    s.v.lookHeld();
+    assert.match(head(), /^ ! Held at 120×58: closing its remote view frees it\. Drawn for a remote view/);
+    assert.equal(s.screen(120).length, 58);
+    assert.match(s.screen(120)[1], /herdr-superwork/); // the header and the list move down one line, nothing else changes
+    assert.match(s.screen(435)[0], /so herdr's own window \(120×34\) shows it cut off or half empty\s*$/);
+    assert.match(s.screen(60)[0], /^ ! Held at 120×58: closing its remote view frees/); // what to do survives a narrow window
+    // The same line over the whole task and the menu.
+    s.press("ctrl+e"); assert.match(head(), /Held at/); s.press("esc");
+    // Named with its process when one holds this terminal.
+    s.v.held = { ...s.v.held, by: [{ pid: 4242, seconds: 2400 }] };
+    assert.match(s.screen(435)[0], /half empty · herdr terminal attach, open 40m\s*$/);
+    for (const width of [40, 90, 94]) assert.match(s.screen(width)[0], /^ ! Held at 120×58: kill 4242 frees it\./, `at ${width}`);
+    // The size is the window's again: gone at the next look.
+    s.v.tui.terminal.rows = 34;
+    s.v.lookHeld();
+    assert.doesNotMatch(s.text(120), /Held at/);
+    // A new size held: again only after a second look.
+    s.v.tui.terminal.columns = 300; s.v.lookHeld();
+    assert.doesNotMatch(s.text(120), /Held at/);
+    s.v.lookHeld();
+    assert.match(head(), /Held at 300×34/);
+    // Not in the popup (no pane of its own) and not in a tmux inside the pane.
+    for (const k of ["HERDR_PLUGIN_ID", "TMUX"]) { process.env[k] = "x"; s.v.lookHeld(); s.v.lookHeld(); assert.equal(s.v.held, null, k); delete process.env[k]; }
+    // A window too short for it keeps the text box and its hints.
+    s.v.lookHeld(); s.v.lookHeld(); assert.ok(s.v.held);
+    s.v.tui.terminal.rows = 8;
+    assert.equal(s.screen(120).length, 8);
+    assert.match(s.screen(120)[7], /\S/);
+  } finally { for (const k of ["HERDR_ENV", "HERDR_PANE_ID", "HERDR_PLUGIN_ID", "TMUX"]) delete process.env[k]; if (tmux) process.env.TMUX = tmux; w.cleanup(); }
+});
