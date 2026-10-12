@@ -77,7 +77,7 @@ export function apply(id, a, api) {
     if (!F.seeTerminal(t, term) || (term && prev && sameTerm && (prev.term ?? t.link?.terminal) && seq < (prev.seq || 0))) return false;
     // compAt: when this count of finished turns was first seen. A later reading of the same count is not a new turn's end.
     t.last = { status, seq, comp, term, at: Date.now(), compAt: sameTerm && prev && prev.comp === comp ? prev.compAt ?? prev.at : Date.now() };
-    if (status === "working") t.workedAt = Date.now(); // herdr has seen it work: an idle after this is the end of a turn, not the wait before one (state.js)
+    if (status === "working") { t.workedAt = Date.now(); t.owedTurn = undefined; } // herdr has seen it work: an idle after this is the end of a turn, not the wait before one (state.js)
     // What the board typed in has been taken: the agent works, or has worked since.
     if (t.sent?.busy) t.sent = rest(t.sent, a); // typed into a running turn: only what it does once at rest says
     else if (t.sent && took(t.sent, a)) t.sent = null;
@@ -121,7 +121,9 @@ export function apply(id, a, api) {
       // delivered when the dialog is answered.
       // A turn herdr counted before that text went out is not the turn the text starts (answering the dialog counts as
       // one): it is marked handled, so neither the finish line nor the row takes it for the end of the agent's work.
-      if (S.pendingText(id).length) { if (comp != null) t.handled = { ...(t.handled || {}), comp }; then = "inbox"; return; }
+      // herdr may count it only after the text went out (`owedTurn`, for this start of its program): the finish line then takes one count that comes
+      // with no sign of work for that answer (finish/turn-ended.js).
+      if (S.pendingText(id).length) { if (comp != null) t.handled = { ...(t.handled || {}), comp }; t.owedTurn = comp == null || comp === (prev?.comp ?? null) ? t.startedAgentAt || 1 : undefined; then = "inbox"; return; }
       if (t.selfBlocked && t.stage === "asks") { // it said it is blocked, then stopped: that is not a finish
         t.handled = { ...(t.handled || {}), comp, seq: a.state_change_seq ?? null, term: a.terminal_id ?? null, note: F.noteStat(t)?.mtime ?? t.handled?.note ?? null, at: Date.now() }; t.selfBlocked = null; t.turnOpen = false;
         return;

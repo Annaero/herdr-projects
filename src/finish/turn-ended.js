@@ -37,6 +37,9 @@ function humanTurn(t) {
   t.stage = "working"; t.msg = ""; t.kind = undefined; t.mergeFailed = false;
   if (t.failure?.auth) t.failure = null;
 }
+// Has this task's agent begun on anything since its program was started? The finish line handled a turn of it, or
+// herdr saw it work (hook.js keeps when). An agent that has done neither has nothing to finish.
+const begun = (t) => !!t.handled?.at || t.turnBy === "typed" || (t.workedAt || 0) >= (t.startedAgentAt || 1);
 async function finishOnce(id, { force = false } = {}) {
   let t = S.get(id);
   if (!t || !F.isAgentTask(t)) return false;
@@ -100,6 +103,9 @@ async function finishOnce(id, { force = false } = {}) {
         if (a.agent_status === "unknown" && !freshNote) return true; // herdr cannot tell, and nothing says it stopped
         if (!force && (a.agent_status === "unknown" || comp == null ? !freshNote : comp === t.handled?.comp && !freshNote)) return true;
         turn = turn && newer(turn, t) && turn.interrupted ? turn : null;
+        // Only herdr's count says a turn ended, the agent has not begun, and its first text went out behind a dialog
+        // whose answer herdr had not counted yet (hook.js `owedTurn`): this is that answer, not the end of any work.
+        if (!force && !turn && !freshNote && t.owedTurn === (t.startedAgentAt || 1) && !begun(t)) { S.update(id, (t) => { t.handled = { ...(t.handled || {}), comp }; t.owedTurn = undefined; }, { waitMs: 10000 }); return true; }
       } else if (turn.finished) {
         // The file must have stood still through the settle wait: a message followed by more work is not the end.
         const again = readTurnOf(kind, { file: turn.file });

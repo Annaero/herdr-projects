@@ -79,6 +79,39 @@ test("a start-up dialog answered, the first prompt sent and not picked up yet: s
     // and the finish line does not take the answered dialog for the end of the agent's work
     const after = await settle(id);
     assert.deepEqual([after.stage, after.msg, stateOf(id).note], ["working", "", "starting"]);
+    // herdr's state moves on with no work done: the prompt counts as taken, and the dialog's count is still not a turn's end
+    w.patchState((s) => { const a = s.panes.find((p) => p.pane_id === t.link.pane).agent; s.seq += 1; a.seq = s.seq; });
+    for (let i = 0; i < 3; i++) onPane(w.socket, t.link.pane);
+    assert.equal(S.get(id).sent, null); assert.deepEqual(globalThis.__swJobs, []); // no finish line was started
+    const later = await settle(id);
+    assert.deepEqual([later.stage, later.msg, stateOf(id).state, stateOf(id).note], ["working", "", "working", "starting"]);
+  } finally { w.cleanup(); }
+});
+
+test("a start-up dialog's turn that herdr counts only after the first prompt went out: the finish line leaves the untouched task alone", async () => {
+  const w = await world({ settings: { reviewer: "off", trust: false } });
+  try {
+    w.patchState((s) => { s.dialogs.claude = 1; });
+    w.script({ worker: [{ status: "working" }] });
+    const id = A.add(w.root, "Behind a dialog").id;
+    A.delegate(id);
+    const t = await settle(id);
+    const read = (fn) => { w.patchState((s) => { const a = s.panes.find((p) => p.pane_id === t.link.pane).agent; s.seq += 1; a.status = "idle"; a.seq = s.seq; fn?.(a, s); }); onPane(w.socket, t.link.pane); };
+    read(); // the dialog is answered, and herdr has not counted that yet: the waiting prompt goes out
+    assert.equal(S.pendingText(id).length, 0); assert.equal(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.length, 1);
+    // now herdr counts it, the model has not begun: every reading starts the finish line, which finds nothing to finish
+    for (let i = 0; i < 3; i++) {
+      read((a, s) => { a.completion = a.completion ?? s.seq; });
+      const after = await settle(id);
+      assert.deepEqual([after.stage, after.msg, stateOf(id).state, stateOf(id).note], ["working", "", "working", "starting"]);
+    }
+    assert.equal(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.length, 1);
+    // the agent then works and ends its turn as any other: that end is still seen
+    w.patchState((s) => { const a = s.panes.find((p) => p.pane_id === t.link.pane).agent; s.seq += 1; a.status = "working"; a.seq = s.seq; });
+    onPane(w.socket, t.link.pane);
+    assert.equal(stateOf(id).note, "working");
+    read((a, s) => { a.completion = s.seq; });
+    assert.equal((await settle(id)).stage, "nosummary"); // it worked and said nothing: that is for the human
   } finally { w.cleanup(); }
 });
 
