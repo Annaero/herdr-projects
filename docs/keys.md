@@ -1,7 +1,8 @@
 # Keys, questions and the ? menu
 
-**The board asks before what cannot be undone**, always the same way, in a small box: `Merge PR#18?  enter = yes ·
-esc = no`. Merging, deleting a task and closing the board ask; nothing else does. A result stays on screen until
+**The board asks before what cannot be undone**, always the same way, in a small box: `Merge PR#18?  y = yes ·
+n = no`. `y` says yes, `n` or `Esc` says no, in upper or lower case; `Enter` never confirms, and no other key answers. Closing
+the board is the one question left as it was (`Close the board?  enter = yes · esc = no`; `Ctrl+C` again also says yes). Merging, deleting a task and closing the board ask; nothing else does. A result stays on screen until
 your next key press, an error until `Esc` dismisses it.
 
 | Key | Does |
@@ -11,6 +12,7 @@ your next key press, an error until `Esc` dismisses it.
 | `Space` | talk to this task's agent: the chat says so, and `Space` goes back to the Coordinator (so does `Esc`, once the chat's message is hidden). On a task with no agent, your message puts one on it |
 | `Tab` | put an agent on the task. With text typed for the Coordinator: send it, and every task it files from that message gets an agent at once, with nothing more to confirm (a message that files nothing delegates nothing) |
 | `Ctrl+A` | yes, to whatever the task waits for: approve the merge (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary as it is |
+| `y` `n` | answer a question the board asks: `y` yes, `n` or `Esc` no. Only while a question is up; `Enter` never confirms |
 | `Ctrl+R` | send it back: whatever went wrong (a failed check, a conflict, an error, a review with findings) goes to the task's agent to fix; a stopped agent is told to continue |
 | `Ctrl+X` | stop the agent. The selection stays on that row |
 | `Ctrl+F` | find |

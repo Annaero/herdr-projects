@@ -45,7 +45,7 @@ rows = [["state_icon", "workspace"], ["branch", "git_status"], [{ token = "$summ
 ```
 
 Optionally bind `herdr-superwork.approve-current` too: for the task that owns the focused pane it opens the board on
-that task with the merge question up (`enter` = yes, `esc` = no), and does nothing anywhere else.
+that task with the merge question up (`y` = yes, `n` or `esc` = no), and does nothing anywhere else.
 
 **Before unlinking the plugin** run `herdr-superwork remove-extras`: herdr gives a plugin no uninstall hook, so this
 is what takes the marked blocks out of `config.toml` and removes the how-to files (below).

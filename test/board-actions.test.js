@@ -27,10 +27,10 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     assert.match(text, /\n {2}ctrl\+a approve and merge · ctrl\+r send back · space reply · \? more/);
     // ctrl+a asks once before the merge; esc says no and nothing happened
     s.press("ctrl+a");
-    assert.match(s.text(), /\n \? Merge "Make f"\? {2}enter = yes · esc = no/); assert.equal(S.get(id).stage, "approval");
+    assert.match(s.text(), /\n \? Merge "Make f"\? {2}y = yes · n = no/); assert.equal(S.get(id).stage, "approval");
     s.press("esc"); assert.equal(S.get(id).stage, "approval"); assert.equal(s.v.ask, null);
     // The question is about what it names. The task changes underneath it (a new commit was reviewed, another pull
-    // request): the question goes, and enter merges nothing until you have been asked about what is there now.
+    // request): the question goes, and nothing merges until you have been asked about what is there now.
     s.press("ctrl+a"); assert.ok(s.v.ask);
     const head = S.get(id).reviewedHead;
     S.update(id, (t) => { t.pr = "https://github.com/a/b/pull/19"; });
@@ -40,11 +40,16 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     // also when it changes between the last look and the key press
     s.press("ctrl+a"); assert.match(s.text(), /\n \? Merge PR#19\? /);
     S.update(id, (t) => { t.pr = undefined; });
-    s.press("enter"); assert.equal(S.get(id).stage, "approval"); assert.equal(s.v.ask, null); assert.match(s.text(), /It changed while you were asked/);
+    s.press("y"); assert.equal(S.get(id).stage, "approval"); assert.equal(s.v.ask, null); assert.match(s.text(), /It changed while you were asked/);
     // and the action itself refuses a yes that was given to something else
     assert.throws(() => A.approve(id, { pr: "https://github.com/a/b/pull/18", head }), /changed while you were asked\. Nothing was merged/);
     assert.throws(() => A.approve(id, { pr: null, head: "f".repeat(40) }), /changed while you were asked\. Nothing was merged/); assert.equal(S.get(id).stage, "approval");
-    s.press("ctrl+a", "enter");
+    // enter never confirms: the question stays up and nothing merges. n says no, in either case, and is not typed
+    s.press("ctrl+a", "enter"); assert.ok(s.v.ask); assert.equal(S.get(id).stage, "approval");
+    s.press("x", "space", "tab"); assert.ok(s.v.ask); assert.equal(S.get(id).stage, "approval");
+    s.press("n"); assert.equal(s.v.ask, null); assert.equal(s.v.value(), ""); assert.equal(S.get(id).stage, "approval");
+    s.press("ctrl+a", "N"); assert.equal(s.v.ask, null); assert.equal(s.v.value(), ""); assert.equal(S.get(id).stage, "approval");
+    s.press("ctrl+a", "Y"); assert.equal(s.v.value(), "");
     assert.equal(S.get(id).stage, "merging");
     assert.match(s.text(), /proj\/1: approved, merging/); // a result stays until the next key press, however long that takes
     s.v.beat(); s.v.beat(); assert.match(s.text(), /proj\/1: approved, merging/);
@@ -67,19 +72,20 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     s.press("esc"); assert.equal(s.v.filter, "");
     // ctrl+x only ever stops an agent. Deleting is a line in the menu, with a plain question of its own.
     s.v.sel = "proj/2"; s.v.load(); s.press("ctrl+x", "ctrl+x"); assert.ok(S.get("proj/2")); assert.equal(s.v.ask, null);
-    s.press("delete"); assert.match(s.text(), /\n \? Delete "Other"\? Its worktree goes too\. {2}enter = yes · esc = no/);
+    s.press("delete"); assert.match(s.text(), /\n \? Delete "Other"\? Its worktree goes too\. {2}y = yes · n = no/);
     s.press("esc"); assert.ok(S.get("proj/2"));
-    // a question too long for the window never loses its keys: it wraps, and "enter = yes · esc = no" stays whole
+    // a question too long for the window never loses its keys: it wraps, and "y = yes · n = no" stays whole
     A.rename("proj/2", "A task with quite a long title here"); s.v.load(); s.press("delete");
     for (const width of [80, 60, 40, 30]) {
       const lines = s.screen(width);
-      assert.ok(lines.some((l) => l.includes("enter = yes · esc = no")), `the keys show at ${width}`);
+      assert.ok(lines.some((l) => l.includes("y = yes · n = no")), `the keys show at ${width}`);
       assert.match(lines.join(" ").replace(/\s+/g, " "), /\? Delete "A task with quite a long title …"\? Its worktree goes too\./, `the question shows at ${width}`);
       assert.ok(lines.every((l) => l.length <= width) && lines.length === 34);
     }
     s.press("esc"); A.rename("proj/2", "Other"); s.v.load();
-    s.press("?"); const at = s.v.menuItems().findIndex((i) => i.label === "delete"); for (let i = 0; i < at; i++) s.press("down");
-    s.press("enter", "enter");
+    s.press("?"); assert.match(s.text(), /\n {3}y {2}n {4}answer a question: y yes, n or esc no \(enter never confirms\)/); // the menu says how a question is answered
+    const at = s.v.menuItems().findIndex((i) => i.label === "delete"); for (let i = 0; i < at; i++) s.press("down");
+    s.press("enter", "enter"); assert.ok(s.v.ask); assert.ok(S.get("proj/2")); s.press("y");
     for (let i = 0; i < 100 && S.get("proj/2"); i++) await new Promise((r) => setTimeout(r, 20));
     assert.equal(S.get("proj/2"), null);
     // an error stays until esc dismisses it; other keys leave it where it is
@@ -130,11 +136,11 @@ test("ctrl+a on something that went wrong retries it as it stands; the focused-p
     assert.equal(S.get(id).stage, "approval", "the action alone merges nothing");
     assert.ok(w.state().calls.some((c) => /popup|open|plugin/.test(c)), "it opens the board");
     const b = open(w);
-    assert.equal(b.v.sel, id); assert.match(b.text(), /\n \? Merge "Never passes"\? {2}enter = yes · esc = no/);
+    assert.equal(b.v.sel, id); assert.match(b.text(), /\n \? Merge "Never passes"\? {2}y = yes · n = no/);
     b.press("esc"); assert.equal(S.get(id).stage, "approval");
     assert.equal(open(w).v.ask, null, "asked once, not every time the board opens");
     execFileSync(process.execPath, [S.BIN, "approve-current"], { encoding: "utf8", cwd: w.root, env: { ...process.env, HERDR_PLUGIN_CONTEXT_JSON: JSON.stringify({ focused_pane_id: t.link.pane }) } });
-    const b2 = open(w); b2.press("enter");
+    const b2 = open(w); b2.press("enter"); assert.equal(S.get(id).stage, "approval"); b2.press("y");
     assert.equal(S.get(id).stage, "merging");
     assert.equal((await settle(id, { max: 30 })).stage, "done");
   } finally { w.cleanup(); }

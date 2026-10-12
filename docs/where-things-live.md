@@ -39,7 +39,7 @@ method in another as `this.name()`. A new area is a new file there, added to tha
 | What a key does | `keys.js` | `test/board-keys.test.js` |
 | The `?` menu and its list of keys | `menu.js` | `test/board-actions.test.js` |
 | The hint line | `hints.js` | `test/board-panel.test.js` |
-| A question the board asks (`enter = yes · esc = no`) | `ask.js` | `test/board-actions.test.js` |
+| A question the board asks (`y = yes · n = no`) | `ask.js` | `test/board-actions.test.js` |
 | What an action does: yes, send back, stop, delete, undo, archive | `actions.js` | `test/board-actions.test.js`, `test/board-reply.test.js` |
 | What goes where on the screen, and what gives way | `layout.js` | `test/board-layout.test.js` |
 | The window's size, a terminal held by another viewer | `size.js` (and `../held.js`) | `test/board-size.test.js` |

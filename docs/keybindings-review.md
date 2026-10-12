@@ -135,7 +135,7 @@ Two undo keys exist and stay apart: `ctrl+-` undoes an edit inside the draft, `c
 | Where | Keys |
 |---|---|
 | The `?` menu | `↑` `↓` choose, `enter` runs the line, `esc` / `ctrl+c` / `?` close it |
-| A question ("Merge?", "Delete?", "Close the board?") | `enter` yes, `esc` / `ctrl+c` no (`ctrl+c` is yes for "Close the board?") |
+| A question ("Merge?", "Delete?", "Close the board?") | "Merge?", "Delete?" and the like: `y` yes, `n` / `esc` / `ctrl+c` no; `enter` never confirms. "Close the board?" is as it was: `enter` / `ctrl+c` yes, `esc` no |
 | First-run setup | `1` `2` switch a choice, `k` type another key, `enter` save, `esc` ask next time |
 | Find | every key types into the search; `enter` keeps the filter, `esc` leaves |
 

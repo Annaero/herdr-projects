@@ -89,8 +89,11 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     s.press("esc");
     // one esc too many does not close the board: it asks, and esc again says no
     s.press("esc"); assert.equal(s.closed(), undefined); assert.match(s.text(), /\n \? Close the board\? {2}enter = yes · esc = no/);
-    s.press("ctrl+a", "x", "space"); assert.ok(s.v.ask, "a question takes enter or esc, nothing else"); assert.equal(S.get(id).stage, "approval");
+    s.press("ctrl+a", "x", "space"); assert.ok(s.v.ask, "a question takes its own keys, nothing else"); assert.equal(S.get(id).stage, "approval");
+    s.press("y", "Y", "n"); assert.ok(s.v.ask, "closing is not a y/n question: it keeps enter and ctrl+c"); assert.equal(s.closed(), undefined);
     s.press("esc"); assert.equal(s.v.ask, null); assert.equal(s.closed(), undefined);
-    s.press("esc", "enter"); assert.equal(s.closed(), null);
+    s.press("\x03"); assert.match(s.text(), /\n \? Close the board\? {2}enter = yes · esc = no/); assert.equal(s.closed(), undefined); s.press("esc");
+    s.press("esc", "enter"); assert.equal(s.closed(), null); // enter still says yes to closing
+    const c = open(w); c.press("\x03", "y"); assert.equal(c.closed(), undefined); c.press("\x03"); assert.equal(c.closed(), null, "and ctrl+c twice still closes");
   } finally { w.cleanup(); }
 });

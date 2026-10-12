@@ -23,12 +23,15 @@ export class Keys {
     const enter = data !== "\n" && (matchesKey(data, "return") || matchesKey(data, "enter"));
     if (this.ask) {
       const { yes, quit } = this.ask;
-      if (enter || (quit && matchesKey(data, "ctrl+c"))) {
+      // y = yes, n or esc = no, in either case; enter never confirms. Closing the board (`quit`) is the one question
+      // left as it was: enter or a second ctrl+c = yes, esc = no.
+      const letter = (c) => !quit && (data === c || data === c.toUpperCase() || matchesKey(data, c) || matchesKey(data, `shift+${c}`));
+      if (quit ? enter || matchesKey(data, "ctrl+c") : letter("y")) {
         if (this.ask.valid) { try { this.load(); } catch {} if (!this.ask) return; } // the newest state decides, not the one drawn a second ago
         this.ask = null; return yes();
       }
-      if (esc || matchesKey(data, "ctrl+c")) this.ask = null;
-      return; // a question takes enter or esc, nothing else
+      if (esc || letter("n") || matchesKey(data, "ctrl+c")) this.ask = null;
+      return; // a question takes its own keys, nothing else: no other key answers it or is typed into the text box
     }
     if (this.menu) return this.menuKey(data);
     this.stick = "";
