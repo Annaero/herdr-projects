@@ -7,7 +7,7 @@ import { world } from "./helpers.js";
 import * as S from "../src/store.js";
 import { execFileSync } from "node:child_process";
 
-test("the command: add, list, report, config, and the hook entry does nothing when there are no tasks", async () => {
+test("[real programs] the command: add, list, report, config, and the hook entry does nothing when there are no tasks", async () => {
   const w = await world({ settings: { helper: "off" } });
   try {
     const sw = (...args) => execFileSync(process.execPath, [S.BIN, ...args], { encoding: "utf8", cwd: w.root });

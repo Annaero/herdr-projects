@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { settle } from "./helpers.js";
+import { settle, until } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as C from "../src/coordinator.js";
@@ -210,7 +210,7 @@ test("the herdr action goes into the Coordinator's pane from anywhere, starting 
   const w = await coordWorld();
   try {
     const going = main(["open-coordinator"]);
-    await new Promise((r) => setTimeout(r, 50)); await drainJobs(runJob);
+    await until(() => globalThis.__swJobs.length); await drainJobs(runJob); // it asked for the start and waits for it
     assert.equal(await going, 0);
     assert.equal(w.agents().length, 1); assert.deepEqual(w.state().focus, [`agent ${C.get().pane}`], "its pane, not the board");
     assert.equal(await main(["open-coordinator"]), 0); assert.equal(w.state().focus.length, 2);

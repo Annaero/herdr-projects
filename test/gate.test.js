@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { world, settle } from "./helpers.js";
+import { world, settle, paneOf, ghLog } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
@@ -12,8 +12,6 @@ import { main } from "../src/cli.js";
 import { parseVerdict, reviewBrief } from "../src/finish.js";
 import { renderReviewPage } from "../src/review-page.js";
 
-const paneOf = (w, t) => w.state().panes.find((p) => p.pane_id === t.link.pane);
-const ghLog = (w) => { try { return fs.readFileSync(path.join(w.fake, "gh.log"), "utf8"); } catch { return ""; } };
 const finding = (severity, subject, extra = {}) => ({ severity, subject, where: "f.txt", proof: "ran it", ...extra });
 const verdict = (findings, extra = {}) => ({ verdict: { meets: true, text: "Looked at it.", findings, ...extra } });
 const work = (n) => ({ files: { "f.txt": `${n}\n` }, commit: `v${n}`, note: `Did v${n}.` });

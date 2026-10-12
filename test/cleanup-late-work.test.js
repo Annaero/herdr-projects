@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { world, settle, git } from "./helpers.js";
+import { world, settle, git, fastClock, stateOf, paneOf, ghLog, toApproval } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
@@ -12,17 +12,6 @@ import { housekeeping, pollPrs } from "../src/housekeeping.js";
 import { drainJobs } from "../src/runner.js";
 import { runJob } from "../src/jobs.js";
 
-const stateOf = (id) => F.board({ includeArchived: true }).find((t) => t.id === id);
-const paneOf = (w, t) => w.state().panes.find((p) => p.pane_id === t.link.pane);
-const ghLog = (w) => { try { return fs.readFileSync(path.join(w.fake, "gh.log"), "utf8"); } catch { return ""; } };
-async function toApproval(w, title = "Work", extra = {}) {
-  w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }], ...extra });
-  const id = A.add(w.root, title).id;
-  A.delegate(id);
-  const t = await settle(id);
-  assert.equal(t.stage, "approval", JSON.stringify(t.failure));
-  return id;
-}
 
 test("clean-up never takes work that arrives while it runs: a reply waits, and a late commit keeps its worktree and branch", async () => {
   // the repo's teardown stands in for a turn typed in the agent's own terminal during clean-up: it commits a file
@@ -70,14 +59,15 @@ test("a turn started in the agent's own terminal during clean-up keeps its termi
   } finally { w.cleanup(); }
 });
 
-test("a terminal turn that starts before clean-up and ends during its first wait still keeps the terminal; a trailing status does not", async () => {
+test("a terminal turn that starts before clean-up and ends during its first wait still keeps the terminal; a trailing status does not", async (tt) => {
   const w = await world({ settings: { reviewer: "off" } });
+  const clock = fastClock(tt); // clean-up waits up to three seconds for herdr's status, three times: none of it for real
   const flip = (t, after) => setTimeout(() => { w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = "done"; p.agent.seq = s.seq; p.agent.completion = s.seq; }); after?.(); }, 300);
   const run = async (n, { hooked, event }) => {
     w.script({ worker: [{ files: { [`f${n}.txt`]: "x\n" }, commit: `f${n}`, note: "Did it." }] });
     const id = A.add(w.root, `Task ${n}`).id;
     A.delegate(id);
-    let t = await settle(id);
+    let t = await clock(settle(id));
     assert.equal(t.stage, "approval", JSON.stringify(t.failure));
     S.update(id, (t) => { t.hooked = hooked; });
     w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = "working"; p.agent.seq = s.seq; });
@@ -85,7 +75,7 @@ test("a terminal turn that starts before clean-up and ends during its first wait
     S.update(id, (t) => { t.stage = "done"; });
     flip(t, event ? () => S.update(id, (t) => { t.eventSeq = (t.eventSeq || 0) + 1; }) : null);
     const { cleanupJob } = await import("../src/land.js");
-    await cleanupJob(id, { deleteBranch: "merged" });
+    await clock(cleanupJob(id, { deleteBranch: "merged" }));
     t = S.get(id);
     return { t, open: w.state().workspaces.some((x) => x.workspace_id === t.link.workspace) };
   };

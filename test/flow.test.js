@@ -3,13 +3,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { world, settle, git } from "./helpers.js";
+import { world, settle, git, stateOf } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
 import { rules } from "../src/delegate.js";
 
-const stateOf = (id) => F.board({ includeArchived: true }).find((t) => t.id === id);
 
 test("delegate: a herdr worktree workspace, the agent in its root pane, the first prompt with the rules", async () => {
   const w = await world();

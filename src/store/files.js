@@ -57,7 +57,12 @@ export const VERSION = (() => { try { return JSON.parse(fs.readFileSync(path.joi
 // the kernel releases it when the process ends or crashes, so there are no stale owners to repair.
 const held = new Set();
 const lockFile = (name) => path.join(dataDir(), "locks", `${Buffer.from(String(name)).toString("base64url")}.lock`);
+const busy = (name) => Object.assign(new Error(`${name} is busy with another action. Try again in a moment.`), { code: "BUSY" });
+// Takes the lock and returns what lets it go. Tests may keep the locks in their own process (`globalThis.__swLocks`, a
+// Set of the files held): starting flock for every change to a task was half of the programs the suite started.
 function takeLock(name, file, waitMs) {
+  const own = globalThis.__swLocks;
+  if (own) { if (own.has(file)) throw busy(name); own.add(file); return () => own.delete(file); }
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const fd = fs.openSync(file, "a");
   try {
@@ -69,22 +74,22 @@ function takeLock(name, file, waitMs) {
       sleepSync(15);
     }
     if (lock.error?.code === "ENOENT") throw new Error("herdr-superwork needs flock (util-linux) to change tasks safely.");
-    if (lock.status === 1) throw Object.assign(new Error(`${name} is busy with another action. Try again in a moment.`), { code: "BUSY" });
+    if (lock.status === 1) throw busy(name);
     if (lock.status !== 0) throw new Error(`Could not lock ${name}: ${lock.error?.message || String(lock.stderr || "").trim()}`);
-    return fd;
+    return () => fs.closeSync(fd);
   } catch (e) { fs.closeSync(fd); throw e; }
 }
 export function withLock(name, fn, { waitMs = 2000 } = {}) {
   const file = lockFile(name);
   if (held.has(file)) return fn(); // nested in this process
-  const fd = takeLock(name, file, waitMs);
+  const free = takeLock(name, file, waitMs);
   held.add(file);
-  try { return fn(); } finally { held.delete(file); fs.closeSync(fd); }
+  try { return fn(); } finally { held.delete(file); free(); }
 }
 // A lock held until the returned function is called, or the process ends (the keeper holds one for its whole life).
 export function holdLock(name, { waitMs = 2000 } = {}) {
-  const fd = takeLock(name, lockFile(name), waitMs);
-  return () => { try { fs.closeSync(fd); } catch {} };
+  const free = takeLock(name, lockFile(name), waitMs);
+  return () => { try { free(); } catch {} };
 }
 const taskKey = (id) => String(id).split("/").slice(0, 2).join("/");
 export const withTaskLock = (id, fn, opts) => withLock(`task:${taskKey(id)}`, fn, opts);

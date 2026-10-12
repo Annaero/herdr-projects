@@ -2,45 +2,93 @@
 
 A fake herdr and scripted fake agents: no model calls, no real board, no real herdr. Everything is in `test/`.
 
-## Running them
+## One command
+
+Everything that runs tests uses the same command: you, an agent at work, the reviewer, and the board's own check
+(`check` in [`.herdr-superwork.json`](../.herdr-superwork.json)). `npm test` is the same command.
 
 | To run | Command |
 |---|---|
-| Everything | `npm test` |
-| One area | `npm test board-panel` |
-| Several areas | `npm test sync gate` |
+| The test files your change touches | `npm run check` |
+| The whole suite | `npm run check -- --all` |
+| One area, or several | `npm run check board-panel`, `npm run check sync gate` |
+| Again, although it passed | add `--fresh` |
 
-An area name stands for every `test/<name>*.test.js`: `board` is all eleven board files, `board-panel` is one, `sync`
-is the three `sync-*` files. A file's own path works too (`npm test test/gate.test.js`). A name no file starts with is
-an error that lists the areas. Which file tests what: the tables in [where things live](where-things-live.md).
+- **While you work: `npm run check`.** It compares the folder with where the branch left main (committed or not) and
+  runs the test files that reach a changed file through their imports, or that name it, themselves or in any file they
+  reach (a page a test reads, `package.json` that the code reads). A
+  changed page no test reads runs only the guard (`test/guard.test.js`, which reads the whole repo and runs on any change). A changed file that is neither (a program a test starts, a recording) runs
+  everything, and the first line says which file that was.
+- **Once, at the end: `npm run check -- --all`.** The board runs the same at the finish line.
+- **A reviewer runs `npm run check -- --all` as well**, and gets the worker's result (below). No second run of the suite.
+- An area name stands for every `test/<name>*.test.js`: `board` is all the board files, `sync` the three `sync-*`
+  files. A file's own path works too. A name no file starts with is an error that lists the areas. Which file tests
+  what: the tables in [where things live](where-things-live.md).
 
-## While you work, and before you finish
+Do not start tests another way (`node --test test/x.test.js`, a script of your own): that skips the three things below.
 
-- **While working, run only the area you are changing**: `npm test <area>`. That is seconds. Do not run the whole
-  suite after every edit.
-- **Run the whole suite once, at the end**, before you finish: `npm test`. It is also the repo's check, so the board
-  runs it again at the finish line.
-- **A reviewer** runs the areas the change touches, and trusts the check for the rest.
+### It remembers what passed
 
-## Slow test files
+A test file that passed is remembered for the exact code it passed on: the git tree of the folder as it stands,
+uncommitted changes and new files included. Asked again for the same code, the command answers at once
+(`already passed for this exact code`) and runs nothing. The results are kept outside the worktrees
+(`~/.cache/herdr-superwork-check`), so every worktree shares them: the reviewer and the board's check, on the worker's
+commit, reuse the worker's passing run. Committing changes no file, so it changes nothing here; any edit does. A failed
+test is never remembered. `--fresh` runs regardless.
 
-`npm test` ends with a `⚠ slow test files` note naming each file that took longer than 25 seconds. If a file you
-changed is named there, fix it before you finish: split it by area into two files (files run side by side, tests in
-one file run one after another), or make its tests cheaper. The time is the file's tests added up, by the clock, so
-a machine busy with other work (several agents testing at once) stretches it: the note says so when the machine is
-busy, and then `npm test <that file's area>` by itself shows the file's own time. `HERDR_SUPERWORK_TEST_SLOW_S=60 npm
-test` sets another limit for one run.
+### Runs take turns
 
-What makes a test slow here is starting programs. Hence:
+One test run at a time on a machine (`HERDR_SUPERWORK_CHECK_SLOTS` for another number). The tests use every core, so
+two runs side by side only make both slower. A run that finds the slot taken says `waiting for a turn` and starts when
+it is free. If the code it was asked about passed in the meantime, it answers without running.
 
-- **The fake herdr answers in the test's own process.** `world()` in `test/helpers.js` sets this up: the board's code
-  still builds the same command and reads the same output and exit status, but no program is started. Starting node
-  for each of a test's hundreds of herdr calls used to be nine tenths of the suite's time. A program the test starts
-  itself (the command line, an agent's hook) still runs the fake as a real program, `test/bin/herdr`, and so does a
-  test that asks for it with `world({ program: true })`. `test/fake-herdr.test.js` holds both ways to the same answers.
-- **Call the code, do not start the command line**, unless the command line is what the test is about
-  (`test/cli.test.js`).
-- **Share set-up inside one test** rather than building a new world for every small assertion; a world is a git
-  repo and a first commit.
-- **Avoid real waiting.** `world()` sets the code's own waits to zero or a few milliseconds; keep any sleep a test
-  adds as short as what it proves allows.
+### The budget
+
+The check fails, and names the file, when a test file costs more than:
+
+| | One test file | The whole suite |
+|---|---|---|
+| Processor time (its own and that of the programs it starts) | 6 s | 60 s |
+| Time by the clock | 6 s | 15 s |
+| Programs started | 1000 | |
+
+Processor time and the count of programs do not depend on how busy the machine is. Time by the clock does, so that
+budget is stretched by how much of the machine other programs used during the run (and by how few cores it has); the
+line says so when it was. A file
+over its budget is not remembered as passed, so the next run measures it again; when the whole suite is over, nothing
+of that run is remembered. The suite's time by the clock is measured when all of it runs in one go. The numbers are `BUDGET` in
+`test/check.js`; the last line of a run shows what it cost.
+
+Over budget: make the file's tests lighter (below), or split it by area into two files (files run side by side, the
+tests in one file one after another). Do not raise the budget to get a change through.
+
+Where it stands (8 cores, a quiet machine): 40 files, 170 tests, about 8 s by the clock, 40 s of processor time, 7000
+programs started (nearly all of them git). Before the tests were made light, on the same machine: 19 s by the clock,
+69 s of processor time, 20 600 programs.
+
+## Light tests
+
+What makes a test slow here is starting programs and waiting. A new test does neither:
+
+- **It calls the code**, in the test's own process. `world()` in `test/helpers.js` gives it a board of its own, a git
+  repo and a fake herdr. The board's code still builds the same herdr command and reads the same output and exit
+  status, but no program is started: the fake answers in this process, and so do the things that used to be a program
+  per call (locks, the agent's own turn-end report, the list of a process's children, the version of an agent program).
+- **It does not sleep, and does not depend on the machine's speed.** `world()` sets the code's own waits to zero. For
+  code that waits, `fastClock(t)` gives a clock that only moves when told to: `await clock(settle(id))` runs the code
+  with its timers firing at once, `clock.tick(ms)` moves time by hand. A moment in the past or the future is written
+  into the data (`t.tidy.still.at -= 3600000`), not waited for. Nothing compares against a duration it measured.
+- **It shares set-up inside one test** rather than building a new world for every small assertion; a world is a git
+  repo and a first commit. `toApproval(w)` is the scene most finish-line tests start from.
+- **git is the one program still started**, because the board's work is git work. Ask for each fact once.
+
+A real program is started only where the program itself is what is tested. Those tests say so in their name
+(`[real programs]`): the command line (`test/cli.test.js`), the fake herdr as a program (`test/fake-herdr.test.js`),
+the check command and its slots (`test/check.test.js`), the kernel lock (`test/store.test.js`). A repo's own `setup`,
+`check` and `teardown` commands are shell commands by nature, and run as such in the tests about them. `world({ program: true })`
+runs the fake herdr as the program `test/bin/herdr`; a program a test starts itself (the command line) always does.
+
+## Looking at the real thing
+
+Tests read the board as text. A real terminal or a browser screenshot is only for a task that changes what the board
+or the review page looks like; for any other task the tests are the evidence.

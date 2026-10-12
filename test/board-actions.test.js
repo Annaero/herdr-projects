@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { world, settle, git } from "./helpers.js";
+import { world, settle, git, until } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import { osc } from "../src/board/view.js";
@@ -19,9 +19,9 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     const s = open(w);
     s.v.sel = id; s.v.load();
     // Finished, reviewed work is good news: its own group, the reviewer's advice in words, no "approve to merge?" on every row.
-    assert.match(s.text(80), /\n ready to approve *\n ✓ Make f {2}Pass · 1 minor +R#1 ✓ +\ds ago *\n/); assert.doesNotMatch(s.text(80), /blocked|approve to merge|r1/);
+    assert.match(s.text(80), /\n ready to approve *\n ✓ Make f {2}Pass · 1 minor +R#1 ✓ +\d+s ago *\n/); assert.doesNotMatch(s.text(80), /blocked|approve to merge|r1/);
     let text = s.text();
-    assert.match(text, /│ {2}✓ ready to approve · claude · \ds ago/);
+    assert.match(text, /│ {2}✓ ready to approve · claude · \d+s ago/);
     assert.match(text, /│ {2}Review ─+ *\n[^\n]*│ {2}╭─ Review 1 ─[^\n]*\n[^\n]*│ {2}│ Pass · 1 minor +│ *\n[^\n]*│ {2}│ Good\./); assert.match(text, /│ {2}1 file, \+1 −0/);
     assert.equal(S.get(id).reviews.length, 1); assert.deepEqual([S.get(id).reviews[0].round, S.get(id).reviews[0].pass, S.get(id).reviews[0].findings.length, S.get(id).reviews[0].text], [1, true, 1, "Good."]); // the task keeps every review it had assert.match(text, /│ {2}The agent said *\n[^\n]*│ {2}Made f\./);
     assert.match(text, /\n {2}ctrl\+a approve and merge · ctrl\+r send back · space reply · \? more/);
@@ -86,7 +86,7 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     s.press("?"); assert.match(s.text(), /\n {3}y {2}n {4}answer a question: y yes, n or esc no \(enter never confirms\)/); // the menu says how a question is answered
     const at = s.v.menuItems().findIndex((i) => i.label === "delete"); for (let i = 0; i < at; i++) s.press("down");
     s.press("enter", "enter"); assert.ok(s.v.ask); assert.ok(S.get("proj/2")); s.press("y");
-    for (let i = 0; i < 100 && S.get("proj/2"); i++) await new Promise((r) => setTimeout(r, 20));
+    await until(() => !S.get("proj/2"));
     assert.equal(S.get("proj/2"), null);
     // an error stays until esc dismisses it; other keys leave it where it is
     s.v.flash("It broke.", "red"); s.press("down", "up"); assert.match(s.text(), /It broke\. {2}\(esc\)/);

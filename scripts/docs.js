@@ -84,7 +84,7 @@ function wherePage() {
     "",
     "## The tests: `test/`",
     "",
-    "One file per area, named after it; `npm test <area>` runs every `test/<area>*.test.js` ([testing.md](testing.md)).",
+    "One file per area, named after it; `npm run check <area>` runs every `test/<area>*.test.js` ([testing.md](testing.md)).",
     "",
     table(["File", "Tests"], tests.map((f) => ["`" + path.basename(f) + "`", holds(f)])),
     "",

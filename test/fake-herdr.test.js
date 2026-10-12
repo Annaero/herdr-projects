@@ -4,13 +4,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { world, settle } from "./helpers.js";
+import { world } from "./helpers.js";
 import { herdr as fake } from "./fake-herdr.js";
 import * as S from "../src/store.js";
-import * as A from "../src/actions.js";
 import { herdr, HerdrError } from "../src/herdr.js";
 
-test("the fake herdr answers the same called in the test's process as run as a program: output, exit status, saved state", async () => {
+test("[real programs] the fake herdr answers the same called in the test's process as run as a program: output, exit status, saved state", async () => {
   const w = await world();
   try {
     const dirs = ["called", "program"].map((n) => { const d = path.join(w.base, n); fs.mkdirSync(d); fs.writeFileSync(path.join(d, "script.json"), JSON.stringify({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did it.", screen: "the screen" }] })); return d; });
@@ -40,7 +39,7 @@ test("the fake herdr answers the same called in the test's process as run as a p
   } finally { w.cleanup(); }
 });
 
-test("the board's own calls reach herdr either way: in the test's process by default, as a real program when the test asks", async () => {
+test("[real programs] the board's own calls reach herdr either way: in the test's process by default, as a real program when the test asks", async () => {
   for (const program of [false, true]) {
     const w = await world({ program, settings: { reviewer: "off" } });
     try {
@@ -48,11 +47,10 @@ test("the board's own calls reach herdr either way: in the test's process by def
       const h = herdr(w.socket);
       assert.throws(() => h.call(["frobnicate"]), (e) => e instanceof HerdrError && e.code === "unknown_command" && /fake herdr does not know: frobnicate/.test(e.message));
       assert.equal(h.workspaceGet("w9"), null); assert.equal(h.alive(), true);
-      w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }] });
-      const id = A.add(w.root, "Work").id;
-      A.delegate(id);
-      assert.equal((await settle(id)).stage, "approval");
-      assert.ok(w.state().calls.some((c) => c.startsWith("agent prompt ")));
+      assert.equal(h.workspaceCreate({ cwd: w.root, label: "proj" }).workspace.workspace_id, "w1"); assert.deepEqual(h.workspaces().map((x) => x.workspace_id), ["w1"]);
+      assert.deepEqual(w.state().calls.map((c) => c.split(" ").slice(0, 2).join(" ")), ["frobnicate", "workspace get", "workspace list", "workspace create", "workspace list"]); // each one reached the same herdr
+      // the locks follow: kept in this process, or the real ones beside the real program
+      S.withLock("x", () => assert.equal(fs.existsSync(path.join(S.dataDir(), "locks")), program));
       // another program path is always started for real, whatever the test's world answers for
       const real = process.env.HERDR_BIN_PATH, own = path.join(w.base, "herdr-own");
       fs.writeFileSync(own, '#!/bin/sh\necho \'{"id":"own","result":{"workspaces":[{"workspace_id":"mine"}]}}\'\n', { mode: 0o755 });

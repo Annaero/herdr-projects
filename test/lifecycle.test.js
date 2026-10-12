@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { world, settle, git } from "./helpers.js";
+import { world, settle, git, stateOf, paneOf, ghLog, toApproval } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
@@ -12,17 +12,6 @@ import { housekeeping, pollPrs } from "../src/housekeeping.js";
 import { drainJobs } from "../src/runner.js";
 import { runJob } from "../src/jobs.js";
 
-const stateOf = (id) => F.board({ includeArchived: true }).find((t) => t.id === id);
-const paneOf = (w, t) => w.state().panes.find((p) => p.pane_id === t.link.pane);
-const ghLog = (w) => { try { return fs.readFileSync(path.join(w.fake, "gh.log"), "utf8"); } catch { return ""; } };
-async function toApproval(w, title = "Work", extra = {}) {
-  w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }], ...extra });
-  const id = A.add(w.root, title).id;
-  A.delegate(id);
-  const t = await settle(id);
-  assert.equal(t.stage, "approval", JSON.stringify(t.failure));
-  return id;
-}
 
 test("at most `max` agents work at once; tasks waiting for the human hold no slot; a freed slot is reused at once", async () => {
   const w = await world({ settings: { max: 1, reviewer: "off" } });

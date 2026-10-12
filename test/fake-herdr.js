@@ -70,10 +70,15 @@ function answer(argv, env) {
     const task = (/^Work board task (\S+), role: (\w+)(?:, round (\d+))?\./.exec(p.agent.prompts[0]) || []);
     const role = task[2] === "reviewer" ? "reviewer" : "agent", round = task[3] || "0";
     const tokens = read(path.join(env.HERDR_SUPERWORK_DATA_DIR, "tasks", ...task[1].split("/"), "tokens.json"), {});
-    const cmd = [path.join(here, "..", "bin", "herdr-superwork.js"), "turn-ended", "--id", task[1], "--role", role, "--token", role === "reviewer" ? tokens.reviewer?.[round] : tokens.agent, ...(role === "reviewer" ? ["--round", round] : [])];
+    const flags = { id: task[1], role, token: role === "reviewer" ? tokens.reviewer?.[round] : tokens.agent, round };
     // Claude and pi say it on stdin, Codex as a last argument.
-    if (kind === "codex") execFileSync(process.execPath, [...cmd, JSON.stringify({ "thread-id": id, "input-messages": [p.agent.prompts[0]] })], { env, stdio: "ignore" });
-    else execFileSync(process.execPath, cmd, { input: JSON.stringify(kind === "claude" ? { session_id: id, transcript_path: file } : { transcript_path: file }), env, stdio: ["pipe", "ignore", "ignore"] });
+    const says = kind === "codex" ? { "thread-id": id, "input-messages": [p.agent.prompts[0]] } : kind === "claude" ? { session_id: id, transcript_path: file } : { transcript_path: file };
+    // Called in the test's own process, the report is too (test/helpers.js passes the function): no program is started.
+    const own = globalThis.__swHerdr?.turnEnded;
+    if (own && env.HERDR_SUPERWORK_DATA_DIR === process.env.HERDR_SUPERWORK_DATA_DIR) return void own(flags, [JSON.stringify(says)]);
+    const cmd = [path.join(here, "..", "bin", "herdr-superwork.js"), "turn-ended", "--id", flags.id, "--role", role, "--token", flags.token, ...(role === "reviewer" ? ["--round", round] : [])];
+    if (kind === "codex") execFileSync(process.execPath, [...cmd, JSON.stringify(says)], { env, stdio: "ignore" });
+    else execFileSync(process.execPath, cmd, { input: JSON.stringify(says), env, stdio: ["pipe", "ignore", "ignore"] });
   }
 
   // One scripted turn. Steps: { merge: "commit to merge first", files: {path: text}, commit: "message", note: "closing note", verdict: {...},

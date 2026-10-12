@@ -10,7 +10,7 @@ import { View } from "../src/board/view.js";
 import { theme } from "../src/board/theme.js";
 import { open } from "./board-helpers.js";
 
-test("the board's keys: typing adds a task, tab puts an agent on it, space replies to it, enter opens the agent", async () => {
+test("the board's keys: typing adds a task, tab puts an agent on it, space replies to it, enter opens the agent", async (tt) => {
   const w = await world({ settings: { helper: "off", reviewer: "off" } });
   try {
     process.env.HERDR_ENV = "1";
@@ -61,16 +61,17 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     // the first few times, the board says how to get back before it closes for an agent
     const tui = { terminal: { rows: 34, columns: 120 }, requestRender() {}, stop() {}, start() {} };
     let closed;
+    tt.mock.timers.enable({ apis: ["setTimeout"] }); // the board closes a moment after the line shows: the clock is moved, not waited for
     const v3 = new View(tui, theme, (x) => { closed = x; }, { cwd: w.root, leaveMs: 30, boardKey: "prefix+w" }); clearInterval(v3.timer);
     v3.sel = "proj/1"; v3.load(); v3.handleInput("\r");
     assert.equal(closed, undefined); assert.match(v3.render(120).map((l) => stripVTControlCharacters(l)).join("\n"), /Opening the agent\. prefix\+w brings the board back\./);
     v3.handleInput("\x18"); assert.equal(S.get("proj/1").stage, "stopped"); // nothing more is taken from the keyboard
-    await new Promise((r) => setTimeout(r, 80));
+    tt.mock.timers.tick(80); tt.mock.timers.reset();
     assert.deepEqual(closed, { entered: "proj/1" }); v3.dispose();
   } finally { delete process.env.HERDR_ENV; w.cleanup(); }
 });
 
-test("while the text box holds text it owns the keyboard: no shortcut fires in the middle of a draft", async () => {
+test("while the text box holds text it owns the keyboard: no shortcut fires in the middle of a draft", async (tt) => {
   const w = await world({ settings: { helper: "off", coordinator: "off" } });
   try {
     w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f." }], reviewer: [{ verdict: { meets: true, text: "Good.", findings: [{ severity: "minor", subject: "f.txt has no title", where: "f.txt" }] } }] });
@@ -103,8 +104,9 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     s.press("esc", "ctrl+c"); assert.equal(s.closed(), undefined); assert.match(s.text(), hint);
     s.press("?"); assert.ok(s.v.menu); assert.match(s.text(), /ctrl\+c +twice: close the board/); s.press("ctrl+c"); assert.equal(s.v.menu, null); assert.equal(s.closed(), undefined);
     // a short wait takes it away too: ctrl+c after it only shows the hint again
+    tt.mock.timers.enable({ apis: ["setTimeout"] }); // the clock is moved, not waited for
     s.press("ctrl+c"); assert.match(s.text(), hint);
-    await new Promise((r) => setTimeout(r, 900));
+    tt.mock.timers.tick(900); tt.mock.timers.reset();
     assert.doesNotMatch(s.text(), hint); s.press("ctrl+c"); assert.equal(s.closed(), undefined); assert.match(s.text(), hint);
     // esc again is not a yes and not a no: only ctrl+c closes, after esc's hint as after its own
     s.press("esc"); assert.equal(s.closed(), undefined); assert.match(s.text(), hint);

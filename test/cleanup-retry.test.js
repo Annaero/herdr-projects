@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { world, settle, git } from "./helpers.js";
+import { world, settle, git, stateOf, paneOf, ghLog, toApproval } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
@@ -12,17 +12,6 @@ import { housekeeping, pollPrs } from "../src/housekeeping.js";
 import { drainJobs } from "../src/runner.js";
 import { runJob } from "../src/jobs.js";
 
-const stateOf = (id) => F.board({ includeArchived: true }).find((t) => t.id === id);
-const paneOf = (w, t) => w.state().panes.find((p) => p.pane_id === t.link.pane);
-const ghLog = (w) => { try { return fs.readFileSync(path.join(w.fake, "gh.log"), "utf8"); } catch { return ""; } };
-async function toApproval(w, title = "Work", extra = {}) {
-  w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }], ...extra });
-  const id = A.add(w.root, title).id;
-  A.delegate(id);
-  const t = await settle(id);
-  assert.equal(t.stage, "approval", JSON.stringify(t.failure));
-  return id;
-}
 
 test("a clean-up put off because the space was in use is tried again by itself once it is free", async () => {
   const w = await world({ settings: { reviewer: "off" } });
@@ -102,18 +91,19 @@ test("a clean-up put off because the space was in use is tried again by itself o
     assert.ok(S.get(t.id).cleaned && !fs.existsSync(t.worktree)); assert.equal(w.state().workspaces.length, 0);
     // herdr never calls this agent idle (it does that to some after a reply), but its screen stands still: at rest
     const screen = (t, text) => w.patchState((s) => { s.panes.find((p) => p.pane_id === t.link.pane).agent.screen = text; });
-    process.env.HERDR_SUPERWORK_STILL_MS = "800";
+    // no waiting here: the moment its screen was first seen as it is gets moved into the past instead
+    const longAgo = (t) => S.update(t.id, (c) => { c.tidy.still.at -= 3600000; });
     t = await merged(5, (t) => { setStatus(t, "unknown"); screen(t, "● working 2s\n"); });
     assert.ok(S.get(t.id).tidy.still); // what its screen showed is remembered
     screen(t, "● working 9s\n"); // it moves: an agent at work, however long ago the last look was
-    await new Promise((r) => setTimeout(r, 900));
+    longAgo(t);
     assert.equal(await pass(t.id), 1);
     assert.ok(open(S.get(t.id)) && fs.existsSync(t.worktree));
     assert.equal(await pass(t.id), 1); // the same screen now, but not for long enough yet
     assert.ok(open(S.get(t.id)) && fs.existsSync(t.worktree));
     // the same screen for long enough, but a tool it started is still running without a sign on the screen: at work
     w.patchState((s) => { s.panes.find((p) => p.pane_id === t.link.pane).tool = true; });
-    await new Promise((r) => setTimeout(r, 900));
+    longAgo(t);
     assert.equal(await pass(t.id), 1);
     assert.ok(open(S.get(t.id)) && fs.existsSync(t.worktree));
     // its saved conversation ends in a finished turn, yet a command it started in the background still runs: at work
@@ -145,5 +135,5 @@ test("a clean-up put off because the space was in use is tried again by itself o
     assert.ok(!c.tidy); assert.match(c.kept[0], /new work arrived/); assert.ok(!open(c));
     assert.ok(fs.existsSync(path.join(t.worktree, "more.txt"))); assert.equal(git(w.root, "log", "-1", "--format=%s", t.branch), "more");
     assert.equal(await pass(t.id), 0);
-  } finally { delete process.env.HERDR_SUPERWORK_QUIET_MS; delete process.env.HERDR_SUPERWORK_STILL_MS; w.cleanup(); }
+  } finally { delete process.env.HERDR_SUPERWORK_QUIET_MS; w.cleanup(); }
 });

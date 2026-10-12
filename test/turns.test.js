@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { world, settle, git } from "./helpers.js";
+import { world, settle, git, stateOf, paneOf, ghLog, toApproval } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
@@ -12,17 +12,6 @@ import { housekeeping, pollPrs } from "../src/housekeeping.js";
 import { drainJobs } from "../src/runner.js";
 import { runJob } from "../src/jobs.js";
 
-const stateOf = (id) => F.board({ includeArchived: true }).find((t) => t.id === id);
-const paneOf = (w, t) => w.state().panes.find((p) => p.pane_id === t.link.pane);
-const ghLog = (w) => { try { return fs.readFileSync(path.join(w.fake, "gh.log"), "utf8"); } catch { return ""; } };
-async function toApproval(w, title = "Work", extra = {}) {
-  w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }], ...extra });
-  const id = A.add(w.root, title).id;
-  A.delegate(id);
-  const t = await settle(id);
-  assert.equal(t.stage, "approval", JSON.stringify(t.failure));
-  return id;
-}
 
 test("approve refuses to merge work that changed after its review: the finish line runs first", async () => {
   const w = await world();
@@ -98,7 +87,7 @@ test("review: a verdict for another commit is ignored, a missing verdict is a sa
     let t = await settle(id);
     assert.equal(t.stage, "failed"); assert.match(t.failure.detail, /review timed out/); assert.equal(t.review, null);
     assert.equal(stateOf(id).state, "error");
-    process.env.HERDR_SUPERWORK_REVIEW_MS = "4000";
+    process.env.HERDR_SUPERWORK_REVIEW_MS = "120000";
     // ctrl+r sends the error back; this time the reviewer answers properly but also touches the tree
     w.script({ worker: [{ note: "Nothing to change." }], reviewer: [{ dirtyTree: true, verdict: { meets: true, text: "Has a real problem.", findings: [{ severity: "major", subject: "f.txt is wrong", where: "f.txt", proof: "cat f.txt" }] }, evidence: { "out.txt": "test output\n" } }] });
     A.sendError(id);
@@ -113,7 +102,7 @@ test("review: a verdict for another commit is ignored, a missing verdict is a sa
     assert.match(paneOf(w, S.get(id)).agent.prompts.at(-1), /Result: Fail · 1 major\.[\s\S]*Required: fix each of these\.\n- \[major\] f\.txt is wrong \(f\.txt\)\n  Proof: cat f\.txt/);
     t = await settle(id);
     assert.equal(t.stage, "approval"); assert.equal(t.review.pass, true);
-  } finally { process.env.HERDR_SUPERWORK_REVIEW_MS = "4000"; w.cleanup(); }
+  } finally { process.env.HERDR_SUPERWORK_REVIEW_MS = "120000"; w.cleanup(); }
 });
 
 test("a review that fails the gate goes straight back, as the plugin's own turn, up to `rounds` times; an old reviewAuto: true is gate major", async () => {

@@ -5,12 +5,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { world, settle, git } from "./helpers.js";
+import { world, settle, git, paneOf } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as Y from "../src/sync.js";
 
-const paneOf = (w, t) => w.state().panes.find((p) => p.pane_id === t.link.pane);
 const holds = (dir, sha) => { try { git(dir, "merge-base", "--is-ancestor", sha, "HEAD"); return true; } catch { return false; } };
 const big = (first, last) => [first, ...Array.from({ length: 18 }, (_, i) => `line ${i + 2}`), last].join("\n") + "\n";
 const mainMoves = (w, files) => { for (const [f, text] of Object.entries(files)) fs.writeFileSync(path.join(w.root, f), text); git(w.root, "add", "-A"); git(w.root, "commit", "-qm", "main moves"); return git(w.root, "rev-parse", "HEAD"); };

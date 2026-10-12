@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { world, settle } from "./helpers.js";
+import { world, fastClock, settle, stateOf, paneOf } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
@@ -17,8 +17,6 @@ import { View } from "../src/board/view.js";
 import { theme } from "../src/board/theme.js";
 
 const endings = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "endings");
-const stateOf = (id) => F.board({ includeArchived: true }).find((t) => t.id === id);
-const paneOf = (w, t) => w.state().panes.find((p) => p.pane_id === t.link.pane);
 const starts = (w, name) => w.state().calls.filter((c) => c.startsWith("agent start") && new RegExp(`${name}( |$)`).test(c.split(" ")[2])).length;
 const reviewerStarts = (w) => w.state().calls.filter((c) => /^agent start \S+-r /.test(c)).length;
 const ENV = ["CODEX_HOME", "CLAUDE_CONFIG_DIR", "PI_CODING_AGENT_DIR", "HERDR_SUPERWORK_RETRY_MS", "HERDR_SUPERWORK_ENDED_MS", "HERDR_SUPERWORK_QUIET_MS"];
@@ -27,7 +25,6 @@ async function cutWorld(waits, settings = {}) {
   const w = await world({ settings });
   const before = Object.fromEntries(ENV.map((k) => [k, process.env[k]]));
   Object.assign(process.env, { CODEX_HOME: path.join(w.base, "codex"), CLAUDE_CONFIG_DIR: path.join(w.base, "claude"), PI_CODING_AGENT_DIR: path.join(w.base, "pi"), HERDR_SUPERWORK_RETRY_MS: waits, HERDR_SUPERWORK_ENDED_MS: "0", HERDR_SUPERWORK_QUIET_MS: "60" });
-  S.writeJson(path.join(S.dataDir(), "versions.json"), Object.fromEntries(["claude", "codex", "pi"].map((k) => [k, { v: "9.9.9", at: Date.now(), found: true }])));
   const end = w.cleanup;
   w.cleanup = () => { for (const k of ENV) { if (before[k] === undefined) delete process.env[k]; else process.env[k] = before[k]; } end(); };
   return w;
@@ -96,14 +93,15 @@ test("the wait: growing, a few times; the row says why and when; only while the 
   assert.equal(S.waitingOf({ stage: "working", failure: { at: 7 }, waiting: ag }), null); // a reply moved it on
 });
 
-test("a review cut off by a passing provider error is started again by itself, and is not a review round", async () => {
+test("a review cut off by a passing provider error is started again by itself, and is not a review round", async (tt) => {
+  const clock = fastClock(tt); // the waits between tries pass at once
   const w = await cutWorld("600,600");
   try {
     // as it happened: Codex reports its turn ended, 15 seconds in, and its file ends in the error
     w.script({ worker: [WORK], reviewer: [{ ends: "codex-at-capacity", hook: true }, { ends: "codex-at-capacity", hook: true, status: "working" }, PASS] });
     const id = A.add(w.root, "Cut off twice").id;
     A.delegate(id);
-    const [t, said] = await watching(id, () => settle(id));
+    const [t, said] = await watching(id, () => clock(settle(id)));
     assert.equal(t.stage, "approval", JSON.stringify(t.failure));
     assert.equal(reviewerStarts(w), 3);
     assert.ok(said.some((s) => /^working: reviewer's model is at capacity, trying again (in \d+[sm]|now)$/.test(s)), said.join(" | "));
@@ -115,14 +113,15 @@ test("a review cut off by a passing provider error is started again by itself, a
   } finally { w.cleanup(); }
 });
 
-test("a review cut off again and again: the board gives up and names the real error; retry then reviews as the first round", async () => {
+test("a review cut off again and again: the board gives up and names the real error; retry then reviews as the first round", async (tt) => {
+  const clock = fastClock(tt); // the waits between tries pass at once
   const w = await cutWorld("30,30");
   try {
     const cut = { ends: "codex-at-capacity", hook: true };
     w.script({ worker: [WORK], reviewer: [cut, cut, cut] });
     const id = A.add(w.root, "Never gets through").id;
     A.delegate(id);
-    let t = await settle(id);
+    let t = await clock(settle(id));
     assert.equal(t.stage, "failed"); assert.equal(reviewerStarts(w), 3);
     assert.equal(t.msg, "Review failed: the reviewer's model is at capacity, still after 3 tries over 1s. Its error: Selected model is at capacity. Please try a different model. Retry the task to review again.");
     assert.doesNotMatch(`${t.msg}\n${t.failure.detail}`, /without a verdict|last message/);
@@ -130,12 +129,13 @@ test("a review cut off again and again: the board gives up and names the real er
     assert.deepEqual(S.reviewHistory(t), []); assert.equal(S.reviewRound(t), 0);
     w.script({ reviewer: [PASS] });
     A.retry(id);
-    t = await settle(id);
+    t = await clock(settle(id));
     assert.equal(t.stage, "approval"); assert.equal(S.reviewRound(t), 1); assert.equal(S.reviewHistory(t).length, 1);
   } finally { w.cleanup(); }
 });
 
-test("the report of a try that was cut off does not end the next try: that one is judged by its own ending", async () => {
+test("the report of a try that was cut off does not end the next try: that one is judged by its own ending", async (tt) => {
+  const clock = fastClock(tt); // the waits between tries pass at once
   const w = await cutWorld("30");
   try {
     process.env.HERDR_SUPERWORK_REVIEW_MS = "3000"; // long enough for the first try to get going on a busy machine
@@ -144,11 +144,11 @@ test("the report of a try that was cut off does not end the next try: that one i
     w.script({ worker: [WORK], reviewer: [{ ends: "codex-at-capacity", hook: true }, { status: "working" }] });
     const id = A.add(w.root, "Second try is slow").id;
     A.delegate(id);
-    const t = await settle(id);
+    const t = await clock(settle(id));
     assert.equal(t.stage, "failed"); assert.equal(reviewerStarts(w), 2);
     assert.match(t.failure.detail, /review timed out/);
     assert.deepEqual(S.reviewHistory(t).map((e) => [e.round, e.error]), [[1, "review timed out"]]);
-  } finally { process.env.HERDR_SUPERWORK_REVIEW_MS = "4000"; w.cleanup(); }
+  } finally { process.env.HERDR_SUPERWORK_REVIEW_MS = "120000"; w.cleanup(); }
 });
 
 test("an error that waiting cannot fix is not retried: a model that does not exist fails at once, a missing login asks for one", async () => {
@@ -183,13 +183,14 @@ test("a reviewer that really finished without a verdict is still a failed review
   } finally { w.cleanup(); }
 });
 
-test("without the reviewer's own turn-end report: its conversation file ending in the error is enough", async () => {
+test("without the reviewer's own turn-end report: its conversation file ending in the error is enough", async (tt) => {
+  const clock = fastClock(tt); // the waits between tries pass at once
   const w = await cutWorld("600", { reviewer: "claude" });
   try {
     w.script({ worker: [WORK], reviewer: [{ ends: "claude-overloaded-made" }, PASS] });
     const id = A.add(w.root, "Not reported").id;
     A.delegate(id);
-    const [t, said] = await watching(id, () => settle(id));
+    const [t, said] = await watching(id, () => clock(settle(id)));
     assert.equal(t.stage, "approval", JSON.stringify(t.failure));
     assert.equal(reviewerStarts(w), 2);
     assert.ok(said.some((s) => /reviewer's provider is overloaded, trying again/.test(s)), said.join(" | "));

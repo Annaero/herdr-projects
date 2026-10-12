@@ -44,7 +44,8 @@ export async function cleanup(t, { deleteBranch = "merged", keepUnmerged = false
     if (!screen.trim()) return false;
     const sig = `${a.state_change_seq ?? ""}|${createHash("sha1").update(screen).digest("hex")}`;
     quiet = { sig, at: quiet?.sig === sig ? quiet.at : Date.now() };
-    if (Date.now() - quiet.at < stillFor) return false;
+    // Only an earlier attempt's look counts as the first one: two looks of one slow attempt are the same moment.
+    if (since?.still?.sig !== sig || Date.now() - quiet.at < stillFor) return false;
     const turn = readTurnOf(t.agent, { file: t.transcript || null, session: t.session, cwd: S.cwdOf(t) });
     if (turn && !(turn.finished || turn.error || turn.interrupted)) return false;
     return api.paneChildless(t.link.pane); // a command it left running in the background would go down with the space

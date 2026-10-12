@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { stripVTControlCharacters } from "node:util";
-import { world } from "./helpers.js";
+import { world, until } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import { View } from "../src/board/view.js";
@@ -86,7 +86,7 @@ test("resizing the real screen keeps the chat on the last line and the working r
     const frame = async (columns, rows) => {
       terminal.columns = columns; terminal.rows = rows; resized(); // what a window resize does
       let lines = [];
-      for (let n = 0; n < 100 && !(lines.length === rows && visibleWidth(lines[rows - 2]) === columns); n++) { await new Promise((r) => setTimeout(r, 10)); lines = tui.getScreenLines(); }
+      await until(() => { lines = tui.getScreenLines(); return lines.length === rows && visibleWidth(lines[rows - 2]) === columns; }); // the real renderer draws on its own beat
       return lines.map((l) => stripVTControlCharacters(l).replace(/\x1b_pi:c\x07/g, "").replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, ""));
     };
     for (const [columns, rows] of [[120, 34], [190, 84], [435, 58], [412, 78], [50, 22], [50, 84], [435, 22], [300, 120], [40, 12], [435, 58], [120, 34]]) {

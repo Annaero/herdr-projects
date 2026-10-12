@@ -76,6 +76,7 @@ test("a program that names its own conversations (Codex) is restarted in the sam
     const file = path.join(process.env.CODEX_HOME, "sessions", "2026", "rollout-2026-sess-1.jsonl");
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify({ timestamp: new Date().toISOString(), type: "session_meta", payload: { id: "sess-1", cwd: fs.realpathSync(C.home()), instructions: "You are the Coordinator of the human's work board in herdr" } }) + "\n");
+    { const at = new Date(Date.now() + 500); fs.utimesSync(file, at, at); } // written after the start, whatever the file system's clock says
     C.restart(); await drainJobs(runJob);
     assert.deepEqual(w.agents()[0].agent.args.slice(0, 2), ["resume", "sess-1"]); assert.equal(C.get().session, "sess-1");
     // A helper agent it spawned, and a headless run it made, save conversations of their own in the same folder,

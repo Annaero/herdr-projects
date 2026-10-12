@@ -8,22 +8,37 @@ import { show, etaOf, began } from "../src/state.js";
 import { parse } from "../src/cli.js";
 import { agentName } from "../src/delegate.js";
 
-test("tasks are filed per repo, numbered, and changed atomically under a lock", async () => {
+test("tasks are filed per repo, numbered, and changed atomically under a lock", async (tt) => {
   const w = await world();
+  tt.mock.timers.enable({ apis: ["Date"], now: Date.now() }); // the newest task is listed first: the clock moves when told to
   try {
     const a = S.create(w.root, "First task", { description: "do it" });
+    tt.mock.timers.tick(1000);
     const b = S.create(w.root, "Second task");
     assert.equal(a.id, "proj/1"); assert.equal(b.id, "proj/2");
     assert.equal(a.stage, "todo"); assert.equal(a.owner, S.me());
-    assert.deepEqual(S.list().map((t) => t.id), ["proj/2", "proj/1"].sort((x, y) => S.get(y).created - S.get(x).created));
+    assert.deepEqual(S.list().map((t) => t.id), ["proj/2", "proj/1"]);
     const t = S.update(a.id, (t) => { t.stage = "progress"; });
     assert.equal(S.get(a.id).stage, "progress"); assert.ok(t.at >= a.at);
     assert.throws(() => S.update(a.id, { stage: "nonsense" }), /Unknown stage/);
     assert.equal(S.find("2").id, "proj/2");
     assert.throws(() => S.find("nope"), /No task/);
     assert.ok(!fs.readdirSync(S.dirOf(a.id)).some((f) => f.endsWith(".tmp")));
-    assert.ok(fs.existsSync(path.join(process.env.HERDR_SUPERWORK_DATA_DIR, "locks")));
   } finally { w.cleanup(); }
+});
+
+test("[real programs] a lock that is held is busy for the next one, and free again once let go: the real lock (flock), and the one tests keep in their own process", async () => {
+  for (const locks of [false, true]) {
+    const w = await world({ repo: false, locks });
+    try {
+      const free = S.holdLock("x", { waitMs: 0 });
+      assert.throws(() => S.withLock("x", () => 1, { waitMs: 0 }), (e) => e.code === "BUSY" && /x is busy with another action/.test(e.message));
+      assert.equal(S.withLock("y", () => S.withLock("y", () => 2)), 2); // nested in one process: the same holder
+      free();
+      assert.equal(S.withLock("x", () => 3, { waitMs: 0 }), 3);
+      assert.equal(fs.existsSync(path.join(process.env.HERDR_SUPERWORK_DATA_DIR, "locks")), !locks); // only the real one leaves lock files
+    } finally { w.cleanup(); }
+  }
 });
 
 test("a worktree's tasks belong to its primary repo", async () => {

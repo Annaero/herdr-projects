@@ -30,11 +30,21 @@ tests and its words go, so that two tasks do not edit the same file.
 
 ## Tests
 
-- While you work, run only the tests of the area you are changing: `npm test <area>`, for example `npm test board-panel`
-  or `npm test sync gate` (every `test/<area>*.test.js`). Do not run the whole suite after each edit.
-- Run the whole suite once, at the end, before you finish: `npm test`.
-- If `npm test` ends with a `⚠ slow test files` note naming a file you changed, split that file or make its tests
-  cheaper before you finish.
-- Reviewing: run the areas the change touches; the check has run the rest.
+One command runs tests, for everyone: `npm run check` (`npm test` is the same). Never start the tests another way
+(`node --test`, a loop of your own): the command remembers what already passed for this exact code, and makes test runs
+on this machine take turns.
+
+- While you work: `npm run check`. It runs only the test files your change touches, and answers at once when they
+  already passed for this code. `npm run check board-panel` runs one area.
+- Once, at the end, before you finish: `npm run check -- --all`, the whole suite. Not after each edit.
+- Reviewing: `npm run check -- --all` too. For code the worker's run already passed, it answers at once: do not run the
+  tests again some other way.
+- New tests are the light kind: they call the code in the test's own process (`world()` in `test/helpers.js`), start
+  no program, and never sleep or depend on the machine's speed (move the clock: `fastClock`). A real program only when
+  the program itself is what is tested, in a test whose name starts with `[real programs]`.
+- The check fails when a test file or the whole suite is over its budget, and names the file. Make its tests lighter
+  or split the file; do not work around the budget.
+- A look at the real thing (a real terminal, a browser screenshot) only for a task that changes what the board looks
+  like.
 
 More in [docs/testing.md](docs/testing.md).

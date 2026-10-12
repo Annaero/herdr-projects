@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { world, settle } from "./helpers.js";
+import { world, settle, until } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
@@ -21,7 +21,7 @@ test("the hidden helper: the watcher writes a line and a guess", async () => {
     A.delegate("proj/1"); await settle("proj/1");
     S.update("proj/1", (t) => { t.since = Date.now() - 40 * 60000; t.workAt = 0; }); // forty minutes into the work
     H.watchTick(F.board());
-    for (let i = 0; i < 60 && !S.get("proj/1").watch; i++) await new Promise((r) => setTimeout(r, 50));
+    await until(() => S.get("proj/1").watch); // the helper is a program of its own
     // It guesses the line and the percent only; the minutes left are worked out, never stored.
     assert.deepEqual([S.get("proj/1").watch.msg, S.get("proj/1").watch.progress, "eta" in S.get("proj/1").watch], ["editing the greeting file", 42, false]);
     const shown = F.board().find((t) => t.id === "proj/1");
@@ -36,7 +36,7 @@ test("the hidden helper: the watcher writes a line and a guess", async () => {
     w.patchState((st) => { st.panes.find((p) => p.pane_id === S.get("proj/1").link.pane).agent.screen = "● 3 tests failed\n"; });
     const at = S.get("proj/1").watch.at;
     H.watchTick(F.board(), Date.now() + 20000);
-    for (let i = 0; i < 60 && S.get("proj/1").watch.at === at; i++) await new Promise((r) => setTimeout(r, 50));
+    await until(() => S.get("proj/1").watch.at !== at);
     const second = fs.readFileSync(seen, "utf8");
     assert.match(second, /Your previous guess was 42 percent\. Keep it unless something on the screen is a reason to change it\./); assert.match(second, /Lower it when new work shows up: a failing test/);
     // Stopped and delegated again: the old guess goes, so the new assignment starts with no percent and no minutes.

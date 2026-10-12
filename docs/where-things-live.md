@@ -185,7 +185,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 ## The tests: `test/`
 
-One file per area, named after it; `npm test <area>` runs every `test/<area>*.test.js` ([testing.md](testing.md)).
+One file per area, named after it; `npm run check <area>` runs every `test/<area>*.test.js` ([testing.md](testing.md)).
 
 | File | Tests |
 |---|---|
@@ -201,6 +201,8 @@ One file per area, named after it; `npm test <area>` runs every `test/<area>*.te
 | `board-setup.test.js` | The first run, and the board loading its new version |
 | `board-size.test.js` | A terminal held at another size than herdr shows |
 | `board-textbox.test.js` | The text box: wrapping, growing, scrolling, editing keys |
+| `check.js` | The one test command: `npm run check` (`npm test` is the same) |
+| `check.test.js` | The test command (test/check.js): which files it runs, what it remembers, how runs take turns, and its budget |
 | `cleanup-late-work.test.js` |  |
 | `cleanup-owed.test.js` |  |
 | `cleanup-retry.test.js` |  |
@@ -226,12 +228,10 @@ One file per area, named after it; `npm test <area>` runs every `test/<area>*.te
 | `remerge.test.js` | Work that passed its review and then only took main in is not reviewed again: the tests run on the merged result and the review stands |
 | `remote.test.js` | Other machines: the door, actions where the task lives, the SSH line |
 | `retry.test.js` | A turn cut off by the model's provider: recognised from the agent's own conversation file, retried by the board when the error is one that passes, and never taken for a finished turn or a review |
-| `run.js` | Runs the tests: all of them (`npm test`), or only the files of the areas named (`npm test board-panel sync`: every test/<name>*.test.js) |
 | `store.test.js` |  |
 | `sync-conflict.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `sync-merge.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `sync-remote.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
-| `test-runner.test.js` | The test runner (test/run.js): which files an area name stands for, and which files it calls slow |
 | `theme.test.js` | The board takes its colours and status marks from herdr's own config, resolved the way herdr resolves them |
 | `turns.test.js` |  |
 | `watcher.test.js` | The hidden helper: the watcher's line and guess |

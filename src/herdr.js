@@ -19,6 +19,14 @@ const bin = () => process.env.HERDR_BIN_PATH || "herdr";
 // `bin`, and `run(args, env)` giving what the program would: status, stdout, stderr), so that a test's hundreds of calls
 // are not hundreds of programs; any other path is started as always.
 const launch = (args, opts) => { const own = globalThis.__swHerdr; return own && own.bin === bin() ? own.run(args, opts.env) : spawnSync(bin(), args, opts); };
+// The processes started by one process. Tests answer this too (`kids` beside `run`): pgrep reads every process there is.
+const kids = (pid) => {
+  const own = globalThis.__swHerdr;
+  if (own?.kids && own.bin === bin()) return own.kids(pid);
+  const r = spawnSync("pgrep", ["-P", String(pid)], { encoding: "utf8" });
+  if (r.error || r.status > 1) throw new Error("pgrep failed");
+  return r.stdout.split("\n").map(Number).filter(Boolean);
+};
 // The session a plain command talks to: the pane it runs in, else the default session.
 export function currentSocket() {
   if (process.env.HERDR_SOCKET_PATH) return process.env.HERDR_SOCKET_PATH;
@@ -104,14 +112,13 @@ export function herdr(socket = null) {
     paneLayout: (id) => quiet(() => call(["pane", "layout", "--pane", id], { timeout: 3000 }).layout),
     paneSplit: (id, { cwd, direction = "right", env = {} } = {}) => call(["pane", "split", id, "--direction", direction, ...(cwd ? ["--cwd", cwd] : []), ...Object.entries(env).flatMap(([k, v]) => ["--env", `${k}=${v}`]), "--no-focus"]).pane,
     // Is nothing but its shell running in the pane? Unknown counts as busy.
-    paneIdle: (id) => quiet(() => { const i = call(["pane", "process-info", "--pane", id]).process_info; return Number.isInteger(i.shell_pid) && i.foreground_process_group_id === i.shell_pid && (i.foreground_processes || []).every((p) => p.pid === i.shell_pid) && spawnSync("pgrep", ["-P", String(i.shell_pid)], { stdio: "ignore" }).status === 1; }, false),
+    paneIdle: (id) => quiet(() => { const i = call(["pane", "process-info", "--pane", id]).process_info; return Number.isInteger(i.shell_pid) && i.foreground_process_group_id === i.shell_pid && (i.foreground_processes || []).every((p) => p.pid === i.shell_pid) && !kids(i.shell_pid).length; }, false),
     // Does nothing run in the pane but the program in its foreground (and the shell that started it)? No tool or
     // command under that program, and no background job of the shell beside it. Unknown counts as no.
     paneChildless: (id) => quiet(() => {
       const i = call(["pane", "process-info", "--pane", id]).process_info;
       const front = (i.foreground_processes || []).map((p) => p.pid).filter(Number.isInteger);
       if (!front.length) return false;
-      const kids = (pid) => { const r = spawnSync("pgrep", ["-P", String(pid)], { encoding: "utf8" }); if (r.error || r.status > 1) throw new Error("pgrep failed"); return r.stdout.split("\n").map(Number).filter(Boolean); };
       if (front.some((pid) => kids(pid).length)) return false;
       return !Number.isInteger(i.shell_pid) || kids(i.shell_pid).every((pid) => front.includes(pid));
     }, false),

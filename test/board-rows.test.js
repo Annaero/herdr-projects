@@ -96,7 +96,8 @@ test("a tight row keeps the task's name, then the columns on the right; the sent
   } finally { w.cleanup(); }
 });
 
-test("a row with no PR and no bar uses the empty space on its right, also with colours on and beside rows that fill every column", () => {
+test("a row with no PR and no bar uses the empty space on its right, also with colours on and beside rows that fill every column", (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.now() }); // "0s ago" is compared to the second: the clock stands still
   const v = Object.create(View.prototype); v.theme = theme; v.scope = "";
   const now = Date.now();
   const quiz = { id: "proj/1", title: "Choose the palette", state: "blocked", kind: "question", stage: "asks", agent: "claude", at: now, msg: "Sand or pebbles on the beach, and which palm?" };
