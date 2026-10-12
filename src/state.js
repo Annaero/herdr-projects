@@ -48,6 +48,8 @@ export function show(t, live, now = Date.now()) {
   if (live.status === "blocked") return out("blocked", { kind: t.pendingText ? "permission" : undefined, msg: t.pendingText ? "queued: open the agent and answer its dialog first" : "needs you" });
   if (live.status === "working") return out("working", { msg: watch?.msg || t.msg || "working", progress: watch?.progress ?? 0, eta });
   if (live.status === "unknown") return out("working", { msg: "herdr can't tell if it stopped" });
+  // Idle or done. Text typed in a while ago that it has still not started on (submit.js): say that, not work that is not going on.
+  if (t.sent?.tries) return out("working", { msg: "has not started yet: pressing enter again" });
   // idle or done. Only an agent that has worked is wrapping up; one that has not begun yet is idle too.
   if (worked(t, live)) return out("working", { msg: "finishing" }); // the runner has not finished the turn yet
   return out("working", { msg: (t.workedAt || 0) >= (t.startedAgentAt || 1) ? "about to continue" : "starting" });

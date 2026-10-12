@@ -36,6 +36,7 @@ One page per topic, in [docs/](docs/):
 - [The Coordinator](docs/coordinator.md)
 - [Roles and commands](docs/roles-and-commands.md)
 - [How work gets done](docs/how-work-gets-done.md)
+- [Handing text to an agent: typed is not sent](docs/handing-over.md)
 - [A turn cut off by the provider](docs/provider-errors.md)
 - [The gate](docs/gate.md)
 - [Suggested tasks](docs/suggestions.md)

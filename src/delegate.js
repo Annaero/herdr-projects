@@ -9,6 +9,7 @@ import * as F from "./flow.js";
 import { claim, release, guardFor, sh, outputOf } from "./runner.js";
 import { randomBytes } from "node:crypto";
 import { startArgs, preTrust, adapter, hookUsable, versionOf } from "./agents.js";
+import { settle } from "./submit.js";
 
 // ---- names -----------------------------------------------------------------------------------------------------------
 // `sw-` + the repo name (lower-case, anything outside [a-z0-9] as `-`, 16 characters) + `-<n>`. Always matches herdr's
@@ -125,16 +126,19 @@ export function startAgent(id, g, { prompt, resume = null }) {
     }
   };
   start(hooked);
+  // herdr calls the program ready before it has drawn anything; text typed that early loses its enter (submit.js).
+  if (prompt && !blocked) settle(api, t.link.pane, [kind, ...args(hooked)].join(" "));
   // The send time arms the pipeline: nothing older than this counts as the turn's end.
   t = g.set((t) => {
     t.stage = "working"; t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.turnBy = "start"; t.msg = ""; t.link = { ...t.link, agent: name }; if (!(t.workAt >= (t.since || 0))) t.workAt = Date.now(); t.startedAgentAt = Date.now(); t.exitedAt = null;
-    t.hooked = hooked; t.agentVersion = x.version || "";
+    t.hooked = hooked; t.agentVersion = x.version || ""; t.sent = null; t.unsent = null;
+    if (t.failure?.stage === "send") t.failure = null;
     const session = resume || x.session || null;
     if (session !== (t.session || null)) { t.session = session; t.transcript = null; t.handled = { ...(t.handled || {}), msg: null, pos: 0 }; }
   });
   if (!prompt) return "started";
-  if (blocked) { S.queueText(id, prompt); return "queued"; }
-  return F.deliver(t, prompt);
+  if (blocked) { S.queueText(id, prompt, { first: !resume }); return "queued"; }
+  return F.deliver(t, prompt, null, { first: !resume });
 }
 
 // The prompt for an agent that is started again on a task it worked on before.
@@ -150,6 +154,14 @@ function againPrompt(t, waiting) {
   return resumable(t)
     ? { resume: t.session, prompt: F.withTail(t, waiting.join("\n\n") || "Continue where you left off.") }
     : { prompt: [firstPrompt(t), said, "You were working on this before and your session ended. Continue from the state of this branch.", waiting.join("\n\n")].filter(Boolean).join("\n\n") };
+}
+
+// Text the agent never started on (submit.js) goes in again, word for word, once its program has been started anew:
+// alone when it was all a fresh program was given, into the same conversation when there is one to reopen.
+function unsentPrompt(t, waiting) {
+  const u = t.unsent, text = [u.text, ...waiting].join("\n\n");
+  if (u.first) return { prompt: text };
+  return resumable(t) ? { resume: t.session, prompt: text } : againPrompt(t, [u.text, ...waiting]);
 }
 
 export async function delegateJob(id) {
@@ -229,6 +241,9 @@ export async function restartJob(id) {
     const api = F.h(t);
     const root = S.folderOf(t.id);
     let pane = t.link?.pane ? api.paneGet(t.link.pane) : null;
+    // Its box may still hold the text it never started on, and typing it again would send it twice: the program is
+    // ended, and started again below in the same pane.
+    if (t.unsent && pane && api.agentGet(t.link.pane) && !api.paneQuit(t.link.pane)) throw new Error("The agent's program could not be ended to start it again. Go into the agent and press enter, or close its terminal and retry.");
     if (pane && api.agentGet(t.link.pane)) { // it is back by itself (herdr restored it): just deliver
       const waiting = S.takeText(id).map((m) => m.text);
       if (waiting.length) F.deliver(t, waiting.join("\n\n"));
@@ -245,7 +260,7 @@ export async function restartJob(id) {
       t = g.set((t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true, reviewer: null }; });
     }
     const waiting = S.takeText(id).map((m) => m.text);
-    try { startAgent(id, g, againPrompt(t, waiting)); }
+    try { startAgent(id, g, t.unsent ? unsentPrompt(t, waiting) : againPrompt(t, waiting)); }
     catch (e) { if (waiting.length) S.untakeText(id, waiting.length); throw e; }
   } catch (e) {
     if (e.aborted) return;

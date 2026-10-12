@@ -123,6 +123,19 @@ export function herdr(socket = null) {
       return !Number.isInteger(i.shell_pid) || kids(i.shell_pid).every((pid) => front.includes(pid));
     }, false),
     paneClose: (id) => quiet(() => call(["pane", "close", id])),
+    // End the program in the pane's foreground (an agent that will not take its text), so the pane is at its shell
+    // again. True once herdr sees no agent there.
+    paneQuit(id, waitMs = 6000) {
+      const gone = () => { try { return !this.agentGet(id); } catch { return false; } };
+      const info = quiet(() => call(["pane", "process-info", "--pane", id]).process_info);
+      const pids = (info?.foreground_processes || []).map((p) => p.pid).filter((pid) => Number.isInteger(pid) && pid > 1 && pid !== info.shell_pid);
+      for (const sig of ["SIGTERM", "SIGKILL"]) {
+        if (!pids.length || gone()) break;
+        for (const pid of pids) { try { (globalThis.__swHerdr?.kill || process.kill)(pid, sig); } catch {} }
+        for (const until = Date.now() + waitMs / 2; Date.now() < until && !gone(); ) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 200);
+      }
+      return gone();
+    },
     paneRead: (id, { source = "visible", lines } = {}) => call(["pane", "read", id, "--source", source, ...(lines ? ["--lines", String(lines)] : [])], { raw: true }),
     metadata: (id, args) => quiet(() => call(["pane", "report-metadata", id, "--source", "plugin:herdr-superwork", ...args])),
     // ---- agents

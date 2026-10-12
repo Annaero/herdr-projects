@@ -175,7 +175,7 @@ function answer(argv, env) {
   }
   if (area === "tab" && verb === "focus") { st.focus.push(`tab ${argv[2]}`); ok({ type: "ok" }); }
   if (area === "pane") {
-    if (verb === "process-info") { const p = findPane(flag("--pane")); if (!p) fail("pane_not_found", "pane not found"); const shell = 4194400; ok({ type: "pane_process_info", process_info: { pane_id: p.pane_id, shell_pid: p.job ? 1 : shell, /* `job`: the shell has a background job beside the foreground program */ foreground_process_group_id: p.busy ? shell + 1 : shell, foreground_processes: [{ pid: p.tool ? 1 : p.busy ? shell + 1 : shell, name: p.tool ? "agent" : p.busy ? "sleep" : "bash" }] } }); } // `tool`: a program with children of its own (pid 1 always has some)
+    if (verb === "process-info") { const p = findPane(flag("--pane")); if (!p) fail("pane_not_found", "pane not found"); const shell = 4194400; ok({ type: "pane_process_info", process_info: { pane_id: p.pane_id, shell_pid: p.job ? 1 : shell, /* `job`: the shell has a background job beside the foreground program */ foreground_process_group_id: p.busy ? shell + 1 : shell, foreground_processes: [{ pid: st.pids && p.agent ? p.agent.pid /* `pids`: an agent is a process of its own, which can be ended */ : p.tool ? 1 : p.busy ? shell + 1 : shell, name: p.tool ? "agent" : p.busy ? "sleep" : "bash" }] } }); } // `tool`: a program with children of its own (pid 1 always has some)
     // `layouts`: a test's own answer per pane; without one the pane has its whole tab, 120x34.
     if (verb === "layout") { const p = findPane(flag("--pane")); if (!p) fail("pane_not_found", "pane not found"); const area = { x: 0, y: 0, width: 120, height: 34 }; ok({ type: "pane_layout", layout: st.layouts?.[p.pane_id] || { area, zoomed: false, focused_pane_id: p.pane_id, panes: [{ pane_id: p.pane_id, focused: true, rect: area }], splits: [], tab_id: p.tab_id, workspace_id: p.workspace_id } }); }
     if (verb === "list") { const w = flag("--workspace"); ok({ type: "pane_list", panes: st.panes.filter((p) => !w || p.workspace_id === w).map(paneOut) }); }
@@ -184,6 +184,7 @@ function answer(argv, env) {
     if (verb === "get") ok({ type: "pane_info", pane: paneOut(p) });
     if (verb === "split") { const n = st.panes.filter((x) => x.workspace_id === p.workspace_id).length + 1; const q = { pane_id: `${p.workspace_id}:p${n}`, workspace_id: p.workspace_id, tab_id: p.tab_id, terminal_id: `term_${st.nextP++}`, cwd: path.resolve(flag("--cwd") || p.cwd), env: envOf(), agent: null }; while (findPane(q.pane_id)) q.pane_id += "x"; st.panes.push(q); ok({ type: "pane_split", pane: paneOut(q) }); }
     if (verb === "close") { st.panes = st.panes.filter((x) => x !== p); ok({ type: "ok" }); }
+    if (verb === "read" && p.agent?.boot > 0) { p.agent.boot -= 1; out(`user@host:${p.cwd}$ ${[p.agent.kind, ...p.agent.args].join(" ")}\n`); } // not drawn yet: only the command that started it
     if (verb === "read") out(p.agent?.screen || p.screen || "");
     if (verb === "report-metadata") { st.metadata.push({ pane: p.pane_id, args: argv.slice(3) }); ok({ type: "ok" }); }
   }
@@ -196,16 +197,29 @@ function answer(argv, env) {
       if (p.agent) fail("pane_busy", "the pane is not at its shell prompt");
       const kind = flag("--kind"), i = argv.indexOf("--");
       st.seq += 1;
-      p.agent = { kind, name: argv[2], status: "idle", seq: st.seq, args: i >= 0 ? argv.slice(i + 1) : [] };
+      // `slowStart`: a program that herdr calls ready before it has drawn anything. For that many looks at its pane the
+      // screen is still the command that started it, and text typed meanwhile stays in its box with the enter lost.
+      p.agent = { kind, name: argv[2], status: "idle", seq: st.seq, args: i >= 0 ? argv.slice(i + 1) : [], pid: 5000000 + st.seq, ...(st.slowStart ? { boot: st.slowStart } : {}) };
       if ((st.dialogs[kind] || 0) > 0) { st.dialogs[kind] -= 1; p.agent.status = "blocked"; fail("agent_not_ready", `agent ${argv[2]} is blocked during startup and is not ready for prompts`); }
       ok({ type: "agent_started", agent: agentOut(p) });
     }
     const p = findAgent(argv[2]);
     if (!p) fail("agent_not_found", `agent target ${argv[2]} not found`);
     if (verb === "get") ok({ type: "agent_info", agent: agentOut(p) });
-    if (verb === "prompt") { if (p.agent.status === "blocked") fail("agent_blocked", "agent is blocked"); play(p, argv[3]); ok({ type: "agent_prompted", agent: p.agent ? agentOut(p) : null }); }
+    if (verb === "prompt") {
+      if (p.agent.status === "blocked") fail("agent_blocked", "agent is blocked");
+      // Typed text lands in the box, on top of whatever sits there unsent. `swallow`: the next so many prompts lose
+      // their enter, as every prompt does while the program is still starting.
+      const text = p.agent.box != null ? `${p.agent.box}\n${argv[3]}` : argv[3];
+      if (p.agent.boot > 0 || st.swallow > 0) { if (!(p.agent.boot > 0)) st.swallow -= 1; p.agent.box = text; ok({ type: "agent_prompted", agent: agentOut(p) }); }
+      p.agent.box = null;
+      play(p, text);
+      ok({ type: "agent_prompted", agent: p.agent ? agentOut(p) : null });
+    }
     if (verb === "send-keys") {
       (p.agent.keys ||= []).push(...argv.slice(3));
+      // Enter with text in the box submits it; `deaf`: so many enters do nothing at all.
+      if (p.agent.box != null && argv.slice(3).includes("enter")) { if (st.deaf > 0) st.deaf -= 1; else { const text = p.agent.box; p.agent.box = null; play(p, text); } ok({ type: "ok" }); }
       if (p.agent.status === "blocked" && argv.slice(3).includes("enter")) bump(p, "idle", true); // answering a dialog counts as a completion, as Codex does
       else if (argv.slice(3).includes("esc") && p.agent.status === "working") bump(p, "idle", true);
       ok({ type: "ok" });

@@ -32,6 +32,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `runner.js` | Long jobs (delegate, finish line, land, restart) run in a detached runner so the board stays responsive and hook commands never hold herdr up |
 | `state.js` | (herdr status, stage) -> what the board shows |
 | `store.js` | Tasks on disk, locks and settings |
+| `submit.js` | Making sure that what the board hands an agent is really taken: nothing is typed before the agent's program is up, and a prompt that was typed but not submitted gets its enter again |
 | `sync.js` | Keeping a task's branch current with main, in the task's own worktree |
 | `toml.js` | A TOML reader for herdr's config.toml: the whole format (v1.0, and the newer \e and \x escapes), so that whatever herdr accepts the plugin reads the same |
 | `turn.js` | The agent's own turn-end report |
@@ -176,6 +177,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [compared-with-pi-work.md](compared-with-pi-work.md) | Compared with pi-work |
 | [coordinator.md](coordinator.md) | The Coordinator |
 | [gate.md](gate.md) | The gate |
+| [handing-over.md](handing-over.md) | Handing text to an agent |
 | [how-work-gets-done.md](how-work-gets-done.md) | How work gets done |
 | [install.md](install.md) | Installing, the first run, and taking it out again |
 | [keys.md](keys.md) | Keys, questions and the ? menu |
@@ -234,6 +236,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `remote.test.js` | Other machines: the door, actions where the task lives, the SSH line |
 | `retry.test.js` | A turn cut off by the model's provider: recognised from the agent's own conversation file, retried by the board when the error is one that passes, and never taken for a finished turn or a review |
 | `store.test.js` |  |
+| `submit.test.js` | Text handed to an agent is really submitted: nothing is typed before a slow-starting program has drawn its screen, an enter that was lost is pressed again (the text is never typed twice), and an agent that still does… |
 | `suggestions.test.js` | Suggested tasks: nothing files a task by itself |
 | `sync-conflict.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `sync-merge.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |

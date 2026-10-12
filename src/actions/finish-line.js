@@ -54,6 +54,7 @@ export const canSendError = (t) => (t?.stage === "nosummary" || (t?.stage === "f
 export function sendError(id) {
   const cur = S.find(id);
   S.assertUnarchived(cur);
+  if (cur.stage === "failed" && cur.failure?.stage === "send") return retry(cur.id); // nothing reached the agent: there is no error of its own to send
   if (cur.stage === "nosummary" || (cur.stage === "failed" && cur.failure?.auth && cur.failure.stage === "agent")) { const out = tell(cur.id, F.withTail(cur, "You stopped before the work was finished. Continue the task where you left off.")); return say(out.task, `${cur.id}: told the agent to continue`); }
   if (!canSendError(cur)) throw new Error(`${cur.id} has no agent error to send. Login blockers need the human first.`);
   const why = cur.failure?.detail || cur.msg || "No details were saved.";
@@ -111,6 +112,13 @@ export function retry(id) {
   if (cur.stage === "asks" && cur.kind === "auth") return carryOn();
   if (cur.stage !== "failed") throw new Error(`${cur.id} has nothing to retry.`);
   const f = cur.failure || {};
+  // The agent never started on what was typed into its box: its program is started again and handed the same text.
+  if (f.stage === "send" && cur.unsent) {
+    F.assertLive(cur);
+    const t = S.update(cur.id, (t) => { if (t.stage !== "failed" || runnerAlive(t)) throw new Error(`${t.id} is busy. Try again in a moment.`); t.stage = "working"; t.msg = "starting the agent again"; t.since = Date.now(); t.armedAt = Date.now(); });
+    spawnRunner("restart", t.id);
+    return say(t, `${t.id}: starting the agent again with the same text`);
+  }
   // It never got going: put an agent on it again.
   if (!F.isAgentTask(cur) || ["start", "setup"].includes(f.stage)) return say(delegate(cur.id), `${cur.id}: starting again`);
   // The agent itself stopped (an error, a login you have fixed since): it is told to carry on.

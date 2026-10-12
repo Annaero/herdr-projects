@@ -11,6 +11,7 @@ import { ms, lastLines, fail } from "./shared.js";
 import { pipeline } from "./pipeline.js";
 import { closeReviewer } from "./review.js";
 import { name as keyName } from "../board/keys.js";
+import { pendingSent } from "../submit.js";
 
 // ---- job: the agent's turn ended ----------------------------------------------------------------------------------------
 // Started two ways. By the agent's own turn-end hook (`turn-ended`): a definite stop, judged here from the saved
@@ -39,6 +40,9 @@ function humanTurn(t) {
 async function finishOnce(id, { force = false } = {}) {
   let t = S.get(id);
   if (!t || !F.isAgentTask(t)) return false;
+  // Text typed into a running turn, and not taken yet: the turn that ended is not its answer. Nothing is judged (the
+  // event stays) until the agent has started on the text, or the board has given up on it (submit.js).
+  if (t.sent || t.unsent) { let a = null; try { a = F.h(t).agentGet(t.link.pane); } catch {} if (pendingSent(t, a)) return false; }
   const kind = t.agent, ver = versionOf(kind);
   const mine0 = (e) => e.role === "agent" && !(e.side && e.session !== t.session);
   // 1. Without an event, give herdr's screen guess time to correct itself.

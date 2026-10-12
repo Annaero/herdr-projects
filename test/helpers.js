@@ -23,7 +23,7 @@ export async function world({ repo = true, settings = {}, repoSettings = null, o
   const server = net.createServer(); await new Promise((r) => server.listen(socket, r));
   Object.assign(process.env, {
     HERDR_SUPERWORK_DATA_DIR: path.join(base, "data"), HERDR_SUPERWORK_CONFIG_DIR: path.join(base, "config"), HERDR_FAKE_DIR: fake,
-    HERDR_BIN_PATH: path.join(here, "bin", "herdr"), HERDR_SOCKET_PATH: socket, HERDR_SUPERWORK_INLINE: "1", HERDR_SUPERWORK_SETTLE_MS: "0",
+    HERDR_BIN_PATH: path.join(here, "bin", "herdr"), HERDR_SOCKET_PATH: socket, HERDR_SUPERWORK_INLINE: "1", HERDR_SUPERWORK_SETTLE_MS: "0", HERDR_SUPERWORK_READY_STEP_MS: "0",
     HERDR_SUPERWORK_POLL_MS: "20", HERDR_SUPERWORK_NO_KEEPER: "1", HERDR_SUPERWORK_NO_HOOK: "1", HERDR_SUPERWORK_READ_MS: "0", HERDR_SUPERWORK_REVIEW_MS: "120000", HERDR_SUPERWORK_NO_SERVER: "1",
     HERDR_SUPERWORK_CLAUDE_JSON: path.join(base, "claude.json"), HERDR_SUPERWORK_CODEX_TOML: path.join(base, "codex.toml"),
     PATH: `${path.join(here, "bin")}:${process.env.PATH}`,
@@ -37,7 +37,8 @@ export async function world({ repo = true, settings = {}, repoSettings = null, o
   // The fake herdr answers in this process: launching it as a program for every call was most of the suite's time. A
   // program this test did not start itself (the command line, an agent's hook) still runs test/bin/herdr, and so does a
   // test that asks for it: `world({ program: true })`.
-  globalThis.__swHerdr = program ? null : { bin: process.env.HERDR_BIN_PATH, run: herdr, turnEnded, kids: (pid) => (pid === 1 ? [2] : []) }; // the fake's pids: only 1 has children
+  globalThis.__swHerdr = program ? null : { bin: process.env.HERDR_BIN_PATH, run: herdr, turnEnded, kids: (pid) => (pid === 1 ? [2] : []),
+    kill: (pid) => patchState((s) => { for (const p of s.panes) if (p.agent?.pid === pid) p.agent = null; }) }; // ending a fake agent's process: its pane is at its shell again // the fake's pids: only 1 has children
   // Locks are kept in this process too (no flock started for every change to a task). `locks: false` takes the real
   // ones, and so does `program: true`.
   globalThis.__swLocks = locks ? new Set() : null;

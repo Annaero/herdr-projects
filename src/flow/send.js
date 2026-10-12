@@ -7,19 +7,20 @@ import { herdr } from "../herdr.js";
 import { adapter, needsNote } from "../agents.js";
 import { RULE_DIR, h } from "./task.js";
 import { labelPane } from "./sidebar.js";
+import { hand, noteSent } from "../submit.js";
 
 // ---- sending text to an agent ----------------------------------------------------------------------------------------
 // Undelivered text is never dropped: when herdr refuses a prompt because the agent is blocked on a dialog (or not
 // ready yet), the text goes to the task's inbox and the hook delivers it on the pane's next change to idle or done.
-// Returns "sent" or "queued".
-export function deliver(t, text, wake = null) {
-  const api = h(t);
+// Returns "sent" or "queued". "Sent" means typed, with enter pressed: whether the agent then started on it is looked at
+// again by the housekeeping pass (submit.js), which is why what herdr said of the agent just before rides on the task.
+// `first`: the text is all a freshly started program is given.
+export function deliver(t, text, wake = null, { first = false } = {}) {
   try {
-    api.agentPrompt(t.link.pane, text);
+    noteSent(t.id, hand(h(t), t.link.pane, text), text, first);
     return "sent";
   } catch (e) {
-    if (!["agent_blocked", "agent_not_ready", "agent_prompt_stalled", "timeout"].includes(e.code)) throw e;
-    if (e.code === "agent_prompt_stalled" || e.code === "timeout") return "sent"; // herdr: this does not prove nothing was sent; never send twice
+    if (!["agent_blocked", "agent_not_ready"].includes(e.code)) throw e;
     S.queueText(t.id, text, wake ? { wake } : {});
     return "queued";
   }

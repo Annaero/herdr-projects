@@ -9,13 +9,24 @@ import { choice } from "./who.js";
 import { rules } from "./rules.js";
 import { restMs, trimmed, where, kick, send, stop, open, seen } from "./requests.js";
 import { turns } from "./look.js";
+import { settle, hand, confirm, look, shown } from "../submit.js";
 
 // ---- the pump: one at a time per herdr session -------------------------------------------------------------------------
 export const pumping = (c) => !!c?.pump && S.markerAlive(c.pump);
 // Whoever ticks (the keeper, or the board without one) starts a pump for anything left waiting: a message that met a
 // dialog on the Coordinator's screen is typed in once the dialog is gone.
+const UNSENT = "your message sits unsent in its box. Go into it and press enter.";
+const saidIn = (socket, mark, text) => () => { const c = get(socket); return shown(c.run?.kind, { file: c.transcript || null, session: c.session, cwd: home(socket) }, mark, text); };
+// Words typed into a turn the Coordinator was in the middle of (submit.js): one look per tick, at most one enter.
+function lookTyped(socket, c) {
+  const mark = { ...c.typed }, was = JSON.stringify(mark);
+  const r = look(herdr(socket), c.pane, mark, saidIn(socket, mark, mark.text));
+  const done = r === "took" || r === "unknown" || r === "lost";
+  if (done || JSON.stringify(mark) !== was) change(socket, (x) => { if (x.typed?.typedAt !== c.typed.typedAt || x.typed?.at !== c.typed.at) return false; x.typed = done ? null : mark; if (r === "lost") x.error = UNSENT; });
+}
 export function tick(socket = currentSocket()) {
   const c = get(socket);
+  if (c?.typed && c.pane && socketExists(socket) && !(pumping(c) && c.pump.pid !== process.pid)) { try { lookTyped(socket, c); } catch {} }
   if (!c || (!(c.queue || []).length && !c.want) || (pumping(c) && c.pump.pid !== process.pid) || !socketExists(socket)) return;
   if (c.stopped && !c.want) return; // stopped stays stopped, also with words still waiting: your next message starts it
   if (c.error && !c.want) return; // a start that failed is not tried again by itself: your next message does, or coordinator restart, or coordinator new
@@ -72,7 +83,8 @@ function ensure(api, socket) {
   let blocked = false;
   const began = Date.now();
   change(socket, (c) => { c.starting = began; });
-  try { api.agentStart(name, run.kind, pane.pane_id, startArgs(run.kind, { model: run.model, effort: run.effort, resume, session, extra: standing })); }
+  const args = startArgs(run.kind, { model: run.model, effort: run.effort, resume, session, extra: standing });
+  try { api.agentStart(name, run.kind, pane.pane_id, args); settle(api, pane.pane_id, [run.kind, ...args].join(" ")); } // up before anything is typed (submit.js)
   catch (e) {
     // A dialog is in the way (folder trust, first run): what you said waits. Anything else: the pane may hold half a
     // command or a program that never became ready, so it is closed and the next try starts in a clean one.
@@ -144,12 +156,19 @@ export function pump(socket = currentSocket()) {
         const said = (c) => (Array.isArray(c.where) ? c.where : []).filter((x) => x.id !== note.id);
         const unsay = () => { if (note) { try { change(socket, (c) => { c.where = said(c); }); } catch {} } };
         if (note) change(socket, (c) => { c.where = [...said(c), note]; });
-        try { api.agentPrompt(c.pane, c.intro ? `[Your standing rules as the Coordinator of the human's work board are in the file ${path.join(dirOf(socket), "rules.md")}: read it first.]\n\n${m.text}` : m.text); }
+        let typed = null;
+        try { typed = hand(api, c.pane, c.intro ? `[Your standing rules as the Coordinator of the human's work board are in the file ${path.join(dirOf(socket), "rules.md")}: read it first.]\n\n${m.text}` : m.text); }
         catch (e) {
           if (["agent_blocked", "agent_not_ready"].includes(e.code)) { unsay(); stuck = true; break; }
-          if (!["agent_prompt_stalled", "timeout"].includes(e.code)) { unsay(); throw e; } // herdr: these do not prove nothing was sent; never send twice
+          unsay(); throw e;
         }
         change(socket, (c) => { c.queue = c.queue.filter((x) => !same(x)); if (Array.isArray(c.where)) { for (const x of c.where) if (note && x.id === note.id) x.sentAt = Date.now(); c.where = trimmed(c.where); } c.mark = { run, seq, rest: !!ag && ["idle", "done"].includes(ag.agent_status) }; c.intro = false; c.sentAt = Date.now(); c.last = m.said; });
+        // Typed is not sent: if it still sits at its prompt, enter is pressed again (never the words). Words that
+        // stay in its box are said so on the board, and nothing more is typed on top of them.
+        // Typed into a turn it was in the middle of: looked at again by the tick, once it is at rest.
+        const words = typed?.busy ? [get(socket).typed?.text, m.text].filter(Boolean).join("\n\n") : m.text;
+        change(socket, (c) => { c.typed = typed?.busy ? { ...typed, text: words } : null; });
+        if (!confirm(api, c.pane, typed, saidIn(socket, typed, words))) throw new Error(UNSENT);
       }
       if (stuck) break;
     }

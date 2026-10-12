@@ -4,6 +4,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { config, dataDir, readJson, writeJson, mark } from "../store.js";
 import { adapter } from "./start.js";
+import { holds } from "./read-turn.js";
 
 // ---- what is installed, and whether its hook can be used on this machine --------------------------------------------
 export function versionOf(kind) {
@@ -33,6 +34,12 @@ export function readTurnOf(kind, { file, session, cwd } = {}) {
   const a = adapter(kind);
   if (!a.readTurn) return null;
   try { const f = file && fs.existsSync(file) ? file : session && a.transcript ? a.transcript(session, cwd) : null; if (!f) return null; const t = a.readTurn(f); return t ? { ...t, file: f } : null; } catch { return null; }
+}
+// Was this text submitted to the agent since a moment: do the words stand in its saved conversation? null: nothing to read.
+export function saidTo(kind, { file, session, cwd } = {}, text, since) {
+  const a = adapter(kind);
+  if (!a.readTurn) return null;
+  try { const f = file && fs.existsSync(file) ? file : session && a.transcript ? a.transcript(session, cwd) : null; return f ? holds(f, text, since) : null; } catch { return null; }
 }
 export const fullAccess = (kind) => { const user = config().agentArgs?.[kind]; return (Array.isArray(user) ? user : adapter(kind).args || []).some((x) => /dangerously|bypass|yolo/i.test(x)) || kind === "pi"; };
 export const interruptKey = (kind) => adapter(kind).interrupt || "esc";

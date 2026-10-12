@@ -13,6 +13,7 @@ import { housekeeping } from "./housekeeping.js";
 import { ensureKeeper } from "./keeper.js";
 import { adapter, readTurnOf } from "./agents.js";
 import { taskLine } from "./delegate.js";
+import { hand, noteSent, checkSent, took, rest, notStarted } from "./submit.js";
 
 // Stages in which a finished turn nobody saw start (a short turn, a herdr restart, a lock wait) still counts.
 const WAITING = ["asks", "nosummary", "approval", "failed", "reviewneeds"];
@@ -77,6 +78,11 @@ export function apply(id, a, api) {
     // compAt: when this count of finished turns was first seen. A later reading of the same count is not a new turn's end.
     t.last = { status, seq, comp, term, at: Date.now(), compAt: sameTerm && prev && prev.comp === comp ? prev.compAt ?? prev.at : Date.now() };
     if (status === "working") t.workedAt = Date.now(); // herdr has seen it work: an idle after this is the end of a turn, not the wait before one (state.js)
+    // What the board typed in has been taken: the agent works, or has worked since.
+    if (t.sent?.busy) t.sent = rest(t.sent, a); // typed into a running turn: only what it does once at rest says
+    else if (t.sent && took(t.sent, a)) t.sent = null;
+    // Told "not started", and now it works: you pressed enter in its terminal yourself.
+    if (t.unsent && status === "working" && t.stage === "failed" && t.failure?.stage === "send") { t.unsent = null; t.failure = null; }
     if (a.agent_session?.value) t.session = a.agent_session.value;
     if (t.stage === "stopped") {
       // A late hook cannot undo the stop: `working` re-arms only with a higher seq and an idle seen in between.
@@ -121,11 +127,13 @@ export function apply(id, a, api) {
         return;
       }
       if (t.stage === "working") {
+        if (t.sent) return; // text typed in is still waiting to be taken: this is not the end of the turn that answers it (submit.js)
         // completion_seq is absent until an agent's first completed turn: absent means "no finished turn yet".
         if (comp != null && comp !== t.handled?.comp && !runnerAlive(t)) then = "finish";
         else if (!runnerAlive(t) && F.reopened(t, comp)) then = "recover"; // the runner looks again itself, and only hands the task to the human
         return;
       }
+      if (notStarted(t)) return; // told "not started": a turn that ended before the text went in changes nothing about that
       if (WAITING.includes(t.stage) && !runnerAlive(t) && F.sameTurn(t)) { if (comp != null) t.handled = { ...(t.handled || {}), comp }; return; } // herdr counted a turn the agent's own report already finished
       if (WAITING.includes(t.stage) && !runnerAlive(t) && missedTurn(t, comp)) { humanTurnEnded(t); then = "finish-force"; }
       return;
@@ -208,7 +216,8 @@ function deliverInbox(t, api) {
   // The send time arms the pipeline for the turn this starts, so it is written before the text goes out.
   const before = { armedAt: t.armedAt, expectedWake: t.expectedWake, stage: t.stage, msg: t.msg };
   S.update(t.id, (t) => { t.armedAt = Date.now(); if (wake) t.expectedWake = wake; if (["asks", "nosummary", "failed", "approval", "reviewneeds"].includes(t.stage)) { t.stage = "working"; t.msg = ""; } }, { waitMs: 10000 });
-  try { api.agentPrompt(t.link.pane, items.map((m) => m.text).join("\n\n")); }
+  const text = items.map((m) => m.text).join("\n\n");
+  try { noteSent(t.id, hand(api, t.link.pane, text), text, !!items[0].first); }
   catch (e) {
     S.untakeText(t.id, items.length);
     S.update(t.id, before, { waitMs: 10000 });
@@ -222,6 +231,7 @@ export function reconcile(t, api) {
   if (!F.isAgentTask(t) || t.archivedAt) return;
   let pane = api.paneGet(t.link.pane);
   if (!pane) pane = relink(t, api);
+  if (!pane || !api.agentGet(pane.pane_id)) checkSent(t.id, null, api); // gone with typed text not taken: not started, the text kept
   if (!pane) return void S.update(t.id, (t) => { if (t.last?.gone) return false; t.last = { ...(t.last || {}), gone: true, status: null, at: Date.now() }; }, { waitMs: 10000 });
   const a = api.agentGet(pane.pane_id);
   if (!a) return void S.update(t.id, (t) => { if (t.last?.status === null && !t.last?.gone && t.exitedAt) return false; t.last = { ...(t.last || {}), status: null, gone: false, at: Date.now() }; t.exitedAt = t.exitedAt || Date.now(); }, { waitMs: 10000 });
@@ -240,6 +250,7 @@ export function reconcile(t, api) {
     }
     return;
   }
+  checkSent(t.id, a, api); // text typed in a while ago and not taken yet gets its enter again
   apply(t.id, a, api); // covers hooks missed while herdr restarted
 }
 // When the stored pane id no longer matches, the task is relinked: first by terminal_id, then by agent name, then

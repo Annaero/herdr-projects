@@ -8,6 +8,7 @@ import { startArgs, preTrust, adapter, readTurnOf, installed } from "../agents.j
 import { whyStopped } from "../turn.js";
 import { launchExtras, taskLine } from "../delegate.js";
 import { publishReview } from "../review-page.js";
+import { settle, hand, look, shown } from "../submit.js";
 import * as G from "../gate.js";
 import { ms, fail } from "./shared.js";
 import { reviewBrief, parseVerdict } from "./review-brief.js";
@@ -62,7 +63,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch }) {
   const earlier = (t.reviewRounds || 0) > 0 && before.length ? before.at(-1).findings : null;
   const used = before.flatMap((e) => e.findings.map((f) => f.id));
   const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, filed: knownFaults(t) })}`;
-  let pane = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0, cut = null;
+  let pane = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0, cut = null, mark = null;
   // The reviewer ended its turn with no verdict. Its saved conversation says why: a turn that ended in the provider's
   // error was cut off (`cut`), and only one that really finished is "finished without a verdict", with its last message.
   // Its own turn-end report can come before the end is on disk: the file is read again for a few seconds.
@@ -84,10 +85,13 @@ async function reviewOnce(id, g, { text, change, toLand, ch }) {
     const x = launchExtras(t, "reviewer", { kind: rkind, round });
     t = g.set((t) => { t.link = { ...t.link, reviewer: { pane: pane.pane_id, agent: name, kind: rkind } }; t.reviewSession = x.session; });
     const start = (hook) => {
-      try { api.agentStart(name, rkind, pane.pane_id, startArgs(rkind, { model: rmodel, effort: reffort, fast: ch.reviewerFast, session: x.session, extra: hook })); }
+      const args = startArgs(rkind, { model: rmodel, effort: reffort, fast: ch.reviewerFast, session: x.session, extra: hook });
+      try { api.agentStart(name, rkind, pane.pane_id, args); settle(api, pane.pane_id, [rkind, ...args].join(" ")); } // up before its brief is typed (submit.js)
       catch (e) { if (e.code === "agent_not_ready") return; if (!hook.length) throw e; start([]); } // once more without the hook arguments
     };
     start(x.hook);
+    // The end of the reviewer's saved conversation, for the look at whether it started on its brief.
+    const briefShown = () => { const s = S.get(id).reviewSession || adapter(rkind).findSession?.(folder, startedAt, taskLine(t, "reviewer", round)); return s ? shown(rkind, { session: s, cwd: folder }, mark, brief) : null; };
     const until = Date.now() + ms("HERDR_SUPERWORK_REVIEW_MS", 20 * 60000);
     const every = ms("HERDR_SUPERWORK_POLL_MS", 3000);
     for (;;) {
@@ -113,7 +117,13 @@ async function reviewOnce(id, g, { text, change, toLand, ch }) {
       const cur = S.get(id);
       if (blocked && cur.stage === "reviewing") { g.set({ stage: "reviewneeds", msg: "the reviewer shows a dialog: open it and answer" }); g.allow("reviewing"); }
       else if (!blocked && cur.stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "under review" }); g.allow("reviewneeds"); }
-      if (!sent && a && (a.agent_status === "idle" || a.agent_status === "done")) { try { api.agentPrompt(pane.pane_id, brief); sent = true; sentAt = Date.now(); } catch (e) { if (e.code !== "agent_blocked" && e.code !== "agent_not_ready") { sent = true; sentAt = Date.now(); } } }
+      if (!sent && a && (a.agent_status === "idle" || a.agent_status === "done")) { try { mark = hand(api, pane.pane_id, brief); sent = true; sentAt = Date.now(); } catch (e) { if (e.code !== "agent_blocked" && e.code !== "agent_not_ready") { sent = true; sentAt = Date.now(); } } }
+      // The brief was typed: did the reviewer start on it? If not, enter is pressed again; the brief is never typed twice.
+      else if (mark && a) {
+        const r = look(api, pane.pane_id, mark, briefShown);
+        if (r === "took" || r === "unknown") mark = null;
+        else if (r === "lost") { error = "the reviewer did not start: its brief sits unsent in its box"; break; }
+      }
       else if (sent && a && adapter(rkind).readTurn && Date.now() - sentAt > ms("HERDR_SUPERWORK_ENDED_MS", 5000)) {
         // No hook: "idle" alone never fails a review (a reviewer in a long test run looks idle). Only its saved
         // conversation ending in a finished message or an error, and still no verdict 15 seconds later, does.

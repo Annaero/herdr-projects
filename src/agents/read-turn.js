@@ -17,6 +17,14 @@ function tailLines(file, bytes = 768 * 1024) {
     return lines.filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
   } finally { fs.closeSync(fd); }
 }
+// Does a saved conversation hold these words, written since a moment? It does once a prompt was really submitted.
+// The longest line of the text stands for it: one line, as the file keeps it, whatever was wrapped around it.
+export function holds(file, text, since = 0) {
+  const line = String(text || "").split("\n").map((l) => l.trim()).sort((a, b) => b.length - a.length)[0]?.slice(0, 80);
+  if (!line) return false;
+  const kept = JSON.stringify(line).slice(1, -1);
+  return tailLines(file).some((e) => when(e.timestamp) >= since - 2000 && JSON.stringify(e).includes(kept));
+}
 export const headOf = (file, bytes) => { const fd = fs.openSync(file, "r"); try { const buf = Buffer.alloc(bytes); return buf.toString("utf8", 0, fs.readSync(fd, buf, 0, bytes, 0)); } finally { fs.closeSync(fd); } };
 export const when = (ts) => { const n = Date.parse(ts); return Number.isFinite(n) ? n : 0; };
 // What every reader returns. `finished`: a complete assistant message ends the file. `pending`: a tool call or a partial
