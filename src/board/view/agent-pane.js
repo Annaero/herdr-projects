@@ -6,6 +6,7 @@ import * as D from "../../delegate.js";
 import { herdr, inHerdr, readScreen } from "../../herdr.js";
 import { adapter } from "../../agents.js";
 import { reviewing } from "./states.js";
+import { name as keyName } from "../keys.js";
 
 export class AgentPane {
   // What the agent's pane shows, read through herdr. A deep read is done once per completed turn and cached; while
@@ -41,7 +42,7 @@ export class AgentPane {
   chat(r) {
     if (r.archivedAt) return this.openPanel();
     if (r.host) return this.remoteChat(r);
-    if (!F.isAgentTask(r)) return this.flash("No agent has been on this yet. tab puts one on it.", "yellow");
+    if (!F.isAgentTask(r)) return this.flash(`No agent has been on this yet. ${keyName("delegate")} puts one on it.`, "yellow");
     F.assertLive(r);
     const api = herdr(r.link.socket);
     // Its space may have been closed (archive closes it): reopen it from the worktree first.
@@ -49,7 +50,7 @@ export class AgentPane {
     try { pane = D.reopen(r.id).pane; } catch (e) { return this.flash(e.message, "yellow"); }
     const hasAgent = !!api.agentGet(pane.pane_id);
     if (!inHerdr()) {
-      if (!hasAgent) return this.flash("Its agent has exited. space and a reply starts it again.", "yellow");
+      if (!hasAgent) return this.flash(`Its agent has exited. ${keyName("talk")} and a reply starts it again.`, "yellow");
       this.tui.stop();
       process.stdout.write("\x1b[2J\x1b[H");
       spawnSync(process.env.HERDR_BIN_PATH || "herdr", ["agent", "attach", pane.pane_id], { stdio: "inherit", env: { ...process.env, HERDR_SOCKET_PATH: r.link.socket } });
@@ -70,7 +71,7 @@ export class AgentPane {
     setTimeout(() => this.done(result), ms);
   }
   remoteChat(r) {
-    if (!r.link?.pane) return this.flash("No agent has been on this yet. tab puts one on it.", "yellow");
+    if (!r.link?.pane) return this.flash(`No agent has been on this yet. ${keyName("delegate")} puts one on it.`, "yellow");
     const attach = (pane) => {
       const { command, args } = R.attachCommand(r.machine, pane);
       this.tui.stop();
@@ -85,7 +86,7 @@ export class AgentPane {
     this.flash(`${r.host}: opening…`);
     this.ssh(r.machine, "do", { action: "reopen", id: r.rid }, (j) => {
       if (!j || !j.ok) { this.flash(j ? j.msg : `${r.host} did not answer`, "red"); return this.tui.requestRender(); }
-      if (!j.hasAgent) { this.flash(`${r.host}: its agent has exited and could not be restarted. space and a reply starts it again.`, "yellow"); return this.tui.requestRender(); }
+      if (!j.hasAgent) { this.flash(`${r.host}: its agent has exited and could not be restarted. ${keyName("talk")} and a reply starts it again.`, "yellow"); return this.tui.requestRender(); }
       attach(j.pane || r.link.pane);
     }, 60000);
   }

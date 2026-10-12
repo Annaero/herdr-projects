@@ -7,6 +7,7 @@ import * as C from "../../coordinator.js";
 import { herdr, currentSocket, sessionName } from "../../herdr.js";
 import { short, repoLabel } from "./words.js";
 import { GROUPS, GROUP_COLOR, groupOf, asRow } from "./states.js";
+import { name as keyName } from "../keys.js";
 
 export class List {
   load() {
@@ -72,7 +73,7 @@ export class List {
     this.selectionLayout = layout;
     // A question is about what it names. When that changed underneath it (another pull request, a new commit, a new
     // review), the question goes: the next yes has to be to what is there now.
-    if (this.ask?.valid && !this.ask.valid()) { this.ask = null; this.flash("It changed while you were asked, so nothing was merged. Look at it again, then ctrl+a.", "yellow"); }
+    if (this.ask?.valid && !this.ask.valid()) { this.ask = null; this.flash(`It changed while you were asked, so nothing was merged. Look at it again, then ${keyName("yes")}.`, "yellow"); }
     // A reply belongs to the task it was started for. When that task is gone the words are never left pointing at
     // whichever task is selected next: they are put away, and nothing is sent.
     // The same for words typed for the Coordinator on a row with no task (`replyId` is empty there): when that row

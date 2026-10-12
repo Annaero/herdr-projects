@@ -1,8 +1,9 @@
 // The first run: one screen asks what the plugin may add to herdr's settings.
-import { matchesKey, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import * as X from "../../extras.js";
 import { herdr, inHerdr } from "../../herdr.js";
 import { short } from "./words.js";
+import { name as keyName, is as isKey } from "../keys.js";
 
 export class Setup {
   // The first run: one screen asks what the plugin may add to herdr's settings. Only inside herdr, only what is missing.
@@ -16,8 +17,8 @@ export class Setup {
   // Single keys: 1 and 2 switch a choice on or off, k types another key, enter saves both, esc asks again next time.
   setupKey(data) {
     const st = this.setup;
-    const enter = matchesKey(data, "return") || matchesKey(data, "enter");
-    const esc = matchesKey(data, "escape") || matchesKey(data, "ctrl+c");
+    const enter = isKey(data, "enter");
+    const esc = isKey(data, "back") || isKey(data, "close");
     if (st.typing) {
       if (esc) { st.typing = false; return this.setValue(""); }
       if (!enter) return this.input.handleInput(data);
@@ -57,8 +58,8 @@ export class Setup {
     if (st.key) L.push("", ...wrap(`${t.fg("accent", "1")}  ${box(st.key.on)} ${st.key.value ? `Open this board with ${t.bold(st.key.value)}, from anywhere in herdr` : "Open this board with a key of your own (1 or k: type it)"}`), ...(st.key.value ? wrap(t.fg("overlay0", "k: use another key"), "         ") : []));
     if (st.sidebar) L.push("", ...wrap(`${t.fg("accent", "2")}  ${box(st.sidebar.on)} Show each task's stage, and what it is doing, in herdr's sidebar`));
     L.push("", ...wrap(t.fg("overlay0", `Saved in ${short(st.file)} between two marker lines. The file is backed up first, and herdr-superwork remove-extras takes it all out again.`)), "");
-    if (st.typing) L.push(`  ${t.fg("accent", "the key ❯")} ${this.value() || t.fg("overlay0", "for example prefix+a")}`, "", ...wrap(t.fg("overlay0", "enter keeps it · esc back")));
-    else L.push(...wrap(`${t.fg("text", "1 2")}${t.fg("overlay0", " on or off · ")}${t.fg("text", "enter")}${t.fg("overlay0", " save · ")}${t.fg("text", "esc")}${t.fg("overlay0", " ask me next time")}`));
+    if (st.typing) L.push(`  ${t.fg("accent", "the key ❯")} ${this.value() || t.fg("overlay0", "for example prefix+a")}`, "", ...wrap(t.fg("overlay0", `${keyName("enter")} keeps it · ${keyName("back")} back`)));
+    else L.push(...wrap(`${t.fg("text", "1 2")}${t.fg("overlay0", " on or off · ")}${t.fg("text", keyName("enter"))}${t.fg("overlay0", " save · ")}${t.fg("text", keyName("back"))}${t.fg("overlay0", " ask me next time")}`));
     if (this.msg) L.push("", ...wrap(t.fg(this.msgKind, this.msg)));
     return this.pad(L, rowsN);
   }

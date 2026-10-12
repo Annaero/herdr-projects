@@ -4,6 +4,7 @@ import * as S from "../../store.js";
 import { herdr, currentSocket, paneShown, takeTerminal } from "../../herdr.js";
 import { lookHeld } from "../held.js";
 import { clean, age } from "./words.js";
+import { name as keyName } from "../keys.js";
 
 // The side panel fits from this width on, when you have it open (ctrl+p); below it the same panel opens full screen.
 export const WIDE = 90;
@@ -71,7 +72,7 @@ export class Size {
     const d = this.held;
     if (!d) return [];
     const t = this.theme, who = d.by[0];
-    const text = `Held at ${d.columns}×${d.rows}: ${this.ctx.pane ? "alt+w, or " : ""}${who ? `kill ${who.pid}` : "closing its remote view"} frees it. `
+    const text = `Held at ${d.columns}×${d.rows}: ${this.ctx.pane ? `${keyName("takeBack")}, or ` : ""}${who ? `kill ${who.pid}` : "closing its remote view"} frees it. `
       + `Drawn for a remote view of this pane, so herdr's own window (${d.room.columns}×${d.room.rows}) shows it cut off or half empty`
       + (who ? ` · herdr terminal attach, open ${age(who.seconds * 1000)}${d.by.length > 1 ? `, and ${d.by.length - 1} more` : ""}` : "");
     return [truncateToWidth(" " + t.fg("yellow", "! " + text), width, "…")];

@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import * as S from "./store.js";
+import { name as keyName } from "./board/keys.js";
 
 const HELP = `herdr-superwork: a work board for herdr
 
@@ -152,7 +153,7 @@ export async function main(argv) {
       let tab = false;
       if (!flags.delegate && process.env.HERDR_PANE_ID && !process.env.HERDR_PLUGIN_ID) { try { tab = (await import("./coordinator.js")).tabTurn(process.env.HERDR_PANE_ID); } catch {} }
       if (flags.delegate || tab) A.delegate(t.id, pickChoices(flags));
-      result = [brief(shownOf(t.id)), `${t.id}: filed${flags.delegate || tab ? `, an agent is on it${tab ? " (the message was sent with tab)" : ""}` : ""}`];
+      result = [brief(shownOf(t.id)), `${t.id}: filed${flags.delegate || tab ? `, an agent is on it${tab ? ` (the message was sent with ${keyName("delegate")})` : ""}` : ""}`];
       break;
     }
     case "list": case "ls": {

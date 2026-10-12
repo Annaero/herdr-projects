@@ -4,6 +4,7 @@ import * as S from "../../store.js";
 import { clean, age, prNumber, prCheck, prColor, idLabel, bar } from "./words.js";
 import { reviewing, groupOf, waitOf, reviewerWord } from "./states.js";
 import { roundWords, reviewNote } from "./review-words.js";
+import { name as keyName } from "../keys.js";
 
 const ASKS = { question: "Asks you", permission: "Asks for your OK", auth: "Needs a login" };
 
@@ -32,13 +33,13 @@ export class PanelStatus {
     const note = reviewNote(r);
     let told = ""; // what this part already printed, so "the agent said" does not repeat it
     const alert = (lines) => part(lines, { pri: 4, min: 2, at: (n) => first(lines, n) });
-    if (r.archivedAt) part(callout("overlay0", "Archived", "Read-only. ? has restore. Its state and all its data are kept."));
+    if (r.archivedAt) part(callout("overlay0", "Archived", `Read-only. ${keyName("menu")} has restore. Its state and all its data are kept.`));
     if (failure && waitOf(r)?.who === "agent") { // nothing to do: the board carries on by itself
       told = failure.detail;
-      alert(callout(c, "Cut off, trying again by itself", `${note}. A reply, ctrl+r or ctrl+a tells the agent to continue right away.`, [["What cut it off", waitOf(r).error || failure.detail]]));
+      alert(callout(c, "Cut off, trying again by itself", `${note}. A reply, ${keyName("sendBack")} or ${keyName("yes")} tells the agent to continue right away.`, [["What cut it off", waitOf(r).error || failure.detail]]));
     } else if (failure) {
       told = failure.detail;
-      alert(callout("red", failure.title, failure.sentAt ? "Sent to the agent. Kept here until it works." : failure.agentCanFix ? "The agent can fix this: ctrl+r sends it." : "This needs you first.", [["Next step", failure.next || "Find the cause and fix it."], ["What went wrong", failure.detail]]));
+      alert(callout("red", failure.title, failure.sentAt ? "Sent to the agent. Kept here until it works." : failure.agentCanFix ? `The agent can fix this: ${keyName("sendBack")} sends it.` : "This needs you first.", [["Next step", failure.next || "Find the cause and fix it."], ["What went wrong", failure.detail]]));
     } else if (approval && r.syncBlocked) alert(callout("peach", "Behind main, cannot be approved yet", `${r.syncBlocked.why}. The board keeps trying to bring it up to date.`));
     else if (approval) { /* the first line says it: ready to approve */ }
     else if (r.state === "blocked") { told = note || said || ""; alert(callout("red", ASKS[r.kind] || "Needs you", told)); }

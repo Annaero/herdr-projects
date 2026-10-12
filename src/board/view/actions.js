@@ -4,6 +4,7 @@ import * as A from "../../actions.js";
 import { herdr } from "../../herdr.js";
 import { clean, prNumber } from "./words.js";
 import { isAgent, failureFor } from "./states.js";
+import { name as keyName } from "../keys.js";
 
 export class Actions {
   // herdr's "approve the task in the focused pane" action lands here: the board opens on that task and asks first.
@@ -34,13 +35,13 @@ export class Actions {
     this.try(() => {
       if (action === "archive") { A.archive(r.id); this.archiveUndo = r; } else A.restore(r.id);
       this.full = false;
-      this.flash(action === "archive" ? `${r.id}: archived. ? has undo, and the archive.` : `${r.id}: restored.`, "green");
+      this.flash(action === "archive" ? `${r.id}: archived. ${keyName("menu")} has undo, and the archive.` : `${r.id}: restored.`, "green");
     });
   }
   // ---- what the keys do -------------------------------------------------------------------------------------------------
   // "Yes": whatever the selected task waits for. A merge cannot be undone, so that one asks first.
   yes(r) {
-    if (r.archivedAt) return this.flash("Archived tasks are read-only. ? has restore.", "yellow");
+    if (r.archivedAt) return this.flash(`Archived tasks are read-only. ${keyName("menu")} has restore.`, "yellow");
     if (r.stage === "approval" && r.state === "blocked") {
       if (r.syncBlocked) return this.flash(`Behind main, so it cannot be approved yet: ${r.syncBlocked.why}. The board keeps trying to bring it up to date.`, "yellow");
       const mark = this.mergeMark(r.id), seen = { pr: r.pr ?? null, head: r.reviewedHead ?? null };
@@ -55,7 +56,7 @@ export class Actions {
   }
   // "Send it back": whatever went wrong (a failed step, a conflict, the review) goes to the task's agent to fix.
   sendBack(r) {
-    if (r.archivedAt) return this.flash("Archived tasks are read-only. ? has restore.", "yellow");
+    if (r.archivedAt) return this.flash(`Archived tasks are read-only. ${keyName("menu")} has restore.`, "yellow");
     const failure = failureFor(r);
     if (failure && !failure.agentCanFix && !(r.stage === "failed" && r.failure?.auth)) return this.flash(`This needs you first. ${failure.next || ""}`, "yellow");
     if (r.host) return this.act(r, failure && failure.agentCanFix ? "fix" : r.state === "error" ? "retry" : "review");
@@ -63,7 +64,7 @@ export class Actions {
   }
   stop(r) {
     const running = r.state === "working" && (isAgent(r) || r.stage === "progress") || r.stage === "queued" || (isAgent(r) && r.stage === "working");
-    if (!running) return this.flash("No agent is working on this. ? has delete and archive.");
+    if (!running) return this.flash(`No agent is working on this. ${keyName("menu")} has delete and archive.`);
     this.stick = r.id; // the selection stays on this row: a second tap never lands on another task
     if (r.host) return this.act(r, "stop");
     return this.try(() => { A.stop(r.id); this.flash(`${r.id}: stopped.`, "yellow"); });
@@ -83,15 +84,15 @@ export class Actions {
       const d = this.draftAway;
       // Its task is gone: the words are not lost, and not turned into something else unasked. A second ctrl+z says so.
       if (d.to && !this.items.some((r) => r.id === d.to && !r.archivedAt)) {
-        if (!d.warned) { d.warned = true; return this.flash("The task that reply was for is gone. ctrl+z again brings the words back as a draft of their own.", "yellow"); }
+        if (!d.warned) { d.warned = true; return this.flash(`The task that reply was for is gone. ${keyName("undo")} again brings the words back as a draft of their own.`, "yellow"); }
         d.to = "";
       }
       const now = this.reply && this.current() ? this.sel : "";
       if (d.to !== now) {
         const name = d.to ? `"${truncateToWidth(clean(this.items.find((r) => r.id === d.to)?.title || d.to), 40, "…")}"` : "";
-        return this.flash(!d.to ? "Those words were for the Coordinator. space goes back to it, then ctrl+z brings them back."
-          : now ? `Those words were for ${name}. Move to it, then ctrl+z brings them back.`
-          : `Those words were for the agent on ${name}. Select it and press space, then ctrl+z brings them back.`, "yellow");
+        return this.flash(!d.to ? `Those words were for the Coordinator. ${keyName("talk")} goes back to it, then ${keyName("undo")} brings them back.`
+          : now ? `Those words were for ${name}. Move to it, then ${keyName("undo")} brings them back.`
+          : `Those words were for the agent on ${name}. Select it and press ${keyName("talk")}, then ${keyName("undo")} brings them back.`, "yellow");
       }
       this.draftAway = null;
       this.setValue(d.text); this.load();

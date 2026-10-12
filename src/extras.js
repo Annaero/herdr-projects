@@ -1,4 +1,4 @@
-// The two things the plugin writes outside its own folders, both consented and removable:
+// The two things the plugin writes outside its own folders, both consented and removable. They are:
 //   1. a small how-to in each installed agent program's own skills folder (setting `skill`, default on), so any chat
 //      knows the board without being told;
 //   2. on a yes at the board's first run, marked blocks in herdr's config.toml: a key to open the board and the sidebar
@@ -197,7 +197,7 @@ export function removeBlocks(what = "[^\\n]*") {
   return true;
 }
 // Everything the plugin wrote outside its own folders, taken out, and nothing written back at the next start. herdr
-// gives a plugin no uninstall hook, so the README says to run this before unlinking.
+// gives a plugin no uninstall hook, so docs/install.md says to run this before unlinking.
 export function removeExtras() {
   const blocks = removeBlocks();
   removeSkill();

@@ -1,99 +1,237 @@
 # Where things live
 
-Several agents work on this repo at once, each in its own worktree. Two tasks that change different things should
-touch different files, so they merge without conflicts. This page says which file holds what, and where a new
-feature of each kind goes. Keep it true: when you add a file, add its line here.
+<!-- Made by `node scripts/docs.js` from the comment at the top of each file. Do not edit this page: change the
+     file's own comment, then run the command again. -->
 
-## Rules
+Which file holds what. Every line is the first sentence of the comment at the top of that file, so the page is
+never edited by hand: `node scripts/docs.js` writes it, and the check fails when it is out of date. Where a new
+thing goes is in [AGENTS.md](../AGENTS.md).
 
-- **One area, one file.** Put a change in the file of its area. If a file grows a second area, or passes about 250
-  lines, split it rather than append to it.
-- **Never append to the end of a shared list.** In a list that many tasks add to (the settings in `src/store/settings.js`,
-  the `?` menu, the table in `docs/checked-on-herdr.md`), put the new line next to the lines it belongs with. Two
-  tasks that both append at the end always conflict.
-- **A new test goes in the test file of its area**, or in a new `test/<area>.test.js`. `npm test` runs every
-  `test/*.test.js`, `npm test <area>` only that area's files: run that while you work, and everything once at the end
-  ([testing.md](testing.md)). Never one catch-all test file, and no file slower than about 25 seconds.
-- **A new feature's words go in its topic's page under `docs/`**, not in `README.md`: the README is only the
-  introduction, the install steps and the list of pages.
+## `src/`
 
-## The board's screen: `src/board/`
-
-`view.js` is small: the `View` class with its fields, its start-up, its once-a-second beat and its saved choices. The
-rest of `View` is in `view/`, one file per area. Each file there is a class whose methods are copied onto `View` (the
-loop at the end of `view.js`), so inside any of them `this` is the one `View`, and a method in one file calls a
-method in another as `this.name()`. A new area is a new file there, added to that loop.
-
-| To change | File in `src/board/view/` | Its tests |
-|---|---|---|
-| Which rows the list has, selection, the header line, the groups | `list.js` | `test/board-list.test.js` |
-| One row: its mark, name, sentence, columns (bar, percent, review tag, PR, time) | `row.js` | `test/board-rows.test.js` |
-| The chat: who it talks to, its first line, the latest message | `chat.js` | `test/coordinator-chat.test.js` |
-| The text box and its placeholder | `textbox.js` (the editor itself: `../editor.js`) | `test/board-textbox.test.js` |
-| A task agent's pane: its screen, its last message, going into it | `agent-pane.js` | `test/board-keys.test.js` |
-| The Coordinator from the board: sending, going in, restart | `coordinator.js` | `test/coordinator-*.test.js` |
-| The task panel: its order, the description, "the agent said", fitting a short window | `panel.js` | `test/board-panel.test.js` |
-| The panel's top: title, where it stands, what it needs from you | `panel-status.js` | `test/board-panel.test.js` |
-| Reviews in the panel | `panel-reviews.js` | `test/board-review.test.js` |
-| The panel's settings and session rows (a new setting's row) | `panel-settings.js` | `test/board-review.test.js` |
-| What the panel's parts are drawn with: headlines, boxes, callouts | `panel-kit.js` | |
-| What a key does | `keys.js` | `test/board-keys.test.js` |
-| The `?` menu and its list of keys | `menu.js` | `test/board-actions.test.js` |
-| The hint line | `hints.js` | `test/board-panel.test.js` |
-| A question the board asks (`y = yes · n = no`) | `ask.js` | `test/board-actions.test.js` |
-| What an action does: yes, send back, stop, delete, undo, archive | `actions.js` | `test/board-actions.test.js`, `test/board-reply.test.js` |
-| What goes where on the screen, and what gives way | `layout.js` | `test/board-layout.test.js` |
-| The window's size, a terminal held by another viewer | `size.js` (and `../held.js`) | `test/board-size.test.js` |
-| The first-run screen | `setup.js` | `test/board-setup.test.js` |
-| Other machines on the board, whose board you see | `remotes.js` | `test/remote.test.js` |
-| Tasks told to the terminal (OSC 7501) | `osc.js` | |
-| A task's group and colour; whether it waits for you | `states.js` | |
-| A review's result in words and colour; a row's `R#2 ✓` tag | `review-words.js` | `test/board-review.test.js` |
-| Small shared words: ages, PR numbers, cut text | `words.js` | |
-
-Colours and herdr's theme are `src/board/theme.js` (`test/theme.test.js`). Evidence lines are
-`src/board/artifact-lines.js`.
-
-## Everything behind the screen: `src/`
-
-| To change | File |
+| File | Holds |
 |---|---|
-| Settings and their defaults: yours, one task's own, the repo's file | `store/settings.js` |
-| Tasks on disk: reading, listing, changing, creating | `store/tasks.js` |
-| A task's reviews as saved: the current one, the round, the history | `store/reviews.js` |
-| Saved failures and login failures | `store/failures.js` |
-| The wait before a turn cut off by its provider is tried again | `store/retries.js` (which errors pass: `providerError` in `agents.js`; tests: `test/retry.test.js` on the recorded endings in `test/fixtures/endings/`) |
-| An agent's inbox, instructions for a Coordinator | `store/inbox.js` |
-| Git plumbing, repos and their names | `store/repos.js` |
-| The data folder, reading and writing files, locks, the stages | `store/files.js` |
-| Stamps, hook tokens, marks | `store/marks.js` |
-| What a stage and herdr's status mean for the board | `state.js`, `flow.js` |
-| Actions on a task (add, tell, approve, retry, archive) | `actions.js` |
-| Starting an agent, its rules, its worktree | `delegate.js`, `agents.js` |
-| The finish line: check, review, pull request | `finish.js` |
-| What a review's findings decide | `gate.js` |
-| Merging and staying current with main | `land.js`, `sync.js` |
-| The Coordinator | `coordinator.js` |
-| The keeper, the hook, cleanup | `keeper.js`, `hook.js`, `housekeeping.js` |
-| Other machines | `remote.js` |
-| The command line | `cli.js` |
-| What the plugin adds to herdr's settings | `extras.js` |
+| `actions.js` | The exact actions of the board, also the subcommands any agent can run from its shell |
+| `agents.js` | Everything agent-specific: the table of agent programs (agents/kinds.js), reading what they saved, starting them, and what is installed |
+| `cli.js` | The one program |
+| `coordinator.js` | The Coordinator: the agent behind the box at the bottom of the board |
+| `delegate.js` | Delegating: a herdr worktree workspace, the repo's setup, then the agent in its root pane with the first prompt |
+| `extras.js` | The two things the plugin writes outside its own folders, both consented and removable |
+| `finish.js` | The finish line: commit, check, push, draft pull request, review, then the approval gate |
+| `flow.js` | What the pieces share: reading herdr's view of a task, and sending text to its agent |
+| `gate.js` | The gate |
+| `helpers.js` | The hidden helper, as a hidden model call: the watcher (a status line and a progress guess for whatever is running; the board works out the minutes left) |
+| `herdr.js` | The only file that runs the herdr binary |
+| `hook.js` | The event hook entry |
+| `housekeeping.js` | The housekeeping pass |
+| `jobs.js` | The detached runner's entry: `herdr-superwork run <job> <task id>` |
+| `keeper.js` | The keeper: a small always-on background process that does what the open board's tick does, with no screen, so the board's information stays fresh and you are alerted with the board closed |
+| `land.js` | Landing: bring the branch up to date with main in the task's own worktree, merge (through the pull request when there is one, else locally), then clean up |
+| `remote.js` | Other machines |
+| `review-page.js` | The evidence page |
+| `runner.js` | Long jobs (delegate, finish line, land, restart) run in a detached runner so the board stays responsive and hook commands never hold herdr up |
+| `state.js` | (herdr status, stage) -> what the board shows |
+| `store.js` | Tasks on disk, locks and settings |
+| `sync.js` | Keeping a task's branch current with main, in the task's own worktree |
+| `toml.js` | A TOML reader for herdr's config.toml: the whole format (v1.0, and the newer \e and \x escapes), so that whatever herdr accepts the plugin reads the same |
+| `turn.js` | The agent's own turn-end report |
 
-`store.js` itself only passes these on, so the rest of the code still says `S.name`. A new kind of saved thing is a
-new file in `store/`, with one line added to `store.js`.
+## `src/actions/`
 
-## Tests: `test/`
+| File | Holds |
+|---|---|
+| `archive.js` | Archive, restore, and clearing a task away for good |
+| `filing.js` | Filing and editing a task: add, rename, describe, pin, and a report of where it stands |
+| `finish-line.js` | The finish line's keys: approve, send the review or the failure back, finish anyway, retry |
+| `shared.js` | What the actions share: the stages an agent holds a slot in, and an action's answer |
+| `start.js` | Putting an agent on a task: the request, and starting queued tasks while slots are free |
+| `talk.js` | Talking to a task's agent: a reply, what every human-started turn does to a task, stop |
 
-One file per area, named after it: `board-*.test.js` for the screen (table above), `coordinator-*.test.js`,
-`flow.test.js`, `gate.test.js`, `sync-*.test.js`, `remerge.test.js` (a review that stands after a merge of main), `store.test.js`, `theme.test.js`, `watcher.test.js`, `remote.test.js`, `cli.test.js`,
-and the rest. Shared setup: `helpers.js` (a test world), `board-helpers.js` (a board opened on it),
-`coordinator-helpers.js` (a world with a Coordinator). The stand-ins: `fake-herdr.js` (herdr; called in the test's own
-process, or run as the program `bin/herdr`; its own tests: `fake-herdr.test.js`), `bin/gh`, `fake-helper.js`. The runner
-behind `npm test`, with its slow-file note: `run.js` (`test-runner.test.js`).
+## `src/agents/`
+
+| File | Holds |
+|---|---|
+| `homes.js` | Where each agent program keeps its own settings and files |
+| `installed.js` | What is installed on this machine, whether its turn-end hook can be used, and pre-trusting a repo |
+| `kinds.js` | Everything agent-specific lives in this one table |
+| `provider-error.js` | Provider errors: which ones pass by themselves, and which need the human |
+| `read-turn.js` | Reading the end of a saved conversation, one reader per agent program: last message, error, tokens |
+| `start.js` | The arguments an agent of a kind is started with, and whether it has a fast mode |
+
+## `src/board/`
+
+| File | Holds |
+|---|---|
+| `artifact-lines.js` | The evidence a review brought: which files and links count, and the line each gets in the task panel |
+| `editor.js` | The box at the bottom |
+| `held.js` | Is the board's terminal sized by something other than herdr's own window? |
+| `keys.js` | The board's keys, each one defined once: the ? menu, the hint line, the words that name a key and docs/keys.md are all made from this list |
+| `main.js` | Opens the board: full screen in the current terminal, or inside herdr's popup when run as the plugin's pane |
+| `theme.js` | The board's colours and status marks are herdr's own (verified against herdr 0.9.3: src/app/state.rs for the palettes, src/client/shell.rs for the marks) |
+| `view.js` | The board: pi-work's screen, powered by herdr |
+
+## `src/board/view/`
+
+| File | Holds |
+|---|---|
+| `actions.js` | What you do to the selected task: yes, send back, stop, delete, undo, archive |
+| `agent-pane.js` | A task's agent: what its pane shows, what it last said, and going into its real herdr pane |
+| `ask.js` | The one question box: asking, what a merge question is about, and how it is drawn |
+| `chat.js` | The chat at the bottom: who it talks to, the line that names them, and their latest message |
+| `coordinator.js` | The Coordinator from the board: sending it your words, going into its chat, restarting it |
+| `hints.js` | The hint line at the bottom of the board |
+| `keys.js` | What a typed key does, where the board's state decides it: a question, a draft, find, esc, enter, tab |
+| `layout.js` | The whole screen: what goes where, and what gives way when the window is small |
+| `list.js` | The task list: which rows there are, which one is selected, the header line, and the list as drawn |
+| `menu.js` | The ? menu: lines you act from, and under them the few keys worth remembering |
+| `osc.js` | The same tasks, told to the terminal (OSC 7501) |
+| `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, callouts, boxes, and the list of parts |
+| `panel-reviews.js` | The reviews in the task panel: how each went, each one a box, and the evidence |
+| `panel-settings.js` | The settings in the task panel: every setting this task runs on, and its agent's session |
+| `panel-status.js` | The top of the task panel: the title, where the task stands, and what it needs from you |
+| `panel.js` | The task panel: beside the list and full screen |
+| `remotes.js` | Other machines: ask each for its board, send each action to the machine that owns the task, and whose board you see |
+| `review-words.js` | A review in a few words: its result, its colour, which round it was |
+| `row.js` | One row of the list: its mark, its name, what it says, and its columns on the right |
+| `setup.js` | The first run: one screen asks what the plugin may add to herdr's settings |
+| `size.js` | The board's size: the window, what herdr shows of it, and another viewer holding the terminal at its own size |
+| `states.js` | Where a task stands, as the board files it: its group, its colour, whether an agent is on it, whether it waits for you |
+| `textbox.js` | The text box you type in |
+| `words.js` | Small words and numbers the board's parts share: a time as "12m", a pull request as "PR#16", a long text cut short |
+
+## `src/coordinator/`
+
+| File | Holds |
+|---|---|
+| `look.js` | What the board shows of the Coordinator: its state, latest message and screen; going into its chat |
+| `pump.js` | The pump: the detached job that starts the Coordinator and types into it, one at a time per herdr session |
+| `requests.js` | Requests to the Coordinator: written down here (send, restart, new, stop, open), carried out by the pump |
+| `rules.js` | The Coordinator's standing rules: what it is told once, for the whole conversation |
+| `state.js` | The Coordinator's saved state (one file per herdr session) and the folder it chats in |
+| `who.js` | Who the Coordinator is: the agent kind, model and effort chosen for it, and whether it can run here |
+
+## `src/finish/`
+
+| File | Holds |
+|---|---|
+| `pipeline.js` | The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval |
+| `recover-job.js` | A finished turn re-armed by mistake: hand the task to the human as stopped without a summary |
+| `review-brief.js` | What the reviewer is told, and reading the verdict it writes back |
+| `review.js` | The reviewer: a visible herdr agent in a split of the task's own space |
+| `shared.js` | The finish line's shared pieces: the approval question's words, and marking a task as failed |
+| `sync-job.js` | Main moved while a task waits for approval: bring its branch up to date and check it again |
+| `turn-ended.js` | The finish runner: an agent's turn ended |
+
+## `src/flow/`
+
+| File | Holds |
+|---|---|
+| `git.js` | Git and GitHub helpers used by more than one step: the pull request, its checks, a task's change |
+| `handled-turn.js` | A turn that is already handled: the same turn seen again, and a task re-armed for a turn that never came |
+| `live.js` | Live readings: a task as herdr sees it right now, and the board's list made from them |
+| `send.js` | Sending text to an agent: delivering or queueing it, the closing-note rule, the command's path, a cut-off turn tried again |
+| `sidebar.js` | Telling herdr's own sidebar where a task stands: the label on its pane |
+| `spaces.js` | herdr spaces the board opened and owes closing: a repo's own space, a done task's clean-up, spaces left over |
+| `task.js` | A task's own places and its herdr: the closing note, the review folder, whether an agent is on it |
+
+## `src/store/`
+
+| File | Holds |
+|---|---|
+| `failures.js` | Failures: workflow diagnostics that live beside the task |
+| `files.js` | Where the board keeps things, reading and writing files, and locks |
+| `inbox.js` | Text on its way: an agent's inbox, and instructions for a Coordinator |
+| `marks.js` | Small shared files: stamps, hook tokens, turn-ended events, marks |
+| `repos.js` | Git plumbing, and repos: the first part of a task's id |
+| `retries.js` | A turn cut off by a passing provider error: the board waits, then tries again by itself (docs/how-work-gets-done.md) |
+| `reviews.js` | A task's reviews: the current one, which round, and every one it had |
+| `settings-list.js` | The settings, each one defined once: its name, its default, whether one task can have its own, and what it means |
+| `settings.js` | Settings as saved and read: yours, one task's own, and the repo's file |
+| `tasks.js` | Tasks on disk: reading, listing, changing, creating |
+
+## `bin/`
+
+| File | Holds |
+|---|---|
+| `herdr-superwork.js` | Argument routing only: everything lives in src/ |
+| `run.sh` | herdr starts plugin commands with its server's environment, which may not have the user's PATH |
+
+## `scripts/`
+
+| File | Holds |
+|---|---|
+| `docs.js` | The pages made from the code: `node scripts/docs.js` writes them, `node scripts/docs.js --check` only says which are out of date (the check does that too: scripts/guard.js) |
+| `guard.js` | The repo's own rules, checked: no source file past its size, and no made page out of date |
 
 ## The pages: `docs/`
 
-`README.md` lists them. One page per topic: `board.md`, `task-panel.md`, `keys.md`, `coordinator.md`,
-`roles-and-commands.md`, `how-work-gets-done.md`, `gate.md`, `settings.md`, `other-machines.md`,
-`checked-on-herdr.md`, `compared-with-pi-work.md`, `provider-errors.md`, `testing.md` (running the tests, keeping them fast). A new key goes in `keys.md`, a new setting in `settings.md`, a
-newly verified fact in `checked-on-herdr.md` beside the rows of its kind.
+| Page | About |
+|---|---|
+| [board.md](board.md) | The board: the list and the chat |
+| [checked-on-herdr.md](checked-on-herdr.md) | What was checked on herdr 0.9.3 |
+| [compared-with-pi-work.md](compared-with-pi-work.md) | Compared with pi-work |
+| [coordinator.md](coordinator.md) | The Coordinator |
+| [gate.md](gate.md) | The gate |
+| [how-work-gets-done.md](how-work-gets-done.md) | How work gets done |
+| [install.md](install.md) | Installing, the first run, and taking it out again |
+| [keys.md](keys.md) | Keys, questions and the ? menu |
+| [other-machines.md](other-machines.md) | Other machines |
+| [provider-errors.md](provider-errors.md) | A turn cut off by the provider |
+| [roles-and-commands.md](roles-and-commands.md) | Roles and commands |
+| [settings.md](settings.md) | Settings: two places |
+| [task-panel.md](task-panel.md) | The task panel |
+| [testing.md](testing.md) | Tests |
+| [where-things-live.md](where-things-live.md) | Where things live |
+
+## The tests: `test/`
+
+One file per area, named after it; `npm test <area>` runs every `test/<area>*.test.js` ([testing.md](testing.md)).
+
+| File | Tests |
+|---|---|
+| `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, delete, retry |
+| `board-helpers.js` | Shared by the board's tests (test/board-*.test.js): the keys, and a board opened on a test world |
+| `board-keys.test.js` | The board's keys, and the text box owning the keyboard |
+| `board-layout.test.js` | The whole screen: the chat pinned to the bottom, through a resize |
+| `board-list.test.js` | The task list: the header, the groups, the done list |
+| `board-panel.test.js` | The task panel: beside the list and full screen |
+| `board-reply.test.js` | Replying to a task's agent: who gets your words, and words put away |
+| `board-review.test.js` | Reviews as the board shows them: on a row and in the task panel |
+| `board-rows.test.js` | One row of the list: its name, what it says, its columns |
+| `board-setup.test.js` | The first run, and the board loading its new version |
+| `board-size.test.js` | A terminal held at another size than herdr shows |
+| `board-textbox.test.js` | The text box: wrapping, growing, scrolling, editing keys |
+| `cleanup-late-work.test.js` |  |
+| `cleanup-owed.test.js` |  |
+| `cleanup-retry.test.js` |  |
+| `cleanup-space.test.js` |  |
+| `cli.test.js` | The command line |
+| `coordinator-chat.test.js` | The Coordinator's chat: one long-lived agent behind the box, and going into its real pane |
+| `coordinator-helpers.js` | Shared by the Coordinator's tests (test/coordinator-*.test.js): a world with a Coordinator, and a board opened on it |
+| `coordinator-messages.test.js` | What you say to the Coordinator is never lost: dialogs, failed starts, stop, on and off |
+| `coordinator-restart.test.js` | The Coordinator's conversation: restart, new, the agent's own new-chat command, its default program |
+| `fake-helper.js` | A stand-in for the hidden helper model |
+| `fake-herdr.js` | A stand-in for the herdr binary, for tests: no server, no terminals, no model calls |
+| `fake-herdr.test.js` | The fake herdr itself: tests call it in their own process, programs they start run it as a program |
+| `fast.test.js` | Fast mode: the `fast` and `reviewerFast` settings, and what an agent or reviewer is started with |
+| `flow.test.js` |  |
+| `gate.test.js` | The gate: tagged findings in, a fixed rule decides what goes back and what may merge |
+| `guard.test.js` | The repo's own rules are part of the check: no source file past its size, no made page out of date (scripts/guard.js) |
+| `helpers.js` | Shared test setup: a temporary board, a fake herdr and scripted fake agents |
+| `keys-list.test.js` | The keys list is the one place a key is defined: moving a key there moves it in the handler, the ? menu, the hints and the messages, with no other file changed |
+| `lifecycle.test.js` |  |
+| `merge.test.js` |  |
+| `pull-requests.test.js` |  |
+| `rearm.test.js` |  |
+| `remerge.test.js` | Work that passed its review and then only took main in is not reviewed again: the tests run on the merged result and the review stands |
+| `remote.test.js` | Other machines: the door, actions where the task lives, the SSH line |
+| `retry.test.js` | A turn cut off by the model's provider: recognised from the agent's own conversation file, retried by the board when the error is one that passes, and never taken for a finished turn or a review |
+| `run.js` | Runs the tests: all of them (`npm test`), or only the files of the areas named (`npm test board-panel sync`: every test/<name>*.test.js) |
+| `store.test.js` |  |
+| `sync-conflict.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
+| `sync-merge.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
+| `sync-remote.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
+| `test-runner.test.js` | The test runner (test/run.js): which files an area name stands for, and which files it calls slow |
+| `theme.test.js` | The board takes its colours and status marks from herdr's own config, resolved the way herdr resolves them |
+| `turns.test.js` |  |
+| `watcher.test.js` | The hidden helper: the watcher's line and guess |

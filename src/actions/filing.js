@@ -1,0 +1,52 @@
+// Filing and editing a task: add, rename, describe, pin, and a report of where it stands.
+import fs from "node:fs";
+import * as S from "../store.js";
+import * as F from "../flow.js";
+import { spawnRunner, runnerAlive } from "../runner.js";
+import { AGENT_STAGES } from "./shared.js";
+import { delegate } from "./start.js";
+import { stop } from "./talk.js";
+import { details } from "./finish-line.js";
+
+// ---- filing and editing ----------------------------------------------------------------------------------------------
+export function add(folder, title, { description = "", repo } = {}) {
+  return S.create(S.folderFor(repo, folder), title, { description });
+}
+export function rename(id, title) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.title = S.oneLine(title, 192) || t.title; }); }
+export function describe(id, text) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.description = String(text || "").replace(/\r/g, "").trim(); }); }
+export function pin(id) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.pinned = !t.pinned; }); }
+
+// A report, as in pi-work: the human (or any agent) says where a task stands. A delegated task's own agent may only
+// say it is blocked; it cannot mark itself done: the finish line does that.
+export function report(id, { state, kind, msg, title, progress, eta, asAgent = false } = {}) {
+  const cur = S.find(id);
+  if (title && !state) return rename(cur.id, title);
+  if (!["idle", "working", "blocked", "done", "error"].includes(state)) throw new Error("state must be one of: idle, working, blocked, done, error");
+  if (asAgent && state !== "blocked") throw new Error("Do not report done yourself. Finish your work and stop; the board runs the check and marks it done. (Use --state blocked if you need the human.)");
+  // "Mark it idle" on a task whose agent is working means "stop it": the same stop as the stop command.
+  if (state === "idle" && !asAgent && F.isAgentTask(cur) && AGENT_STAGES.includes(cur.stage)) return stop(cur.id);
+  const delegated = F.isAgentTask(cur) && AGENT_STAGES.concat(["asks", "nosummary", "approval", "reviewneeds", "failed"]).includes(cur.stage);
+  const mark = state === "done" ? F.tidyMark(cur, "merged") : null;
+  const t = S.update(cur.id, (t) => {
+    S.assertUnarchived(t);
+    if (title) t.title = S.oneLine(title, 192) || t.title;
+    if (state === "blocked") {
+      t.stage = "asks"; t.kind = S.KINDS.includes(kind) ? kind : "question"; t.msg = S.oneLine(msg) || "needs you"; t.turnOpen = false;
+      if (asAgent) t.selfBlocked = Date.now(); // the turn that follows this report is not a finish
+      return;
+    }
+    if (delegated && runnerAlive(t)) throw new Error(`${t.id} is in the middle of a workflow step. Stop it first.`);
+    t.kind = undefined; t.msg = S.oneLine(msg); t.failure = state === "error" ? t.failure : null;
+    if (state === "idle") { t.stage = F.isAgentTask(t) ? "stopped" : "todo"; if (!F.isAgentTask(t)) t.app = null; }
+    else if (state === "working") { if (F.isAgentTask(t)) throw new Error(`${t.id} has an agent. Reply to it, or delegate it again, to make it work.`); t.stage = "progress"; t.app = t.owner; t.since = Date.now(); if (progress !== undefined || eta !== undefined) t.watch = { progress: progress === undefined ? t.watch?.progress : clampPct(progress), eta: eta === undefined ? t.watch?.eta : S.minutes(eta) }; } // one given alone keeps the other
+    else if (state === "done") { t.stage = "done"; t.mergeIntent = null; t.tidy = F.isAgentTask(t) ? mark : null; }
+    else if (state === "error") { t.stage = "failed"; Object.assign(t, S.failurePatch({ stage: "agent", title: "Marked as failed", detail: S.oneLine(msg) || "No details given.", auth: false })); }
+  });
+  // Called done by you: its space leaves herdr's sidebar as after a merge. Unmerged work stays on its branch.
+  if (state === "done" && F.isAgentTask(t)) { try { F.labelPane(t, null); } catch {} spawnRunner("cleanup", t.id, ["--merged"]); }
+  return t;
+}
+const clampPct = (p) => Math.max(0, Math.min(100, Math.round(Number(p)) || 0));
+// ---- the human's own tasks -------------------------------------------------------------------------------------------
+export function startHuman(id) { return report(id, { state: "working" }); }
+export function existsWorktree(t) { return !!t.worktree && fs.existsSync(t.worktree); }

@@ -3,6 +3,7 @@ import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works
 import { herdr } from "../../herdr.js";
 import { clean } from "./words.js";
 import { WIDE, fitShown } from "./size.js";
+import { name as keyName } from "../keys.js";
 
 export class Layout {
   render(width) { return this.draw(width).map((l) => this.theme.line(l)); }
@@ -10,7 +11,7 @@ export class Layout {
     const rows = this.tui.terminal.rows, f = fitShown({ cols: width, rows }, this.shown);
     this.off = f.held;
     // The line at the top (lookHeld) says the same with more: while it shows, this one is not needed.
-    this.offNote = f.held && !this.held ? `Another viewer holds this terminal at ${width}×${rows}; herdr shows it at ${this.shown.cols - (this.shown.split ? 2 : 0)}×${this.shown.rows - (this.shown.split ? 2 : 0)}. ${this.takeFailed && this.ownsTerminal ? `Taking it back failed (${this.takeFailed}): trying again.` : "alt+w takes it back."}` : "";
+    this.offNote = f.held && !this.held ? `Another viewer holds this terminal at ${width}×${rows}; herdr shows it at ${this.shown.cols - (this.shown.split ? 2 : 0)}×${this.shown.rows - (this.shown.split ? 2 : 0)}. ${this.takeFailed && this.ownsTerminal ? `Taking it back failed (${this.takeFailed}): trying again.` : `${keyName("takeBack")} takes it back.`}` : "";
     return this.pad(this.drawAt(f.cols, Math.max(8, f.rows)), Math.max(8, rows));
   }
   drawAt(width, rowsN) {
@@ -33,10 +34,10 @@ export class Layout {
       // The text box grows with a draft that wraps, up to half the window (and never past what the line that says who
       // you talk to leaves): a longer draft scrolls inside it, never off-screen.
       const inputLines = this.ask ? this.askLines(width) : this.boxLines(width, Math.min(rowsN - 4 - headN - (selectedJob >= 0 ? 1 : 0), Math.max(5, Math.floor(rowsN / 2))), r);
-      const trimChat = (limit) => { if (chat.length > limit) chat.splice(limit > headN ? limit - 1 : limit, chat.length, ...(limit > headN ? [" " + t.fg("overlay0", "… alt+c: open its chat")] : [])); };
+      const trimChat = (limit) => { if (chat.length > limit) chat.splice(limit > headN ? limit - 1 : limit, chat.length, ...(limit > headN ? [" " + t.fg("overlay0", `… ${keyName("chat")}: open its chat`)] : [])); };
       // What just happened, on a line of its own: the hints below it stay readable.
       const stale = !this.stale ? "" : this.ctx.canReload === false ? "herdr-superwork was updated: close the board and open it again for the new version." : "herdr-superwork was updated: the new version loads when nothing is half typed.";
-      const said = this.msg && !(this.offNote && this.msgKind !== "red") ? wrapTextWithAnsi(t.fg(this.msgKind, this.msg) + (this.msgKind === "red" ? t.fg("overlay0", "  (esc)") : ""), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : this.offNote ? wrapTextWithAnsi(t.fg("yellow", this.offNote), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : stale ? ["  " + t.fg("overlay0", stale)] : [];
+      const said = this.msg && !(this.offNote && this.msgKind !== "red") ? wrapTextWithAnsi(t.fg(this.msgKind, this.msg) + (this.msgKind === "red" ? t.fg("overlay0", `  (${keyName("back")})`) : ""), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : this.offNote ? wrapTextWithAnsi(t.fg("yellow", this.offNote), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : stale ? ["  " + t.fg("overlay0", stale)] : [];
       const extraRows = Math.max(0, rowsN - inputLines.length - 2 - said.length - headN);
       const lastJobTop = Math.max(0, this.jobs.length - extraRows);
       if (selectedJob < 0) this.jobTop = lastJobTop;
@@ -70,7 +71,7 @@ export class Layout {
       } else top = [...this.headLines(width), ...this.listLines(width, Math.max(1, h - 1))];
       return this.pad([...held, ...this.pad(top, h), ...bottom].slice(0, rowsN), rowsN).map(fit);
     } catch (e) {
-      const out = [fit(" herdr-superwork view error: " + clean(e?.message)), fit(" press esc to close")];
+      const out = [fit(" herdr-superwork view error: " + clean(e?.message)), fit(` press ${keyName("back")} to close`)];
       while (out.length < rowsN) out.push(fit(""));
       return out;
     }

@@ -1,0 +1,59 @@
+// Putting an agent on a task: the request, and starting queued tasks while slots are free.
+import * as S from "../store.js";
+import { herdr, currentSocket } from "../herdr.js";
+import * as F from "../flow.js";
+import { spawnRunner, runnerAlive } from "../runner.js";
+import { AGENT_STAGES } from "./shared.js";
+
+// ---- delegate --------------------------------------------------------------------------------------------------------
+// Records the request (stage "queued") and lets the housekeeping pass start it when a slot is free.
+export function delegate(id, opts = {}) {
+  const cur = S.find(id);
+  for (const k of [...S.PER_TASK, "reviewAuto"]) if (opts[k] !== undefined && opts[k] !== null && opts[k] !== "") S.setTaskConfig(cur.id, k, opts[k]);
+  const socket = currentSocket();
+  let old = null; // the last round's space, when its clean-up had not managed to close it yet
+  const t = S.update(cur.id, (t) => {
+    S.assertUnarchived(t);
+    if (AGENT_STAGES.includes(t.stage) || runnerAlive(t)) throw new Error(`${t.id} already has an agent working on it.`);
+    if (t.autoMerge) throw new Error(`${t.id} is waiting for an automatic merge. Reply to its agent to cancel that first.`);
+    if (t.link?.socket && t.link.socket !== socket) throw new Error(`${t.id} lives in another herdr session. Open the board there.`);
+    if (opts.worktree === true || opts.worktree === false) t.worktreeMode = opts.worktree ? "own" : "none";
+    if (opts.base === "fresh" || opts.base === "head") t.base = opts.base;
+    // Work that already landed and was cleaned up starts a new round in a fresh worktree, never in your checkout.
+    if (F.cleanedUp(t)) {
+      if (t.link?.workspace && t.link.ownsWorkspace) old = { socket: t.link.socket, workspace: t.link.workspace };
+      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "syncedTo", "syncSeen", "syncBranch", "syncRepairs", "syncRetryAt", "syncBlocked", "handled", "session", "said", "summary", "stat", "kept", "tidy", "exitedAt", "repoCfg"]) delete t[k];
+      t.link = {};
+    }
+    t.agent = S.choices(t).agent || "claude";
+    t.app = t.agent;
+    t.stage = "queued"; t.queuedAt = Date.now(); t.msg = ""; t.kind = undefined; t.since = Date.now(); t.watch = null;
+    t.link = { ...(t.link || {}), socket };
+    t.mergeIntent = null; t.requireApproval = t.requireApproval || !!t.review; t.failure = null; t.expectedWake = null; t.turnOpen = false; t.waiting = null;
+    if (t.review) t.review = { ...t.review, stale: true };
+    t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
+  });
+  if (old) F.closeLater(old.socket, old.workspace);
+  F.labelPane(t, null);
+  startQueued(socket);
+  return S.get(t.id);
+}
+// Start queued tasks while slots are free. Counting and claiming happen under one global lock, so two passes cannot
+// both take the last slot. A turn the human started in an agent's terminal counts toward the total.
+export function startQueued(socket = currentSocket()) {
+  const started = [];
+  S.withLock("slots", () => {
+    const all = S.list();
+    let busy = all.filter((t) => S.SLOT_STAGES.includes(t.stage) && !t.autoMerge).length; // a remembered auto-merge runs nothing
+    const waiting = all.filter((t) => t.stage === "queued" && t.link?.socket === socket).sort((a, b) => (a.queuedAt || 0) - (b.queuedAt || 0));
+    for (const w of waiting) {
+      if (busy >= S.config().max) break;
+      const t = S.update(w.id, (t) => { if (t.stage !== "queued") return false; t.stage = "starting"; t.msg = ""; });
+      if (t.stage !== "starting") continue;
+      busy++;
+      started.push(t.id);
+    }
+  }, { waitMs: 5000 });
+  for (const id of started) spawnRunner("delegate", id);
+  return started;
+}

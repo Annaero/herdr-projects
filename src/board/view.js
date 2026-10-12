@@ -128,6 +128,29 @@ export class View {
 
 // The rest of the board is in view/, one file per area (docs/where-things-live.md says which). Each is a class only so
 // that its methods read as View's own; they are copied onto View here, so `this` is the one View everywhere.
-for (const part of [Announce, Size, Setup, List, Row, Coordinator, Chat, AgentPane, Remotes, Actions, Ask, Keys, Menu, Hints, TextBox, Layout, Panel, PanelStatus, PanelReviews, PanelSettings]) {
+// One part per line: a new part is one new line beside the parts it belongs with, never at the end.
+const PARTS = [
+  Announce,
+  Size,
+  Setup,
+  List,
+  Row,
+  Coordinator,
+  Chat,
+  AgentPane,
+  Remotes,
+  Actions,
+  Ask,
+  Keys,
+  Menu,
+  Hints,
+  TextBox,
+  Layout,
+  Panel,
+  PanelStatus,
+  PanelReviews,
+  PanelSettings,
+];
+for (const part of PARTS) {
   for (const [name, d] of Object.entries(Object.getOwnPropertyDescriptors(part.prototype))) if (name !== "constructor") Object.defineProperty(View.prototype, name, d);
 }

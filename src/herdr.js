@@ -1,6 +1,6 @@
 // The only file that runs the herdr binary. JSON in, JSON out.
 //
-// Verified on herdr 0.9.3 (see README "What was checked on herdr"):
+// Verified on herdr 0.9.3 (see docs/checked-on-herdr.md):
 //   - ids (workspace, tab, pane) survive a server restart; terminal_id does not
 //   - agent get: state_change_seq always; completion_seq only after a first finished turn; agent_session only with
 //     an official integration installed

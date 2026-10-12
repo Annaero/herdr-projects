@@ -26,5 +26,5 @@ review on the list. The agent program's own code for the error decides where it 
 `codex_error_info`, Claude Code's `error` and HTTP status); otherwise its words do.
 
 The waits are fixed. What was seen in real conversation files is in [checked-on-herdr.md](checked-on-herdr.md); the
-code is `providerError` in `src/agents.js` (which errors pass), `src/store/retries.js` (the wait) and
-`src/finish.js` (the retries); the tests are `test/retry.test.js`, on recorded endings in `test/fixtures/endings`.
+code is `providerError` in `src/agents/provider-error.js` (which errors pass), `src/store/retries.js` (the wait) and
+`src/finish/turn-ended.js` and `src/finish/review.js` (the retries); the tests are `test/retry.test.js`, on recorded endings in `test/fixtures/endings`.

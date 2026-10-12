@@ -5,6 +5,7 @@ import * as G from "../../gate.js";
 import { artifactLine, reviewArtifacts } from "../artifact-lines.js";
 import { clean, age, brief } from "./words.js";
 import { verdict } from "./review-words.js";
+import { name as keyName } from "../keys.js";
 
 export class PanelReviews {
   // Returns whether something is shorter here than on the full screen.
@@ -42,7 +43,7 @@ export class PanelReviews {
       if (evidence.length) part([head("Evidence"), ...artifactLines(t, evidence, width, "Evidence").slice(2, -1).map((l) => l.slice(1))]);
     } else if (hist.length) {
       const all = wrap(brief(clean(last.error || last.text || "No comment."), 280), iw);
-      const extra = evidence.length ? [artifactLine(t, evidence[0], width).slice(1), ...(evidence.length > 1 ? [dim(`… ${evidence.length - 1} more: ctrl+e`)] : [])] : [];
+      const extra = evidence.length ? [artifactLine(t, evidence[0], width).slice(1), ...(evidence.length > 1 ? [dim(`… ${evidence.length - 1} more: ${keyName("panel")}`)] : [])] : [];
       const build = (k) => [head(hist.length > 1 ? `Reviews · ${hist.length}` : "Review"), ...(hist.length > 1 ? trail() : []), ...box(last, first(all, k, iw)), ...extra];
       const least = build(1).length;
       if (hist.length > 1 || evidence.length > 1) cut = true;

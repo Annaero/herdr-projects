@@ -1,46 +1,16 @@
-// Settings: their defaults, yours, one task's own, and the repo's file. A new setting goes here, beside the ones of its area.
+// Settings as saved and read: yours, one task's own, and the repo's file. What there is to set is settings-list.js:
+// a new setting goes there.
 import fs from "node:fs";
 import path from "node:path";
 import { GATES, DEFAULT_GATE, gateOfAuto } from "../gate.js";
 import { configDir, readJson, writeJson } from "./files.js";
 import { gitOut } from "./repos.js";
 import { assertUnarchived, update } from "./tasks.js";
+import { DEFAULTS, TASK_DEFAULTS, PER_TASK } from "./settings-list.js";
 
 // ---- settings: two places, no more ---------------------------------------------------------------------------------
-// 1. Your own preferences: <config dir>/config.json.
-export const DEFAULTS = {
-  agent: "claude",        // the working agent: any `herdr agent start --kind` value
-  model: "", effort: "",
-  fast: false,            // the working agent in its program's fast mode (a faster service tier that uses more of your allowance); only Codex has one
-  reviewer: "codex",      // the reviewer's agent kind; "off" for no review
-  reviewerModel: "", reviewerEffort: "",
-  reviewerFast: true,     // the reviewer in its program's fast mode; does nothing for a kind that has none
-  coordinator: "claude",  // who runs the natural-language box: its own choice, as the agent's is; "off" for none
-  coordinatorModel: "", coordinatorEffort: "",
-  watcherAgent: "claude", // the Watcher: a small model behind the "doing now" line; any kind with a one-shot entry in agents.js
-  watcherModel: "claude-haiku-5-5",
-  watcher: "on",          // "off": no status line, no progress guess and no minutes left
-  review: "repos",        // what gets reviewed when finished: "repos", "all" or "none"
-  artifacts: true,        // the reviewer brings evidence: screenshots, a recording, a link, test output
-  serve: "tailscale",     // how review pages are linked: "tailscale" (private tailnet link) or "local"
-  gate: DEFAULT_GATE,     // what a review must clear: "critical", "major", "minor" or "trivial" (a finding that bad or worse goes straight back to the agent and holds a merge), or "off" (nothing goes back by itself)
-  rounds: 3,              // how many times they may go back and forth by themselves
-  remerge: "tests",       // work that passed its review and then only took main in: "tests" (run the check again, the review stands) or "review" (always review again)
-  worktree: "auto",       // "none": agents work in your checkout
-  base: "fresh",          // "head": worktrees start from your current commit
-  pr: true,               // push the branch and open a draft pull request after the check passes
-  merge: "squash",        // how approved work lands: squash, merge or rebase
-  cleanup: true,          // remove a done task's space, worktree and branch
-  machines: "auto",       // other machines: "auto" (herdr's saved machines), names ("exedev@vm-a, vm-b") or "off"
-  remoteUser: "",
-  max: 4,                 // agents working at once
-  skill: true,            // write a small how-to into each installed agent program's own skills folder, so any chat knows the board
-  theme: "auto",          // the board's colours are herdr's: "auto" (the theme set in herdr's config here, else the terminal's colours), "herdr" (herdr's config exactly, its default included), "terminal", or herdr's "dark" or "light" theme
-  ownTerminal: true,      // the board's terminal has the size of its herdr pane: another viewer attached straight to it is disconnected
-  trust: true,            // mark a new task's repo as trusted in the agent's own settings, so no dialog blocks the start
-  agentArgs: {},          // per agent kind: extra arguments after `--` for `herdr agent start`; replaces the built-in default
-};
-export const TASK_DEFAULTS = { conflictAuto: true }; // per task only. A conflict with main goes back to the task's agent by itself.
+// 1. Your own preferences: <config dir>/config.json. What there is to set, and each default: settings-list.js.
+export { DEFAULTS, TASK_DEFAULTS, PER_TASK };
 const REMERGE_WORDS = { tests: "tests", test: "tests", check: "tests", skip: "tests", true: "tests", on: "tests", yes: "tests", review: "review", always: "review", false: "review", off: "review", no: "review" };
 const REVIEW_WORDS = { repos: "repos", repo: "repos", true: "repos", on: "repos", yes: "repos", all: "all", always: "all", everything: "all", none: "none", off: "none", false: "none", no: "none", never: "none" };
 function coerce(key, value) {
@@ -99,8 +69,6 @@ export function setConfig(key, value) {
   writeJson(configFile(), now);
   return config();
 }
-// Who does the work and how the review loop runs can also be chosen for one task. That wins over your default.
-export const PER_TASK = ["agent", "model", "effort", "fast", "reviewer", "reviewerModel", "reviewerEffort", "reviewerFast", "watcher", "review", "gate", "rounds", "artifacts", "serve", "conflictAuto"];
 export function setTaskConfig(id, key, value) {
   [key, value] = gateKey(key, value);
   if (!PER_TASK.includes(key)) throw new Error(`Per task you can set: ${PER_TASK.join(", ")}. Other settings are yours as a whole.`);

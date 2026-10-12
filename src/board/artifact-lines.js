@@ -1,3 +1,4 @@
+// The evidence a review brought: which files and links count, and the line each gets in the task panel.
 import { truncateToWidth } from "@earendil-works/pi-tui";
 
 const clean = (v) => String(v ?? "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim();

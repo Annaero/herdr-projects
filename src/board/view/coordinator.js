@@ -4,6 +4,7 @@ import * as S from "../../store.js";
 import * as A from "../../actions.js";
 import * as C from "../../coordinator.js";
 import { herdr, currentSocket, inHerdr } from "../../herdr.js";
+import { name as keyName } from "../keys.js";
 
 export class Coordinator {
   // What you typed, for the Coordinator: this machine's one long-lived agent. For another machine's, the words are a
@@ -47,12 +48,12 @@ export class Coordinator {
     const v = this.coord;
     if (v.unseen && !this.reply && this.chatOpen && !this.setup) { C.seen(v.unseen); this.coord = { ...v, unseen: "" }; }
     // While you talk to a task's agent the chat shows that agent: the Coordinator's reply is said once, in a line.
-    else if (v.unseen && this.reply && this.toldReply !== v.unseen && !this.msg) { this.toldReply = v.unseen; this.flash("The Coordinator replied. space goes back to it.", "green"); }
+    else if (v.unseen && this.reply && this.toldReply !== v.unseen && !this.msg) { this.toldReply = v.unseen; this.flash(`The Coordinator replied. ${keyName("talk")} goes back to it.`, "green"); }
     if (!this.going) return;
     if (v.status && v.pane) return this.enterCoord();
     if (v.error) { this.going = 0; return this.flash(`The Coordinator could not be started: ${v.error}`, "red"); }
-    if (Date.now() - this.going > 90000) { this.going = 0; return this.flash("The Coordinator did not start. alt+c tries again.", "yellow"); }
-    this.flash("Starting the Coordinator: its chat opens as soon as it is ready. esc stays on the board.", "yellow");
+    if (Date.now() - this.going > 90000) { this.going = 0; return this.flash(`The Coordinator did not start. ${keyName("chat")} tries again.`, "yellow"); }
+    this.flash(`Starting the Coordinator: its chat opens as soon as it is ready. ${keyName("back")} stays on the board.`, "yellow");
   }
   // Into the Coordinator: its real herdr pane, exactly as into a task's agent (`chat`). Inside herdr the board exits
   // and herdr shows its pane; outside a herdr client the same terminal attaches to it and the board returns when the
@@ -64,7 +65,7 @@ export class Coordinator {
     if (!(v.status && v.pane)) {
       if (!this.canDispatch && v.state === "none") return this.flash("No Coordinator here: it is off, its program is not installed, or herdr is not running.", "yellow");
       if (!this.going) { try { C.open(); } catch (e) { return this.flash(e.message, "red"); } this.going = Date.now(); this.load(); }
-      return this.flash("Starting the Coordinator: its chat opens as soon as it is ready. esc stays on the board.", "yellow");
+      return this.flash(`Starting the Coordinator: its chat opens as soon as it is ready. ${keyName("back")} stays on the board.`, "yellow");
     }
     this.going = 0;
     if (!inHerdr()) {

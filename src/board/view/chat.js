@@ -5,6 +5,7 @@ import * as C from "../../coordinator.js";
 import { herdr } from "../../herdr.js";
 import { short, clean } from "./words.js";
 import { isAgent, reviewing, groupOf, statusColor, reviewerWord } from "./states.js";
+import { name as keyName } from "../keys.js";
 
 export class Chat {
   // ---- the chat ---------------------------------------------------------------------------------------------------------
@@ -48,7 +49,7 @@ export class Chat {
     const mark = t.fg(v.error ? "red" : color, t.mark(v.error ? "error" : ["working", "starting"].includes(v.state) ? "working" : v.state === "blocked" ? "blocked" : v.state === "idle" ? "idle" : "unknown"));
     let label = "", text = "", tone = "";
     if (v.error) { text = `It could not be started: ${v.error}`; tone = "red"; }
-    else if (v.state === "blocked") { label = "on its screen now"; text = C.screen(v) || "Something on its screen waits for you. alt+c opens its chat."; }
+    else if (v.state === "blocked") { label = "on its screen now"; text = C.screen(v) || `Something on its screen waits for you. ${keyName("chat")} opens its chat.`; }
     else if (v.said) { label = v.state === "working" ? "so far" : "last message"; text = v.said; }
     else {
       const on = v.status && (v.state === "working" || !v.readable) ? C.screen(v) : ""; // a program whose conversation cannot be read: its screen
@@ -56,7 +57,7 @@ export class Chat {
       else { tone = "overlay0"; text = { none: "Ask or tell it anything: it starts with your first message, and stays.", starting: "Starting…", idle: "Ready. Ask or tell it anything.", exited: "Your next message starts it again, in the same conversation." }[v.state] || "Nothing said yet."; }
     }
     const notes = [];
-    if (v.stale) notes.push(`your default is now ${C.describe(v.def)}: alt+n starts a new one on it`);
+    if (v.stale) notes.push(`your default is now ${C.describe(v.def)}: ${keyName("coordNew")} starts a new one on it`);
     for (const m of v.waiting || []) notes.push(`› ${clean(m)}  (waiting to be sent)`);
     if (!v.queue && v.last && v.state !== "none") notes.push(`› ${clean(v.last)}`);
     return { mark, color: v.error ? "red" : color, name: "Coordinator", word, meta: `${v.run ? C.describe(v.run) : "off"}${v.oneOff ? " (this one only)" : ""}`, label, text, tone, raw: label === "on its screen now", notes, enter: true, said: true, always: !!v.error && this.errHid !== v.error };
@@ -70,8 +71,8 @@ export class Chat {
     const bits = [c.word && "  " + t.fg(c.color, c.word), c.meta && t.fg("overlay0", "  " + c.meta), c.label && this.chatOpen && t.fg("overlay0", "  · " + c.label)].filter(Boolean);
     // The chat's two keys, in full or in short. Where neither fits beside the name, the hint line below says alt+v.
     const up = this.chatOpen || c.always;
-    const toggle = `alt+v ${up ? "hide" : "show"}`;
-    const forms = [[c.enter && "alt+c open its chat", c.said && `${toggle} its message`], [c.enter && "alt+c chat", c.said && toggle]].map((f) => f.filter(Boolean).join(" · "));
+    const toggle = `${keyName("chatMessage")} ${up ? "hide" : "show"}`;
+    const forms = [[c.enter && `${keyName("chat")} open its chat`, c.said && `${toggle} its message`], [c.enter && `${keyName("chat")} chat`, c.said && toggle]].map((f) => f.filter(Boolean).join(" · "));
     let keys = forms[0];
     const fits = (n, withKeys) => visibleWidth(name + bits.slice(0, n).join("")) + (withKeys && keys ? 3 + visibleWidth(keys) : 0) <= room;
     // The keys outlast the label and the program; the state outlasts the keys.
@@ -79,7 +80,7 @@ export class Chat {
     while (n > 1 && !fits(n, true)) n--;
     if (!fits(n, true)) { keys = forms[1]; n = bits.length; while (n > 1 && !fits(n, true)) n--; }
     if (!fits(n, true)) { showKeys = false; n = bits.length; while (n && !fits(n, false)) n--; }
-    this.chatKeyHint = c.said && !showKeys ? ["alt+v", `${up ? "hide" : "show"} its message`] : null;
+    this.chatKeyHint = c.said && !showKeys ? [keyName("chatMessage"), `${up ? "hide" : "show"} its message`] : null;
     // A name longer than the window takes a second line before it is cut (in a short window that line is the draft's).
     if (!fits(0, false) && tight) return [lead + truncateToWidth(name, room, "…")];
     if (!fits(0, false)) { const [a, b, more] = wrapTextWithAnsi(name, room); return [lead + a, ...(b ? ["   " + (more ? truncateToWidth(b, room - 1, "") + "…" : b)] : [])]; }

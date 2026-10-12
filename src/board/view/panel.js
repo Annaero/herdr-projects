@@ -1,9 +1,10 @@
 // The task panel: beside the list and full screen. Its parts are in panel-status.js, panel-reviews.js and panel-settings.js.
-import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { short, clean, age, idLabel, bar, brief } from "./words.js";
 import { isAgent, failureFor, reviewing, statusColor } from "./states.js";
 import { WIDE } from "./size.js";
 import { panelKit } from "./panel-kit.js";
+import { name as keyName, is as isKey } from "../keys.js";
 
 // The rows among a task's settings that are not settings: in a window too short for all of them, these go first.
 const NOT_SETTINGS = ["Branch", "Note"];
@@ -14,8 +15,8 @@ export class Panel {
   // The side panel, on demand. Your choice is remembered.
   toggleSide() {
     this.side = !this.side; this.savePrefs();
-    if (this.side && this.width < WIDE) return this.flash("The side panel needs a wider window. ctrl+e shows the task full screen.", "yellow");
-    this.flash(this.side ? "Side panel on. ctrl+p hides it." : "Side panel off. ctrl+p shows it.");
+    if (this.side && this.width < WIDE) return this.flash(`The side panel needs a wider window. ${keyName("panel")} shows the task full screen.`, "yellow");
+    this.flash(this.side ? `Side panel on. ${keyName("side")} hides it.` : `Side panel off. ${keyName("side")} shows it.`);
   }
   // Only the whole panel goes: who the chat talks to is space's to change, never the panel's.
   foldPanel() { this.full = false; this.panelTop = 0; this.load(); }
@@ -23,7 +24,7 @@ export class Panel {
   desc(r) { return String(r.description || ""); }
   scrollPanel(data) {
     const last = Math.max(0, this.panelLength - this.panelHeight), step = Math.max(1, this.panelHeight - 1);
-    const to = matchesKey(data, "home") ? 0 : matchesKey(data, "end") ? last : this.panelTop + (matchesKey(data, "up") ? -1 : matchesKey(data, "down") ? 1 : matchesKey(data, "pageUp") ? -step : step);
+    const to = isKey(data, "top") ? 0 : isKey(data, "bottom") ? last : this.panelTop + (isKey(data, "up") ? -1 : isKey(data, "down") ? 1 : isKey(data, "pageUp") ? -step : step);
     this.panelTop = Math.max(0, Math.min(last, to));
   }
   // The task details, full screen: the same parts as beside the list, each whole, and every review the task had.
@@ -67,7 +68,7 @@ export class Panel {
     const start = full ? desc : brief(desc, 400);
     if (start !== desc) cut = true;
     if (desc) text("Description", wrap(start), 2);
-    else if (!agent && !r.archivedAt && r.state === "idle") part(wrap("No agent is on this yet. tab puts one on it.").map((l) => dim(l)), { pri: 1, min: 1, at: () => [] });
+    else if (!agent && !r.archivedAt && r.state === "idle") part(wrap(`No agent is on this yet. ${keyName("delegate")} puts one on it.`).map((l) => dim(l)), { pri: 1, min: 1, at: () => [] });
 
     if (this.panelReviews(p)) cut = true;
 
@@ -85,7 +86,7 @@ export class Panel {
     let lead = [""], gap = true;
     const render = () => [...lead, ...parts.filter((s) => s.lines.length).flatMap((s, n) => (n && gap ? ["", ...s.lines] : s.lines))];
     if (full) return out(render());
-    const more = dim("ctrl+e shows the whole task");
+    const more = dim(`${keyName("panel")} shows the whole task`);
     if (!fit || render().length + (cut ? 2 : 0) <= fit) return out([...render(), ...(cut ? ["", more] : [])]);
     // Too tall for its place beside the list. No setting goes: the long parts give up lines, the least needed first
     // (what the agent said, the description, the review, what it needs from you), each down to a few lines; then
