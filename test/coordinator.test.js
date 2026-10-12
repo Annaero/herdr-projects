@@ -1,10 +1,10 @@
-// The Coordinator: one long-lived agent behind the box, its drawer on the board, and going into its real pane.
+// The Coordinator: one long-lived agent behind the chat at the bottom of the board, and going into its real pane.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { world } from "./helpers.js";
+import { world, settle } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as C from "../src/coordinator.js";
@@ -14,7 +14,7 @@ import { theme } from "../src/board/theme.js";
 import { runJob } from "../src/jobs.js";
 import { drainJobs } from "../src/runner.js";
 
-const KEY = { enter: "\r", tab: "\t", esc: "\x1b", space: " ", "alt+c": "\x1bc", "alt+v": "\x1bv", "alt+n": "\x1bn", "alt+r": "\x1br" };
+const KEY = { enter: "\r", tab: "\t", esc: "\x1b", space: " ", "ctrl+e": "\x05", "alt+c": "\x1bc", "alt+v": "\x1bv", "alt+n": "\x1bn", "alt+r": "\x1br" };
 // A world with a Coordinator: the default one is Claude Code on its defaults. Its folder and Claude's own files are the
 // test's, and both programs count as installed without being run.
 async function coordWorld(settings = {}) {
@@ -35,7 +35,7 @@ function open(w, { rows = 34 } = {}) {
   const screen = (width = 120) => v.render(width).map((l) => stripVTControlCharacters(l).replace(/\x1b_pi:c\x07/g, ""));
   const press = (...keys) => { for (const k of keys) v.handleInput(KEY[k] ?? k); };
   const type = (text) => { for (const ch of text) v.handleInput(ch); };
-  const beat = () => { v.load(); v.syncDrawer(); };
+  const beat = () => { v.load(); v.syncCoord(); };
   return { v, tui: calls, closed, screen, press, type, beat, text: (width) => screen(width).join("\n") };
 }
 
@@ -45,12 +45,18 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     assert.ok(C.ready());
     w.script({ coordinator: [{ said: "Filed proj/1." }, { said: "Delegated proj/1." }] });
     const s = open(w);
-    assert.match(s.text(), /\nnew task ❯ what's next\? *\n/);
-    s.press("?"); assert.match(s.text(), /chat with the Coordinator +alt\+c/); s.press("esc"); // one line in the menu, not a key to learn
-    s.type("build a login page"); s.press("enter");
+    // The chat at the bottom is the Coordinator's: its first line says who you talk to, the prompt is only "❯".
+    assert.match(s.text(), /\n─+\n · Coordinator {2}not started {2}claude · default model · default effort +alt\+c open its chat · alt\+v hide its message *\n Ask or tell it anything: it starts with your first message, and stays\. *\n─+\n❯ ask or tell it anything *\n/);
+    assert.doesNotMatch(s.text(), /new task|reply to/);
+    s.press("?"); assert.match(s.text(), /open the Coordinator's chat +alt\+c/); assert.match(s.text(), /hide the latest message in the chat +alt\+v/); s.press("esc"); // lines in the menu, not keys to learn
+    s.type("build a login page");
+    assert.match(s.text(), /\n❯ build a login page/); assert.match(s.text(), /enter send · tab send, and put an agent on it · esc put away/);
+    s.press("enter");
     assert.equal(C.get().queue.length, 1);
     s.beat();
-    assert.match(s.text(), /◐ Coordinator starting · build a login page · alt\+c shows it/); // hidden: one row while it is busy
+    // What it is doing is said in the chat, and nowhere else: no line of its own above the list or the box.
+    assert.match(s.text(), /\n─+\n ◐ Coordinator {2}starting {2}[^\n]*\n › build a login page {2}\(waiting to be sent\) *\n Starting… *\n─+\n❯/);
+    assert.equal(s.screen().filter((l) => /Coordinator/.test(l)).length, 1);
     await drainJobs(runJob);
     // One herdr space of its own, one ordinary agent: full access, a conversation id, the standing rules. No tool limits.
     const st = w.state();
@@ -64,15 +70,17 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     assert.equal(agent.prompts[0], "build a login page", "your words go in exactly as typed, with nothing added");
     assert.match(C.where(), /^The human's last message from the board:\n- "build a login page" was sent from the repo "proj" \(.*\)\. No task was open\. It was not sent with the delegate key\.$/);
     assert.equal(C.get().queue.length, 0);
-    // Its reply pops the drawer up, once.
+    // Its reply is in the chat, under what you said.
     s.beat();
-    assert.equal(s.v.drawer, "peek");
-    let text = s.text();
+    let text = s.text(160);
     assert.match(text, /○ Coordinator {2}idle {2}claude · default model · default effort {2}· last message/);
-    assert.match(text, /› build a login page *\n Filed proj\/1\./);
-    assert.match(text, /\nto the Coordinator ❯ say something/); // the text box names who gets your words
-    s.press("esc"); assert.equal(s.v.drawer, "hidden"); s.beat(); assert.equal(s.v.drawer, "hidden", "a reply you have seen does not pop up again");
-    assert.doesNotMatch(s.text(), /Filed proj\/1\./);
+    assert.match(text, /› build a login page *\n Filed proj\/1\. *\n─+\n❯ ask or tell it anything/);
+    assert.equal(C.look().unseen, "", "a reply you can see counts as seen");
+    // alt+v hides its latest message and shows it again: who you talk to, and where it stands, stays. The board remembers.
+    s.press("alt+v"); assert.equal(s.v.chatOpen, false);
+    assert.doesNotMatch(s.text(), /Filed proj\/1\./); assert.match(s.text(), /\n─+\n ○ Coordinator {2}idle {2}[^\n]*alt\+v show its message *\n─+\n❯ ask or tell it anything/);
+    assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).chat, "closed");
+    s.press("esc"); assert.equal(s.v.ask.q, "Close the board?", "esc has nothing of the chat to close"); s.press("esc");
     // The next thing you type goes to the same agent in the same conversation; Tab asks it to delegate.
     s.type("and start it"); s.press("tab");
     await drainJobs(runJob);
@@ -81,11 +89,14 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     assert.equal(w.agents()[0].agent.prompts[1], "and start it");
     // Each message keeps its own: the newer one does not take the first one's repo or delegate choice away.
     assert.match(C.where(), /2 messages[^\n]*\n- "build a login page"[^\n]*It was not sent with the delegate key\.\n- "and start it"[^\n]*It was sent with the delegate key: delegate what you file from it to an agent\.$/);
-    s.beat(); assert.equal(s.v.drawer, "peek"); assert.match(s.text(), /Delegated proj\/1\./);
-    // With the preview of a task open that has no agent to reply to, the words go to the Coordinator with that task named.
+    // Hidden, a new reply is said on the chat's one line; shown again, it is there.
+    s.beat(); assert.equal(s.v.chatOpen, false); assert.doesNotMatch(s.text(), /Delegated proj\/1\./); assert.match(s.text(), /\n ○ Coordinator {2}new reply {2}/); assert.ok(C.look().unseen);
+    s.press("alt+v"); assert.match(s.text(), /Delegated proj\/1\./); assert.equal(C.look().unseen, "");
+    // With a task open that has no agent to reply to, the words go to the Coordinator with that task named: the chat says so.
     const t = A.add(w.root, "Write the docs");
     A.report(t.id, { state: "done" });
-    s.v.sel = t.id; s.press("esc", "space"); assert.equal(s.v.reply, true); assert.equal(s.v.drawer, "hidden");
+    s.v.sel = t.id; s.v.load(); s.press("space"); assert.equal(s.v.reply, true);
+    assert.match(s.text(160), /\n─+\n . Write the docs {2}done {2}no agent on it: your message goes to the Coordinator, about this task *\n─+\n❯ what should change\?/);
     s.type("make it shorter"); s.press("enter"); await drainJobs(runJob);
     assert.equal(w.agents()[0].agent.prompts[2], "make it shorter");
     assert.match(C.where(), /\n- "make it shorter"[^\n]*Task proj\/1 \("Write the docs"\) was open: for this message "it" and "this" mean that task\. It was not sent/);
@@ -95,20 +106,18 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
   } finally { w.cleanup(); }
 });
 
-test("the drawer shows only its last message; going into the Coordinator leaves the board for its real pane, as with any agent", async () => {
+test("one chat for everyone: space on a task talks to its agent, otherwise to the Coordinator; alt+c goes into the real pane of whoever it names", async () => {
   const w = await coordWorld();
   try {
     process.env.HERDR_ENV = "1";
     const s = open(w);
-    assert.equal(s.v.drawer, "hidden");
-    s.press("alt+c"); assert.equal(s.v.drawer, "peek");
+    assert.equal(s.v.chatOpen, true);
     assert.match(s.text(), /Coordinator {2}not started {2}claude · default model · default effort/); assert.match(s.text(), /it starts with your first message, and stays/);
-    assert.match(s.text(), /alt\+c open its chat · esc hide · alt\+r restart · alt\+n new one/);
     // Opening it before it ever ran: it is started with nothing said, the board stays the board meanwhile (no chat is
     // drawn over it), and its chat opens as soon as it is there.
-    s.press("alt+c"); assert.equal(s.v.drawer, "peek"); assert.deepEqual(s.closed, []);
+    s.press("alt+c"); assert.deepEqual(s.closed, []);
     assert.match(s.text(), /Starting the Coordinator: its chat opens as soon as it is ready\. esc stays on the board\./);
-    assert.match(s.text(), /\nto the Coordinator ❯ say something/, "the board is still the board");
+    assert.match(s.text(), /\n❯ ask or tell it anything/, "the board is still the board");
     await drainJobs(runJob);
     assert.equal(w.agents().length, 1); assert.equal(w.agents()[0].agent.prompts, undefined);
     assert.deepEqual(w.state().focus, []);
@@ -116,7 +125,6 @@ test("the drawer shows only its last message; going into the Coordinator leaves 
     assert.deepEqual(s.closed, [{ entered: "coordinator" }], "the board closes"); assert.deepEqual(w.state().focus, [`agent ${C.get().pane}`], "and herdr moves to its real pane");
     assert.deepEqual(s.tui, [], "the board's screen is never handed to a chat inside it");
     s.v.dispose();
-    assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).drawer, "peek"); // coming back, the board is as you left it
     // Back on the board from the Coordinator's pane: herdr names that pane's folder, which is nobody's repo. The
     // board is where it was, so the draft that comes back is sent from the repo it was typed in.
     {
@@ -126,35 +134,76 @@ test("the drawer shows only its last message; going into the Coordinator leaves 
       assert.equal(back.value(), "a draft"); assert.equal(back.ctx.cwd, w.root); assert.equal(back.repo.root, w.root);
       back.handleInput("\r"); await drainJobs(runJob);
       assert.deepEqual(C.get().where.at(-1).root, w.root, "not the Coordinator's own folder");
-      back.setDrawer("peek"); back.dispose();
+      back.dispose();
     }
-    // Running: alt+c with the drawer up goes straight in.
-    const d = open(w); assert.equal(d.v.drawer, "peek");
+    // Running: alt+c goes straight in.
+    const d = open(w);
     d.press("alt+c"); assert.deepEqual(d.closed, [{ entered: "coordinator" }]); assert.equal(w.state().focus.length, 2);
-    // alt+v and esc hide the drawer; neither goes anywhere.
-    const e = open(w); e.press("alt+v"); assert.equal(e.v.drawer, "hidden"); e.press("alt+c", "esc"); assert.equal(e.v.drawer, "hidden"); assert.deepEqual(e.closed, []);
+    // alt+v hides its message and shows it again; it goes nowhere.
+    const e = open(w); e.press("alt+v"); assert.equal(e.v.chatOpen, false); e.press("alt+v"); assert.equal(e.v.chatOpen, true); assert.deepEqual(e.closed, []);
     // Asked to go in, then esc: you stay on the board, also once it is there.
     C.stop(); await drainJobs(runJob); e.beat();
-    e.press("alt+c", "alt+c"); assert.ok(e.v.going); e.press("esc"); assert.equal(e.v.going, 0); assert.equal(e.v.drawer, "peek");
+    e.press("alt+c"); assert.ok(e.v.going); e.press("esc"); assert.equal(e.v.going, 0);
     await drainJobs(runJob); e.beat(); assert.deepEqual(e.closed, []); assert.equal(w.state().focus.length, 2);
-    // A task's preview and the drawer share the place above the box: one at a time, and a reply never pops up over a
-    // preview, where your typing belongs to that task's agent.
-    e.press("esc"); A.add(w.root, "A task"); e.beat();
-    e.press("space"); assert.equal(e.v.reply, true); assert.equal(e.v.drawer, "hidden");
+    // Space on a task: the same chat, now with that task's agent. Its first line is the task's whole name, where it
+    // stands and who is on it; under it the agent's last message, which the task panel no longer repeats.
+    const title = "Add a greeting that is polite, friendly and never cut short";
+    const t = A.add(w.root, title); A.delegate(t.id); await settle(t.id);
+    e.beat(); e.v.sel = t.id; e.v.load();
+    assert.match(e.text(160), /The agent said *\n[^\n]*Done\./g); assert.match(e.text(160), /\n . Coordinator {2}/);
+    e.press("space"); assert.equal(e.v.reply, true);
+    let text = e.text(160);
+    assert.match(text, new RegExp(`\\n─+\\n . ${title} {2}\\S[^\\n]* {2}its agent · claude[^\\n]*alt\\+v hide its message *\\n Done\\. *\\n─+\\n❯ your reply`));
+    assert.doesNotMatch(text, /The agent said|Coordinator|reply to/); assert.equal(text.match(/Done\./g).length, 1);
+    e.press("alt+v"); assert.match(e.text(160), /The agent said *\n[^\n]*Done\./g); assert.match(e.text(160), new RegExp(`\\n . ${title} {2}[^\\n]*\\n─+\\n❯ your reply`)); e.press("alt+v");
+    // The name is never cut inside a prompt: a window narrower than the name gives it a second line.
+    { const lines = e.screen(44), at = lines.findIndex((l, n) => /^─+$/.test(l) && lines[n + 1].includes("Add a greeting")); assert.equal(lines.slice(at + 1, at + 3).map((l) => l.trim().replace(/^\S /, "")).join(" "), title); assert.match(lines.join("\n"), /\n❯ your reply/); }
+    // While you talk to a task's agent the chat stays that agent's: the Coordinator's reply is said once, in a line.
     w.script({ coordinator: [{ said: "All done." }] });
     C.send(w.root, "do something"); await drainJobs(runJob); e.beat();
-    assert.equal(e.v.drawer, "hidden"); assert.match(e.text(), /Coordinator replied · alt\+c shows it · All done\./);
-    // Nor does a reply pop up while you type: the text box keeps the receiver it names until the draft is sent or put away.
-    e.press("esc"); assert.equal(e.v.reply, false); assert.equal(e.v.drawer, "hidden");
-    e.type("a new task, half typed");
+    assert.match(e.text(), /The Coordinator replied\. esc goes back to it\./); assert.doesNotMatch(e.text(), /All done\./); assert.ok(C.look().unseen);
+    // What you type there is for that agent, not for the Coordinator.
+    e.type("also say goodbye"); assert.match(e.text(), /enter send to its agent · esc put away/); e.press("esc");
+    // esc (or space) goes back to the Coordinator, and its reply is there.
+    e.press("esc"); assert.equal(e.v.reply, false); e.beat();
+    assert.match(e.text(), /\n . Coordinator {2}idle[^\n]*\n › do something *\n All done\. *\n─+\n❯ ask or tell it anything/); assert.equal(C.look().unseen, "");
+    // Nothing changes who the chat names while you type.
+    e.type("half typed");
     w.script({ coordinator: [{ said: "Again." }] });
     C.send(w.root, "once more"); await drainJobs(runJob); e.beat(); e.beat();
-    assert.equal(e.v.drawer, "hidden"); assert.match(e.text(), /\nnew task ❯ a new task, half typed/);
-    e.press("esc"); e.beat(); assert.equal(e.v.drawer, "peek"); e.press("esc");
-    e.press("alt+c"); assert.equal(e.v.reply, false); assert.equal(e.v.drawer, "peek"); assert.match(e.text(), /last message *\n › once more *\n Again\./);
+    assert.match(e.text(), /\n . Coordinator {2}[^\n]*\n › once more *\n Again\. *\n─+\n❯ half typed/);
+    e.press("esc");
     // Whatever was typed in its own chat, the text box's last words no longer head its last message.
     e.press("alt+c"); assert.deepEqual(e.closed, [{ entered: "coordinator" }]); assert.equal(C.get().last, "");
-    for (const width of [24, 40, 64, 90, 200]) assert.ok(open(w).screen(width).every((l) => l.length <= width), `fits ${width}`);
+    // alt+c is the same key for a task's agent: with its task open, it goes into that agent's pane.
+    w.script({ worker: [{ status: "working", screen: "● Editing greet.sh\n" }] });
+    const u = A.add(w.root, "Still at it"); A.delegate(u.id); await settle(u.id);
+    const g = open(w); g.v.sel = u.id; g.v.load(); g.press("space");
+    assert.match(g.text(160), /\n─+\n . Still at it {2}working {2}its agent · claude[^\n]*alt\+c open its chat · alt\+v hide its message *\n ● Editing greet\.sh *\n─+\n❯ your reply/);
+    g.press("alt+c"); assert.deepEqual(g.closed, [{ entered: u.id }]);
+    // A narrow window is the same chat: space opens the task's panel and talks to its agent, alt+v hides and shows
+    // its message there too (the panel has it meanwhile), and space again goes back to the Coordinator.
+    {
+      const n = open(w); n.v.sel = t.id; n.v.load(); n.screen(70); n.press("space");
+      assert.equal(n.v.reply, true); assert.equal(n.v.full, true);
+      assert.match(n.text(70), /\n Done\. *\n─+\n❯ your reply *\n─+\n[^\n]*alt\+v hide its message · /, "beside a name this long the key is on the hint line"); assert.doesNotMatch(n.text(70), /The agent said/);
+      n.press("alt+v"); assert.match(n.text(70), /The agent said *\n Done\./); assert.match(n.text(70), /\n─+\n❯ your reply *\n─+\n[^\n]*alt\+v show its message · /);
+      n.press("alt+v", "space"); assert.equal(n.v.reply, false); assert.equal(n.v.full, false); assert.match(n.text(70), /\n . Coordinator {2}/);
+      // ctrl+e alone never changes who gets your words.
+      n.press("ctrl+e"); assert.equal(n.v.full, true); assert.equal(n.v.reply, false); assert.match(n.text(70), /\n . Coordinator {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ ask or tell it anything/);
+      n.type("for the Coordinator"); n.press("enter"); assert.equal(C.get().queue.at(-1).text, "for the Coordinator"); await drainJobs(runJob);
+    }
+    // A short, narrow window with a long name and a draft of several lines: the draft's line, the box and the hints are whole.
+    {
+      const x = open(w, { rows: 8 }); x.v.sel = t.id; x.v.load(); x.screen(44); x.press("space");
+      x.v.setValue("one\ntwo\nthree\nfour and last");
+      const lines = x.screen(44);
+      assert.equal(lines.length, 8); assert.ok(lines.every((l) => l.length <= 44));
+      assert.ok(lines.some((l) => l.includes("four and last")), "the line you are typing shows"); assert.match(lines.at(-1), /enter send to its agent/); assert.match(lines.at(-2), /^─/);
+      assert.ok(lines.some((l) => /Add a greeting/.test(l) && !/task panel/.test(l)), "and so does who you talk to");
+    }
+    for (const width of [24, 40, 64, 90, 200]) for (const reply of [false, true]) { const x = open(w); x.v.sel = t.id; x.v.load(); if (reply) x.press("space"); assert.ok(x.screen(width).every((l) => l.length <= width), `fits ${width}`); assert.equal(x.screen(width).length, 34); }
+    for (const rows of [8, 12, 20]) { const x = open(w, { rows }); assert.equal(x.screen(80).length, rows); assert.ok(x.screen(80).some((l) => /^❯/.test(l)), "the text box is never pushed off a short window"); }
   } finally { delete process.env.HERDR_ENV; w.cleanup(); }
 });
 
@@ -205,14 +254,14 @@ test("restart keeps the conversation, new starts a fresh one, and one Coordinato
     // The default is a setting like the agent's, the watcher's and the reviewer's; a running one says when it changed.
     await cli("config", "coordinator", "codex");
     assert.deepEqual(C.choice(), { kind: "codex", model: "claude-haiku-5-5", effort: "" });
-    const s = open(w); s.press("alt+c");
+    const s = open(w);
     assert.equal(C.look().stale, true); assert.match(s.text(), /your default is now codex · claude-haiku-5-5 · default effort: alt\+n starts a new one on it/);
     // From the board: alt+r and alt+n ask first, with the board's one question box; a one-off kind is `coordinator new --agent …`.
     s.press("alt+r"); assert.match(s.text(), /\n \? Restart the Coordinator\? It keeps this conversation; what it is doing right now stops\. {2}enter = yes · esc = no/); assert.ok(!C.get().want);
     s.press("esc"); assert.ok(!C.get().want);
     s.press("alt+r", "enter"); assert.equal(C.get().want.what, "restart"); await drainJobs(runJob); assert.equal(w.agents()[0].agent.kind, "claude");
-    // Like every shortcut, the drawer's keys act only on an empty text box: a draft owns them, and stays what it was.
-    s.type("pi some-model"); s.press("alt+n", "alt+r", "alt+c", "alt+v"); assert.equal(s.v.ask, null); assert.equal(s.v.drawer, "peek"); assert.match(s.v.value(), /pi some-model/); assert.ok(!C.get().want);
+    // Like every shortcut, the chat's keys act only on an empty text box: a draft owns them, and stays what it was.
+    s.type("pi some-model"); s.press("alt+n", "alt+r", "alt+c", "alt+v"); assert.equal(s.v.ask, null); assert.equal(s.v.chatOpen, true); assert.deepEqual(s.closed, []); assert.match(s.v.value(), /pi some-model/); assert.ok(!C.get().want);
     s.press("esc");
     s.press("alt+n", "enter"); await drainJobs(runJob);
     assert.equal(w.agents()[0].agent.kind, "codex"); assert.equal(C.look().stale, false);
@@ -229,9 +278,9 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     w.patchState((st) => { st.dialogs.claude = 1; }); // a first-run dialog blocks the start
     C.send(w.root, "first"); await drainJobs(runJob);
     assert.equal(C.get().queue.length, 1); assert.equal(C.look().state, "blocked");
-    const s = open(w); s.press("alt+c");
+    const s = open(w);
     assert.match(s.text(), /Coordinator {2}needs you/); assert.match(s.text(), /› first {2}\(waiting to be sent\)/);
-    s.press("esc"); assert.match(s.text(), /Coordinator needs you · something on its screen waits · alt\+c shows it/);
+    s.press("alt+v"); assert.match(s.text(), /\n . Coordinator {2}needs you {2}/); assert.doesNotMatch(s.text(), /waiting to be sent/); // hidden: its one line still says it
     // You answer the dialog in its chat; the tick then types the waiting words in.
     w.patchState((st) => { const p = st.panes.find((x) => x.agent); p.agent.status = "idle"; });
     fs.rmSync(S.stampFile(`coordinator-default`), { force: true });
@@ -302,7 +351,7 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     S.writeJson(path.join(S.dataDir(), "versions.json"), { nope: { v: "", at: Date.now(), found: false } });
     C.fresh(C.pickOf({ agent: "nope" })); C.send(w.root, "second"); await drainJobs(runJob);
     assert.match(C.look().error, /"nope" is not installed here/); assert.equal(C.get().queue.length, 1);
-    s.beat(); assert.match(s.text(), /Coordinator could not be started: "nope" is not installed here/);
+    s.beat(); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n(?: ›[^\n]*\n)* It could not be started: "nope" is not installed here/); // also with its message hidden
     assert.throws(() => C.pickOf({ agent: "not a kind" }), /must be an agent kind/);
   } finally { delete process.env.HERDR_SUPERWORK_HANDLED_MS; w.cleanup(); }
 });
@@ -346,7 +395,7 @@ test("turning the Coordinator on while the board is open takes effect at once, a
   const w = await coordWorld({ coordinator: "off" });
   try {
     const s = open(w);
-    assert.match(s.text(), /\nnew task ❯ what's next\? *\n/); assert.doesNotMatch(s.text(), /Coordinator/); // with it off, the text box says the same
+    assert.match(s.text(), /\n─+\n \+ New task {2}what you type is filed as a task, word for word *\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(s.text(), /Coordinator/); // with it off, the chat says what the box does
     s.type("first thing"); s.press("enter");
     assert.equal(S.get("proj/1").title, "first thing"); assert.equal(C.get(), null);
     S.setConfig("coordinator", "default"); // the board stays open
@@ -359,9 +408,9 @@ test("turning the Coordinator on while the board is open takes effect at once, a
     s.v.tick = 4; s.v.beat();
     s.type("third thing"); s.press("enter");
     assert.equal(S.get("proj/2").title, "third thing"); assert.equal(w.agents()[0].agent.prompts.length, 1);
-    // And the drawer's key turns up a Coordinator that was switched on after the board opened.
-    const off = open(w); assert.equal(off.v.canDispatch, false);
-    S.setConfig("coordinator", "default"); off.press("alt+c"); assert.equal(off.v.drawer, "peek");
+    // And the chat's key turns up a Coordinator that was switched on after the board opened.
+    const off = open(w); assert.equal(off.v.canDispatch, false); assert.match(off.text(), /\+ New task/);
+    S.setConfig("coordinator", "default"); off.press("alt+c"); assert.equal(off.v.canDispatch, true); assert.match(off.text(), /\n . Coordinator {2}/);
   } finally { w.cleanup(); }
 });
 
@@ -393,7 +442,7 @@ test("a start that fails loses nothing: a restart asked for meanwhile still happ
     } finally { process.env.HERDR_BIN_PATH = real; }
     assert.equal(w.agents().length, 1); assert.equal(w.agents()[0].agent.kind, "claude"); assert.ok(!C.get().want); assert.equal(C.look().state, "idle");
     assert.equal(C.look().error, "", "the failure of the start it replaced is not shown over a Coordinator that is there");
-    const s = open(w); s.press("alt+c"); assert.doesNotMatch(s.text(), /could not be started/); assert.match(s.text(), /Coordinator {2}idle/);
+    const s = open(w); assert.doesNotMatch(s.text(), /could not be started/); assert.match(s.text(), /Coordinator {2}idle/);
     // A start that failed is not tried again every few seconds by itself; your next message tries.
     S.writeJson(path.join(S.dataDir(), "versions.json"), { nope: { v: "", at: Date.now(), found: false } });
     C.fresh(C.pickOf({ agent: "nope" })); C.send(w.root, "x"); await drainJobs(runJob);
@@ -403,7 +452,7 @@ test("a start that fails loses nothing: a restart asked for meanwhile still happ
   } finally { w.cleanup(); }
 });
 
-test("the agent's own new-chat command is followed: the drawer shows the new conversation, and a restart reopens that one", async () => {
+test("the agent's own new-chat command is followed: the chat shows the new conversation, and a restart reopens that one", async () => {
   const w = await coordWorld();
   try {
     w.script({ coordinator: [{ said: "pineapple" }] });

@@ -52,7 +52,7 @@ const reviewNote = (r) => (isAgent(r) ? String(r.msg || "").replace(/^(Approve t
 const ASKS = { question: "Asks you", permission: "Asks for your OK", auth: "Needs a login" };
 // The keys worth remembering. Everything else is a line in the menu.
 const KEYS = [
-  ["↑ ↓", "move between tasks"], ["enter", "send, or open the agent"], ["space", "reply to this task"], ["tab", "put an agent on it"],
+  ["↑ ↓", "move between tasks"], ["enter", "send, or open the agent"], ["space", "talk to this task's agent"], ["tab", "put an agent on it"],
   ["ctrl+a", "yes: approve, retry, continue"], ["ctrl+r", "send it back to fix"], ["ctrl+x", "stop the agent"], ["ctrl+f", "find"], ["?", "this menu"], ["esc", "back"],
 ];
 const short = S.tilde;
@@ -77,7 +77,7 @@ export class View {
   sel = ""; top = 0;
   allDone = false; archiveView = false; archiveBack = null; archiveUndo = null;
   // The task panel: beside the list when the window is wide, full screen (`full`) when it is narrow or asked for.
-  // `reply` says the text box belongs to the selected task's agent; the box names it for as long as that holds.
+  // `reply` says who the chat at the bottom talks to: the selected task's agent after space, the Coordinator otherwise.
   reply = false; replyId = ""; full = false; panelTop = 0; panelHeight = 1; panelLength = 0; width = 120;
   mode = "new"; menu = null; ask = null; byRepo = false; draftAway = null;
   scope = ""; // whose board you see: "" this machine, "*" every machine, or one other machine by name
@@ -85,9 +85,10 @@ export class View {
   filter = ""; msg = ""; msgKind = "overlay0";
   stick = ""; back = ""; jobs = []; jobTop = 0; tick = 0; disposed = false;
   screens = new Map(); // what an agent's pane shows, read through herdr, cached
-  // The Coordinator's drawer: "hidden" or "peek" (its last message above the text box). `going`: when you asked to
-  // open its chat while it was not running yet (it is being started; its chat opens as soon as it is there).
-  drawer = "hidden"; coord = { state: "none", queue: 0, said: "" }; going = 0;
+  // The chat at the bottom: one place for the Coordinator and for every task's agent. `chatOpen`: whether its latest
+  // message shows above the text box. `going`: when you asked to open the Coordinator's chat while it was not running
+  // yet (it is being started; its chat opens as soon as it is there).
+  chatOpen = true; coord = { state: "none", queue: 0, said: "" }; going = 0;
   sent = new Map(); setup = null;
 
   constructor(tui, theme, done, ctx) {
@@ -102,13 +103,13 @@ export class View {
     // The board closes each time you open an agent: selection, filter and draft come back when it reopens.
     this.sel = String(prefs.sel || ""); this.filter = String(prefs.filter || ""); if (prefs.draft) this.input.setText(String(prefs.draft));
     // So do words that were put away: ctrl+z still brings them back after the board closed or reloaded itself.
-    if (prefs.away && prefs.away.text) this.draftAway = { text: String(prefs.away.text), to: String(prefs.away.to || ""), drawer: !!prefs.away.drawer };
-    this.drawer = prefs.drawer === "peek" ? "peek" : "hidden";
+    if (prefs.away && prefs.away.text) this.draftAway = { text: String(prefs.away.text), to: String(prefs.away.to || "") };
+    this.chatOpen = prefs.chat !== "closed";
     if (this.all) this.pollRemotes();
     this.repo = S.repoOf(ctx.cwd);
     try { this.canDispatch = C.ready(); } catch { this.canDispatch = false; }
     this.load();
-    try { this.syncDrawer(); } catch {}
+    try { this.syncCoord(); } catch {}
     try { this.takeApprove(); } catch {}
     try { this.stamp = codeStamp(); } catch {}
     try { this.startSetup(); } catch {}
@@ -193,7 +194,7 @@ export class View {
     if (this.tick % 5 === 0) { try { this.canDispatch = C.ready(); } catch {} }
     try { this.load(); } catch {}
     try { this.takeApprove(); } catch {}
-    try { this.syncDrawer(); } catch {}
+    try { this.syncCoord(); } catch {}
     try { this.announce(); } catch {}
     this.tui.requestRender();
   }
@@ -201,14 +202,14 @@ export class View {
   invalidate() { this.input.invalidate(); }
   get focused() { return this.input.focused; }
   set focused(value) { this.input.focused = value; }
-  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, scope: this.scope, sel: this.sel, filter: this.filter, told: this.told, draft: this.mode === "new" && !this.reply ? this.value() : "", drawer: this.drawer, cwd: this.ctx.cwd, away: this.reply && this.value().trim() ? { text: this.value(), to: this.replyId } : this.draftAway }); } catch {} }
+  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, scope: this.scope, sel: this.sel, filter: this.filter, told: this.told, draft: this.mode === "new" && !this.reply ? this.value() : "", chat: this.chatOpen ? "open" : "closed", cwd: this.ctx.cwd, away: this.reply && this.value().trim() ? { text: this.value(), to: this.replyId } : this.draftAway }); } catch {} }
   // A message stays until the next key press; an error stays until esc dismisses it.
   flash(text, kind = "overlay0") { this.msg = clean(text); this.msgKind = kind; }
   value() { return this.input.getText(); }
   setValue(v) { this.input.setText(v); }
   current() { return this.items.find((r) => r.id === this.sel); }
   job() { return this.jobs.find((j) => j.id === this.sel); }
-  try(fn, sentReply = false) { const repliedTo = sentReply ? this.sel : ""; let ok = true; try { fn(); } catch (e) { ok = false; this.flash(e.message, "red"); } this.load(repliedTo); return ok; }
+  try(fn) { let ok = true; try { fn(); } catch (e) { ok = false; this.flash(e.message, "red"); } this.load(); return ok; }
   // herdr's "approve the task in the focused pane" action lands here: the board opens on that task and asks first.
   takeApprove() {
     const id = A.takeApprove();
@@ -237,7 +238,7 @@ export class View {
     if (out) process.stdout.write(out);
   }
 
-  load(repliedTo = "") {
+  load() {
     try { this.coord = C.look(); } catch {}
     const mine = F.board({ includeArchived: true }).map(asRow);
     this.items = this.scope === "" ? mine : this.scope === "*" ? [...mine, ...Object.values(this.remotes).flatMap((m) => m.items)] : (this.remotes[this.scope] ? this.remotes[this.scope].items : []);
@@ -288,7 +289,7 @@ export class View {
       return (n < before) !== wouldPrecede && (n < before) !== (to < afterIndex);
     });
     // The selection stays where it is while you read or answer a task, and on the row whose agent you just stopped.
-    const reading = this.full || (this.reply && !!this.value() && repliedTo !== selected) || (this.stick === selected && !!after);
+    const reading = this.full || this.reply || (this.stick === selected && !!after);
     if (layout === this.selectionLayout && old && !reading && (!after || after.order !== old.order || crossed)) {
       // Prefer the old successor, then the next surviving row below it, then the nearest survivor above. Never
       // chase the moved task if a neighbour remains.
@@ -304,12 +305,16 @@ export class View {
     // A reply belongs to the task it was started for. When that task is gone the words are never left pointing at
     // whichever task is selected next: they are put away, and nothing is sent.
     if (this.reply && this.value() && this.replyId && this.sel !== this.replyId) {
-      if (this.value().trim()) this.draftAway = { text: this.value(), to: this.replyId, drawer: false };
+      if (this.value().trim()) this.draftAway = { text: this.value(), to: this.replyId };
       this.setValue(""); this.reply = false; this.full = false;
       this.flash("The task you were replying to is gone. Nothing was sent; your words are put away.", "yellow");
     }
+    this.syncReply();
     if (this.sel !== selected) this.load(); // rebuild the done fold for the new selection
   }
+  // You talk to a task's agent only while the task you pressed space on is the selected one. Moving to another task
+  // (or that task going away) is back to the Coordinator: the chat never follows the selection to an agent unasked.
+  syncReply() { if (this.reply && this.sel !== this.replyId) { this.reply = false; this.full = false; this.panelTop = 0; } }
   move(d) {
     const ids = [...this.rows.filter((r) => r.rec).map((r) => r.rec.id), ...this.jobs.map((j) => j.id)]; // the dispatcher's rows sit below the list
     if (ids.length) this.sel = ids[Math.max(0, Math.min(ids.length - 1, ids.indexOf(this.sel) + d))];
@@ -358,26 +363,19 @@ export class View {
     C.send(this.ctx.cwd, text, { delegate, about: about ? about.id : null });
     this.load();
   }
-  // ---- the Coordinator's drawer ----------------------------------------------------------------------------------------
-  // Two stops: hidden, or its last message above the box. Its whole chat is never drawn inside the board: you go into
-  // it (`enterCoord`), as into any task's agent.
-  setDrawer(to) {
-    if (to !== "hidden" && !this.canDispatch) { try { this.canDispatch = C.ready(); } catch {} }
-    if (to !== "hidden" && !this.canDispatch && this.coord.state === "none") return this.flash("No Coordinator here: it is off, its program is not installed, or herdr is not running.", "yellow");
-    if (to !== "hidden" && (this.reply || this.full)) this.closePanel(); // the text box has one receiver at a time
-    this.drawer = to;
-    this.savePrefs();
-    this.load();
-    this.syncDrawer();
-  }
-  // Called on every beat and after every change: pop up for a reply nobody has seen, and go into its chat once the
-  // Coordinator you asked to go into is there.
-  syncDrawer() {
+  // ---- the chat ---------------------------------------------------------------------------------------------------------
+  // One chat at the bottom of the board, the same for everyone you can talk to. Who that is follows one rule: the
+  // task you pressed space on, its agent; otherwise the Coordinator. Only its latest message is drawn here: the whole
+  // conversation is the agent's own pane, which `openChat` goes into.
+  toggleChat() { this.chatOpen = !this.chatOpen; this.savePrefs(); this.syncCoord(); }
+  openChat() { const r = this.current(); return this.reply && r ? this.chat(r) : this.enterCoord(); }
+  // Called on every beat and after every change: a reply you can see counts as seen, and you go into the
+  // Coordinator's chat once the Coordinator you asked to go into is there.
+  syncCoord() {
     const v = this.coord;
-    // A new reply pops the drawer up, except while you reply to a task: there your typing belongs to that task's agent.
-    // Nor while you type: the text box keeps the receiver it names until the draft is sent or put away.
-    if (v.unseen && this.drawer === "hidden" && !this.value() && !this.reply && !this.full && !this.menu && !this.ask && !this.setup && !this.archiveView) this.drawer = "peek";
-    if (v.unseen && this.drawer !== "hidden") C.seen(v.unseen);
+    if (v.unseen && !this.reply && this.chatOpen && !this.setup) { C.seen(v.unseen); this.coord = { ...v, unseen: "" }; }
+    // While you talk to a task's agent the chat shows that agent: the Coordinator's reply is said once, in a line.
+    else if (v.unseen && this.reply && this.toldReply !== v.unseen && !this.msg) { this.toldReply = v.unseen; this.flash("The Coordinator replied. esc goes back to it.", "green"); }
     if (!this.going) return;
     if (v.status && v.pane) return this.enterCoord();
     if (v.error) { this.going = 0; return this.flash(`The Coordinator could not be started: ${v.error}`, "red"); }
@@ -416,12 +414,32 @@ export class View {
       this.load();
     });
   }
-  drawerLines(width, maxH) {
-    const t = this.theme, v = this.coord;
-    const color = { working: "yellow", starting: "yellow", blocked: "red", idle: "green" }[v.state] || "overlay0";
-    const word = { none: "not started", starting: "starting", working: "working", blocked: "needs you", idle: "idle", exited: "stopped" }[v.state] || v.state;
-    const mark = t.fg(color, t.mark(["working", "starting"].includes(v.state) ? "working" : v.state === "blocked" ? "blocked" : v.state === "idle" ? "idle" : "unknown"));
-    const wrapAll = (text) => String(text).split("\n").flatMap((l) => { const w = wrapTextWithAnsi(clean(l), Math.max(10, width - 2)); return w.length ? w : [""]; });
+  // A reply to this task goes to an agent of its own (not, with its task named, to the Coordinator).
+  hasAgent(r) { return isAgent(r) && (!!r.host || F.isAgentTask(r) || F.cleanedUp(r)); }
+  // The task panel leaves "The agent said" to the chat while the chat shows that same message.
+  chatShows(r) { return !!r && this.reply && this.chatOpen && this.mode !== "find" && r.id === this.sel && !r.archivedAt && this.hasAgent(r); }
+  // Who the chat talks to, as the chat draws it: a mark and a name, where they stand, and the latest thing they said.
+  // The same shape for the Coordinator and for a task's agent. `enter`: there is a chat of theirs to go into.
+  chatOf(r) {
+    const t = this.theme;
+    if (this.mode === "find") return null;
+    if (this.reply && r) {
+      const color = statusColor(r), toAgent = this.hasAgent(r);
+      const word = r.archivedAt ? "archived" : reviewing(r) && r.state === "working" ? "reviewer is working" : groupOf(r);
+      const starts = !r.host && !isAgent(r) && ["todo", "progress"].includes(r.stage);
+      const meta = r.archivedAt ? "read-only" : toAgent ? `its agent · ${clean(r.app || r.agent || "agent")}` : starts ? "no agent yet: your message starts one" : this.canDispatch || r.host ? "no agent on it: your message goes to the Coordinator, about this task" : "no agent on it: your message is added to its description";
+      const pv = this.chatShows(r) ? this.previewOf(r) : null;
+      return { mark: this.mark(r), color, name: clean(r.title || r.id), word, meta, label: pv?.text ? pv.label : "", text: pv?.text || "", raw: pv?.label === "on its screen now", notes: [], enter: toAgent && !r.archivedAt && (!!r.host || F.isAgentTask(r)), said: toAgent && !r.archivedAt };
+    }
+    const far = this.scope && this.scope !== "*" && this.remotes[this.scope] ? this.scope : "";
+    if (far) return { mark: t.fg("overlay0", t.mark("unknown")), color: "overlay0", name: `Coordinator on ${far}`, word: "", meta: `what you type goes to ${far}`, label: "", text: "", notes: [] };
+    // No Coordinator (it is off, its program is not installed, or herdr is not running): the same box files tasks.
+    if (!this.canDispatch) return { mark: t.fg("overlay0", "+"), color: "overlay0", name: "New task", word: "", meta: "what you type is filed as a task, word for word", label: "", text: "", notes: [] };
+    const v = this.coord;
+    const fresh = !!v.unseen && !this.chatOpen;
+    const color = fresh ? "green" : { working: "yellow", starting: "yellow", blocked: "red", idle: "green" }[v.state] || "overlay0";
+    const word = v.error ? "could not be started" : fresh ? "new reply" : { none: "not started", starting: "starting", working: "working", blocked: "needs you", idle: "idle", exited: "stopped" }[v.state] || v.state;
+    const mark = t.fg(v.error ? "red" : color, t.mark(v.error ? "error" : ["working", "starting"].includes(v.state) ? "working" : v.state === "blocked" ? "blocked" : v.state === "idle" ? "idle" : "unknown"));
     let label = "", text = "", tone = "";
     if (v.error) { text = `It could not be started: ${v.error}`; tone = "red"; }
     else if (v.state === "blocked") { label = "on its screen now"; text = C.screen(v) || "Something on its screen waits for you. alt+c opens its chat."; }
@@ -429,26 +447,48 @@ export class View {
     else {
       const on = v.status && (v.state === "working" || !v.readable) ? C.screen(v) : ""; // a program whose conversation cannot be read: its screen
       if (on) { label = "on its screen now"; text = on; }
-      else { tone = "overlay0"; text = { none: "Type below and press enter: it starts with your first message, and stays.", starting: "Starting…", idle: "Ready. Type below and press enter.", exited: "Your next message starts it again, in the same conversation." }[v.state] || "Nothing said yet."; }
+      else { tone = "overlay0"; text = { none: "Ask or tell it anything: it starts with your first message, and stays.", starting: "Starting…", idle: "Ready. Ask or tell it anything.", exited: "Your next message starts it again, in the same conversation." }[v.state] || "Nothing said yet."; }
     }
-    const head = " " + mark + " " + t.fg(color, t.bold("Coordinator")) + "  " + t.fg(color, word) + t.fg("overlay0", `  ${v.run ? C.describe(v.run) : "off"}${v.oneOff ? " (this one only)" : ""}${label ? `  · ${label}` : ""}`);
     const notes = [];
-    if (v.stale) notes.push(" " + t.fg("overlay0", `your default is now ${C.describe(v.def)}: alt+n starts a new one on it`));
-    for (const m of v.waiting || []) notes.push(" " + t.fg("overlay0", `› ${clean(m)}  (waiting to be sent)`));
-    if (!v.queue && v.last && v.state !== "none") notes.push(" " + t.fg("overlay0", `› ${clean(v.last)}`));
-    const lines = wrapAll(label === "on its screen now" ? text : text.replace(/\*\*([^*\n]+)\*\*/g, "$1"));
-    return [t.fg("surface_dim", "─".repeat(width)), head, ...notes, ...(lines.length > maxH ? [" " + t.fg("overlay0", "…")] : []), ...lines.slice(-maxH).map((l) => " " + (tone ? t.fg(tone, l) : l))];
+    if (v.stale) notes.push(`your default is now ${C.describe(v.def)}: alt+n starts a new one on it`);
+    for (const m of v.waiting || []) notes.push(`› ${clean(m)}  (waiting to be sent)`);
+    if (!v.queue && v.last && v.state !== "none") notes.push(`› ${clean(v.last)}`);
+    return { mark, color: v.error ? "red" : color, name: "Coordinator", word, meta: `${v.run ? C.describe(v.run) : "off"}${v.oneOff ? " (this one only)" : ""}`, label, text, tone, raw: label === "on its screen now", notes, enter: true, said: true, always: !!v.error };
   }
-  // With the drawer hidden, one row says what it is doing, and only while that is worth a row.
-  coordLine() {
-    const t = this.theme, v = this.coord;
-    if (this.drawer !== "hidden" || this.archiveView) return "";
-    const tail = (s) => clean(String(s || "").trim().split("\n").filter((l) => l.trim()).pop() || "");
-    if (v.error) return " " + t.fg("red", `${t.mark("error")} Coordinator could not be started: ${clean(v.error)}`);
-    if (v.unseen) return " " + t.fg("green", t.mark("idle")) + " " + t.fg("text", "Coordinator replied") + t.fg("overlay0", ` · alt+c shows it · ${tail(v.said)}`);
-    if (v.state === "blocked") return " " + t.fg("red", t.bold(t.mark("blocked"))) + " " + t.fg("text", "Coordinator needs you") + t.fg("overlay0", " · something on its screen waits · alt+c shows it");
-    if (v.state === "working" || v.state === "starting") return " " + t.fg("yellow", t.mark("working")) + " " + t.fg("subtext0", `Coordinator ${v.state === "starting" ? "starting" : "working"}`) + t.fg("overlay0", ` · ${clean((v.waiting || []).at(-1) || v.last || "") || tail(v.said)} · alt+c shows it`);
-    return "";
+  // The chat's first line names who you talk to, on the whole width: the name is never cut to make room for the rest.
+  // What stands beside it goes first when the window is narrow: the keys, then the label, the program, the state.
+  chatHead(c, width, tight = false) {
+    const t = this.theme;
+    const lead = " " + c.mark + " ", room = Math.max(1, width - visibleWidth(lead));
+    const name = t.bold(c.name);
+    const bits = [c.word && "  " + t.fg(c.color, c.word), c.meta && t.fg("overlay0", "  " + c.meta), c.label && this.chatOpen && t.fg("overlay0", "  · " + c.label)].filter(Boolean);
+    // The chat's two keys, in full or in short. Where neither fits beside the name, the hint line below says alt+v.
+    const forms = [[c.enter && "alt+c open its chat", c.said && `alt+v ${this.chatOpen ? "hide" : "show"} its message`], [c.enter && "alt+c chat", c.said && `alt+v ${this.chatOpen ? "hide" : "show"}`]].map((f) => f.filter(Boolean).join(" · "));
+    let keys = forms[0];
+    const fits = (n, withKeys) => visibleWidth(name + bits.slice(0, n).join("")) + (withKeys && keys ? 3 + visibleWidth(keys) : 0) <= room;
+    // The keys outlast the label and the program; the state outlasts the keys.
+    let n = bits.length, showKeys = !!keys;
+    while (n > 1 && !fits(n, true)) n--;
+    if (!fits(n, true)) { keys = forms[1]; n = bits.length; while (n > 1 && !fits(n, true)) n--; }
+    if (!fits(n, true)) { showKeys = false; n = bits.length; while (n && !fits(n, false)) n--; }
+    this.chatKeyHint = c.said && !showKeys ? ["alt+v", `${this.chatOpen ? "hide" : "show"} its message`] : null;
+    // A name longer than the window takes a second line before it is cut (in a short window that line is the draft's).
+    if (!fits(0, false) && tight) return [lead + truncateToWidth(name, room, "…")];
+    if (!fits(0, false)) { const [a, b, more] = wrapTextWithAnsi(name, room); return [lead + a, ...(b ? ["   " + (more ? truncateToWidth(b, room - 1, "") + "…" : b)] : [])]; }
+    const left = name + bits.slice(0, n).join("");
+    return [lead + left + (showKeys ? " ".repeat(room - visibleWidth(left) - visibleWidth(keys) - 1) + t.fg("overlay0", keys) : "")];
+  }
+  // The chat above the text box: a rule, who you talk to, and (unless you hid it) the latest thing they said.
+  chatLines(width, maxH, r, tight = false) {
+    const t = this.theme, c = this.chatOf(r);
+    this.chatKeyHint = null;
+    if (!c) return [];
+    const out = [t.fg("surface_dim", "─".repeat(width)), ...this.chatHead(c, width, tight)];
+    this.chatHeadRows = out.length;
+    if (!this.chatOpen && !c.always) return out; // a start that failed says why, hidden or not
+    const wrapAll = (text) => String(text).split("\n").flatMap((l) => { const w = wrapTextWithAnsi(clean(l), Math.max(10, width - 2)); return w.length ? w : [""]; });
+    const lines = c.text ? wrapAll(c.raw ? c.text : c.text.replace(/\*\*([^*\n]+)\*\*/g, "$1")) : [];
+    return [...out, ...c.notes.map((n) => " " + t.fg("overlay0", n)), ...(lines.length > maxH ? [" " + t.fg("overlay0", "…")] : []), ...lines.slice(-maxH).map((l) => " " + (c.tone ? t.fg(c.tone, l) : l))];
   }
   // ---- other machines: ask each for its board, and send each action to the machine that owns the task ----
   ssh(m, what, arg, cb, ms = 20000) { R.ask(m, what, arg, cb, ms); }
@@ -487,7 +527,9 @@ export class View {
     });
   }
   closePanel() { this.reply = false; this.full = false; this.panelTop = 0; this.load(); }
-  openPanel() { const r = this.current(); if (!r && !this.job()) return this.flash("Select a task first."); this.full = true; this.panelTop = 0; this.reply = !!r && !r.archivedAt; if (this.drawer === "peek") { this.drawer = "hidden"; this.savePrefs(); } }
+  // Only the whole panel goes: who the chat talks to is space's to change, never the panel's.
+  foldPanel() { this.full = false; this.panelTop = 0; this.load(); }
+  openPanel() { const r = this.current(); if (!r && !this.job()) return this.flash("Select a task first."); this.full = true; this.panelTop = 0; }
   // What the agent's pane shows, read through herdr. A deep read is done once per completed turn and cached; while
   // the agent is busy only its visible screen is read, at most every two seconds.
   screen(r) {
@@ -596,6 +638,7 @@ export class View {
 
   handleInput(data) {
     try { this.handle(data); } catch (e) { this.flash(e.message, "red"); }
+    this.syncReply();
     this.tui.requestRender();
   }
   // ---- what the keys do -------------------------------------------------------------------------------------------------
@@ -642,13 +685,12 @@ export class View {
       const d = this.draftAway;
       // Its task is gone: the words are not lost, and not turned into something else unasked. A second ctrl+z says so.
       if (d.to && !this.items.some((r) => r.id === d.to && !r.archivedAt)) {
-        if (!d.warned) { d.warned = true; return this.flash("The task that reply was for is gone. ctrl+z again brings the words back as a draft for a new task.", "yellow"); }
+        if (!d.warned) { d.warned = true; return this.flash("The task that reply was for is gone. ctrl+z again brings the words back as a draft of their own.", "yellow"); }
         d.to = "";
       }
       this.draftAway = null;
-      if (d.to) { this.sel = d.to; this.replyId = d.to; this.reply = true; if (this.width < WIDE) { this.full = true; this.panelTop = 0; } if (this.drawer === "peek") this.drawer = "hidden"; }
+      if (d.to) { this.sel = d.to; this.replyId = d.to; this.reply = true; if (this.width < WIDE) { this.full = true; this.panelTop = 0; } }
       else if (this.reply || this.full) this.closePanel();
-      if (d.drawer && this.drawer === "hidden") this.setDrawer("peek"); else if (!d.drawer && !d.to && this.drawer === "peek") this.setDrawer("hidden");
       this.setValue(d.text); this.load();
       return;
     }
@@ -673,7 +715,7 @@ export class View {
     const r = this.current(), j = this.job();
     const it = [];
     const add = (label, key, run, on = true) => { if (on) it.push({ label, key, run }); };
-    add("show the whole task panel", "ctrl+e", () => this.openPanel(), !!(r || j) && !this.full);
+    add(this.full ? "back to the list" : "show the whole task panel", "ctrl+e", () => (this.full ? this.foldPanel() : this.openPanel()), !!(r || j));
     add(r?.archivedAt ? "restore from the archive" : "archive", "alt+a", () => this.archiveSelected(r), !!r);
     add(r?.pinned ? "unpin" : "pin to the top", "ctrl+t", () => (r.host ? this.act(r, "pin") : this.try(() => A.pin(r.id))), !!r && !r.archivedAt);
     add("delete", "delete", () => this.remove(r), !!r);
@@ -681,7 +723,12 @@ export class View {
     add(this.archiveView ? "back to the board" : "open the archive", "alt+h", () => this.toggleArchive());
     add(this.byRepo ? "group by state" : "group by repo", "ctrl+s", () => { this.byRepo = !this.byRepo; this.savePrefs(); this.load(); });
     add(this.allDone ? "show only the latest done" : "show all done", "ctrl+d", () => { this.allDone = !this.allDone; this.load(); });
-    add("chat with the Coordinator", "alt+c", () => this.setDrawer("peek"), this.canDispatch || this.coord.state !== "none");
+    // The chat's own lines: for whoever it talks to now.
+    const who = this.chatOf(r);
+    add(this.reply && r ? "open this agent's chat" : "open the Coordinator's chat", "alt+c", () => this.openChat(), !!who?.enter);
+    add(this.chatOpen ? "hide the latest message in the chat" : "show the latest message in the chat", "alt+v", () => this.toggleChat(), !!who?.said);
+    add("restart the Coordinator", "alt+r", () => this.coordAct("restart"), !this.reply && this.canDispatch && this.coord.state !== "none");
+    add("start a new Coordinator", "alt+n", () => this.coordAct("new"), !this.reply && this.canDispatch && this.coord.state !== "none");
     // Other machines: each stop by name, so nothing is cycled through blind.
     const far = Object.keys(this.remotes).filter((k) => this.remotes[k].ok).sort();
     const here = (s) => (this.scope === s ? " (now)" : "");
@@ -712,7 +759,6 @@ export class View {
     // An error stays until esc dismisses it; anything else is gone with the next key.
     if (this.msg && this.msgKind === "red") { if (esc) { this.msg = ""; return; } } else this.msg = "";
     if (this.setup) return this.setupKey(data);
-    if (this.reply && !this.value()) this.replyId = this.sel; // a reply is for the task selected when its first word is typed
     const enter = data !== "\n" && (matchesKey(data, "return") || matchesKey(data, "enter"));
     if (this.ask) {
       const { yes, quit } = this.ask;
@@ -725,22 +771,21 @@ export class View {
     }
     if (this.menu) return this.menuKey(data);
     this.stick = "";
-    // A draft owns the drawer's keys too, wherever it is going: alt+c, alt+v, alt+r and alt+n act only on an empty text box.
+    // A draft owns the chat's keys too, wherever it is going: alt+c, alt+v, alt+r and alt+n act only on an empty text box.
     if (!!this.value() && ["alt+c", "alt+v", "alt+r", "alt+n"].some((k) => matchesKey(data, k))) return this.input.handleInput(data);
-    // alt+c: the drawer up, then into the Coordinator's own chat (the board closes, as for any agent). alt+v: down.
-    if (matchesKey(data, "alt+c")) return this.drawer === "hidden" ? this.setDrawer("peek") : this.enterCoord();
-    if (matchesKey(data, "alt+v")) { this.going = 0; return this.setDrawer("hidden"); }
+    // alt+c: into the whole chat of whoever the chat talks to (the board closes). alt+v: its latest message, shown or not.
+    if (matchesKey(data, "alt+c")) return this.openChat();
+    if (matchesKey(data, "alt+v")) return this.toggleChat();
     if (this.going && (esc || matchesKey(data, "ctrl+c"))) { this.going = 0; return this.flash("Stayed on the board. The Coordinator keeps starting."); }
-    if (this.drawer === "peek" && (matchesKey(data, "alt+r") || matchesKey(data, "alt+n"))) return this.coordAct(matchesKey(data, "alt+n") ? "new" : "restart");
+    if (!this.reply && this.canDispatch && (matchesKey(data, "alt+r") || matchesKey(data, "alt+n"))) return this.coordAct(matchesKey(data, "alt+n") ? "new" : "restart");
     if (this.input.isPasting || data.includes("\x1b[200~")) { this.input.handleInput(data); if (this.mode === "find") this.load(); return; }
     const text = this.value().trim();
     const r = this.current();
     if (esc) {
       // One step back at a time. A draft is put away, not thrown away; the last step asks before the board closes.
       if (this.mode !== "new") { this.mode = "new"; this.setValue(""); }
-      else if (this.value()) { if (text) { this.draftAway = { text: this.value(), to: this.reply && r ? r.id : "", drawer: this.drawer === "peek" }; this.flash("Put away. ctrl+z brings it back."); } this.setValue(""); }
+      else if (this.value()) { if (text) { this.draftAway = { text: this.value(), to: this.reply && r ? r.id : "" }; this.flash("Put away. ctrl+z brings it back."); } this.setValue(""); }
       else if (this.full || this.reply) return this.closePanel();
-      else if (this.drawer === "peek") return this.setDrawer("hidden");
       else if (this.filter) this.filter = "";
       else if (this.archiveView) return this.toggleArchive();
       else return this.confirm("Close the board?", () => this.done(undefined), true);
@@ -762,17 +807,17 @@ export class View {
     }
     if (enter) {
       if (!text) { if (r) this.chat(r); return; } // with nothing typed, enter opens the selected task's agent
-      // The text box names its receiver: the selected task's agent after space, a new task otherwise.
+      // Who gets it is who the chat names: the selected task's agent after space, the Coordinator otherwise.
       if (this.reply && r?.archivedAt) return this.flash("Archived tasks are read-only. ? has restore.", "yellow");
       if (this.reply && (!r || r.id !== this.replyId)) return this.flash("The task you were replying to is gone. Nothing was sent.", "yellow");
       // A reply to one of this machine's tasks that never had an agent starts one with that message.
       const fresh = this.reply && r && !r.host && !r.archivedAt && !F.isAgentTask(r) && ["todo", "progress"].includes(r.stage);
-      if (fresh) { if (!this.try(() => { const out = A.tell(r.id, text); this.flash(out.msg, "green"); }, true)) return; }
+      if (fresh) { if (!this.try(() => { const out = A.tell(r.id, text); this.flash(out.msg, "green"); })) return; }
       // (Work that ended and was cleaned up has no terminal left: the reply starts a new round.)
       else if (this.reply && r && isAgent(r) && (r.host || F.isAgentTask(r) || F.cleanedUp(r))) {
         // Busy/refused replies keep the draft; only a successful send clears it.
         if (r.host) { this.act(r, "tell", { text }, false, (ok) => { if (ok && this.sel === r.id && this.value().trim() === text) this.setValue(""); }); return; }
-        if (!this.try(() => { const out = A.tell(r.id, text); this.flash(out.msg, out.msg.startsWith("queued") ? "yellow" : "green"); }, true)) return;
+        if (!this.try(() => { const out = A.tell(r.id, text); this.flash(out.msg, out.msg.startsWith("queued") ? "yellow" : "green"); })) return;
       } else this.dispatch(text, false, this.reply ? r : undefined);
       return this.setValue("");
     }
@@ -804,11 +849,9 @@ export class View {
     if (matchesKey(data, "ctrl+f")) { this.mode = "find"; this.reply = false; this.full = false; this.setValue(this.filter); return; }
     if (data === " ") {
       if (!r) return;
-      if (this.full) return; // the whole panel already has the text box
-      if (this.reply) return this.closePanel();
+      if (this.reply) return this.closePanel(); // back to the Coordinator, at every width
       if (r.archivedAt) return this.flash("Archived tasks are read-only. ? has restore.", "yellow");
-      this.reply = true; if (this.width < WIDE) { this.full = true; this.panelTop = 0; }
-      if (this.drawer === "peek") { this.drawer = "hidden"; this.savePrefs(); }
+      this.reply = true; this.replyId = r.id; if (this.width < WIDE) { this.full = true; this.panelTop = 0; }
       return;
     }
     if (matchesKey(data, "right") && r) return this.chat(r);
@@ -817,7 +860,7 @@ export class View {
     if (matchesKey(data, "ctrl+x")) return r ? this.stop(r) : undefined;
     // The quiet extras: every one of them is also a line in the ? menu.
     if (matchesKey(data, "ctrl+y") && r) { if (r.host) return this.act(r, "finish"); return this.try(() => { const out = A.finishAnyway(r.id); this.flash(out.msg, "green"); }); }
-    if (matchesKey(data, "ctrl+e")) return this.full ? this.closePanel() : this.openPanel();
+    if (matchesKey(data, "ctrl+e")) return this.full ? this.foldPanel() : this.openPanel();
     if (matchesKey(data, "alt+h")) return this.toggleArchive();
     if (matchesKey(data, "alt+a")) return r ? this.archiveSelected(r) : this.flash("Select a task to archive or restore.");
     if (matchesKey(data, "ctrl+z")) return this.undo();
@@ -840,34 +883,36 @@ export class View {
       if (this.pasteText) return this.pad(["", ...String(this.pasteText).split("\n").flatMap((l) => wrapTextWithAnsi(l, Math.max(10, width - 4))).map((l) => "  " + l), "", "  " + t.fg("overlay0", "any key continues")], rowsN).map(fit);
       if (this.setup) return this.setupLines(width, rowsN).map(fit);
       const selectedJob = this.jobs.findIndex((j) => j.id === this.sel);
-      const inputLines = this.ask ? this.askLines(width) : this.boxLines(width, rowsN - 4 - (selectedJob >= 0 ? 1 : 0), r);
       const jobLine = (j) => {
         const line = " " + (j.state === "error" ? t.fg("red", t.mark("error")) : t.fg("yellow", t.mark("working"))) + " " + clean(j.text) + (j.state === "error" ? t.fg("subtext0", `  ${clean(j.msg)}`) : "");
         return j.id === this.sel ? this.hl(line, width) : line;
       };
-      // The Coordinator's last message, above the text box. It never pushes the box or its hints off-screen.
-      const drawerUp = this.drawer === "peek";
-      const drawer = drawerUp ? this.drawerLines(width, Math.max(3, Math.floor(rowsN / 2) - 5)) : [];
-      const trimDrawer = (limit) => { if (drawer.length > limit) drawer.splice(Math.max(0, limit - 1), drawer.length, ...(limit ? [" " + t.fg("overlay0", "… alt+c: open its chat")] : [])); };
-      trimDrawer(Math.max(3, Math.floor(rowsN / 2) - 2));
-      const status = this.coordLine();
+      // The chat, above the text box: who you talk to and their latest message. It never pushes the box or its hints
+      // off-screen: the message gives up lines first, and the line that says who you talk to goes last.
+      const chat = this.chatLines(width, Math.max(3, Math.min(10, Math.floor(rowsN / 3) - 2)), r, rowsN < 16);
+      const headN = chat.length ? this.chatHeadRows : 0;
+      // The text box is given what the line that says who you talk to leaves: a draft scrolls inside it, never off-screen.
+      const inputLines = this.ask ? this.askLines(width) : this.boxLines(width, rowsN - 4 - headN - (selectedJob >= 0 ? 1 : 0), r);
+      const trimChat = (limit) => { if (chat.length > limit) chat.splice(limit > headN ? limit - 1 : limit, chat.length, ...(limit > headN ? [" " + t.fg("overlay0", "… alt+c: open its chat")] : [])); };
       // What just happened, on a line of its own: the hints below it stay readable.
       const stale = !this.stale ? "" : this.ctx.canReload === false ? "herdr-superwork was updated: close the board and open it again for the new version." : "herdr-superwork was updated: the new version loads when nothing is half typed.";
       const said = this.msg ? wrapTextWithAnsi(t.fg(this.msgKind, this.msg) + (this.msgKind === "red" ? t.fg("overlay0", "  (esc)") : ""), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : stale ? ["  " + t.fg("overlay0", stale)] : [];
-      const extraRows = Math.max(0, rowsN - inputLines.length - 2 - said.length - (status ? 1 : 0));
+      const extraRows = Math.max(0, rowsN - inputLines.length - 2 - said.length - headN);
       const lastJobTop = Math.max(0, this.jobs.length - extraRows);
       if (selectedJob < 0) this.jobTop = lastJobTop;
       else if (selectedJob < this.jobTop) this.jobTop = selectedJob;
       else if (selectedJob >= this.jobTop + extraRows) this.jobTop = selectedJob - extraRows + 1;
       this.jobTop = Math.max(0, Math.min(this.jobTop, lastJobTop));
       const jobs = extraRows ? this.jobs.slice(this.jobTop, this.jobTop + extraRows).map(jobLine) : [];
-      trimDrawer(Math.max(0, extraRows - jobs.length));
+      trimChat(headN + Math.max(0, extraRows - jobs.length));
       // The hint line never runs off the screen: the main thing and the last one stay, what is between them goes first.
       const hintList = this.hints(r).filter(Boolean).slice(0, 4);
       const hintText = () => hintList.map(([k, d]) => [k && t.fg("text", k), d && t.fg("overlay0", d)].filter(Boolean).join(" ")).join(t.fg("overlay0", " · "));
       while (hintList.length > 2 && visibleWidth(hintText()) > width - 2) hintList.splice(hintList.length - 2, 1);
       const hints = hintText();
-      const bottom = [...jobs, ...(status ? [status] : []), ...drawer, ...inputLines, ...said, "  " + hints];
+      // Whatever the window, the text box and its hints are whole: the chat, then the rows above it, give way.
+      while (jobs.length + chat.length + inputLines.length + said.length + 1 > rowsN && (chat.length || jobs.length || said.length)) (chat.length ? chat : jobs.length ? jobs : said).pop();
+      const bottom = [...jobs, ...chat, ...inputLines, ...said, "  " + hints];
       const h = Math.max(1, rowsN - bottom.length);
       const shown = r || this.job();
       let top;
@@ -900,21 +945,21 @@ export class View {
     if (this.filter && this.mode !== "find") parts.push(`find: ${this.filter}`);
     return [truncateToWidth(" " + t.bold("herdr-superwork") + t.fg("overlay0", "  " + parts.join(" · ")), w, "…")];
   }
-  // The text box always names who gets your words, and the name stays while you type.
+  // The text box. Who gets your words is said by the chat's first line, right above it, never by the prompt.
   boxLines(width, maxRows, r) {
     const t = this.theme;
-    const cap = Math.max(6, Math.min(28, Math.floor(width / 3)));
     const replying = this.mode !== "find" && this.reply && !!r;
-    const who = this.mode === "find" ? "find" : replying ? `reply to "${truncateToWidth(clean(r.title || r.id), cap, "…")}"` : this.drawer === "peek" ? "to the Coordinator" : this.scope && this.scope !== "*" ? `new task on ${this.scope}` : "new task";
-    const label = t.fg(replying ? "accent" : "subtext0", who) + " " + t.fg("accent", "❯");
+    const label = (this.mode === "find" ? t.fg("subtext0", "find") + " " : "") + t.fg("accent", "❯");
     const lines = this.input.renderWithin(width, maxRows, label);
     if (this.value()) return lines;
     const place = this.mode === "find" ? "type to filter, archived tasks too"
       : replying ? (r.archivedAt ? "archived: read-only" : isAgent(r) ? (r.state === "blocked" && r.kind === "question" ? "your answer" : "your reply") : !r.host && ["todo", "progress"].includes(r.stage) ? "your message starts an agent on it" : "what should change?")
-      : this.drawer === "peek" ? "say something" : "what's next?";
+      : this.talksToCoord ? "ask or tell it anything" : "what's next?";
     lines[1] = `${label} ${this.focused ? CURSOR_MARKER : ""}${t.inverse(place[0])}${t.fg("overlay0", place.slice(1))}`;
     return lines;
   }
+  // With nothing of a task's open, your words go to a Coordinator: this machine's, or the one machine you look at.
+  get talksToCoord() { return this.canDispatch || (!!this.scope && this.scope !== "*" && !!this.remotes[this.scope]); }
   // The one question box: it takes the text box's place until it is answered.
   askLines(width) {
     const t = this.theme, rule = t.fg("surface_dim", "─".repeat(width));
@@ -933,12 +978,11 @@ export class View {
     const agentOn = !!r && isAgent(r);
     if (this.value()) {
       if (this.reply && r) return [["enter", agentOn ? "send to its agent" : !r.host && ["todo", "progress"].includes(r.stage) ? "start an agent with it" : "send"], ["esc", "put away"], ["shift+enter", "new line"]];
-      if (this.drawer === "peek") return [["enter", "send"], ["esc", "put away"], ["shift+enter", "new line"]];
+      if (this.talksToCoord) return [["enter", "send"], ["tab", "send, and put an agent on it"], ["esc", "put away"], ["shift+enter", "new line"]];
       return [["enter", "add a task"], ["tab", "add it and start an agent"], ["esc", "put away"], ["shift+enter", "new line"]];
     }
     if (this.job()) return [["ctrl+x", "stop it"], ["enter", "take it back to change"], ["ctrl+↑", "back to the list"]];
-    if (this.drawer === "peek") return [["alt+c", "open its chat"], ["esc", "hide"], ["alt+r", "restart"], ["alt+n", "new one"]];
-    if (!r) return [["", this.archiveView ? "esc back to the board" : "type what needs doing"], more];
+    if (!r) return [["", this.archiveView ? "esc back to the board" : "type what needs doing"], ...(this.chatKeyHint ? [this.chatKeyHint] : []), more];
     const tail = this.full ? [["↑↓", "scroll"], ["esc", "back"]] : this.reply ? [["esc", "back"]] : [more];
     const failure = failureFor(r), rv = currentReview(r), reply = ["space", "reply"], open = ["enter", "open the agent"];
     let main;
@@ -958,7 +1002,8 @@ export class View {
     else main = [["tab", "put an agent on it"], reply];
     main = main.filter(Boolean);
     if (this.reply && !r.archivedAt) main = [["", agentOn && r.state === "blocked" && r.kind === "question" ? "type your answer" : "type your reply"], ...main.filter(([k]) => k !== "space")];
-    return [...main.slice(0, 4 - tail.length), ...tail];
+    const key = this.chatKeyHint ? [this.chatKeyHint] : [];
+    return [...main.slice(0, 4 - tail.length - key.length), ...key, ...tail];
   }
   // The ? menu: lines you act from, and under them the few keys worth remembering.
   menuLines(width, h) {
@@ -1062,7 +1107,7 @@ export class View {
     if ((size && (r.state !== "done" || full)) || pr) sec(["", ...fact("Change", [...wrapTextWithAnsi([size && (r.state !== "done" || full) ? size : "", pr].filter(Boolean).join(" · "), Math.max(1, w - KW)), ...(r.pr && /^https?:/.test(String(r.pr)) ? [dim(truncateToWidth(String(r.pr), Math.max(1, w - KW), "…"))] : [])])]);
 
     // What the agent said: its last message, or its screen while a dialog or a review is on it.
-    if (agent && !(r.state === "error" && r.stage !== "nosummary")) {
+    if (agent && !(r.state === "error" && r.stage !== "nosummary") && !this.chatShows(r)) {
       const pv = this.previewOf(r);
       const text = pv.text || (approval ? r.summary : "") || "";
       if (text && text !== told) sec([...head(pv.label === "on its screen now" ? "On its screen now" : "The agent said"), ...block(text)], "start");

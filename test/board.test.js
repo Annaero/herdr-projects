@@ -92,7 +92,7 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     assert.match(text, /◐ My own task {2}half way +█+░+ +50% 12m +\ds {5}│/); assert.match(text, /│ +█+░+ 50% 12m *\n/); // on the row and in the task panel assert.match(text, /○ Write the docs {6,}\ds ago │/);
     assert.match(text, /│ {2}My own task/); assert.match(text, /◐ working · you · for \ds · proj\/2/);
     // The text box names who gets your words, and its empty line says only "what's next?".
-    assert.match(text, /\nnew task ❯ what's next\? *\n/); assert.doesNotMatch(text, /Coordinator|sidebar/);
+    assert.match(text, /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(text, /Coordinator|sidebar/);
     assert.equal(s.screen(120).length, 34); assert.ok(s.screen(120).every((l) => l.length <= 120));
     assert.ok(!/│ {2}My own task/.test(s.text(80)), "no panel beside the list below 90 columns");
     // ctrl+b is herdr's own prefix key: the board has no use for it, the panel simply follows the width.
@@ -100,7 +100,13 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     s.press("down", "ctrl+e");
     text = s.text(80);
     assert.match(text, /^ task panel · proj\/1/); assert.match(text, /○ to do · \ds ago · proj\/1/); assert.match(text, /Description *\n All of them\./);
-    assert.match(text, /reply to "Write the docs" ❯ your message starts an agent on it/); // the whole panel holds the text box for its task
+    // The whole panel never changes who you talk to: only space does. Space there talks to the task, space again goes back.
+    assert.equal(s.v.reply, false); assert.match(text, /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ what's next\?/);
+    s.press("space"); assert.equal(s.v.reply, true); assert.equal(s.v.full, true);
+    assert.match(s.text(80), /\n─+\n . Write the docs {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ your message starts an agent on it/);
+    s.press("ctrl+e"); assert.equal(s.v.full, false); assert.equal(s.v.reply, true, "folding the panel keeps who you talk to");
+    s.press("ctrl+e", "space"); assert.equal(s.v.reply, false); assert.equal(s.v.full, false);
+    s.press("ctrl+e"); assert.equal(s.v.full, true); assert.equal(s.v.reply, false);
     s.press("esc");
     assert.match(s.text(120), /^ herdr-superwork/); assert.equal(s.v.reply, false);
     for (const width of [24, 40, 64, 89, 90, 200]) assert.ok(s.screen(width).every((l) => l.length <= width), `fits ${width}`);
@@ -240,7 +246,7 @@ test("the task panel never opens full screen by itself: something going wrong on
     s.screen(80); s.press("space"); text = s.text(80);
     assert.equal(s.v.full, true); assert.equal(s.v.reply, true);
     assert.match(text, /^ task panel · proj\/1/); assert.match(text, /Merge conflict with main/); assert.match(text, /Conflicting files: *\n src\/board\/view\.js/);
-    assert.match(text, /reply to "Match the colors" ❯/);
+    assert.match(text, /\n─+\n . Match the colors {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯/);
     s.press("esc");
     assert.equal(s.v.full, false); assert.doesNotMatch(s.text(80), /Conflicting files/);
     // Nor does coming back from the archive bring it up, and an open panel is not remembered when the board reopens.
@@ -262,7 +268,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     w.script({ worker: [{ status: "working", screen: "● Editing greet.sh\n  esc to interrupt\n" }] });
     const s = open(w);
     s.type("Add a greeting");
-    assert.match(s.text(), /\nnew task ❯ Add a greeting/); assert.match(s.text(), /enter add a task · tab add it and start an agent · esc put away/);
+    assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ Add a greeting/); assert.match(s.text(), /enter add a task · tab add it and start an agent · esc put away/);
     s.press("enter");
     assert.equal(S.get("proj/1").title, "Add a greeting"); assert.equal(s.v.sel, "proj/1"); assert.equal(s.v.value(), "");
     assert.match(s.text(), /\n {2}tab put an agent on it · space reply · \? more/);
@@ -274,15 +280,15 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     assert.match(s.text(), /\n {2}enter open the agent · space reply · ctrl\+x stop · \? more/);
     // space: the text box now belongs to this task's agent, and says so for as long as you type
     s.press("space");
-    assert.match(s.text(), /\nreply to "Add a greeting" ❯ your reply/);
+    assert.match(s.text(), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ your reply/);
     w.script({ worker: [{ status: "working" }] });
     s.type("also say goodbye");
-    assert.match(s.text(), /\nreply to "Add a greeting" ❯ also say goodbye/); assert.match(s.text(), /enter send to its agent · esc put away/);
+    assert.match(s.text(), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ also say goodbye/); assert.match(s.text(), /enter send to its agent · esc put away/);
     s.press("enter");
     assert.match(s.text(), /Sent to the agent/);
     const t = S.get("proj/1");
     assert.match(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.at(-1), /also say goodbye/);
-    s.press("esc"); assert.equal(s.v.reply, false); assert.match(s.text(), /\nnew task ❯/);
+    s.press("esc"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯/);
     // enter: focus the agent's real pane by pane id and close the board; selection and filter come back on reopen
     s.press("enter");
     assert.deepEqual(s.closed(), { entered: "proj/1" });
@@ -321,7 +327,7 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     const before = JSON.stringify([S.get(id).stage, S.get(id).pinned, S.get(id).archivedAt, S.list().length]);
     for (const k of ["ctrl+a", "ctrl+e", "ctrl+y", "ctrl+r", "ctrl+g", "ctrl+t", "ctrl+d", "ctrl+x", "ctrl+x", "ctrl+b", "ctrl+f", "ctrl+s", "alt+a", "alt+h", "\x1bc", "\x1bv", "ctrl+z", "?", "space", "up", "down"]) s.press(k);
     assert.equal(JSON.stringify([S.get(id).stage, S.get(id).pinned, S.get(id).archivedAt, S.list().length]), before, "nothing happened to any task");
-    assert.equal(s.v.sel, id); assert.equal(s.v.ask, null); assert.equal(s.v.menu, null); assert.equal(s.v.full, false); assert.equal(s.v.mode, "new"); assert.equal(s.v.archiveView, false); assert.equal(s.v.allDone, false); assert.equal(s.v.byRepo, false); assert.equal(s.v.drawer, "hidden"); assert.equal(s.v.msg, "");
+    assert.equal(s.v.sel, id); assert.equal(s.v.ask, null); assert.equal(s.v.menu, null); assert.equal(s.v.full, false); assert.equal(s.v.mode, "new"); assert.equal(s.v.archiveView, false); assert.equal(s.v.allDone, false); assert.equal(s.v.byRepo, false); assert.equal(s.v.chatOpen, true); assert.equal(s.v.msg, "");
     assert.equal(S.get(id).stage, "approval"); assert.equal(s.closed(), undefined);
     assert.match(s.v.value(), /half a thought/); assert.match(s.v.value(), /\?/); // "?" and space are typed, not acted on
     // esc puts the draft away, and it can be brought back; nothing is thrown away
@@ -414,6 +420,29 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
   } finally { w.cleanup(); }
 });
 
+test("only space chooses a task's agent: moving to another task is back to the Coordinator, and never sends your words to the task you moved to", async () => {
+  const w = await world({ settings: { helper: "off", reviewer: "off" } });
+  try {
+    const alpha = A.add(w.root, "Alpha"), beta = A.add(w.root, "Beta");
+    const s = open(w); s.v.sel = alpha.id; s.v.load(); s.screen(120);
+    s.press("space"); assert.equal(s.v.reply, true); assert.equal(s.v.replyId, alpha.id); assert.match(s.text(), /\n─+\n . Alpha {2}to do {2}no agent yet: your message starts one/);
+    // Up or down selects the other task: nobody pressed space on it, so the chat is not its agent's.
+    s.press(s.v.rows.filter((x) => x.rec).map((x) => x.rec.id).indexOf(alpha.id) ? "up" : "down");
+    assert.equal(s.v.sel, beta.id); assert.equal(s.v.reply, false);
+    assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ what's next\?/); assert.doesNotMatch(s.text(), /\n─+\n . Beta {2}/);
+    s.type("for nobody's agent"); s.press("enter");
+    assert.equal(S.get(beta.id).stage, "todo", "Beta's agent was not started"); assert.equal(S.get(alpha.id).stage, "todo"); assert.equal(S.list().length, 3, "it went where the chat said: a new task");
+    // Space on Beta talks to Beta; after the message is sent the chat is still Beta's, on the same row.
+    s.v.sel = beta.id; s.v.load(); s.press("space"); s.type("start on this"); s.press("enter");
+    assert.notEqual(S.get(beta.id).stage, "todo"); assert.equal(S.get(alpha.id).stage, "todo");
+    await settle(beta.id); s.v.load();
+    assert.equal(s.v.sel, beta.id); assert.equal(s.v.reply, true); assert.match(s.text(), /\n─+\n . Beta {2}/);
+    // The task you talk to going away is back to the Coordinator too, never on to a neighbour.
+    await A.clear(beta.id); s.v.load();
+    assert.equal(s.v.reply, false); assert.notEqual(s.v.sel, beta.id); assert.match(s.text(), /\n─+\n \+ New task {2}/);
+  } finally { w.cleanup(); }
+});
+
 test("a reply that was put away comes back as a reply to the same task, never as a new task", async () => {
   const w = await world({ settings: { helper: "off", reviewer: "off" } });
   try {
@@ -426,11 +455,11 @@ test("a reply that was put away comes back as a reply to the same task, never as
       s.screen(width); s.v.sel = id; s.v.load();
       s.press("space"); s.type("also say goodbye");
       s.press("esc"); assert.equal(s.v.value(), ""); assert.equal(s.v.reply, true); // the first esc only puts the words away
-      s.press("esc"); assert.equal(s.v.reply, false); assert.match(s.text(width), /\nnew task ❯/);
+      s.press("esc"); assert.equal(s.v.reply, false); assert.match(s.text(width), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯/);
       s.press("down"); assert.notEqual(s.v.sel, id);
       s.press("ctrl+z");
       assert.equal(s.v.sel, id); assert.equal(s.v.reply, true); assert.equal(s.v.full, width < 90);
-      assert.match(s.text(width), /\nreply to "Add a greeting" ❯ also say goodbye/);
+      assert.match(s.text(width), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ also say goodbye/);
       w.script({ worker: [{ status: "working" }] });
       const before = S.list().length;
       s.press("enter");
@@ -440,14 +469,14 @@ test("a reply that was put away comes back as a reply to the same task, never as
     }
     // a new task that was put away comes back as a new task, also when you are replying to something by then
     s.screen(120); s.type("buy milk"); s.press("esc", "space"); assert.equal(s.v.reply, true);
-    s.press("ctrl+z"); assert.equal(s.v.reply, false); assert.match(s.text(), /\nnew task ❯ buy milk/);
+    s.press("ctrl+z"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ buy milk/);
     s.press("esc");
     // the task a reply was for is gone: the words stay put away rather than go somewhere else
     const gone = A.add(w.root, "Short lived").id; s.v.sel = gone; s.v.load();
     s.press("space"); s.type("for the short lived one"); s.press("esc", "esc");
     await A.clear(gone); s.v.load();
-    s.press("ctrl+z"); assert.equal(s.v.value(), ""); assert.match(s.text(), /The task that reply was for is gone\. ctrl\+z again brings the words back as a draft for a new task\./);
-    s.press("ctrl+z"); assert.match(s.text(), /\nnew task ❯ for the short lived one/); assert.equal(s.v.reply, false); // asked for, so never lost and never a surprise
+    s.press("ctrl+z"); assert.equal(s.v.value(), ""); assert.match(s.text(), /The task that reply was for is gone\. ctrl\+z again brings the words back as a draft of their own\./);
+    s.press("ctrl+z"); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ for the short lived one/); assert.equal(s.v.reply, false); // asked for, so never lost and never a surprise
     s.press("esc");
     // the task disappears while the reply is still being typed: the words never slide over to whichever task is selected next
     const doomed = A.add(w.root, "Doomed").id; s.v.sel = doomed; s.v.load();
@@ -465,11 +494,11 @@ test("a reply that was put away comes back as a reply to the same task, never as
     s4.v.tick = 4; s4.v.stamp = "old"; s4.v.beat(); s4.v.tick = 9; s4.v.beat();
     assert.deepEqual(s4.closed(), { reload: true }); s4.v.dispose();
     const s5 = open(w);
-    s5.press("ctrl+z"); assert.equal(s5.v.sel, id); assert.match(s5.text(), /\nreply to "Add a greeting" ❯ kept across a reload/);
+    s5.press("ctrl+z"); assert.equal(s5.v.sel, id); assert.match(s5.text(), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ kept across a reload/);
     // and so does a reply still in the text box when the board is closed from outside
     s5.v.dispose();
     const s6 = open(w); assert.equal(s6.v.value(), ""); s6.press("ctrl+z");
-    assert.match(s6.text(), /\nreply to "Add a greeting" ❯ kept across a reload/);
+    assert.match(s6.text(), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ kept across a reload/);
   } finally { delete process.env.HERDR_ENV; w.cleanup(); }
 });
 
@@ -639,7 +668,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   assert.match(row(redPr, 120), /^ × Build a flying game {2}Pull request checks failed +PR#12 ✗ {2}0s ago$/);
   assert.match(row({ ...pr, prState: "failing" }, 120), /^ × Build a flying game {2}the pull request's checks fail +PR#12 ✗ {2}0s ago$/);
   assert.match(page(redPr), /× needs you · claude · 0s ago · proj\/1\n\n Pull request checks failed/); assert.doesNotMatch(page(redPr), /ready to approve/);
-  v.reply = false; v.full = false; v.menu = null; v.ask = null; v.mode = "new"; v.drawer = "hidden"; v.input = { getText: () => "" }; v.jobs = []; v.sel = "";
+  v.reply = false; v.full = false; v.menu = null; v.ask = null; v.mode = "new"; v.chatOpen = true; v.input = { getText: () => "" }; v.jobs = []; v.sel = "";
   assert.deepEqual(v.hints(redPr).map(([k]) => k), ["ctrl+r", "ctrl+a", "space", "?"]); assert.ok(!v.hints(redPr).some(([, d]) => /approve/.test(d)));
   assert.equal(v.hints(pr)[0][1], "approve and merge");
   if (!process.env.NO_COLOR) assert.ok(v.row(redPr, 120).includes("\x1b[38;2;243;139;168m\x1b[1m×") || /243;139;168m[^m]*×/.test(v.row(redPr, 120)), "its mark is the needs-you red, not the ready green");

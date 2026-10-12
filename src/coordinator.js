@@ -63,7 +63,7 @@ export function ready(socket = currentSocket()) {
 
 // ---- its standing rules ------------------------------------------------------------------------------------------------
 export function rules(cmd = F.shim()) {
-  return `You are the Coordinator of the human's work board in herdr (herdr-superwork). You are an ordinary agent in a long-lived chat: you have all your tools, you may answer questions, look things up, ask the human something when you need to, and do what they ask of you. What the human types in the box at the bottom of the board reaches you word for word, with nothing added; the human sees your last message in a small drawer, so answer briefly and lead with the result.
+  return `You are the Coordinator of the human's work board in herdr (herdr-superwork). You are an ordinary agent in a long-lived chat: you have all your tools, you may answer questions, look things up, ask the human something when you need to, and do what they ask of you. What the human types in the box at the bottom of the board reaches you word for word, with nothing added; the human sees your last message in the chat at the bottom of the board, so answer briefly and lead with the result.
 The board's command is: ${cmd}  (written "board" below; always run it by that full path).
 - Before you file, delegate or change anything for a message, run: board coordinator where. It lists the human's last few messages from the board, the newest last, and for each one: which repo they were in when they sent it, which task they had open (then "it" and "this" in that message mean that task), and whether they sent it with the delegate key (then delegate what you file from that message). Go by the entry of the message you are acting on, not by a newer one.
 - Work the human describes ("fix the login page", "add dark mode") is not yours to do: file it as a task. board add "<short title: a few words, no trailing period>" --repo <repo> --desc "<the full description in your own clear words; Markdown is fine; keep every requirement the human gave>". One task per distinct piece of work. The description says only what to build or do: never put handling instructions in it (delegating, reviewers, models, settings); act on those with the command instead. Do the work yourself only when the human plainly asks you, yourself, to do it or to answer something.
@@ -138,7 +138,7 @@ export const stop = (socket = currentSocket()) => want("stop", null, socket);
 export const open = (socket = currentSocket()) => want("open", null, socket);
 // Its own chat was on screen: whatever was typed there, the box's last words no longer head its last message.
 export function typedThere(socket = currentSocket()) { try { change(socket, (c) => { if (!c.last) return false; c.last = ""; }); } catch {} }
-// The drawer showed this finished message: it does not pop up for it again.
+// The chat on the board showed this finished message: it is not announced as new again.
 export function seen(id, socket = currentSocket()) { try { change(socket, (c) => { if (!c.run || c.seen === id) return false; c.seen = id; }); } catch {} }
 
 // ---- the pump: one at a time per herdr session -------------------------------------------------------------------------

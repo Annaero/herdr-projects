@@ -36,7 +36,7 @@ export class DraftEditor extends Editor {
   }
   renderTopBorder(width, hidden) { this.hiddenAbove = hidden; return super.renderTopBorder(width, hidden); }
   renderBottomBorder(width, hidden) { this.hiddenBelow = hidden; return super.renderBottomBorder(width, hidden); }
-  // `label` names who gets the text ("new task ❯"); it stays on the first line while you type.
+  // `label` is the prompt ("❯"); it stays on the first line while you type.
   renderWithin(width, maxBodyRows, label) {
     const lw = visibleWidth(label) + 1;
     const lines = super.render(Math.max(1, width - lw));
