@@ -7,8 +7,16 @@
 | `needs you` | a question, something that went wrong, a merge that failed |
 | `ready to approve` | finished, reviewed work that waits for your yes |
 | `working` | an agent or the reviewer is on it |
-| `done` | finished, newest first |
 | `to do` | nobody has started it |
+| `done` | finished, newest first |
+
+Done is history, so it is last: however long it grows, it never pushes the to-dos down. First what waits for you
+(`needs you`, `ready to approve`), then what is being worked on (the agent, the reviewer, the board's check), then
+`to do`, then `done`. A pinned task stays on top, above all of them. Grouped by repo (`Alt+S`) each repo's rows follow
+the same order, so a repo's done rows are below its to-dos. Only the latest five done tasks show; the line that
+counts the rest (`… 73 more (? shows all done)`) is under them, at the bottom, and `Alt+D` shows them all. `↑` and
+`↓` follow the order shown, and changing the grouping keeps the selected task selected. The archive (`Alt+A`) is a
+list of its own, newest first, and no part of this order.
 
 Each state has a mark of its own (`◐` working, `×` needs you, `✗` went wrong, `✓` done or ready, `○` to do), so no
 two are told apart by colour alone (herdr's `status_indicators = "dots"` brings its dots back). A row reads: the

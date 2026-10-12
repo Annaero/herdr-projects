@@ -5,7 +5,7 @@ import { bar } from "./words.js";
 import { waitingOf } from "../../store.js";
 
 // The groups, in the order they need you. A task's state stays herdr's; the group is how the board sorts it.
-export const GROUPS = ["needs you", "ready to approve", "working", "done", "to do"];
+export const GROUPS = ["needs you", "ready to approve", "working", "to do", "done"];
 // herdr's own colour for each state (its status_color), with two of the board's own: finished work that waits for a
 // yes is green, and a task nobody has started is grey.
 export const GROUP_COLOR = { "needs you": "red", "ready to approve": "green", working: "yellow", done: "teal", "to do": "overlay0" };
