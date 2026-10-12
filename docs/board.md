@@ -21,6 +21,11 @@ name, a sentence, then on the right the progress bar, the percent and the minute
  ◐ Tidy the first-run questions  Running the tests           ███░░░░░  40% 12m R#1   PR#17    5m
 ```
 
+While an agent works, the sentence is what it is doing. Around its turns the row says where it stands: `starting`
+while the agent program comes up and has not begun (a new task never says anything else first), `about to continue`
+when it has been sent something and has not picked it up yet, and `finishing` only when an agent that has worked has
+stopped and the board is about to check its work.
+
 The row says how the review came out and a short tally of what it found (`Pass · 2 minor`, `Fail · 1 critical, 1 major`). While the
 reviewer works, the mark, the bar, the percent and the minutes left are the green of `ready to approve` (the same holds in the task panel, on the details screen and on the chat line): a green `◐` with a bar says a review is running, a green `✓` that it is ready for you,
 and the sentence says only what the reviewer is doing.

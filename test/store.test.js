@@ -129,7 +129,21 @@ test("the one mapping function: stage and herdr status to board state", () => {
   assert.equal(s("queued").msg, "waiting for a free slot");
   assert.equal(s("working", { status: "working" }).state, "working");
   assert.deepEqual([s("working", { status: "blocked" }).state, s("working", { status: "blocked" }).kind, s("working", { status: "blocked" }).msg], ["blocked", undefined, "needs you"]);
-  assert.equal(s("working", { status: "done" }).msg, "finishing");
+  // An idle agent is wrapping up only if it has worked: herdr saw it work since the turn was armed, or counts a
+  // finished turn the finish line has not handled. A freshly started one is idle too, and is "starting".
+  assert.equal(s("working", { status: "done" }, { armedAt: 100, startedAgentAt: 100, turnBy: "start" }).msg, "starting");
+  assert.equal(s("working", { status: "idle" }, { armedAt: 100, startedAgentAt: 100 }).msg, "starting");
+  assert.equal(s("working", { status: "idle" }, { armedAt: 100, startedAgentAt: 100, workedAt: 150 }).msg, "finishing");
+  const lost = { armedAt: 100, startedAgentAt: 100, last: { status: "done", comp: 7, at: 200 } };
+  assert.equal(s("working", { status: "done", agent: { completion_seq: 7 } }, lost).msg, "finishing"); // the "working" reading was lost: a turn that ended after the turn was armed says so
+  // herdr's count alone is no proof: answering a start-up dialog raises it before the first prompt is sent
+  assert.equal(s("working", { status: "done", agent: { completion_seq: 7 } }, { armedAt: 100, startedAgentAt: 100 }).msg, "starting");
+  assert.equal(s("working", { status: "done", agent: { completion_seq: 7 } }, { ...lost, pendingText: true }).msg, "starting"); // the prompt still waits to be sent
+  assert.equal(s("working", { status: "done", agent: { completion_seq: 7 } }, { ...lost, armedAt: 300 }).msg, "starting"); // counted before the prompt went out
+  assert.equal(s("working", { status: "done", agent: { completion_seq: 7 } }, { ...lost, armedAt: 300, last: { status: "done", comp: 7, at: 400, compAt: 200 } }).msg, "starting"); // read again since, and still the old count
+  assert.equal(s("working", { status: "idle", agent: { completion_seq: 7 } }, { armedAt: 300, startedAgentAt: 100, workedAt: 150, handled: { comp: 7 } }).msg, "about to continue"); // a reply it has not picked up yet
+  assert.equal(s("working", { status: "idle", agent: { completion_seq: 7 } }, { armedAt: 300, startedAgentAt: 300, workedAt: 150, handled: { comp: 7 } }).msg, "starting"); // started again after it exited
+  assert.equal(s("working", { status: "idle", agent: { completion_seq: 7 } }, { armedAt: 300, startedAgentAt: 100, workedAt: 350, handled: { comp: 7 } }).msg, "finishing");
   assert.equal(s("working", { status: "idle" }).state, "working");
   assert.deepEqual([s("working", { status: null }).state, s("working", { status: null }).msg], ["error", "the agent has exited"]);
   assert.deepEqual([s("working", { gone: true }).state, s("working", { gone: true }).msg], ["error", "the agent's terminal is gone"]);

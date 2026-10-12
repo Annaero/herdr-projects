@@ -48,7 +48,21 @@ export function show(t, live, now = Date.now()) {
   if (live.status === "blocked") return out("blocked", { kind: t.pendingText ? "permission" : undefined, msg: t.pendingText ? "queued: open the agent and answer its dialog first" : "needs you" });
   if (live.status === "working") return out("working", { msg: watch?.msg || t.msg || "working", progress: watch?.progress ?? 0, eta });
   if (live.status === "unknown") return out("working", { msg: "herdr can't tell if it stopped" });
-  return out("working", { msg: "finishing" }); // idle or done, and the runner has not finished the turn yet
+  // idle or done. Only an agent that has worked is wrapping up; one that has not begun yet is idle too.
+  if (worked(t, live)) return out("working", { msg: "finishing" }); // the runner has not finished the turn yet
+  return out("working", { msg: (t.workedAt || 0) >= (t.startedAgentAt || 1) ? "about to continue" : "starting" });
+}
+// Has the agent worked on what it was last asked? herdr saw it work since the turn was armed (hook.js keeps when), or
+// a turn herdr counts as finished, and the finish line has not handled, ended after the turn was armed. An agent that
+// is still loading, or that has not picked up its prompt, has done neither: it only looks the same to herdr (idle).
+// herdr's count alone proves nothing: answering a start-up dialog raises it too, before the first prompt is even sent.
+// So text that still waits to be sent means no work, and a count first seen before the turn was armed (hook.js keeps
+// when, however often it is read again) is not this turn's.
+function worked(t, live) {
+  if (t.pendingText) return false;
+  const armed = t.armedAt || 0, comp = live.agent?.completion_seq ?? null;
+  if ((t.workedAt || 0) >= (armed || 1)) return true;
+  return comp != null && comp !== (t.handled?.comp ?? null) && t.last?.comp === comp && (t.last.compAt ?? t.last.at ?? 0) > armed;
 }
 // Whom the Watcher follows in a stage, and when that assignment began: this review round for the reviewer, otherwise
 // the agent's work since you last set it going (not the time it waited for a free slot). The stage decides, never an

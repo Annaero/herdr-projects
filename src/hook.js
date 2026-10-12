@@ -74,7 +74,9 @@ export function apply(id, a, api) {
     // (A task saved before readings kept their terminal answers with the one it was linked to.)
     const prev = t.last, sameTerm = !term || !(prev?.term ?? t.link?.terminal) || (prev?.term ?? t.link?.terminal) === term;
     if (!F.seeTerminal(t, term) || (term && prev && sameTerm && (prev.term ?? t.link?.terminal) && seq < (prev.seq || 0))) return false;
-    t.last = { status, seq, comp, term, at: Date.now() };
+    // compAt: when this count of finished turns was first seen. A later reading of the same count is not a new turn's end.
+    t.last = { status, seq, comp, term, at: Date.now(), compAt: sameTerm && prev && prev.comp === comp ? prev.compAt ?? prev.at : Date.now() };
+    if (status === "working") t.workedAt = Date.now(); // herdr has seen it work: an idle after this is the end of a turn, not the wait before one (state.js)
     if (a.agent_session?.value) t.session = a.agent_session.value;
     if (t.stage === "stopped") {
       // A late hook cannot undo the stop: `working` re-arms only with a higher seq and an idle seen in between.
@@ -93,7 +95,7 @@ export function apply(id, a, api) {
         t.mergeIntent = null;
         if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
         t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
-        t.armedAt = Date.now(); t.turnOpen = true; t.turnBy = "typed";
+        t.armedAt = t.workedAt; t.turnOpen = true; t.turnBy = "typed";
         t.stage = "working"; t.msg = ""; t.kind = undefined; t.watch = null; t.since = Date.now(); t.mergeFailed = false;
         if (t.failure?.auth) t.failure = null; // typing after a login problem is how "fixed" is said
         then = then || "unlabel";
@@ -104,14 +106,16 @@ export function apply(id, a, api) {
         if (!afterHandled(t, a, sameTerm ? prev : null)) return;
         t.turnBy = t.turnBy || "typed"; // herdr has seen the agent work in this turn
         const note = F.noteStat(t);
-        if (!(note && note.mtime > (t.armedAt || 0))) t.armedAt = Date.now();
+        if (!(note && note.mtime > (t.armedAt || 0))) t.armedAt = t.workedAt;
       }
       return;
     }
     if (status === "idle" || status === "done") {
       // Undelivered text first, whatever the previous status was: a first prompt queued behind a trust dialog is
       // delivered when the dialog is answered.
-      if (S.pendingText(id).length) { then = "inbox"; return; }
+      // A turn herdr counted before that text went out is not the turn the text starts (answering the dialog counts as
+      // one): it is marked handled, so neither the finish line nor the row takes it for the end of the agent's work.
+      if (S.pendingText(id).length) { if (comp != null) t.handled = { ...(t.handled || {}), comp }; then = "inbox"; return; }
       if (t.selfBlocked && t.stage === "asks") { // it said it is blocked, then stopped: that is not a finish
         t.handled = { ...(t.handled || {}), comp, seq: a.state_change_seq ?? null, term: a.terminal_id ?? null, note: F.noteStat(t)?.mtime ?? t.handled?.note ?? null, at: Date.now() }; t.selfBlocked = null; t.turnOpen = false;
         return;

@@ -8,6 +8,7 @@ import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
 import { rules } from "../src/delegate.js";
+import { onPane } from "../src/hook.js";
 
 
 test("delegate: a herdr worktree workspace, the agent in its root pane, the first prompt with the rules", async () => {
@@ -34,6 +35,50 @@ test("delegate: a herdr worktree workspace, the agent in its root pane, the firs
     assert.equal(JSON.parse(fs.readFileSync(process.env.HERDR_SUPERWORK_CLAUDE_JSON, "utf8")).projects[w.root].hasTrustDialogAccepted, true); // pre-trusted
     assert.equal(stateOf(t.id).state, "working");
     assert.throws(() => A.delegate(t.id), /already has an agent/);
+  } finally { w.cleanup(); }
+});
+
+test("a freshly delegated task says starting, and finishing only once its agent has worked", async () => {
+  const w = await world();
+  try {
+    w.script({ worker: [{ status: "working" }] });
+    const id = A.add(w.root, "Add a greeting").id;
+    A.delegate(id);
+    const t = await settle(id);
+    const set = (status) => { w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = status; p.agent.seq = s.seq; }); onPane(w.socket, t.link.pane); return stateOf(id); };
+    // the agent program is up and its first turn is not under way: herdr calls that idle, as it does a turn's end
+    S.update(id, (t) => { delete t.workedAt; });
+    assert.deepEqual([set("idle").state, stateOf(id).note, S.get(id).stage], ["working", "starting", "working"]);
+    assert.equal(set("working").note, "working");
+    assert.equal(set("idle").note, "finishing"); // it worked, and its turn's end has not been handled yet
+    // a reply to an agent that worked before: idle until it picks the reply up is not the end of a turn either
+    S.update(id, (t) => { t.armedAt = Date.now() + 5; t.turnBy = "reply"; });
+    assert.equal(stateOf(id).note, "about to continue");
+  } finally { w.cleanup(); }
+});
+
+test("a start-up dialog answered, the first prompt sent and not picked up yet: still starting, however often herdr is read", async () => {
+  const w = await world({ settings: { reviewer: "off", trust: false } });
+  try {
+    w.patchState((s) => { s.dialogs.claude = 1; });
+    w.script({ worker: [{ status: "working" }] });
+    const id = A.add(w.root, "Behind a dialog").id;
+    A.delegate(id);
+    const t = await settle(id);
+    const { herdr } = await import("../src/herdr.js");
+    herdr().agentKeys(t.link.pane, "down", "enter"); // herdr counts the answer as a finished turn
+    const agent = () => w.state().panes.find((p) => p.pane_id === t.link.pane).agent;
+    const before = { status: agent().status, seq: agent().seq };
+    onPane(w.socket, t.link.pane); // the reading that sends the waiting prompt
+    assert.equal(S.pendingText(id).length, 0); assert.equal(agent().prompts.length, 1);
+    // the agent program has taken the prompt and its model has not begun: herdr reads exactly as before
+    w.patchState((s) => { Object.assign(s.panes.find((p) => p.pane_id === t.link.pane).agent, before); });
+    S.update(id, (t) => { delete t.workedAt; });
+    for (let i = 0; i < 3; i++) { onPane(w.socket, t.link.pane); assert.deepEqual([stateOf(id).state, stateOf(id).note, S.get(id).stage], ["working", "starting", "working"]); }
+    assert.ok(S.get(id).last.comp != null && S.get(id).workedAt === undefined);
+    // and the finish line does not take the answered dialog for the end of the agent's work
+    const after = await settle(id);
+    assert.deepEqual([after.stage, after.msg, stateOf(id).note], ["working", "", "starting"]);
   } finally { w.cleanup(); }
 });
 
@@ -185,6 +230,10 @@ test("undelivered text is never dropped: a trust dialog queues the first prompt 
     // the human goes in and answers the dialog
     const { herdr } = await import("../src/herdr.js");
     herdr().agentKeys(t.link.pane, "down", "enter");
+    // the dialog is gone, the first prompt has not been sent yet: herdr counts the answer as a finished turn, and the
+    // agent has still done nothing
+    assert.equal(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts?.length || 0, 0);
+    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["working", "starting"]);
     t = await settle(id);
     assert.equal(S.pendingText(id).length, 0);
     assert.equal(t.stage, "approval");
