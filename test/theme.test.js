@@ -57,6 +57,18 @@ test("herdr's theme name, aliases, custom colours, old accent setting and symbol
   assert.ok(used.size > 6); for (const name of used) assert.ok(known.includes(JSON.parse(name)), `${name} is not a herdr colour`);
 });
 
+test("green, red and plain are told apart in every theme, light and dark: a tag's colour alone says pass, fail or no result yet", () => {
+  const names = ["catppuccin", "catppuccin-latte", "tokyo-night", "tokyo-night-day", "dracula", "nord", "gruvbox", "gruvbox-light", "one-dark", "one-light", "solarized", "solarized-light", "kanagawa", "kanagawa-lotus", "rose-pine", "rose-pine-dawn", "vesper"];
+  const rgb = (c) => [c >> 16, (c >> 8) & 255, c & 255], apart = (a, b) => Math.hypot(...rgb(a).map((x, i) => x - rgb(b)[i]));
+  for (const name of names) {
+    const r = resolve({ theme: { name } }), p = r.palette; assert.equal(r.name, name);
+    for (const [a, b] of [["green", "red"], ["green", "subtext0"], ["red", "subtext0"]]) assert.ok(apart(p[a], p[b]) >= 50, `${name}: ${a} and ${b} look alike`);
+    assert.notEqual(p.overlay0, p.subtext0, `${name}: quiet and plain are one colour`);
+  }
+  // The terminal's own colours: three different ones of its sixteen.
+  const term = resolve({}, null, "terminal").palette; assert.equal(new Set([term.green, term.red, term.subtext0]).size, 3);
+});
+
 test("light and dark: only when herdr switches by appearance, or the board's own setting picks one", () => {
   const manual = { theme: { name: "gruvbox" } };
   assert.equal(resolve(manual, true).name, "gruvbox");

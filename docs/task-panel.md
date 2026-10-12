@@ -14,7 +14,7 @@ empty line between:
 
  Status ─────────────────────────────────────
  ✓ ready to approve · 3rd review · claude · 2m ago · proj/12
- 4 files, +120 −31 · PR#12 ✓
+ 4 files, +120 −31 · PR#12
 
  Description ────────────────────────────────
  A little plane over endless sunny islands.

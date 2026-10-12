@@ -2,7 +2,7 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import * as G from "../../gate.js";
 import { herdr } from "../../herdr.js";
-import { short, clean, age, prNumber, prCheck, prColor, bar, left } from "./words.js";
+import { short, clean, age, prTag, bar, left } from "./words.js";
 import { MARK_STATES, failureFor, inReview, needsYou, statusColor, waitOf } from "./states.js";
 import { ETA_STEADY, labelRoom, shownFrom } from "./row-fit.js";
 import { resultColor, reviewTag, reviewCheck, reviewTagColor, currentReview, reviewNote, verdict } from "./review-words.js";
@@ -22,7 +22,7 @@ export class Row {
     return t.fg(c, t.mark(MARK_STATES.includes(r.state) ? r.state : "idle"));
   }
   // What a row has for each column on the right: the bar, the percent, the minutes left, the review tag and the mark
-  // for how the review went, the pull request and the mark for its checks, the time. A cell the row does not have is the empty string, with no colour codes around nothing:
+  // for how the review went, the pull request in the colour of its checks, the time. A cell the row does not have is the empty string, with no colour codes around nothing:
   // an empty cell must not count as a column. The bar, the percent and the minutes left share one colour.
   rowFields(r, now) {
     const t = this.theme, color = statusColor(r);
@@ -30,7 +30,7 @@ export class Row {
     const live = r.state !== "done", has = live && r.progress !== undefined;
     // The time is "working for" on a working row and "ago" on every other: the word says which.
     return { bar: has ? paint(color, bar(r.progress)) : "", percent: has ? paint(color, `${String(r.progress).padStart(3)}%`) : "", eta: live && r.eta !== undefined ? paint(color, left(r.eta)) : "", // minutes left show with no percent too
-      review: paint(reviewTagColor(r), reviewTag(r)), reviewCheck: paint(reviewTagColor(r), reviewCheck(r)), pr: paint(prColor(r), prNumber(r)), check: paint(prColor(r), prCheck(r)), elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
+      review: paint(reviewTagColor(r), reviewTag(r)), reviewCheck: paint(reviewTagColor(r), reviewCheck(r)), pr: prTag(t, r), elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
   }
   // What a row says after its name. Never what its heading already says ("to do", "approve?").
   sentence(r) {
@@ -76,9 +76,9 @@ export class Row {
     const max = (key) => Math.max(0, ...[...fields.values()].map((f) => visibleWidth(f[key])));
     const elapsed = Math.max(3, max("elapsed"));
     // Extremely long PR identifiers may shorten, but must never push time off-screen.
-    const pr = Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), check = pr ? max("check") : 0, review = max("review"), reviewCheck = max("reviewCheck");
-    const cols = [["bar", max("bar")], ["percent", max("percent")], ["eta", max("eta")], ["review", review + (reviewCheck ? 2 : 0)], ["pr", pr + (check ? 2 : 0)], ["time", elapsed]].filter(([, w]) => w);
-    const layout = { now, review, reviewCheck, pr, check, elapsed, cols, ago: [...fields.values()].some((f) => f.ago), show: new Map() };
+    const pr = Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), review = max("review"), reviewCheck = max("reviewCheck");
+    const cols = [["bar", max("bar")], ["percent", max("percent")], ["eta", max("eta")], ["review", review + (reviewCheck ? 2 : 0)], ["pr", pr], ["time", elapsed]].filter(([, w]) => w);
+    const layout = { now, review, reviewCheck, pr, elapsed, cols, ago: [...fields.values()].some((f) => f.ago), show: new Map() };
     // Decided at widths that do not move as the numbers tick: the minutes left count as their widest (words.js: left).
     const cells = (ago) => cols.map(([key, w]) => ({ key, w: key === "eta" ? Math.max(w, ETA_STEADY) : w + (key === "time" && ago ? 4 : 0) }));
     const fit = (r) => { const f = fields.get(r); return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, time: true } }; };
@@ -105,8 +105,8 @@ export class Row {
       bar: f.bar, percent: f.percent, eta: f.eta,
       // R#2 is left-aligned, so the tags line up; the mark for how the review went sits in a column of its own.
       review: f.review ? fill(f.review, layout.review, true) + (layout.reviewCheck ? " " + (f.reviewCheck || " ") : "") : "",
-      // PR#16 the same way, so the "PR#" parts line up; the mark for its checks sits in a column of its own.
-      pr: f.pr ? fill(truncateToWidth(f.pr, layout.pr, "…"), layout.pr, true) + (layout.check ? " " + (f.check || " ") : "") : "",
+      // PR#16 the same way, so the "PR#" parts line up. Its colour says how its checks went: it has no mark.
+      pr: f.pr ? fill(truncateToWidth(f.pr, layout.pr, "…"), layout.pr, true) : "",
       time: t.fg("overlay0", f.elapsed.padStart(layout.elapsed) + (layout.ago ? (f.ago ? " ago" : "    ") : "")),
     };
     const cells = layout.cols.map(([key, w]) => ({ key, text: text[key], w: w + (key === "time" && layout.ago ? 4 : 0) }));

@@ -16,7 +16,7 @@ name, a sentence, then on the right the progress bar, the percent and the minute
 
 ```
  ready to approve
- ✓ Add an undo for clear  Fail · 1 critical, 1 major             R#2 ✗ PR#18 ✓ 12m ago
+ ✓ Add an undo for clear  Fail · 1 critical, 1 major               R#2 ✗ PR#18 12m ago
  working
  ◐ Tidy the first-run questions  Running the tests           ███░░░░░  40% 12m R#1   PR#17    5m
 ```
@@ -61,7 +61,12 @@ this is decided, so `9m` turning into `10m` hides nothing. They are never wider:
 shows them as hours (`17h`). A name and what the row says are drawn in the room counted that way too, so neither
 is cut at another place from one minute to the next.
 
-`PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
+`PR#18` is the pull request, and its colour says how its checks went, by the same rule as the `R#` tag and with
+no mark beside it: green, they pass; red, they fail; plain, there is no result yet (they are running, or there are
+none). A merged pull request goes quiet, grey like the time beside it: nothing there needs your eye, so a list of
+done tasks is not a wall of green. The greens and reds are the theme's own, the ones the `R#` tag uses, and the
+three are told apart in the light themes and the dark ones alike. The task panel and the details page colour it
+the same way. A bare time is how long it has been working; `ago` is
 since it stopped. A row never repeats what its heading says.
 
 **One chat, at the bottom.** The text box is a chat, and it is the same chat whoever you talk to. It always talks to

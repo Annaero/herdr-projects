@@ -18,9 +18,12 @@ export const age = (ms) => { const x = Math.max(0, Math.round(ms / 1000)); retur
 // The minutes left on a row, never wider than four cells ("999m"): from a thousand on they are hours ("17h").
 export const left = (min) => (min < 1000 ? `${min}m` : `${Math.min(999, Math.round(min / 60))}h`);
 export const prNumber = (r) => (r.pr ? `PR#${String(r.pr).split("/").pop()}` : "");
-// A pull request's checks, as a mark beside its number: colour alone does not say it.
-export const prCheck = (r) => ({ passing: "✓", failing: "✗" }[r.prState] || "");
-export const prColor = (r) => ({ merged: "overlay0", passing: "green", failing: "red" }[r.prState] || "subtext0");
+// A pull request's checks are the colour of its number, by the review tag's rule (reviewTagColor) and with no mark
+// beside it: green, they pass; red, they fail; plain, no result yet (they run, or there are none). Merged, it goes
+// quiet: nothing there needs your eye, and a list of done tasks must not be a wall of green.
+// Quiet is the theme's own muted, so that it is quieter than plain in the terminal's colours too.
+export const prTag = (t, r, s = prNumber(r)) => (!s ? "" : prColor(r) === "overlay0" ? t.muted(s) : t.fg(prColor(r), s));
+export const prColor = (r) => (r.prMerged || r.prState === "merged" ? "overlay0" : { passing: "green", failing: "red" }[r.prState] || "subtext0");
 export const repoLabel = (name) => (S.knownRepos()[name] === os.homedir() ? "~" : name);
 export const idLabel = (id) => { const [repo, ...rest] = String(id).split("/"); return [repoLabel(repo), ...rest].join("/"); };
 export const tokens = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n || 0));

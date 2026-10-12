@@ -1,7 +1,7 @@
 // The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you.
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import * as S from "../../store.js";
-import { clean, age, prNumber, prCheck, prColor, idLabel, bar } from "./words.js";
+import { clean, age, prNumber, prTag, idLabel, bar } from "./words.js";
 import { reviewing, groupOf, waitOf, reviewerWord } from "./states.js";
 import { roundWords, reviewNote } from "./review-words.js";
 import { name as keyName } from "../keys.js";
@@ -13,7 +13,7 @@ export class PanelStatus {
   panelStatus(p) {
     const { r, full, t, w, agent, failure, c, underReview, approval, dim, quiet, wrap, head, flow, first, callout, part } = p;
     // The title and where it stands: the mark and the group, then quietly who is on it, since when, and its id.
-    // Under them the size of the change and its pull request, with a mark for its checks.
+    // Under them the size of the change and its pull request, in the colour of its checks.
     const who = underReview ? "" : r.app ? (!agent && r.app === S.me() ? "you" : r.app) : "";
     const when = `${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`;
     const stand = flow([this.mark(r) + " " + t.fg(c, t.bold(r.archivedAt ? "archived" : underReview ? reviewerWord(r) : groupOf(r))), (reviewing(r) || r.stage === "approval") && roundWords(r) ? t.fg(c, roundWords(r)) : "", who && dim(who), dim(when), dim(idLabel(r.id))]);
@@ -24,7 +24,7 @@ export class PanelStatus {
     const size = st ? `${st[1]} file${st[1] === "1" ? "" : "s"}, +${st[2] || 0} −${st[3] || 0}` : clean(r.stat || "").trim();
     const url = /^https?:\/\/\S+$/.test(String(r.pr || "")) ? String(r.pr) : "";
     const prName = url ? `\x1b]8;;${url}\x1b\\${prNumber(r)}\x1b]8;;\x1b\\` : prNumber(r);
-    const pr = r.pr ? t.fg(prColor(r), prName + (prCheck(r) ? ` ${prCheck(r)}` : "")) + (r.prMerged || r.prState === "merged" ? dim(" merged") : "") : "";
+    const pr = r.pr ? prTag(t, r, prName) + (r.prMerged || r.prState === "merged" ? dim(" merged") : "") : "";
     const change = size || pr ? [...flow([size && quiet(size), pr]), ...(full && url ? wrapTextWithAnsi(dim(url), w) : [])] : [];
     // The title stands on top by itself; where the task stands is a part of its own, under its headline.
     const title = part(wrapTextWithAnsi(t.bold(clean(r.title || "(no title)")), w));
