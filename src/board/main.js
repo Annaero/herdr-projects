@@ -6,6 +6,7 @@ import { theme, loadTheme, askTerminal, setTerminal } from "./theme.js";
 import { ensureKeeper } from "../keeper.js";
 import * as F from "../flow.js";
 import { userEnv } from "../runner.js";
+import { boardPane, nameBoardTab, restoreBoardTab } from "./tab.js";
 import * as P from "./place.js";
 
 export async function openBoard({ folder }) {
@@ -17,12 +18,14 @@ export async function openBoard({ folder }) {
   try { const X = await import("../extras.js"); X.syncSkill(F.shim()); X.removePopups(); boardKey = X.boardKey(); } catch {}
   // A board that has reloaded itself a few times in a row stops doing so: something keeps changing its files.
   const reloads = Number(process.env.HERDR_SUPERWORK_RELOADS) || 0;
+  const named = nameBoardTab(boardPane());
   return new Promise((resolve) => {
     const tui = new TuiAltScreen(new ProcessTerminal(), { mouse: false });
     let view;
     const done = (result) => {
       try { view.dispose(); } catch {}
       try { tui.stop(); } catch {}
+      if (!result?.reload) restoreBoardTab(named); // the board that starts in its place closes in this tab too
       try { P.depart(); } catch {}
       // The plugin was updated under an open board: the same command starts again on the new code, in this terminal,
       // and this process only waits for it. Selection, filter and draft were saved a line above.

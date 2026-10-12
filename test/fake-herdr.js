@@ -9,6 +9,7 @@
 // to the same answers.
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -37,7 +38,7 @@ function answer(argv, env) {
   const paneOut = (p) => ({ pane_id: p.pane_id, workspace_id: p.workspace_id, tab_id: p.tab_id, terminal_id: p.terminal_id, cwd: p.cwd, foreground_cwd: p.cwd, agent: p.agent?.kind || null, agent_status: p.agent?.status || "unknown" });
   function newWorkspace(cwd, label, worktree) {
     const id = `w${st.nextW++}`;
-    const w = { workspace_id: id, label: label || path.basename(cwd), cwd, worktree };
+    const w = { workspace_id: id, label: label || (cwd === os.homedir() ? "~" : path.basename(cwd)), cwd, worktree }; // the home folder's space is `~`, as herdr's is
     st.workspaces.push(w);
     const p = { pane_id: `${id}:p1`, workspace_id: id, tab_id: `${id}:t1`, terminal_id: `term_${st.nextP++}`, cwd, agent: null };
     st.panes.push(p);
@@ -48,7 +49,7 @@ function answer(argv, env) {
   const tabOut = (t) => ({ tab_id: t.tab_id, workspace_id: t.workspace_id, label: t.label, pane_count: st.panes.filter((p) => p.tab_id === t.tab_id).length, focused: t.tab_id === `${t.workspace_id}:t1` });
   function newTab(w, id, label) { w.nextT = Math.max(w.nextT || 1, Number(id.split(":t")[1]) + 1); const t = { tab_id: id, workspace_id: w.workspace_id, label }; tabs().push(t); return t; }
   // A pane closed (or gone with its space): a tab with no pane left is gone too.
-  const dropEmptyTabs = () => { st.tabs = tabs().filter((t) => st.panes.some((p) => p.tab_id === t.tab_id)); };
+  const dropEmptyTabs = () => { st.tabs = tabs().filter((t) => st.panes.some((p) => p.tab_id === t.tab_id)); st.workspaces = st.workspaces.filter((w) => st.panes.some((p) => p.workspace_id === w.workspace_id)); }; // and a space with no pane left
   const findPane = (id) => st.panes.find((p) => p.pane_id === id);
   const findAgent = (target) => st.panes.find((p) => p.agent && (p.pane_id === target || p.agent.name === target));
   const bump = (p, status, complete) => { st.seq += 1; p.agent.status = status; p.agent.seq = st.seq; if (complete) p.agent.completion = st.seq; };
@@ -210,6 +211,16 @@ function answer(argv, env) {
     // Zooming a pane focuses it; taking the zoom off leaves the focus there.
     if (verb === "zoom") { const on = argv.includes("--on"); if (on) st.focus.push(`pane ${p.pane_id}`); const l = st.layouts?.[p.pane_id]; if (l) { l.zoomed = on; if (on) l.focused_pane_id = p.pane_id; } ok({ type: "pane_zoom", zoom: { pane_id: p.pane_id, zoomed: on, focused_pane_id: p.pane_id } }); }
     if (verb === "split") { const n = st.panes.filter((x) => x.workspace_id === p.workspace_id).length + 1; const q = { pane_id: `${p.workspace_id}:p${n}`, workspace_id: p.workspace_id, tab_id: p.tab_id, terminal_id: `term_${st.nextP++}`, cwd: path.resolve(flag("--cwd") || p.cwd), env: envOf(), agent: null }; while (findPane(q.pane_id)) q.pane_id += "x"; st.panes.push(q); ok({ type: "pane_split", pane: paneOut(q) }); }
+    // Into a new tab of another space, with whatever runs in it: a new pane id there, and the emptied space is gone.
+    if (verb === "move") {
+      const w = st.workspaces.find((x) => x.workspace_id === flag("--workspace")), from = p.workspace_id;
+      if (!w || st.moveFails) fail(w ? "timeout" : "workspace_not_found", "the pane was not moved"); // `moveFails`: a herdr that will not move it
+      const n = Math.max(w.nextT || 2, 2), t = newTab(w, `${w.workspace_id}:t${n}`, flag("--label") || String(n));
+      let id = `${w.workspace_id}:p${st.panes.filter((x) => x.workspace_id === w.workspace_id).length + 1}`; while (findPane(id)) id += "x";
+      Object.assign(p, { pane_id: id, workspace_id: w.workspace_id, tab_id: t.tab_id });
+      dropEmptyTabs(); const emptied = !st.workspaces.some((x) => x.workspace_id === from);
+      ok({ type: "pane_move", move_result: { changed: true, closed_workspace_id: emptied ? from : null, created_tab: tabOut(t), pane: paneOut(p) } });
+    }
     if (verb === "close") { st.panes = st.panes.filter((x) => x !== p); dropEmptyTabs(); ok({ type: "ok" }); }
     if (verb === "read" && p.agent?.boot > 0) { p.agent.boot -= 1; out(`user@host:${p.cwd}$ ${[p.agent.kind, ...p.agent.args].join(" ")}\n`); } // not drawn yet: only the command that started it
     if (verb === "read") out(p.agent?.screen || p.screen || "");

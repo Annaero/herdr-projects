@@ -104,6 +104,8 @@ export function herdr(socket = null) {
     tabFocus: (id) => call(["tab", "focus", id]),
     // A new tab in a space, with one pane at its shell: { tab, root_pane }. Never focused: the human stays where they are.
     tabCreate: ({ workspace, cwd, label, env = {} }) => call(["tab", "create", "--workspace", workspace, ...(cwd ? ["--cwd", cwd] : []), ...(label ? ["--label", label] : []), ...Object.entries(env).flatMap(([k, v]) => ["--env", `${k}=${v}`]), "--no-focus"]),
+    tabs: (workspace) => call(["tab", "list", "--workspace", workspace]).tabs || [],
+    tabGet: (id) => quiet(() => call(["tab", "get", id]).tab),
     tabRename: (id, label) => call(["tab", "rename", id, label]),
     tabClose: (id) => quiet(() => call(["tab", "close", id])),
     worktreeCreate: ({ cwd, branch, base, label }) => call(["worktree", "create", "--cwd", cwd, "--branch", branch, ...(base ? ["--base", base] : []), ...(label ? ["--label", label] : []), "--no-focus"], { timeout: 120000 }),
@@ -134,6 +136,9 @@ export function herdr(socket = null) {
       if (front.some((pid) => kids(pid).length)) return false;
       return !Number.isInteger(i.shell_pid) || kids(i.shell_pid).every((pid) => front.includes(pid));
     }, false),
+    // A pane, with whatever runs in it, into a new tab of another space: { pane, created_tab, closed_workspace_id }. The
+    // pane has a new id there; the space it leaves closes by itself when that was its last pane. Never focused.
+    paneMove: (id, { workspace, label }) => call(["pane", "move", id, "--new-tab", "--workspace", workspace, ...(label ? ["--label", label] : []), "--no-focus"]).move_result,
     paneClose: (id) => quiet(() => call(["pane", "close", id])),
     // End the program in the pane's foreground (an agent that will not take its text), so the pane is at its shell
     // again. True once herdr sees no agent there.

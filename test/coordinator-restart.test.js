@@ -25,7 +25,7 @@ test("restart keeps the conversation, new starts a fresh one, and one Coordinato
     assert.match(await cli("coordinator"), /Coordinator: idle · claude · claude-haiku-5-5 · default effort · default: claude · claude-haiku-5-5 · default effort/);
     // Restart: a new terminal, the same conversation.
     assert.match(await cli("coordinator", "restart"), /restarting, in the same conversation/);
-    assert.notEqual(C.get().pane, first.pane); assert.equal(w.state().workspaces.length, 1);
+    assert.notEqual(C.get().tab, first.tab); assert.equal(w.state().workspaces.length, 1);
     assert.equal(arg("--resume"), first.session); assert.equal(C.get().session, first.session);
     // The program exiting by itself is the same: the next message starts it again where it left off.
     w.patchState((st) => { st.panes.find((p) => p.agent).agent = null; });
@@ -59,7 +59,7 @@ test("restart keeps the conversation, new starts a fresh one, and one Coordinato
     await cli("coordinator", "new");
     assert.equal(w.agents()[0].agent.kind, "codex"); assert.equal(C.look().stale, false);
     // Stop closes it; off turns the box back into filing word for word.
-    await cli("coordinator", "stop"); assert.equal(w.agents().length, 0); assert.equal(w.state().workspaces.length, 0); assert.equal(C.look().state, "exited");
+    await cli("coordinator", "stop"); assert.equal(w.agents().length, 0); assert.deepEqual(w.state().tabs.map((x) => x.label), ["1"]); assert.equal(C.look().state, "exited"); // its tab is gone, the home space stays
     await cli("config", "coordinator", "off");
     assert.equal(C.choice(), null);
   } finally { w.cleanup(); }

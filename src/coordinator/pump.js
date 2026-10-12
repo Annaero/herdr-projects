@@ -4,7 +4,8 @@ import path from "node:path";
 import * as S from "../store.js";
 import { herdr, currentSocket, sessionName, socketExists } from "../herdr.js";
 import { adapter, installed, startArgs, preTrust, versionOf } from "../agents.js";
-import { dirOf, get, change, home } from "./state.js";
+import { dirOf, get, change, home, pumping } from "./state.js";
+import { openTab, moveOver, closePlace, nowhere } from "./place.js";
 import { choice } from "./who.js";
 import { rules } from "./rules.js";
 import { restMs, trimmed, where, kick, send, stop, open, seen } from "./requests.js";
@@ -12,7 +13,6 @@ import { turns, look as lookNow } from "./look.js";
 import { settle, hand, confirm, look, shown } from "../submit.js";
 
 // ---- the pump: one at a time per herdr session -------------------------------------------------------------------------
-export const pumping = (c) => !!c?.pump && S.markerAlive(c.pump);
 // Whoever ticks (the keeper, or the board without one) starts a pump for anything left waiting: a message that met a
 // dialog on the Coordinator's screen is typed in once the dialog is gone.
 const UNSENT = "your message sits unsent in its box. Go into it and press enter.";
@@ -25,16 +25,14 @@ function lookTyped(socket, c) {
   if (done || JSON.stringify(mark) !== was) change(socket, (x) => { if (x.typed?.typedAt !== c.typed.typedAt || x.typed?.at !== c.typed.at) return false; x.typed = done ? null : mark; if (r === "lost") x.error = UNSENT; });
 }
 export function tick(socket = currentSocket()) {
-  const c = get(socket);
+  let c = get(socket);
+  // Still in the space of its own from before it lived in a tab: moved over as it is, whatever it is doing.
+  if (c?.workspace && socketExists(socket) && !pumping(c) && S.due(`coordinator-move-${sessionName(socket)}`, 60000)) { try { moveOver(herdr(socket), socket, { quiet: true }); } catch {} c = get(socket); }
   if (c?.typed && c.pane && socketExists(socket) && !(pumping(c) && c.pump.pid !== process.pid)) { try { lookTyped(socket, c); } catch {} }
   if (!c || (!(c.queue || []).length && !c.want) || (pumping(c) && c.pump.pid !== process.pid) || !socketExists(socket)) return;
   if (c.stopped && !c.want) return; // stopped stays stopped, also with words still waiting: your next message starts it
   if (c.error && !c.want) return; // a start that failed is not tried again by itself: your next message does, or coordinator restart, or coordinator new
   if (S.due(`coordinator-${sessionName(socket)}`, 3000)) kick(socket);
-}
-function closeSpace(api, c) {
-  if (c.workspace && api.workspaceGet(c.workspace)) { try { api.workspaceClose(c.workspace); } catch {} }
-  else if (c.pane) api.paneClose(c.pane);
 }
 // The conversation it is in: the newest one saved in its folder since this Coordinator began. That finds the id of
 // a program that names its own conversations (Codex), and follows the agent's own "new chat" command. Looked up
@@ -52,13 +50,13 @@ function ensure(api, socket) {
   if (c.run) { active(socket, c); c = get(socket); }
   fs.mkdirSync(home(socket), { recursive: true });
   let pane = c.pane ? api.paneGet(c.pane) : null;
-  if (!pane) {
-    // A board kept somewhere else than the default (its data or settings folder) is the board its commands must reach.
-    const env = Object.fromEntries(["HERDR_SUPERWORK_DATA_DIR", "HERDR_SUPERWORK_CONFIG_DIR"].filter((k) => process.env[k]).map((k) => [k, process.env[k]]));
-    const res = api.workspaceCreate({ cwd: home(socket), label: "Coordinator", env });
-    pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
-    c = change(socket, (c) => { Object.assign(c, { socket, workspace: pane.workspace_id, tab: res.tab?.tab_id || pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id }); });
-  }
+  // From before it lived in a tab: moved over with its program running. A herdr that will not move it: its pane there
+  // is closed (and with it the old space, unless panes of yours are in it) and it starts again in its tab, in the
+  // same conversation.
+  if (c.workspace) { try { pane = moveOver(api, socket); } catch { closePlace(api, c); change(socket, nowhere); pane = null; } }
+  // A board kept somewhere else than the default (its data or settings folder) is the board its commands must reach.
+  if (!pane) pane = openTab(api, socket, Object.fromEntries(["HERDR_SUPERWORK_DATA_DIR", "HERDR_SUPERWORK_CONFIG_DIR"].filter((k) => process.env[k]).map((k) => [k, process.env[k]])));
+  c = get(socket);
   if (api.agentGet(pane.pane_id)) return { c, blocked: false };
   // Its program is not running: start it. The same conversation when there was one and the program can reopen it.
   const run = c.run || (c.pick ? { ...c.pick, oneOff: true } : choice());
@@ -87,8 +85,8 @@ function ensure(api, socket) {
   try { api.agentStart(name, run.kind, pane.pane_id, args); settle(api, pane.pane_id, [run.kind, ...args].join(" ")); } // up before anything is typed (submit.js)
   catch (e) {
     // A dialog is in the way (folder trust, first run): what you said waits. Anything else: the pane may hold half a
-    // command or a program that never became ready, so it is closed and the next try starts in a clean one.
-    if (e.code !== "agent_not_ready") { try { closeSpace(api, get(socket)); change(socket, (c) => { Object.assign(c, { workspace: null, tab: null, pane: null, terminal: null, agent: null, starting: 0 }); }); } catch {} throw e; }
+    // command or a program that never became ready, so its tab is closed and the next try starts in a clean one.
+    if (e.code !== "agent_not_ready") { try { closePlace(api, get(socket)); change(socket, (c) => { nowhere(c); c.starting = 0; }); } catch {} throw e; }
     blocked = true;
   }
   c = change(socket, (c) => {
@@ -110,11 +108,11 @@ export function pump(socket = currentSocket()) {
       const w = c.want;
       if (w) {
         taken.add(w.at);
-        if (w.what !== "open") closeSpace(api, c);
+        if (w.what !== "open") closePlace(api, c);
         c = change(socket, (c) => {
           if (c.want?.at === w.at) c.want = null;
           if (w.what === "open") return;
-          Object.assign(c, { workspace: null, tab: null, pane: null, terminal: null, agent: null });
+          nowhere(c);
           if (w.what === "new") Object.assign(c, { run: null, pick: w.pick, session: null, transcript: null, seen: null, intro: false, last: "", where: [], mark: null });
         });
         // Stopped is stopped: words that were still waiting stay waiting, and go in with your next message. Only

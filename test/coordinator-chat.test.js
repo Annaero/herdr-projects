@@ -37,9 +37,9 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     assert.match(s.text(), /\n *\n ◐ Coordinator {2}starting · 1 message waits to be sent *\n╭─+╮\n│ build a login page +│\n│ +│\n│ ❯ ask or tell it anything +│\n╰─+╯\n/);
     assert.equal(s.screen().filter((l) => /Coordinator/.test(l)).length, 1);
     await drainJobs(runJob);
-    // One herdr space of its own, one ordinary agent: full access, a conversation id, the standing rules. No tool limits.
+    // A tab of its own in the home space, one ordinary agent: full access, a conversation id, the standing rules. No tool limits.
     const st = w.state();
-    assert.deepEqual(st.workspaces.map((x) => x.label), ["Coordinator"]);
+    assert.deepEqual(st.workspaces.map((x) => x.label), ["~"]); assert.deepEqual(st.tabs.map((x) => x.label), ["1", "Coordinator"]);
     assert.equal(w.agents().length, 1);
     const agent = w.agents()[0].agent;
     assert.equal(agent.name, "sw-coordinator"); assert.equal(agent.kind, "claude");

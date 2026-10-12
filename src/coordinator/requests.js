@@ -47,10 +47,11 @@ export function where(socket = currentSocket()) {
 // message carries.
 export function tabTurn(pane, socket = currentSocket()) {
   const c = get(socket);
-  if (!pane || !c || c.pane !== pane || !c.mark?.rest || c.mark.run !== (c.startedAt || 0)) return false;
+  // Moved into its tab while it ran (place.js), its program still names the pane it was started in.
+  if (!pane || !c || (c.pane !== pane && c.paneWas !== pane) || !c.mark?.rest || c.mark.run !== (c.startedAt || 0)) return false;
   const open = (Array.isArray(c.where) ? c.where : []).filter((x) => x.sentAt && !x.handled);
   if (!open.length || !open.every((x) => x.delegate)) return false;
-  let ag = null; try { ag = herdr(socket).agentGet(pane); } catch {}
+  let ag = null; try { ag = herdr(socket).agentGet(c.pane); } catch {}
   return !!ag && (ag.completion_seq ?? null) === c.mark.seq;
 }
 // The Coordinator's own folder (or one inside it) is never where the human is working.

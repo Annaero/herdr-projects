@@ -70,6 +70,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `keys.js` | The board's keys, each one defined once: the ? menu, the hint line, the words that name a key and docs/keys.md are all made from this list |
 | `main.js` | Opens the board: full screen in the current terminal, which in herdr is a pane, the plugin's own tab included |
 | `place.js` | The board that is running in herdr: where it is, written down while it runs, so that opening the board from anywhere in herdr goes back to that one instead of starting a second one |
+| `tab.js` | The board's own tab: named `herdr-superwork` while the board is open full screen in a pane of herdr, and given the name it had before when the board closes |
 | `theme.js` | The board's colours and status marks are herdr's own (verified against herdr 0.9.3: src/app/state.rs for the palettes, src/client/shell.rs for the marks) |
 | `view.js` | The board: pi-work's screen, powered by herdr |
 
@@ -109,6 +110,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | File | Holds |
 |---|---|
 | `look.js` | What the board shows of the Coordinator: its state, latest message and screen; going into its chat |
+| `place.js` | Where the Coordinator lives in herdr: a tab of its own, named `Coordinator`, in the home space (`~`); one still in the space of its own it had before is moved there |
 | `pump.js` | The pump: the detached job that starts the Coordinator and types into it, one at a time per herdr session |
 | `requests.js` | Requests to the Coordinator: written down here (send, restart, new, stop, open), carried out by the pump |
 | `rules.js` | The Coordinator's standing rules: what it is told once, for the whole conversation |
@@ -220,6 +222,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `board-setup.test.js` | The first run, and the board loading its new version |
 | `board-size.test.js` | A terminal held at another size than herdr shows |
 | `board-stay.test.js` | Going into an agent never ends the board: in a pane of its own it runs on, and opening the board goes back to it |
+| `board-tab.test.js` | The board's own tab: named herdr-superwork while the board is open in a pane, its old name back when it closes |
 | `board-textbox.test.js` | The text box: wrapping, growing, scrolling, editing keys |
 | `check.js` | The one test command: `npm run check` (`npm test` is the same) |
 | `check.test.js` | The test command (test/check.js): which files it runs, what it remembers, how runs take turns, and its budget |
@@ -231,6 +234,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `coordinator-chat.test.js` | The Coordinator's chat: one long-lived agent behind the box, and its latest message shown or hidden |
 | `coordinator-helpers.js` | Shared by the Coordinator's tests (test/coordinator-*.test.js): a world with a Coordinator, and a board opened on it |
 | `coordinator-messages.test.js` | What you say to the Coordinator is never lost: dialogs, failed starts, stop, on and off |
+| `coordinator-place.test.js` | Where the Coordinator lives: a tab named Coordinator in the home space, found or started again, and moved over from the space of its own it had before |
 | `coordinator-restart.test.js` | The Coordinator's conversation: restart, new, the agent's own new-chat command, its default program |
 | `fake-helper.js` | A stand-in for the hidden helper model |
 | `fake-herdr.js` | A stand-in for the herdr binary, for tests: no server, no terminals, no model calls |

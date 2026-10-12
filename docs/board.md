@@ -160,6 +160,14 @@ The board notices within ten seconds and says so on its first line, top left whe
 Closing that view, or stopping the process it names, gives the pane its own size back at once. The line is not shown
 outside herdr, in a tmux inside the pane, or in a popup (which has no pane of its own).
 
+**The board's tab is named `herdr-superwork`.** Run `herdr-superwork` in a terminal inside herdr and the tab that
+terminal is in gets that name for as long as the board is open, so you can tell it from your other tabs. Only that
+one tab is renamed. When the board closes (also when it closes to take you into an agent) the tab gets back the name
+it had before; a name you gave it yourself while the board was open is kept. A board that was killed leaves the
+name, and the next board that opens and closes in that tab puts the old one back. Nothing is renamed in the popup
+(it has no tab of its own), in the tab your board key opens (that one is named `board`, above), outside herdr, in a tmux inside the pane, or by a subcommand that opens no board (`add`,
+`list`, `config` and the rest). The code is `src/board/tab.js`.
+
 While the text box holds text it owns the keyboard: only `Enter`, `Tab`, `Esc` and `Ctrl+C` act on the board, so no shortcut
 fires in the middle of a draft. `Esc` puts a draft away; `Ctrl+Z` brings it back only to whoever it was for, so a reply
 stays a reply. It never changes who you talk to: when the chat names somebody else, it says who the words were for

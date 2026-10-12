@@ -8,10 +8,11 @@ export const AGENT_TAB = "Agent";
 export const reviewerTab = (round) => `Reviewer #${round}`;
 
 // A name is a convenience, as an agent's is: a herdr that will not rename a tab does not stop the task.
-export function nameAgentTab(api, tab) {
+export function nameTab(api, tab, label) {
   if (!tab) return;
-  try { api.tabRename(tab, AGENT_TAB); } catch {}
+  try { api.tabRename(tab, label); } catch {}
 }
+export const nameAgentTab = (api, tab) => nameTab(api, tab, AGENT_TAB);
 // The reviewer's own tab in the task's space, with one pane at its shell. Returns { tab, pane }: ids.
 export function openReviewerTab(api, t, round, { cwd, env } = {}) {
   const workspace = t.link.workspace || api.paneGet(t.link.pane)?.workspace_id;

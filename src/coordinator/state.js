@@ -6,6 +6,8 @@ import { currentSocket, sessionName } from "../herdr.js";
 export const dirOf = (socket) => path.join(S.dataDir(), "coordinator", sessionName(socket));
 const fileOf = (socket) => path.join(dirOf(socket), "state.json");
 export const get = (socket = currentSocket()) => S.readJson(fileOf(socket)) || null;
+// A pump (the detached job that starts it and types into it) is at work for this herdr session.
+export const pumping = (c) => !!c?.pump && S.markerAlive(c.pump);
 export function change(socket, fn) {
   return S.withLock(`coordinator:${sessionName(socket)}`, () => {
     const c = get(socket) || { queue: [] };

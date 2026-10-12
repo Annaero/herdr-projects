@@ -3,10 +3,10 @@ import fs from "node:fs";
 import * as S from "../store.js";
 import { herdr, currentSocket, sessionName, socketExists, readScreen } from "../herdr.js";
 import { adapter, readTurnOf } from "../agents.js";
-import { get, home } from "./state.js";
+import { get, home, pumping } from "./state.js";
 import { choice, describe, sameChoice } from "./who.js";
 import { open, typedThere } from "./requests.js";
-import { pumping, active } from "./pump.js";
+import { active } from "./pump.js";
 
 // ---- what the board shows ----------------------------------------------------------------------------------------------
 // Read on every beat of the board: one small file, one `agent get`, and the end of the saved conversation when that
