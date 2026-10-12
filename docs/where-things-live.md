@@ -65,7 +65,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | File | Holds |
 |---|---|
-| `artifact-lines.js` | The evidence a review brought: which files and links count, and the line each gets in the task panel |
+| `artifact-lines.js` | The evidence a review brought: which files and links count, and the lines each gets in the task panel |
 | `editor.js` | The box at the bottom |
 | `held.js` | Is the board's terminal sized by something other than herdr's own window? |
 | `keys.js` | The board's keys, each one defined once: the ? menu, the hint line, the words that name a key and docs/keys.md are all made from this list |
@@ -93,8 +93,8 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `menu.js` | The ? menu: every key of the board in its three groups, plain, ctrl and alt, each line with its key |
 | `mouse.js` | The mouse wheel: it scrolls the chat's message under the pointer and the whole-task page, and moves between tasks over the list |
 | `osc.js` | The same tasks, told to the terminal (OSC 7501) |
-| `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, callouts, boxes, and the list of parts |
-| `panel-reviews.js` | The reviews in the task panel: how each went, each one a box, and the evidence |
+| `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, label-and-value rows, and the list of parts |
+| `panel-reviews.js` | The reviews in the task panel: how each went, each one under its own label, and the evidence |
 | `panel-settings.js` | The settings in the task panel: every setting this task runs on, and its agent's session |
 | `panel-status.js` | The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you |
 | `panel.js` | The task panel: beside the list and full screen |

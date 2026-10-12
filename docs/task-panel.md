@@ -6,81 +6,119 @@ for what it says. `Alt+T` shows the whole task full screen, and `Esc` or `Alt+T`
 never changes who you talk to or whether the chat's message shows, and `Space` never opens or folds it, at any
 width.
 
-Both have the same parts, in the same order, each standing on its own under a bold headline on a thin rule, with an
-empty line between:
+Both have the same parts, in the same order, and **one form for every part**:
+
+- **A headline** in bold on a thin rule that runs to the edge. One that needs you is in its state's colour.
+- **Facts are a label and its value**: the label greyed out on the left, the value on the right. Every value in the
+  panel starts in the same column, so the eye runs down one line. A value longer than its line is wrapped under
+  itself, between its facts where it has them (`12m ago` is never split).
+- **A text** (the description, what the agent said) is plain lines under its headline.
+- **An empty line stands between two parts**, and between two reviews on the full screen. Nowhere else.
+- **Nothing is boxed, nothing sits behind a bar, and no fact is cut with `…`.** Where the panel is too short, whole
+  lines and whole facts give way (below), and the last line says where the rest is.
 
 ```
- Build a flying game
+ Max length for task titles
 
- Status ─────────────────────────────────────
- ✓ ready to approve · 3rd review · claude · 2m ago · proj/12
- 4 files, +120 −31 · PR#12
+ Status ─────────────────────────────────────────────
+ State        ✓ ready to approve · 4th review · 2m ago
+ On it        claude
+ Change       PR#60 · 19 files, +340 −27
+ Task         proj/84
 
- Description ────────────────────────────────
- A little plane over endless sunny islands.
+ Description ────────────────────────────────────────
+ A task title should have a maximum length.
 
- Reviews · 3 ────────────────────────────────
- fail → no verdict → pass
- ╭─ Review 3 ────────────────────── 1m ago ─╮
- │ Pass · 2 minor                           │
- │ Works. Two small naming points are left. │
- ╰──────────────────────────────────────────╯
+ Reviews · 4 ────────────────────────────────────────
+ History      fail → no verdict → fail → pass
+ Review 4     ✓ Pass · 1 minor · 11m ago
+              The change meets the task. A title at
+              the limit is kept whole.
+ Evidence     ↗ Open review
 
- The agent said ─────────────────────────────
- Built Skylark. All 42 tests pass.
+ The agent said ─────────────────────────────────────
+ Titles longer than 80 characters are cut between words.
 
- Settings ───────────────────────────────────
+ Settings ───────────────────────────────────────────
  Project      ~/dev/proj
- Agent        claude · opus · default effort
+ Worktree     on
+ Agent        claude 2.1.296 · default model, effort
  …
 ```
 
 - **The title** is on top, by itself.
-- **Where it stands**, under `Status`: the state with who is on it, since when and the task's id, then the progress
-  bar with its percent and the minutes left, then the size of the change and its pull request (its number is a
-  link; full screen the address is printed too).
-- **What it needs from you**, or what it is doing right now, sits behind a bar in its state's colour: the question,
-  what went wrong and the next step, or the agent's current line (`Now`). That line is never cut with an ellipsis:
-  it is wrapped between words over as many lines as it takes, each behind the bar.
+- **Status**, where it stands, one fact a row and always in this order: `State` (its mark and word, which review
+  it is on, since when), `Progress` (the bar, its percent and the minutes left), `Now` (what the agent or the
+  reviewer is doing right now, wrapped whole), `On it` (who), `Change` (the pull request, in the colour of its
+  checks, and the size of the change; the number is a link, and full screen the address is printed too) and `Task`
+  (its id). A task nobody is on says what puts an agent on it (`Next`).
+- **What it needs from you** is a part of its own right under Status, its headline in red: `Asks you`, `Asks for
+  your OK`, `Needs a login`, or `Went wrong` with what failed, who can fix it, the `Next step` and the `Details`.
+  `Behind main` and `Cut off` (the board tries again by itself) are the same part in their own colour, and an
+  archived task says so there.
 - **Suggested tasks**, when the task's agent or reviewer came across work outside it: each open
   [suggestion](suggestions.md) with who raised it, and the key that decides (`Ctrl+N`). Full screen, the ones you
   made a task or dismissed stay listed, greyed.
 - **The description**: whole on the full screen, cut after about 400 characters beside the list.
-- **The reviews**, each one a box of its own (below).
+- **The reviews**, as a history (below).
 - **What the agent said** (while you talk to its agent that is in the chat instead).
 - **Every setting**, also one that is only your default: the project, the worktree, the agent, the reviewer, what
   gets reviewed, what sends a review back and how many rounds, the evidence, the watcher, conflict repair and
-  permissions. Labels are greyed out; a setting chosen for this task is in the text colour and one that is only
-  your default is quieter. Full screen a task's own choice is starred as well.
+  permissions. A setting chosen for this task is in the text colour and one that is only your default is quieter.
+  Full screen a task's own choice is starred as well, and the worktree's folder is printed.
 
 Full screen the text keeps to 100 columns, and a last part, **Session**, has the agent's context, its tokens and
 where it runs in herdr. Beside the list, when anything is shorter than on the full screen, the last line says
 `alt+t shows the whole task`.
 
-**In a short window the status and the `Now` text stay whole; everything else gives way to them**, in this order:
+**In a panel too narrow for a value beside its label** (under about 30 columns), the label is a line of its own and
+its value is under it, indented. Nothing is cut there either.
 
-1. The long parts give up lines: what the agent said first, then the description, then the review, then a question
-   or what went wrong.
-2. Every setting keeps to one line, and the long parts go: the review is one line (`Review 3  Pass · 2 minor`).
-3. The empty lines, the `Settings` and `Status` headlines, the title's second line, and the rows among the
-   settings that are not settings.
-4. The settings, from the last.
-5. The size of the change and its pull request, then the review's line, then the title.
+**In a short window whole lines give way, the least needed first.** The state and the `Now` text stay whole, and
+what the task needs from you outlasts every setting:
 
-What is left then is the state's line, the progress bar and the `Now` text. With no room for those and the last
-line (`alt+t shows the whole task`), that line goes, then the progress bar, the state's line and the word `Now`:
-the text itself is the last to stay. Only a text longer than the whole panel is cut, and its last line ends in `…`.
+1. The empty line on top. Then the long parts give up lines: what the agent said first, then suggested tasks and
+   the description, then the review (its summary, then `History` and `Evidence`), each down to a few lines. A text
+   that lost lines ends in ` …`.
+2. Those parts go, all but the review, which keeps its row and one line of its summary.
+3. The facts that are said elsewhere: `Task` and `On it`, and the rows among the settings that are not settings.
+4. The settings, from the last, each one whole. Their headline goes with the last of them.
+5. The review is down to its one row (`Review 3  ✓ Pass · 2 minor`), and what it needs from you gives up lines.
+6. The empty lines between the parts, the `Status` headline, the title's second line; then `Change`, the review's
+   row and the title.
 
-In a box too narrow for a review's
-age and commit in its top edge, they are the box's first line.
+What is left then is the state, the progress and the `Now` text. With no room for those and the last line
+(`alt+t shows the whole task`), that line goes, then the progress, then the state: the text itself is the last to
+stay. Only a text longer than the whole panel is cut, and its last line ends in `…`.
 
-**Every review is kept, and each is a box of its own.** Under the headline one line says how each went, oldest
-first (`fail → no verdict → pass`). Beside the list the latest review follows: `Review 3` and its age in the box's
-top edge, then the result with its tally, and its summary. The full screen has all of them, the newest first, each
-in its box: the review's number, when, the commit, the result, the summary, each finding with its severity (one
-that did not hold the work back is marked `not required` or `pre-existing`), what it checked and what it could not
-verify. A review that gave no verdict has its box too, with why. A review from before the gate keeps its score and
-its advice as they were (`4/5, says merge`). `herdr-superwork details <id>` prints the same list as `reviews`.
+**Every review is kept, and the reviews read as a history.** `History` says how each went, oldest first
+(`fail → no verdict → pass`). A review is a row under its own name: a mark and its result (`✓ Pass · 2 minor`,
+`✗ Fail · 1 critical`, `– No verdict`; the colour only repeats the mark), when, and under them its summary. Beside
+the list the latest one shows, with the first piece of `Evidence` (its name, wrapped whole). Whenever the full
+screen has more of a review (a longer summary, findings, what it checked, more evidence or its address), the last
+line says so. The full screen has all of them, the newest
+first, each with its commit and, as facts of their own, its `Findings` (how bad each is in a column of its own:
+`critical`, `major`, `minor`; one that did not hold the work back is marked `not required` or `pre-existing`), what
+it `Checked` and what it left `Unverified`. A review that gave no verdict has its row too, with why. A review from
+before the gate keeps its score and its advice as they were (`4/5, says merge`), and its `Problems`. A review that
+still stood after main was merged in says so under its result. Full screen each piece of **evidence** is under
+its own `Evidence` headline: its name, what it is and its address printed in full, each wrapped under itself and
+never cut. `herdr-superwork details <id>` prints the same list
+as `reviews`.
+
+## Why it looks like this
+
+The panel shows one issue and the history that comes in under it, which is what an issue or pull request page
+shows. The form was taken from what already works for that, and fitted to a terminal's text cells:
+
+| From | Taken | Left out, and why |
+|---|---|---|
+| GitHub's pull request page | A status first, then the checks and reviews summed up as rows of mark, name and result; what blocks the merge named right under the status; the timeline newest-relevant first. | Avatars, badges as coloured pills, a column on the side: no room and no pixels. |
+| `gh pr view`, `gh pr status`, `gh pr checks` | Label-and-value rows for the facts; one line per run with its mark, result and age; a result said in words with the colour only repeating it. | Its dot-separated one-liner (`Checks passing - Approved`): that is what the old top of the panel was. |
+| lazygit, gh-dash | One accent per state, quiet labels, the selected thing's detail beside the list and whole on its own screen. | Boxes around every pane and tabs inside the detail: a box costs two columns and two lines of a 38-column panel. |
+| CodeRabbit, Greptile, Cursor Bugbot | Findings by severity in a column of their own; a verdict line before the detail; what changed since the last round as a history line. | Emoji badges, a score out of five for new reviews (the gate's pass or fail says more), collapsed sections. |
+| The `/ui` skill's guidelines | Labels quieter than values in a list of facts; the lightest separation that works (space, then a rule, never a card by default); numbers that line up. | Everything about pixels, radii and shadows. |
+| `tui-design` skills on skills.sh | Stable places for the same fact in every state; a mark or a word beside every colour; narrow, ordinary and wide widths each tried; give way by priority instead of cutting. | Borders for emphasis, and their palettes: the board keeps herdr's. |
 
 **A part that fails to draw takes only itself.** Its headline stays, with one red line under it
 (`✗ This part could not be shown: …` and the error): every other part of the panel is there, and every key works.

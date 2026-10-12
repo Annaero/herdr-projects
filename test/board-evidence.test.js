@@ -36,8 +36,8 @@ test("the task details of a task with reviews and evidence show every review and
     text = s.text(120);
     assert.doesNotMatch(text, /view error|could not be shown|is not defined/);
     assert.match(text, /^ Task details {2}proj\/1/);
-    assert.match(text, /\n Reviews · 3, the newest first ─+ *\n 2\/5 no → no verdict → 4\/5 yes *\n/);
-    for (const n of [1, 2, 3]) assert.match(text, new RegExp(`╭─ Review ${n} ─`));
+    assert.match(text, /\n Reviews · 3 ─+ *\n History {6}2\/5 no → no verdict → 4\/5 yes *\n/);
+    for (const n of [1, 2, 3]) assert.match(text, new RegExp(`\\n Review ${n} {5}[✓✗–] `));
     // Each piece of evidence: its name, what it is, and its link printed in full.
     assert.match(text, /\n Evidence ─+ *\n ↗ The plane takes off *\n {3}A screenshot of the first level\. *\n {3}https:\/\/example\.test\/proj\/1\/takeoff\.png *\n *\n ↗ The test run *\n {3}https:\/\/example\.test\/proj\/1\/tests\.txt *\n/);
     assert.ok(text.indexOf("\n Evidence ") < text.indexOf("\n Settings "));

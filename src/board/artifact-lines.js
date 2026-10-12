@@ -1,5 +1,5 @@
-// The evidence a review brought: which files and links count, and the line each gets in the task panel.
-import { truncateToWidth } from "@earendil-works/pi-tui";
+// The evidence a review brought: which files and links count, and the lines each gets in the task panel.
+import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 const clean = (v) => String(v ?? "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim();
 // Keep every distinct target; only exact duplicates are removed.
@@ -13,27 +13,14 @@ export function reviewArtifacts(list) {
     return true;
   });
 }
-// One row can be kept visible even when there is no room for a whole evidence section.
-export function artifactLine(t, a, width) {
-  const name = truncateToWidth(clean(a.caption || a.file || "Open evidence"), Math.max(1, width - 3), "…");
+// One piece of evidence, as lines without a margin: its name behind an arrow, wrapped whole, every line of it the
+// link. `whole` (the full screen) adds what it is and the link printed in full: a popup may not pass clicks on.
+// Nothing is cut: a long name, note or address goes on under itself.
+export function artifactRows(t, a, room, whole = false) {
+  const lines = (text) => wrapTextWithAnsi(clean(text), Math.max(1, room - 2));
   const url = String(a.link || a.url || "");
   const linked = /^https?:\/\//.test(url) && !/[\x00-\x20\x7f]/.test(url);
   // Never clean a completed OSC link: that would strip its escape sequence and break the click target.
-  return " " + t.fg("accent", "↗ ") + (linked ? `\x1b]8;;${url}\x1b\\${t.underline(name)}\x1b]8;;\x1b\\` : name);
-}
-// Spaced, scrollable evidence for full details. The link is also printed in full: a popup may not pass clicks on.
-export function artifactLines(t, artifacts, width, heading) {
-  const items = reviewArtifacts(artifacts);
-  if (!items.length) return [];
-  const w = Math.max(1, width - 3);
-  const lines = ["", " " + t.muted(truncateToWidth(heading || "Review evidence", Math.max(1, width - 1), "…"))];
-  for (const [i, a] of items.entries()) {
-    if (i) lines.push("");
-    lines.push(artifactLine(t, a, width));
-    if (a.detail) lines.push("   " + t.muted(truncateToWidth(clean(a.detail), w, "…")));
-    const url = String(a.link || a.url || "");
-    if (url) lines.push("   " + t.muted(truncateToWidth(clean(url), w, "…")));
-  }
-  lines.push("");
-  return lines;
+  const name = lines(a.caption || a.file || "Open evidence").map((l, n) => (n ? "  " : t.fg("accent", "↗ ")) + (linked ? `\x1b]8;;${url}\x1b\\${t.underline(l)}\x1b]8;;\x1b\\` : l));
+  return [...name, ...(whole ? [...(a.detail ? lines(a.detail) : []), ...(url ? lines(url) : [])].map((l) => "  " + t.muted(l)) : [])];
 }

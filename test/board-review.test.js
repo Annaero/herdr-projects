@@ -24,7 +24,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   const redPr = { ...pr, prState: "failing", prFailure: { stage: "pr", title: "Pull request checks failed", detail: "test: failure", agentCanFix: true, next: "Fix the checks." } };
   assert.match(row(redPr, 120), /^ × Build a flying game {2}Pull request checks failed +R#1 PR#12 {2}0s ago$/);
   assert.match(row({ ...pr, prState: "failing" }, 120), /^ × Build a flying game {2}the pull request's checks fail +R#1 PR#12 {2}0s ago$/);
-  assert.match(page(redPr), /× needs you · claude · 0s ago · proj\/1\n PR#12\n\n ▎ Pull request checks failed\n ▎ The agent can fix this: ctrl\+r sends it\.\n ▎ ?\n ▎ Next step\n ▎ Fix the checks\./); assert.doesNotMatch(page(redPr), /ready to approve/);
+  assert.match(page(redPr), /\n State {8}× needs you · 0s ago\n On it {8}claude\n Change {7}PR#12\n Task {9}proj\/1\n\n Went wrong ─+\n Pull request checks failed\n The agent can fix this: ctrl\+r sends it\.\n Next step {4}Fix the checks\.\n Details {6}test: failure\n/); assert.doesNotMatch(page(redPr), /ready to approve/);
   v.reply = false; v.full = false; v.menu = null; v.ask = null; v.mode = "new"; v.chatOpen = true; v.input = { getText: () => "" }; v.jobs = []; v.sel = "";
   assert.deepEqual(v.hints(redPr).map(([k]) => k), ["ctrl+r", "ctrl+l", "space", "?"]); assert.ok(!v.hints(redPr).some(([, d]) => /approve/.test(d)));
   assert.equal(v.hints(pr)[0][1], "approve and merge");
@@ -74,75 +74,81 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   // a failed merge needs you: it says why, and the panel still has the score and which review gave it
   const failedMerge = { ...second, mergeFailed: true, review: { ...review, recommend: true, score: 5 }, msg: "The merge failed: conflict in src/game.js" };
   assert.match(row(failedMerge, 120), /^ × Build a flying game {2}The merge failed: conflict in src\/game\.js +R#2 PR#12 {2}0s ago$/);
-  assert.match(page(failedMerge), /× needs you · 2nd review · claude · 0s ago · proj\/1/); assert.match(page(failedMerge), /\n Review ─+\n ╭─ Review 2 ─+╮\n │ 5\/5, says merge +│\n │ Crashes\. +│\n ╰─+╯\n/);
+  assert.match(page(failedMerge), /\n State {8}× needs you · 2nd review · 0s ago\n On it {8}claude\n/); assert.match(page(failedMerge), /\n Review ─+\n Review 2 {5}✓ 5\/5, says merge\n {14}Crashes\.\n/);
   // behind main and not brought up to date yet: neither the row nor the panel say it is ready
   const behind = { ...pr, summary: "Did the work.", syncBlocked: { why: "main could not be fetched (network is down)" }, msg: "Behind main, and not up to date yet: main could not be fetched (network is down). The board keeps trying; it cannot be approved until then." };
   assert.match(row(behind, 120), /^ × Build a flying game {2}Behind main, and not up to date yet/);
-  assert.match(page(behind), /Behind main, cannot be approved yet/); assert.match(page(behind), /main could not be fetched \(network is down\)/); assert.doesNotMatch(page(behind), /ready to approve/);
-  // the panel, in the order you need it: where it stands and the change, the review in its box, what the agent said, the settings
+  assert.match(page(behind), /\n Behind main ─+\n Cannot be approved yet: main could not be fetched \(network is down\)\. The board\n keeps trying/); assert.doesNotMatch(page(behind), /ready to approve/);
+  // the panel, in the order you need it: where it stands and the change, each a fact of its own, the review, what the agent said, the settings
   const ready = page({ ...second, summary: "Did the work.", said: "Built Skylark.", stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" });
-  assert.match(ready, /^\n Build a flying game\n\n Status ─+\n ✓ ready to approve · 2nd review · claude · 0s ago · proj\/1\n 4 files, \+120 −31 · PR#12\n\n Review ─+\n ╭─ Review 2 ─+╮\n │ 3\/5, says don't merge +│\n │ Crashes\. +│\n ╰─+╯\n\n The agent said ─+\n Built Skylark\.\n\n Settings ─+\n Project /);
+  assert.match(ready, /^\n Build a flying game\n\n Status ─+\n State {8}✓ ready to approve · 2nd review · 0s ago\n On it {8}claude\n Change {7}PR#12 · 4 files, \+120 −31\n Task {9}proj\/1\n\n Review ─+\n Review 2 {5}✗ 3\/5, says don't merge\n {14}Crashes\.\n\n The agent said ─+\n Built Skylark\.\n\n Settings ─+\n Project /);
   assert.match(ready, /\n Permissions {2}[^\n]+$/); assert.doesNotMatch(ready, /https:|shows the whole task/); // every setting, tightly, at the end; the link is in the PR's number
-  assert.match(page({ ...second, stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" }, true), /\n 4 files, \+120 −31 · PR#12\n https:\/\/github\.com\/a\/b\/pull\/12\n/); // full screen it is printed too
+  assert.match(page({ ...second, stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" }, true), /\n Change {7}PR#12 · 4 files, \+120 −31\n {14}https:\/\/github\.com\/a\/b\/pull\/12\n/); // full screen it is printed too
   assert.doesNotMatch(ready, /Description|None\./);
-  // Every review the task had: how many, how each went, and the latest in a box of its own, on both shapes of the panel.
+  // Every review the task had: how many, how each went, and the latest under its own name, on both shapes of the panel.
   const spiral = { ...second, reviewRound: 3, review: { score: 4, recommend: true, text: "Fine now.", stale: false }, reviews: [
     { round: 1, at: Date.now() - 7200000, score: 2, recommend: false, text: "Crashes on start.", problems: ["game.js: null plane."], checks: ["Ran it."], limitations: [], head: "1111111aaaa" },
     { round: 2, at: Date.now() - 3600000, error: "the reviewer finished without a verdict" },
     { round: 3, at: Date.now() - 60000, score: 4, recommend: true, text: "Fine now.", problems: [], checks: ["Ran the tests: all pass."], limitations: ["Not tried on a phone."], head: "abcdef12345" }] };
-  assert.match(page(spiral), /\n Reviews · 3 ─+\n 2\/5 no → no verdict → 4\/5 yes\n ╭─ Review 3 ─+ 1m ago ─╮\n │ 4\/5, says merge +│\n │ Fine now\. +│\n ╰─+╯\n/);
+  assert.match(page(spiral), /\n Reviews · 3 ─+\n History {6}2\/5 no → no verdict → 4\/5 yes\n Review 3 {5}✓ 4\/5, says merge · 1m ago\n {14}Fine now\.\n/);
   assert.doesNotMatch(page(spiral), /Crashes on start|the newest first|Review [12] /); assert.match(page(spiral), /\n\n alt\+t shows the whole task$/); // beside the list: only the latest, and where the rest is
   const whole = page(spiral, true);
-  assert.match(whole, /\n Reviews · 3, the newest first ─+\n 2\/5 no → no verdict → 4\/5 yes\n ╭─ Review 3 ─+ 1m ago · abcdef1 ─╮\n │ 4\/5, says merge +│\n │ Fine now\. +│\n │ +│\n │ Checked +│\n │ • Ran the tests: all pass\. +│\n │ +│\n │ Could not verify +│\n │ • Not tried on a phone\. +│\n ╰─+╯\n\n ╭─ Review 2 ─+ 1h ago ─╮\n │ No verdict +│\n │ the reviewer finished without a verdict +│\n ╰─+╯\n\n ╭─ Review 1 ─+ 2h ago · 1111111 ─╮\n │ 2\/5, says don't merge +│\n │ Crashes on start\. +│\n │ +│\n │ Problems +│\n │ • game\.js: null plane\. +│\n │ +│\n │ Checked +│\n │ • Ran it\. +│\n ╰─+╯\n/);
-  assert.ok(whole.indexOf("\n ✓ ready to approve") < whole.indexOf("Reviews · 3, the newest first") && whole.indexOf("╭─ Review 1 ") < whole.indexOf("\n Settings ") && whole.indexOf("\n Settings ") < whole.indexOf("\n Permissions")); // where it stands, every review, then the settings
-  // a narrow full screen drops nothing of a review: its age and commit move from the box's edge to its first line
+  assert.match(whole, /\n Reviews · 3 ─+\n History {6}2\/5 no → no verdict → 4\/5 yes\n\n Review 3 {5}✓ 4\/5, says merge · 1m ago · abcdef1\n {14}Fine now\.\n Checked {6}• Ran the tests: all pass\.\n Unverified {3}• Not tried on a phone\.\n\n Review 2 {5}– No verdict · 1h ago\n {14}the reviewer finished without a verdict\n\n Review 1 {5}✗ 2\/5, says don't merge · 2h ago · 1111111\n {14}Crashes on start\.\n Problems {5}• game\.js: null plane\.\n Checked {6}• Ran it\.\n/);
+  assert.ok(whole.indexOf("✓ ready to approve") < whole.indexOf("Reviews · 3 ") && whole.indexOf("\n Review 3 ") < whole.indexOf("\n Review 1 ") && whole.indexOf("\n Review 1 ") < whole.indexOf("\n Settings ") && whole.indexOf("\n Settings ") < whole.indexOf("\n Permissions")); // where it stands, every review, then the settings
+  // a narrow full screen drops nothing of a review: a label is a line of its own there, and its value is under it
   { const thin = stripVTControlCharacters(v.panel({ owner: "me", ...spiral }, 24, true).join("\n"));
-    assert.match(thin, /\n ╭─ Review 3 ─+╮\n │ 1m ago · abcdef1 +│\n │ 4\/5, says merge +│\n/); assert.match(thin, /\n ╭─ Review 2 ─+╮\n │ 1h ago +│\n │ No verdict +│\n/); assert.match(thin, /\n ╭─ Review 1 ─+╮\n │ 2h ago · 1111111 +│\n/); }
-  // a side panel too short for every setting still has where the task stands and the latest review, on one line,
-  // before any setting; with no room for both, the size of the change goes before the review's line
-  for (const fit of [12, 8, 4]) {
-    const lines = v.panel({ owner: "me", ...spiral, worktree: "", description: "Long. ".repeat(200) }, 46, false, fit).map((l) => stripVTControlCharacters(l));
-    assert.ok(lines.length <= fit); assert.equal(lines[0], " Build a flying game"); assert.match(lines[1], /^ ✓ ready to approve · 3rd review/);
-    assert.deepEqual(lines.slice(2, fit > 4 ? 6 : 4).map((l) => l.slice(0, 9)), fit > 4 ? [" 0s ago ·", " PR#12", " Review 3", " Project "] : [" 0s ago ·", " alt+t sh"]); assert.ok(!lines.some((l) => l.startsWith(" Branch ")), "the branch row goes before the review does");
-  }
-  // many reviews in a narrow panel: the trail keeps the newest and says that older ones are left out
+    assert.match(thin, /\n Review 3\n {3}✓ 4\/5, says merge\n {3}1m ago · abcdef1\n {3}Fine now\.\n Checked\n {3}• Ran the tests: all\n {5}pass\.\n/); assert.match(thin, /\n Review 2\n {3}– No verdict\n {3}1h ago\n/); assert.match(thin, /\n Review 1\n {3}✗ 2\/5, says don't\n {3}merge\n {3}2h ago · 1111111\n/);
+    assert.ok(thin.split("\n").every((l) => l.length <= 24 && !l.endsWith("…")), "nothing runs over, nothing is cut"); }
+  // a side panel too short for the settings still has where the task stands and the latest review, as its one row;
+  // with no room for both, the change goes before the review's row
+  { const at = (fit) => v.panel({ owner: "me", ...spiral, worktree: "", description: "Long. ".repeat(200) }, 46, false, fit).map((l) => stripVTControlCharacters(l));
+    assert.deepEqual(at(12), [" Build a flying game", "", " Status ─────────────────────────────────────", " State        ✓ ready to approve · 3rd review", "              0s ago", " Change       PR#12", "", " Reviews · 3 ────────────────────────────────", " Review 3     ✓ 4/5, says merge · 1m ago", "              Fine now.", "", " alt+t shows the whole task"]);
+    assert.deepEqual(at(8), [" Build a flying game", " Status ─────────────────────────────────────", " State        ✓ ready to approve · 3rd review", "              0s ago", " Change       PR#12", " Review 3     ✓ 4/5, says merge", "", " alt+t shows the whole task"]);
+    assert.deepEqual(at(4), [" Build a flying game", " State        ✓ ready to approve · 3rd review", "              0s ago", " alt+t shows the whole task"]); }
+  // many reviews in a narrow panel: the history is wrapped, and every one of them is there
   const many = { ...spiral, reviews: Array.from({ length: 12 }, (_, n) => ({ round: n + 1, score: 2, recommend: false, text: "Still broken." })) };
-  assert.match(stripVTControlCharacters(v.panel({ owner: "me", ...many }, 44, false).join("\n")), /\n Reviews · 12 ─+\n … 2\/5 no → 2\/5 no → 2\/5 no → 2\/5 no\n ╭─ Review 12 ─/);
-  // a short window: the long parts give way and the review is one line, then the settings go, from the last. Where
-  // the task stands and what it is doing now stay whole at every height, wrapped and never cut
+  assert.match(stripVTControlCharacters(v.panel({ owner: "me", ...many }, 44, false).join("\n")), /\n Reviews · 12 ─+\n History {6}2\/5 no → 2\/5 no → 2\/5 no\n {14}→ 2\/5 no → 2\/5 no → 2\/5 no\n {14}→ 2\/5 no → 2\/5 no → 2\/5 no\n {14}→ 2\/5 no → 2\/5 no → 2\/5 no\n Review 12 {4}✗ 2\/5, says don't merge\n/);
   const busy = { ...spiral, title: "Build a flying game with a very long name that wraps onto two lines", state: "working", kind: undefined, stage: "working", progress: 40, eta: 12, msg: "Running the whole test suite again after the last fix", said: "Working on it.", description: "Long. ".repeat(200), usage: { in: 1000, out: 2000, context: 5000, window: 200000 }, link: { pane: "p1", workspace: "w1" } };
+  // a short window: the long parts give way, then the settings go, from the last, each one whole, and only then is
+  // the review down to its one row. Where the task stands and what it is doing now stay whole at every height,
+  // wrapped and never cut
   const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Merge", "Conflicts", "Permissions"];
+  const STATE = " State        ◐ working · for 0s", PROGRESS = " Progress     ██████░░░░░░░░░ 40% · 12m left", NOW = [" Now          Running the whole test suite", "              again after the last fix"];
   for (const fit of [30, 20, 16, 12, 8, 6]) {
     const lines = v.panel({ owner: "me", ...busy }, 45, false, fit).map((l) => stripVTControlCharacters(l));
     assert.ok(lines.length <= fit, `fits in ${fit} lines`);
-    const at = lines.indexOf(" ◐ working · claude · for 0s · proj/1");
-    assert.deepEqual(lines.slice(at + 1, at + 3), [" ██████████░░░░░░░░░░░░░░ 40% 12m", fit > 8 ? " PR#12" : " ▎ Now"], `the status with room for ${fit} lines`);
-    assert.deepEqual(lines.filter((l) => l.startsWith(" ▎")), [" ▎ Now", " ▎ Running the whole test suite again after", " ▎ the last fix"], `what it is doing, whole, with room for ${fit} lines`);
+    const at = lines.indexOf(STATE);
+    assert.deepEqual(lines.slice(at + 1, at + 4), [PROGRESS, ...NOW], `the status and what it is doing, whole, with room for ${fit} lines`);
     const kept = SETTINGS.filter((fact) => lines.some((l) => l.startsWith(` ${fact} `)));
-    assert.deepEqual(kept, SETTINGS.slice(0, fit >= 20 ? 11 : fit === 16 ? 7 : fit === 12 ? 3 : 0), `the settings with room for ${fit} lines, cut from the last`);
-    assert.equal(lines.some((l) => /^ (╭─ )?Review 3 /.test(l)), fit > 6, `the latest review with room for ${fit} lines`);
-    assert.equal(lines.includes(" Status ────────────────────────────────────"), fit === 30, `the headline with room for ${fit} lines`);
-    assert.equal(lines.some((l) => l.startsWith(" Build a flying game")), fit > 6, `the title with room for ${fit} lines`);
+    assert.deepEqual(kept, SETTINGS.slice(0, kept.length), `the settings with room for ${fit} lines, gone from the last`);
+    assert.ok(fit >= 30 ? kept.length >= 7 : fit === 20 ? kept.length <= 4 : !kept.length, `${kept.length} settings with room for ${fit} lines`);
+    assert.equal(lines.includes(" Settings ──────────────────────────────────"), kept.length > 0, "the settings keep their headline while one of them is there");
+    assert.equal(lines.some((l) => l.startsWith(" Review 3     ✓ 4/5, says merge")), fit > 6, `the latest review with room for ${fit} lines`);
+    assert.equal(lines.includes("              Fine now."), fit >= 16, `the review's summary with room for ${fit} lines`);
+    assert.equal(lines.includes(" Status ────────────────────────────────────"), fit >= 12, `the headline with room for ${fit} lines`);
+    assert.equal(lines.some((l) => l.startsWith(" Build a flying game")), fit >= 6, `the title with room for ${fit} lines`);
+    assert.ok(!lines.some((l) => /^ {14}/.test(l) && l.endsWith("…")) && !lines.some((l) => SETTINGS.some((k) => l.startsWith(` ${k} `)) && l.endsWith("…")), "no fact is cut with an ellipsis");
     assert.match(lines[lines.length - 1], /^ alt\+t shows the whole task$/);
   }
   // shorter than the status and that text with the last line: the last line goes, not a word of the text; then the
-  // status from its last line, then the word Now; only a text longer than the panel is cut, and says so
-  { const at = (fit) => v.panel({ owner: "me", ...busy }, 45, false, fit).map((l) => stripVTControlCharacters(l)), text = [" ▎ Running the whole test suite again after", " ▎ the last fix"];
-    assert.deepEqual(at(5), [" ◐ working · claude · for 0s · proj/1", " ██████████░░░░░░░░░░░░░░ 40% 12m", " ▎ Now", ...text]);
-    assert.deepEqual(at(4), [" ◐ working · claude · for 0s · proj/1", " ▎ Now", ...text]);
-    assert.deepEqual(at(3), [" ▎ Now", ...text]); assert.deepEqual(at(2), text);
-    assert.deepEqual(at(1), [" ▎ Now …"]); }
-  // a long line of what it is doing is wrapped between words over as many lines as it takes, each behind its bar,
-  // in a narrow panel too; shorter than that, the title goes and the status and that text are all there is
+  // progress, then the state; only a text longer than the panel is cut, and says so
+  { const at = (fit) => v.panel({ owner: "me", ...busy }, 45, false, fit).map((l) => stripVTControlCharacters(l));
+    assert.deepEqual(at(5), [STATE, PROGRESS, ...NOW, " alt+t shows the whole task"]); assert.deepEqual(at(4), [STATE, PROGRESS, ...NOW]);
+    assert.deepEqual(at(3), [STATE, ...NOW]); assert.deepEqual(at(2), NOW);
+    assert.deepEqual(at(1), [" Now          Running the whole test suite …"]); }
+  // a long line of what it is doing is wrapped between words over as many lines as it takes, under itself beside its
+  // label, in a narrow panel too (there the label is a line of its own); shorter than that, the title goes and the
+  // state and that text are all there is
   { const long = { ...busy, msg: "Found cause: second device resizing board; now checking every caller of the resize handler for the same mistake" };
     for (const [width, fit] of [[45, 30], [30, 30], [30, 10], [20, 0]]) {
-      const lines = v.panel({ owner: "me", ...long }, width, false, fit).map((l) => stripVTControlCharacters(l)), now = lines.filter((l) => l.startsWith(" ▎ ")).slice(1);
+      const lines = v.panel({ owner: "me", ...long }, width, false, fit).map((l) => stripVTControlCharacters(l));
+      const from = lines.findIndex((l) => l.startsWith(" Now")), next = lines.findIndex((l, n) => n > from && /^ \S/.test(l) || (n > from && l === "")), now = lines.slice(from, next < 0 ? lines.length : next);
       assert.ok(now.length > 2 && lines.every((l) => l.length <= width), `wrapped inside ${width} columns`);
-      assert.equal(now.map((l) => l.slice(3)).join(" "), long.msg, `nothing cut at ${width} columns in ${fit} lines`);
-      assert.ok(lines.some((l) => l.startsWith(" ◐ working")), `the status at ${width} columns in ${fit} lines`);
+      assert.equal(now.map((l) => l.replace(/^ Now/, "").trim()).filter(Boolean).join(" "), long.msg, `nothing cut at ${width} columns in ${fit} lines`);
+      assert.ok(lines.some((l) => l.includes("◐ working")), `the state at ${width} columns in ${fit} lines`);
       if (fit === 10) assert.ok(lines.length <= fit && !lines.some((l) => l.startsWith(" Build") || l.startsWith(" Project")));
     } }
-  assert.match(stripVTControlCharacters(v.panel({ owner: "me", ...busy }, 45, false, 30).join("\n")), /\n ▎ Now\n ▎ Running the whole test suite/); // with room, what it is doing is there, behind its bar
+  assert.match(stripVTControlCharacters(v.panel({ owner: "me", ...busy }, 45, false, 30).join("\n")), /\n Status ─+\n State {8}◐ working · for 0s\n Progress {5}█+░+ 40% · 12m left\n Now {10}Running the whole test suite\n {14}again after the last fix\n/); // with room, what it is doing is there, a fact under Status
   if (!process.env.NO_COLOR) {
     // what a row says is greyed out, never in the title's colour
     const grey = "\x1b[38;2;108;112;134m";
@@ -160,7 +166,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   assert.match(row(under, 30), /^ ◐ Other +50% {2}R#3 +0s$/); // no room for the sentence: the row never falls back to a word
   assert.match(row({ ...under, stage: "reviewneeds", state: "blocked", progress: undefined, msg: "the reviewer shows a dialog" }, 120), /^ × Other {2}the reviewer shows a dialog +R#3 {2}0s ago$/);
   assert.doesNotMatch(row({ ...working, reviewRound: 3 }, 120), /review/); // back with the agent: no review is running
-  assert.match(page(under), /◐ reviewer is working · 3rd review · for 0s · proj\/2/);
+  assert.match(page(under), /\n State {8}◐ reviewer is working · 3rd review · for 0s\n Progress {5}█+░+ 50%\n Now {10}Running the tests\.\n Task {9}proj\/2\n/);
   // the same blue everywhere the reviewer's work is drawn: the panel beside the list, the details page, the chat line
   {
     const paint = { ...theme, fg: (c, s) => `<${c}>${s}</>` }, cv = Object.create(View.prototype); Object.assign(cv, v, { theme: paint });
@@ -218,11 +224,11 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   }
   { const paint = { ...theme, fg: (c, s) => `<${c}>${s}</>` }, cv = Object.create(View.prototype); Object.assign(cv, v, { theme: paint }); assert.ok(cv.row(gated, 160, cv.rowLayout([gated], 160)).includes("<green>Pass</>")); assert.ok(cv.row({ ...gated, review: failing }, 160, cv.rowLayout([gated], 160)).includes("<red>Fail</>")); } // 160: this paint's tags take cells
   const loop = { ...gated, reviewRound: 3, reviews: [{ round: 1, at: Date.now() - 7200000, ...failing, head: "1111111aaaa" }, { round: 2, at: Date.now() - 3600000, score: 4, recommend: true, text: "An old one.", problems: ["game.js: old."] }, { round: 3, at: Date.now() - 60000, ...tagged, head: "abcdef12345" }] };
-  assert.match(page(loop), /\n Reviews · 3 ─+\n fail → 4\/5 yes → pass\n ╭─ Review 3 ─+ 1m ago ─╮\n │ Pass · 2 minor +│\n │ Works\. +│\n ╰─+╯\n/); assert.doesNotMatch(page(loop), /Skylark[^\n]*Review:|Review: Pass/); // the board's own words about the review are not said twice
-  assert.match(page(loop, true), /\n ╭─ Review 3 ─+ 1m ago · abcdef1 ─╮\n │ Pass · 2 minor +│\n │ Works\. +│\n │ +│\n │ Findings +│\n │ • \[minor\] A name is unclear \(game\.js\) · not required +│\n │ • \[minor\] A comment is stale \(sky\.js\) · not required +│\n ╰─+╯\n\n ╭─ Review 2 ─+ 1h ago ─╮\n │ 4\/5, says merge +│\n │ An old one\. +│\n │ +│\n │ Problems +│\n │ • game\.js: old\. +│\n ╰─+╯\n\n ╭─ Review 1 ─+ 2h ago · 1111111 ─╮\n │ Fail · 1 critical, 1 major, 1 minor, 1 pre-existing +│\n │ No fix\. +│\n │ +│\n │ Findings +│\n │ • \[critical\] The plane never takes off \(game\.js\) +│\n │ • \[major\] Crashes without a sky \(sky\.js\) +│\n │ • \[minor\] A name is unclear \(game\.js\) · not required +│\n │ • \[major\] The old menu flickers \(menu\.js\) · pre-existing, task proj\/7 +│\n │ • 1 smaller finding noticed late, left out +│\n ╰─+╯\n/);
-  // a review that still stood after main was merged in says so in its box, and the task is still on that review
+  assert.match(page(loop), /\n Reviews · 3 ─+\n History {6}fail → 4\/5 yes → pass\n Review 3 {5}✓ Pass · 2 minor · 1m ago\n {14}Works\.\n/); assert.doesNotMatch(page(loop), /Skylark[^\n]*Review:|Review: Pass/); // the board's own words about the review are not said twice
+  assert.match(page(loop, true), /\n Review 3 {5}✓ Pass · 2 minor · 1m ago · abcdef1\n {14}Works\.\n Findings {5}minor {5}A name is unclear \(game\.js\) · not required\n {14}minor {5}A comment is stale \(sky\.js\) · not required\n\n Review 2 {5}✓ 4\/5, says merge · 1h ago\n {14}An old one\.\n Problems {5}• game\.js: old\.\n\n Review 1 {5}✗ Fail · 1 critical, 1 major, 1 minor, 1 pre-existing · 2h ago\n {14}1111111\n {14}No fix\.\n Findings {5}critical {2}The plane never takes off \(game\.js\)\n {14}major {5}Crashes without a sky \(sky\.js\)\n {14}minor {5}A name is unclear \(game\.js\) · not required\n {14}major {5}The old menu flickers \(menu\.js\) · pre-existing, task\n {24}proj\/7\n {14}1 smaller finding noticed late, left out\n/);
+  // a review that still stood after main was merged in says so under its result, and the task is still on that review
   const stood = { ...loop, reviews: loop.reviews.map((e) => (e.round === 3 ? { ...e, kept: [{ at: Date.now() - 3600000, check: "npm test", resolved: [] }, { at: Date.now() - 30000, check: "npm test", resolved: ["game.js"] }] } : e)) };
-  assert.match(page(stood), /\n ╭─ Review 3 ─+ 1m ago ─╮\n │ Pass · 2 minor +│\n │ Re-merged with main \(conflicts resolved in 1 file\), tests pass, review 3 +│\n │ still stands · 30s ago · 2 times +│\n │ Works\. +│\n/);
+  assert.match(page(stood), /\n Review 3 {5}✓ Pass · 2 minor · 1m ago\n {14}Re-merged with main \(conflicts resolved in 1 file\), tests pass,\n {14}review 3 still stands · 30s ago · 2 times\n {14}Works\.\n/);
   assert.match(row(stood, 120), / {2}Pass · 2 minor +R#3 PR#12/);
   // what a row needs from you is cut like any other sentence: it never costs the row a column
   const stuck = { ...working, state: "blocked", kind: "question", stage: "asks", title: "Build a flying game", msg: "Which colour should the plane be?" };

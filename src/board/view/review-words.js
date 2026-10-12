@@ -21,3 +21,5 @@ export const reviewNote = (r) => (isAgent(r) ? String(r.msg || "").replace(G.SEN
 export const verdict = (t, e, long = false) => (e.error ? t.fg("red", long ? "No verdict" : "no verdict")
   : G.isTagged(e) ? t.fg(resultColor(e), long ? G.word(e) : G.word(e).toLowerCase()) + (long && G.tally(e) ? ` · ${G.tally(e)}` : "")
   : t.fg(resultColor(e), `${e.score}/5`) + (e.recommend === true ? (long ? ", says merge" : " yes") : e.recommend === false ? (long ? ", says don't merge" : " no") : ""));
+// The mark before a review's result: how it went, said without its colour. A dash: it gave no verdict or no advice.
+export const verdictMark = (t, e) => { const how = e.error ? "none" : G.isTagged(e) ? (e.pass ? "pass" : "fail") : e.recommend === true ? "pass" : e.recommend === false ? "fail" : "none"; return t.fg(e.error ? "red" : resultColor(e), { pass: "✓", fail: "✗", none: "–" }[how]); };

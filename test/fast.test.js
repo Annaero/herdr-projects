@@ -89,7 +89,7 @@ test("fast mode: the command and the task panel say where it does nothing", asyn
     assert.doesNotMatch(sw("config", "fast", "off"), /no fast mode/);
     // the panel: "fast" where it is on, a note where it is on and does nothing, whether the task chose it or inherits it
     const s = open(w);
-    const row = (t, label) => stripVTControlCharacters(s.v.panel({ owner: "me", ...S.get(t) }, 70, true).join("\n")).split("\n").find((l) => l.startsWith(` ${label} `));
+    const row = (t, label) => stripVTControlCharacters(s.v.panel({ owner: "me", ...S.get(t) }, 80, true).join("\n")).split("\n").find((l) => l.startsWith(` ${label} `));
     assert.match(row(id, "Reviewer"), /claude · default model, effort · no fast mode in claude \*$/);
     assert.match(row(id, "Agent"), /^ Agent +claude · default model, effort$/);
     const other = A.add(w.root, "Other").id;

@@ -1,6 +1,9 @@
-// What every part of the task panel is drawn with: wrapped text, headlines, callouts, boxes, and the list of parts.
+// What every part of the task panel is drawn with: wrapped text, headlines, label-and-value rows, and the list of parts.
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import { clean, bar } from "./words.js";
+import { clean } from "./words.js";
+
+// Where every value starts: one column for the whole panel, so the labels of every part line up under each other.
+const LABEL = 13;
 
 export function panelKit(t, width) {
   const w = Math.max(10, width - 2);
@@ -9,35 +12,28 @@ export function panelKit(t, width) {
   const wrap = (text, room = w) => plain(text).split("\n").flatMap((l) => { const x = wrapTextWithAnsi(clean(l), Math.max(1, room)); return x.length ? x : [""]; });
   // Every line is built without its margin; `out` adds it at the end.
   const out = (lines) => lines.map((l) => (l ? " " + l : ""));
-  // A headline: bold, on a thin rule that runs to the edge.
-  const head = (label) => { const s = truncateToWidth(label, w, "…"), left = w - visibleWidth(s) - 1; return t.bold(s) + (left > 0 ? " " + line("─".repeat(left)) : ""); };
-  // Facts on one line, broken only between them: "12m ago" is never split.
-  const flow = (parts, room = w) => {
+  // A headline: bold, on a thin rule that runs to the edge. One that needs your eye is in its state's colour.
+  const head = (label, color) => { const s = truncateToWidth(label, w, "…"), left = w - visibleWidth(s) - 1; return (color ? t.fg(color, t.bold(s)) : t.bold(s)) + (left > 0 ? " " + line("─".repeat(left)) : ""); };
+  // In a panel too narrow for a value beside its label, the label is a line of its own and the value is under it.
+  const stacked = w - LABEL < 16, indent = stacked ? 2 : LABEL, room = Math.max(1, w - indent);
+  // Facts on one line, broken only between them: "12m ago" is never split. A line of steps (" → ") that goes on
+  // starts its next line with the arrow.
+  const flow = (parts, space = room, sep = " · ") => {
     const rows = []; let row = "";
-    for (const p of parts.filter(Boolean)) { const next = row ? row + dim(" · ") + p : p; if (row && visibleWidth(next) > room) { rows.push(row); row = p; } else row = next; }
+    for (const p of parts.filter(Boolean)) { const next = row ? row + dim(sep) + p : p; if (row && visibleWidth(next) > space) { rows.push(row); row = sep === " · " ? p : dim(sep.trimStart()) + p; } else row = next; }
     if (row) rows.push(row);
-    return rows.map((l) => truncateToWidth(l, room, "…"));
+    return rows;
   };
+  // A fact: its label greyed out on the left, what it is on the right. A value longer than its line is wrapped under
+  // itself, never cut. `value` is a text or a list of lines; `paint` colours each line after it was wrapped.
+  const fact = (label, value, paint = (x) => x) => {
+    const cells = (Array.isArray(value) ? value : [value]).flatMap((v) => String(v ?? "").split("\n")).flatMap((l) => { const x = wrapTextWithAnsi(l, room); return x.length ? x : [""]; }).map(paint);
+    return [...(stacked ? [dim(label)] : []), (stacked ? " ".repeat(indent) : dim(label.padEnd(LABEL - 1) + " ")) + (cells[0] ?? ""), ...cells.slice(1).map((x) => " ".repeat(indent) + x)];
+  };
+  // A list under a label: each item starts with a dot, and its further lines hang under its first word.
+  const items = (label, xs, mark = "•") => ((xs || []).length ? fact(label, xs.flatMap((x) => wrap(x, room - 2).map((l, n) => (n ? "  " : dim(mark) + " ") + l))) : []);
   // At most `n` lines of a text; a cut one ends by saying so.
-  const first = (lines, n, room = w) => (lines.length <= n ? lines : n < 1 ? [] : [...lines.slice(0, n - 1), truncateToWidth(lines[n - 1].trimEnd() + " …", room, "…")]);
-  // What needs your eye, behind a bar in its state's colour: a headline, what it says, and further parts under
-  // quiet headings of their own.
-  const callout = (color, label, text, more = []) => {
-    const lines = [...wrapTextWithAnsi(t.fg(color, t.bold(label)), w - 2), ...(text ? wrap(text, w - 2) : [])];
-    for (const [k, v] of more) lines.push("", dim(k), ...wrap(v, w - 2));
-    return lines.map((l) => t.fg(color, "▎") + " " + l);
-  };
-  // A box: its name in the top edge, quiet notes at that edge's right end. Where the edge has no room for them
-  // they are the box's first line instead, broken between them: a narrow box never drops one.
-  const card = (title, notes, inner) => {
-    const iw = Math.max(1, w - 4), name = ` ${truncateToWidth(title, Math.max(1, w - 6), "…")} `, note = notes.join(" · ");
-    const tail = note && visibleWidth(name) + visibleWidth(note) + 7 <= w ? ` ${note} ` : "";
-    if (note && !tail) inner = [...flow(notes.map((x) => dim(x)), iw), ...inner];
-    const fill = Math.max(0, w - (tail ? 4 : 3) - visibleWidth(name) - visibleWidth(tail));
-    return [line("╭─") + t.bold(name) + line("─".repeat(fill)) + dim(tail) + line(tail ? "─╮" : "╮"),
-      ...inner.map((l) => { const s = truncateToWidth(l, iw, "…"); return line("│") + " " + s + " ".repeat(Math.max(0, iw - visibleWidth(s))) + " " + line("│"); }),
-      line("╰" + "─".repeat(Math.max(0, w - 2)) + "╯")];
-  };
+  const first = (lines, n, space = w) => (lines.length <= n ? lines : n < 1 ? [] : [...lines.slice(0, n - 1), truncateToWidth(lines[n - 1].trimEnd() + " …", space, "…")]);
   const parts = [];
   const part = (lines, o = {}) => { const s = { lines, ...o }; parts.push(s); return s; };
   // A part that fails to draw is one red line that says so, in its place: the rest of the panel, and the board, stay.
@@ -53,5 +49,8 @@ export function panelKit(t, width) {
   // A headline and a text under it. Short of room it keeps its beginning, or its end with `from: "end"`.
   const text = (label, lines, pri, from = "start") => part([head(label), ...lines], { pri, min: 3,
     at: (n) => (n < 3 ? [] : n > lines.length ? [head(label), ...lines] : from === "end" ? [head(label), dim("…"), ...lines.slice(lines.length - (n - 2))] : [head(label), ...first(lines, n - 1)]) });
-  return { t, w, dim, quiet, line, plain, wrap, out, head, flow, first, callout, card, parts, part, text, attempt };
+  // What needs your eye: a headline in its state's colour, what it says, and facts under it. It gives up lines only
+  // after every setting has gone.
+  const alert = (color, label, said, facts = []) => { const lines = [head(label, color), ...(said ? wrap(said) : []), ...facts.flatMap(([k, v]) => fact(k, wrap(v, room)))]; return part(lines, { alert: (n) => first(lines, n) }); };
+  return { t, w, room, dim, quiet, line, plain, wrap, out, head, flow, fact, items, first, alert, parts, part, text, attempt };
 }
