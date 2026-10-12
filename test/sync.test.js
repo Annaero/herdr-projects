@@ -94,21 +94,20 @@ test("when another task merges, the waiting ones are brought up to date; a revie
     const apart = await start("apart", { "other.txt": "apart\n" });
     const near = await start("near", { "big.txt": big("line 1", "NEAR") });
     const clash = await start("clash", { "big.txt": big("CLASH", "line 20") });
-    A.seen(apart);
     const before = S.get(apart);
     w.script({ worker: [{ note: null, status: "working" }] }); // the agent of `clash`, told about its conflict
     A.approve(first);
     assert.equal((await settle(first)).stage, "done");
     const main = git(w.root, "rev-parse", "HEAD");
-    // another task's files: updated and checked, the review stands, and it does not ask for your eyes again
+    // another task's files: updated and checked, and the review stands
     let t = await settle(apart);
     assert.equal(t.stage, "approval"); assert.ok(holds(t.worktree, main)); assert.notEqual(t.reviewedHead, before.reviewedHead);
     assert.equal(t.reviewedHead, git(t.worktree, "rev-parse", "HEAD")); assert.equal(t.syncedTo, main);
-    assert.equal(t.reviewRound, 1); assert.ok(t.review.keptAt); assert.equal(t.seen, true); assert.match(t.msg, /^Approve to merge\?/);
+    assert.equal(t.reviewRound, 1); assert.ok(t.review.keptAt); assert.match(t.msg, /^Approve to merge\?/);
     assert.equal(paneOf(w, t).agent.prompts.length, 1);
     // the same file, merged cleanly: reviewed again as it will land
     t = await settle(near);
-    assert.equal(t.stage, "approval"); assert.ok(holds(t.worktree, main)); assert.equal(t.reviewRound, 2); assert.ok(!t.review.keptAt); assert.equal(t.seen, false);
+    assert.equal(t.stage, "approval"); assert.ok(holds(t.worktree, main)); assert.equal(t.reviewRound, 2); assert.ok(!t.review.keptAt);
     assert.equal(paneOf(w, t).agent.prompts.length, 1);
     // a real conflict: it no longer looks ready to approve, and its agent is already on it
     t = await settle(clash);
@@ -262,7 +261,7 @@ test("a task that could not be brought up to date is held as behind main: no app
     t = S.get(id);
     assert.equal(t.stage, "approval"); assert.equal(t.syncSeen, seen, "the skipped attempt is not marked as seen"); assert.ok(t.syncRetryAt > Date.now());
     assert.equal(git(t.worktree, "rev-parse", "HEAD"), head);
-    assert.match(t.syncBlocked.why, /not on its own branch/); assert.match(t.msg, /^Behind main/); assert.equal(t.seen, false);
+    assert.match(t.syncBlocked.why, /not on its own branch/); assert.match(t.msg, /^Behind main/);
     assert.deepEqual([stateOf(id).asReview, F.labelOf(t)], [false, "needs you"]);
     assert.throws(() => A.approve(id), /behind main and cannot be approved yet/);
     assert.equal(S.get(id).stage, "approval");

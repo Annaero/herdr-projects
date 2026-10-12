@@ -92,7 +92,7 @@ export function apply(id, a, api) {
         if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
         t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
         t.armedAt = Date.now(); t.turnOpen = true; t.turnBy = "typed";
-        t.stage = "working"; t.msg = ""; t.kind = undefined; t.watch = null; t.seen = false; t.since = Date.now(); t.mergeFailed = false;
+        t.stage = "working"; t.msg = ""; t.kind = undefined; t.watch = null; t.since = Date.now(); t.mergeFailed = false;
         if (t.failure?.auth) t.failure = null; // typing after a login problem is how "fixed" is said
         then = then || "unlabel";
       } else {

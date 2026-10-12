@@ -17,7 +17,6 @@ export function add(folder, title, { description = "", repo } = {}) {
 export function rename(id, title) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.title = S.oneLine(title, 192) || t.title; }); }
 export function describe(id, text) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.description = String(text || "").replace(/\r/g, "").trim(); }); }
 export function pin(id) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.pinned = !t.pinned; }); }
-export function seen(id) { return S.update(S.find(id).id, (t) => { if (t.seen) return false; t.seen = true; }); }
 
 // A report, as in pi-work: the human (or any agent) says where a task stands. A delegated task's own agent may only
 // say it is blocked; it cannot mark itself done: the finish line does that.
@@ -34,7 +33,7 @@ export function report(id, { state, kind, msg, title, progress, asAgent = false 
     S.assertUnarchived(t);
     if (title) t.title = S.oneLine(title, 192) || t.title;
     if (state === "blocked") {
-      t.stage = "asks"; t.kind = S.KINDS.includes(kind) ? kind : "question"; t.msg = S.oneLine(msg) || "needs you"; t.seen = false; t.turnOpen = false;
+      t.stage = "asks"; t.kind = S.KINDS.includes(kind) ? kind : "question"; t.msg = S.oneLine(msg) || "needs you"; t.turnOpen = false;
       if (asAgent) t.selfBlocked = Date.now(); // the turn that follows this report is not a finish
       return;
     }
@@ -42,7 +41,7 @@ export function report(id, { state, kind, msg, title, progress, asAgent = false 
     t.kind = undefined; t.msg = S.oneLine(msg); t.failure = state === "error" ? t.failure : null;
     if (state === "idle") { t.stage = F.isAgentTask(t) ? "stopped" : "todo"; if (!F.isAgentTask(t)) t.app = null; }
     else if (state === "working") { if (F.isAgentTask(t)) throw new Error(`${t.id} has an agent. Reply to it, or delegate it again, to make it work.`); t.stage = "progress"; t.app = t.owner; t.since = Date.now(); if (progress !== undefined) t.watch = { progress: clampPct(progress) }; }
-    else if (state === "done") { t.stage = "done"; t.seen = true; t.mergeIntent = null; t.tidy = F.isAgentTask(t) ? mark : null; }
+    else if (state === "done") { t.stage = "done"; t.mergeIntent = null; t.tidy = F.isAgentTask(t) ? mark : null; }
     else if (state === "error") { t.stage = "failed"; Object.assign(t, S.failurePatch({ stage: "agent", title: "Marked as failed", detail: S.oneLine(msg) || "No details given.", auth: false })); }
   });
   // Called done by you: its space leaves herdr's sidebar as after a merge. Unmerged work stays on its branch.
@@ -73,7 +72,7 @@ export function delegate(id, opts = {}) {
     }
     t.agent = S.choices(t).agent || "claude";
     t.app = t.agent;
-    t.stage = "queued"; t.queuedAt = Date.now(); t.msg = ""; t.kind = undefined; t.seen = false; t.since = Date.now();
+    t.stage = "queued"; t.queuedAt = Date.now(); t.msg = ""; t.kind = undefined; t.since = Date.now();
     t.link = { ...(t.link || {}), socket };
     t.mergeIntent = null; t.requireApproval = t.requireApproval || !!t.review; t.failure = null; t.expectedWake = null; t.turnOpen = false;
     if (t.review) t.review = { ...t.review, stale: true };
@@ -150,7 +149,7 @@ export function rearm(t, keepIntent = false) {
   if (!keepIntent) { if (t.mergeIntent || t.stage === "approval") t.requireApproval = true; t.mergeIntent = null; }
   if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
   t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
-  t.stage = "working"; t.msg = ""; t.kind = undefined; t.watch = null; t.app = t.agent || t.app; t.seen = false; t.since = Date.now(); t.mergeFailed = false;
+  t.stage = "working"; t.msg = ""; t.kind = undefined; t.watch = null; t.app = t.agent || t.app; t.since = Date.now(); t.mergeFailed = false;
 }
 // Stop: the stage is set first and the pane's state_change_seq recorded, then the interrupt key is sent, so a late
 // hook cannot undo the stop.

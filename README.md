@@ -64,7 +64,7 @@ edited by hand: to change a title, a description or a state, say so in the text 
 | `needs you` | a question, something that went wrong, a merge that failed |
 | `ready to approve` | finished, reviewed work that waits for your yes |
 | `working` | an agent or the reviewer is on it |
-| `done` | finished; the ones you have not read yet say `unread` and come first |
+| `done` | finished, newest first |
 | `to do` | nobody has started it |
 
 Each state has a mark of its own (`◐` working, `×` needs you, `✗` went wrong, `✓` done or ready, `○` to do), so no
@@ -133,7 +133,7 @@ above the text box and has two stops:
 
 | Stop | Shows | Keys |
 |---|---|---|
-| hidden | nothing; one row while it works, needs you or has an unread reply | `alt+c` raises it |
+| hidden | nothing; one row while it works, needs you or has a new reply | `alt+c` raises it |
 | last message | its last message (its screen while a dialog is up), above the text box. A new reply pops it up by itself, except while you type or reply to a task | `alt+c` opens its chat · `alt+v` or `esc` hides |
 
 On the board you only talk to it through the text box and read its last message in the drawer. For the whole

@@ -739,7 +739,7 @@ test("a terminal turn that starts before clean-up and ends during its first wait
     S.update(id, (t) => { t.hooked = hooked; });
     w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = "working"; p.agent.seq = s.seq; });
     // the agent task is called done; herdr says its agent is working, and that ends while clean-up waits
-    S.update(id, (t) => { t.stage = "done"; t.seen = true; });
+    S.update(id, (t) => { t.stage = "done"; });
     flip(t, event ? () => S.update(id, (t) => { t.eventSeq = (t.eventSeq || 0) + 1; }) : null);
     const { cleanupJob } = await import("../src/land.js");
     await cleanupJob(id, { deleteBranch: "merged" });
@@ -787,7 +787,7 @@ test("clean-up closes no space with something of yours running in it, nor one he
     assert.match(t.kept[0], /in use again/); assert.ok(open(t)); assert.ok(fs.existsSync(t.worktree));
     // herdr does not answer whether the agent works: unknown is not "nobody there"
     t = await ready(3);
-    S.update(t.id, (t) => { t.stage = "done"; t.seen = true; });
+    S.update(t.id, (t) => { t.stage = "done"; });
     w.patchState((s) => { s.agentGetFails = true; });
     const { cleanupJob } = await import("../src/land.js");
     await cleanupJob(t.id, { deleteBranch: "merged" });
@@ -846,7 +846,7 @@ test("a clean-up put off because the space was in use is tried again by itself o
     const u = A.add(w.root, "Unanswered").id;
     A.delegate(u);
     assert.equal((await settle(u)).stage, "approval");
-    S.update(u, (t) => { t.stage = "done"; t.seen = true; });
+    S.update(u, (t) => { t.stage = "done"; });
     w.patchState((s) => { s.agentGetFails = true; });
     await cleanupJob(u, { deleteBranch: "merged" });
     assert.ok(open(S.get(u)) && S.get(u).tidy);

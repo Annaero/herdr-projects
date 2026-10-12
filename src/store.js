@@ -317,7 +317,7 @@ export function create(folder, title, extra = {}) {
     writeJson(seq, n);
     const now = Date.now();
     const t = { id: `${name}/${n}`, repo: name, n, root, title: text, description: String(extra.description || "").trim(), owner: extra.owner || me(), app: null,
-      stage: "todo", msg: "", created: now, at: now, seen: true, pinned: false, archivedAt: null, own: {} };
+      stage: "todo", msg: "", created: now, at: now, pinned: false, archivedAt: null, own: {} };
     writeJson(taskFile(t.id), t);
     return t;
   });
@@ -389,7 +389,7 @@ export function boundDetail(detail) {
 export function failurePatch(failure) {
   const auth = failure.auth === true || (failure.auth !== false && isAuthFailure(failure.detail));
   return { failure: { ...failure, auth, detail: boundDetail(failure.detail), agentCanFix: auth ? false : failure.agentCanFix !== false,
-    next: auth ? "Fix the login or credential, then tell the agent to continue." : failure.next, at: Date.now(), sentAt: null }, seen: false };
+    next: auth ? "Fix the login or credential, then tell the agent to continue." : failure.next, at: Date.now(), sentAt: null } };
 }
 // Keep findings and evidence for reference, but a verdict stops describing the work once it resumes.
 export const currentReview = (t) => (t?.review?.stale ? null : t?.review);

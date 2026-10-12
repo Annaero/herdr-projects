@@ -135,7 +135,7 @@ async function finishOnce(id, { force = false } = {}) {
       // hold, with what is on the screen as the message. A login screen is recognised from its text.
       const screen = lastLines(readScreen(api, t.link.pane, a?.agent_status ?? null, 60));
       if (S.isAuthFailure(screen)) { g.set(keep); fail(g, { stage: "agent", auth: true, title: "Needs a login", msg: "Needs a login", detail: screen }); return true; }
-      t = g.set((t) => { keep(t); t.stage = "nosummary"; t.msg = S.oneLine(lastLines(screen, 2)) || "stopped without a summary"; t.screen = screen; t.seen = false; });
+      t = g.set((t) => { keep(t); t.stage = "nosummary"; t.msg = S.oneLine(lastLines(screen, 2)) || "stopped without a summary"; t.screen = screen; });
       return true;
     }
     const text = finished ? turn.said : freshNote ? freshNote.text : t.said || "";
@@ -144,7 +144,7 @@ async function finishOnce(id, { force = false } = {}) {
     // Only a kind on the closing-note fallback asks by ending its note with a question: that is where its rules put
     // one. With a readable last message a closing question goes on to check and review; a truly blocked agent says so.
     if (!finished && freshNote && /\?\s*$/.test(text)) {
-      t = g.set((t) => { t.stage = "asks"; t.kind = "question"; t.msg = S.oneLine(text.split("\n").filter((l) => l.trim()).pop()); t.seen = false; });
+      t = g.set((t) => { t.stage = "asks"; t.kind = "question"; t.msg = S.oneLine(text.split("\n").filter((l) => l.trim()).pop()); });
       return true;
     }
     await pipeline(id, g, text, wake);
@@ -187,7 +187,7 @@ export async function syncJob(id, { force = false } = {}) {
     if (r?.status === "error") why = `main could not be fetched (${S.oneLine(firstLine(r.detail), 200) || "git fetch failed"})`;
     if (r?.status === "skip") why = Y.skipWhy(r);
     if (why) {
-      const b = g.set((t) => ({ ...Y.seenPatch(t, null), seen: t.syncBlocked ? t.seen : false, syncBlocked: { why, at: Date.now() }, msg: Y.behindMsg(why) }));
+      const b = g.set((t) => ({ ...Y.seenPatch(t, null), syncBlocked: { why, at: Date.now() }, msg: Y.behindMsg(why) }));
       return void F.labelPane(b, "needs you");
     }
     if (r.status === "conflict") return void Y.conflictBack(id, g, tree, r, (failure, seen) => { fail(g, failure, { patch: seen }); });
@@ -219,7 +219,7 @@ export async function recoverJob(id) {
     if (!F.reopened(t, a.completion_seq ?? null) || S.pendingText(id).length) return;
     const screen = lastLines(readScreen(api, t.link.pane, a.agent_status, 60));
     g.expect(t);
-    g.set((t) => { t.stage = "nosummary"; t.msg = "stopped without a summary"; t.screen = screen; t.turnOpen = false; t.seen = false; t.since = Date.now(); });
+    g.set((t) => { t.stage = "nosummary"; t.msg = "stopped without a summary"; t.screen = screen; t.turnOpen = false; t.since = Date.now(); });
   } catch (e) { if (!e.aborted) process.stderr.write(`${new Date().toISOString()} recover ${id}: ${e.stack || e}\n`); }
   finally { release(id); }
 }
@@ -228,7 +228,6 @@ export async function recoverJob(id) {
 // `synced`: the caller already brought the branch up to date with main (a re-sync, or the sync after an approval)
 // and this is its result.
 export async function pipeline(id, g, text, wake, synced = null) {
-  const sawBefore = !!S.get(id)?.seen;
   let t = g.set((t) => { t.stage = "checking"; t.syncBlocked = null; t.msg = synced ? "checking the branch updated with main" : "checking the result"; t.watch = null; t.summary = String(text || "").trim(); });
   const folder = S.cwdOf(t), root = S.folderOf(t.id), tree = F.isAgentTask(t) && t.worktree && fs.existsSync(t.worktree) ? t.worktree : "";
   const repo = t.repoCfg || {};
@@ -307,7 +306,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
   const toLand = !!(change && change.stat);
   // Done with nothing to merge leaves herdr's sidebar like merged work does; its branch goes only if git calls it merged.
   const tidyDone = async (id) => { const { tidy } = await import("./land.js"); await tidy(id, { deleteBranch: "merged" }); };
-  const done = (msg, patch = {}) => { const mark = F.tidyMark(t, "merged"); const d = g.set((t) => { t.stage = "done"; t.tidy = mark; t.msg = S.oneLine(msg); t.seen = false; t.failure = null; t.mergeIntent = null; Object.assign(t, patch); }); F.labelPane(d, null); return d; };
+  const done = (msg, patch = {}) => { const mark = F.tidyMark(t, "merged"); const d = g.set((t) => { t.stage = "done"; t.tidy = mark; t.msg = S.oneLine(msg); t.failure = null; t.mergeIntent = null; Object.assign(t, patch); }); F.labelPane(d, null); return d; };
   // Nothing to land: it is simply done, unless work outside a repo is reviewed too (review "all").
   if (!toLand && ch.review !== "all") {
     if (holdPrFailure(g, t)) return;
@@ -349,17 +348,15 @@ export async function pipeline(id, g, text, wake, synced = null) {
     return void (await landCore(id, g));
   }
   // Finished work that waits for your yes is not done: it is blocked on you.
-  // An update with main that left the verdict standing does not ask for your eyes again.
-  const quiet = sawBefore && wake?.reason === "sync" && (review ? !!review.keptAt : !reviewNeeded);
   // Checked and reviewed, but not against where it would land (your checkout is on another branch): not approvable yet.
   const behind = sync?.status === "skip" ? Y.skipWhy(sync) : "";
-  t = g.set((t) => { t.stage = "approval"; t.msg = behind ? Y.behindMsg(behind) : approvalMessage(t, note); t.seen = quiet; if (behind) t.syncBlocked = { why: behind, at: Date.now() }; });
+  t = g.set((t) => { t.stage = "approval"; t.msg = behind ? Y.behindMsg(behind) : approvalMessage(t, note); if (behind) t.syncBlocked = { why: behind, at: Date.now() }; });
   F.labelPane(t, F.labelOf(t));
 }
 // A pull-request blocker found by polling survives a passing local check: remote CI must confirm.
 function holdPrFailure(g, t) {
   if (!t.prFailure) return false;
-  const h = g.set((t) => { t.stage = "approval"; t.failure = null; t.seen = false; t.msg = `Local checks passed; pull request still blocked: ${t.prFailure.title}. Wait for remote confirmation or send the details to the agent.`; });
+  const h = g.set((t) => { t.stage = "approval"; t.failure = null; t.msg = `Local checks passed; pull request still blocked: ${t.prFailure.title}. Wait for remote confirmation or send the details to the agent.`; });
   F.labelPane(h, "failed");
   return true;
 }
@@ -458,7 +455,7 @@ async function runReview(id, g, { text, change, toLand, ch }) {
       // herdr status is used only to notice a reviewer that is blocked: "review needs you".
       const blocked = a?.agent_status === "blocked";
       const cur = S.get(id);
-      if (blocked && cur.stage === "reviewing") { g.set({ stage: "reviewneeds", msg: "the reviewer shows a dialog: open it and answer", seen: false }); g.allow("reviewing"); }
+      if (blocked && cur.stage === "reviewing") { g.set({ stage: "reviewneeds", msg: "the reviewer shows a dialog: open it and answer" }); g.allow("reviewing"); }
       else if (!blocked && cur.stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "under review" }); g.allow("reviewneeds"); }
       if (!sent && a && (a.agent_status === "idle" || a.agent_status === "done")) { try { api.agentPrompt(pane.pane_id, brief); sent = true; sentAt = Date.now(); } catch (e) { if (e.code !== "agent_blocked" && e.code !== "agent_not_ready") { sent = true; sentAt = Date.now(); } } }
       else if (sent && a && adapter(rkind).readTurn && Date.now() - sentAt > 5000) {

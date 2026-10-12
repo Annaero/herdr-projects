@@ -229,7 +229,7 @@ export class View {
     const local = this.items.filter((r) => !r.host && !r.archivedAt);
     if (process.env.HERDR_PLUGIN_ID || process.env.HERDR_SUPERWORK_PROGRAM_STATUS === "0") return;
     const next = new Map();
-    for (const r of local) if (r.state !== "idle" && !(r.state === "done" && r.seen)) next.set(r.id, osc(r));
+    for (const r of local) if (r.state !== "idle" && r.state !== "done") next.set(r.id, osc(r));
     let out = "";
     for (const [id, seq] of next) if (this.sent.get(id) !== seq) out += seq;
     for (const id of this.sent.keys()) if (!next.has(id)) out += oscClear(id);
@@ -260,8 +260,8 @@ export class View {
       if (!recs.length) continue;
       rows.push({ header: name });
       // Inside a project: pinned first, then the order of the status groups, so what needs you is on top.
-      // A long done list folds to the latest few, unseen results first.
-      const list = [...recs].sort((a, b) => (this.byRepo ? rank(a) - rank(b) : 0) || (a.archivedAt && b.archivedAt ? b.archivedAt - a.archivedAt : 0) || (isDone(a) && isDone(b) ? Number(!!a.seen) - Number(!!b.seen) || b.at - a.at : 0));
+      // A long done list folds to the latest few, newest first.
+      const list = [...recs].sort((a, b) => (this.byRepo ? rank(a) - rank(b) : 0) || (a.archivedAt && b.archivedAt ? b.archivedAt - a.archivedAt : 0) || (isDone(a) && isDone(b) ? b.at - a.at : 0));
       const done = list.filter(isDone);
       const folded = !this.allDone && !f ? done.slice(5).filter((r) => r.id !== this.sel) : [];
       for (const r of list) {
@@ -272,20 +272,19 @@ export class View {
     this.rows = rows;
     const selectable = [...rows.filter((r) => r.rec).map((r) => r.rec), ...this.jobs];
     // Only the selected task's ordering data matters. New rows, progress updates and other tasks moving must not
-    // steal selection. Reading a done result (seen) is excluded: it stays selected until you move away.
+    // steal selection.
     const base = new Map(this.items.map((r, n) => [r.id, n]));
-    const nextRows = selectable.map((r) => ({ id: r.id, order: JSON.stringify([r.title !== undefined ? groupOf(r) : r.state, !!r.pinned, r.created, !!r.archivedAt]), at: r.title !== undefined && isDone(r) ? r.at : 0, done: r.title !== undefined && isDone(r), seen: !!r.seen, base: base.get(r.id) ?? -1 }));
+    const nextRows = selectable.map((r) => ({ id: r.id, order: JSON.stringify([r.title !== undefined ? groupOf(r) : r.state, !!r.pinned, r.created, !!r.archivedAt]), at: r.title !== undefined && isDone(r) ? r.at : 0, done: r.title !== undefined && isDone(r), base: base.get(r.id) ?? -1 }));
     const ids = nextRows.map((r) => r.id);
     const before = this.selectionRows.findIndex((r) => r.id === this.sel);
     const afterIndex = ids.indexOf(this.sel);
     const after = nextRows[afterIndex];
     const selected = this.sel;
     const old = this.selectionRows[before];
-    const fresh = !!old && !!after && old.seen && !after.seen;
-    const crossed = !!old && !!after && old.done && after.done && (fresh || (old.seen === after.seen && old.at !== after.at)) && this.selectionRows.some((r, n) => {
+    const crossed = !!old && !!after && old.done && after.done && old.at !== after.at &&this.selectionRows.some((r, n) => {
       const to = ids.indexOf(r.id);
       if (to < 0 || r.id === selected || !r.done || (this.byRepo && r.id.split("/")[0] !== selected.split("/")[0])) return false;
-      const wouldPrecede = r.seen !== after.seen ? !r.seen : r.at > after.at || (r.at === after.at && r.base < old.base);
+      const wouldPrecede = r.at > after.at || (r.at === after.at && r.base < old.base);
       return (n < before) !== wouldPrecede && (n < before) !== (to < afterIndex);
     });
     // The selection stays where it is while you read or answer a task, and on the row whose agent you just stopped.
@@ -487,10 +486,7 @@ export class View {
       this.pollRemotes(true); this.tui.requestRender();
     });
   }
-  // done means the result is ready and not yet seen. Once you have looked, it dims.
-  seen(r) { if (r && r.state === "done" && !r.seen) { if (r.host) { r.seen = true; return this.act(r, "seen", {}, true); } try { A.seen(r.id); } catch {} } }
-  // Leaving the task panel (full screen, or the reply it holds): what you read there counts as seen.
-  closePanel() { this.seen(this.current()); this.reply = false; this.full = false; this.panelTop = 0; this.load(); }
+  closePanel() { this.reply = false; this.full = false; this.panelTop = 0; this.load(); }
   openPanel() { const r = this.current(); if (!r && !this.job()) return this.flash("Select a task first."); this.full = true; this.panelTop = 0; this.reply = !!r && !r.archivedAt; if (this.drawer === "peek") { this.drawer = "hidden"; this.savePrefs(); } }
   // What the agent's pane shows, read through herdr. A deep read is done once per completed turn and cached; while
   // the agent is busy only its visible screen is read, at most every two seconds.
@@ -532,7 +528,6 @@ export class View {
     // Its space may have been closed (archive closes it): reopen it from the worktree first.
     let pane;
     try { pane = D.reopen(r.id).pane; } catch (e) { return this.flash(e.message, "yellow"); }
-    this.seen(r);
     const hasAgent = !!api.agentGet(pane.pane_id);
     if (!inHerdr()) {
       if (!hasAgent) return this.flash("Its agent has exited. space and a reply starts it again.", "yellow");
@@ -564,7 +559,6 @@ export class View {
       spawnSync(command, args, { stdio: "inherit" });
       this.tui.start(); this.tui.requestRender(true);
       this.pollRemotes(true);
-      this.seen(r);
     };
     // A machine on an older plugin sends no version and would not know "reopen": attach to what is there.
     if (!r.machine.version) { this.flash(`Update herdr-superwork on ${r.host}: it cannot reopen a closed space yet.`, "yellow"); return attach(r.link.pane); }
@@ -986,7 +980,7 @@ export class View {
     if (r.archivedAt) return t.fg(c, t.mark("unknown"));
     if (inReview(r)) return t.fg(c, t.bold(t.mark("done")));
     if (r.state === "blocked") return t.fg(c, t.bold(t.mark("blocked")));
-    if (r.state === "done" && r.seen) return t.dim(t.fg(c, t.mark("done"))); // read: the same mark, only quieter
+    if (r.state === "done") return t.dim(t.fg(c, t.mark("done"))); // finished: the same mark, only quieter
     return t.fg(c, t.mark(MARK_STATES.includes(r.state) ? r.state : "idle"));
   }
   // The task panel, full screen: the same panel as beside the list, whole, with every setting at its end.
@@ -1196,7 +1190,7 @@ export class View {
     // While the reviewer works the row starts with the word: the colour alone does not say it, and its bar starts again from zero.
     // It always starts with "review"; which one it is follows, from the second on: "review (2nd) · Running the tests".
     if (reviewing(r) && r.state === "working") { const word = t.fg("review", "review"), nth = S.reviewRound(r) >= 2 ? t.fg("review", ` (${ordinal(S.reviewRound(r))})`) : ""; return { text: word + nth + (msg ? t.fg("subtext0", ` · ${msg}`) : ""), short: word }; }
-    if (r.state === "done") return { text: r.seen || r.archivedAt ? "" : t.fg("teal", "unread") };
+    if (r.state === "done") return { text: "" };
     if (needsYou(r)) return { text: msg || { question: "has a question", permission: "asks for your OK", auth: "needs a login" }[r.kind] || (r.state === "error" ? "failed" : "") };
     return { text: msg ? t.fg("subtext0", msg) : "" };
   }
@@ -1215,8 +1209,7 @@ export class View {
   }
   row(r, width, layout = this.rowLayout([r], width)) {
     const t = this.theme;
-    const unseen = r.state === "done" && !r.seen;
-    const bright = r.state === "working" || r.state === "blocked" || unseen;
+    const bright = r.state === "working" || r.state === "blocked";
     const title = clean(r.title || r.id) + (r.archivedAt ? " [archived]" : "");
     // The title is plain text whatever the task's state: the mark and the group's heading carry the state's colour.
     const name = bright ? t.bold(title) : title;

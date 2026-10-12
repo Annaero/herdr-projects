@@ -250,7 +250,7 @@ export const noteRule = (t) => `Before you stop, write your closing summary (or 
 // expectedWake first, so the turn it causes is known to be the plugin's own: counters and an approved merge survive.
 export function sendOwn(id, text, { reason, keepIntent = false, patch = {} } = {}) {
   const wake = { reason, keepIntent, at: Date.now() };
-  const t = S.update(id, (t) => { Object.assign(t, patch); t.expectedWake = wake; t.armedAt = wake.at; t.stage = "working"; t.turnOpen = false; t.msg = ""; t.watch = null; t.app = t.agent || t.app; t.seen = false; }, { waitMs: 10000 });
+  const t = S.update(id, (t) => { Object.assign(t, patch); t.expectedWake = wake; t.armedAt = wake.at; t.stage = "working"; t.turnOpen = false; t.msg = ""; t.watch = null; t.app = t.agent || t.app; }, { waitMs: 10000 });
   labelPane(t, null);
   return deliver(t, withTail(t, text), wake);
 }

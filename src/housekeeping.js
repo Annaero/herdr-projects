@@ -111,14 +111,14 @@ async function pollOne(id, pr, j) {
     if (t.archivedAt || t.pr !== pr || runnerAlive(t)) return false; // archived or active since the request started: next poll
     if (j.state === "MERGED") {
       mode = covered(local(), j.headRefOid || t.prHead || "") ? "always" : "merged";
-      t.stage = "done"; t.tidy = F.tidyMark(t, mode); t.msg = `Merged: ${pr}`; t.failure = null; t.prFailure = null; t.prMerged = true; t.prState = "merged"; t.autoMerge = false; t.mergeIntent = null; t.seen = false;
+      t.stage = "done"; t.tidy = F.tidyMark(t, mode); t.msg = `Merged: ${pr}`; t.failure = null; t.prFailure = null; t.prMerged = true; t.prState = "merged"; t.autoMerge = false; t.mergeIntent = null;
       then = "merged";
       return;
     }
     // Closed without merging while its merge was awaited (taken out of the queue, closed by someone): GitHub will not
     // merge it any more, so the task says so and waits for you instead of claiming a merge is on its way.
     if (j.state === "CLOSED" && t.autoMerge) {
-      t.autoMerge = false; t.autoMergeLocal = false; t.stage = "approval"; t.mergeFailed = true; t.mergeIntent = null; t.requireApproval = true; t.seen = false; t.prState = "closed";
+      t.autoMerge = false; t.autoMergeLocal = false; t.stage = "approval"; t.mergeFailed = true; t.mergeIntent = null; t.requireApproval = true; t.prState = "closed";
       t.msg = "Pull request was closed without merging";
       Object.assign(t, S.failurePatch({ stage: "merge", title: t.msg, detail: `Pull request: ${pr}\nBranch: ${t.branch || "unknown"}\n\nGitHub reports it as closed, not merged. The approved merge did not happen.`, next: "Reopen the pull request (gh pr reopen) and approve again, or open a new one from the task's branch. Nothing was cleaned up; the work is still on its branch.", agentCanFix: false, auth: false }));
       then = "closed";
@@ -130,7 +130,7 @@ async function pollOne(id, pr, j) {
     const reviewed = t.mergeIntent?.verifiedHead || t.prHead || "";
     if (t.autoMerge && reviewed && j.headRefOid && j.headRefOid !== reviewed) {
       legacy = !t.autoMergeLocal;
-      t.autoMerge = false; t.autoMergeLocal = false; t.stage = "approval"; t.mergeFailed = true; t.mergeIntent = null; t.requireApproval = true; t.seen = false;
+      t.autoMerge = false; t.autoMergeLocal = false; t.stage = "approval"; t.mergeFailed = true; t.mergeIntent = null; t.requireApproval = true;
       t.msg = "Pull request has commits that were not reviewed";
       Object.assign(t, S.failurePatch({ stage: "merge", title: t.msg, detail: `Pull request: ${pr}\nBranch: ${t.branch || "unknown"}\nReviewed here: ${reviewed}\nOn the pull request: ${j.headRefOid}`, next: `Bring the pull request's commits into your own worktree (git pull origin ${t.branch || "<branch>"}), then finish again so they are checked and reviewed before anything merges.`, agentCanFix: true, auth: false }));
       then = "unreviewed";
@@ -166,7 +166,7 @@ async function pollOne(id, pr, j) {
         t.prFailure = { stage: "pr", remote: true, remoteKind, head: j.headRefOid, title: failed.length ? "Pull request checks failed" : "Pull request changes requested", detail: why,
           next: "Address this on your own branch and finish again. Local checks do not prove remote CI passed; wait for a fresh remote result.", agentCanFix: true, at: Date.now(), sentAt: null };
       }
-      if (t.stage === "approval" && !t.failure) { t.msg = `${t.prFailure.title}: ${why} Send details to the agent, or wait for remote confirmation.`; t.seen = false; }
+      if (t.stage === "approval" && !t.failure) { t.msg = `${t.prFailure.title}: ${why} Send details to the agent, or wait for remote confirmation.`; }
     } else if (t.prFailure) {
       const confirmed = t.prFailure.remoteKind === "review" ? j.reviewDecision === "APPROVED" : t.prState === "passing";
       if (confirmed) {

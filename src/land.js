@@ -181,7 +181,7 @@ export async function landCore(id, g) {
   // `head`: the commit that was merged. Nothing newer on the branch is taken for merged.
   const landed = async (msg, head = "") => {
     const mark = F.tidyMark(t, "always", head);
-    const d = g.set((t) => { t.stage = "done"; t.tidy = mark; t.msg = msg; t.failure = null; t.prFailure = null; t.mergeIntent = null; t.autoMerge = false; t.autoMergeLocal = false; t.mergeFailed = false; t.seen = false; t.requireApproval = false; if (t.pr) { t.prMerged = true; t.prState = "merged"; } });
+    const d = g.set((t) => { t.stage = "done"; t.tidy = mark; t.msg = msg; t.failure = null; t.prFailure = null; t.mergeIntent = null; t.autoMerge = false; t.autoMergeLocal = false; t.mergeFailed = false; t.requireApproval = false; if (t.pr) { t.prMerged = true; t.prState = "merged"; } });
     F.labelPane(d, null);
     await tidy(id);
   };

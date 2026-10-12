@@ -111,7 +111,7 @@ test("a tight row keeps the task's name, then the columns on the right; the sent
     const records = [
       { id: "proj/1", state: "working", title: "Remove notification pop-ups", msg: "Removing pop-up calls from plugin, fixing tests, writing closing note.", progress: 95, at },
       { id: "proj/2", state: "working", title: "Fix ugly blocked row on the board", msg: "Fixing layout so approval names keep width.", progress: 55, pr: 3, at },
-      { id: "proj/3", state: "done", title: "Truncate long descriptions in sidebar", pr: 2, seen: true, at },
+      { id: "proj/3", state: "done", title: "Truncate long descriptions in sidebar", pr: 2, at },
     ];
     const draw = (width) => { const layout = s.v.rowLayout(records, width); return records.map((r) => stripVTControlCharacters(s.v.row(r, width, layout))); };
     for (const width of [200, 120, 90, 72, 64, 50, 40, 30, 20]) assert.ok(draw(width).every((l) => l.length <= width), `fits ${width}`);
@@ -131,7 +131,7 @@ test("a tight row keeps the task's name, then the columns on the right; the sent
     assert.match(rows[1], /Fix ugly blocked row on the board +55% PR#3 +6m {4}$/); // a PR row keeps its percent while it fits
     assert.match(rows[2], /Truncate long descriptions in sidebar +PR#2 +6m ago$/);
     { // narrow, a finished task still reads differently from a working one
-      const pair = [{ id: "proj/5", state: "working", title: "Still going", at }, { id: "proj/6", state: "done", title: "All done", seen: true, at }];
+      const pair = [{ id: "proj/5", state: "working", title: "Still going", at }, { id: "proj/6", state: "done", title: "All done", at }];
       const lay = s.v.rowLayout(pair, 50), [going, ended] = pair.map((r) => stripVTControlCharacters(s.v.row(r, 50, lay)));
       assert.match(going, /^ ◐ Still going +6m {4}$/); assert.match(ended, /^ ✓ All done +6m ago$/);
     }
@@ -345,7 +345,7 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     assert.match(s.text(), /proj\/1: approved, merging/); // a result stays until the next key press, however long that takes
     s.v.beat(); s.v.beat(); assert.match(s.text(), /proj\/1: approved, merging/);
     await settle(id); s.v.load();
-    assert.match(s.text(80), /\n done *\n ✓ Make f {2}unread/); // an unread result says so, which is why it is on top
+    assert.match(s.text(80), /\n done *\n ✓ Make f *\d/); assert.doesNotMatch(s.text(80), /unread/); // a done row says nothing more than its name and time
     // the ? menu: lines to act from, each with its old chord beside it, and the few keys worth remembering
     s.v.sel = "proj/2"; s.v.load(); s.press("?");
     text = s.text();
@@ -625,7 +625,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     assert.ok(v.row(pr, 120).includes(`${red}3/5`)); assert.ok(v.row({ ...pr, review: { ...review, recommend: true } }, 120).includes(`${green}3/5`));
     assert.ok(v.row(pr, 120).includes(`${green}PR#12`) && v.row(pr, 120).includes(`${green}✓`)); // the colour only repeats the mark
     // whatever the state, the title is plain text
-    for (const r of [pr, working, { ...working, state: "error", stage: "failed" }, { ...working, state: "done", seen: true }, { ...working, state: "idle" }]) assert.match(v.row(r, 120), /^ \S+ (\x1b\[1m)?[A-Z]/);
+    for (const r of [pr, working, { ...working, state: "error", stage: "failed" }, { ...working, state: "done" }, { ...working, state: "idle" }]) assert.match(v.row(r, 120), /^ \S+ (\x1b\[1m)?[A-Z]/);
     // while the reviewer works, the mark, the bar and the percent are a colour no other state uses
     const reviewed = v.row({ ...working, stage: "reviewing", reviewRound: 1 }, 120);
     assert.ok(reviewed.includes(`${mauve}◐`) && reviewed.includes(`${mauve} 50%`) && reviewed.includes(`${mauve}█`) && reviewed.includes(`${mauve}review`) && !reviewed.includes(yellow));
@@ -707,4 +707,19 @@ test("a reply typed on the board to work that was merged and cleaned up starts a
     assert.ok(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.some((x) => /now add g/.test(x)));
     s.v.dispose();
   } finally { delete process.env.HERDR_ENV; w.cleanup(); }
+});
+
+test("the done list is plain: newest first, and nothing marks a task as read or not", async () => {
+  const w = await world({ settings: { helper: "off" } });
+  try {
+    const titles = ["oldest", "middle", "newest"], ids = titles.map((title) => A.add(w.root, title).id), now = Date.now();
+    // `seen` is what an older version saved in a task: it changes neither the order nor the row
+    ids.forEach((id, n) => { S.update(id, { stage: "done" }); S.update(id, { at: now - (3 - n) * 60000, seen: n !== 0 }); });
+    const s = open(w);
+    const lines = s.screen(80), at = titles.map((title) => lines.findIndex((l) => l.startsWith(` ✓ ${title}`)));
+    assert.ok(at[2] > 0 && at[2] < at[1] && at[1] < at[0], lines.join("\n"));
+    assert.doesNotMatch(lines.join("\n"), /unread/);
+    for (const r of s.v.items) assert.equal(s.v.row(r, 80).includes("\x1b[1m"), false, "no done row stands out from the others");
+    s.press("enter", "esc"); assert.equal(S.get(s.v.sel).seen, s.v.sel !== ids[0], "looking at a task changes nothing about it");
+  } finally { w.cleanup(); }
 });
