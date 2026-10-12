@@ -62,12 +62,6 @@ export function readHerdrConfig(file = herdrConfig()) { try { return parseToml(f
 // null when unknown); `want` is the board's own `theme` setting: "herdr" resolves the config exactly as herdr does,
 // "auto" does too when the config sets a theme and is the terminal's colours when it sets none, "terminal" is always
 // herdr's "terminal" theme, "dark" and "light" pick herdr's dark or light theme by hand.
-// The colour of a task under review: the theme's mauve, the board's one colour no other state uses. Where a theme
-// gives mauve the look of another state's colour (the terminal theme's mauve is its "to do" grey; Vesper's is its
-// "working" peach), it is the terminal's magenta instead, so review never shares a state's colour.
-const STATE_TOKENS = ["red", "green", "yellow", "teal", "overlay0"];
-const alike = (a, b) => a === b || (a >= 0 && b >= 0 && Math.hypot((a >> 16) - (b >> 16), ((a >> 8) & 255) - ((b >> 8) & 255), (a & 255) - (b & 255)) < 48);
-const reviewColor = (palette) => [palette.mauve, A + 5, A + 13, palette.blue, palette.peach].find((c) => typeof c === "number" && !STATE_TOKENS.some((k) => alike(c, palette[k]))) ?? palette.mauve;
 const THEME_KEYS = ["name", "dark_name", "light_name", "auto_switch", "custom"];
 export function resolve(cfg = {}, light = null, want = "herdr") {
   const th = cfg.theme || {}, ui = cfg.ui || {};
@@ -83,7 +77,9 @@ export function resolve(cfg = {}, light = null, want = "herdr") {
   over(th.custom);
   if (typeof ui.accent === "string" && ui.accent !== "cyan" && typeof th.custom?.accent !== "string") palette.accent = parseColor(ui.accent); // herdr's older accent setting
   if (mode && th.auto_switch === true) over(th.custom?.[mode]);
-  palette.review = reviewColor(palette);
+  // A review that is running has no colour of its own: "review" is the theme's green, the colour of what is ready to
+  // approve. The name stays, so whatever paints "a review is on" (the row's mark and bar, its R# tag) is that green.
+  palette.review = palette.green;
   return { name: canonical(name) || name, palette, symbols: ui.status_indicators === "symbols", dots: ui.status_indicators === "dots" };
 }
 

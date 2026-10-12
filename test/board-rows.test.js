@@ -62,7 +62,7 @@ test("a tight row keeps the task's name, then the columns on the right; the sent
       assert.match(e[0], /Remove notification pop-ups +95% {3}3m +6m {4}$/); assert.match(e[1], /Fix ugly blocked row on the board +55% 130m PR#3 +6m/);
       e = lines(52); // short of room, a row gives up its minutes left before its percent
       assert.match(e[1], /Fix ugly blocked row on the board +55% PR#3 +6m$/);
-      if (!process.env.NO_COLOR) { // the same colour as the percent, whatever the state: the reviewer's colour under review
+      if (!process.env.NO_COLOR) { // the same colour as the percent, whatever the state: green under review
         const paint = (r) => s.v.row(r, 120, s.v.rowLayout([r], 120)), yellow = "\x1b[38;2;249;226;175m";
         assert.ok(paint(eta[1]).includes(`${yellow} 55%\x1b[39m`) && paint(eta[1]).includes(`${yellow}130m\x1b[39m`));
         const under = paint({ ...eta[1], stage: "reviewing", agent: "claude" }), colour = (s, word) => s.slice(0, s.indexOf(word)).match(/\x1b\[38;2;[\d;]+m(?!.*\x1b\[38)/s)?.[0];

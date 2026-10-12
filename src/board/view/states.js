@@ -19,7 +19,8 @@ export const reviewing = (r) => r.state !== "done" && (r.stage === "reviewing" |
 export const needsYou = (r) => r.state === "blocked" || r.state === "error";
 export const groupOf = (r) => (inReview(r) ? "ready to approve" : needsYou(r) ? "needs you" : r.state === "working" ? "working" : r.state === "done" ? "done" : "to do");
 // The mark, the bar and the percent take the colour of the task's group; a task's own words (its title and what it
-// says) stay in herdr's text colours whatever its state. While the reviewer works they are a colour no other state uses.
+// says) stay in herdr's text colours whatever its state. While the reviewer works they are "review": the theme's
+// green, the very colour of "ready to approve" (theme.js), since the work is past its agent and on its way to you.
 export const statusColor = (r) => (r.archivedAt ? "overlay0" : reviewing(r) && r.state === "working" ? "review" : GROUP_COLOR[groupOf(r)]);
 // A task as the screen reads it: `msg` is the line to show, `app` who is on it, `at` since when.
 export const asRow = (t) => ({ ...t, msg: t.note || "", raw: t.msg, app: t.shownApp || "", at: t.state === "working" ? t.since || t.at : t.at });

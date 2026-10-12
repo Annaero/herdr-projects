@@ -22,8 +22,8 @@ name, a sentence, then on the right the progress bar, the percent and the minute
 ```
 
 The row says how the review came out and a short tally of what it found (`Pass · 2 minor`, `Fail · 1 critical, 1 major`). Which review it was shows only from the second on. While the
-reviewer works, the mark, the bar, the percent and the minutes left take a colour no other state uses: that alone says a review is
-running, and the sentence says only what the reviewer is doing. `PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
+reviewer works, the mark, the bar, the percent and the minutes left are the green of `ready to approve` (the same holds in the task panel, on the details screen and on the chat line): a green `◐` with a bar says a review is running, a green `✓` that it is ready for you,
+and the sentence says only what the reviewer is doing. `PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
 since it stopped. A row never repeats what its heading says.
 
 **One chat, at the bottom.** The text box is a chat, and it is the same chat whoever you talk to. One rule decides

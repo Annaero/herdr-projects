@@ -40,11 +40,11 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     assert.ok(v.row(pr, 120).includes(`${green}PR#12`) && v.row(pr, 120).includes(`${green}✓`)); // the colour only repeats the mark
     // whatever the state, the title is plain text
     for (const r of [pr, working, { ...working, state: "error", stage: "failed" }, { ...working, state: "done" }, { ...working, state: "idle" }]) assert.match(v.row(r, 120), /^ \S+ (\x1b\[1m)?[A-Z]/);
-    // while the reviewer works, the mark, the bar and the percent are a colour no other state uses
-    const reviewed = v.row({ ...working, stage: "reviewing", reviewRound: 1 }, 120);
-    assert.ok(reviewed.includes(`${mauve}◐`) && reviewed.includes(`${mauve} 50%`) && reviewed.includes(`${mauve}█`) && !reviewed.includes(`${mauve}review`) && !reviewed.includes(yellow));
+    // while the reviewer works, the mark, the bar, the percent and the minutes left are the green of "ready to approve"
+    const reviewed = v.row({ ...working, stage: "reviewing", reviewRound: 1, eta: 12 }, 120);
+    assert.ok(reviewed.includes(`${green}◐`) && reviewed.includes(`${green} 50%`) && reviewed.includes(`${green}12m`) && reviewed.includes(`${green}█`) && !reviewed.includes(`${green}review`) && !reviewed.includes(yellow) && !reviewed.includes(mauve));
     const plainWork = v.row(working, 120);
-    assert.ok(plainWork.includes(`${yellow}◐`) && !plainWork.includes(mauve));
+    assert.ok(plainWork.includes(`${yellow}◐`) && !plainWork.includes(green) && !plainWork.includes(mauve));
   }
   assert.match(row(base, 120), /^ ✓ Build a flying game +0s ago$/); // no reviewer: the heading says the rest
   assert.match(row({ ...pr, review: { ...review, stale: true } }, 120), /^ ✓ Build a flying game {2}the work changed since its review +PR#12 ✓ {2}0s ago$/);

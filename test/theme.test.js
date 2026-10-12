@@ -109,15 +109,13 @@ test("the whole of TOML is read, so nothing herdr accepts is lost", () => {
   if (real && fs.existsSync(real)) assert.doesNotThrow(() => parseToml(fs.readFileSync(real, "utf8")));
 });
 
-test("a task under review has a colour no other state uses, in every theme", () => {
-  const STATES = ["red", "green", "yellow", "teal", "overlay0"];
+test("a review that is running is the theme's own green, the colour of what is ready to approve, in every theme", () => {
   const names = ["catppuccin", "catppuccin-latte", "terminal", "tokyo-night", "tokyo-night-day", "dracula", "nord", "gruvbox", "gruvbox-light", "one-dark", "one-light", "solarized", "solarized-light", "kanagawa", "kanagawa-lotus", "rose-pine", "rose-pine-dawn", "vesper"];
-  for (const name of names) { const p = resolve({ theme: { name } }, null, "herdr").palette; assert.equal(typeof p.review, "number", name); for (const k of STATES) assert.notEqual(p.review, p[k], `${name}: review looks like ${k}`); }
-  // The default: no theme set here, so the terminal's colours. Its mauve is its "to do" grey; review is magenta instead.
-  const term = resolve({}, null, "auto").palette;
-  assert.equal(term.mauve, term.overlay0); assert.equal(term.review, -16 + 5);
-  assert.equal(resolve({ theme: { name: "catppuccin" } }, null, "herdr").palette.review, 0xcba6f7); // a mauve of its own is kept
-  assert.notEqual(resolve({ theme: { custom: { mauve: "#f9e2af" } } }, null, "herdr").palette.review, 0xf9e2af); // never the working colour
+  for (const name of names) { const p = resolve({ theme: { name } }, null, "herdr").palette; assert.equal(typeof p.green, "number", name); assert.equal(p.review, p.green, `${name}: review is green`); }
+  { const p = resolve({}, null, "auto").palette; assert.equal(p.review, p.green); assert.equal(p.review, -16 + 2); }
+  assert.equal(resolve({ theme: { custom: { green: "#010203", mauve: "#ff00ff" } } }, null, "herdr").palette.review, 0x010203); // a green of your own is followed; mauve plays no part
+  // Whatever is painted "review" (the row's mark and bar, the R# tag of a review that is on) comes out exactly as green.
+  if (!process.env.NO_COLOR) { loadTheme(); assert.equal(theme.fg("review", "R#2"), theme.fg("green", "R#2")); assert.notEqual(theme.fg("review", "R#2"), "R#2"); }
 });
 
 test("the board paints with what it read: true colour, the terminal's 16 colours, herdr's marks", () => {
