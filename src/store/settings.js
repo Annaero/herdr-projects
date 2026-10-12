@@ -23,6 +23,7 @@ export const DEFAULTS = {
   serve: "tailscale",     // how review pages are linked: "tailscale" (private tailnet link) or "local"
   gate: DEFAULT_GATE,     // what a review must clear: "critical", "major", "minor" or "trivial" (a finding that bad or worse goes straight back to the agent and holds a merge), or "off" (nothing goes back by itself)
   rounds: 3,              // how many times they may go back and forth by themselves
+  remerge: "tests",       // work that passed its review and then only took main in: "tests" (run the check again, the review stands) or "review" (always review again)
   worktree: "auto",       // "none": agents work in your checkout
   base: "fresh",          // "head": worktrees start from your current commit
   pr: true,               // push the branch and open a draft pull request after the check passes
@@ -38,6 +39,7 @@ export const DEFAULTS = {
   agentArgs: {},          // per agent kind: extra arguments after `--` for `herdr agent start`; replaces the built-in default
 };
 export const TASK_DEFAULTS = { conflictAuto: true }; // per task only. A conflict with main goes back to the task's agent by itself.
+const REMERGE_WORDS = { tests: "tests", test: "tests", check: "tests", skip: "tests", true: "tests", on: "tests", yes: "tests", review: "review", always: "review", false: "review", off: "review", no: "review" };
 const REVIEW_WORDS = { repos: "repos", repo: "repos", true: "repos", on: "repos", yes: "repos", all: "all", always: "all", everything: "all", none: "none", off: "none", false: "none", no: "none", never: "none" };
 function coerce(key, value) {
   const shape = key in TASK_DEFAULTS ? TASK_DEFAULTS[key] : DEFAULTS[key];
@@ -59,6 +61,7 @@ function coerce(key, value) {
     if (["agent", "coordinator", "watcherAgent"].includes(key)) { v = v.toLowerCase(); if (v && !/^[a-z][a-z0-9_-]*$/.test(v)) throw new Error(`${key} must be an agent kind such as claude or codex`); }
   }
   if (key === "review") { v = REVIEW_WORDS[String(value).trim().toLowerCase()]; if (!v) throw new Error("review must be repos, all or none"); }
+  if (key === "remerge") { v = v === "" ? DEFAULTS.remerge : REMERGE_WORDS[String(value).trim().toLowerCase()]; if (!v) throw new Error("remerge must be tests or review"); }
   if (key === "worktree" && !["auto", "none"].includes(v)) throw new Error("worktree must be auto or none");
   if (key === "base" && !["fresh", "head"].includes(v)) throw new Error("base must be fresh or head");
   if (key === "merge" && !["squash", "merge", "rebase"].includes(v)) throw new Error("merge must be squash, merge or rebase");
@@ -78,6 +81,7 @@ export const config = () => {
   if (file.gate === undefined && file.reviewAuto !== undefined) c.gate = gateOfAuto(file.reviewAuto);
   delete c.reviewAuto;
   if (!GATES.includes(c.gate)) c.gate = DEFAULT_GATE;
+  c.remerge = REMERGE_WORDS[String(c.remerge)] || DEFAULTS.remerge;
   return c;
 };
 const isReset = (value) => ["", "default"].includes(String(value ?? "").trim().toLowerCase());

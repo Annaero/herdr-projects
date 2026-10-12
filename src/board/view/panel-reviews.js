@@ -22,8 +22,10 @@ export class PanelReviews {
     const list = (label, xs) => ((xs || []).length ? ["", dim(label), ...xs.flatMap((x) => wrap(x, iw - 2).map((l, n) => (n ? "  " : dim("•") + " ") + l))] : []);
     const name = (e) => `Review ${e.round}`;
     const result = (e) => wrapTextWithAnsi(t.bold(verdict(t, e, true)), iw);
+    // A review that still stood after main was merged in says so, with what ran instead: the newest time, and how often.
+    const keptLines = (e) => { const k = (e.kept || []).at(-1); if (!k) return []; const words = S.keptWords(k, e.round); return wrap(`${words[0].toUpperCase()}${words.slice(1)}${k.at ? ` · ${age(Date.now() - k.at)} ago` : ""}${e.kept.length > 1 ? ` · ${e.kept.length} times` : ""}`, iw).map((l) => dim(l)); };
     const box = (e, summary) => card(name(e), [e.at ? `${age(Date.now() - e.at)} ago` : "", full && e.head ? String(e.head).slice(0, 7) : ""].filter(Boolean), [
-      ...result(e), ...(e === last && stale && !e.error ? [dim("The work changed since this review.")] : []), ...summary,
+      ...result(e), ...(e === last && stale && !e.error ? [dim("The work changed since this review.")] : []), ...keptLines(e), ...summary,
       ...(full ? [...(G.isTagged(e) ? list("Findings", found(e)) : list("Problems", e.problems)), ...list("Checked", e.checks), ...list("Could not verify", e.limitations)] : [])]);
     // How each review went, on one line. Short of room, the oldest ones go.
     const trail = () => {

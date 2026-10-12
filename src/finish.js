@@ -19,7 +19,8 @@ const lastLines = (text, n = 12) => String(text || "").split("\n").map((l) => l.
 const firstLine = (text) => String(text || "").split("\n").find((l) => l.trim())?.trim() || "";
 export const approvalMessage = (t, note = "") => {
   const rv = S.currentReview(t);
-  return `Approve to merge?${rv ? ` ${G.sentence(rv)}` : ""} ${firstLine(t.summary) || "The work is finished."}${note}`;
+  const kept = rv?.keptAt && rv.kept ? ` ${S.keptWords(rv.kept, S.reviewHistory(t).at(-1)?.round).replace(/^r/, "R")}.` : "";
+  return `Approve to merge?${rv ? ` ${G.sentence(rv)}` : ""}${kept} ${firstLine(t.summary) || "The work is finished."}${note}`;
 };
 function fail(g, failure, extra = {}) {
   const t = g.set((t) => { t.stage = "failed"; t.msg = failure.msg || failure.title; t.mergeIntent = extra.keepIntent ? t.mergeIntent : null; Object.assign(t, S.failurePatch(failure), extra.patch || {}); });
@@ -256,7 +257,17 @@ export async function pipeline(id, g, text, wake, synced = null) {
   if (sync) t = g.set((t) => Y.seenPatch(t, sync));
   // A clean update that touched none of the files the task changed leaves its review standing: the check runs again
   // on the merged result, the reviewer is not asked twice about the same change.
-  const kept = sync?.status === "merged" && sync.overlap && !sync.overlap.length && t.reviewedHead === sync.before ? S.currentReview(t) : null;
+  // So does work that passed its review and has only taken main in since, also into its own files and with conflicts
+  // resolved (Y.mergeOnly is the rule): the check is what proves the merged result, so there must be one. Anything
+  // the agent did beyond the merge, a review that did not pass, or `remerge: review`: reviewed again, as ever.
+  const stands = S.config().remerge !== "review";
+  let kept = stands && sync?.status === "merged" && sync.overlap && !sync.overlap.length && t.reviewedHead === sync.before ? S.currentReview(t) : null;
+  let keptHow = kept ? { from: sync.before, merges: 1, resolved: [] } : null;
+  const passedAt = !kept && stands && repo.check && tree && sync?.target && ch.review !== "none" ? S.passedReview(t) : null;
+  if (passedAt) {
+    const m = Y.mergeOnly(tree, passedAt.head, sync.target);
+    if (m.ok) { kept = passedAt.review; keptHow = { from: m.from, merges: m.merges, resolved: m.resolved }; }
+  }
   if (t.setupPending && repo.setup) {
     const setup = await sh(repo.setup, folder, env, { alive });
     if (setup.aborted) return;
@@ -268,13 +279,14 @@ export async function pipeline(id, g, text, wake, synced = null) {
     const r = await sh(repo.check, folder, env, { alive });
     if (r.aborted) return;
     if (!r.ok) {
+      const merged = kept ? " The branch was only re-merged with main since its review passed, so the tests ran instead of a new review." : "";
       const fails = (S.get(id).checkFails || 0) + 1;
       const auth = S.isAuthFailure(r.out);
       const failure = { stage: "check", auth, agentCanFix: true, title: `Check failed${fails >= 3 ? " after 3 tries" : ""}`, ...(fails >= 3 ? { msg: `the check still fails after 3 tries (${repo.check}): ${r.out.split("\n").filter(Boolean).slice(-1)[0] || ""}` } : {}), detail: `Command: ${repo.check}\nFolder: ${folder}\n\n${r.out}`, next: "Fix the failed check, run it again and finish for a fresh review." };
       if (fails >= 3 || auth) return void fail(g, failure, { patch: { checkFails: fails } });
       g.check();
       // Straight back to the agent. The turn it causes is the plugin's own: an approved merge survives it.
-      F.sendOwn(id, `The check failed, so this is not done yet.\n\n${S.boundDetail(failure.detail)}\n\nFix it and finish again.`, { reason: "check", keepIntent: !!wake?.keepIntent || !!S.get(id).mergeIntent, patch: { checkFails: fails, ...S.failurePatch(failure), failure: { ...S.failurePatch(failure).failure, sentAt: Date.now() } } });
+      F.sendOwn(id, `The check failed, so this is not done yet.${merged}\n\n${S.boundDetail(failure.detail)}\n\nFix it and finish again.`, { reason: "check", keepIntent: !!wake?.keepIntent || !!S.get(id).mergeIntent, patch: { checkFails: fails, ...S.failurePatch(failure), failure: { ...S.failurePatch(failure).failure, sentAt: Date.now() } } });
       return;
     }
   }
@@ -316,7 +328,10 @@ export async function pipeline(id, g, text, wake, synced = null) {
   // 4. An adversarial review before it reaches you.
   let review = null;
   const reviewNeeded = ch.review !== "none";
-  if (reviewNeeded && kept && toLand) review = { ...kept, head: change.head, keptAt: Date.now() };
+  if (reviewNeeded && kept && toLand) {
+    review = { ...kept, head: change.head, keptAt: Date.now(), kept: { ...keptHow, head: change.head, check: repo.check || "" } };
+    g.set((t) => { S.logKept(t, review.kept); }); // the task's history says what happened instead of a review
+  }
   else if (reviewNeeded) {
     const r = await runReview(id, g, { text, change, toLand, ch });
     if (r.aborted) return;

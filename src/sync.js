@@ -97,6 +97,46 @@ export function syncMain(t, tree) {
   } catch {}
   return { status: "merged", target, seen, base, onto, adopt, before, head, overlap };
 }
+// ---- only the merge of main? --------------------------------------------------------------------------------------------
+// Has the branch, since the commit a review looked at, done nothing but take main in? Then that review still
+// describes the task's own work, and only the tests need to run again (finish.js). The rule, checkable in git:
+//   1. Every commit on the branch since the reviewed one is a merge commit with two parents: the branch as it was,
+//      and a commit of main (`target`, or one it holds). No ordinary commit, no rebase, no other branch.
+//   2. Each of those merges is what git itself makes of its two parents, file for file. Only the files git could not
+//      merge by itself (the conflicts) may differ: resolving them is what the merge needed.
+// Anything else, and anything that cannot be read, is "no": then the work is reviewed. The answer says why.
+export function mergeOnly(tree, reviewed, target) {
+  const no = (why) => ({ ok: false, why });
+  const short = (c) => String(c).slice(0, 7);
+  if (!tree || !reviewed || !target) return no("the reviewed commit or main is not known");
+  try {
+    const head = F.headOf(tree);
+    if (!head || head === reviewed) return no("nothing was merged since the review");
+    try { git(tree, ["merge-base", "--is-ancestor", reviewed, head]); } catch { return no("the branch no longer holds the reviewed commit"); }
+    const chain = lines(git(tree, ["rev-list", "--first-parent", "--reverse", `${reviewed}..${head}`]));
+    const resolved = new Set();
+    let prev = reviewed;
+    for (const c of chain) {
+      const parents = git(tree, ["show", "-s", "--format=%P", c]).split(/\s+/).filter(Boolean);
+      if (parents.length !== 2 || parents[0] !== prev) return no(`${short(c)} is new work, not a merge of main`);
+      try { git(tree, ["merge-base", "--is-ancestor", parents[1], target]); } catch { return no(`${short(c)} merges something that is not main`); }
+      // The same merge, made again by git in memory: the tree it gives, and the files it could not merge.
+      let out = "";
+      try { out = git(tree, ["merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", parents[0], parents[1]]); }
+      catch (e) { if (e.status !== 1) return no(`the merge ${short(c)} could not be made again to compare`); out = String(e.stdout || ""); }
+      const [auto, ...conflicts] = out.split("\0").map((x) => x.trim()).filter(Boolean);
+      if (!/^[0-9a-f]{40,}$/.test(auto || "")) return no(`the merge ${short(c)} could not be made again to compare`);
+      const differs = git(tree, ["diff", "--name-only", "--no-renames", "-z", auto, `${c}^{tree}`]).split("\0").filter(Boolean);
+      const extra = differs.filter((f) => !conflicts.includes(f));
+      if (extra.length) return no(`the merge ${short(c)} changes more than its conflicts needed (${extra.slice(0, 3).join(", ")}${extra.length > 3 ? ", …" : ""})`);
+      for (const f of differs) resolved.add(f);
+      prev = c;
+    }
+    if (!chain.length || prev !== head) return no("the reviewed commit is not on the branch's own line");
+    return { ok: true, from: reviewed, head, merges: chain.length, resolved: [...resolved] };
+  } catch (e) { return no(`git could not say (${S.oneLine(outputOf(e), 160)})`); }
+}
+
 // What a task remembers of a sync that was tried: where main stood for the commit that was really merged, so the
 // housekeeping pass asks again whenever main is anywhere else.
 // Only a sync that really looked counts as seen. One that could not read main (a failed fetch) or was not tried at
@@ -120,11 +160,12 @@ export function conflictFailure(t, tree, r) {
   return { stage: "merge", phase: "sync", target: r.target, base: r.base, agentCanFix: r.restored, auth: false,
     title: r.files ? "Merge conflict with main" : "Could not update task from main",
     detail: `Conflicting files:\n${r.files || "none reported"}\n\nTask branch: ${t.branch}\nTarget branch: ${r.base}\nTarget commit: ${r.target}\nWorktree: ${tree}\n\nGit output:\n${r.out}\n\n${r.restored ? "The private merge attempt was rolled back. The human's checkout is unchanged." : "The private merge could not be rolled back; inspect it before continuing."}`,
-    next: `In ${tree} on ${t.branch}, merge target commit ${r.target} (${r.base}), resolve and commit the conflicts, then finish. The board checks and reviews the result again${t.mergeIntent ? " and retries the approved merge" : ""}. Never alter the human's checkout.` };
+    next: `In ${tree} on ${t.branch}, merge target commit ${r.target} (${r.base}), resolve and commit the conflicts, then finish. The board checks the result again (and reviews it again, unless a review already passed and the merge is all that changed)${t.mergeIntent ? " and retries the approved merge" : ""}. Never alter the human's checkout.` };
 }
 // What the agent is told: the facts, and nothing else.
+const passedBefore = (t) => !!S.passedReview(t) && S.config().remerge !== "review" && !!t.repoCfg?.check;
 export function conflictMessage(t, tree, r) {
-  return `Your branch ${t.branch} conflicts with ${r.base}, so this is not done yet.\n\nConflicting files:\n${lines(r.files).map((f) => `- ${f}`).join("\n")}\n\nTarget commit: ${r.target} (${r.base})\n\nIn your own worktree (${tree}), merge that commit into ${t.branch}, resolve the conflicts, commit, and finish again. The board's own merge attempt was rolled back, so your branch is as you left it. Do not touch the human's checkout.${t.mergeIntent ? " The human already approved this merge: after your repair the board checks, reviews and merges it; do not push or merge it yourself." : ""}`;
+  return `Your branch ${t.branch} conflicts with ${r.base}, so this is not done yet.\n\nConflicting files:\n${lines(r.files).map((f) => `- ${f}`).join("\n")}\n\nTarget commit: ${r.target} (${r.base})\n\nIn your own worktree (${tree}), merge that commit into ${t.branch}, resolve the conflicts, commit, and finish again. The board's own merge attempt was rolled back, so your branch is as you left it. Do not touch the human's checkout.${passedBefore(t) ? " Your work already passed its review: change only the conflicting files, in that one merge commit, and the board reruns the tests instead of reviewing everything again. Anything more is reviewed again." : ""}${t.mergeIntent ? " The human already approved this merge: after your repair the board checks, reviews and merges it; do not push or merge it yourself." : ""}`;
 }
 // The conflict goes straight back to the task's agent, as the plugin's own turn (so an approved merge survives the
 // repair), at most `rounds` times in a row; after that, or when it cannot be sent, the human is asked.

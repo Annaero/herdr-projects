@@ -211,8 +211,8 @@ export async function landCore(id, g) {
         F.labelPane(f, "failed");
       });
     }
-    // A clean update changed the commit: it is checked (and, when it touched the task's own files, reviewed) again,
-    // then merged under the approval given.
+    // A clean update changed the commit: it is checked again (and reviewed again only when its review does not stand:
+    // see the pipeline), then merged under the approval given.
     if (r.status === "merged") return void (await reverify("checking branch updated with main", r));
     g.set((t) => Y.seenPatch(t, r));
   }

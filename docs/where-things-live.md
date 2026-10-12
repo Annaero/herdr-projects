@@ -83,7 +83,7 @@ new file in `store/`, with one line added to `store.js`.
 ## Tests: `test/`
 
 One file per area, named after it: `board-*.test.js` for the screen (table above), `coordinator-*.test.js`,
-`flow.test.js`, `gate.test.js`, `store.test.js`, `theme.test.js`, `watcher.test.js`, `remote.test.js`, `cli.test.js`,
+`flow.test.js`, `gate.test.js`, `sync-*.test.js`, `remerge.test.js` (a review that stands after a merge of main), `store.test.js`, `theme.test.js`, `watcher.test.js`, `remote.test.js`, `cli.test.js`,
 and the rest. Shared setup: `helpers.js` (a test world), `board-helpers.js` (a board opened on it),
 `coordinator-helpers.js` (a world with a Coordinator).
 

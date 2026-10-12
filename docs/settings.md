@@ -23,6 +23,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `review` | `repos` | what gets reviewed: `repos`, `all` or `none` |
 | `artifacts`, `serve` | `true`, `tailscale` | evidence pages, linked privately on your tailnet (`local` for 127.0.0.1; also used, and said on the task, when Tailscale is not installed) |
 | `gate`, `rounds` | `major`, `3` | what a review must clear: `critical`, `major`, `minor`, `trivial` or `off`. A finding that bad or worse sends the work back by itself, at most `rounds` times, and holds a merge; `off` sends nothing back by itself. `rounds` also caps conflict repairs. (`gate` replaces `reviewAuto`: a config that still has `reviewAuto: true` behaves as `gate: major`, `false` as `gate: off`) |
+| `remerge` | `tests` | work that passed its review and then only took main in (conflict resolutions included): `tests` runs the check again and lets the review stand; `review` always reviews again |
 | `worktree`, `base` | `auto`, `fresh` | `none`: work in your checkout; `head`: start from your commit |
 | `pr`, `merge`, `cleanup` | `true`, `squash`, `true` | pull requests, how work lands, remove a done task's space, worktree and branch |
 | `max` | `4` | agents working at once |

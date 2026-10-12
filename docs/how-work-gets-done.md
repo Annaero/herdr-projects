@@ -54,9 +54,10 @@ that task's own worktree:
   minutes): every task waiting for your approval is updated, and a task under review the moment its review ends;
 - *after you approve*, once more, as the last safety net. It should rarely find anything.
 
-A clean update is silent. If it changed the commit, the check runs again on the result; the review is repeated only
-when the update touched a file the task itself changed. Otherwise the verdict you already have stands and the task
-does not ask for your eyes again. A real conflict is rolled back at once (your branch and the task's are as they
+A clean update is silent. If it changed the commit, the check runs again on the result. The review is not repeated
+when taking main in is all that happened to work that already passed (below), or when the update touched none of
+the files the task itself changed: the verdict you already have stands and the task does not ask for your eyes
+again. A real conflict is rolled back at once (your branch and the task's are as they
 were) and goes straight to the task's agent as a plain message: the conflicting files, the target commit, and that
 it should resolve them in its own worktree and finish again. Until it has, the task is not waiting for approval: its
 row says "resolving a conflict with main". After `rounds` repairs in a row that
@@ -70,7 +71,30 @@ every minute until the branch really is up to date.
 or `pr` off) the branch your checkout was on when the task first finished. For those, checking out another one
 merges nothing into waiting tasks, and they are held as "behind main" until your checkout is back on it.
 
-**Approving** makes that last sync, re-checks (and re-reviews, by the same rule) if it changed anything, then merges
+**A review that passed is not repeated for a merge of main.** When the last review of the work passed and the only
+thing that changed since the commit it looked at is main being merged in, the board runs the repo's `check` on the
+result instead of a full new review. Tests pass: the task goes on to approval or the merge, as a pass. Tests fail:
+the failure goes back to the agent, as a failed check always does, and its fix is reviewed. The rule for "only the
+merge of main" is fixed and checked in git, from the commit the reviewer looked at to the branch as it stands:
+
+1. every commit since is a merge commit with two parents, the branch as it was and a commit of main. An ordinary
+   commit on top, a rebase or another branch merged in is new work;
+2. each of those merges is exactly what git makes of its two parents by itself. Only the files git could not merge
+   (the conflicts) may differ, because resolving them is what the merge needed. One other file touched in the merge
+   commit is new work.
+
+So a conflict the agent resolved in its merge commit, touching only the conflicting files, keeps the review; the
+agent is told this with the conflict. Anything else is reviewed as before, and so is everything the board cannot
+read for sure: a last review that failed or gave no verdict, work outside a worktree. A repo with no `check` has
+no tests to prove a merge into the task's own files, so there this rule does not apply: a review stands only when
+a clean update touched none of the files the task changed (the narrower rule above), and the task then says `no
+check is set` instead of `tests pass`. The task says plainly what happened: its message reads `Re-merged with main,
+tests pass, review 2 still stands`, the box of that review carries the same line (with when, and how often), the
+row keeps showing the review that passed (`Pass · 2nd review`), and `details` lists each time under that review as
+`kept`. `herdr-superwork config remerge review` turns this off: every update from main that changed the commit is
+then reviewed again, also one that touched other files only.
+
+**Approving** makes that last sync, re-checks (and re-reviews, by the same rules) if it changed anything, then merges
 through the pull request, only at the commit that was reviewed (when GitHub's checks are still running the board
 remembers the approval and merges it itself once they pass; a commit pushed to the pull request meanwhile withdraws
 it; on a repo with a merge queue the task waits until GitHub says the pull request is merged) or locally, squashed
