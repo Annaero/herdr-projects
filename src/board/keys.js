@@ -53,7 +53,7 @@ export const KEYS = [
     doc: "answer a question the board asks: {sayYes} yes, {sayNo} or {back} no. Only while a question is up; {enter} never confirms" },
   { id: "sayNo", keys: ["n", "shift+n"], raw: ["n", "N"], show: "n", with: "sayYes" },
 
-  { id: "yes", keys: ["ctrl+y"], group: "ctrl", hint: "retry",
+  { id: "yes", keys: ["ctrl+l"], group: "ctrl", hint: "retry",
     doc: "yes, to whatever the task waits for: approve the merge (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary as it is",
     menu: () => "yes: approve the merge, say yes, retry, take it as it is",
     run: (v, r) => (r ? v.yes(r) : undefined) },

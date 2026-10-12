@@ -80,8 +80,8 @@ test("the task panel never opens full screen by itself: something going wrong on
     assert.match(text, /\n needs you *\n ✗ Match the colors {2}Merge conflict with main/);
     assert.doesNotMatch(text, /Conflicting files/);
     // The hint line: what matters now, the main thing first, never more than four.
-    assert.match(text, /\n {2}ctrl\+r send it to the agent to fix · ctrl\+y retry · space reply · \? more *$/);
-    assert.match(s.text(60), /\n {2}ctrl\+r send it to the agent to fix · ctrl\+y retry · \? more *$/); assert.match(s.text(50), /\n {2}ctrl\+r send it to the agent to fix · \? more *$/); // and it never runs off a narrow screen
+    assert.match(text, /\n {2}ctrl\+r send it to the agent to fix · ctrl\+l retry · space reply · \? more *$/);
+    assert.match(s.text(60), /\n {2}ctrl\+r send it to the agent to fix · ctrl\+l retry · \? more *$/); assert.match(s.text(50), /\n {2}ctrl\+r send it to the agent to fix · \? more *$/); // and it never runs off a narrow screen
     // Wide, the panel beside the list already says it, in order: where it stands, then what it needs from you.
     text = s.text(120);
     assert.match(text, /│ {2}✗ needs you · \ds ago · proj\/1 *\n[^\n]*│ *\n[^\n]*│ {2}▎ Merge conflict with main/); assert.match(text, /│ {2}▎ Next step/); assert.match(text, /│ {2}▎ What went wrong *\n[^\n]*│ {2}▎ Conflicting files:/);

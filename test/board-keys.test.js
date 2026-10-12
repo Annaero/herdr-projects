@@ -100,7 +100,7 @@ test("ctrl does something, alt only shows or hides: every key of the set, as a t
     }
     // Ctrl: each does its one thing. ctrl+p pins (it is no longer the side panel), ctrl+a archives (no longer "yes").
     s.press("ctrl+p"); assert.equal(S.get(id).pinned, true); assert.equal(shown(), start); s.press("\x1b[112;5u"); assert.ok(!S.get(id).pinned);
-    s.press("ctrl+y"); assert.match(s.text(), /Nothing here waits for a yes\./); assert.equal(s.v.ask, null);
+    s.press("ctrl+l"); assert.match(s.text(), /Nothing here waits for a yes\./); assert.equal(s.v.ask, null);
     s.press("ctrl+a"); assert.ok(S.get(id).archivedAt); assert.equal(s.v.ask, null);
     s.press("ctrl+z"); assert.ok(!S.get(id).archivedAt);
     s.press("ctrl+f"); assert.equal(s.v.mode, "find"); s.press("esc"); assert.equal(s.v.mode, "new");
@@ -144,7 +144,7 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     s.type("half a thought");
     const before = JSON.stringify([S.get(id).stage, S.get(id).pinned, S.get(id).archivedAt, S.list().length]);
     const prefs = JSON.stringify([s.v.side, s.v.scope]);
-    for (const k of ["ctrl+y", "ctrl+r", "ctrl+x", "ctrl+x", "ctrl+p", "ctrl+f", "alt+c", "alt+p", "alt+t", "alt+a", "alt+s", "alt+d", "alt+m", "ctrl+e", "ctrl+g", "ctrl+t", "ctrl+d", "ctrl+b", "ctrl+s", "ctrl+o", "alt+h", "alt+v", "alt+r", "alt+n", "ctrl+a", "ctrl+e", "?", "space", "up", "down"]) s.press(k);
+    for (const k of ["ctrl+l", "ctrl+r", "ctrl+x", "ctrl+x", "ctrl+p", "ctrl+f", "alt+c", "alt+p", "alt+t", "alt+a", "alt+s", "alt+d", "alt+m", "ctrl+e", "ctrl+g", "ctrl+t", "ctrl+d", "ctrl+b", "ctrl+s", "ctrl+o", "alt+h", "alt+v", "alt+r", "alt+n", "ctrl+a", "ctrl+e", "?", "space", "up", "down"]) s.press(k);
     assert.equal(JSON.stringify([s.v.side, s.v.scope]), prefs);
     assert.equal(JSON.stringify([S.get(id).stage, S.get(id).pinned, S.get(id).archivedAt, S.list().length]), before, "nothing happened to any task");
     assert.equal(s.v.sel, id); assert.equal(s.v.ask, null); assert.equal(s.v.menu, null); assert.equal(s.v.full, false); assert.equal(s.v.mode, "new"); assert.equal(s.v.archiveView, false); assert.equal(s.v.allDone, false); assert.equal(s.v.byRepo, false); assert.equal(s.v.chatOpen, true); assert.equal(s.v.msg, "");
@@ -176,7 +176,9 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     s.press("esc"); assert.equal(s.closed(), undefined); assert.match(s.text(), hint);
     s.press("ctrl+c"); assert.equal(s.closed(), null);
     // the other questions keep y = yes · n = no, and ctrl+c is a no there
-    const s2 = open(w); s2.press("ctrl+y"); assert.match(s2.text(), /\? Merge [^\n]*y = yes · n = no/);
+    // (ctrl+y was the yes key once: it asks nothing now, and types nothing)
+    const s2 = open(w); s2.press("ctrl+y"); assert.equal(s2.v.ask, null); assert.equal(s2.v.value(), ""); assert.equal(S.get(id).stage, "approval");
+    s2.press("ctrl+l"); assert.match(s2.text(), /\? Merge [^\n]*y = yes · n = no/);
     s2.press("ctrl+c"); assert.equal(s2.v.ask, null); assert.equal(s2.closed(), undefined); assert.equal(S.get(id).stage, "approval");
     s2.press("ctrl+c", "ctrl+c"); assert.equal(s2.closed(), null);
     // ctrl+c twice closes with a draft in the text box, for the Coordinator or for a task's agent, and the draft is kept

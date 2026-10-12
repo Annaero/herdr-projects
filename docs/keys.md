@@ -43,7 +43,7 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 
 | Key | Does |
 |---|---|
-| `Ctrl+Y` | yes, to whatever the task waits for: approve the merge (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary as it is |
+| `Ctrl+L` | yes, to whatever the task waits for: approve the merge (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary as it is |
 | `Ctrl+R` | send it back: whatever went wrong (a failed check, a conflict, an error, a review with findings) goes to the task's agent to fix; a stopped agent is told to continue |
 | `Ctrl+X` | stop the agent, when one is running (working, starting, checking, under review, or waiting for your answer); the selection stays on that row. On a task with no agent running (idle, never started, stopped, finished, archived) it asks to delete the task instead: `y` deletes it, its worktree too. A stop never goes on to that question by itself: deleting takes a second `Ctrl+X`, and a `y` |
 | `Ctrl+A` | archive the selected task, or restore it from the archive |
