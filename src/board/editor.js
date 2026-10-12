@@ -3,9 +3,12 @@
 import { CURSOR_MARKER, Editor, visibleWidth } from "@earendil-works/pi-tui";
 
 export class DraftEditor extends Editor {
-  hiddenAbove = 0; hiddenBelow = 0; viewportTop = 0; paste = undefined;
+  hiddenAbove = 0; hiddenBelow = 0; viewportTop = 0; paste = undefined; bodyRows = 1;
   constructor(tui, theme) {
-    super(tui, { borderColor: (s) => theme.fg("surface_dim", s), selectList: { selectedPrefix: (s) => s, selectedText: (s) => s, description: (s) => s, scrollInfo: (s) => s, noMatch: (s) => s } });
+    // pi-tui shows at most 30% of the terminal's rows of a draft (never fewer than 5). The board says how many rows the
+    // box may take, so the editor is told of a terminal tall enough for exactly those: a wrapped draft is seen whole.
+    const box = () => Math.max(tui.terminal.rows, Math.ceil(this.bodyRows / 0.3) + 1);
+    super({ requestRender: () => tui.requestRender(), terminal: { get rows() { return box(); }, get columns() { return tui.terminal.columns; } } }, { borderColor: (s) => theme.fg("surface_dim", s), selectList: { selectedPrefix: (s) => s, selectedText: (s) => s, description: (s) => s, scrollInfo: (s) => s, noMatch: (s) => s } });
     this.focused = true;
     this.disableSubmit = true; // only the board may dispatch or delegate
   }
@@ -39,9 +42,9 @@ export class DraftEditor extends Editor {
   // `label` is the prompt ("❯"); it stays on the first line while you type.
   renderWithin(width, maxBodyRows, label) {
     const lw = visibleWidth(label) + 1;
+    const height = this.bodyRows = Math.max(1, maxBodyRows);
     const lines = super.render(Math.max(1, width - lw));
     const body = lines.slice(1, -1);
-    const height = Math.max(1, maxBodyRows);
     const cursor = Math.max(0, body.findIndex((line) => line.includes(CURSOR_MARKER)));
     if (cursor < this.viewportTop) this.viewportTop = cursor;
     if (cursor >= this.viewportTop + height) this.viewportTop = cursor - height + 1;

@@ -913,8 +913,9 @@ export class View {
       // off-screen: the message gives up lines first, and the line that says who you talk to goes last.
       const chat = this.chatLines(width, Math.max(3, Math.min(10, Math.floor(rowsN / 3) - 2)), r, rowsN < 16);
       const headN = chat.length ? this.chatHeadRows : 0;
-      // The text box is given what the line that says who you talk to leaves: a draft scrolls inside it, never off-screen.
-      const inputLines = this.ask ? this.askLines(width) : this.boxLines(width, rowsN - 4 - headN - (selectedJob >= 0 ? 1 : 0), r);
+      // The text box grows with a draft that wraps, up to half the window (and never past what the line that says who
+      // you talk to leaves): a longer draft scrolls inside it, never off-screen.
+      const inputLines = this.ask ? this.askLines(width) : this.boxLines(width, Math.min(rowsN - 4 - headN - (selectedJob >= 0 ? 1 : 0), Math.max(5, Math.floor(rowsN / 2))), r);
       const trimChat = (limit) => { if (chat.length > limit) chat.splice(limit > headN ? limit - 1 : limit, chat.length, ...(limit > headN ? [" " + t.fg("overlay0", "… alt+c: open its chat")] : [])); };
       // What just happened, on a line of its own: the hints below it stay readable.
       const stale = !this.stale ? "" : this.ctx.canReload === false ? "herdr-superwork was updated: close the board and open it again for the new version." : "herdr-superwork was updated: the new version loads when nothing is half typed.";
