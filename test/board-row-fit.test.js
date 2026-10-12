@@ -13,10 +13,11 @@ const GROUPS = ["ready to approve", "working", "done", "to do"];
 const group = (r) => (r.kind ? GROUPS[0] : r.state === "working" ? GROUPS[1] : r.state === "done" ? GROUPS[2] : GROUPS[3]);
 const board = () => { const v = Object.create(View.prototype); return Object.assign(v, { theme, scope: "", byRepo: false, top: 0, sel: "" }); };
 // The list as the board draws it, under its headings: each task's first line (its name and its columns), in the order
-// given. A live task's second line, what it says, is not part of the fit: test/board-rows.test.js.
+// given. A live task's second line, what it says, is not part of the fit: test/board-rows.test.js. The screen is a
+// wide one with the list beside the task panel: on a screen under 80 columns a live row's columns are on its third line.
 const draw = (v, list, width) => {
   v.rows = GROUPS.flatMap((g) => [{ header: g }, ...list.filter((r) => group(r) === g).map((rec) => ({ rec }))]);
-  const lines = v.listLines(width, 80).map((l) => stripVTControlCharacters(l));
+  const lines = v.listLines(width, 80, 200).map((l) => stripVTControlCharacters(l));
   return list.map((r) => lines.find((l) => l.slice(3).startsWith(r.title.slice(0, 8))));
 };
 // Where each column sits on a line: the bar and the PR number by their first cell, the right-aligned ones by their
@@ -165,7 +166,7 @@ test("what is shown does not change as percents, minutes left and times tick", (
     // its room, the word "ago"): that is compared at every tick, and the drawn lines at the first and the last.
     const sets = ticks.map(([progress, eta, since], n) => {
       const list = MIX.map((r) => ({ ...r, at: since, ...(r.progress !== undefined ? { progress } : {}), ...(r.eta !== undefined ? { eta } : {}) }));
-      const sections = GROUPS.map((g) => list.filter((r) => group(r) === g)), layout = v.rowLayout(sections.flat(), width, sections);
+      const sections = GROUPS.map((g) => list.filter((r) => group(r) === g)), layout = v.rowLayout(sections.flat(), width, sections, 200);
       const drawn = n === 0 || n === ticks.length - 1 ? shown(list, draw(v, list, width), width) : null;
       return [JSON.stringify([layout.ago, layout.cols.map(([key]) => key), sections.map((recs) => recs.map((r) => layout.show.get(r)))]), JSON.stringify(drawn)];
     });
@@ -189,7 +190,7 @@ test("minutes left are never wider than four cells, and a machine's name beside 
   const far = [{ ...todo, id: "p/1", title: "A title that is forty cells long, exactly", host: "long-machine-name", msg: "X", progress: 50, eta: 1 }, { ...todo, id: "p/2", title: "Fix login", msg: "X", progress: 50, eta: 1 }];
   for (let width = 30; width <= 120; width++) {
     draw(v, far, width); // with a machine's name before it a line does not start with its task's name: found by it anywhere
-    const all = v.listLines(width, 20).map((l) => stripVTControlCharacters(l)), lines = far.map((r) => all.find((l) => l.includes(r.title.slice(0, 6)))), said = lines.map((l) => / {2}X( |$)/.test(l));
+    const all = v.listLines(width, 20, 200).map((l) => stripVTControlCharacters(l)), lines = far.map((r) => all.find((l) => l.includes(r.title.slice(0, 6)))), said = lines.map((l) => / {2}X( |$)/.test(l));
     assert.equal(said[0], said[1], `only one row says X at ${width}:\n${lines.join("\n")}`);
     assert.ok(lines.every((l) => l.length <= width));
   }

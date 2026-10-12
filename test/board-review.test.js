@@ -11,7 +11,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   tc.mock.timers.enable({ apis: ["Date"], now: Date.now() }); // the clock stands still: "0s ago" stays true on a busy machine
   const v = Object.create(View.prototype); v.theme = theme; v.scope = ""; v.screens = new Map(); v.repo = { root: "/nowhere", name: "proj" };
   // A row that waits for you is two lines: the name and the columns, and under the name what it says.
-  const row = (r, width, list = [r]) => stripVTControlCharacters(v.rowLines(r, width, v.rowLayout(list, width)).join("\n"));
+  const row = (r, width, list = [r]) => stripVTControlCharacters(v.rowLines(r, width, v.rowLayout(list, width, undefined, 200)).join("\n"));
   const both = (r) => v.rowLines(r, 120).join("\n"), top = (...a) => row(...a).split("\n")[0];
   const page = (r, full = false) => stripVTControlCharacters(v.panel({ owner: "me", ...r }, 80, full).join("\n"));
   const base = { id: "proj/1", title: "Build a flying game", state: "blocked", kind: "permission", stage: "approval", agent: "claude", app: "claude", at: Date.now(), msg: "Approve to merge? Reviewed 3/5, says don't merge. Built **Skylark**: a little plane over endless sunny islands, with clouds." };

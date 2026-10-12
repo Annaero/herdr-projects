@@ -111,9 +111,10 @@ test("resizing the real screen keeps the chat on the last line and the working r
       const row = lines.find((l) => /Pin the chat to the bottom/.test(l)) || "";
       if (rows >= 20) assert.ok(row, `${note}: the working row is in view`);
       if (row && columns >= 120) { assert.match(row, /Pin the chat to the bottom +█+░+ +55% 12m {2}PR#3 {2}6m {4}$/, note); assert.equal(visibleWidth(row), columns, note); assert.match(lines[lines.indexOf(row) + 1], /^ {3}Checking every window size\. *$/, note); }
-      else if (row) { assert.match(row, /6m *$/, note); if (columns >= 50) assert.match(row, /55% 12m {2}PR#3 +6m *$/, note); }
-      // All spare height is the list's.
-      if (rows >= 20) assert.ok(lines.slice(0, head).filter((l) => /Task number \d+/.test(l)).length >= head - 7, `${note}: the list fills the space above the chat`);
+      // Under 80 columns its first line is the name alone: the columns are on its third line, the bar filling the width.
+      else if (row) { const third = lines[lines.indexOf(row) + 2] || ""; assert.match(row, /^ ◐ Pin the chat to the bottom *$/, note); if (rows >= 20) { assert.match(third, /^ {3}█+░+ {3}55% {2}12m {2}PR#3 {3}6m$/, note); assert.equal(visibleWidth(third), columns, note); } }
+      // All spare height is the list's (a narrow screen's working row is one line taller).
+      if (rows >= 20) assert.ok(lines.slice(0, head).filter((l) => /Task number \d+/.test(l)).length >= head - (columns < 80 ? 8 : 7), `${note}: the list fills the space above the chat`);
     }
   } finally { try { tui?.stop(); } catch {} w.cleanup(); }
 });

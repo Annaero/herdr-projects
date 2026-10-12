@@ -104,7 +104,7 @@ export class Layout {
         // The task panel on the right, while you have it open, on herdr's sidebar colour when the theme gives it one.
         const paneW = Math.max(38, Math.min(70, Math.floor(width * 0.38)));
         const listW = width - paneW - 3;
-        const left = safe("The list", listW, () => [...this.headLines(listW), ...this.listLines(listW, Math.max(1, h - 1))], [""]);
+        const left = safe("The list", listW, () => [...this.headLines(listW), ...this.listLines(listW, Math.max(1, h - 1), width)], [""]);
         const right = shown ? safe("The task panel", paneW, () => this.panel(shown, paneW, false, h), [""]) : ["", " " + t.fg("overlay0", "nothing selected.")];
         top = Array.from({ length: h }, (_, i) => truncateToWidth(left[i] ?? "", listW, "…", true) + " " + t.fg("surface_dim", "│") + t.under("sidebar_bg", truncateToWidth(" " + (right[i] ?? ""), paneW + 1, "…", true)));
       } else top = safe("The list", width, () => [...this.headLines(width), ...this.listLines(width, Math.max(1, h - 1))], [""]);

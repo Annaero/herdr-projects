@@ -1,10 +1,11 @@
-// One row of the list: its mark, its name, its columns on the right and, for a live task, a second line that says what it does.
+// One row of the list: its mark, its name, its columns on the right and, for a live task, a second line that says what it does (a third on a narrow screen: row-tall.js).
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import * as G from "../../gate.js";
 import { herdr } from "../../herdr.js";
 import { short, clean, age, prTag, bar, left } from "./words.js";
 import { MARK_STATES, failureFor, inReview, isLive, needsYou, statusColor, waitOf } from "./states.js";
 import { ETA_STEADY, labelRoom, shownFrom } from "./row-fit.js";
+import { tallAt } from "./row-tall.js";
 import { resultColor, reviewTagInk, currentReview, reviewNote, verdict } from "./review-words.js";
 
 // The fewest cells a cut "doing now" sentence is still worth showing in.
@@ -78,8 +79,11 @@ export class Row {
   // decided one section at a time (row-fit.js): a section's rows give the same things up together, from the left.
   // They are two groups, the progress and then the review, the pull request and the time, with a wider gap between
   // the two than inside either.
-  rowLayout(records, width, sections = [records]) {
-    const now = Date.now(), fields = new Map(records.map((r) => [r, this.rowFields(r, now)]));
+  // On a narrow screen (`screen`: the whole board's width, which is the list's unless the task panel is beside it) a
+  // live task's columns are on its third line: its first line has none, and they take no part in what is decided here.
+  rowLayout(records, width, sections = [records], screen = width) {
+    const now = Date.now(), tall = tallAt(screen), below = (r) => tall && isLive(r);
+    const fields = new Map(records.filter((r) => !below(r)).map((r) => [r, this.rowFields(r, now)]));
     const max = (key) => Math.max(0, ...[...fields.values()].map((f) => visibleWidth(f[key])));
     const elapsed = Math.max(3, max("elapsed"));
     // Extremely long PR identifiers may shorten, but must never push time off-screen.
@@ -88,10 +92,11 @@ export class Row {
     // The wider gap is a column with nothing in it, left of the review tag: the cell on each side of it makes two.
     const group = cols.findIndex(([key]) => !PROGRESS.includes(key));
     if (group > 0) cols.splice(group, 0, ["gap", 0]);
-    const layout = { now, review, pr, elapsed, cols, ago: [...fields.values()].some((f) => f.ago), show: new Map() };
+    const layout = { now, review, pr, elapsed, cols, ago: [...fields.values()].some((f) => f.ago), show: new Map(), tall };
+    if (tall) layout.third = this.tallLayout(records.filter(below).map((r) => this.rowFields(r, now)), width);
     // Decided at widths that do not move as the numbers tick: the minutes left count as their widest (words.js: left).
     const cells = (ago) => cols.map(([key, w]) => ({ key, w: key === "eta" ? Math.max(w, ETA_STEADY) : w + (key === "time" && ago ? 4 : 0) }));
-    const fit = (r) => { const f = fields.get(r); return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, time: true } }; };
+    const fit = (r) => { const f = fields.get(r) || {}; return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, time: !below(r) } }; };
     const parts = sections.map((recs) => recs.map(fit));
     // The word "ago" sits right of everything, so one section cannot give it up without moving its columns: the
     // whole list gives it up, as soon as that lets some section show a column other than its bar, or cut a name less.
@@ -110,6 +115,7 @@ export class Row {
   // The columns one row shows, drawn: its own from where its section's start (layout.show).
   rowKeeps(r, width, layout, f = this.rowFields(r, layout.now)) {
     const t = this.theme;
+    if (layout.tall && isLive(r)) return { metadata: "" };
     const fill = (s, n, left) => { const gap = " ".repeat(Math.max(0, n - visibleWidth(s))); return left ? s + gap : gap + s; }; // by terminal cells, not string length
     const text = {
       bar: f.bar, percent: f.percent, eta: f.eta,
@@ -161,10 +167,14 @@ export class Row {
   // its end, never wrapped. The line is there from the start, so a row does not grow when its words arrive: until then a
   // working task has a quiet "…" on it, and a task that waits with nothing to say an empty line.
   statusLine(r, width, layout = this.rowLayout([r], width)) {
-    const t = this.theme, { prefix, labelRoom } = this.rowRoom(r, width, layout);
-    const lead = " ".repeat(visibleWidth(prefix) + visibleWidth(this.rowNameParts(r, labelRoom).host));
+    const t = this.theme, lead = this.rowLead(r, width, layout);
     return truncateToWidth(lead + (this.sentence(r).text || (r.state === "working" ? t.muted("…") : "")), width, "…");
   }
-  // A row as the list draws it: one line, or two for a live task.
-  rowLines(r, width, layout = this.rowLayout([r], width)) { return isLive(r) ? [this.row(r, width, layout), this.statusLine(r, width, layout)] : [this.row(r, width, layout)]; }
+  // Where a live task's lines under its first start: under its name.
+  rowLead(r, width, layout) { const { prefix, labelRoom } = this.rowRoom(r, width, layout); return " ".repeat(visibleWidth(prefix) + visibleWidth(this.rowNameParts(r, labelRoom).host)); }
+  // A row as the list draws it: one line, two for a live task, three for a live task on a narrow screen.
+  rowLines(r, width, layout = this.rowLayout([r], width)) {
+    if (!isLive(r)) return [this.row(r, width, layout)];
+    return [this.row(r, width, layout), this.statusLine(r, width, layout), ...(layout.tall ? [this.tallLine(r, width, layout)] : [])];
+  }
 }

@@ -124,7 +124,7 @@ test("the task shows it everywhere a task's progress shows, in a colour of its o
     // The rows of a section still give the same things up together: the bar first, on every row.
     const beside = { id: "proj/2", title: "Another task that an agent works on", stage: "working", state: "working", msg: "editing", progress: 40, eta: 12, at: now - MIN };
     for (const width of [120, 70, 56, 44]) {
-      const layout = s.v.rowLayout([r, beside], width), lines = [r, beside].map((x) => stripVTControlCharacters(s.v.row(x, width, layout)));
+      const layout = s.v.rowLayout([r, beside], width, undefined, 200), lines = [r, beside].map((x) => stripVTControlCharacters(s.v.row(x, width, layout)));
       assert.equal(/[█░]/.test(lines[0]), /[█░]/.test(lines[1]), `bars at ${width}`); assert.equal(/\d%/.test(lines[0]), /\d%/.test(lines[1]), `percents at ${width}`);
     }
     // The side panel and the details page: the same bar, percent and minutes under Status, and the line under "Now".

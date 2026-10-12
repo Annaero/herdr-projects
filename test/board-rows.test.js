@@ -22,13 +22,13 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
       { id: "proj/2", state: "working", title: "Fix ugly blocked row on the board", msg: "Fixing layout so approval names keep width.", progress: 55, pr: 3, at },
       { id: "proj/3", state: "done", title: "Truncate long descriptions in sidebar", pr: 2, at },
     ];
-    const draw = (width) => { const layout = s.v.rowLayout(records, width); return records.map((r) => stripVTControlCharacters(s.v.row(r, width, layout))); };
+    const draw = (width) => { const layout = s.v.rowLayout(records, width, undefined, 200); return records.map((r) => stripVTControlCharacters(s.v.row(r, width, layout))); };
     for (const width of [200, 120, 90, 72, 64, 50, 40, 30, 20]) assert.ok(draw(width).every((l) => l.length <= width), `fits ${width}`);
     let rows = draw(200); // room for everything. The columns, in order: bar, percent, PR, time
     assert.match(rows[0], /Remove notification pop-ups +█+ +95% {8}6m {4}$/);
     assert.match(rows[1], /Fix ugly blocked row on the board +█+░+ +55% {2}PR#3 {2}6m {4}$/);
     { // what a working task says is under its name, with the row's whole width: cut at its end only when it is longer than that
-      const under = (width) => stripVTControlCharacters(s.v.rowLines(records[0], width)[1]);
+      const under = (width) => stripVTControlCharacters(s.v.rowLines(records[0], width, s.v.rowLayout([records[0]], width, undefined, 200))[1]);
       assert.equal(under(200), "   Removing pop-up calls from plugin, fixing tests, writing closing note."); assert.equal(under(80), under(200));
       assert.match(under(50), /^ {3}Removing pop-up calls from plugin, fixing[^…]*…$/); assert.equal(under(50).length, 50);
       assert.equal(s.v.rowLines(records[2], 200).length, 1); // a finished task has nothing to say: one line
@@ -44,7 +44,7 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
     assert.match(rows[2], /Truncate long descriptions in sidebar +PR#2 +6m ago$/);
     { // narrow, a finished task still reads differently from a working one
       const pair = [{ id: "proj/5", state: "working", title: "Still going", at }, { id: "proj/6", state: "done", title: "All done", at }];
-      const lay = s.v.rowLayout(pair, 50), [going, ended] = pair.map((r) => stripVTControlCharacters(s.v.row(r, 50, lay)));
+      const lay = s.v.rowLayout(pair, 50, undefined, 200), [going, ended] = pair.map((r) => stripVTControlCharacters(s.v.row(r, 50, lay)));
       assert.match(going, /^ ◐ Still going +6m {4}$/); assert.match(ended, /^ ✓ All done +6m ago$/);
     }
     rows = draw(45); // the rows give up together what one name needs, from the left: the percent, then the PR number
@@ -57,7 +57,7 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
     assert.match(rows[0], /^ \S Remove notification pop-ups$/); assert.match(rows[1], /^ \S Fix ugly blocked row on th…$/);
     { // the minutes left: right of the percent, always in minutes, in a column of their own so the percents line up
       const eta = [{ ...records[0], eta: 3 }, { ...records[1], eta: 130 }, records[2], { id: "proj/4", state: "working", title: "No guess yet", progress: 0, at }];
-      const lines = (width) => { const lay = s.v.rowLayout(eta, width); return eta.map((r) => stripVTControlCharacters(s.v.row(r, width, lay))); };
+      const lines = (width) => { const lay = s.v.rowLayout(eta, width, undefined, 200); return eta.map((r) => stripVTControlCharacters(s.v.row(r, width, lay))); };
       for (const width of [200, 120, 90, 72, 64, 50, 40, 30, 20]) assert.ok(lines(width).every((l) => l.length <= width), `fits ${width}`);
       let e = lines(200);
       assert.match(e[0], /█+ +95% {3}3m {8}6m {4}$/); assert.equal(e[0].indexOf("3m"), e[1].indexOf("130m") + 2); assert.match(e[1], /█+░+ +55% 130m {2}PR#3 {2}6m {4}$/);
@@ -77,8 +77,8 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
       }
       { // minutes left with no percent still show
         const only = { id: "proj/7", state: "working", title: "Only minutes", eta: 7, at };
-        assert.match(stripVTControlCharacters(s.v.row(only, 60, s.v.rowLayout([only], 60))), /^ ◐ Only minutes +7m +6m$/);
-        assert.match(stripVTControlCharacters(s.v.row(only, 20, s.v.rowLayout([only], 20))), /^ ◐ Only minutes +6m$/);
+        assert.match(stripVTControlCharacters(s.v.row(only, 60, s.v.rowLayout([only], 60, undefined, 200))), /^ ◐ Only minutes +7m +6m$/);
+        assert.match(stripVTControlCharacters(s.v.row(only, 20, s.v.rowLayout([only], 20, undefined, 200))), /^ ◐ Only minutes +6m$/);
       }
       assert.match(osc(eta[1]), /:progress=55:eta=130:/); assert.doesNotMatch(osc(eta[3]), /eta=/);
     }
@@ -93,7 +93,7 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
     // All machines: the machine's name is cut before the task's, and before any column goes.
     s.v.scope = "*";
     const far = { ...records[0], host: "very-long-machine-name-on-the-tailnet" };
-    const one = (width) => stripVTControlCharacters(s.v.row(far, width, s.v.rowLayout([far], width)));
+    const one = (width) => stripVTControlCharacters(s.v.row(far, width, s.v.rowLayout([far], width, undefined, 200)));
     assert.match(one(120), /very-long-machine-name-on-the-tailnet Fix login +█/);
     assert.match(one(50), /very-long-m\S*… Fix login +█+░+ +55% {2}PR#3 +6m$/); assert.match(one(41), /^ \S ve… Fix login +█+░+ +55% {2}PR#3 +6m$/);
     assert.match(one(26), /^ \S ve… Fix login +PR#3 +6m$/); assert.match(one(24), /^ \S Fix login +PR#3 +6m$/); assert.match(one(18), /^ \S Fix login +6m$/);
@@ -114,13 +114,13 @@ test("a row with no PR and no bar uses the empty space on its right, also with c
   // The raw line, colour codes and all: this is what the terminal gets. (Comparing only the stripped text hid the bug:
   // an empty cell wrapped in colour codes is not empty, and was taken for a column the row had to leave room for.)
   for (const width of [80, 100, 150]) {
-    const [line, under] = v.rowLines(quiz, width, v.rowLayout([quiz, ...full], width)).map((l) => stripVTControlCharacters(l));
+    const [line, under] = v.rowLines(quiz, width, v.rowLayout([quiz, ...full], width, undefined, SCREEN)).map((l) => stripVTControlCharacters(l));
     assert.match(line, /^ × Choose the palette +0s ago$/, `the time at the right edge at ${width}`);
     assert.equal(line.length, width);
     assert.equal(under, "   Sand or pebbles on the beach, and which palm?", `whole sentence at ${width}`);
   }
   // Too narrow for the whole sentence: it is cut at the window's edge, not where the other rows' columns start.
-  const tight = stripVTControlCharacters(v.rowLines(quiz, 40, v.rowLayout([quiz, ...full], 40))[1]);
+  const tight = stripVTControlCharacters(v.rowLines(quiz, 40, v.rowLayout([quiz, ...full], 40, undefined, SCREEN))[1]);
   assert.match(tight, /^ {3}Sand or pebbles on the beach, and wh[^…]*…$/); assert.equal(tight.length, 40);
   // The cause, pinned down: a cell a row does not have is the empty string, never colour codes around nothing.
   for (const r of [quiz, ...full, { ...quiz, state: "done", stage: "done" }, { ...quiz, state: "idle", stage: "todo" }])
@@ -129,6 +129,9 @@ test("a row with no PR and no bar uses the empty space on its right, also with c
 });
 
 // ---- two lines ------------------------------------------------------------------------------------------------------
+// The whole screen in these tests: a wide one, with the list beside the task panel at whatever width is drawn. So a
+// live row keeps two lines and gives its columns up beside its name; under 80 columns of screen it has a third line.
+const SCREEN = 120;
 const at = Date.now() - 2 * 3600000;
 const work = { state: "working", stage: "working", agent: "claude", at }, ready = { state: "blocked", kind: "permission", stage: "approval", agent: "claude", at };
 const done = { state: "done", stage: "done", at }, todo = { state: "idle", stage: "todo", at };
@@ -157,7 +160,7 @@ test("a live task's row is two lines, the second what it says under its name; a 
   const v = board([]);
   for (const r of LIVE) assert.equal(isLive(r), true, r.title);
   for (const r of QUIET) { assert.equal(isLive(r), false, r.title); assert.equal(v.rowLines(r, 100).length, 1, r.title); }
-  const under = (r, width = 100) => { const lines = plain(v.rowLines(r, width)); assert.equal(lines.length, 2, r.title); assert.doesNotMatch(lines[0], /Reading|Running|Pass|Fail|Sand|check failed/); assert.ok(lines.every((l) => l.length <= width)); return lines[1]; };
+  const under = (r, width = 100) => { const lines = plain(v.rowLines(r, width, v.rowLayout([r], width, undefined, SCREEN))); assert.equal(lines.length, 2, r.title); assert.doesNotMatch(lines[0], /Reading|Running|Pass|Fail|Sand|check failed/); assert.ok(lines.every((l) => l.length <= width)); return lines[1]; };
   // Indented to the name, which starts after the mark; never beside the name.
   assert.deepEqual(LIVE.map((r) => under(r)), ["   Reading the panel and its tests.", "   Running the tests", "   Running the repo's check", "   Pass · 1 minor", "   Fail · 1 critical", "   Sand or pebbles?", "   The check failed"]);
   assert.match(plain(v.rowLines(LIVE[0], 100))[0], /^ ◐ Agent at work +█+░+ +40% 12m +2h$/);
@@ -165,7 +168,7 @@ test("a live task's row is two lines, the second what it says under its name; a 
   const long = { ...LIVE[0], msg: "Tracing how prefix+w got suggested, checking keys.js and the herdr defaults before changing the hint line." };
   assert.equal(under(long, 120), "   " + long.msg);
   assert.match(under(long, 60), /^ {3}Tracing how prefix\+w got suggested, checking k[^…]*…$/); assert.equal(under(long, 60).length, 60);
-  assert.equal(v.rowLines(long, 20).length, 2);
+  assert.equal(v.rowLines(long, 20, v.rowLayout([long], 20, undefined, SCREEN)).length, 2);
   if (!process.env.NO_COLOR) { // muted, and a review's result in its own colour
     const muted = theme.muted("\0").split("\0")[0], green = theme.fg("green", "\0").split("\0")[0], red = theme.fg("red", "\0").split("\0")[0];
     assert.ok(v.rowLines(LIVE[0], 100)[1].includes(`${muted}Reading`)); assert.ok(v.rowLines(LIVE[3], 100)[1].includes(`${green}Pass`)); assert.ok(v.rowLines(LIVE[4], 100)[1].includes(`${red}Fail`));
@@ -176,7 +179,7 @@ test("all machines: a remote task's second line starts under its task's name, ri
   const v = board([], { scope: "*" });
   const far = { ...LIVE[0], host: "other-machine", title: "Remote task", msg: "Checking the implementation" }, near = { ...far, host: "" };
   for (const width of [200, 100, 60, 45, 38, 30, 24]) for (const list of [[far], [far, near, { ...far, host: "a-much-longer-machine-name-on-the-tailnet" }]]) for (const r of list) {
-    const [first, under] = plain(v.rowLines(r, width, v.rowLayout(list, width)));
+    const [first, under] = plain(v.rowLines(r, width, v.rowLayout(list, width, undefined, SCREEN)));
     assert.equal(under.search(/\S/), first.indexOf("Remote"), `${r.host || "this machine"} at ${width}:\n${first}\n${under}`); assert.ok(under.length <= width);
   }
   assert.deepEqual(plain(v.rowLines(far, 100)).map((l) => l.slice(0, 44).trimEnd()), [" ◐ other-machine Remote task", " ".repeat(17) + "Checking the implementation"]);
@@ -188,11 +191,11 @@ test("a row with nothing to say yet keeps its second line: rows do not change he
   const silent = { ...work, id: "p/1", title: "Just started" }, waits = { ...ready, id: "p/2", title: "Never reviewed" };
   const v = board([silent, waits, { ...done, id: "p/3", title: "Finished" }]);
   // A working task: a quiet "…" until its first words. One that waits with nothing to say: an empty line.
-  assert.deepEqual(plain(v.rowLines(silent, 60)), [" ◐ Just started" + " ".repeat(43) + "2h", "   …"]);
-  assert.deepEqual(plain(v.rowLines(waits, 60)).map((l) => l.trimEnd()), [" ✓ Never reviewed" + " ".repeat(37) + "2h ago", ""]);
-  const before = plain(v.listLines(60, 20));
+  assert.deepEqual(plain(v.rowLines(silent, 60, v.rowLayout([silent], 60, undefined, SCREEN))), [" ◐ Just started" + " ".repeat(43) + "2h", "   …"]);
+  assert.deepEqual(plain(v.rowLines(waits, 60, v.rowLayout([waits], 60, undefined, SCREEN))).map((l) => l.trimEnd()), [" ✓ Never reviewed" + " ".repeat(37) + "2h ago", ""]);
+  const before = plain(v.listLines(60, 20, SCREEN));
   silent.msg = "Reading the code."; waits.review = pass;
-  const after = plain(v.listLines(60, 20));
+  const after = plain(v.listLines(60, 20, SCREEN));
   assert.equal(before.findIndex((l) => l.includes("Finished")), after.findIndex((l) => l.includes("Finished"))); // nothing below moved
   assert.deepEqual(after.filter((l) => l.startsWith("   ")).map((l) => l.trimEnd()), ["   Pass · 1 minor", "   Reading the code."]);
 });
@@ -216,7 +219,7 @@ test("the list scrolls by whole rows: no row is ever shown half, and the selecte
   for (const h of [2, 3, 4, 5, 8]) {
     const v = board(many, { sel: "p/1" });
     const look = () => {
-      const lines = plain(v.listLines(60, h));
+      const lines = plain(v.listLines(60, h, SCREEN));
       assert.equal(lines.length, h);
       lines.forEach((l, n) => {
         const first = /^ ◐ Working (\d+) /.exec(l), second = /^ {3}Says (\d+)/.exec(l);
@@ -232,7 +235,7 @@ test("the list scrolls by whole rows: no row is ever shown half, and the selecte
   }
   // In a list of one line there is no room for both: the selected row's first line, its name, is what shows.
   const v = board(many, { sel: "p/3" });
-  assert.match(plain(v.listLines(60, 1))[0], /^ ◐ Working 3 /);
+  assert.match(plain(v.listLines(60, 1, SCREEN))[0], /^ ◐ Working 3 /);
 });
 
 test("a list taller than its room shows fewer done rows first, down to the newest one, before it scrolls", () => {
@@ -242,7 +245,7 @@ test("a list taller than its room shows fewer done rows first, down to the newes
     { ...todo, id: "p/30", title: "Later" },
   ];
   const v = board(list, { sel: "p/1" });
-  const look = (h) => { const lines = plain(v.listLines(60, h)).map((l) => l.trimEnd()); return { lines, done: lines.filter((l) => /Finished/.test(l)).length, note: lines.find((l) => /more/.test(l)) }; };
+  const look = (h) => { const lines = plain(v.listLines(60, h, SCREEN)).map((l) => l.trimEnd()); return { lines, done: lines.filter((l) => /Finished/.test(l)).length, note: lines.find((l) => /more/.test(l)) }; };
   // Room for all of it: the usual fold, the latest five. working 2+6, done 2+5+1, to do 2+1 = 19 lines.
   assert.deepEqual([look(30).done, look(30).note], [5, "   … 3 more (? shows all done)"]); assert.equal(look(19).done, 5);
   // Each line short takes one done row away, and the note counts it.

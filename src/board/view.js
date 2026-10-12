@@ -17,6 +17,7 @@ import { Size } from "./view/size.js";
 import { Setup } from "./view/setup.js";
 import { List } from "./view/list.js";
 import { Row } from "./view/row.js";
+import { RowTall } from "./view/row-tall.js";
 import { Coordinator } from "./view/coordinator.js";
 import { Chat } from "./view/chat.js";
 import { ChatScroll } from "./view/chat-scroll.js";
@@ -139,6 +140,7 @@ const PARTS = [
   Setup,
   List,
   Row,
+  RowTall,
   Coordinator,
   Chat,
   ChatScroll,

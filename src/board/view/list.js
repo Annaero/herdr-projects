@@ -8,13 +8,16 @@ import { herdr, currentSocket, sessionName } from "../../herdr.js";
 import { short, repoLabel } from "./words.js";
 import { GROUPS, GROUP_COLOR, groupOf, asRow, isLive } from "./states.js";
 import { name as keyName } from "../keys.js";
+import { rowHeight, tallAt } from "./row-tall.js";
 
 // A long done list folds to its latest few. A list taller than its room shows fewer still, down to one.
 const DONE_SHOWN = 5;
 const isDone = (r) => r.state === "done" && !r.pinned && !r.archivedAt;
 const rank = (r) => (r.archivedAt ? -2 : r.pinned ? -1 : GROUPS.indexOf(groupOf(r)));
-// The lines a list of rows takes: an empty line and a heading for each group, two lines for a live task's row.
-const linesOf = (rows) => rows.reduce((n, row) => n + (row.header ? 2 : row.rec && isLive(row.rec) ? 2 : 1), 0);
+const isTodo = (r) => groupOf(r) === "to do" && !r.pinned && !r.archivedAt;
+// The lines a list of rows takes: an empty line and a heading for each group, two lines for a live task's row (three
+// on a narrow screen).
+const linesOf = (rows, tall) => rows.reduce((n, row) => n + (row.header ? 2 : row.rec ? rowHeight(row.rec, tall) : 1), 0);
 
 export class List {
   load() {
@@ -96,12 +99,14 @@ export class List {
     else { this.replyId = this.current() ? this.sel : ""; this.panelTop = 0; }
   }
   // The rows under their headings. A long done list folds to its latest few, newest first. When the list is still
-  // taller than its room (`listRoom`: what the last draw had for it), the done rows are what gives way: fewer of them
-  // show, down to the newest one, so that the live tasks stay on the screen. Only then does the list scroll. The
-  // selected task is never folded away, and neither is anything while you search or ask for all done.
+  // taller than its room (`listRoom`: what the last draw had for it), the done rows are what gives way first: fewer of
+  // them show, down to the newest one. Then the to-dos of a list that has live tasks, from the last one up, down to
+  // the first. So the live tasks stay on the screen; only then does the list scroll. The selected task is never folded away, and neither is
+  // anything while you search or ask for all done. A folded to-do is still one press of the arrow keys away (`steps`).
   foldRows() {
     const { groups, whole } = this.grouped;
-    const lay = (keep) => {
+    this.foldSel = this.sel;
+    const lay = (keep, todos = Infinity) => {
       const rows = [];
       for (const [name, recs] of groups) {
         if (!recs.length) continue;
@@ -110,20 +115,32 @@ export class List {
         const list = [...recs].sort((a, b) => (this.byRepo ? rank(a) - rank(b) : 0) || (a.archivedAt && b.archivedAt ? b.archivedAt - a.archivedAt : 0) || (isDone(a) && isDone(b) ? b.at - a.at : 0));
         const done = list.filter(isDone);
         const folded = whole ? [] : done.slice(keep).filter((r) => r.id !== this.sel);
+        // The to-dos that stay are the first ones, or the ones that end at the selected task.
+        const todo = list.filter(isTodo), from = Math.max(0, todo.findIndex((r) => r.id === this.sel) - todos + 1);
+        const later = whole ? [] : todo.filter((r, n) => n < from || n >= from + todos);
         for (const r of list) {
-          if (!folded.includes(r)) rows.push({ rec: r });
+          if (!folded.includes(r) && !later.includes(r)) rows.push({ rec: r });
           if (folded.length && r === done[done.length - 1]) rows.push({ note: `… ${folded.length} more (? shows all done)` });
+          if (later.length && r === todo[todo.length - 1]) rows.push({ note: `… ${later.length} more to do` });
         }
       }
       return rows;
     };
+    const over = (rows) => !whole && this.listRoom && linesOf(rows, this.listTall) > this.listRoom;
     let keep = DONE_SHOWN, rows = lay(keep);
-    while (!whole && this.listRoom && keep > 1 && linesOf(rows) > this.listRoom) rows = lay(--keep);
+    while (keep > 1 && over(rows)) rows = lay(--keep);
+    // The arrow keys go through every to-do, folded or not: the one they land on is selected, so it shows.
+    this.steps = rows.filter((row) => row.rec).map((row) => row.rec.id);
+    let todos = Math.max(0, ...groups.map(([, recs]) => recs.filter(isTodo).length));
+    // Only for live rows: a list with none has nothing to keep in view, and scrolls as it always did.
+    const live = rows.some((row) => row.rec && isLive(row.rec));
+    while (live && todos > 1 && over(rows)) rows = lay(keep, --todos);
     return rows;
   }
   move(d) {
-    const ids = [...this.rows.filter((r) => r.rec).map((r) => r.rec.id), ...this.jobs.map((j) => j.id)]; // the dispatcher's rows sit below the list
+    const ids = [...(this.steps || this.rows.filter((r) => r.rec).map((r) => r.rec.id)), ...this.jobs.map((j) => j.id)]; // the dispatcher's rows sit below the list
     if (ids.length) this.sel = ids[Math.max(0, Math.min(ids.length - 1, ids.indexOf(this.sel) + d))];
+    if (this.grouped) this.rows = this.foldRows(); // the to-do it landed on is never folded away
   }
   // The header: one line. Which project, and anything unusual about what the list shows.
   headLines(w) {
@@ -138,10 +155,12 @@ export class List {
     if (asked) parts.push(`${asked} suggested task${asked === 1 ? "" : "s"} (${keyName("suggested")})`);
     return [truncateToWidth(" " + t.bold("herdr-superwork") + t.fg("overlay0", "  " + parts.join(" · ")), w, "…")];
   }
-  listLines(width, h) {
-    const t = this.theme;
+  // `screen` is the whole board's width: the list's own, unless the task panel is beside it. It decides whether live
+  // rows have their third line (row-tall.js), for all of them at once.
+  listLines(width, h, screen = width) {
+    const t = this.theme, tall = tallAt(screen);
     // The room the list has decides how many done rows show (foldRows): when it changes, they are folded again.
-    if (h !== this.listRoom) { this.listRoom = h; if (this.grouped) this.rows = this.foldRows(); }
+    if (h !== this.listRoom || tall !== this.listTall || this.sel !== this.foldSel) { this.listRoom = h; this.listTall = tall; if (this.grouped) this.rows = this.foldRows(); }
     if (!this.rows.length) {
       const out = ["", " " + t.fg("overlay0", this.filter || this.mode === "find" ? "nothing matches." : this.archiveView ? "No archived tasks." : "Nothing here yet. Type what needs doing.")];
       while (out.length < h) out.push("");
@@ -152,22 +171,23 @@ export class List {
     // whole list. What is shown of them is decided one group at a time, under each heading.
     const sections = [];
     for (const row of this.rows) { if (row.header || !sections.length) sections.push([]); if (row.rec) sections.at(-1).push(row.rec); }
-    const layout = this.rowLayout(sections.flat(), width, sections);
+    const layout = this.rowLayout(sections.flat(), width, sections, screen);
     this.rows.forEach((row) => {
       if (row.header) lines.push({ text: "", sel: false }, { text: " " + (this.byRepo ? t.bold(t.fg("subtext0", repoLabel(row.header))) : t.fg(GROUP_COLOR[row.header] || "subtext0", row.header)), sel: false });
       else if (row.note) lines.push({ text: "   " + t.fg("overlay0", row.note), sel: false });
-      // A live task's row is two lines, and both are the selected row's: the highlight covers the two.
-      else this.rowLines(row.rec, width, layout).forEach((text, n) => lines.push({ text, sel: row.rec.id === this.sel, second: n > 0 }));
+      // A live task's row is two lines or three, and all are the selected row's: the highlight covers them.
+      else this.rowLines(row.rec, width, layout).forEach((text, n, all) => lines.push({ text, sel: row.rec.id === this.sel, n, rest: all.length - n }));
     });
     const at = lines.findIndex((l) => l.sel), end = lines.findLastIndex((l) => l.sel);
     if (at < this.top + 2) this.top = Math.max(0, at - 2);
     if (end >= this.top + h) this.top = Math.min(at, end - h + 1); // with room for one line only, the one with its name
     this.top = Math.max(0, Math.min(this.top, Math.max(0, lines.length - h)));
-    // The list scrolls by whole rows, so a two-line row is never shown half: at the top it comes into view whole
-    // (or goes, when the selected row needs the line), and at the bottom its first line alone is left empty.
-    if (lines[this.top]?.second && !lines[this.top].sel) this.top += end < this.top - 1 + h ? -1 : 1;
-    const shown = lines.slice(this.top, this.top + h);
-    if (shown.length === h && lines[this.top + h]?.second && !shown[h - 1].sel) shown[h - 1] = { text: "", sel: false };
+    // The list scrolls by whole rows, so a row of two or three lines is never shown in part: at the top it comes into
+    // view whole (or goes, when the selected row needs the lines), and at the bottom what fits of it is left empty.
+    const first = lines[this.top];
+    if (first?.n && !first.sel) this.top += end < this.top - first.n + h ? -first.n : first.rest;
+    const shown = lines.slice(this.top, this.top + h), cut = lines[this.top + h];
+    if (shown.length === h && cut?.n) for (let n = 1; n <= cut.n && n <= h; n++) if (!shown[h - n].sel) shown[h - n] = { text: "", sel: false };
     const out = shown.map((l) => (l.sel ? this.hl(l.text, width) : l.text));
     while (out.length < h) out.push("");
     return out;
