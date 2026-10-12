@@ -114,7 +114,7 @@ export function startAgent(id, g, { prompt, resume = null }) {
   const taken = api.agents().filter((a) => a.pane_id !== t.link.pane).map((a) => a.name).filter(Boolean);
   const name = agentName(t, taken);
   const x = launchExtras(t, "agent", { kind, standing: rules(t), resume });
-  const args = (hooked) => startArgs(kind, { model: ch.model, effort: ch.effort, resume, session: x.session, extra: [...(hooked ? x.hook : []), ...x.rules] });
+  const args = (hooked) => startArgs(kind, { model: ch.model, effort: ch.effort, fast: ch.fast, resume, session: x.session, extra: [...(hooked ? x.hook : []), ...x.rules] });
   let blocked = false, hooked = x.hooked;
   const start = (withHook) => {
     try { api.agentStart(name, kind, t.link.pane, args(withHook)); }

@@ -69,7 +69,8 @@ The rest is one page per topic:
 - [Roles and commands](docs/roles-and-commands.md): Agent, Reviewer, Watcher, Coordinator; the how-to skill; the command line
 - [How work gets done](docs/how-work-gets-done.md): delegating, finishing, the keeper, staying current with main, approving, cleanup
 - [The gate](docs/gate.md): what a review's findings decide: what goes back, what may merge
-- [Settings: two places](docs/settings.md): the repo's file, your own settings, one task's own
+- [Settings: two places](docs/settings.md): the repo's file, your own settings, one task's own; fast mode for a
+  Codex reviewer (`reviewerFast`, on by default) or working agent (`fast`)
 - [Other machines](docs/other-machines.md): tasks on other machines, over SSH
 - [What was checked on herdr 0.9.3](docs/checked-on-herdr.md): the table of facts verified against herdr and the agent programs
 - [Compared with pi-work](docs/compared-with-pi-work.md): what came back, what is different, what is not there

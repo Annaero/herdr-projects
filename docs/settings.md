@@ -13,6 +13,8 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | Setting | Default | Means |
 |---|---|---|
 | `agent`, `model`, `effort` | `claude` | the working agent: any `herdr agent start --kind` value |
+| `fast` | `false` | the working agent in its program's fast mode: a faster service tier that uses more of your allowance. Only Codex has one (`-c service_tier="fast"`, sent as the `priority` tier); for any other kind the setting does nothing, and `config` and the task panel say so. The setting is the one switch for a task's agent and reviewer: off starts Codex with `-c service_tier="default"` last, which wins over a tier in your own `agentArgs`, in `~/.codex/config.toml` or in a profile, so off is always normal speed |
+| `reviewerFast` | `true` | the same for the reviewer: a Codex reviewer runs in fast mode unless you turn this off. Does nothing for a reviewer of another kind. Expect a small gain: writing is about a fifth faster, but a review mostly runs commands and reads code (measured: 212 s against 226 s for the same commit) |
 | `reviewer`, `reviewerModel`, `reviewerEffort` | `codex` | the reviewer; `off` for none. Not installed here: the agent's own kind reviews, on its default model, and the task says so |
 | `coordinator`, `coordinatorModel`, `coordinatorEffort` | `claude`, its defaults | the Coordinator, the agent you talk to in the chat; `off` for none. For one use: `coordinator new --agent … --model … --effort …` |
 | `watcherAgent`, `watcherModel` | `claude`, `claude-haiku-5-5` | the Watcher's small model (`helper`, `helperModel` are still read as these) |
@@ -31,8 +33,8 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `agentArgs` | full access | per agent kind: arguments after `--` for `herdr agent start` |
 | `machines`, `remoteUser` | `auto` | other machines: herdr's saved machines, names, or `off` |
 
-Per task (`--id <id>`, or options to `delegate`): `agent`, `model`, `effort`, `reviewer`, `reviewerModel`,
-`reviewerEffort`, `watcher`, `review`, `gate`, `rounds`, `artifacts`, `serve`, `conflictAuto` (on by default).
+Per task (`--id <id>`, or options to `delegate`): `agent`, `model`, `effort`, `fast`, `reviewer`, `reviewerModel`,
+`reviewerEffort`, `reviewerFast`, `watcher`, `review`, `gate`, `rounds`, `artifacts`, `serve`, `conflictAuto` (on by default).
 
 Data lives in `~/.local/state/herdr-superwork` (`HERDR_SUPERWORK_DATA_DIR` overrides it): one folder per task with
 `task.json`, `inbox.jsonl` and `artifacts/`.

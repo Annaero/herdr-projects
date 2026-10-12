@@ -11,8 +11,10 @@ import { assertUnarchived, update } from "./tasks.js";
 export const DEFAULTS = {
   agent: "claude",        // the working agent: any `herdr agent start --kind` value
   model: "", effort: "",
+  fast: false,            // the working agent in its program's fast mode (a faster service tier that uses more of your allowance); only Codex has one
   reviewer: "codex",      // the reviewer's agent kind; "off" for no review
   reviewerModel: "", reviewerEffort: "",
+  reviewerFast: true,     // the reviewer in its program's fast mode; does nothing for a kind that has none
   coordinator: "claude",  // who runs the natural-language box: its own choice, as the agent's is; "off" for none
   coordinatorModel: "", coordinatorEffort: "",
   watcherAgent: "claude", // the Watcher: a small model behind the "doing now" line; any kind with a one-shot entry in agents.js
@@ -98,7 +100,7 @@ export function setConfig(key, value) {
   return config();
 }
 // Who does the work and how the review loop runs can also be chosen for one task. That wins over your default.
-export const PER_TASK = ["agent", "model", "effort", "reviewer", "reviewerModel", "reviewerEffort", "watcher", "review", "gate", "rounds", "artifacts", "serve", "conflictAuto"];
+export const PER_TASK = ["agent", "model", "effort", "fast", "reviewer", "reviewerModel", "reviewerEffort", "reviewerFast", "watcher", "review", "gate", "rounds", "artifacts", "serve", "conflictAuto"];
 export function setTaskConfig(id, key, value) {
   [key, value] = gateKey(key, value);
   if (!PER_TASK.includes(key)) throw new Error(`Per task you can set: ${PER_TASK.join(", ")}. Other settings are yours as a whole.`);

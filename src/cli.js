@@ -13,7 +13,7 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork report <id> --state idle|working|blocked|done|error [--kind question|permission|auth] [--msg TEXT] [--title TEXT]
                          [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
   herdr-superwork describe <id> <text>          write or replace a task's description
-  herdr-superwork delegate <id> [--agent KIND] [--model M] [--effort E] [--reviewer KIND|off] [--no-worktree] [--base head|fresh]
+  herdr-superwork delegate <id> [--agent KIND] [--model M] [--effort E] [--fast] [--reviewer KIND|off] [--no-reviewerFast] [--no-worktree] [--base head|fresh]
                            [--gate critical|major|minor|trivial|off] [--rounds N]
   herdr-superwork tell <id> <text>              send a message to the task's agent
   herdr-superwork stop <id>                     stop its agent
@@ -41,7 +41,7 @@ const HELP = `herdr-superwork: a work board for herdr
 // positional arguments, --flag value, --flag (true), --no-flag (false)
 export function parse(argv) {
   const pos = [], flags = {};
-  const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "worktree", "no-worktree"]);
+  const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "worktree", "no-worktree", "fast", "reviewerFast"]);
   if (argv[0] === "config") BOOL.delete("skill");
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -194,6 +194,13 @@ export async function main(argv) {
       const c = id ? (pos[1] && value !== undefined ? S.setTaskConfig(S.find(id).id, pos[1], value) : S.choices(S.find(id)))
         : pos[1] && value !== undefined ? S.setConfig(pos[1], value) : S.config();
       result = [pos[1] && value === undefined ? { [pos[1]]: c[pos[1]] } : c];
+      // Fast mode turned on for a program that has none: the setting is kept and does nothing, so say it.
+      const who = { fast: "agent", reviewerFast: "reviewer" }[pos[1]];
+      if (who && value !== undefined && c[pos[1]] === true) {
+        const kind = who === "agent" ? (id && S.find(id).agent) || c.agent : c.reviewer;
+        const { hasFast } = await import("./agents.js");
+        if (kind && kind !== "off" && !hasFast(kind)) { result[0] = { ...result[0], note: `${kind} has no fast mode: ${pos[1]} does nothing while the ${who} is ${kind}` }; result[1] = `${JSON.stringify(c, null, 2)}\n${result[0].note}`; }
+      }
       if (!id && pos[1] === "skill" && value !== undefined) { const X = await import("./extras.js"); X.syncSkill(F.shim()); } // on writes the how-to, off removes exactly what was written
       break;
     }

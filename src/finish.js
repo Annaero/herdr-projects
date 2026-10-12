@@ -477,7 +477,7 @@ async function runReview(id, g, { text, change, toLand, ch }) {
     t = g.set((t) => { t.link = { ...t.link, reviewer: { pane: pane.pane_id, agent: name, kind: rkind } }; t.reviewSession = x.session; });
     const startedAt = Date.now();
     const start = (hook) => {
-      try { api.agentStart(name, rkind, pane.pane_id, startArgs(rkind, { model: rmodel, effort: reffort, session: x.session, extra: hook })); }
+      try { api.agentStart(name, rkind, pane.pane_id, startArgs(rkind, { model: rmodel, effort: reffort, fast: ch.reviewerFast, session: x.session, extra: hook })); }
       catch (e) { if (e.code === "agent_not_ready") return; if (!hook.length) throw e; start([]); } // once more without the hook arguments
     };
     start(x.hook);

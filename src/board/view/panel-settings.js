@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import * as S from "../../store.js";
 import { herdr, sessionName } from "../../herdr.js";
-import { fullAccess } from "../../agents.js";
+import { fullAccess, hasFast } from "../../agents.js";
 import { short, tokens } from "./words.js";
 
 export class PanelSettings {
@@ -30,10 +30,12 @@ export class PanelSettings {
     // Each role reads the same way: program and version, model, effort. The version is the one saved at launch.
     // Two defaults share the word, so the row keeps to one line beside the list.
     const role = (name, model, effort) => `${name} · ${model || effort ? `${model || "default model"} · ${effort || "default effort"}` : "default model, effort"}`;
-    rows.push(["Agent", role(`${kind}${r.agentVersion ? ` ${r.agentVersion}` : ""}`, ch.model, ch.effort), mine("agent", "model", "effort")]);
+    // Fast mode is said only where it is on. On for a kind that has none, the row says that it does nothing.
+    const fast = (k, on) => (!on ? "" : hasFast(k) ? " · fast" : ` · no fast mode in ${k}`);
+    rows.push(["Agent", role(`${kind}${r.agentVersion ? ` ${r.agentVersion}` : ""}`, ch.model, ch.effort) + fast(kind, ch.fast), mine("agent", "model", "effort", "fast")]);
     // No reviewer, or no review at all for this task, reads as "off".
     const noReview = !ch.reviewer || ch.reviewer === "off" || ch.review === "none";
-    rows.push(["Reviewer", noReview ? "off" : role(ch.reviewer, ch.reviewerModel, ch.reviewerEffort), mine("reviewer", "reviewerModel", "reviewerEffort", "review")]);
+    rows.push(["Reviewer", noReview ? "off" : role(ch.reviewer, ch.reviewerModel, ch.reviewerEffort) + fast(ch.reviewer, ch.reviewerFast), mine("reviewer", "reviewerModel", "reviewerEffort", "reviewerFast", "review")]);
     // How this task is reviewed: what gets a review, who sends a review back, and the evidence the reviewer brings.
     rows.push(["Reviewed", noReview ? "nothing" : ch.review === "all" ? "all work" : "work in a repo", mine("review", "reviewer")]);
     rows.push(["Send back", `${!ch.gate || ch.gate === "off" ? "by hand" : ch.gate === "trivial" ? "any finding" : ch.gate === "critical" ? "critical only" : `${ch.gate} or worse`} · ${ch.rounds ?? "?"} round${ch.rounds === 1 ? "" : "s"} max`, mine("gate", "reviewAuto", "rounds")]);

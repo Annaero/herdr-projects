@@ -4,6 +4,8 @@
 //   resume      arguments that reopen a conversation by id                          none: starts fresh
 //   model       arguments that choose a model                                       none: the agent's default
 //   effort      arguments that choose an effort level                               none: the agent's default
+//   fast        arguments that turn on the program's faster service tier            none: no fast mode, the setting does nothing
+//   slow        arguments that turn that tier off, whatever else names one          none: nothing is passed
 //   interrupt   the key that stops a turn                                           none: esc
 //   oneShot     a headless command for the hidden helper (the Watcher)              none: cannot be the Watcher
 //   trust       mark a repo as trusted in the agent's own settings                  none: its trust dialog waits for you
@@ -232,6 +234,14 @@ export const AGENTS = {
     resume: (id) => ["resume", id],
     model: (m) => ["-m", m],
     effort: (e) => ["-c", `model_reasoning_effort="${e}"`],
+    // Codex's Fast mode. Verified on 0.160.0: with this override every request carries `service_tier: "priority"`
+    // (none without it), for `codex`, `codex resume` and `codex exec` alike. A model that has no such tier drops it
+    // with a warning and runs at normal speed.
+    fast: () => ["-c", 'service_tier="fast"'],
+    // The setting is the one switch. Off names the default tier, last on the line, so it wins over a tier in your own
+    // `agentArgs` (in any spelling), in ~/.codex/config.toml or in a profile. Verified on 0.160.0: after a fast
+    // override, `-c service_tier="default"` sends no tier and prints no warning.
+    slow: () => ["-c", 'service_tier="default"'],
     oneShot: ({ model, prompt }) => ({ command: "codex", args: ["exec", "--skip-git-repo-check", "--ephemeral", "--color", "never", ...(model ? ["-m", model] : []), prompt] }),
     // Codex keeps trust per repository root, in ~/.codex/config.toml. A command-line override does not count
     // (verified on 0.160), so the table is appended to the file once.
@@ -293,9 +303,11 @@ export default function (pi: any) {
   },
 };
 export const adapter = (kind) => AGENTS[kind] || {};
+// Whether this kind has a fast mode the board can turn on. Without one, `fast` and `reviewerFast` do nothing.
+export const hasFast = (kind) => typeof adapter(kind).fast === "function";
 // The arguments a worker or reviewer of this kind is started with.
 // `resume` reopens a known conversation; `session` names a new one; `extra` are the hook and standing-rule arguments.
-export function startArgs(kind, { model, effort, resume, session, extra = [] } = {}) {
+export function startArgs(kind, { model, effort, fast, resume, session, extra = [] } = {}) {
   const a = adapter(kind);
   const user = config().agentArgs?.[kind];
   return [
@@ -304,6 +316,7 @@ export function startArgs(kind, { model, effort, resume, session, extra = [] } =
     ...(Array.isArray(user) ? user : a.args || []),
     ...(model && a.model ? a.model(model) : []),
     ...(effort && a.effort ? a.effort(effort) : []),
+    ...(fast === true && a.fast ? a.fast() : fast === false && a.slow ? a.slow() : []), // not said (the Coordinator): the program's own setting
     ...extra,
   ];
 }
