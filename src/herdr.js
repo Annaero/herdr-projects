@@ -15,6 +15,10 @@ export class HerdrError extends Error {
   constructor(code, message, args) { super(message || code); this.code = code; this.args = args; }
 }
 const bin = () => process.env.HERDR_BIN_PATH || "herdr";
+// The one place the program is started. Tests may answer for one program path themselves (`globalThis.__swHerdr`: its
+// `bin`, and `run(args, env)` giving what the program would: status, stdout, stderr), so that a test's hundreds of calls
+// are not hundreds of programs; any other path is started as always.
+const launch = (args, opts) => { const own = globalThis.__swHerdr; return own && own.bin === bin() ? own.run(args, opts.env) : spawnSync(bin(), args, opts); };
 // The session a plain command talks to: the pane it runs in, else the default session.
 export function currentSocket() {
   if (process.env.HERDR_SOCKET_PATH) return process.env.HERDR_SOCKET_PATH;
@@ -29,7 +33,7 @@ function run(socket, args, { timeout = 30000, raw = false, input } = {}) {
   // Never let the caller's own pane leak in as an implicit target: every command names its pane.
   delete env.HERDR_PANE_ID; delete env.HERDR_TAB_ID; delete env.HERDR_WORKSPACE_ID; delete env.HERDR_SESSION;
   if (socket) env.HERDR_SOCKET_PATH = socket;
-  const r = spawnSync(bin(), args, { encoding: "utf8", env, timeout, input, maxBuffer: 32 * 1024 * 1024 });
+  const r = launch(args, { encoding: "utf8", env, timeout, input, maxBuffer: 32 * 1024 * 1024 });
   if (r.error) throw new HerdrError(r.error.code === "ENOENT" ? "herdr_missing" : r.error.code === "ETIMEDOUT" ? "timeout" : "spawn_failed", r.error.code === "ENOENT" ? "The herdr program was not found." : r.error.message, args);
   if (r.status !== 0) {
     let code = "failed", message = String(r.stderr || r.stdout || "").trim();

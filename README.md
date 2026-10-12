@@ -87,4 +87,5 @@ The rest is one page per topic:
 
 ## Tests
 
-`npm test`. A fake herdr binary and scripted fake agents: no model calls, no real board, no real herdr.
+`npm test` runs everything, `npm test <area>` only one area's files (`npm test board-panel`). A fake herdr and scripted
+fake agents: no model calls, no real board, no real herdr. More: [tests](docs/testing.md).

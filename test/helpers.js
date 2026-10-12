@@ -5,12 +5,13 @@ import net from "node:net";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { herdr } from "./fake-herdr.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 
 // A fresh world. Call at the top of each test; returns handles and a cleanup function.
-export async function world({ repo = true, settings = {}, repoSettings = null, origin = false } = {}) {
+export async function world({ repo = true, settings = {}, repoSettings = null, origin = false, program = false } = {}) {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), "sw-test-"));
   const fake = path.join(base, "fake"); fs.mkdirSync(fake);
   const socket = path.join(base, "herdr.sock");
@@ -25,6 +26,10 @@ export async function world({ repo = true, settings = {}, repoSettings = null, o
   });
   for (const k of ["HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID", "HERDR_PLUGIN_ID", "HERDR_PLUGIN_CONTEXT_JSON", "HERDR_ENV", "HERDR_SESSION"]) delete process.env[k];
   globalThis.__swJobs = [];
+  // The fake herdr answers in this process: launching it as a program for every call was most of the suite's time. A
+  // program this test did not start itself (the command line, an agent's hook) still runs test/bin/herdr, and so does a
+  // test that asks for it: `world({ program: true })`.
+  globalThis.__swHerdr = program ? null : { bin: process.env.HERDR_BIN_PATH, run: herdr };
   fs.mkdirSync(process.env.HERDR_SUPERWORK_CONFIG_DIR, { recursive: true });
   fs.writeFileSync(path.join(process.env.HERDR_SUPERWORK_CONFIG_DIR, "config.json"), JSON.stringify({ watcher: "off", coordinator: "off", serve: "local", ...settings }));
   let root = path.join(base, "proj");

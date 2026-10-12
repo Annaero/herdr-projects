@@ -12,7 +12,8 @@ feature of each kind goes. Keep it true: when you add a file, add its line here.
   the `?` menu, the table in `docs/checked-on-herdr.md`), put the new line next to the lines it belongs with. Two
   tasks that both append at the end always conflict.
 - **A new test goes in the test file of its area**, or in a new `test/<area>.test.js`. `npm test` runs every
-  `test/*.test.js`. Never one catch-all test file.
+  `test/*.test.js`, `npm test <area>` only that area's files: run that while you work, and everything once at the end
+  ([testing.md](testing.md)). Never one catch-all test file, and no file slower than about 25 seconds.
 - **A new feature's words go in its topic's page under `docs/`**, not in `README.md`: the README is only the
   introduction, the install steps and the list of pages.
 
@@ -86,11 +87,13 @@ new file in `store/`, with one line added to `store.js`.
 One file per area, named after it: `board-*.test.js` for the screen (table above), `coordinator-*.test.js`,
 `flow.test.js`, `gate.test.js`, `sync-*.test.js`, `remerge.test.js` (a review that stands after a merge of main), `store.test.js`, `theme.test.js`, `watcher.test.js`, `remote.test.js`, `cli.test.js`,
 and the rest. Shared setup: `helpers.js` (a test world), `board-helpers.js` (a board opened on it),
-`coordinator-helpers.js` (a world with a Coordinator).
+`coordinator-helpers.js` (a world with a Coordinator). The stand-ins: `fake-herdr.js` (herdr; called in the test's own
+process, or run as the program `bin/herdr`; its own tests: `fake-herdr.test.js`), `bin/gh`, `fake-helper.js`. The runner
+behind `npm test`, with its slow-file note: `run.js` (`test-runner.test.js`).
 
 ## The pages: `docs/`
 
 `README.md` lists them. One page per topic: `board.md`, `task-panel.md`, `keys.md`, `coordinator.md`,
 `roles-and-commands.md`, `how-work-gets-done.md`, `gate.md`, `settings.md`, `other-machines.md`,
-`checked-on-herdr.md`, `compared-with-pi-work.md`, `provider-errors.md`. A new key goes in `keys.md`, a new setting in `settings.md`, a
+`checked-on-herdr.md`, `compared-with-pi-work.md`, `provider-errors.md`, `testing.md` (running the tests, keeping them fast). A new key goes in `keys.md`, a new setting in `settings.md`, a
 newly verified fact in `checked-on-herdr.md` beside the rows of its kind.
