@@ -14,3 +14,4 @@ export * from "./store/retries.js";
 export * from "./store/reviews.js";
 export * from "./store/suggestions.js";
 export * from "./store/marks.js";
+export * from "./store/check-runs.js";

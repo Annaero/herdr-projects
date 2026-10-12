@@ -7,6 +7,7 @@ import * as G from "../gate.js";
 import * as Y from "../sync.js";
 import { firstLine, approvalMessage, fail } from "./shared.js";
 import { closeReviewer, runReview } from "./review.js";
+import { runCheck } from "./check-run.js";
 import { mergesItself } from "./auto-merge.js";
 
 // "Finish anyway" on a turn that left no closing note: the screen text is the summary.
@@ -23,7 +24,7 @@ export async function pipelineJob(id) {
 // `synced`: the caller already brought the branch up to date with main (a re-sync, or the sync after an approval)
 // and this is its result.
 export async function pipeline(id, g, text, wake, synced = null) {
-  let t = g.set((t) => { t.stage = "checking"; t.syncBlocked = null; t.msg = synced ? "checking the branch updated with main" : "checking the result"; t.watch = null; t.summary = String(text || "").trim(); });
+  let t = g.set((t) => { t.stage = "checking"; t.syncBlocked = null; t.msg = synced ? "checking the branch updated with main" : "checking the result"; t.watch = null; t.check = null; t.summary = String(text || "").trim(); });
   const folder = S.cwdOf(t), root = S.folderOf(t.id), tree = F.isAgentTask(t) && t.worktree && fs.existsSync(t.worktree) ? t.worktree : "";
   const repo = t.repoCfg || {};
   const env = { HERDR_SUPERWORK_ID: t.id, HERDR_SUPERWORK_WORKTREE: folder, HERDR_SUPERWORK_REPO: root };
@@ -71,8 +72,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
     g.set({ setupPending: false });
   }
   if (repo.check) {
-    g.set({ msg: `running the check: ${repo.check}` });
-    const r = await sh(repo.check, folder, env, { alive });
+    const r = await runCheck(g, t, { cmd: repo.check, folder, env, alive, root });
     if (r.aborted) return;
     if (!r.ok) {
       const merged = kept ? " The branch was only re-merged with main since its review passed, so the tests ran instead of a new review." : "";

@@ -20,6 +20,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { run } from "node:test";
 import { spec } from "node:test/reporters";
 import { fileURLToPath } from "node:url";
+import { reporter, joinLine, stayInLine, leaveLine, waitingBefore } from "./check-report.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const num = (name, d) => (Number(process.env[name]) > 0 ? Number(process.env[name]) : d);
@@ -116,21 +117,29 @@ export function remember(store, tree, results) {
 
 // ---- taking turns ---------------------------------------------------------------------------------------------------
 // One of the machine's slots: a kernel lock (flock) this process keeps until it ends, however it ends. Waits for one.
-// Returns what lets it go, or null where there is no flock program (then nothing takes turns).
+// Returns what lets it go, or null where there is no flock program (then nothing takes turns). `waiting(ahead)` is
+// called when it has to wait and again whenever the number of runs ahead of it changes.
 export function takeSlot(store, slots = SLOTS, waiting = () => {}) {
   const dir = path.join(store, "slots");
   fs.mkdirSync(dir, { recursive: true });
-  for (let n = 0; ; n++) {
-    for (let i = 0; i < slots; i++) {
-      const fd = fs.openSync(path.join(dir, `${i}.lock`), "a");
-      const r = spawnSync("flock", ["--exclusive", "--nonblock", "3"], { stdio: ["ignore", "ignore", "ignore", fd] });
-      if (r.status === 0) return () => { try { fs.closeSync(fd); } catch {} };
-      fs.closeSync(fd);
-      if (r.error) return null;
+  let mine = null, said = -1;
+  try {
+    for (;;) {
+      // In order: only a run with fewer runs before it than there are slots tries for one (check-report.js).
+      const before = waitingBefore(store, mine);
+      for (let i = 0; i < slots && before < slots; i++) {
+        const fd = fs.openSync(path.join(dir, `${i}.lock`), "a");
+        const r = spawnSync("flock", ["--exclusive", "--nonblock", "3"], { stdio: ["ignore", "ignore", "ignore", fd] });
+        if (r.status === 0) return () => { try { fs.closeSync(fd); } catch {} };
+        fs.closeSync(fd);
+        if (r.error) return null;
+      }
+      if (mine) stayInLine(mine); else mine = joinLine(store);
+      // Ahead of this one: the runs that hold the slots, and those that came to wait before it.
+      if (before + slots !== said) waiting(said = before + slots);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
     }
-    if (n === 0) waiting();
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
-  }
+  } finally { leaveLine(mine); }
 }
 
 // ---- stepping aside ------------------------------------------------------------------------------------------------
@@ -176,6 +185,7 @@ export function overBudget(costs, { whole = false, wall = null, by = 1, budget =
 // `budget`: only a test of this command gives another one.
 export async function main(argv, { budget = BUDGET } = {}) {
   const root = path.dirname(here), store = storeDir();
+  const report = reporter(); // to the board, when this is its check
   const flags = new Set(argv.filter((a) => a.startsWith("--"))), areas = argv.filter((a) => !a.startsWith("--"));
   const odd = [...flags].filter((f) => !["--all", "--fresh"].includes(f));
   if (odd.length) { console.error(`check: unknown ${odd.join(", ")}. Usage: npm run check [-- --all] [-- --fresh] [areas]`); return 2; }
@@ -208,12 +218,18 @@ export async function main(argv, { budget = BUDGET } = {}) {
     if (over.length) { console.log(`${say(0, files.length)}\n\n✖ over budget (see docs/testing.md):\n${over.map((l) => `  ${l}`).join("\n")}`); return 1; }
     console.log(`${say(0, files.length)}: nothing to run again. ✔`); return 0;
   };
-  if (!need.length) return done();
-  const free = takeSlot(store, SLOTS, () => console.log(`check: waiting for a turn (${SLOTS} test run${SLOTS === 1 ? "" : "s"} at a time on this machine)…`));
+  if (!need.length) { report({ state: "known" }); return done(); }
+  let waited = false;
+  const free = takeSlot(store, SLOTS, (ahead) => { report({ state: "waiting", ahead }); if (!waited) console.log(`check: waiting for a turn (${SLOTS} test run${SLOTS === 1 ? "" : "s"} at a time on this machine)…`); waited = true; });
   try {
     before = known(); need = files.filter((f) => !before[f]); // another run may have passed this code while this one waited
-    if (!need.length) return done();
+    if (!need.length) { report({ state: "known" }); return done(); }
     console.log(say(need.length, files.length - need.length));
+    // Test files finished out of all of them: those that passed before for this code count as finished.
+    const had = files.length - need.length;
+    let ended = had;
+    const count = () => report({ state: "running", done: ended, total: files.length, before: had, unit: "tests" });
+    count();
     const probe = fs.mkdtempSync(path.join(os.tmpdir(), "sw-check-"));
     Object.assign(process.env, { HERDR_SUPERWORK_CHECK_PROBE: probe, NODE_OPTIONS: `${process.env.NODE_OPTIONS || ""} --require=${JSON.stringify(path.join(here, "check-probe.cjs"))}`.trim() });
     const cores = os.availableParallelism(), loadBefore = os.loadavg()[0], usedBefore = machineCpu(), began = Date.now();
@@ -223,6 +239,9 @@ export async function main(argv, { budget = BUDGET } = {}) {
     const stream = run({ files: need.map((f) => path.join(here, f)), concurrency: cores, timeout: 120000 });
     stream.on("test:pass", (d) => { if (d.file && d.nesting === 0 && path.resolve(d.name) !== d.file) tests += 1; });
     stream.on("test:fail", (d) => { if (d.file) failed.add(path.basename(d.file)); });
+    // A test file is finished when the runner says so of the file itself, passed or failed.
+    const closed = new Set();
+    for (const ev of ["test:complete", "test:summary"]) stream.on(ev, (d) => { if (d.file && (ev === "test:summary" || path.resolve(String(d.name)) === d.file)) { closed.add(d.file); ended = had + closed.size; count(); } });
     stream.compose(spec).pipe(process.stdout);
     await new Promise((r) => stream.on("end", r));
     const wall = (Date.now() - began) / 1000, used = machineCpu();

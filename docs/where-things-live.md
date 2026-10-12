@@ -13,6 +13,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 |---|---|
 | `actions.js` | The exact actions of the board, also the subcommands any agent can run from its shell |
 | `agents.js` | Everything agent-specific: the table of agent programs (agents/kinds.js), reading what they saved, starting them, and what is installed |
+| `check-progress.js` | The board's own check as a task shows it: the count its command reports, the wait for a turn, the minutes left, and saying so when it stands still |
 | `cli.js` | The one program |
 | `coordinator.js` | The Coordinator: the agent behind the box at the bottom of the board |
 | `delegate.js` | Delegating: a herdr worktree workspace, the repo's setup, then the agent in its root pane with the first prompt |
@@ -127,6 +128,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | File | Holds |
 |---|---|
 | `auto-merge.js` | Auto-merge, the setting: a task that may merge does so by itself while `autoMerge` is on, and waits for you while it is off |
+| `check-run.js` | Running the repo's check with its progress shown: the file the command reports to, what is kept on the task while it runs, and telling herdr's sidebar |
 | `faults.js` | Faults a reviewer found that were there before the task: suggested to the human, never added as tasks, and what the next reviewer is told is known already |
 | `line.js` | The line: a repo's tasks merge one at a time |
 | `old-holds.js` | Approval holds an older version left behind: tasks owing you a yes although you never stepped into them |
@@ -155,6 +157,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | File | Holds |
 |---|---|
+| `check-runs.js` | How long a repo's check took the last few times it ran in full on this machine: what its minutes left are worked out from |
 | `failures.js` | Failures: workflow diagnostics that live beside the task |
 | `files.js` | Where the board keeps things, reading and writing files, and locks |
 | `inbox.js` | Text on its way: an agent's inbox, and instructions for a Coordinator |
@@ -197,6 +200,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 |---|---|
 | [board-size.md](board-size.md) | The board's size: what changes it, and how the board stands still |
 | [board.md](board.md) | The board: the list and the chat |
+| [check-progress.md](check-progress.md) | The check's progress: what the board shows, and how a check reports it |
 | [checked-on-herdr.md](checked-on-herdr.md) | What was checked on herdr 0.9.3 |
 | [compared-with-pi-work.md](compared-with-pi-work.md) | Compared with pi-work |
 | [coordinator.md](coordinator.md) | The Coordinator |
@@ -245,6 +249,8 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `board-still.test.js` | The board stands still: a size that changes for a moment, a second herdr window on the session, agents starting and ending, its own reload |
 | `board-tab.test.js` | The board's own tab: named herdr-superwork while the board is open in a pane, its old name back when it closes |
 | `board-textbox.test.js` | The text box: wrapping, growing, scrolling, editing keys |
+| `check-progress.test.js` | The board's own check as a task shows it: a true count from the command, the wait for a turn, the minutes left from earlier runs, an answer known at once, a check that stands still, and a colour of its own |
+| `check-report.js` | What the test command tells whoever started it, and the line of runs waiting for a turn |
 | `check.js` | The one test command: `npm run check` (`npm test` is the same) |
 | `check.test.js` | The test command (test/check.js): which files it runs, what it remembers, how runs take turns, and its budget |
 | `cleanup-late-work.test.js` |  |

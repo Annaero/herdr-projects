@@ -3,6 +3,7 @@
 // The board draws pi-work's five states: idle, working, blocked, done, error; blocked carries a kind. herdr has
 // no `error` state and no blocked `kind` today. When it exposes them (OSC 7501), this is the only place to change.
 import { RUNNER_STAGES, waitingOf, waitLine } from "./store.js";
+import { checkShown } from "./check-progress.js";
 
 export const STATES = ["idle", "working", "blocked", "done", "error"];
 const STAGE_LINE = { starting: "starting", queued: "waiting for a free slot", setup: "setting up", checking: "running the check", pushing: "pushing the branch", reviewing: "under review", merging: "merging" };
@@ -38,6 +39,8 @@ export function show(t, live, now = Date.now()) {
   }
   // Under review the Watcher follows the reviewer: its line, its own progress and the minutes left worked out from it, started afresh for every round.
   if (t.stage === "reviewing") return out("working", { msg: watch?.msg || t.msg || STAGE_LINE.reviewing, progress: watch?.progress ?? 0, eta, reviewing: true });
+  // The board's own check: the count its command reports and the minutes left, never the Watcher's guess (check-progress.js).
+  if (t.stage === "checking" && t.check) return out("working", { ...checkShown(t.check, now), reviewing: false });
   if (RUNNER_STAGES.includes(t.stage)) return out("working", { msg: t.msg || STAGE_LINE[t.stage], progress: t.watch?.progress, eta, reviewing: false });
   // stage "working": the agent's own turn. herdr decides.
   if (!agent || !live) return out("working", { progress: watch?.progress, eta });

@@ -6,8 +6,10 @@ import * as C from "../../coordinator.js";
 import * as S from "../../store.js";
 import { adapter } from "../../agents.js";
 import { clean } from "./words.js";
-import { isAgent, reviewing, groupOf, reviewerWord } from "./states.js";
+import { isAgent, reviewing, checking, groupOf, reviewerWord } from "./states.js";
 
+// The fewest cells the status keeps when the progress stands beside it.
+const CHAT_STATUS_MIN = 20;
 export class Chat {
   // ---- the chat ---------------------------------------------------------------------------------------------------------
   // One chat at the bottom of the board, the same for everyone you can talk to. Who that is follows one rule: the
@@ -59,7 +61,10 @@ export class Chat {
       const text = mine || pv?.text || "";
       // A status line that only starts the message in the box under it says nothing: where the task stands instead.
       const echo = toAgent && status !== word && this.chatOpen && clean(text).startsWith(status.replace(/…$/, ""));
-      return { mark: this.mark(r), name: clean(r.title || r.id), status: t.muted(echo ? word : status), text, mine: !!mine, raw: raw && !mine, said, turn: JSON.stringify(this.turnMark(r)) };
+      // While the board runs its check, the check's progress as the row has it, in the row's colour: the bar, the percent and the minutes left; without the bar where that is too wide.
+      const f = toAgent && checking(r) ? this.rowFields(r, Date.now()) : {};
+      const progress = [[f.bar, f.percent, f.eta], [f.percent, f.eta]].map((cells) => cells.filter(Boolean).join(" ")).filter((p, n, all) => p && all.indexOf(p) === n);
+      return { mark: this.mark(r), name: clean(r.title || r.id), status: t.muted(echo ? word : status), progress, text, mine: !!mine, raw: raw && !mine, said, turn: JSON.stringify(this.turnMark(r)) };
     }
     const far = this.scope && this.scope !== "*" && this.remotes[this.scope] ? this.scope : "";
     if (far) return { mark: t.fg("overlay0", t.mark("unknown")), color: "overlay0", name: `Coordinator on ${far}`, status: t.muted(`what you type goes to ${far}`), text: "" };
@@ -95,7 +100,11 @@ export class Chat {
     if (nameW > room && tight) return [lead + truncateToWidth(name, room, "…")];
     if (nameW > room) { const [a, b, more] = wrapTextWithAnsi(name, room); return [lead + a, ...(b ? ["   " + (more ? truncateToWidth(b, room - 1, "") + "…" : b)] : [])]; }
     const left = room - nameW - 2;
-    return [lead + name + (c.status && left >= 1 ? "  " + truncateToWidth(c.status, left, "…") : "")];
+    // The progress sits right after the status and is never cut: it shows whole, without its bar, or not at all.
+    // The status keeps CHAT_STATUS_MIN cells beside it, or all it needs when that is less.
+    const statusW = visibleWidth(c.status || ""), progress = (c.progress || []).find((p) => left - visibleWidth(p) - 2 >= Math.min(statusW, CHAT_STATUS_MIN)) || "";
+    const forStatus = left - (progress ? visibleWidth(progress) + 2 : 0);
+    return [lead + name + (c.status && forStatus >= 1 ? "  " + truncateToWidth(c.status, forStatus, "…") : "") + (progress ? "  " + progress : "")];
   }
   // Above the text box: an empty line (a short window has none to spare), then who you talk to, so the list never
   // runs into the name.

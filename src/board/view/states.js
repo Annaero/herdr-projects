@@ -28,6 +28,8 @@ export const isLive = (r) => !r.archivedAt && ["needs you", "ready to approve", 
 // The mark, the bar and the percent take the colour of the task's group; a task's own words (its title and what it
 // says) stay in herdr's text colours whatever its state. While the reviewer works they are "review": a blue of its
 // own (theme.js), so amber says only that the agent works and green only that the work passed and is ready.
-export const statusColor = (r) => (r.archivedAt ? "overlay0" : reviewing(r) && r.state === "working" ? "review" : GROUP_COLOR[groupOf(r)]);
+// While the board checks the result itself they are "check": a plain light grey, neither the agent's nor the reviewer's.
+export const checking = (r) => r.stage === "checking" && r.state === "working" && !r.archivedAt;
+export const statusColor = (r) => (r.archivedAt ? "overlay0" : reviewing(r) && r.state === "working" ? "review" : checking(r) ? "check" : GROUP_COLOR[groupOf(r)]);
 // A task as the screen reads it: `msg` is the line to show, `app` who is on it, `at` since when.
 export const asRow = (t) => ({ ...t, msg: t.note || "", raw: t.msg, app: t.shownApp || "", at: t.state === "working" ? t.since || t.at : t.at });

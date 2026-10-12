@@ -78,6 +78,9 @@ export function resolve(cfg = {}, light = null, want = "herdr") {
   if (typeof ui.accent === "string" && ui.accent !== "cyan" && typeof th.custom?.accent !== "string") palette.accent = parseColor(ui.accent); // herdr's older accent setting
   if (mode && th.auto_switch === true) over(th.custom?.[mode]);
   palette.review = reviewBlue(palette);
+  // The board's own check is neither the agent's nor the reviewer's: a neutral light grey, herdr's subtext0, brighter
+  // than the greyed words beside it and with no hue of its own.
+  palette.check = palette.subtext0;
   return { name: canonical(name) || name, palette, symbols: ui.status_indicators === "symbols", dots: ui.status_indicators === "dots" };
 }
 

@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { reporter, joinLine, stayInLine, leaveLine, waitingBefore, LINE_GONE_MS } from "./check-report.js";
 import { filesFor, importsOf, reach, touched, treeOf, changedSince, remembered, remember, takeSlot, stretch, overBudget, stepAside, BUDGET, SLOTS, NICE } from "./check.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -102,6 +103,22 @@ test("what passed is remembered per tree, added to by later runs, and kept apart
   } finally { fs.rmSync(store, { recursive: true, force: true }); }
 });
 
+test("the command reports to the file it was given and takes its name out of the environment; with no file it reports nothing", () => {
+  const dir = tmp();
+  try {
+    const env = { HERDR_SUPERWORK_PROGRESS: path.join(dir, "p"), OTHER: "1" };
+    const report = reporter(env);
+    assert.deepEqual(env, { OTHER: "1" }); // the tests it starts never see it
+    report({ state: "waiting", ahead: 2 });
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, "p"), "utf8")), { state: "waiting", ahead: 2 });
+    report({ state: "running", done: 3, total: 9, unit: "tests" });
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, "p"), "utf8")), { state: "running", done: 3, total: 9, unit: "tests" });
+    assert.deepEqual(fs.readdirSync(dir), ["p"]); // written whole, nothing half-written left
+    reporter({})({ state: "known" });
+    assert.deepEqual(fs.readdirSync(dir), ["p"]);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 // ---- from here on: real programs, because the command itself, git and the kernel's lock are what is tested ----------
 test("[real programs] runs take turns: a slot that is held makes the next one wait, and is free again once let go", () => {
   const store = tmp();
@@ -113,21 +130,39 @@ test("[real programs] runs take turns: a slot that is held makes the next one wa
     assert.equal(waited, 1);
     first(); second();
     takeSlot(store, 1, () => { throw new Error("would wait"); })();
+    // Turns go in order. A run that waits is told how many are ahead: the one that holds the slot, and those that
+    // came to wait before it. It does not try for a free slot while another run still waits before it.
+    const now = Date.now(), ahead = [];
+    const held = takeSlot(store, 1), earlier = joinLine(store, now - 1000, 1);
+    assert.throws(() => takeSlot(store, 1, (n) => { ahead.push(n); throw new Error("would wait"); }), /would wait/);
+    assert.deepEqual(ahead, [2]);
+    held();
+    assert.throws(() => takeSlot(store, 1, (n) => { ahead.push(n); throw new Error("would wait"); }), /would wait/); // the slot is free, but not its turn
+    assert.deepEqual(ahead, [2, 2]);
+    assert.deepEqual(fs.readdirSync(path.join(store, "queue")), [path.basename(earlier)]); // a run that gave up left the line
+    // A run that went away without leaving the line (its file is no longer touched) holds nobody up.
+    stayInLine(earlier, now - LINE_GONE_MS - 1000);
+    takeSlot(store, 1, () => { throw new Error("would wait"); })();
+    assert.deepEqual(fs.readdirSync(path.join(store, "queue")), []);
+    const mine = joinLine(store, now, 7), late = joinLine(store, now + 5, 8);
+    assert.equal(waitingBefore(store, mine), 0); assert.equal(waitingBefore(store, late), 1); assert.equal(waitingBefore(store), 2);
+    leaveLine(mine); assert.equal(waitingBefore(store, late), 0);
   } finally { fs.rmSync(store, { recursive: true, force: true }); }
 });
 
 test("[real programs] the command: runs what the change touches, answers at once for code that passed, in any worktree; fails over budget and on a failed test", () => {
   const base = tmp(), root = path.join(base, "repo"), store = path.join(base, "store");
   const priority = path.join(base, "priority"), mine = os.getPriority();
-  const env = { ...process.env, HERDR_SUPERWORK_CHECK_DIR: store, HERDR_SUPERWORK_CHECK_NICE: "7", PRIORITY_SEEN: priority, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
+  const env = { ...process.env, HERDR_SUPERWORK_CHECK_DIR: store, HERDR_SUPERWORK_CHECK_NICE: "7", HERDR_SUPERWORK_PROGRESS: path.join(base, "progress"), PRIORITY_SEEN: priority, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
   for (const k of ["NODE_TEST_CONTEXT", "NODE_OPTIONS", "HERDR_SUPERWORK_CHECK_PROBE", "HERDR_SUPERWORK_CHECK_BASE"]) delete env[k];
   const git = (cwd, ...args) => execFileSync("git", args, { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   const write = (dir, files) => { for (const [f, text] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), text); } };
   const check = (dir, ...args) => { const r = spawnSync(process.execPath, [path.join(dir, "test", args[0] === "tight" ? "tight.js" : "check.js"), ...args.filter((a) => a !== "tight")], { cwd: dir, env, encoding: "utf8" }); return { status: r.status, out: r.stdout + r.stderr }; };
-  const unit = (name) => `import test from "node:test";\nimport fs from "node:fs";\nimport os from "node:os";\nimport { ${name} } from "../src/${name}.js";\nfs.writeFileSync(process.env.PRIORITY_SEEN, String(os.getPriority()));\ntest("${name} is ${name}", () => { if (${name} !== "${name}") throw new Error("no"); });\n`;
+  const unit = (name) => `import test from "node:test";\nimport fs from "node:fs";\nimport os from "node:os";\nimport { ${name} } from "../src/${name}.js";\nfs.writeFileSync(process.env.PRIORITY_SEEN, String(os.getPriority()));\ntest("${name} is ${name}", () => { if (${name} !== "${name}") throw new Error("no"); if (process.env.HERDR_SUPERWORK_PROGRESS) throw new Error("a test must not see the board's progress file"); });\n`;
+  const told = () => JSON.parse(fs.readFileSync(path.join(base, "progress"), "utf8"));
   try {
     write(root, {
-      "test/check.js": fs.readFileSync(path.join(here, "check.js"), "utf8"), "test/check-probe.cjs": fs.readFileSync(path.join(here, "check-probe.cjs"), "utf8"),
+      "test/check.js": fs.readFileSync(path.join(here, "check.js"), "utf8"), "test/check-probe.cjs": fs.readFileSync(path.join(here, "check-probe.cjs"), "utf8"), "test/check-report.js": fs.readFileSync(path.join(here, "check-report.js"), "utf8"),
       // the same command with a budget of two programs a file
       "test/tight.js": `import { main, BUDGET } from "./check.js";\nprocess.exit(await main(process.argv.slice(2), { budget: { ...BUDGET, fileLaunches: 2 } }));\n`,
       "src/a.js": `export const a = "a";\n`, "src/b.js": `export const b = "b";\n`, "test/a.test.js": unit("a"), "test/b.test.js": unit("b"), "docs/x.md": "x\n", "package.json": `{ "type": "module" }\n`,
@@ -144,12 +179,16 @@ test("[real programs] the command: runs what the change touches, answers at once
     assert.match(r.out, /✔ a is a /); assert.doesNotMatch(r.out, /b is b/); assert.match(r.out, /\ncheck: 1 test file run · 1 tests passed · [\d.]+ s by the clock, [\d.]+ s of processor time · 0 programs started\n/);
     // the test file ran at the lower priority the command took (or the still lower one this run already had)
     if (process.platform !== "win32") assert.equal(fs.readFileSync(priority, "utf8"), String(Math.max(7, mine)));
-    // asked again for the same code: answered at once, nothing run
+    // whoever gave it a progress file (the board) was told the true count: test files finished out of all of them
+    assert.deepEqual(told(), { state: "running", done: 1, total: 1, before: 0, unit: "tests" });
+    // asked again for the same code: answered at once, nothing run, and the board is told that
     r = check(root);
+    assert.deepEqual(told(), { state: "known" });
     assert.equal(r.status, 0); assert.match(r.out, /check: 1 test file \(the tests your change touches: 3 files changed since main\) · 1 already passed for this exact code: nothing to run again\. ✔/); assert.doesNotMatch(r.out, /a is a/);
     // the whole suite runs only what has not passed yet; --fresh runs it all the same
     r = check(root, "--all");
     assert.equal(r.status, 0, r.out); assert.match(r.out, /check: 2 test files \(the whole suite\) · 1 already passed for this exact code · 1 to run\n/); assert.match(r.out, /b is b/); assert.doesNotMatch(r.out, /a is a/);
+    assert.deepEqual(told(), { state: "running", done: 2, total: 2, before: 1, unit: "tests" }); // the file that passed before counts as finished
     assert.match(check(root, "--all").out, /2 already passed for this exact code: nothing to run again/);
     r = check(root, "--all", "--fresh"); assert.match(r.out, /a is a/); assert.match(r.out, /b is b/); assert.match(r.out, /2 test files run · 2 tests passed/);
     // the same code in another worktree, on another branch and commit there (a reviewer's, the board's): it has passed already

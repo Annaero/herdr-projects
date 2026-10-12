@@ -25,7 +25,7 @@ Everything that runs tests uses the same command: you, an agent at work, the rev
   files. A file's own path works too. A name no file starts with is an error that lists the areas. Which file tests
   what: the tables in [where things live](where-things-live.md).
 
-Do not start tests another way (`node --test test/x.test.js`, a script of your own): that skips the four things below.
+Do not start tests another way (`node --test test/x.test.js`, a script of your own): that skips the things below.
 
 ### It remembers what passed
 
@@ -41,6 +41,19 @@ test is never remembered. `--fresh` runs regardless.
 One test run at a time on a machine (`HERDR_SUPERWORK_CHECK_SLOTS` for another number). The tests use every core, so
 two runs side by side only make both slower. A run that finds the slot taken says `waiting for a turn` and starts when
 it is free. If the code it was asked about passed in the meantime, it answers without running.
+
+Turns go in order. A run that has to wait puts a file in the line (`queue/` beside the slots) and touches it while
+it waits; it tries for a slot only when fewer runs came before it than there are slots. A run that went away stops
+touching its file, and after five seconds it holds nobody up.
+
+### It tells the board where it is
+
+When the board runs the check it names a file in `HERDR_SUPERWORK_PROGRESS`, and the command writes its progress
+there: how many runs are ahead while it waits, test files finished out of all of them while it runs (files that
+passed before for this code count as finished), or that the answer was known at once. The board shows that on the
+task as a bar, a percent and the minutes left: [the check's progress](check-progress.md). The command takes the
+variable out of the environment before it starts the tests, so a test that runs a check of its own never writes
+to the board's file. Run by hand, with no such file, it writes nothing (`test/check-report.js`).
 
 ### A run steps aside
 

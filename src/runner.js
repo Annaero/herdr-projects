@@ -112,8 +112,9 @@ export function guardFor(id) {
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // A shell command of the repo's own (setup, check, teardown), run through a login shell. Polls `alive` so a runner
-// that was superseded kills its check instead of finishing it.
-export function sh(cmd, cwd, env = {}, { timeoutMin = 15, alive } = {}) {
+// that was superseded kills its check instead of finishing it. `tick` is called at every poll (the check's progress
+// is read there); what it throws ends the command the same way.
+export function sh(cmd, cwd, env = {}, { timeoutMin = 15, alive, tick } = {}) {
   return new Promise((resolve) => {
     let out = "", done = false;
     const child = spawn("sh", ["-lc", cmd], { cwd, env: { ...userEnv(), ...env }, stdio: ["ignore", "pipe", "pipe"], detached: true });
@@ -121,7 +122,7 @@ export function sh(cmd, cwd, env = {}, { timeoutMin = 15, alive } = {}) {
     child.stdout.on("data", add); child.stderr.on("data", add);
     const kill = () => { try { process.kill(-child.pid, "SIGKILL"); } catch { try { child.kill("SIGKILL"); } catch {} } };
     const finish = (ok, why) => { if (done) return; done = true; clearInterval(poll); clearTimeout(limit); resolve({ ok, out: (out + (why ? `\n${why}` : "")).trim(), aborted: why === "aborted" }); };
-    const poll = setInterval(() => { try { if (alive && !alive()) { kill(); finish(false, "aborted"); } } catch { kill(); finish(false, "aborted"); } }, 1000);
+    const poll = setInterval(() => { try { if (alive && !alive()) { kill(); finish(false, "aborted"); } else tick?.(); } catch { kill(); finish(false, "aborted"); } }, 1000);
     const limit = setTimeout(() => { kill(); finish(false, `stopped after ${timeoutMin} minutes`); }, timeoutMin * 60000);
     child.on("error", (e) => finish(false, e.message));
     child.on("close", (code) => finish(code === 0));

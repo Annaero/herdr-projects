@@ -134,6 +134,35 @@ nothing live about it, so its whole right-hand side (review tag, pull request, t
 on the board means "this is happening now". That grey is the theme's own for greyed-out words, easy to read in the
 light themes and the dark ones. The time of a task that is not done is drawn as it always was. A row never repeats what its heading says.
 
+**While the board runs the check itself** (at the finish line, and again after a catch-up with main), the row shows
+real progress, not the Watcher's guess: the bar and the percent are the count the check reports, the minutes left
+come from how long its last full runs took on this machine. How a check reports, and what a repo's own check can
+do: [the check's progress](check-progress.md).
+
+```
+ ◐ Add a greeting                                    █████░░░  65%  3m       9m
+   running the check · tests 31 of 47
+ ◐ Fix the footer                                                     6m       2m
+   waiting for its turn · 2 ahead
+```
+
+- While it waits its turn (one test run at a time on a machine) the row says how many are ahead and shows the
+  minutes, with no bar: nothing of its own moves yet.
+- Code that passed already is answered at once: `the check already passed for this exact code`, no bar, and on it goes.
+- A check that reports no count shows the time it has run against last time (`running the check · 2m of about 5m`),
+  and never a percent.
+- When nothing moves for far longer than a run takes, the row says so: `the check stands still · nothing finished for
+  13m · tests 31 of 47`, `waiting for its turn unusually long · …`, `the check runs far longer than usual · …`.
+- Its colour is its own: the mark, the bar, the percent and the minutes left are a plain light grey (the theme's
+  `subtext0`) while the board checks, so the agent's amber, the reviewer's blue and the board's grey read apart.
+
+The same line, bar, percent and minutes show in the task panel, on the details page, on the chat line and in
+herdr's sidebar, and the rows of a section still give the same things up together.
+
+On the chat line the bar, the percent and the minutes left stand right after the words, in the row's colour, for
+the task whose agent you talk to, while the board runs its check. They are never cut: when the
+line is short the words are cut first (down to twenty cells), then the bar goes, then the numbers.
+
 **One chat, at the bottom.** The text box is a chat, and it is the same chat whoever you talk to. It always talks to
 someone and always says who: the Coordinator, until `Space` (on an empty text box) flips it to the selected task's
 agent; `Space` again flips it back. Ask it something, tell it to do something, or just say what needs doing.

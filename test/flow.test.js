@@ -168,6 +168,10 @@ test("the finish line: commit leftovers, check, review, then wait for approval; 
     assert.deepEqual(st.notifications, []); // nothing pops up when a task lands in review
     // herdr's own sidebar says what to do. With no sidebar rows in herdr's config the label rides on the agent's name too.
     assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=approve? pass") && m.args.join(" ").includes("--display-agent approve? pass · claude")));
+    // While the board ran the check, the sidebar had its line (no percent: this check reports no count), taken off again when it ended.
+    const told = st.metadata.filter((m) => m.pane === t.link.pane).map((m) => m.args.join(" "));
+    const began = told.findIndex((x) => x.includes("--token summary=running the check") && x.includes("--clear-token progress")), ended = told.findIndex((x) => x.includes("--clear-token summary --clear-token progress --clear-token eta"));
+    assert.ok(began >= 0 && ended > began, told.join("\n")); assert.equal(t.check, null);
     // Once the plugin's sidebar rows are installed, the state text shows beside the agent's name: renaming the agent
     // as well would say the label twice on one line, so the name is left alone.
     const cfg = path.join(w.root, "..", "herdr-config.toml"), oldCfg = process.env.HERDR_CONFIG_PATH;
