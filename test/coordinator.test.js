@@ -162,12 +162,12 @@ test("one chat for everyone: space on a task talks to its agent, otherwise to th
     const title = "Add a greeting that is polite, friendly and never cut short";
     const t = A.add(w.root, title); A.delegate(t.id); await settle(t.id);
     e.beat(); e.v.sel = t.id; e.v.load();
-    assert.match(e.text(160), /The agent said *\n[^\n]*Done\./g); assert.match(e.text(160), /\n . Coordinator {2}/);
+    assert.match(e.text(160), /The agent said ─+ *\n[^\n]*Done\./g); assert.match(e.text(160), /\n . Coordinator {2}/);
     e.press("space"); assert.equal(e.v.reply, true);
     let text = e.text(160);
     assert.match(text, new RegExp(`\\n─+\\n . ${title} {2}\\S[^\\n]* {2}its agent · claude[^\\n]*esc hide its message *\\n Done\\. *\\n─+\\n❯ your reply`));
     assert.doesNotMatch(text, /The agent said|Coordinator|reply to/); assert.equal(text.match(/Done\./g).length, 1);
-    e.press("alt+v"); assert.match(e.text(160), /The agent said *\n[^\n]*Done\./g); assert.match(e.text(160), new RegExp(`\\n . ${title} {2}[^\\n]*\\n─+\\n❯ your reply`)); e.press("alt+v");
+    e.press("alt+v"); assert.match(e.text(160), /The agent said ─+ *\n[^\n]*Done\./g); assert.match(e.text(160), new RegExp(`\\n . ${title} {2}[^\\n]*\\n─+\\n❯ your reply`)); e.press("alt+v");
     // The name is never cut inside a prompt: a window narrower than the name gives it a second line.
     { const lines = e.screen(44), at = lines.findIndex((l, n) => /^─+$/.test(l) && lines[n + 1].includes("Add a greeting")); assert.equal(lines.slice(at + 1, at + 3).map((l) => l.trim().replace(/^\S /, "")).join(" "), title); assert.match(lines.join("\n"), /\n❯ your reply/); }
     // While you talk to a task's agent the chat stays that agent's: the Coordinator's reply is said once, in a line.
@@ -202,7 +202,7 @@ test("one chat for everyone: space on a task talks to its agent, otherwise to th
       const n = open(w); n.v.sel = t.id; n.v.load(); n.screen(70); n.press("space");
       assert.equal(n.v.reply, true); assert.equal(n.v.full, true);
       assert.match(n.text(70), /\n Done\. *\n─+\n❯ your reply *\n─+\n[^\n]*esc hide its message *$/, "beside a name this long the key is on the hint line"); assert.doesNotMatch(n.text(70), /The agent said/);
-      n.press("alt+v"); assert.match(n.text(70), /The agent said *\n Done\./); assert.match(n.text(70), /\n─+\n❯ your reply *\n─+\n[^\n]*alt\+v show its message · /);
+      n.press("alt+v"); assert.match(n.text(70), /The agent said ─+ *\n Done\./); assert.match(n.text(70), /\n─+\n❯ your reply *\n─+\n[^\n]*alt\+v show its message · /);
       n.press("alt+v", "space"); assert.equal(n.v.reply, false); assert.equal(n.v.full, false); assert.match(n.text(70), /\n . Coordinator {2}/);
       // ctrl+e alone never changes who gets your words.
       n.press("ctrl+e"); assert.equal(n.v.full, true); assert.equal(n.v.reply, false); assert.match(n.text(70), /\n . Coordinator {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ ask or tell it anything/);

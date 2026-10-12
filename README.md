@@ -129,20 +129,62 @@ stays a reply.
 closes it (in a window of 90 columns or more), and your choice is remembered. Closed, each row has the whole width
 for what it says. `Ctrl+E` shows the whole task full screen (as does `Space` in a narrow window, with the chat set
 to that task's agent). Opening or folding the whole panel never changes who you talk to: only `Space` does, at
-every width. Both have one shape: where it stands and what it needs from you, the description, then every other
-fact in one tight table (the reviews, the change, every setting, also one that is only your default), then what the
-agent said (while you talk to its agent that is in the chat instead). Headings and labels are greyed out; what
-they name is in the text colour. Beside the list a description is cut after about 400 characters. The settings
-are the project, the worktree, the agent, the reviewer, what gets reviewed, what sends a review back and how many
-rounds, the evidence, the watcher, conflict repair and permissions. In a short window the long parts give way and
-the facts keep to a line each, so no setting drops out of the side panel.
+every width.
 
-**Every review is kept.** The table says how many there were and how each went, oldest first
-(`Reviews  3 · fail → no verdict → pass`), then the latest one: its result, its tally and its summary. The full
-screen ends with all of them, the newest first: which review it was, the result, when, the commit, the summary,
-each finding with its severity (one that did not hold the work back is marked `not required` or `pre-existing`),
-what it checked and what it could not verify. A review that gave no verdict is in the list too, with why. A review
-from before the gate keeps its score and its advice as they were (`4/5, says merge`). `herdr-superwork details <id>` prints the same list as `reviews`.
+Both have the same parts, in the same order, each standing on its own under a bold headline on a thin rule, with an
+empty line between:
+
+```
+ Build a flying game
+ ✓ ready to approve · 3rd review · claude · 2m ago · proj/12
+ 4 files, +120 −31 · PR#12 ✓
+
+ Description ────────────────────────────────
+ A little plane over endless sunny islands.
+
+ Reviews · 3 ────────────────────────────────
+ fail → no verdict → pass
+ ╭─ Review 3 ────────────────────── 1m ago ─╮
+ │ Pass · 2 minor                           │
+ │ Works. Two small naming points are left. │
+ ╰──────────────────────────────────────────╯
+
+ The agent said ─────────────────────────────
+ Built Skylark. All 42 tests pass.
+
+ Settings ───────────────────────────────────
+ Project      ~/dev/proj
+ Agent        claude · opus · default effort
+ …
+```
+
+- **Where it stands** comes first: the title, then the state with who is on it, since when and the task's id, then
+  the size of the change and its pull request (its number is a link; full screen the address is printed too).
+- **What it needs from you**, or what it is doing right now, sits behind a bar in its state's colour: the question,
+  what went wrong and the next step, or the agent's current line.
+- **The description**: whole on the full screen, cut after about 400 characters beside the list.
+- **The reviews**, each one a box of its own (below).
+- **What the agent said** (while you talk to its agent that is in the chat instead).
+- **Every setting**, also one that is only your default: the project, the worktree, the agent, the reviewer, what
+  gets reviewed, what sends a review back and how many rounds, the evidence, the watcher, conflict repair and
+  permissions. Labels are greyed out; a setting chosen for this task is in the text colour and one that is only
+  your default is quieter. Full screen a task's own choice is starred as well.
+
+Full screen the text keeps to 100 columns, and a last part, **Session**, has the agent's context, its tokens and
+where it runs in herdr. Beside the list, when anything is shorter than on the full screen, the last line says
+`ctrl+e shows the whole task`. In a short window the long parts give up lines (what the agent said first, then the
+description, then the review), every setting keeps to one line, and in the end the review is one line
+(`Review 3  Pass · 2 minor`): no setting drops out of the side panel. Only a window with fewer lines than there
+are settings cuts them, from the last; the title and the review's line stay. In a box too narrow for a review's
+age and commit in its top edge, they are the box's first line.
+
+**Every review is kept, and each is a box of its own.** Under the headline one line says how each went, oldest
+first (`fail → no verdict → pass`). Beside the list the latest review follows: `Review 3` and its age in the box's
+top edge, then the result with its tally, and its summary. The full screen has all of them, the newest first, each
+in its box: the review's number, when, the commit, the result, the summary, each finding with its severity (one
+that did not hold the work back is marked `not required` or `pre-existing`), what it checked and what it could not
+verify. A review that gave no verdict has its box too, with why. A review from before the gate keeps its score and
+its advice as they were (`4/5, says merge`). `herdr-superwork details <id>` prints the same list as `reviews`.
 
 **The board asks before what cannot be undone**, always the same way, in a small box: `Merge PR#18?  enter = yes ·
 esc = no`. Merging, deleting a task and closing the board ask; nothing else does. A result stays on screen until
@@ -469,7 +511,7 @@ in a separate scratch herdr:
 | A new `[[keys.command]]` after `herdr server reload-config` | works without a restart. A broken file is reported as `failed` and herdr keeps the old config; a key bound twice is `partial`; `herdr config check` validates a candidate given by `HERDR_CONFIG_PATH` |
 | herdr's config path and default keys | `~/.config/herdr/config.toml`; `herdr --default-config` lists the built-in keys (`prefix+w` is herdr's workspace picker; `prefix+a` is free) |
 | What the terminal shows, inside herdr | the board asks the terminal for its background (OSC 11) and its 16 colours (OSC 4) when herdr's `theme.auto_switch` is on or the theme paints with the terminal's own colours; herdr answers for its panes with the colours of the terminal the client runs in. No answer (the scratch session has no real terminal behind it): dark, and xterm's colours. `theme light` chooses by hand |
-| herdr's theme, for a plugin | not handed to plugins. The board reads the `[theme]` and `[ui]` tables herdr reads (with its own full TOML reader, `src/toml.js`) and resolves them as herdr 0.9.3 does (`src/app/state.rs` palettes, `src/client/shell.rs` marks: `●` working, blocked and done, `○` idle; `◐ × ✓ ○` with `status_indicators = "symbols"`). Text is herdr's `text` colour and the side panel sits on `sidebar_bg` when the theme sets one. The review page takes the theme in force when it is written; where herdr follows the terminal (`auto_switch`, the `terminal` theme) the page follows the browser's light or dark setting. A theme changed in herdr shows the next time the board opens. Marks, group headings, the bar and the percent take herdr's colour for the task's state (working `yellow`, blocked `red`, done `teal`, idle `green`); a task's title is always herdr's text colour, whatever its state; what its row says after the title, and every heading and label in the task panel, is greyed out (`overlay0`, and faint as well in the `terminal` theme, whose grey is most terminals' text colour); text, secondary text, rules and the selected row are herdr's sidebar colours (`text`, `subtext0`, `overlay0`, `surface_dim`, `selection_bg`/`active_row_bg`). A review's score is `green` when the reviewer says merge and `red` when it says don't: the colour is the advice, there are no words for it |
+| herdr's theme, for a plugin | not handed to plugins. The board reads the `[theme]` and `[ui]` tables herdr reads (with its own full TOML reader, `src/toml.js`) and resolves them as herdr 0.9.3 does (`src/app/state.rs` palettes, `src/client/shell.rs` marks: `●` working, blocked and done, `○` idle; `◐ × ✓ ○` with `status_indicators = "symbols"`). Text is herdr's `text` colour and the side panel sits on `sidebar_bg` when the theme sets one. The review page takes the theme in force when it is written; where herdr follows the terminal (`auto_switch`, the `terminal` theme) the page follows the browser's light or dark setting. A theme changed in herdr shows the next time the board opens. Marks, group headings, the bar and the percent take herdr's colour for the task's state (working `yellow`, blocked `red`, done `teal`, idle `green`); a task's title is always herdr's text colour, whatever its state; what its row says after the title, and every label in the task panel, is greyed out (`overlay0`, and faint as well in the `terminal` theme, whose grey is most terminals' text colour); the panel's headlines are bold text, its rules and review boxes are `surface1`, and a setting that is only your default is `subtext0`; text, secondary text, rules and the selected row are herdr's sidebar colours (`text`, `subtext0`, `overlay0`, `surface_dim`, `selection_bg`/`active_row_bg`). A review's score is `green` when the reviewer says merge and `red` when it says don't: the colour is the advice, there are no words for it |
 | Who sets a pane's terminal size | herdr's own window, until a `herdr terminal attach` is on that terminal: the terminal then has the attach's size (93×33 became 200×50) and keeps it when herdr's window is resized; it is the window's again the moment the attach ends. herdr names no attached viewers anywhere. `pane layout --pane <id>` gives the pane's place in herdr's window: its terminal is that place less up to 3 columns and 2 rows (frame, scrollbar), or, for the zoomed pane (the layout's `focused_pane_id` when `zoomed`), the tab's whole `area` less the same. A second full herdr client changes the layout and the terminal together, so it is not mistaken for this |
 | A long launch command through `herdr agent start` | herdr types it into the pane's shell, and a terminal takes at most 4096 bytes on one line: the Coordinator's rules inside Codex's `-c developer_instructions=…` arrived cut off, at a shell continuation prompt, and the start timed out. The flag now only points at a rules file (at first the rules also went in with the first message; since the box became a word-for-word passthrough they no longer do, and that has not been run against a real Codex yet): three new starts and two restarts of Codex in a row came up in about four seconds each, the restarts in the same conversation |
 | The agent's own new-chat command (Claude Code `/clear`, Codex `/new`, pi `/new`) | each starts another conversation file for the same folder and leaves the first one as it was (pi: `<time>_<id>.jsonl`, whose first line names the working folder and the id; `--session-id` reopens it). The Coordinator has a folder nothing else chats in, so the newest conversation saved there since it began is the one it is in. Live, all three programs: "pineapple", new chat, "watermelon"; the board showed watermelon, and after a restart the agent still answered watermelon |
