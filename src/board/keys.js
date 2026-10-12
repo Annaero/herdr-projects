@@ -36,7 +36,7 @@ export const KEYS = [
   { id: "down", keys: ["down"], show: "↓", with: "up",
     run: (v) => v.move(1) },
   { id: "enter", keys: ["enter", "return"], group: "plain", help: "send what is typed; with nothing typed, open the task's agent", hint: "open the agent",
-    doc: "send what you typed; with nothing typed, open the task's agent: its real herdr pane. The board closes (the first few times it says how to get back); your key brings it back where you left it" },
+    doc: "send what you typed; with nothing typed, open the task's agent: its real herdr pane. The board keeps running in its own tab and is there as you left it; your key goes back to it" },
   { id: "newline", keys: ["shift+enter"], fixed: true, hint: "new line",
     doc: "a new line in what you are typing. Like the cursor keys and backspace, it is the text box's own editing key, not a key of the board" },
   { id: "talk", keys: [], raw: [" "], show: "space", group: "plain", help: "flip who you talk to: the Coordinator, or this task's agent", hint: "reply",

@@ -8,6 +8,9 @@ import { adapter } from "../../agents.js";
 import { reviewing } from "./states.js";
 import { name as keyName } from "../keys.js";
 
+// This terminal becomes that one agent's, until you detach from it.
+const attachHere = (pane, socket) => spawnSync(process.env.HERDR_BIN_PATH || "herdr", ["agent", "attach", pane], { stdio: "inherit", env: { ...process.env, HERDR_SOCKET_PATH: socket } });
+
 export class AgentPane {
   // What the agent's pane shows, read through herdr. A deep read is done once per completed turn and cached; while
   // the agent is busy only its visible screen is read, at most every two seconds.
@@ -37,8 +40,10 @@ export class AgentPane {
     const screen = this.screen(r) || r.screen || "";
     return screen ? { label: "on its screen now", text: screen } : { label: said ? "last message" : "", text: said };
   }
-  // Into the agent: its real herdr pane. Inside herdr the board exits (the popup closes); outside a herdr client
-  // (plain SSH) the same terminal attaches to that one agent and the board returns when the attach ends.
+  // Into the agent: its real herdr pane. The board keeps running in its own pane (the tab the board key opens, or a
+  // pane you started it in) and is there, as you left it, when you come back. Outside a herdr client (plain SSH) the
+  // same terminal attaches to that one agent and the board returns when the attach ends. Only a board someone opened
+  // as herdr's popup closes: a popup lies over every pane, the agent's too. It reopens where it was.
   chat(r) {
     if (r.archivedAt) return this.openPanel();
     if (r.host) return this.remoteChat(r);
@@ -51,17 +56,28 @@ export class AgentPane {
     const hasAgent = !!api.agentGet(pane.pane_id);
     if (!inHerdr()) {
       if (!hasAgent) return this.flash(`Its agent has exited. ${keyName("talk")} and a reply starts it again.`, "yellow");
+      this.stick = r.id; // as in a herdr pane: whatever the task becomes while you are in there, you come back to it
       this.tui.stop();
       process.stdout.write("\x1b[2J\x1b[H");
-      spawnSync(process.env.HERDR_BIN_PATH || "herdr", ["agent", "attach", pane.pane_id], { stdio: "inherit", env: { ...process.env, HERDR_SOCKET_PATH: r.link.socket } });
+      (this.ctx.attach || attachHere)(pane.pane_id, r.link.socket);
       this.tui.start(); this.tui.requestRender(true);
       return this.load();
     }
     // herdr cannot focus a bare pane by id: with no agent in it, focus its workspace and tab.
-    if (hasAgent) api.agentFocus(pane.pane_id); else { api.workspaceFocus(pane.workspace_id); try { api.tabFocus(pane.tab_id); } catch {} }
+    try { if (hasAgent) api.agentFocus(pane.pane_id); else { api.workspaceFocus(pane.workspace_id); try { api.tabFocus(pane.tab_id); } catch {} } }
+    catch (e) { return this.flash(e.message, "red"); } // herdr refused: the board stays as it is and says why
+    if (!this.ctx.popup) return this.stay(r);
     this.leave({ entered: r.id });
   }
-  // The board closes when you open an agent. The first few times it says, for a moment, how to get back.
+  // herdr has moved to the agent and the board runs on in its own pane. What is on it when
+  // you come back is what you left: the same task selected, the same filter, the same draft.
+  stay(r) {
+    this.stick = r.id; // while you are away the selection stays on this task, whatever group its agent moves it to
+    this.savePrefs();
+    this.flash(`Opened ${r.id}'s agent. ${this.ctx.boardKey ? `${this.ctx.boardKey} brings you back to the board.` : "The board stays here."}`, "green");
+    this.load(); this.tui.requestRender();
+  }
+  // A popup closes when you open an agent. The first few times it says, for a moment, how to get back.
   leave(result) {
     const ms = Number(this.ctx.leaveMs) || 0;
     if (!ms || this.told >= 3) return this.done(result);
@@ -74,6 +90,7 @@ export class AgentPane {
     if (!r.link?.pane) return this.flash(`No agent has been on this yet. ${keyName("delegate")} puts one on it.`, "yellow");
     const attach = (pane) => {
       const { command, args } = R.attachCommand(r.machine, pane);
+      this.stick = r.id;
       this.tui.stop();
       process.stdout.write("\x1b[2J\x1b[H");
       spawnSync(command, args, { stdio: "inherit" });

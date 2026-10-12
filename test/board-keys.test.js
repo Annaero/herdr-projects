@@ -15,7 +15,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
   try {
     process.env.HERDR_ENV = "1";
     w.script({ worker: [{ status: "working", screen: "● Editing greet.sh\n  esc to interrupt\n" }] });
-    const s = open(w, { rows: 36 });
+    const s = open(w, { rows: 36, ctx: { popup: true } });
     s.type("Add a greeting");
     assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─+\n❯ Add a greeting/); assert.match(s.text(), /enter add a task · tab add it and start an agent · esc put away/);
     s.press("enter");
@@ -45,7 +45,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     s.press("\x1bc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.match(s.text(), /\n *\n . Add a greeting {2}[^\n]*\n─+\n❯ your reply *\n─+\n[^\n]*alt\+c show the chat/);
     s.press("\x1bc"); assert.equal(s.v.chatOpen, true);
     s.press("space"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─+\n❯/);
-    // enter: focus the agent's real pane by pane id and close the board; selection and filter come back on reopen
+    // enter: focus the agent's real pane by pane id; the popup closes for it, and selection and filter come back on reopen
     s.press("enter");
     assert.deepEqual(s.closed(), { entered: "proj/1" });
     assert.ok(w.state().focus.includes(`agent ${t.link.pane}`));
@@ -62,11 +62,11 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     s2.press("ctrl+x");
     assert.equal(s2.v.sel, "proj/1"); assert.match(s2.text(), /\n \? Delete "Add a greeting"\? Its worktree goes too\. {2}y = yes · n = no/);
     s2.press("enter", "ctrl+x"); assert.ok(s2.v.ask); s2.press("n"); assert.equal(s2.v.ask, null); assert.ok(S.get("proj/1")); assert.ok(S.get("proj/2")); assert.ok(S.get("proj/3"));
-    // the first few times, the board says how to get back before it closes for an agent
+    // the first few times, the popup says how to get back before it closes for an agent
     const tui = { terminal: { rows: 34, columns: 120 }, requestRender() {}, stop() {}, start() {} };
     let closed;
     tt.mock.timers.enable({ apis: ["setTimeout"] }); // the board closes a moment after the line shows: the clock is moved, not waited for
-    const v3 = new View(tui, theme, (x) => { closed = x; }, { cwd: w.root, leaveMs: 30, boardKey: "prefix+w" }); clearInterval(v3.timer);
+    const v3 = new View(tui, theme, (x) => { closed = x; }, { cwd: w.root, leaveMs: 30, boardKey: "prefix+w", popup: true }); clearInterval(v3.timer);
     v3.sel = "proj/1"; v3.load(); v3.handleInput("\r");
     assert.equal(closed, undefined); assert.match(v3.render(120).map((l) => stripVTControlCharacters(l)).join("\n"), /Opening the agent\. prefix\+w brings the board back\./);
     v3.handleInput("\x18"); assert.equal(S.get("proj/1").stage, "stopped"); // nothing more is taken from the keyboard

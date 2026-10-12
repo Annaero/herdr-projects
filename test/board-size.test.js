@@ -199,8 +199,10 @@ test("the board says so, top left, when another view holds its pane's size, and 
     assert.doesNotMatch(s.text(120), /Held at/);
     s.v.lookHeld();
     assert.match(head(), /Held at 300×34/);
-    // Not in the popup (no pane of its own) and not in a tmux inside the pane.
-    for (const k of ["HERDR_PLUGIN_ID", "TMUX"]) { process.env[k] = "x"; s.v.lookHeld(); s.v.lookHeld(); assert.equal(s.v.held, null, k); delete process.env[k]; }
+    // Not in a tmux inside the pane, and not in a popup, which has no pane of its own. The plugin's own tab is a pane.
+    process.env.TMUX = "x"; s.v.lookHeld(); s.v.lookHeld(); assert.equal(s.v.held, null); delete process.env.TMUX;
+    process.env.HERDR_PLUGIN_ID = "x"; delete process.env.HERDR_PANE_ID; s.v.lookHeld(); s.v.lookHeld(); assert.equal(s.v.held, null); process.env.HERDR_PANE_ID = "w1:p1";
+    s.v.lookHeld(); s.v.lookHeld(); assert.ok(s.v.held, "the board in the plugin's tab"); delete process.env.HERDR_PLUGIN_ID;
     // A window too short for it keeps the text box and its hints.
     s.v.lookHeld(); s.v.lookHeld(); assert.ok(s.v.held);
     s.v.tui.terminal.rows = 8;

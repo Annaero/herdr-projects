@@ -1,6 +1,6 @@
 // The board: pi-work's screen, powered by herdr. Every row is one task. Type to file one, Tab to put an agent on it.
 // Layout and selection rules follow pi-work's view; what differs is forced by "powered by herdr": going into a
-// task focuses its agent's real pane (the board exits), and the preview reads that pane through herdr.
+// task focuses its agent's real pane (the board stays running behind it), and the preview reads that pane through herdr.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -68,7 +68,7 @@ export class View {
     // is where it was when you left it, so the draft that comes back is still sent from the repo it was typed in.
     try { if (C.inHome(ctx.cwd)) ctx.cwd = prefs.cwd && fs.existsSync(prefs.cwd) ? prefs.cwd : os.homedir(); } catch {}
     this.byRepo = !!prefs.byRepo; this.side = !!prefs.side; this.scope = String(prefs.scope || ""); this.told = Number(prefs.told) || 0;
-    // The board closes each time you open an agent: selection, filter and draft come back when it reopens.
+    // The popup closes each time you open an agent: selection, filter and draft come back when it reopens.
     this.sel = String(prefs.sel || ""); this.filter = String(prefs.filter || ""); if (prefs.draft) this.input.setText(String(prefs.draft));
     // So do words that were put away: ctrl+z still brings them back after the board closed or reloaded itself.
     if (prefs.away && prefs.away.text) this.draftAway = { text: String(prefs.away.text), to: String(prefs.away.to || "") };

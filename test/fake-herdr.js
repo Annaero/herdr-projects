@@ -207,6 +207,8 @@ function answer(argv, env) {
     const p = findPane(argv[2]);
     if (!p) fail("pane_not_found", `pane ${argv[2]} not found`);
     if (verb === "get") ok({ type: "pane_info", pane: paneOut(p) });
+    // Zooming a pane focuses it; taking the zoom off leaves the focus there.
+    if (verb === "zoom") { const on = argv.includes("--on"); if (on) st.focus.push(`pane ${p.pane_id}`); const l = st.layouts?.[p.pane_id]; if (l) { l.zoomed = on; if (on) l.focused_pane_id = p.pane_id; } ok({ type: "pane_zoom", zoom: { pane_id: p.pane_id, zoomed: on, focused_pane_id: p.pane_id } }); }
     if (verb === "split") { const n = st.panes.filter((x) => x.workspace_id === p.workspace_id).length + 1; const q = { pane_id: `${p.workspace_id}:p${n}`, workspace_id: p.workspace_id, tab_id: p.tab_id, terminal_id: `term_${st.nextP++}`, cwd: path.resolve(flag("--cwd") || p.cwd), env: envOf(), agent: null }; while (findPane(q.pane_id)) q.pane_id += "x"; st.panes.push(q); ok({ type: "pane_split", pane: paneOut(q) }); }
     if (verb === "close") { st.panes = st.panes.filter((x) => x !== p); dropEmptyTabs(); ok({ type: "ok" }); }
     if (verb === "read" && p.agent?.boot > 0) { p.agent.boot -= 1; out(`user@host:${p.cwd}$ ${[p.agent.kind, ...p.agent.args].join(" ")}\n`); } // not drawn yet: only the command that started it
@@ -253,7 +255,18 @@ function answer(argv, env) {
     if (verb === "read") out(p.agent.screen || "");
   }
   if (area === "notification") { st.notifications.push({ title: argv[2], body: flag("--body") || "" }); ok({ type: "notification_show", shown: true }); }
-  if (area === "plugin" && verb === "pane") { st.focus.push("board"); ok({ type: "ok" }); }
+  // The board is opened in a tab of its own: an ordinary pane, in the first space there is (herdr: the one that shows).
+  // `--placement popup`: herdr's popup, which is no pane.
+  if (area === "plugin" && verb === "pane") {
+    st.focus.push("board"); st.boardPlacement = flag("--placement") || "popup";
+    const w = st.workspaces[0];
+    if (st.boardPlacement !== "tab" || !w) ok({ type: "ok" });
+    const n = Math.max(w.nextT || 2, 2), t = newTab(w, `${w.workspace_id}:t${n}`, String(n));
+    const q = { pane_id: `${w.workspace_id}:board`, workspace_id: w.workspace_id, tab_id: t.tab_id, terminal_id: `term_${st.nextP++}`, cwd: w.cwd, agent: null, label: "Work board" };
+    while (findPane(q.pane_id)) q.pane_id += "x";
+    st.panes.push(q);
+    ok({ type: "plugin_pane_opened", plugin_pane: { entrypoint: "board", plugin_id: "herdr-superwork", pane: paneOut(q) } });
+  }
   if (area === "machine") out(JSON.stringify(read(path.join(dir, "machines.json"), [])) + "\n");
   fail("unknown_command", `fake herdr does not know: ${argv.join(" ")}`);
 }

@@ -114,6 +114,14 @@ export function herdr(socket = null) {
     paneGet: (id) => quiet(() => call(["pane", "get", id]).pane),
     // Where a pane sits in herdr's own window: its tab's area, every pane's rect, and whether one is zoomed.
     paneLayout: (id) => quiet(() => call(["pane", "layout", "--pane", id], { timeout: 3000 }).layout),
+    // Put the keyboard on one pane of the tab that shows (herdr 0.9.3 has no "focus this pane": only "focus the
+    // neighbour of"). Zooming a pane focuses it, so: zoom it, and take the zoom off again unless the tab was zoomed.
+    paneFocus(id) {
+      const before = this.paneLayout(id);
+      if (!before || before.focused_pane_id === id) return;
+      call(["pane", "zoom", id, "--on"]);
+      if (!before.zoomed) quiet(() => call(["pane", "zoom", id, "--off"]));
+    },
     paneSplit: (id, { cwd, direction = "right", env = {} } = {}) => call(["pane", "split", id, "--direction", direction, ...(cwd ? ["--cwd", cwd] : []), ...Object.entries(env).flatMap(([k, v]) => ["--env", `${k}=${v}`]), "--no-focus"]).pane,
     // Is nothing but its shell running in the pane? Unknown counts as busy.
     paneIdle: (id) => quiet(() => { const i = call(["pane", "process-info", "--pane", id]).process_info; return Number.isInteger(i.shell_pid) && i.foreground_process_group_id === i.shell_pid && (i.foreground_processes || []).every((p) => p.pid === i.shell_pid) && !kids(i.shell_pid).length; }, false),
@@ -155,7 +163,9 @@ export function herdr(socket = null) {
     agentFocus: (target) => call(["agent", "focus", target]),
     agentRead: (target, { source = "visible", lines } = {}) => call(["agent", "read", target, "--source", source, ...(lines ? ["--lines", String(lines)] : [])], { raw: true, timeout: 60000 }),
     // ---- the rest
-    openBoard: () => call(["plugin", "pane", "open", "--plugin", "herdr-superwork", "--entrypoint", "board"]),
+    // The board in a tab of its own, an ordinary pane that stays when you go elsewhere. Answers that pane.
+    openBoard: () => call(["plugin", "pane", "open", "--plugin", "herdr-superwork", "--entrypoint", "board", "--placement", "tab"]).plugin_pane?.pane || null,
+    tabRename: (id, label) => quiet(() => call(["tab", "rename", id, label])),
     machines: () => quiet(() => { const j = JSON.parse(run(null, ["machine", "list", "--json"], { raw: true })); return Array.isArray(j) ? j : j.machines || j.result?.machines || []; }, []),
   };
 }

@@ -7,7 +7,7 @@ Linux. Needs herdr 0.9.3 or newer, Node 22.19+, `git`, `flock` (util-linux), and
 cd herdr-superwork
 npm install
 npm link                          # puts `herdr-superwork` on your PATH (agents use it too)
-herdr plugin link "$PWD"          # hooks, the popup and the actions
+herdr plugin link "$PWD"          # hooks, the board's tab and the actions
 ```
 
 Typing `herdr-superwork` in any pane opens the board. The first time it opens inside herdr it shows one screen with

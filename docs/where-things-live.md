@@ -68,7 +68,8 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `editor.js` | The box at the bottom |
 | `held.js` | Is the board's terminal sized by something other than herdr's own window? |
 | `keys.js` | The board's keys, each one defined once: the ? menu, the hint line, the words that name a key and docs/keys.md are all made from this list |
-| `main.js` | Opens the board: full screen in the current terminal, or inside herdr's popup when run as the plugin's pane |
+| `main.js` | Opens the board: full screen in the current terminal, which in herdr is a pane, the plugin's own tab included |
+| `place.js` | The board that is running in herdr: where it is, written down while it runs, so that opening the board from anywhere in herdr goes back to that one instead of starting a second one |
 | `theme.js` | The board's colours and status marks are herdr's own (verified against herdr 0.9.3: src/app/state.rs for the palettes, src/client/shell.rs for the marks) |
 | `view.js` | The board: pi-work's screen, powered by herdr |
 
@@ -91,8 +92,6 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `panel-reviews.js` | The reviews in the task panel: how each went, each one a box, and the evidence |
 | `panel-settings.js` | The settings in the task panel: every setting this task runs on, and its agent's session |
 | `panel-status.js` | The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you |
-| `panel.js` | The task panel: beside the list and full screen |
-| `panel.js` | The task panel: beside the list and full screen |
 | `panel.js` | The task panel: beside the list and full screen |
 | `remotes.js` | Other machines: ask each for its board, send each action to the machine that owns the task, and whose board you see |
 | `review-words.js` | A review in a few words: its result, its colour, which round it was |
@@ -218,6 +217,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `board-rows.test.js` | One row of the list: its name, what it says, its columns |
 | `board-setup.test.js` | The first run, and the board loading its new version |
 | `board-size.test.js` | A terminal held at another size than herdr shows |
+| `board-stay.test.js` | Going into an agent never ends the board: in a pane of its own it runs on, and opening the board goes back to it |
 | `board-textbox.test.js` | The text box: wrapping, growing, scrolling, editing keys |
 | `check.js` | The one test command: `npm run check` (`npm test` is the same) |
 | `check.test.js` | The test command (test/check.js): which files it runs, what it remembers, how runs take turns, and its budget |

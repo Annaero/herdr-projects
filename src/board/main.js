@@ -1,4 +1,4 @@
-// Opens the board: full screen in the current terminal, or inside herdr's popup when run as the plugin's pane.
+// Opens the board: full screen in the current terminal, which in herdr is a pane, the plugin's own tab included.
 import { TuiAltScreen, ProcessTerminal } from "@earendil-works/pi-tui";
 import { spawn } from "node:child_process";
 import { View } from "./view.js";
@@ -6,6 +6,7 @@ import { theme, loadTheme, askTerminal, setTerminal } from "./theme.js";
 import { ensureKeeper } from "../keeper.js";
 import * as F from "../flow.js";
 import { userEnv } from "../runner.js";
+import * as P from "./place.js";
 
 export async function openBoard({ folder }) {
   userEnv(); // the popup starts with herdr's server environment: helpers and git need the user's PATH
@@ -22,6 +23,7 @@ export async function openBoard({ folder }) {
     const done = (result) => {
       try { view.dispose(); } catch {}
       try { tui.stop(); } catch {}
+      try { P.depart(); } catch {}
       // The plugin was updated under an open board: the same command starts again on the new code, in this terminal,
       // and this process only waits for it. Selection, filter and draft were saved a line above.
       if (result && result.reload) {
@@ -36,10 +38,11 @@ export async function openBoard({ folder }) {
       // The watcher's helper calls are detached and must not keep the popup open.
       setTimeout(() => process.exit(0), 20);
     };
-    view = new View(tui, theme, done, { cwd: folder, leaveMs: 700, boardKey, canReload: reloads < 5, pane: process.env.HERDR_ENV === "1" && !process.env.HERDR_PLUGIN_ID && !process.env.TMUX ? process.env.HERDR_PANE_ID || "" : "" });
+    view = new View(tui, theme, done, { cwd: folder, leaveMs: 700, boardKey, canReload: reloads < 5, popup: P.inPopup(), pane: process.env.HERDR_ENV === "1" && !process.env.TMUX ? process.env.HERDR_PANE_ID || "" : "" });
     tui.addChild(view);
     tui.setFocus(view);
     for (const sig of ["SIGTERM", "SIGHUP"]) process.on(sig, done);
     tui.start();
+    P.arrive();
   });
 }

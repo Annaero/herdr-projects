@@ -39,10 +39,10 @@ export function holders(terminalId, text = ps()) {
     .map((m) => ({ pid: Number(m[1]), seconds: Number(m[2]) })).sort((a, b) => b.seconds - a.seconds);
 }
 // One look, for the pane this process runs in. Null when nothing holds the size or when it cannot be known: outside
-// herdr, in the plugin's popup (which has no pane), or inside a tmux of its own, whose size is tmux's.
+// herdr, in a popup (which has no pane), or inside a tmux of its own, whose size is tmux's.
 export function lookHeld(h, term, env = process.env) {
   const pane = env.HERDR_PANE_ID;
-  if (!pane || env.HERDR_ENV !== "1" || env.HERDR_PLUGIN_ID || env.TMUX) return null;
+  if (!pane || env.HERDR_ENV !== "1" || env.TMUX) return null;
   const held = heldSize(term, h.paneLayout(pane), pane);
   if (!held) return null;
   return { ...held, by: holders(h.paneGet(pane)?.terminal_id) };

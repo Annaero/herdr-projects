@@ -16,10 +16,11 @@ export const KEY = {
   "alt+v": "\x1bv", "alt+h": "\x1bh", "alt+r": "\x1br", "alt+n": "\x1bn", delete: "\x1b[3~",
 };
 // The side panel is closed until you ask for it; most of these tests read it, so they start with it open.
-export function open(w, { rows = 34, side = true } = {}) {
+// `ctx` adds to what the board is opened with: `{ popup: true }` is the board in herdr's popup.
+export function open(w, { rows = 34, side = true, ctx = {} } = {}) {
   let closed;
   const tui = { terminal: { rows, columns: 120 }, requestRender() {}, stop() {}, start() {} };
-  const v = new View(tui, theme, (x) => { closed = x ?? null; }, { cwd: w.root, canReload: true });
+  const v = new View(tui, theme, (x) => { closed = x ?? null; }, { cwd: w.root, canReload: true, ...ctx });
   clearInterval(v.timer);
   v.side = side;
   const screen = (width = 120) => v.render(width).map((l) => stripVTControlCharacters(l).replace(/\x1b_pi:c\x07/g, ""));

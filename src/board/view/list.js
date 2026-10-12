@@ -19,8 +19,11 @@ export class List {
     for (const j of jobs) if (j.state === "done") S.clearDispatch(j.id);
     this.jobs = jobs.filter((j) => j.state !== "done").reverse();
     const f = (this.mode === "find" ? this.value() : this.filter).trim().toLowerCase();
-    const eligible = this.items.filter((r) => (this.archiveView ? !!r.archivedAt : !!f || !r.archivedAt));
-    const shown = f ? eligible.filter((r) => `${r.id} ${r.title} ${r.msg} ${r.state} ${r.app} ${r.archivedAt ? "archived" : ""} ${r.description || ""} ${r.failure?.title || ""} ${r.failure?.detail || ""}`.toLowerCase().includes(f)) : eligible;
+    // The task the selection is held on (you went into its agent, or just stopped it) keeps its row whatever it has
+    // become meanwhile: a filter it no longer matches, or the archive, never hands the selection to its neighbour.
+    const held = (r) => r.id === this.stick && r.id === this.sel;
+    const eligible = this.items.filter((r) => held(r) || (this.archiveView ? !!r.archivedAt : !!f || !r.archivedAt));
+    const shown = f ? eligible.filter((r) => held(r) || `${r.id} ${r.title} ${r.msg} ${r.state} ${r.app} ${r.archivedAt ? "archived" : ""} ${r.description || ""} ${r.failure?.title || ""} ${r.failure?.detail || ""}`.toLowerCase().includes(f)) : eligible;
     const layout = JSON.stringify([this.scope, this.byRepo, this.allDone, this.archiveView, f]);
     const rows = [];
     const repoOf = (r) => r.id.split("/")[0];

@@ -1,5 +1,5 @@
 // The one program. With no arguments it opens the board in the current terminal; the plugin's pane entrypoint runs
-// the same program as a herdr popup. The subcommands replace pi-work's `work` tool, so any agent can drive the
+// the same program as the plugin's pane in herdr. The subcommands replace pi-work's `work` tool, so any agent can drive the
 // board from its shell.
 import fs from "node:fs";
 import path from "node:path";
@@ -63,8 +63,8 @@ export function parse(argv) {
   }
   return { pos, flags };
 }
-// Where the board is "in". Run as a command: the current folder. Run as the plugin popup (whose own working
-// directory is the plugin folder and which gets no pane id): the folder of the pane underneath; for a worktree
+// Where the board is "in". Run as a command: the current folder. Run as the plugin's pane (the board key's tab,
+// whose own working directory is the plugin folder): the folder of the pane you opened it from; for a worktree
 // workspace, its primary repo.
 export function contextFolder() {
   if (process.env.HERDR_PLUGIN_ID) {
@@ -77,9 +77,9 @@ export function contextFolder() {
   }
   return process.cwd();
 }
-// Is the caller the agent of a task? Its shell runs in the task's worker pane (or its reviewer's). The board popup has
-// no pane id and the Coordinator's pane belongs to no task, so neither is ever taken for a worker, even when the popup
-// was opened over a worker's pane.
+// Is the caller the agent of a task? Its shell runs in the task's worker pane (or its reviewer's). The board's own
+// pane is the plugin's and the Coordinator's pane belongs to no task, so neither is ever taken for a worker, even
+// when the board was opened from a worker's pane.
 function caller() {
   const pane = process.env.HERDR_PANE_ID, socket = process.env.HERDR_SOCKET_PATH;
   if (!pane || !socket || process.env.HERDR_PLUGIN_ID) return null;
@@ -116,7 +116,7 @@ export async function main(argv) {
   if (cmd === "keeper") { const { keeperMain } = await import("./keeper.js"); await keeperMain(); return 0; }
   if (cmd === "keeper-work") { const { keeperWork } = await import("./keeper.js"); await keeperWork(); return 0; }
   if (cmd === "run") { const { runJob } = await import("./jobs.js"); await runJob(pos[1], pos[2], pos.slice(3).concat(flags.force ? ["--force"] : [])); return 0; }
-  if (cmd === "open") { const { herdr } = await import("./herdr.js"); herdr().openBoard(); return 0; }
+  if (cmd === "open") { (await import("./board/place.js")).show(); return 0; }
   // Into the Coordinator's chat: herdr moves to its real pane, as for any agent. No board in between.
   if (cmd === "open-coordinator") { const C = await import("./coordinator.js"); try { await C.goIn(); } catch (e) { console.error(e.message); return 1; } return 0; }
   if (cmd === "approve-current") {
@@ -128,8 +128,7 @@ export async function main(argv) {
     if (!t || t.stage !== "approval") return 0;
     // A merge cannot be undone and this action has no screen to ask on: the board opens on the task and asks first.
     const A = await import("./actions.js");
-    const { herdr } = await import("./herdr.js");
-    try { A.askApprove(t.id); herdr().openBoard(); } catch {}
+    try { A.askApprove(t.id); (await import("./board/place.js")).show(); } catch {}
     return 0;
   }
   if (cmd === "serve") { const { serveMain } = await import("./review-page.js"); await serveMain(); return 0; }

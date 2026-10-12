@@ -183,7 +183,7 @@ test("one chat for everyone: space on a task talks to its agent, otherwise to th
     // A review's verdict is coloured on its row; here it is the same grey as every other status.
     g.v.sentence = () => ({ text: "\x1b[32mPass\x1b[39m\x1b[90m · 1 minor\x1b[39m" });
     assert.equal(g.v.chatOf(g.v.current()).status, g.v.theme.muted("Pass · 1 minor")); delete g.v.sentence;
-    g.press("enter"); assert.deepEqual(g.closed, [{ entered: u.id }]);
+    g.press("enter"); assert.deepEqual(g.closed, []); assert.equal(w.state().focus.at(-1), `agent ${S.get(u.id).link.pane}`); // into its agent: the board stays
     // A narrow window is the same chat: space talks to the task's agent and opens nothing, alt+c hides and shows its
     // message there too (the whole task, on alt+t, has it meanwhile), and space again goes back to the Coordinator.
     {

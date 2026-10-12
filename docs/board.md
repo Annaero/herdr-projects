@@ -101,6 +101,24 @@ chat of a task's agent is its own pane: `Enter`, with nothing typed, goes into i
 hidden or not. The text box and its hints are never pushed off the window: the message gives way first. In a very
 narrow window the box stays whole: the message wraps inside it, and a placeholder that does not fit is cut with `…`.
 
+**Going into an agent never ends the board.** `Enter` on a task, with nothing typed, moves herdr to that agent's
+real pane; it is the same from the row, with the chat hidden, and while the chat talks to that agent. The board keeps
+running: come back to it, or press the key you gave the board, and it is as you left it, the same repo, the same task
+selected, the same filter and draft. While you are away the selection stays on that task, also when its agent stops or
+finishes and the task moves to another group or no longer matches what you searched for (its row stays until you move
+on).
+
+The key opens the board in a herdr tab of its own, named `board`, in the space you are in, and from then on goes to
+that running board from anywhere instead of opening a second one. A board you started yourself in a pane
+(`herdr-superwork` typed there) is found the same way, and the key puts the keyboard on it also when an agent's pane
+is split beside it in the same tab. Closing the board (`Ctrl+C` twice) closes its tab. Outside a herdr client (plain
+SSH) the terminal becomes the agent's until you detach, and the board is back.
+
+The board is not herdr's popup, and that is on purpose: a popup lies over every pane of its tab, so it has to close
+to show an agent, and for as long as one exists, shown or hidden, no other plugin's popup can open. (Opened as a popup
+by hand, `herdr plugin pane open ... --placement popup`, the board still works: it closes when you go into an agent
+and reopens where you left it.)
+
 **A board that looks cut off or half empty.** The board takes its pane's size back by itself within a few seconds:
 the remote view described here is disconnected, and until then the board draws inside what herdr's window shows, so
 its text box and hints are never cut off. What follows is what you see with the setting `ownTerminal` off, where the
@@ -115,7 +133,7 @@ The board notices within ten seconds and says so on its first line, top left whe
 ```
 
 Closing that view, or stopping the process it names, gives the pane its own size back at once. The line is not shown
-in the popup (which has no pane of its own), outside herdr, or in a tmux inside the pane.
+outside herdr, in a tmux inside the pane, or in a popup (which has no pane of its own).
 
 While the text box holds text it owns the keyboard: only `Enter`, `Tab`, `Esc` and `Ctrl+C` act on the board, so no shortcut
 fires in the middle of a draft. `Esc` puts a draft away; `Ctrl+Z` brings it back only to whoever it was for, so a reply
