@@ -48,7 +48,7 @@ export class Menu {
     }
     // What a row's review tag says: each state is named in its colour, the tag's own. In a narrow window it wraps,
     // word by word, so none of the three is cut off.
-    const words = [["overlay0", "the review it is on or last had, coloured by how it went:"], ["green", "passed,"], ["red", "failed,"], ["subtext0", "no result yet"]].flatMap(([c, x]) => x.split(" ").map((w) => [c, w]));
+    const words = [["overlay0", "the review it is on or last had, coloured by where it stands:"], ["green", "passed,"], ["red", "failed,"], ["review", "the reviewer working"]].flatMap(([c, x]) => x.split(" ").map((w) => [c, w]));
     const legend = [[]], lineW = (l) => l.reduce((n, [, w]) => n + w.length + 1, -1), pad = col + 3;
     for (const w of words) { const l = legend.at(-1); if (l.length && pad + lineW(l) + 1 + w[1].length > width) legend.push([w]); else l.push(w); }
     L.push("", " " + t.fg("subtext0", "on a row"), ...legend.map((l, n) => (n ? " ".repeat(pad) : `   ${t.fg("text", "R#2".padEnd(col))}`) + l.map(([c, w]) => t.fg(c, w)).join(" ")));

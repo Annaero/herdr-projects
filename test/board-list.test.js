@@ -50,7 +50,7 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     s.press("?"); assert.match(s.text(120), /alt\+p +show the side panel/);
     // what a row's R# tag says is the menu's last lines, under the keys. A window too short for the whole menu cuts
     // them: ↓ on the menu's last line scrolls on down to them, however little room the chat leaves, and ↑ comes back
-    { const tall = s.v.tui.terminal.rows, legend = /\n on a row *\n {3}R#2 {5}the review it is on or last had, coloured by how it went: passed, failed, no result yet/, n = s.v.menuItems().length;
+    { const tall = s.v.tui.terminal.rows, legend = /\n on a row *\n {3}R#2 {5}the review it is on or last had, coloured by where it stands: passed, failed, the reviewer working/, n = s.v.menuItems().length;
       for (const rows of [60, 34, 24, 18, 14]) {
         s.v.tui.terminal.rows = rows; const top = s.text(120);
         if (rows === 60) assert.match(top, legend); if (rows <= 24) assert.doesNotMatch(top, legend);
@@ -68,7 +68,7 @@ test("the board: one header line, the five groups, a symbol for each state, the 
       for (const [cols, rows] of [[60, 18], [44, 18], [36, 24], [80, 14]]) {
         s.v.tui.terminal.rows = rows; let seen = ""; const flat = () => s.text(cols).replace(/\s+/g, " ");
         for (let k = 0; k < 90; k++) { s.press("down"); seen = flat(); }
-        assert.match(seen, /R#2 the review it is on or last had, coloured by how it went: passed, failed, no result yet/, `whole at ${cols}×${rows}`); assert.ok(!/R#2[^\n]*…/.test(s.text(cols)), "not cut");
+        assert.match(seen, /R#2 the review it is on or last had, coloured by where it stands: passed, failed, the reviewer working/, `whole at ${cols}×${rows}`); assert.ok(!/R#2[^\n]*…/.test(s.text(cols)), "not cut");
         for (const l of s.screen(cols)) assert.ok(l.length <= cols, `fits ${cols}`);
         for (let k = 0; k < 95; k++) s.press("up");
       }

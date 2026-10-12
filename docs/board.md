@@ -19,17 +19,32 @@ the minutes left), and then the review, the pull request and the time:
  ready to approve
  ✓ Add an undo for clear  Fail · 1 critical, 1 major                 R#2 PR#18 12m ago
  working
- ◐ Tidy the first-run questions  Running the tests          ███░░░░░  40% 12m    R#1 PR#17    5m
+ ◐ Tidy the first-run questions  Running the tests            ███░░░░░  40% 12m    R#1 PR#17    5m
 ```
 
 The row says how the review came out and a short tally of what it found (`Pass · 2 minor`, `Fail · 1 critical, 1 major`). While the
-reviewer works, the mark, the bar, the percent and the minutes left are the green of `ready to approve` (the same holds in the task panel, on the details screen and on the chat line): a green `◐` with a bar says a review is running, a green `✓` that it is ready for you,
-and the sentence says only what the reviewer is doing.
+reviewer works, the sentence says only what the reviewer is doing.
+
+**Each colour has one meaning.** Amber: the agent is working. Blue: the reviewer is working. Green: it passed and is
+ready for you. Red: it failed, or it needs you. For as long as the reviewer works, the row's mark, its bar, the
+percent, the minutes left and the `R#` tag are blue, and so are the same things in the task panel, on the details
+screen and on the chat line. So a blue `◐` with a bar says a review is running, an amber one that the agent is at
+work, and a green `✓` that the task is ready for you. A group's heading keeps the colour of its group: a task under
+review is filed under `working`.
+
+The blue is the theme's own `blue` where that one is told apart from everything it sits beside: the theme's green,
+its red, its amber, the light blue of herdr's own dot for done and idle (its `teal`), muted text, plain text and the
+background. In many themes it is not (Dracula's blue is its teal, Rosé Pine's its green, Catppuccin's a pale one near
+its muted text): there the board uses a blue of its own, `#3b82f6`, which reads on a dark and on a light background
+alike. Colours you set yourself (`[theme.custom]`) are held to the same rule: a `blue` that is your red, or that is no
+blue at all (a green, a purple, a grey), is not used,
+and where the board's blue is too near one of your colours it takes another blue that is not. With the terminal's own
+colours it is the terminal's blue.
 
 `R#2` is the review the task is on, or the last one it had. It belongs to the pull request, not to the progress: it
 sits one cell left of the `PR#`, and the tags end under each other down the list. Its colour says how that review
 went, and it has no mark beside it: green, it passed; red, it failed, and it stays so while the agent fixes what
-the review found; grey, there is no result yet, because the reviewer is on it right now. The three are told apart
+the review found; blue, the reviewer is on it right now, whatever the review before it said. The three are told apart
 in the light themes and the dark ones alike. A review from before the gate goes by its advice. A
 task that was never reviewed has no tag. Every row that has had a review keeps it: under review, back with the
 agent, waiting for your yes, done.

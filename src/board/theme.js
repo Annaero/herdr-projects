@@ -77,11 +77,38 @@ export function resolve(cfg = {}, light = null, want = "herdr") {
   over(th.custom);
   if (typeof ui.accent === "string" && ui.accent !== "cyan" && typeof th.custom?.accent !== "string") palette.accent = parseColor(ui.accent); // herdr's older accent setting
   if (mode && th.auto_switch === true) over(th.custom?.[mode]);
-  // A review that is running has no colour of its own: "review" is the theme's green, the colour of what is ready to
-  // approve. The name stays, so whatever paints "a review is on" (the row's mark and bar) is that green.
-  // The R# tag is not: it is grey until its review has a result, so green there says only "passed".
-  palette.review = palette.green;
+  palette.review = reviewBlue(palette);
   return { name: canonical(name) || name, palette, symbols: ui.status_indicators === "symbols", dots: ui.status_indicators === "dots" };
+}
+
+// "review" is the colour of a review that is running: a blue, so that green says only "passed" or "ready" and amber
+// only "the agent works". Whatever paints "the reviewer is working" asks for it by that name: the row's mark, bar,
+// percent and minutes left, and its R# tag. It is the theme's own `blue` where that one is a blue and told apart from all it
+// sits beside: the green, the red of what failed, the agent's amber, the teal of herdr's own dot for done and idle,
+// the two greys of muted text, plain text and the background. Many themes' blue is not (Dracula's is its teal, Rosé
+// Pine's its green, Vesper's a grey, Catppuccin's a pale one near its muted text), and a colour of your own can be
+// anything: then it is the first of the board's own blues that is told apart from them all, the first of which reads
+// on a dark and on a light background alike; and where none is, the blue that is furthest from them.
+export const REVIEW_BLUE = 0x3b82f6, REVIEW_APART = 60;
+const REVIEW_BLUES = [REVIEW_BLUE, 0x1d4ed8, 0x93c5fd, 0x0000ff, 0x6366f1, 0x0ea5e9];
+export const REVIEW_BESIDE = ["green", "red", "yellow", "teal", "subtext0", "overlay0", "text", "panel_bg"];
+const rgb = (c) => [c >> 16, (c >> 8) & 255, c & 255];
+// How far apart two colours look. One of the terminal's 16 is measured as xterm draws it; the terminal's own colour
+// (text or background with none set) cannot be known, and counts as far.
+const drawn = (c) => (c < 0 ? XTERM[c - A] : c);
+export const apart = (a, b) => (a === b ? 0 : typeof a !== "number" || typeof b !== "number" ? Infinity : Math.hypot(...rgb(drawn(a)).map((x, i) => x - rgb(drawn(b))[i])));
+// Is it a blue at all? By its hue, from the blue-green side of cyan to the edge of violet, and not a grey: a `blue`
+// of your own that is really a green, a purple or a grey is not what "the reviewer is working" may be painted in.
+export function isBlue(c) {
+  if (typeof c !== "number") return false;
+  const [r, g, b] = rgb(drawn(c)), spread = b - Math.min(r, g), hue = 60 * (4 + (r - g) / (spread || 1));
+  return b > r && b > g && spread >= 40 && hue >= 185 && hue <= 255;
+}
+function reviewBlue(p) {
+  const least = (c) => Math.min(...REVIEW_BESIDE.map((k) => apart(c, p[k])));
+  const fits = (c) => isBlue(c) && least(c) >= REVIEW_APART;
+  const any = () => { const all = []; for (const r of [0, 64, 128, 192]) for (const g of [0, 64, 128, 192]) for (const b of [160, 208, 255]) all.push((r << 16) | (g << 8) | b); return all.filter(isBlue); };
+  return [p.blue, ...REVIEW_BLUES].find(fits) ?? any().reduce((best, c) => (least(c) > least(best) ? c : best));
 }
 
 // The board marks each state with its own symbol (◐ × ✓ ○), so no two states are told apart by colour alone. Only a
