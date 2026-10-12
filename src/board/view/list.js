@@ -92,7 +92,7 @@ export class List {
   }
   // While you talk to a task's agent the chat follows the selection: moving to another task makes that task's agent
   // the one you talk to. Only space changes whether it is a task's agent or the Coordinator, with one exception: the
-  // task you talk to going away (deleted, cleared) is back to the Coordinator, never on to a neighbour's agent.
+  // task you talk to going away (removed) is back to the Coordinator, never on to a neighbour's agent.
   // A row with no agent to talk to is still named, with where your message goes instead (it starts an agent, goes to
   // the Coordinator about that task, or the task is archived and read-only). With no task selected at all (words on
   // their way to another machine, an empty list) the chat names the Coordinator until a task is selected again.

@@ -125,7 +125,7 @@ test("moving over: a Coordinator in the old space of its own is moved into the t
     const now = C.get();
     assert.equal(now.workspace, null); assert.equal(now.space, "w1"); assert.equal(now.paneWas, "w9:p1"); assert.equal(now.session, first.session);
     assert.equal(herdr().paneGet(now.pane).tab_id, now.tab); assert.equal(C.look().state, "idle");
-    // and the next message goes to that one. Its program still names the pane it was started in: a task it files in
+    // and the next message goes to that one. Its program still names the pane it was started in: a task it adds in
     // the turn of a tab message is known to come from it under either id
     process.env.HERDR_SUPERWORK_HANDLED_MS = "0"; // at rest means dealt with
     C.send(w.root, "two", { delegate: true }); await drainJobs(runJob);

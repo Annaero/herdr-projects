@@ -52,15 +52,15 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     s.v.dispose();
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).sel, "proj/1");
     // ctrl+x stops the agent, and the selection stays on that row. The stop asks nothing and deletes nothing: only a
-    // second ctrl+x, on the task that now has no agent running, asks to delete it, and only y would.
+    // second ctrl+x, on the task that now has no agent running, asks to remove it, and only y would.
     A.add(w.root, "Another one"); A.add(w.root, "And one more");
     const s2 = open(w);
     assert.equal(s2.v.sel, "proj/1");
     s2.press("ctrl+x");
     assert.equal(S.get("proj/1").stage, "stopped"); assert.match(s2.text(), /proj\/1: stopped\./); assert.equal(s2.v.sel, "proj/1"); assert.equal(s2.v.ask, null);
-    s2.press("?"); assert.match(s2.text(), /ctrl\+x {2}delete the task/); s2.press("esc");
+    s2.press("?"); assert.match(s2.text(), /ctrl\+x {2}remove the task/); s2.press("esc");
     s2.press("ctrl+x");
-    assert.equal(s2.v.sel, "proj/1"); assert.match(s2.text(), /\n \? Delete "Add a greeting"\? Its worktree goes too\. {2}y = yes · n = no/);
+    assert.equal(s2.v.sel, "proj/1"); assert.match(s2.text(), /\n \? Remove "Add a greeting"\? Its worktree goes too\. {2}y = yes · n = no/);
     s2.press("enter", "ctrl+x"); assert.ok(s2.v.ask); s2.press("n"); assert.equal(s2.v.ask, null); assert.ok(S.get("proj/1")); assert.ok(S.get("proj/2")); assert.ok(S.get("proj/3"));
     // the first few times, the popup says how to get back before it closes for an agent
     const tui = { terminal: { rows: 34, columns: 120 }, requestRender() {}, stop() {}, start() {} };
@@ -109,7 +109,7 @@ test("ctrl does something, alt only shows or hides: every key of the set, as a t
   } finally { w.cleanup(); }
 });
 
-test("ctrl+x stops whatever agent is alive, also one that waits for your answer; it asks to delete only where none runs", async () => {
+test("ctrl+x stops whatever agent is alive, also one that waits for your answer; it asks to remove only where none runs", async () => {
   const w = await world({ settings: { helper: "off", coordinator: "off", reviewer: "off" } });
   try {
     const id = A.add(w.root, "One").id;
@@ -119,18 +119,18 @@ test("ctrl+x stops whatever agent is alive, also one that waits for your answer;
     for (const live of [{ agent: "claude", stage: "working", state: "working" }, { agent: "claude", stage: "asks", state: "blocked", kind: "question" }, { agent: "claude", stage: "asks", state: "blocked", kind: "permission" },
       { agent: "claude", stage: "working", state: "blocked", kind: "question" }, { agent: "claude", stage: "reviewing", state: "working" }, { agent: "claude", stage: "checking", state: "working" }, { agent: "claude", stage: "starting", state: "working" },
       { stage: "queued", state: "idle" }, { stage: "progress", state: "working" }]) assert.equal(s.v.running(row(live)), true, JSON.stringify(live));
-    // No agent runs in these: the same key asks to delete.
+    // No agent runs in these: the same key asks to remove.
     for (const still of [{ stage: "todo", state: "idle" }, { agent: "claude", stage: "stopped", state: "idle" }, { agent: "claude", stage: "approval", state: "blocked" }, { agent: "claude", stage: "failed", state: "error" },
       { agent: "claude", stage: "nosummary", state: "blocked" }, { agent: "claude", stage: "done", state: "done" }]) assert.equal(s.v.running(row(still)), false, JSON.stringify(still));
     // On the board: a task whose agent waits for an answer. ctrl+x stops it and asks nothing; only the next ctrl+x,
-    // with no agent running any more, asks to delete.
+    // with no agent running any more, asks to remove.
     w.script({ worker: [{ status: "blocked", screen: "Which colour?\n" }] });
     A.delegate(id); await settle(id);
     S.update(id, (t) => { t.stage = "asks"; t.kind = "question"; }); s.v.load();
     assert.equal(s.v.current().stage, "asks"); assert.equal(s.v.current().state, "blocked");
     s.press("?"); assert.match(s.text(), /ctrl\+x {2}stop the agent/); s.press("esc");
     s.press("ctrl+x"); assert.equal(s.v.ask, null); assert.equal(S.get(id).stage, "stopped"); assert.match(s.text(), /proj\/1: stopped\./);
-    s.press("ctrl+x"); assert.match(s.text(), /\n \? Delete "One"\? /); s.press("n"); assert.ok(S.get(id));
+    s.press("ctrl+x"); assert.match(s.text(), /\n \? Remove "One"\? /); s.press("n"); assert.ok(S.get(id));
   } finally { w.cleanup(); }
 });
 

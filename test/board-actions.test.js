@@ -1,4 +1,4 @@
-// What you do to a task: approve and merge, the ? menu, stop or delete, retry.
+// What you do to a task: approve and merge, the ? menu, stop or remove, retry.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -10,7 +10,7 @@ import { osc } from "../src/board/view.js";
 import { execFileSync } from "node:child_process";
 import { here, open } from "./board-helpers.js";
 
-test("the board: ready to approve, the merge asks first, the ? menu acts, delete asks, messages stay", async () => {
+test("the board: ready to approve, the merge asks first, the ? menu acts, remove asks, messages stay", async () => {
   const w = await world({ settings: { helper: "off" } });
   try {
     w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f." }], reviewer: [{ verdict: { meets: true, text: "Good.", findings: [{ severity: "minor", subject: "f.txt has no title", where: "f.txt" }] } }] });
@@ -63,7 +63,7 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     assert.deepEqual(text.split("\n").filter((l) => /^ (❯| ) \S/.test(l)).map((l) => l.slice(3, 11).trim()).filter((k) => k !== "R#2"),
       ["↑ ↓", "enter", "space", "tab", "esc", "?", "y  n", "ctrl+l", "ctrl+r", "ctrl+x", "ctrl+a", "ctrl+p", "ctrl+n", "ctrl+z", "ctrl+f", "ctrl+c", "alt+c", "alt+p", "alt+t", "alt+a", "alt+s", "alt+d", "alt+m"]);
     assert.match(text, /\n plain keys *\n {3}↑ ↓ {5}move between tasks/); assert.match(text, /\n ctrl: does something *\n ❯ ctrl\+l {2}yes: approve the merge, say yes, retry, take it as it is/); assert.match(text, /\n alt: only shows or hides *\n {3}alt\+c {3}hide the chat's latest message/);
-    for (const line of [/ctrl\+r {2}send it back to the agent/, /ctrl\+x {2}delete the task/, /ctrl\+a {2}archive the task/, /ctrl\+p {2}pin to the top/, /ctrl\+z {2}undo/, /ctrl\+f {2}find/, /ctrl\+c {2}twice: close the board/, /alt\+p {3}hide the side panel/, /alt\+t {3}the whole task, full screen/, /alt\+a {3}show the archive/, /alt\+s {3}group by repo/, /alt\+d {3}show all done/, /alt\+m {3}other machines \(now: this machine only\)/]) assert.match(text, line);
+    for (const line of [/ctrl\+r {2}send it back to the agent/, /ctrl\+x {2}remove the task/, /ctrl\+a {2}archive the task/, /ctrl\+p {2}pin to the top/, /ctrl\+z {2}undo/, /ctrl\+f {2}find/, /ctrl\+c {2}twice: close the board/, /alt\+p {3}hide the side panel/, /alt\+t {3}the whole task, full screen/, /alt\+a {3}show the archive/, /alt\+s {3}group by repo/, /alt\+d {3}show all done/, /alt\+m {3}other machines \(now: this machine only\)/]) assert.match(text, line);
     assert.match(text, /\n {3}y {2}n {4}answer a question: y yes, n or esc no \(enter never confirms\)/); // the menu says how a question is answered
     assert.doesNotMatch(text, /Coordinator's chat|restart|new Coordinator|ctrl\+[estdog]\b|alt\+[vhrn]\b|delete {2}/); assert.match(text, /↑↓ pick · enter do it · esc close/);
     s.press("x", "ctrl+l"); assert.ok(s.v.menu, "a stray key neither acts nor closes the menu");
@@ -72,16 +72,16 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     assert.match(s.text(), /proj\/2: archived\. ctrl\+z undoes it; alt\+a shows the archive\./);
     s.v.tui.terminal.rows = 34;
     // the keys themselves: alt+a shows and hides the archive, where ctrl+a restores; ctrl+z undoes; ctrl+p pins; ctrl+f finds
-    s.press("alt+a"); assert.match(s.text(), /^ herdr-superwork {2}archive/); assert.match(s.text(), /Other \[archived\]/); assert.match(s.text(), /\n {2}ctrl\+a restore · ctrl\+x delete · esc back to the board/);
+    s.press("alt+a"); assert.match(s.text(), /^ herdr-superwork {2}archive/); assert.match(s.text(), /Other \[archived\]/); assert.match(s.text(), /\n {2}ctrl\+a restore · ctrl\+x remove · esc back to the board/);
     s.press("ctrl+a"); assert.ok(!S.get("proj/2").archivedAt); A.archive("proj/2"); s.v.archiveUndo = S.get("proj/2");
     s.press("alt+a", "ctrl+z"); assert.equal(s.v.archiveView, false); assert.ok(!S.get("proj/2").archivedAt);
     s.v.sel = "proj/2"; s.v.load(); s.press("ctrl+p"); assert.equal(S.get("proj/2").pinned, true); assert.match(s.text(80), /\n pinned +\n/);
     s.press("ctrl+f"); assert.match(s.text(), /\nfind ❯ /); s.type("make"); s.press("enter");
     assert.match(s.text(), /^ herdr-superwork {2}proj · \S+ · find: make/); assert.ok(!/○ Other/.test(s.text()));
     s.press("esc"); assert.equal(s.v.filter, "");
-    // ctrl+x on a task with no agent running asks to delete it, with the board's one question. A second ctrl+x, or
+    // ctrl+x on a task with no agent running asks to remove it, with the board's one question. A second ctrl+x, or
     // enter, is no answer: only y deletes.
-    s.v.sel = "proj/2"; s.v.load(); s.press("ctrl+x"); assert.match(s.text(), /\n \? Delete "Other"\? Its worktree goes too\. {2}y = yes · n = no/);
+    s.v.sel = "proj/2"; s.v.load(); s.press("ctrl+x"); assert.match(s.text(), /\n \? Remove "Other"\? Its worktree goes too\. {2}y = yes · n = no/);
     s.press("ctrl+x", "enter"); assert.ok(s.v.ask); assert.ok(S.get("proj/2"));
     s.press("esc"); assert.ok(S.get("proj/2")); assert.equal(s.v.ask, null);
     // a question too long for the window never loses its keys: it wraps, and "y = yes · n = no" stays whole
@@ -89,13 +89,13 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, delete
     for (const width of [80, 60, 40, 30]) {
       const lines = s.screen(width);
       assert.ok(lines.some((l) => l.includes("y = yes · n = no")), `the keys show at ${width}`);
-      assert.match(lines.join(" ").replace(/\s+/g, " "), /\? Delete "A task with quite a long title …"\? Its worktree goes too\./, `the question shows at ${width}`);
+      assert.match(lines.join(" ").replace(/\s+/g, " "), /\? Remove "A task with quite a long title …"\? Its worktree goes too\./, `the question shows at ${width}`);
       assert.ok(lines.every((l) => l.length <= width) && lines.length === 34);
     }
     s.press("esc"); A.rename("proj/2", "Other"); s.v.load();
     // from the menu it is the same question
     s.press("?");
-    const at = s.v.menuItems().findIndex((i) => i.key === "ctrl+x"); assert.equal(s.v.menuItems()[at].label, "delete the task"); for (let i = 0; i < at; i++) s.press("down");
+    const at = s.v.menuItems().findIndex((i) => i.key === "ctrl+x"); assert.equal(s.v.menuItems()[at].label, "remove the task"); for (let i = 0; i < at; i++) s.press("down");
     s.press("enter", "enter"); assert.ok(s.v.ask); assert.ok(S.get("proj/2")); s.press("y");
     await until(() => !S.get("proj/2"));
     assert.equal(S.get("proj/2"), null);

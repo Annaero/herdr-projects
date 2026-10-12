@@ -26,14 +26,14 @@ export class Coordinator {
     }
     if (!this.canDispatch) { try { this.canDispatch = C.ready(); } catch {} } // it may have been turned on a moment ago
     if (!this.canDispatch) {
-      // No Coordinator (it is off, its program is not installed, or herdr is not running): what you type is filed as
+      // No Coordinator (it is off, its program is not installed, or herdr is not running): what you type is added as
       // a task, word for word.
       const about0 = about && !about.host ? about : null;
-      if (about0) { A.describe(about0.id, `${about0.description ? `${about0.description}\n\n` : ""}${text}`); this.flash(`${about0.id}: added to its description`, "green"); return this.load(); }
+      if (about0) { A.describe(about0.id, `${about0.description ? `${about0.description}\n\n` : ""}${text}`); this.flash(`${about0.id}: updated (description)`, "green"); return this.load(); }
       const [title, ...restLines] = text.split("\n");
       const t = A.add(this.ctx.cwd, title, { description: restLines.join("\n") });
       if (delegate) A.delegate(t.id);
-      this.flash(`${t.id}: filed${delegate ? ", an agent is on it" : ""}`, "green");
+      this.flash(`${t.id}: added${delegate ? ", an agent is on it" : ""}`, "green");
       this.sel = t.id;
       return this.load();
     }

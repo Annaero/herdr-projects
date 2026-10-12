@@ -53,7 +53,7 @@ test("a task agent's chat: its message, then your just-sent words in its place, 
     s.press("\x1bc"); assert.deepEqual(chat(s).box, ["thanks", "", "❯ your reply"]);
     // space: back to the same box for everyone else. With no Coordinator there is no message to hold, so no frame.
     s.press("space"); c = chat(s);
-    assert.equal(c.framed, false); assert.match(c.who, /^ \+ New task {2}what you type is filed as a task/); assert.doesNotMatch(c.hints, /alt\+c/);
+    assert.equal(c.framed, false); assert.match(c.who, /^ \+ New task {2}what you type is added as a task/); assert.doesNotMatch(c.hints, /alt\+c/);
   } finally { w.cleanup(); }
 });
 

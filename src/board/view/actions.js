@@ -1,4 +1,4 @@
-// What you do to the selected task: yes, send back, stop, delete, undo, archive.
+// What you do to the selected task: yes, send back, stop, remove, undo, archive.
 import { truncateToWidth } from "@earendil-works/pi-tui";
 import * as S from "../../store.js";
 import * as A from "../../actions.js";
@@ -70,7 +70,7 @@ export class Actions {
   // for a free slot. That is what the stop key stops; anything else has no agent running.
   running(r) { return r.state === "working" && (isAgent(r) || r.stage === "progress") || r.stage === "queued" || (isAgent(r) && LIVE_STAGES.includes(r.stage)); }
   // Stop the agent while one runs. On a task with none running (idle, never started, stopped, finished) the same key
-  // asks to delete the task. A stop never goes on to that question by itself: that takes the key again, and a yes.
+  // asks to remove the task. A stop never goes on to that question by itself: that takes the key again, and a yes.
   stop(r) {
     if (!this.running(r)) return this.remove(r);
     this.stick = r.id; // the selection stays on this row: a second tap never lands on another task
@@ -78,10 +78,10 @@ export class Actions {
     return this.try(() => { A.stop(r.id); this.flash(`${r.id}: stopped.`, "yellow"); });
   }
   remove(r) {
-    this.confirm(`Delete "${truncateToWidth(clean(r.title || r.id), 32, "…")}"? Its worktree goes too.`, () => {
+    this.confirm(`Remove "${truncateToWidth(clean(r.title || r.id), 32, "…")}"? Its worktree goes too.`, () => {
       if (r.host) return this.act(r, "clear");
-      A.clear(r.id).then((out) => { this.flash(out.kept.length ? `${r.id} deleted. Kept, so no work is lost: ${out.kept.join(", ")}` : `${r.id} deleted`, out.kept.length ? "yellow" : "overlay0"); this.load(); this.tui.requestRender(); }, (e) => { this.flash(e.message, "red"); this.tui.requestRender(); });
-      this.flash(`${r.id}: deleting…`);
+      A.clear(r.id).then((out) => { this.flash(out.kept.length ? `${r.id}: removed. Kept, so no work is lost: ${out.kept.join(", ")}` : `${r.id}: removed`, out.kept.length ? "yellow" : "overlay0"); this.load(); this.tui.requestRender(); }, (e) => { this.flash(e.message, "red"); this.tui.requestRender(); });
+      this.flash(`${r.id}: removing…`);
     });
   }
   undo() {

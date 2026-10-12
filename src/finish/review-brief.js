@@ -6,7 +6,7 @@ import * as G from "../gate.js";
 
 // `earlier`: the findings of the round before, when the agent was sent back with them (null on a first review).
 // `filed`: the faults from before the task that the board knows already, whichever task's review found them: what
-// is suggested to the human (or was, and they said no) and what an older version filed as tasks of their own.
+// is suggested to the human (or was, and they said no) and what an older version added as tasks of their own.
 // `check`: the repo's check command, when it has one. The board ran it on this commit before the review, and it passed.
 export function reviewBrief(t, { text, change, toLand, ch, earlier = null, filed = [], check = "" }) {
   const dir = `${F.RULE_DIR}/review-${t.n}`;

@@ -42,7 +42,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | File | Holds |
 |---|---|
 | `archive.js` | Archive, restore, and clearing a task away for good |
-| `filing.js` | Filing and editing a task: add, rename, describe, pin, and a report of where it stands |
+| `filing.js` | Adding and editing a task: add, rename, describe, pin, and a report of where it stands |
 | `finish-line.js` | The finish line's keys: approve, send the review or the failure back, finish anyway, retry |
 | `shared.js` | What the actions share: the stages an agent holds a slot in, and an action's answer |
 | `start.js` | Putting an agent on a task: the request, and starting queued tasks while slots are free |
@@ -78,7 +78,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | File | Holds |
 |---|---|
-| `actions.js` | What you do to the selected task: yes, send back, stop, delete, undo, archive |
+| `actions.js` | What you do to the selected task: yes, send back, stop, remove, undo, archive |
 | `agent-pane.js` | A task's agent: what its pane shows, what it last said, and going into its real herdr pane |
 | `ask.js` | The one question box: asking, what a merge question is about, and how it is drawn |
 | `chat.js` | The chat at the bottom: who it talks to, the line that names them, and their latest message |
@@ -100,7 +100,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `row.js` | One row of the list: its mark, its name, what it says, and its columns on the right |
 | `setup.js` | The first run: one screen asks what the plugin may add to herdr's settings |
 | `size.js` | The board's size: the window, what herdr shows of it, and another viewer holding the terminal at its own size |
-| `states.js` | Where a task stands, as the board files it: its group, its colour, whether an agent is on it, whether it waits for you |
+| `states.js` | Where a task stands, as the board sorts it: its group, its colour, whether an agent is on it, whether it waits for you |
 | `suggestions.js` | Suggested tasks: work a reviewer or an agent came across outside its own task |
 | `textbox.js` | The text box you type in |
 | `words.js` | Small words and numbers the board's parts share: a time as "12m", a pull request as "PR#16", a long text cut short |
@@ -122,7 +122,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | File | Holds |
 |---|---|
 | `auto-merge.js` | Auto-merge, the setting: a task that may merge does so by itself while `autoMerge` is on, and waits for you while it is off |
-| `faults.js` | Faults a reviewer found that were there before the task: suggested to the human, never filed, and what the next reviewer is told is known already |
+| `faults.js` | Faults a reviewer found that were there before the task: suggested to the human, never added as tasks, and what the next reviewer is told is known already |
 | `pipeline.js` | The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval |
 | `recover-job.js` | A finished turn re-armed by mistake: hand the task to the human as stopped without a summary |
 | `review-brief.js` | What the reviewer is told, and reading the verdict it writes back |
@@ -216,7 +216,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | File | Tests |
 |---|---|
 | `auto-merge.test.js` | The autoMerge setting: a green task merges by itself, your choice wins over the repo's "land", and a change counts for tasks already under way |
-| `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, stop or delete, retry |
+| `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, stop or remove, retry |
 | `board-chat.test.js` | The chat's box: the latest message, an empty line, the line you type on |
 | `board-evidence.test.js` | The task details of a reviewed task with evidence, and what the board shows when a part of it fails to draw |
 | `board-helpers.js` | Shared by the board's tests (test/board-*.test.js): the keys, and a board opened on a test world |
@@ -256,6 +256,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `keys-list.test.js` | The keys list is the one place a key is defined: moving a key there moves it in the handler, the ? menu, the hints and the messages, with no other file changed |
 | `lifecycle.test.js` |  |
 | `merge.test.js` |  |
+| `plain-words.test.js` | The board's plain words: a task is added, updated, removed, started, archived, restored |
 | `pull-requests.test.js` |  |
 | `rearm.test.js` |  |
 | `remerge.test.js` | Work that passed its review and then only took main in is not reviewed again: the tests run on the merged result and the review stands |
@@ -263,7 +264,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `retry.test.js` | A turn cut off by the model's provider: recognised from the agent's own conversation file, retried by the board when the error is one that passes, and never taken for a finished turn or a review |
 | `store.test.js` |  |
 | `submit.test.js` | Text handed to an agent is really submitted: nothing is typed before a slow-starting program has drawn its screen, an enter that was lost is pressed again (the text is never typed twice), and an agent that still does… |
-| `suggestions.test.js` | Suggested tasks: nothing files a task by itself |
+| `suggestions.test.js` | Suggested tasks: nothing adds a task by itself |
 | `sync-conflict.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `sync-merge.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `sync-remote.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |

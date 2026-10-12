@@ -1,6 +1,6 @@
-// Suggested tasks. Work a reviewer or an agent came across that is not part of the task it was on is never filed by
-// itself: it is saved here, on the task that raised it, as a suggestion. It becomes a task only when the human
-// accepts it; a dismissed one is kept, so the same thing is not asked twice.
+// Suggested tasks. Work a reviewer or an agent came across that is not part of the task it was on is never added as a
+// task by itself: it is saved here, on the task that raised it, as a suggestion. It becomes a task only when the
+// human accepts it; a dismissed one is kept, so the same thing is not asked twice.
 import { withLock, withTaskLock } from "./files.js";
 import { get, list, update, create, remove, oneLine } from "./tasks.js";
 import { titled } from "./titles.js";
@@ -121,7 +121,7 @@ const one = (t, sid) => {
 // boards, a board and the Coordinator) make one task, and the second is told it was made already. The raising task
 // is held for the whole step too, so a task is only made when the answer can be written down; should writing it
 // down fail all the same, the task made is taken away again: a yes that failed leaves nothing to make twice.
-// When the same work was filed as a task after the suggestion was raised, no second task is made: the suggestion is
+// When the same work was added as a task after the suggestion was raised, no second task is made: the suggestion is
 // answered with that task (`existing`).
 const decide = (id, fn) => {
   const t = get(id);

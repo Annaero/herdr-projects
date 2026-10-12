@@ -1,10 +1,10 @@
-// Where a task stands, as the board files it: its group, its colour, whether an agent is on it, whether it waits for you.
+// Where a task stands, as the board sorts it: its group, its colour, whether an agent is on it, whether it waits for you.
 import * as A from "../../actions.js";
 import { herdr } from "../../herdr.js";
 import { bar } from "./words.js";
 import { waitingOf } from "../../store.js";
 
-// The groups, in the order they need you. A task's state stays herdr's; the group is how the board files it.
+// The groups, in the order they need you. A task's state stays herdr's; the group is how the board sorts it.
 export const GROUPS = ["needs you", "ready to approve", "working", "done", "to do"];
 // herdr's own colour for each state (its status_color), with two of the board's own: finished work that waits for a
 // yes is green, and a task nobody has started is grey.

@@ -109,12 +109,12 @@ test("turning the Coordinator on while the board is open takes effect at once, a
   const w = await coordWorld({ coordinator: "off" });
   try {
     const s = open(w);
-    assert.match(s.text(), /\n *\n \+ New task {2}what you type is filed as a task, word for word *\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(s.text(), /Coordinator/); // with it off, the chat says what the box does
+    assert.match(s.text(), /\n *\n \+ New task {2}what you type is added as a task, word for word *\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(s.text(), /Coordinator/); // with it off, the chat says what the box does
     s.type("first thing"); s.press("enter");
     assert.equal(S.get("proj/1").title, "first thing"); assert.equal(C.get(), null);
     S.setConfig("coordinator", "default"); // the board stays open
     s.type("second thing"); s.press("enter");
-    assert.equal(S.get("proj/2"), null, "not filed word for word any more"); assert.equal(C.get().queue.length, 1);
+    assert.equal(S.get("proj/2"), null, "not added word for word any more"); assert.equal(C.get().queue.length, 1);
     await drainJobs(runJob);
     assert.equal(w.agents()[0].agent.prompts[0], "second thing"); assert.doesNotMatch(s.text(), /no Coordinator/);
     // Off again: the next beat that checks sees it, even with one still running.

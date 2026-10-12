@@ -20,7 +20,7 @@ const NAME = "herdr-superwork";
 export function skillText(shim) {
   return `---
 name: ${NAME}
-description: The human's work board in herdr. Use it when they ask to file, list, delegate, check or update a task on "the board", or to put an agent on something.
+description: The human's work board in herdr. Use it when they ask to add, list, delegate, check or update a task on "the board", or to put an agent on something.
 ---
 
 # herdr-superwork: the work board
@@ -34,10 +34,10 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
 
 - \`herdr-superwork list\`: the tasks: id (\`<repo>/<number>\`), state (idle, working, blocked, done, error), who is on it, title.
   \`--query TEXT\` searches, \`--archived\` shows the archive, \`--all\` includes it.
-- \`herdr-superwork add "<short title>" --desc "<full description>"\`: file a new task in the current repo
+- \`herdr-superwork add "<short title>" --desc "<full description>"\`: add a new task to the current repo
   (a title is a few words, ${S.TITLE_RULE}: a longer one is cut short and its full text kept in the description;
-  \`--repo <name or path>\` for another). Filing starts nothing. Add \`--delegate\` only if the human asked for an agent.
-  File a task only when the human asked for it: nothing files tasks by itself.
+  \`--repo <name or path>\` for another). Adding starts nothing. Add \`--delegate\` only if the human asked for an agent.
+  Add a task only when the human asked for it: nothing adds tasks by itself.
 - \`herdr-superwork suggestions [<id>]\`: work that agents and reviewers came across outside their own task. Each is a
   suggestion on the task that raised it, waiting for the human. \`accept <id> [S1]\` makes one a task, \`dismiss <id> [S1]\`
   drops it: both only when the human plainly says so.
@@ -57,7 +57,7 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
   the agent by itself; anything milder passes (\`Pass · 2 minor\`). \`gate off\`: nothing goes back by itself.
 - \`herdr-superwork review <id>\` sends the reviewer's findings back to the agent; \`retry <id>\` sends a saved error back;
   \`fix <id>\` sends failure details; \`details <id>\` reads them.
-- \`herdr-superwork archive <id>\` hides a task and keeps everything; \`restore <id>\` brings it back; \`clear <id>\` deletes it
+- \`herdr-superwork archive <id>\` hides a task and keeps everything; \`restore <id>\` brings it back; \`clear <id>\` removes it
   (only when the human plainly asks).
 - \`herdr-superwork config\` shows the settings; \`config <key> <value>\` changes one; \`config <key> <value> --id <id>\` sets it
   for one task.

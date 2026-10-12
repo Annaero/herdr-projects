@@ -67,7 +67,7 @@ test("a reply that was put away comes back as a reply to the same task, never as
       w.script({ worker: [{ status: "working" }] });
       const before = S.list().length;
       s.press("enter");
-      assert.equal(S.list().length, before, "no new task was filed");
+      assert.equal(S.list().length, before, "no new task was added");
       assert.match(w.state().panes.find((p) => p.pane_id === S.get(id).link.pane).agent.prompts.at(-1), /also say goodbye/);
       s.press("space"); assert.equal(s.v.reply, false); assert.equal(s.v.ask, null); assert.equal(s.v.chatOpen, true);
     }

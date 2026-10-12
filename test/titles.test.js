@@ -76,10 +76,10 @@ test("add, rename and report --title follow the limit, and the full text stays i
     const told = A.report(plain.id, { title: `${"Renamed while it is marked as blocked ".repeat(3)}`, state: "blocked", msg: "why" });
     assert.ok(len(told.title) <= 60); assert.match(told.title, /^Renamed while it is marked as blocked Renamed while it is…$/); assert.match(told.description, /^Renamed while it is marked as blocked Renamed .*\n\n/);
     // The command line says so, with the number, to whoever gave the long title; a title that fits says nothing.
-    assert.match(await board("add", LONG, "--repo", w.root), /filed The title was over 60 characters, so it was shortened to "After the startup dialog handoff, finish jobs wrongly mark…" and the full text was kept in the description\./);
+    assert.match(await board("add", LONG, "--repo", w.root), /added The title was over 60 characters, so it was shortened to "After the startup dialog handoff, finish jobs wrongly mark…" and the full text was kept in the description\./);
     assert.doesNotMatch(await board("add", "A short one", "--repo", w.root), /60 characters/);
-    assert.match(await board("report", plain.id, "--title", LONG), /updated The title was over 60 characters/);
-    assert.match(await board("report", "--title", LONG, "--repo", w.root), /filed The title was over 60 characters/);
+    assert.match(await board("report", plain.id, "--title", LONG), /updated \(title\) The title was over 60 characters/);
+    assert.match(await board("report", "--title", LONG, "--repo", w.root), /added The title was over 60 characters/);
     assert.ok(S.list().every((t) => len(t.title) <= 60));
     // A cut title keeps its whole sentence as the task's subject; a new title that fits takes it away again.
     assert.equal(one.subject, LONG); assert.equal(S.get(plain.id).subject.length > 60, true);

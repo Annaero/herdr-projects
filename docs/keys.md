@@ -34,7 +34,7 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 | `↑` `↓` | move between tasks |
 | `Enter` | send what you typed; with nothing typed, open the task's agent: its real herdr pane. The board keeps running in its own tab and is there as you left it; your key goes back to it |
 | `Space` | flip who you talk to: the selected task's agent, and back to the Coordinator. The chat says who. Nothing else changes it: while it is a task's agent, moving with `↑` `↓` makes it the agent of the task you moved to. On a task with no agent, your message puts one on it |
-| `Tab` | put an agent on the task. With text typed for the Coordinator: send it, and every task it files from that message gets an agent at once, with nothing more to confirm (a message that files nothing delegates nothing) |
+| `Tab` | put an agent on the task. With text typed for the Coordinator: send it, and every task it adds from that message gets an agent at once, with nothing more to confirm (a message that adds no task delegates nothing) |
 | `Esc` | back, one step at a time, and nothing else: find is left, a draft is put away, then the whole task, the filter and the archive close. With none of those left it shows the same hint as `Ctrl+C`. It never shows or hides the chat, never changes who you talk to, and never closes the board by itself |
 | `?` | the menu: every key in these three groups, each line with its key. A ctrl or alt line can be picked with `↑` `↓` and `Enter`, which does what its key does. Under the keys, what a row's `R#2 ✓` review tag says; where the window is too short for all of it, `↓` on the last line scrolls on down, and `↑` on the first scrolls up |
 | `y` `n` | answer a question the board asks: `y` yes, `n` or `Esc` no. Only while a question is up; `Enter` never confirms |
@@ -45,7 +45,7 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 |---|---|
 | `Ctrl+L` | yes, to whatever the task waits for: approve the merge (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary as it is |
 | `Ctrl+R` | send it back: whatever went wrong (a failed check, a conflict, an error, a review with findings) goes to the task's agent to fix; a stopped agent is told to continue |
-| `Ctrl+X` | stop the agent, when one is running (working, starting, checking, under review, or waiting for your answer); the selection stays on that row. On a task with no agent running (idle, never started, stopped, finished, archived) it asks to delete the task instead: `y` deletes it, its worktree too. A stop never goes on to that question by itself: deleting takes a second `Ctrl+X`, and a `y` |
+| `Ctrl+X` | stop the agent, when one is running (working, starting, checking, under review, or waiting for your answer); the selection stays on that row. On a task with no agent running (idle, never started, stopped, finished, archived) it asks to remove the task instead: `y` removes it, its worktree too. A stop never goes on to that question by itself: removing takes a second `Ctrl+X`, and a `y` |
 | `Ctrl+A` | archive the selected task, or restore it from the archive |
 | `Ctrl+P` | pin the selected task to the top, or unpin it |
 | `Ctrl+N` | suggested tasks: asks about the selected task's first open suggestion, or goes to the first task that has one. In that question `y` makes it a task, `n` dismisses it and `Esc` leaves it for later ([suggestions.md](suggestions.md)) |

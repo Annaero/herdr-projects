@@ -63,8 +63,8 @@ export class Chat {
     }
     const far = this.scope && this.scope !== "*" && this.remotes[this.scope] ? this.scope : "";
     if (far) return { mark: t.fg("overlay0", t.mark("unknown")), color: "overlay0", name: `Coordinator on ${far}`, status: t.muted(`what you type goes to ${far}`), text: "" };
-    // No Coordinator (it is off, its program is not installed, or herdr is not running): the same box files tasks.
-    if (!this.canDispatch) return { mark: t.fg("overlay0", "+"), color: "overlay0", name: "New task", status: t.muted("what you type is filed as a task, word for word"), text: "" };
+    // No Coordinator (it is off, its program is not installed, or herdr is not running): the same box adds tasks.
+    if (!this.canDispatch) return { mark: t.fg("overlay0", "+"), color: "overlay0", name: "New task", status: t.muted("what you type is added as a task, word for word"), text: "" };
     const v = this.coord;
     const fresh = !!v.unseen && !this.chatOpen;
     const color = fresh ? "green" : { working: "yellow", starting: "yellow", blocked: "red", idle: "green" }[v.state] || "overlay0";

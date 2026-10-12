@@ -1,4 +1,4 @@
-// The board: pi-work's screen, powered by herdr. Every row is one task. Type to file one, Tab to put an agent on it.
+// The board: pi-work's screen, powered by herdr. Every row is one task. Type to add one, Tab to put an agent on it.
 // Layout and selection rules follow pi-work's view; what differs is forced by "powered by herdr": going into a
 // task focuses its agent's real pane (the board stays running behind it), and the preview reads that pane through herdr.
 import fs from "node:fs";

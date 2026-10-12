@@ -92,7 +92,7 @@ export async function remoteMain([what, payload]) {
       // Going into a task from another machine: reopen its space and restart its exited agent here first, with the
       // same function the local board calls, and answer with the pane to attach to.
       if (a.action === "reopen") { const D = await import("./delegate.js"); const r = D.reopen(t.id, { restart: true }); return say({ ok: true, msg: "", pane: r.pane.pane_id, hasAgent: r.hasAgent }); }
-      if (a.action === "clear") { const out = await A.clear(t.id); return say({ ok: true, msg: out.kept.length ? `${t.id} deleted. Kept, so no work is lost: ${out.kept.join(", ")}` : `${t.id} deleted` }); }
+      if (a.action === "clear") { const out = await A.clear(t.id); return say({ ok: true, msg: out.kept.length ? `${t.id}: removed. Kept, so no work is lost: ${out.kept.join(", ")}` : `${t.id}: removed` }); }
       if (!acts[a.action]) return say({ ok: false, msg: `Unknown action ${a.action}` });
       return say({ ok: true, msg: acts[a.action]() });
     }
@@ -104,7 +104,7 @@ export async function remoteMain([what, payload]) {
         const [title, ...rest] = String(a.text || "").split("\n");
         const t = A.add(cwd, title, { description: rest.join("\n") });
         if (a.delegate) A.delegate(t.id);
-        return say({ ok: true, msg: `${t.id}: filed${a.delegate ? ", an agent is on it" : ""}` });
+        return say({ ok: true, msg: `${t.id}: added${a.delegate ? ", an agent is on it" : ""}` });
       }
       // This machine's own Coordinator takes it, in its one conversation; its answer shows on this machine's board.
       C.send(cwd, String(a.text || ""), { delegate: !!a.delegate, about: a.about || null });

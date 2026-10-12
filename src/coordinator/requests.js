@@ -16,7 +16,7 @@ import { name as keyName } from "../board/keys.js";
 // and the Coordinator asks for it with `coordinator where`, so one conversation serves every repo the board is
 // opened in. One thing is not left to its asking: a message sent with tab carries a line under the words saying so,
 // since "start it right away" must not depend on the Coordinator remembering to look. The chat shows the words alone.
-export const TAB_NOTE = `[Sent with ${keyName("delegate")} on the board: start every task you file from this message right away, without asking. File each with "board add … --delegate"; if "board add" answers only "filed", run "board delegate <id>". If this message leads to no new task, delegate nothing extra.]`;
+export const TAB_NOTE = `[Sent with ${keyName("delegate")} on the board: start every task you add from this message right away, without asking. Add each with "board add … --delegate"; if "board add" answers only "added", run "board delegate <id>". If this message leads to no new task, delegate nothing extra.]`;
 export function context(cwd, { delegate = false, about = null } = {}) {
   const here = S.repoOf(cwd);
   const t = about ? S.get(about) : null;
@@ -36,10 +36,10 @@ export function where(socket = currentSocket()) {
   if (!list.length) return "Nothing was sent from the board yet, so it is not known which repo the human is in: ask them, or see \"board list\".";
   const one = (w) => [`"${S.oneLine(w.said, 80)}" was sent from the repo "${w.repo}" (${S.tilde(w.root)}).`,
     w.task ? `Task ${w.task} ("${w.title}") was open: for this message "it" and "this" mean that task.` : "No task was open.",
-    w.delegate ? `It was sent with ${keyName("delegate")}: put an agent on every task you file from it, without asking.` : `It was sent with ${keyName("enter")}: delegate only what the human asked you to.`].join(" ");
+    w.delegate ? `It was sent with ${keyName("delegate")}: put an agent on every task you add from it, without asking.` : `It was sent with ${keyName("enter")}: delegate only what the human asked you to.`].join(" ");
   return [`The human's last ${list.length > 1 ? `${list.length} messages` : "message"} from the board${list.length > 1 ? ", the newest last. Each has its own repo, open task and delegate choice: use the ones of the message you are acting on" : ""}:`, ...list.map((w) => `- ${one(w)}`)].join("\n");
 }
-// The board's own half of "sent with tab": a task filed from the Coordinator's pane is delegated by `add` itself when
+// The board's own half of "sent with tab": a task added from the Coordinator's pane is delegated by `add` itself when
 // it can only come from a tab message, so a Coordinator that forgets the flag changes nothing. That is known when
 // the last message went in while it was at rest and it has not finished a turn since (it is still in that
 // message's turn), and no message it may still have ahead of it was sent with enter. Anything less clear (messages

@@ -1,4 +1,4 @@
-// Filing and editing a task: add, rename, describe, pin, and a report of where it stands.
+// Adding and editing a task: add, rename, describe, pin, and a report of where it stands.
 import fs from "node:fs";
 import * as S from "../store.js";
 import * as F from "../flow.js";
@@ -8,7 +8,7 @@ import { delegate } from "./start.js";
 import { stop } from "./talk.js";
 import { details } from "./finish-line.js";
 
-// ---- filing and editing ----------------------------------------------------------------------------------------------
+// ---- adding and editing ----------------------------------------------------------------------------------------------
 export function add(folder, title, { description = "", repo } = {}) {
   return S.create(S.folderFor(repo, folder), title, { description });
 }

@@ -80,13 +80,13 @@ chat follows the selection: move to another task and you talk to that task's age
 A task with no agent to talk to is still named, with where your message goes instead: it starts an agent on a task
 that is to do, goes to the Coordinator about that task otherwise, and an archived task is read-only. With no task
 selected (words on their way to another machine, an empty list) the chat names the Coordinator until a task is
-selected again. If the task you talk to goes away (deleted, cleared), you are back with the Coordinator, never on
+selected again. If the task you talk to goes away (removed), you are back with the Coordinator, never on
 to a neighbour's agent.
 
 ```
  ○ Coordinator  idle
 ╭────────────────────────────────────────────────────────────────────────────────────────────╮
-│ Filed proj/4: Add an undo. An agent is on it.                                              │
+│ Added proj/4: Add an undo. An agent is on it.                                              │
 │                                                                                            │
 │ ❯ ask or tell it anything                                                                  │
 ╰────────────────────────────────────────────────────────────────────────────────────────────╯

@@ -15,18 +15,25 @@ can do whatever else an agent chat can. Like the Agent, it is Claude Code on its
 say otherwise, whatever the Agent is set to: set `coordinator`, `coordinatorModel`, `coordinatorEffort` (any
 `herdr agent start --kind` value), or pick one for a single use with `coordinator new --agent …`. A changed
 default applies to the next new one; the chat says so. `coordinator off`, a program that is not installed, or no
-running herdr: the chat says "New task", and what you type is filed word for word.
+running herdr: the chat says "New task", and what you type is added word for word.
 
 **Every chat knows the board.** With `skill` on (the default) the plugin keeps a small how-to, a folder named
 `herdr-superwork` holding `SKILL.md`, in each installed agent program's own skills folder (`~/.claude/skills`,
-`~/.codex/skills`, `~/.pi/agent/skills`), so an ordinary chat can "file this on the board" without being told how.
+`~/.codex/skills`, `~/.pi/agent/skills`), so an ordinary chat can "add this to the board" without being told how.
 It gives the command by its full path, so `npm link` is not needed. `herdr-superwork config skill off` removes
 exactly what was written; a folder of that name the plugin did not write is left alone.
 
 Commands: `add`, `suggest`, `suggestions`, `accept`, `dismiss`, `list`, `report`, `describe`, `delegate`, `tell`, `stop`, `approve`, `review`, `retry`, `fix`,
 `finish`, `details`, `pin`, `archive`, `restore`, `clear`, `config`, `remove-extras`; `herdr-superwork help` lists
 them. An agent the board itself started may only run `suggest`, `suggestions`, `list`, `details` and `report <its
-own task> --state blocked` (its reviewer: `list` and `details`); the rest is refused with one line. It files no
+own task> --state blocked` (its reviewer: `list` and `details`); the rest is refused with one line. It adds no
 task: work it comes across outside its own task is a [suggestion](suggestions.md) you accept or dismiss, and an
 `add` from it is taken as one. That is a guard against mistakes,
 not a security boundary.
+
+**What a command answers.** Each command answers in one line that starts with the task's id, in the same few plain
+words everywhere (the board's own messages and the Coordinator's closing line use them too): `add` says **added**
+(`proj/12: added`, or `proj/12: added, an agent is on it` with `--delegate`); `describe`, a new title and `report`
+say **updated**, with what changed (`updated (description)`, `updated (title)`, `updated (done)` for a new state);
+`delegate` says **started**; `clear` says **removed**; `archive` and `restore` say **archived** and **restored**;
+`approve` says **approved**.

@@ -8,7 +8,7 @@ import { show, etaOf, began } from "../src/state.js";
 import { parse } from "../src/cli.js";
 import { agentName } from "../src/delegate.js";
 
-test("tasks are filed per repo, numbered, and changed atomically under a lock", async (tt) => {
+test("tasks are added per repo, numbered, and changed atomically under a lock", async (tt) => {
   const w = await world();
   tt.mock.timers.enable({ apis: ["Date"], now: Date.now() }); // the newest task is listed first: the clock moves when told to
   try {

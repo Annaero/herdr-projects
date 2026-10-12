@@ -1,5 +1,5 @@
-// Faults a reviewer found that were there before the task: suggested to the human, never filed, and what the next
-// reviewer is told is known already.
+// Faults a reviewer found that were there before the task: suggested to the human, never added as tasks, and what the
+// next reviewer is told is known already.
 import * as S from "../store.js";
 import * as G from "../gate.js";
 
@@ -32,7 +32,7 @@ export function suggestFaults(id, review) {
   const mine = [];
   for (const f of review.findings) {
     if (!f.preexisting || f.task || f.suggested) continue;
-    const was = old.find((x) => G.sameFault(x, f)); // filed by an older version of the board
+    const was = old.find((x) => G.sameFault(x, f)); // added as a task by an older version of the board
     if (was) f.task = was.task; else mine.push(f);
   }
   place(id, t, mine, apart, (f) => {
@@ -59,5 +59,5 @@ export function suggestOwed(id, { waitMs = 2000 } = {}) {
   return done.length;
 }
 // What reviewers in this repo are told is known already: every suggestion still open or dismissed, and what an older
-// version of the board filed from this task's own reviews.
+// version of the board added as tasks from this task's own reviews.
 export const knownFaults = (t) => [...(Array.isArray(t.filedFaults) ? t.filedFaults : []), ...S.repoSuggestions(t.repo).map((s) => ({ severity: s.severity || "", subject: s.subject || s.title, where: s.where }))];

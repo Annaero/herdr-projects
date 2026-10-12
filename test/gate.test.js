@@ -41,7 +41,7 @@ test("the board's rules: what counts as critical, what a gate lets through, and 
   // the cut comes after the rules: critical claims nobody showed and old faults go before a proven critical one does
   const buried = reviewOf(true, [...Array.from({ length: 80 }, (_, n) => finding("critical", `A claim ${n}`, { proof: "" })), ...Array.from({ length: 80 }, (_, n) => finding("critical", `An old fault ${n}`, { preexisting: true })), finding("critical", "Deletes the data"), finding("minor", "A nit")], "critical");
   assert.equal(buried.findings.length, 162); assert.equal(buried.pass, false); assert.ok(buried.findings.some((f) => f.subject === "Deletes the data")); assert.equal(buried.findings.filter((f) => f.severity === "major").length, 80);
-  // what was there before the task is never cut, however long the list: each one is to be filed
+  // what was there before the task is never cut, however long the list: each one is to be suggested
   const olds = reviewOf(true, [...Array.from({ length: 130 }, (_, n) => finding("minor", `An old fault ${n}`, { preexisting: true })), ...Array.from({ length: 120 }, (_, n) => finding("trivial", `Note ${n}`)), finding("critical", "Deletes the data")], "major");
   assert.equal(olds.findings.filter((f) => f.preexisting).length, 130); assert.equal(olds.findings.filter((f) => !f.preexisting).length, 100); assert.equal(olds.left, 21); assert.equal(olds.pass, false); assert.equal(reviewOf(true, [...Array.from({ length: 20 }, (_, n) => finding("minor", `Nit ${n}`)), finding("critical", "Deletes the data")], "major").pass, false);
   // a severity the board does not know is read as major, a finding without a subject is no finding
@@ -70,7 +70,7 @@ test("a later round checks the earlier findings: it cannot grow the list with ne
     finding("critical", "The fix deletes the file", { proof: "ran it: the file is gone" }), finding("major", "The old exporter was always slow", { preexisting: true })] });
   const rv = parseVerdict(raw, "abcdef1234567", { earlier: first.findings, used: ["F1", "F2"] });
   assert.deepEqual(rv.findings.map((f) => [f.id, f.severity, f.subject]), [["F2", "minor", "The name is still unclear"], ["F3", "critical", "The fix deletes the file"], ["F4", "major", "The old exporter was always slow"]]);
-  assert.equal(rv.left, 3); assert.equal(rv.findings[2].preexisting, true); // a fault that was there before is kept to be filed: it holds nothing back
+  assert.equal(rv.left, 3); assert.equal(rv.findings[2].preexisting, true); // a fault that was there before is kept to be suggested: it holds nothing back
   // the same answer on a first review keeps everything (the unproven critical one as major)
   assert.deepEqual(parseVerdict(raw, "abcdef1234567").findings.map((f) => f.severity), ["major", "minor", "major", "major", "critical", "major"]);
   // with only smaller things noticed late, the round passes: nothing was added
@@ -161,7 +161,7 @@ test("a review where `meets` is false goes back even if the reviewer listed noth
   } finally { w.cleanup(); }
 });
 
-test("a pre-existing fault is suggested, never filed: no new task, no extra round, and one suggestion across rounds", async () => {
+test("a pre-existing fault is suggested, never added as a task: no new task, no extra round, and one suggestion across rounds", async () => {
   const w = await world();
   try {
     const old = finding("critical", "The importer drops the last row", { where: "import.js", proof: "ran it on main too", preexisting: true });
@@ -171,7 +171,7 @@ test("a pre-existing fault is suggested, never filed: no new task, no extra roun
     let t = await settle(id, { max: 30 });
     assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.equal(S.reviewRound(t), 1); assert.equal(paneOf(w, t).agent.prompts.length, 1); // no extra round
     assert.deepEqual([t.review.pass, G.result(t.review)], [true, "Pass · 1 pre-existing"]);
-    assert.deepEqual(S.list().map((x) => x.id), [id]); // nothing was filed
+    assert.deepEqual(S.list().map((x) => x.id), [id]); // nothing was added
     assert.deepEqual(t.suggestions.map((s) => [s.id, s.title, s.where, s.by, s.severity, s.round, s.state]), [["S1", "The importer drops the last row", "import.js", "reviewer", "critical", 1, "open"]]);
     assert.match(t.suggestions[0].description, /Where: import\.js\nSeverity: critical\nWhat the reviewer saw: ran it on main too\n\nIt was there before proj\/1 \(Add a column\)/);
     assert.deepEqual(t.review.findings[0].suggested, { on: id, id: "S1" });

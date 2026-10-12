@@ -28,7 +28,7 @@ export class Hints {
     const tail = this.full ? [[arrows, "scroll"], hint("back")] : this.reply ? [hint("talk", "back to the Coordinator")] : [more];
     const failure = failureFor(r), rv = currentReview(r), reply = hint("talk"), open = hint("enter"), fix = hint("sendBack"), retry = hint("yes"), stop = hint("stop"), agent = hint("delegate");
     let main;
-    if (r.archivedAt) main = [hint("archive"), hint("stop", "delete"), ...(this.archiveView && !this.full ? [[esc, "back to the board"]] : [])];
+    if (r.archivedAt) main = [hint("archive"), hint("stop", "remove"), ...(this.archiveView && !this.full ? [[esc, "back to the board"]] : [])];
     else if (inReview(r)) main = [hint("yes", "approve and merge"), rv && G.sendable(rv) && hint("sendBack", "send back"), reply];
     else if (r.stage === "approval" && r.syncBlocked) main = [reply, open];
     else if (r.stage === "approval" && r.state === "blocked") main = [failure?.agentCanFix && !failure.sentAt && fix, hint("yes", "retry the merge"), reply];

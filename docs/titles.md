@@ -20,7 +20,7 @@ It is never refused, and nothing it said is lost:
   that ends it loses the full stop.
 - Its full text becomes the first paragraph of the description, above what the description already said. A
   description that says it already is left as it is.
-- The command says so, with the number: `proj/12: filed The title was over 60 characters, so it was shortened to
+- The command says so, with the number: `proj/12: added The title was over 60 characters, so it was shortened to
   "…" and the full text was kept in the description. Rename it if a better short title exists.`
 
 Shortening rather than refusing, everywhere, because one path cannot refuse: a reviewer's finding is saved by the
@@ -38,7 +38,7 @@ that range a little sooner than needed.
 
 So that titles are written to fit, not cut:
 
-- The Coordinator's rules give the limit where they say how to file a task and how to rename one.
+- The Coordinator's rules give the limit where they say how to add a task and how to rename one.
 - An agent's rules give it where they say how to suggest a task, and so does the board's how-to (`SKILL.md`).
 - The reviewer is asked for a `title` on each finding beside its `subject`: the sentence says what is wrong, the
   title is its name on the board in a few words. A [suggestion](suggestions.md) made from a finding takes that

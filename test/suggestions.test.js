@@ -1,4 +1,4 @@
-// Suggested tasks: nothing files a task by itself. What an agent or a reviewer comes across is a suggestion on its
+// Suggested tasks: nothing adds a task by itself. What an agent or a reviewer comes across is a suggestion on its
 // task; the human makes it a task or dismisses it; the same work is never suggested twice.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -49,8 +49,8 @@ test("an agent's add or suggest is a suggestion on its own task, never a task; t
     S.update(one.id, (t) => { t.link = { socket: w.socket, pane: "w1:p1" }; t.stage = "working"; t.agent = "claude"; });
     S.update(two.id, (t) => { t.link = { socket: w.socket, pane: "w2:p1", reviewer: { pane: "w2:p2" } }; t.stage = "reviewing"; t.agent = "claude"; });
     // The rules an agent starts with name the command, and say it is the human's to decide.
-    assert.match(agentRules(S.get(one.id)), /do not do it and do not file it: suggest it to the human with \S+ suggest "<short title: a few words, at most 60 characters>" --desc "[^"]*" --from proj\/1 and carry on\. It becomes a task only if they accept it\./);
-    // From an agent's pane: "add" files nothing (an old habit), and so does "suggest".
+    assert.match(agentRules(S.get(one.id)), /do not do it and do not add it as a task: suggest it to the human with \S+ suggest "<short title: a few words, at most 60 characters>" --desc "[^"]*" --from proj\/1 and carry on\. It becomes a task only if they accept it\./);
+    // From an agent's pane: "add" adds no task (an old habit), and so does "suggest".
     process.env.HERDR_PANE_ID = "w1:p1";
     assert.match(await board("add", "The importer drops the last row", "--desc", "In import.js. Seen on main too.", "--repo", w.root, "--delegate"), /^S1 on proj\/1: suggested to the human\. It becomes a task only if they accept it\. Carry on with your own task\.\n$/);
     assert.match(await board("suggest", "Dates are parsed as text", "--from", one.id), /^S2 on proj\/1: suggested/);
@@ -67,14 +67,14 @@ test("an agent's add or suggest is a suggestion on its own task, never a task; t
     assert.match(await board("suggest", "The importer drops the last row of the file", "--desc", "import.js"), /^Already suggested \(S1 on proj\/1\)\. Nothing was added\./);
     assert.match(await board("suggest", "The exporter writes no header"), /^S1 on proj\/2: suggested/);
     assert.match(await board("suggest", "Speed up the exporting"), /^Already a task: proj\/2\. Nothing was added\./);
-    // With no pane to tell who is asking, suggest needs the task; add is then the human's own and files.
+    // With no pane to tell who is asking, suggest needs the task; add is then the human's own and adds the task.
     delete process.env.HERDR_PANE_ID;
     await assert.rejects(board("suggest", "No task named"), /suggest needs --from/);
     assert.match(await board("suggest", "The README names a file that is gone", "--from", "2"), /^S2 on proj\/2: suggested/);
     assert.equal(S.list().length, 2);
     // The human's yes makes it a task, started by nobody; their no keeps it from coming back.
     await assert.rejects(board("accept", one.id), /proj\/1 has 2 open suggestions: say which \(S1, S2\)/);
-    assert.match(await board("accept", one.id, "s1"), /^proj\/3: filed from the suggestion\n$/);
+    assert.match(await board("accept", one.id, "s1"), /^proj\/3: added from the suggestion\n$/);
     const made = S.get("proj/3");
     assert.deepEqual([made.title, made.stage, !!made.link], ["The importer drops the last row", "todo", false]);
     assert.equal(made.description, "In import.js. Seen on main too.\n\nSuggested by the agent of proj/1 (Add a column).");
@@ -234,7 +234,7 @@ test("one review's findings are each a suggestion; a reworded one from elsewhere
     // Another task's agent reports the first of them in its own words: recognised.
     assert.match(A.suggest(two.id, "Importing loses the final row of the file", { description: "import.js" }).msg, /^Already suggested \(S1 on proj\/1\)\. Nothing was added\./);
     assert.equal(S.suggestionsOf(S.get(two.id)).length, 0);
-    // The human files the work themselves after it was suggested: yes to the suggestion makes no second task.
+    // The human adds the work themselves after it was suggested: yes to the suggestion makes no second task.
     S.suggest(two.id, { title: "CSV export writes no header", by: "agent" });
     const own = A.add(w.root, "CSV export writes no header");
     const s = open(w); s.v.sel = two.id; s.v.load(); s.press(ASK, "y");

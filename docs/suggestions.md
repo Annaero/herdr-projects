@@ -1,10 +1,10 @@
 # Suggested tasks
 
-**Nothing files a task by itself.** A task appears on the board only when you ask for it: you type it, you tell the
+**Nothing adds a task by itself.** A task appears on the board only when you ask for it: you type it, you tell the
 Coordinator, or you accept a suggestion.
 
 An agent or a reviewer often comes across work that is not part of the task it is on: a test that was already
-flaky, a bug elsewhere, a follow-up. It may not do that work, and it may not file it. It raises a **suggestion**
+flaky, a bug elsewhere, a follow-up. It may not do that work, and it may not add it as a task. It raises a **suggestion**
 instead, which is saved on the task it was working on:
 
 - A reviewer's finding marked `preexisting` (it was there before the change) becomes one. It never holds the work
@@ -60,7 +60,7 @@ Then the same task's next one is asked. From a shell, or through the Coordinator
 `herdr-superwork suggestions [<id>]` lists the open ones, `accept <id> [S1]` and `dismiss <id> [S1]` decide one.
 An agent the board started cannot accept or dismiss. Two yeses to one suggestion at the same moment (two boards,
 or a board and a shell) make one task: the second is told it was made already. A yes that could not be written
-down (the task was busy) makes no task, so trying again never makes a second one. And when you filed the same work
+down (the task was busy) makes no task, so trying again never makes a second one. And when you added the same work
 yourself after it was suggested, yes makes no second task: it says `Already a task: proj/12`.
 
 ## The same thing is suggested once
@@ -89,5 +89,5 @@ the finding's place; both are read). It is
 a guess, so two more things back it up: every reviewer is given the list of what is suggested already and told not
 to report it again in any words, and an agent is told to look at `suggestions` and `list` first.
 
-A task that is done or archived holds nothing back: the same thing found after it is news. Deleting a task deletes
+A task that is done or archived holds nothing back: the same thing found after it is news. Removing a task removes
 its suggestions with it.

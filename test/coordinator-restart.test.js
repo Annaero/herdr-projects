@@ -58,7 +58,7 @@ test("restart keeps the conversation, new starts a fresh one, and one Coordinato
     await cli("coordinator", "restart"); assert.equal(w.agents()[0].agent.kind, "claude");
     await cli("coordinator", "new");
     assert.equal(w.agents()[0].agent.kind, "codex"); assert.equal(C.look().stale, false);
-    // Stop closes it; off turns the box back into filing word for word.
+    // Stop closes it; off turns the box back into adding tasks word for word.
     await cli("coordinator", "stop"); assert.equal(w.agents().length, 0); assert.deepEqual(w.state().tabs.map((x) => x.label), ["1"]); assert.equal(C.look().state, "exited"); // its tab is gone, the home space stays
     await cli("config", "coordinator", "off");
     assert.equal(C.choice(), null);

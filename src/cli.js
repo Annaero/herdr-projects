@@ -34,7 +34,7 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork coordinator                   the Coordinator (the agent behind the board's box): who it is, how it stands
   herdr-superwork coordinator tell <text> [--delegate]
                                                 say something to it (it is started when it is not running); --delegate is
-                                                the board's tab: what it files from this message gets an agent at once
+                                                the board's tab: what it adds from this message gets an agent at once
   herdr-superwork coordinator where             where the human was when they last wrote to it from the board (for the Coordinator itself)
   herdr-superwork coordinator restart           start its program again, in the same conversation
   herdr-superwork coordinator new [--agent KIND] [--model M] [--effort E]
@@ -152,7 +152,7 @@ export async function main(argv) {
   let result;
   switch (cmd) {
     case "add": case "new": case "suggest": {
-      // An agent files nothing by itself: what it "adds" is a suggestion on its own task, for the human to decide.
+      // An agent adds no task by itself: what it "adds" is a suggestion on its own task, for the human to decide.
       const from = callerTask() || (cmd === "suggest" ? (flags.from ? S.find(flags.from) : null) : null);
       if (cmd === "suggest" && !from) throw new Error("suggest needs --from <the id of the task you are on>. Try: herdr-superwork help");
       if (from) {
@@ -161,11 +161,11 @@ export async function main(argv) {
         break;
       }
       const t = A.add(here, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "", repo: flags.repo });
-      // Filed by the Coordinator from a message the human sent with tab: delegated here, flag or no flag.
+      // Added by the Coordinator from a message the human sent with tab: delegated here, flag or no flag.
       let tab = false;
       if (!flags.delegate && process.env.HERDR_PANE_ID && !process.env.HERDR_PLUGIN_ID) { try { tab = (await import("./coordinator.js")).tabTurn(process.env.HERDR_PANE_ID); } catch {} }
       if (flags.delegate || tab) A.delegate(t.id, pickChoices(flags));
-      result = [brief(shownOf(t.id)), `${t.id}: filed${flags.delegate || tab ? `, an agent is on it${tab ? ` (the message was sent with ${keyName("delegate")})` : ""}` : ""}${S.titleNote(rest(1))}`];
+      result = [brief(shownOf(t.id)), `${t.id}: added${flags.delegate || tab ? `, an agent is on it${tab ? ` (the message was sent with ${keyName("delegate")})` : ""}` : ""}${S.titleNote(rest(1))}`];
       break;
     }
     case "list": case "ls": {
@@ -184,17 +184,18 @@ export async function main(argv) {
     case "dismiss": { const r = A.dismissSuggestion(need(1, "an id"), pos[2]); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "report": {
       const me = callerTask();
-      if (!pos[1] && flags.title && !me) { const t = A.add(here, flags.title, { description: flags.msg || flags.desc || "", repo: flags.repo }); result = [brief(shownOf(t.id)), `${t.id}: filed${S.titleNote(flags.title)}`]; break; }
+      if (!pos[1] && flags.title && !me) { const t = A.add(here, flags.title, { description: flags.msg || flags.desc || "", repo: flags.repo }); result = [brief(shownOf(t.id)), `${t.id}: added${S.titleNote(flags.title)}`]; break; }
       const id = pos[1] || me?.id;
-      if (!id) throw new Error("report needs an id, or --title to file a new task.");
+      if (!id) throw new Error("report needs an id, or --title to add a new task.");
       const target = S.find(id);
       const t = A.report(target.id, { state: flags.state, kind: flags.kind, msg: flags.msg, title: flags.title, progress: flags.progress, eta: flags.eta, asAgent: !!me && me.id === target.id });
-      result = [brief(shownOf(t.id)), me && me.id === t.id && flags.state === "blocked" ? "Reported. Stop now; the human's answer arrives as your next message." : `${t.id}: ${flags.state || "updated"}${flags.title ? S.titleNote(flags.title) : ""}`];
+      const what = [flags.title && "title", flags.state].filter(Boolean).join(", "); // what changed: "proj/1: updated (title, done)"
+      result = [brief(shownOf(t.id)), me && me.id === t.id && flags.state === "blocked" ? "Reported. Stop now; the human's answer arrives as your next message." : `${t.id}: updated${what ? ` (${what})` : ""}${flags.title ? S.titleNote(flags.title) : ""}`];
       break;
     }
-    case "describe": { const t = A.describe(need(1, "an id"), rest(2)); result = [brief(shownOf(t.id)), `${t.id}: description saved`]; break; }
-    case "rename": { const t = A.rename(need(1, "an id"), rest(2)); result = [brief(shownOf(t.id)), `${t.id}: renamed`]; break; }
-    case "delegate": { const t = A.delegate(need(1, "an id"), pickChoices(flags)); result = [brief(shownOf(t.id)), `${t.id}: ${t.stage === "queued" ? "waiting for a free slot" : "an agent is on it"}`]; break; }
+    case "describe": { const t = A.describe(need(1, "an id"), rest(2)); result = [brief(shownOf(t.id)), `${t.id}: updated (description)`]; break; }
+    case "rename": { const t = A.rename(need(1, "an id"), rest(2)); result = [brief(shownOf(t.id)), `${t.id}: updated (title)`]; break; }
+    case "delegate": { const t = A.delegate(need(1, "an id"), pickChoices(flags)); result = [brief(shownOf(t.id)), `${t.id}: ${t.stage === "queued" ? "started, waiting for a free slot" : "started, an agent is on it"}`]; break; }
     case "tell": { const r = A.tell(need(1, "an id"), need(2, "the text") && rest(2)); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "stop": { const t = A.stop(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: stopped`]; break; }
     case "start": { const t = A.startHuman(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: in progress`]; break; }
@@ -207,7 +208,7 @@ export async function main(argv) {
     case "pin": { const t = A.pin(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: ${t.pinned ? "pinned" : "unpinned"}`]; break; }
     case "archive": { const t = A.archive(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: archived`]; break; }
     case "restore": case "unarchive": { const t = A.restore(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: restored`]; break; }
-    case "clear": { const r = await A.clear(need(1, "an id")); result = [r, r.kept.length ? `${r.id} cleared. Kept, so no work is lost: ${r.kept.join(", ")}` : `${r.id} cleared`]; break; }
+    case "clear": { const r = await A.clear(need(1, "an id")); result = [r, r.kept.length ? `${r.id}: removed. Kept, so no work is lost: ${r.kept.join(", ")}` : `${r.id}: removed`]; break; }
     case "config": {
       const id = flags.id;
       const value = pos.length > 2 ? rest(2) : undefined;

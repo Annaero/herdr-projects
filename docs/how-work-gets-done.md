@@ -114,7 +114,7 @@ every half minute, board open or closed) and happens once the space is free, aft
 that has been quiet for ten minutes. Work that appeared meanwhile is kept. An agent herdr cannot place (status
 "unknown") counts as at work until its screen has stood still for two minutes and its saved conversation ends in a
 finished turn and nothing runs under the agent program (an agent of unknown status that keeps helper programs
-running is therefore never closed by itself: archive or clear its task). A reply to work that was cleaned up starts a new round in a fresh worktree. herdr also opens
+running is therefore never closed by itself: archive or remove its task). A reply to work that was cleaned up starts a new round in a fresh worktree. herdr also opens
 the repo itself as a space when it makes a repo's first worktree; that one is closed with the repo's last task
 space, unless it was open before or you use it (a second pane or tab, an agent, a running command, or you are
 looking at it). `cleanup` off keeps everything.

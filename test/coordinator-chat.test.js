@@ -19,7 +19,7 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
   const w = await coordWorld();
   try {
     assert.ok(C.ready());
-    w.script({ coordinator: [{ said: "Filed proj/1." }, { said: "Delegated proj/1." }] });
+    w.script({ coordinator: [{ said: "Added proj/1." }, { said: "Delegated proj/1." }] });
     const s = open(w);
     // The chat at the bottom is the Coordinator's: one line says who you talk to and where it stands, and under it one
     // rounded box holds the line you type on. Nothing else: no program, model or effort, no label, no keys on that line.
@@ -53,23 +53,23 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     s.beat();
     for (const width of [160, 120, 60]) {
       const text = s.text(width);
-      assert.match(text, /\n *\n ○ Coordinator {2}idle *\n╭─+╮\n│ Filed proj\/1\. +│\n│ +│\n│ ❯ ask or tell it anything +│\n╰─+╯\n {2}[^\n]*alt\+c hide the chat · \? more *$/, `at ${width} columns`);
+      assert.match(text, /\n *\n ○ Coordinator {2}idle *\n╭─+╮\n│ Added proj\/1\. +│\n│ +│\n│ ❯ ask or tell it anything +│\n╰─+╯\n {2}[^\n]*alt\+c hide the chat · \? more *$/, `at ${width} columns`);
       assert.doesNotMatch(text, /build a login page|›/, `at ${width} columns`);
       assert.ok(s.screen(width).every((l) => l.length <= width));
     }
     assert.equal(C.look().unseen, "", "a reply you can see counts as seen");
     // alt+c hides its latest message and shows it again: who you talk to, and where it stands, stays. The board remembers.
     s.press("alt+c"); assert.equal(s.v.chatOpen, false);
-    assert.doesNotMatch(s.text(), /Filed proj\/1\./); assert.match(s.text(), /\n *\n ○ Coordinator {2}idle *\n─+\n❯ ask or tell it anything *\n─+\n {2}[^\n]*alt\+c show the chat · \? more *$/); // hidden: who you talk to, and the line you type on
+    assert.doesNotMatch(s.text(), /Added proj\/1\./); assert.match(s.text(), /\n *\n ○ Coordinator {2}idle *\n─+\n❯ ask or tell it anything *\n─+\n {2}[^\n]*alt\+c show the chat · \? more *$/); // hidden: who you talk to, and the line you type on
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).chat, "closed");
     // esc never shows the message, and never closes the board: hidden, it stays hidden, and nothing is asked.
     s.press("esc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []); assert.ok(s.v.closing); assert.match(s.text(), /Press ctrl\+c again to close the board/); s.v.closeSoon();
     // Shown, esc does not hide it either: the same key that hid it shows it, and the chat's line names only that key.
-    s.press("alt+c"); assert.equal(s.v.chatOpen, true); assert.match(s.text(), /Filed proj\/1\./); assert.match(s.text(), /alt\+c hide the chat/); assert.doesNotMatch(s.text(), /esc hide/);
-    s.press("esc", "esc"); assert.equal(s.v.chatOpen, true); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []); assert.match(s.text(), /Filed proj\/1\./); s.v.closeSoon();
+    s.press("alt+c"); assert.equal(s.v.chatOpen, true); assert.match(s.text(), /Added proj\/1\./); assert.match(s.text(), /alt\+c hide the chat/); assert.doesNotMatch(s.text(), /esc hide/);
+    s.press("esc", "esc"); assert.equal(s.v.chatOpen, true); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []); assert.match(s.text(), /Added proj\/1\./); s.v.closeSoon();
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).chat, "open");
     // With a draft, esc puts the words away and the message stays up, however often it is pressed.
-    s.type("half"); assert.match(s.text(), /│ Filed proj\/1\. +│\n│ +│\n│ ❯ half +│\n╰─+╯\n {2}enter send · tab send, and put an agent on it · esc put away · shift\+enter new line *$/); s.press("esc"); assert.equal(s.v.value(), ""); assert.equal(s.v.chatOpen, true); // while you type: only what the keys do now
+    s.type("half"); assert.match(s.text(), /│ Added proj\/1\. +│\n│ +│\n│ ❯ half +│\n╰─+╯\n {2}enter send · tab send, and put an agent on it · esc put away · shift\+enter new line *$/); s.press("esc"); assert.equal(s.v.value(), ""); assert.equal(s.v.chatOpen, true); // while you type: only what the keys do now
     s.press("esc"); assert.equal(s.v.chatOpen, true); s.v.closeSoon(); s.press("alt+c"); assert.equal(s.v.chatOpen, false);
     // The next thing you type goes to the same agent in the same conversation; Tab asks it to delegate.
     s.type("and start it"); s.press("tab");
@@ -78,10 +78,10 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     assert.equal(w.agents()[0].agent.prompts.length, 2);
     // Sent with tab: that is said in the message itself, under the words, so it cannot be missed. The chat shows the words alone.
     assert.equal(w.agents()[0].agent.prompts[1], `and start it\n\n${C.TAB_NOTE}`);
-    assert.match(C.TAB_NOTE, /^\[Sent with tab on the board: start every task you file from this message right away, without asking\./);
-    assert.equal(C.get().last, "and start it"); assert.equal(C.get().over, "Filed proj/1.", "what it had last said when the words went in");
+    assert.match(C.TAB_NOTE, /^\[Sent with tab on the board: start every task you add from this message right away, without asking\./);
+    assert.equal(C.get().last, "and start it"); assert.equal(C.get().over, "Added proj/1.", "what it had last said when the words went in");
     // Each message keeps its own: the newer one does not take the first one's repo or delegate choice away.
-    assert.match(C.where(), /2 messages[^\n]*\n- "build a login page"[^\n]*It was sent with enter[^\n]*\n- "and start it"[^\n]*It was sent with tab: put an agent on every task you file from it, without asking\.$/);
+    assert.match(C.where(), /2 messages[^\n]*\n- "build a login page"[^\n]*It was sent with enter[^\n]*\n- "and start it"[^\n]*It was sent with tab: put an agent on every task you add from it, without asking\.$/);
     // Hidden, a new reply is said on the chat's one line; shown again, it is there.
     s.beat(); assert.equal(s.v.chatOpen, false); assert.doesNotMatch(s.text(), /Delegated proj\/1\./); assert.match(s.text(), /\n ○ Coordinator {2}new reply *\n/); assert.ok(C.look().unseen);
     s.press("alt+c"); assert.match(s.text(), /Delegated proj\/1\./); assert.equal(C.look().unseen, "");
@@ -223,7 +223,7 @@ test("the herdr action goes into the Coordinator's pane from anywhere, starting 
   } finally { w.cleanup(); }
 });
 
-test("sent with tab: every task the Coordinator files from that message gets an agent, said in the message and done by the board itself", async () => {
+test("sent with tab: every task the Coordinator adds from that message gets an agent, said in the message and done by the board itself", async () => {
   const w = await coordWorld();
   const out = []; const write = process.stdout.write;
   const board = async (...argv) => { out.length = 0; process.stdout.write = (x) => (out.push(String(x)), true); try { assert.equal(await main(argv), 0); } finally { process.stdout.write = write; } globalThis.__swJobs = []; return out.join(""); }; // (the agents themselves are not started here)
@@ -237,45 +237,45 @@ test("sent with tab: every task the Coordinator files from that message gets an 
     w.script({ coordinator: [{ status: "working" }] });
     C.send(w.root, "a login page, and dark mode", { delegate: true }); await drainJobs(runJob);
     assert.equal(w.agents()[0].agent.prompts[0], `a login page, and dark mode\n\n${C.TAB_NOTE}`);
-    assert.match(C.rules(), /A message sent with tab ends with a line in square brackets saying so\.[^\n]*every task you file from that message gets an agent at once, with no question back/);
+    assert.match(C.rules(), /A message sent with tab ends with a line in square brackets saying so\.[^\n]*every task you add from that message gets an agent at once, with no question back/);
     const pane = C.get().pane;
-    // A task filed from anywhere else is only filed: the human's shell, a working agent's pane.
-    assert.match(await board("add", "Mine", "--repo", w.root), /^proj\/1: filed\n$/);
+    // A task added from anywhere else is only added: the human's shell, a working agent's pane.
+    assert.match(await board("add", "Mine", "--repo", w.root), /^proj\/1: added\n$/);
     process.env.HERDR_PANE_ID = "w9:p1";
-    assert.match(await board("add", "A worker's follow-up", "--repo", w.root), /^proj\/2: filed\n$/);
-    // Filed from the Coordinator's pane, with no flag at all (it forgot): the board delegates it. Every one of them.
+    assert.match(await board("add", "A worker's follow-up", "--repo", w.root), /^proj\/2: added\n$/);
+    // Added from the Coordinator's pane, with no flag at all (it forgot): the board delegates it. Every one of them.
     process.env.HERDR_PANE_ID = pane;
-    assert.match(await board("add", "Login page", "--repo", w.root), /^proj\/3: filed, an agent is on it \(the message was sent with tab\)\n$/);
-    assert.match(await board("add", "Dark mode", "--repo", w.root), /^proj\/4: filed, an agent is on it \(the message was sent with tab\)\n$/);
+    assert.match(await board("add", "Login page", "--repo", w.root), /^proj\/3: added, an agent is on it \(the message was sent with tab\)\n$/);
+    assert.match(await board("add", "Dark mode", "--repo", w.root), /^proj\/4: added, an agent is on it \(the message was sent with tab\)\n$/);
     // It remembered the flag: the same, once.
-    assert.match(await board("add", "Sign up", "--repo", w.root, "--delegate"), /^proj\/5: filed, an agent is on it\n$/);
+    assert.match(await board("add", "Sign up", "--repo", w.root, "--delegate"), /^proj\/5: added, an agent is on it\n$/);
     assert.deepEqual(ids().filter(started), ["proj/3", "proj/4", "proj/5"]);
-    // Its turn is over. What it files later (asked in its own pane, say) is not that message's: filed, not delegated.
+    // Its turn is over. What it adds later (asked in its own pane, say) is not that message's: added, not delegated.
     endTurn();
-    assert.match(await board("add", "Later", "--repo", w.root), /^proj\/6: filed\n$/);
-    // A tab message that files nothing (a question) delegates nothing: no task appears, none is started.
+    assert.match(await board("add", "Later", "--repo", w.root), /^proj\/6: added\n$/);
+    // A tab message that adds nothing (a question) delegates nothing: no task appears, none is started.
     w.script({ coordinator: [{ said: "Two are being worked on." }] });
     C.send(w.root, "how is it going?", { delegate: true }); await drainJobs(runJob);
     assert.equal(ids().length, 6); assert.deepEqual(ids().filter(started), ["proj/3", "proj/4", "proj/5"]);
-    // enter: as before. The words go in alone, and what is filed from them is only filed.
+    // enter: as before. The words go in alone, and what is added from them is only added.
     w.script({ coordinator: [{ status: "working" }] });
     C.send(w.root, "note down: tidy the footer"); await drainJobs(runJob);
     assert.equal(w.agents()[0].agent.prompts.at(-1), "note down: tidy the footer");
-    assert.match(await board("add", "Tidy the footer", "--repo", w.root), /^proj\/7: filed\n$/);
+    assert.match(await board("add", "Tidy the footer", "--repo", w.root), /^proj\/7: added\n$/);
     // A tab message that goes in while it is still busy with the enter one: whose task the next one is cannot be
     // known here, so the board leaves it to the line in the message.
     w.script({ coordinator: [{ status: "working" }] });
     C.send(w.root, "and a new logo", { delegate: true }); await drainJobs(runJob);
     assert.equal(w.agents()[0].agent.prompts.at(-1), `and a new logo\n\n${C.TAB_NOTE}`);
-    assert.match(await board("add", "New logo", "--repo", w.root), /^proj\/8: filed\n$/);
+    assert.match(await board("add", "New logo", "--repo", w.root), /^proj\/8: added\n$/);
     // Both dealt with; the next tab message is clear again.
     endTurn();
     w.script({ coordinator: [{ status: "working" }] });
     C.send(w.root, "a pricing page", { delegate: true }); await drainJobs(runJob);
-    assert.match(await board("add", "Pricing page", "--repo", w.root), /^proj\/9: filed, an agent is on it \(the message was sent with tab\)\n$/);
+    assert.match(await board("add", "Pricing page", "--repo", w.root), /^proj\/9: added, an agent is on it \(the message was sent with tab\)\n$/);
     // A Coordinator that was restarted is not in that turn any more.
     S.writeJson(path.join(S.dataDir(), "coordinator", "default", "state.json"), { ...C.get(), startedAt: C.get().startedAt + 1 });
-    assert.match(await board("add", "After a restart", "--repo", w.root), /^proj\/10: filed\n$/);
+    assert.match(await board("add", "After a restart", "--repo", w.root), /^proj\/10: added\n$/);
     assert.deepEqual(ids().filter(started), ["proj/3", "proj/4", "proj/5", "proj/9"]);
     globalThis.__swJobs = [];
   } finally { process.stdout.write = write; delete process.env.HERDR_PANE_ID; delete process.env.HERDR_SUPERWORK_HANDLED_MS; w.cleanup(); }

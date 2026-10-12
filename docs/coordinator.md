@@ -7,12 +7,12 @@ and the Coordinator asks for them itself (`herdr-superwork coordinator where` li
 its own).
 
 **`Tab` means "and start it right away".** A message sent with `Tab` instead of `Enter` has every task the
-Coordinator files from it delegated at once, however many there are, with nothing more to confirm. That does not
+Coordinator adds from it delegated at once, however many there are, with nothing more to confirm. That does not
 hang on the Coordinator remembering to look something up: the message carries one line under your words saying it
 was sent with `Tab` (the chat on the board shows your words alone), and the board does it too: a task the
-Coordinator files while it is still in the turn of a `Tab` message is delegated by `add` itself. A message that
-files nothing (a question, a status check, a word about an existing task) delegates nothing extra, and one sent with
-`Enter` is as before: its tasks are filed, and delegated only when you asked for that. From a shell,
+Coordinator adds while it is still in the turn of a `Tab` message is delegated by `add` itself. A message that
+adds nothing (a question, a status check, a word about an existing task) delegates nothing extra, and one sent with
+`Enter` is as before: its tasks are added, and delegated only when you asked for that. From a shell,
 `herdr-superwork coordinator tell <text> --delegate` is the same as `Tab`. A board opened from the Coordinator's own pane stays in the repo it was
 last in: that pane's folder is nobody's repo. It is
 an ordinary herdr agent in a tab of its own, named `Coordinator`, in your home space (`~`; see below), in a folder
@@ -21,6 +21,11 @@ folder (`HERDR_SUPERWORK_COORDINATOR_DIR` names another, which should be used fo
 arguments as any working agent: all its tools, nothing held back. It is started by your first message and stays; when
 its program exited or herdr restarted, your next message starts it again in the same conversation. The agent's own
 new-chat command (`/clear`, `/new`) is followed: the chat and a restart go with the conversation it is in now.
+
+**What it says it did.** When it acted on the board, its message ends with one short line that names the ids in
+plain words: added, updated (a title, a description, settings), removed, started an agent, approved, archived,
+restored. For example "Added proj/12 and started an agent on it". The commands answer in the same words (see
+[roles and commands](roles-and-commands.md)).
 
 On the board you talk to it through the chat and read its latest message there (`Alt+C` shows and hides it). For the
 whole conversation, its dialogs, its slash commands and its menus you **go into it** in herdr, not from the board:
