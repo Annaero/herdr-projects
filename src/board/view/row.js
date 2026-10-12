@@ -5,7 +5,7 @@ import { herdr } from "../../herdr.js";
 import { short, clean, age, prTag, bar, left } from "./words.js";
 import { MARK_STATES, failureFor, inReview, needsYou, statusColor, waitOf } from "./states.js";
 import { ETA_STEADY, labelRoom, shownFrom } from "./row-fit.js";
-import { resultColor, reviewTag, reviewCheck, reviewTagColor, currentReview, reviewNote, verdict } from "./review-words.js";
+import { resultColor, reviewTag, reviewTagColor, currentReview, reviewNote, verdict } from "./review-words.js";
 
 // The fewest cells a cut "doing now" sentence is still worth showing in.
 const SENTENCE_MIN = 20;
@@ -23,8 +23,8 @@ export class Row {
     if (r.state === "done") return t.dim(t.fg(c, t.mark("done"))); // finished: the same mark, only quieter
     return t.fg(c, t.mark(MARK_STATES.includes(r.state) ? r.state : "idle"));
   }
-  // What a row has for each column on the right: the bar, the percent, the minutes left, the review tag and the mark
-  // for how the review went, the pull request in the colour of its checks, the time. A cell the row does not have is the empty string, with no colour codes around nothing:
+  // What a row has for each column on the right: the bar, the percent, the minutes left, the review tag in the
+  // colour of how the review went, the pull request in the colour of its checks, the time. A cell the row does not have is the empty string, with no colour codes around nothing:
   // an empty cell must not count as a column. The bar, the percent and the minutes left share one colour.
   rowFields(r, now) {
     const t = this.theme, color = statusColor(r);
@@ -32,7 +32,7 @@ export class Row {
     const live = r.state !== "done", has = live && r.progress !== undefined;
     // The time is "working for" on a working row and "ago" on every other: the word says which.
     return { bar: has ? paint(color, bar(r.progress)) : "", percent: has ? paint(color, `${String(r.progress).padStart(3)}%`) : "", eta: live && r.eta !== undefined ? paint(color, left(r.eta)) : "", // minutes left show with no percent too
-      review: paint(reviewTagColor(r), reviewTag(r)), reviewCheck: paint(reviewTagColor(r), reviewCheck(r)), pr: prTag(t, r), elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
+      review: paint(reviewTagColor(r), reviewTag(r)), pr: prTag(t, r), elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
   }
   // What a row says after its name. Never what its heading already says ("to do", "approve?").
   sentence(r) {
@@ -80,12 +80,12 @@ export class Row {
     const max = (key) => Math.max(0, ...[...fields.values()].map((f) => visibleWidth(f[key])));
     const elapsed = Math.max(3, max("elapsed"));
     // Extremely long PR identifiers may shorten, but must never push time off-screen.
-    const pr = Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), review = max("review"), reviewCheck = max("reviewCheck");
-    const cols = [["bar", max("bar")], ["percent", max("percent")], ["eta", max("eta")], ["review", review + (reviewCheck ? 2 : 0)], ["pr", pr], ["time", elapsed]].filter(([, w]) => w);
+    const pr = Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), review = max("review");
+    const cols = [["bar", max("bar")], ["percent", max("percent")], ["eta", max("eta")], ["review", review], ["pr", pr], ["time", elapsed]].filter(([, w]) => w);
     // The wider gap is a column with nothing in it, left of the review tag: the cell on each side of it makes two.
     const group = cols.findIndex(([key]) => !PROGRESS.includes(key));
     if (group > 0) cols.splice(group, 0, ["gap", 0]);
-    const layout = { now, review, reviewCheck, pr, elapsed, cols, ago: [...fields.values()].some((f) => f.ago), show: new Map() };
+    const layout = { now, review, pr, elapsed, cols, ago: [...fields.values()].some((f) => f.ago), show: new Map() };
     // Decided at widths that do not move as the numbers tick: the minutes left count as their widest (words.js: left).
     const cells = (ago) => cols.map(([key, w]) => ({ key, w: key === "eta" ? Math.max(w, ETA_STEADY) : w + (key === "time" && ago ? 4 : 0) }));
     const fit = (r) => { const f = fields.get(r); return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, time: true } }; };
@@ -110,9 +110,9 @@ export class Row {
     const fill = (s, n, left) => { const gap = " ".repeat(Math.max(0, n - visibleWidth(s))); return left ? s + gap : gap + s; }; // by terminal cells, not string length
     const text = {
       bar: f.bar, percent: f.percent, eta: f.eta,
-      // R#2 and the mark for how the review went end where the pull request starts, so a tag with no mark sits
-      // against its PR like one with a mark does: the review belongs to the pull request, not to the progress.
-      review: f.review + (f.reviewCheck ? " " + f.reviewCheck : ""),
+      // R#2 ends where the pull request starts: the review belongs to the pull request, not to the progress. Its
+      // colour says how the review went: it has no mark.
+      review: f.review,
       // PR#16 the same way, so the "PR#" parts line up. Its colour says how its checks went: it has no mark.
       pr: f.pr ? fill(truncateToWidth(f.pr, layout.pr, "…"), layout.pr, true) : "",
       gap: "",

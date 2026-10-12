@@ -9,13 +9,10 @@ export const resultColor = (rv) => (G.isTagged(rv) ? (rv.pass ? "green" : "red")
 // In the task panel's heading: nothing on the first review; from the second on, in words: "2nd review".
 export const roundWords = (r) => (S.reviewRound(r) >= 2 ? `${ordinal(S.reviewRound(r))} review` : "");
 // On a row: which review a task is on or last had, written like the pull request's number: "R#2". Nothing before the
-// first. How that review went is a mark beside it: colour alone does not say it. "R#2" with
-// no mark, in the review colour: that review is still on. "R#2 ✓" green: it passed. "R#2 ✗" red: it failed, and it
-// stays so while the agent fixes what the review found.
+// first. Its colour alone says how that review went, with no mark beside it: green, it passed; red, it failed, and it
+// stays so while the agent fixes what the review found; grey, no result yet: the review is still on.
 export const reviewTag = (r) => (S.reviewNumber(r) ? `R#${S.reviewNumber(r)}` : "");
-const reviewOutcome = (r) => (reviewing(r) ? "" : S.reviewResult(r));
-export const reviewCheck = (r) => (reviewTag(r) ? { pass: "✓", fail: "✗" }[reviewOutcome(r)] || "" : "");
-export const reviewTagColor = (r) => (reviewing(r) ? "review" : { pass: "green", fail: "red" }[reviewOutcome(r)] || "subtext0");
+export const reviewTagColor = (r) => (reviewing(r) ? "subtext0" : { pass: "green", fail: "red" }[S.reviewResult(r)] || "subtext0");
 export const currentReview = (r) => S.currentReview(r);
 // Strip only board-generated review metadata; task descriptions and agent wording stay intact.
 export const reviewNote = (r) => (isAgent(r) ? String(r.msg || "").replace(G.SENTENCE, "$1") : r.msg);

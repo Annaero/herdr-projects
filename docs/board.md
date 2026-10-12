@@ -17,7 +17,7 @@ the minutes left), and then the review, the pull request and the time:
 
 ```
  ready to approve
- ✓ Add an undo for clear  Fail · 1 critical, 1 major               R#2 ✗ PR#18 12m ago
+ ✓ Add an undo for clear  Fail · 1 critical, 1 major                 R#2 PR#18 12m ago
  working
  ◐ Tidy the first-run questions  Running the tests          ███░░░░░  40% 12m    R#1 PR#17    5m
 ```
@@ -27,11 +27,10 @@ reviewer works, the mark, the bar, the percent and the minutes left are the gree
 and the sentence says only what the reviewer is doing.
 
 `R#2` is the review the task is on, or the last one it had. It belongs to the pull request, not to the progress: it
-sits one cell left of the `PR#`, with or without a mark, and the tags end under each other down the list. A mark
-beside it, like the pull request's, says how that review went, and the colour repeats it: `R#2 ✓` in green, it
-passed; `R#2 ✗` in red, it failed, and it stays so while the agent fixes what the review found; `R#2` with no mark,
-in the row's review colour, the reviewer is on it right now: that colour is now a green too, so the mark is what
-tells a running review from one that passed. A review from before the gate goes by its advice. A
+sits one cell left of the `PR#`, and the tags end under each other down the list. Its colour says how that review
+went, and it has no mark beside it: green, it passed; red, it failed, and it stays so while the agent fixes what
+the review found; grey, there is no result yet, because the reviewer is on it right now. The three are told apart
+in the light themes and the dark ones alike. A review from before the gate goes by its advice. A
 task that was never reviewed has no tag. Every row that has had a review keeps it: under review, back with the
 agent, waiting for your yes, done.
 

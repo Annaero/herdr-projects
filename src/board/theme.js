@@ -78,7 +78,8 @@ export function resolve(cfg = {}, light = null, want = "herdr") {
   if (typeof ui.accent === "string" && ui.accent !== "cyan" && typeof th.custom?.accent !== "string") palette.accent = parseColor(ui.accent); // herdr's older accent setting
   if (mode && th.auto_switch === true) over(th.custom?.[mode]);
   // A review that is running has no colour of its own: "review" is the theme's green, the colour of what is ready to
-  // approve. The name stays, so whatever paints "a review is on" (the row's mark and bar, its R# tag) is that green.
+  // approve. The name stays, so whatever paints "a review is on" (the row's mark and bar) is that green.
+  // The R# tag is not: it is grey until its review has a result, so green there says only "passed".
   palette.review = palette.green;
   return { name: canonical(name) || name, palette, symbols: ui.status_indicators === "symbols", dots: ui.status_indicators === "dots" };
 }

@@ -47,7 +47,7 @@ export const KEYS = [
   { id: "back", keys: ["escape"], show: "esc", group: "plain", help: "back, one step at a time", hint: "back",
     doc: "back, one step at a time, and nothing else: find is left, a draft is put away, then the whole task, the filter and the archive close. With none of those left it shows the same hint as {close}. It never shows or hides the chat, never changes who you talk to, and never closes the board by itself" },
   { id: "menu", keys: [], raw: ["?"], show: "?", group: "plain", help: "this menu", hint: "more",
-    doc: "the menu: every key in these three groups, each line with its key. A ctrl or alt line can be picked with {up} {down} and {enter}, which does what its key does. Under the keys, what a row's `R#2 ✓` review tag says; where the window is too short for all of it, {down} on the last line scrolls on down, and {up} on the first scrolls up",
+    doc: "the menu: every key in these three groups, each line with its key. A ctrl or alt line can be picked with {up} {down} and {enter}, which does what its key does. Under the keys, what a row's `R#2` review tag and its colour say; where the window is too short for all of it, {down} on the last line scrolls on down, and {up} on the first scrolls up",
     run: (v) => { v.menu = { at: 0 }; } },
   { id: "sayYes", keys: ["y", "shift+y"], raw: ["y", "Y"], show: "y", gap: "  ", group: "plain", help: "answer a question: {sayYes} yes, {sayNo} or {back} no ({enter} never confirms)",
     doc: "answer a question the board asks: {sayYes} yes, {sayNo} or {back} no. Only while a question is up; {enter} never confirms" },

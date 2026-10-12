@@ -126,7 +126,7 @@ test("a review that is running is the theme's own green, the colour of what is r
   for (const name of names) { const p = resolve({ theme: { name } }, null, "herdr").palette; assert.equal(typeof p.green, "number", name); assert.equal(p.review, p.green, `${name}: review is green`); }
   { const p = resolve({}, null, "auto").palette; assert.equal(p.review, p.green); assert.equal(p.review, -16 + 2); }
   assert.equal(resolve({ theme: { custom: { green: "#010203", mauve: "#ff00ff" } } }, null, "herdr").palette.review, 0x010203); // a green of your own is followed; mauve plays no part
-  // Whatever is painted "review" (the row's mark and bar, the R# tag of a review that is on) comes out exactly as green.
+  // Whatever is painted "review" (the row's mark and bar while the reviewer works) comes out exactly as green.
   if (!process.env.NO_COLOR) { loadTheme(); assert.equal(theme.fg("review", "R#2"), theme.fg("green", "R#2")); assert.notEqual(theme.fg("review", "R#2"), "R#2"); }
 });
 

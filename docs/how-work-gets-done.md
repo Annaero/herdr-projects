@@ -23,7 +23,7 @@ login error, token use. With the board open or closed it then:
    review at once, with its last message; one whose turn was ended by its provider is tried again by the board
    (see [A turn cut off by the provider](provider-errors.md)). The board decides from the findings (see [The gate](gate.md)): a
    review that fails goes straight back to the agent. The row says the result and a tally (`Pass · 2 minor`), and
-   its `R#2 ✓` tag which review it was and, by its mark, how it went; the task panel has its summary, and every earlier
+   its `R#2` tag which review it was and, by its colour, how it went; the task panel has its summary, and every earlier
    review of the task;
 4. waits for your approval (`Ctrl+L`).
 
