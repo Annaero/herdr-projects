@@ -161,7 +161,7 @@ test("the columns on the right start at the same place on every row, at every wi
   const ORDER = ["bar", "percent", "eta", "review", "pr", "time"];
   const own = (r, width) => ORDER.filter((key) => ({ bar: r.progress !== undefined, percent: r.progress !== undefined, eta: r.eta !== undefined, review: !!r.reviewRound, pr: !!r.pr, time: true }[key]));
   const seen = new Set();
-  for (const width of [200, 130, 104, 90, 84, 76, 70, 64, 60, 56, 50, 46, 40, 34, 28]) { // 130: the board in the report
+  for (const width of [200, 130, 104, 90, 84, 76, 70, 64, 63, 60, 56, 50, 46, 40, 34, 28]) { // 130: the board in the report; 63: just under where a fixed cutoff once hid every bar
     const lines = draw(recs, width), at = {};
     lines.forEach((line, n) => {
       const r = recs[n], here = places(line), kept = ORDER.filter((key) => key in here), has = own(r, width);
@@ -190,6 +190,11 @@ test("the columns on the right start at the same place on every row, at every wi
     });
   }
   assert.deepEqual([...seen].sort(), Object.keys(COLS).sort()); // every column was looked at
+  // No width hides the bars by itself: a short name beside a long one keeps its bar, down to the last cell it fits in.
+  const short = { ...work, id: "p/11", title: "Fix", progress: 8, eta: 3, pr: 35 };
+  const fits = 3 + short.title.length + 2 + 8 + 1 + 4 + 1 + 3 + 1 + 5 + 1 + 3; // mark, name, gap, bar, percent, minutes, PR#35, time
+  for (const width of [63, 50, fits]) assert.match(draw([short, recs[5]], width)[0], /^ . Fix +█░{7} {3}8% {2}3m PR#35 +2h( {4})?$/, `the bar shows at ${width}`);
+  assert.doesNotMatch(draw([short, recs[5]], fits - 1)[0], /[█░]/);
   // The report's board: a row that says something, beside rows that end ("ago") and rows that run. Its bar stays put.
   const [quiet, loud] = draw([recs[2], recs[5], recs[8]], 110);
   assert.match(quiet, /panel +░{8} {3}4% {12}2h {4}$/); assert.match(loud, /every minute {2}Opening the pull request \S*… {2}░{8} {3}5% 14m PR#35 {2}2h {4}$/);
