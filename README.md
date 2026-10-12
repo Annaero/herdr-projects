@@ -68,6 +68,7 @@ The rest is one page per topic:
 - [The Coordinator](docs/coordinator.md): the agent behind the chat, `Tab`, going into its pane
 - [Roles and commands](docs/roles-and-commands.md): Agent, Reviewer, Watcher, Coordinator; the how-to skill; the command line
 - [How work gets done](docs/how-work-gets-done.md): delegating, finishing, the keeper, staying current with main, approving, cleanup
+- [A turn cut off by the provider](docs/provider-errors.md): a model at capacity, an overloaded server, a dropped connection: the board waits and tries again
 - [The gate](docs/gate.md): what a review's findings decide: what goes back, what may merge
 - [Settings: two places](docs/settings.md): the repo's file, your own settings, one task's own; fast mode for a
   Codex reviewer (`reviewerFast`, on by default) or working agent (`fast`)

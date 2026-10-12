@@ -2,7 +2,7 @@
 //
 // The board draws pi-work's five states: idle, working, blocked, done, error; blocked carries a kind. herdr has
 // no `error` state and no blocked `kind` today. When it exposes them (OSC 7501), this is the only place to change.
-import { RUNNER_STAGES } from "./store.js";
+import { RUNNER_STAGES, waitingOf, waitLine } from "./store.js";
 
 export const STATES = ["idle", "working", "blocked", "done", "error"];
 const STAGE_LINE = { starting: "starting", queued: "waiting for a free slot", setup: "setting up", checking: "running the check", pushing: "pushing the branch", reviewing: "under review", merging: "merging" };
@@ -20,6 +20,10 @@ export function show(t, live, now = Date.now()) {
   const eta = role && watch?.role === role ? etaOf(watch.progress, began(t), now) : undefined;
   const out = (state, extra = {}) => ({ state, app: t.app || undefined, msg: t.msg || "", ...extra });
   const agent = !!t.app && t.app !== t.owner;
+  // A turn cut off by a passing provider error, and the board waiting to try again by itself: that is work going on,
+  // not something that needs you, and the row says why and when.
+  const wait = waitingOf(t);
+  if (wait) return out("working", { msg: waitLine(wait), reviewing: wait.who === "reviewer" }); // no bar: nothing is running
   switch (t.stage) {
     case "todo": return out("idle");
     case "progress": return out("working", { app: t.owner, progress: t.watch?.progress, eta: t.watch?.eta }); // your own task: the progress and the minutes left you reported

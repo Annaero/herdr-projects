@@ -4,7 +4,7 @@ import * as F from "../../flow.js";
 import * as C from "../../coordinator.js";
 import { herdr } from "../../herdr.js";
 import { short, clean } from "./words.js";
-import { isAgent, reviewing, groupOf, statusColor } from "./states.js";
+import { isAgent, reviewing, groupOf, statusColor, reviewerWord } from "./states.js";
 
 export class Chat {
   // ---- the chat ---------------------------------------------------------------------------------------------------------
@@ -31,7 +31,7 @@ export class Chat {
     if (this.mode === "find") return null;
     if (this.reply && r) {
       const color = statusColor(r), toAgent = this.hasAgent(r);
-      const word = r.archivedAt ? "archived" : reviewing(r) && r.state === "working" ? "reviewer is working" : groupOf(r);
+      const word = r.archivedAt ? "archived" : reviewing(r) && r.state === "working" ? reviewerWord(r) : groupOf(r);
       const starts = !r.host && !isAgent(r) && ["todo", "progress"].includes(r.stage);
       const meta = r.archivedAt ? "read-only" : toAgent ? `its agent · ${clean(r.app || r.agent || "agent")}` : starts ? "no agent yet: your message starts one" : this.canDispatch || r.host ? "no agent on it: your message goes to the Coordinator, about this task" : "no agent on it: your message is added to its description";
       const pv = this.chatShows(r) ? this.previewOf(r) : null;

@@ -2,6 +2,7 @@
 import * as A from "../../actions.js";
 import { herdr } from "../../herdr.js";
 import { bar } from "./words.js";
+import { waitingOf } from "../../store.js";
 
 // The groups, in the order they need you. A task's state stays herdr's; the group is how the board files it.
 export const GROUPS = ["needs you", "ready to approve", "working", "done", "to do"];
@@ -17,6 +18,9 @@ export const canSendError = (r) => !!r && !r.host ? A.canSendError(r) : !!r && (
 export const inReview = (r) => r.state === "blocked" && r.kind === "permission" && r.stage === "approval" && !r.mergeFailed && !r.syncBlocked && !r.prFailure && r.prState !== "failing";
 export const reviewing = (r) => r.state !== "done" && (r.stage === "reviewing" || r.stage === "reviewneeds");
 export const needsYou = (r) => r.state === "blocked" || r.state === "error";
+// A turn the provider cut off, which the board tries again by itself (store/retries.js): the wait, or null.
+export const waitOf = (r) => waitingOf(r);
+export const reviewerWord = (r) => (waitOf(r) ? "reviewer was cut off" : "reviewer is working");
 export const groupOf = (r) => (inReview(r) ? "ready to approve" : needsYou(r) ? "needs you" : r.state === "working" ? "working" : r.state === "done" ? "done" : "to do");
 // The mark, the bar and the percent take the colour of the task's group; a task's own words (its title and what it
 // says) stay in herdr's text colours whatever its state. While the reviewer works they are "review": the theme's

@@ -42,7 +42,7 @@ export function turnEnded({ id, role = "agent", token, round = 0 }, extra = []) 
 // status (OSC 7501), prefer herdr's value for `when` and `why` here and keep the file for the message and token use.
 export function whyStopped(t, role = "agent", event = null) {
   const kind = role === "reviewer" ? t.link?.reviewer?.kind : t.agent;
-  const session = role === "reviewer" ? t.reviewSession : event?.session || t.session;
+  const session = role === "reviewer" ? event?.session || t.reviewSession : event?.session || t.session;
   const turn = readTurnOf(kind, { file: event?.file || (role === "agent" ? t.transcript : null), session, cwd: S.cwdOf(t) });
   return { when: event?.at || turn?.pos || null, why: turn?.error ? "error" : turn?.interrupted ? "interrupted" : turn?.finished ? turn.stop || "stop" : event ? "stop" : "", turn, hooked: !!event, kind, version: versionOf(kind), canRead: !!adapter(kind).readTurn };
 }

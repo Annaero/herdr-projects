@@ -18,8 +18,9 @@ login error, token use. With the board open or closed it then:
    current with main"), and runs the repo's `check` (a failure goes straight back to the agent, three tries);
 2. pushes the branch and opens a draft pull request, when there is an `origin` remote and `gh`;
 3. has a second agent review it adversarially, in a visible split of the same herdr space; it says what it found
-   and brings evidence; whatever it changed is put back. A reviewer that ends its turn with no verdict fails the
-   review at once, with its own error or last message. The board decides from the findings (see [The gate](gate.md)): a
+   and brings evidence; whatever it changed is put back. A reviewer that finishes its turn with no verdict fails the
+   review at once, with its last message; one whose turn was ended by its provider is tried again by the board
+   (see [A turn cut off by the provider](provider-errors.md)). The board decides from the findings (see [The gate](gate.md)): a
    review that fails goes straight back to the agent. The row says the result and a tally (`Pass · 2 minor`), and
    from the second review on which one it was (`· 2nd review`); the task panel has its summary, and every earlier
    review of the task;

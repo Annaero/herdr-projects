@@ -38,6 +38,8 @@ export function housekeeping(socket = currentSocket(), { force = false } = {}) {
       if (S.due(`tidy-${key(t.id)}`, 30000)) spawnRunner("cleanup", t.id, t.tidy.deleteBranch === "merged" ? ["--merged"] : []);
     }
     try { resync(tasks, socket); } catch {}
+    // An agent whose turn a passing provider error cut off is told to carry on once its wait is over.
+    for (const t of tasks) { const w = S.waitingOf(t); if (w?.who === "agent" && t.link?.socket === socket && Date.now() >= w.until && !runnerAlive(t)) { try { F.resumeCut(t.id); } catch {} } }
   }
   if (tasks.some((t) => (t.pr && !t.prMerged) || (Y.resyncable(t) && t.worktree)) && (force === "pr" || S.due("prpoll", 120000))) {
     if (inline()) (globalThis.__swJobs ||= []).push(["prpoll", "-", []]);

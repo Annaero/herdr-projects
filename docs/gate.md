@@ -32,7 +32,8 @@ The board then applies fixed rules to what came back:
 Findings below the gate still show on the review page, in the task panel and in a comment on the pull request,
 marked as not required.
 
-An error, a usage limit, a cut-off or a refusal is saved as "Agent stopped" with the real text; a login error makes
+An error, a usage limit, a cut-off or a refusal is saved as "Agent stopped" with the real text (an error of the
+provider that passes by itself is retried first: [A turn cut off by the provider](provider-errors.md)); a login error makes
 the task "Needs a login", and that comes first: older failure details are not sent and pull-request feedback does not
 wake the agent until you have logged in and then replied, pressed `Ctrl+R` or typed in the agent's terminal. A turn
 only blocks on you when the agent ran `report … --state blocked`; a final message that merely ends in a question

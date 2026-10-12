@@ -36,6 +36,35 @@ const findPane = (id) => st.panes.find((p) => p.pane_id === id);
 const findAgent = (target) => st.panes.find((p) => p.agent && (p.pane_id === target || p.agent.name === target));
 const bump = (p, status, complete) => { st.seq += 1; p.agent.status = status; p.agent.seq = st.seq; if (complete) p.agent.completion = st.seq; };
 
+// A step's `ends`: the name of a recorded ending in test/fixtures/endings (the last lines of a real saved conversation).
+// They are appended, with times of now, to this agent's own conversation file, where its program would keep it; the
+// first time, after the lines that open such a file. `hook`: the agent's own turn-end report is run too.
+const here = path.dirname(new URL(import.meta.url).pathname);
+function endTurn(p, prompt, step) {
+  const kind = p.agent.kind, real = fs.realpathSync(p.cwd), now = () => new Date().toISOString();
+  const arg = (...names) => { const i = p.agent.args.findIndex((a) => names.includes(a)); return i >= 0 ? p.agent.args[i + 1] : ""; };
+  let file = "", id = "", open = [];
+  if (kind === "claude") { id = arg("--session-id", "--resume"); file = path.join(process.env.CLAUDE_CONFIG_DIR, "projects", real.replace(/[^A-Za-z0-9]/g, "-"), `${id}.jsonl`); open = [{ type: "user", uuid: `u${st.seq}`, timestamp: now(), message: { role: "user", content: prompt } }]; }
+  else if (kind === "codex") {
+    id = p.agent.thread ||= `thread-${p.pane_id.replace(/\W/g, "")}-${st.seq}`;
+    file = path.join(process.env.CODEX_HOME, "sessions", "2026", `rollout-2026-${id}.jsonl`);
+    open = [...(fs.existsSync(file) ? [] : [{ timestamp: now(), type: "session_meta", payload: { id, cwd: real, source: "cli" } }]), { timestamp: now(), type: "event_msg", payload: { type: "task_started" } }, { timestamp: now(), type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text: prompt }] } }];
+  } else if (kind === "pi") { id = arg("--session-id"); file = path.join(process.env.PI_CODING_AGENT_DIR, "sessions", "x", `2026_${id}.jsonl`); open = [...(fs.existsSync(file) ? [] : [{ type: "session", id, cwd: real, timestamp: now() }]), { type: "message", id: `u${st.seq}`, timestamp: now(), message: { role: "user", content: [{ type: "text", text: prompt }] } }]; }
+  else return;
+  const lines = step.ends ? fs.readFileSync(path.join(here, "fixtures", "endings", `${step.ends}.jsonl`), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const at = Date.now() + 1500; // a while after the prompt was sent, as the real ones are (the sender notes the time once herdr has answered)
+  fs.appendFileSync(file, [...open, ...lines].map((l, i) => JSON.stringify({ ...l, timestamp: new Date(at + i).toISOString() }) + "\n").join(""));
+  if (!step.hook) return;
+  const task = (/^Work board task (\S+), role: (\w+)(?:, round (\d+))?\./.exec(p.agent.prompts[0]) || []);
+  const role = task[2] === "reviewer" ? "reviewer" : "agent", round = task[3] || "0";
+  const tokens = read(path.join(process.env.HERDR_SUPERWORK_DATA_DIR, "tasks", ...task[1].split("/"), "tokens.json"), {});
+  const cmd = [path.join(here, "..", "bin", "herdr-superwork.js"), "turn-ended", "--id", task[1], "--role", role, "--token", role === "reviewer" ? tokens.reviewer?.[round] : tokens.agent, ...(role === "reviewer" ? ["--round", round] : [])];
+  // Claude and pi say it on stdin, Codex as a last argument.
+  if (kind === "codex") execFileSync(process.execPath, [...cmd, JSON.stringify({ "thread-id": id, "input-messages": [p.agent.prompts[0]] })], { stdio: "ignore" });
+  else execFileSync(process.execPath, cmd, { input: JSON.stringify(kind === "claude" ? { session_id: id, transcript_path: file } : { transcript_path: file }), stdio: ["pipe", "ignore", "ignore"] });
+}
+
 // One scripted turn. Steps: { merge: "commit to merge first", files: {path: text}, commit: "message", note: "closing note", verdict: {...},
 // status: "done" | "unknown" | "blocked" | "working", session: "id", screen: "text" }
 function play(p, prompt) {
@@ -80,6 +109,7 @@ function play(p, prompt) {
     if (step.dirtyTree) fs.writeFileSync(path.join(p.cwd, "reviewer-scratch.txt"), "the reviewer changed something\n");
     fs.writeFileSync(path.join(out, "verdict.json"), JSON.stringify({ ...step.verdict, commit }));
   }
+  if (step.ends || step.hook) endTurn(p, prompt, step);
   if (step.session) p.agent.session = step.session;
   if (step.screen) p.agent.screen = step.screen;
   if (step.exit) { p.agent = null; return; }

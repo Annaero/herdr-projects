@@ -50,7 +50,47 @@ const headOf = (file, bytes) => { const fd = fs.openSync(file, "r"); try { const
 const when = (ts) => { const n = Date.parse(ts); return Number.isFinite(n) ? n : 0; };
 // What every reader returns. `finished`: a complete assistant message ends the file. `pending`: a tool call or a partial
 // message does. `interrupted`: the human stopped it. `error`: the program recorded an API, login or limit error.
-const turn = (o) => ({ id: "", pos: 0, said: "", stop: "", error: "", auth: false, finished: false, pending: false, interrupted: false, usage: null, model: "", ...o, auth: !!o.error && (o.authCode === true || isAuthFailure(o.error)) });
+// `passing`: the error is the provider's and waiting may fix it (see providerError); `reason` says which, in plain words.
+const turn = (o) => {
+  const pe = o.error ? providerError(o.error, { code: o.code, status: o.status }) : null;
+  const auth = !!o.error && (o.authCode === true || pe.auth || isAuthFailure(o.error));
+  return { id: "", pos: 0, said: "", stop: "", error: "", finished: false, pending: false, interrupted: false, usage: null, model: "", ...o, auth, passing: !!pe && pe.passing && !auth, reason: pe && pe.passing && !auth ? pe.reason : "" };
+};
+// ---- provider errors: which ones pass by themselves ---------------------------------------------------------------------
+// A turn can end because the model's provider failed, not because the agent finished or did something wrong. Some of
+// those pass by themselves (the model is at capacity, the servers are overloaded, a rate limit, a dropped connection):
+// the board waits and tries again. The others need the human (a login, a model that does not exist, a usage limit, a
+// request the provider refuses) and are never retried. An error nobody recognises counts as the second kind.
+// The program's own code for the error decides where it has one; the words decide for the rest.
+//   Codex   `codex_error_info` on `task_complete` and on `error`. Seen in real files of 0.160.0: "server_overloaded"
+//           and "other"; the other names are the ones in Codex's protocol.
+//   Claude  `error` and `apiErrorStatus` on an `isApiErrorMessage` entry. Seen: "model_not_found" (404).
+//   pi      only words (`errorMessage`).
+const CODE_PASSING = { server_overloaded: "provider is overloaded", model_cap: "model is at capacity", http_connection_failed: "connection dropped", response_stream_connection_failed: "connection dropped",
+  response_stream_disconnected: "connection dropped", response_too_many_failed_attempts: "connection dropped", internal_server_error: "provider had a server error", server_error: "provider had a server error", overloaded: "provider is overloaded", overloaded_error: "provider is overloaded" };
+const CODE_LASTING = ["unauthorized", "bad_request", "context_window_exceeded", "usage_limit_exceeded", "sandbox_error", "authentication_failed", "billing_error", "invalid_request", "model_not_found", "max_output_tokens"];
+const WORDS_AUTH = /\b(?:status|error|HTTP)\b[^\n]{0,12}\b40[13]\b|\b401 Unauthorized\b/i;
+const WORDS_LASTING = /usage limit|(?<!rate.?)limit reached|hit your [\w ]*limit|\bquota\b|billing|credit balance|payment|not supported|unsupported|does not exist|may not exist|not found|unknown (?:provider|model)|invalid|context (?:window|length)|flagged|content policy/i;
+const WORDS_PASSING = [
+  [/at capacity/i, "model is at capacity"],
+  [/rate.?limit|too many requests|\b429\b/i, "model is rate limited"],
+  [/overloaded|\b529\b/i, "provider is overloaded"],
+  [/socket|connection|network|\bE(?:CONN\w+|TIMEDOUT|AI_AGAIN|PIPE)\b|timed? ?out|fetch failed|stream (?:ended|closed|disconnected|error)|disconnect/i, "connection dropped"],
+  [/\b(?:API error|status|HTTP)\b[^\n]{0,12}\b5\d\d\b|internal server error|bad gateway|service unavailable|upstream|server error|you can retry your request|try again later/i, "provider had a server error"],
+];
+export function providerError(text, { code = "", status = 0 } = {}) {
+  const words = String(text || ""), c = String(code || "").toLowerCase(), n = Number(status) || 0;
+  const said = (WORDS_PASSING.find(([re]) => re.test(words)) || [])[1] || "";
+  const lasting = { passing: false, reason: "", auth: false };
+  if (c === "unauthorized" || c === "authentication_failed" || n === 401 || n === 403 || WORDS_AUTH.test(words)) return { ...lasting, auth: true };
+  if (CODE_LASTING.includes(c) || (n >= 400 && n < 500 && n !== 408 && n !== 429) || WORDS_LASTING.test(words)) return lasting;
+  if (CODE_PASSING[c]) return { passing: true, reason: said || CODE_PASSING[c], auth: false };
+  if (n === 429 || c === "rate_limit") return { passing: true, reason: "model is rate limited", auth: false };
+  if (n === 408 || n >= 500) return { passing: true, reason: said || (n === 529 ? "provider is overloaded" : "provider had a server error"), auth: false };
+  return said ? { passing: true, reason: said, auth: false } : lasting;
+}
+// Codex writes its code as a word, or as a table with the word as its one key ({"http_connection_failed": {…}}).
+const codexCode = (c) => String(c && typeof c === "object" ? Object.keys(c)[0] || "" : c || "").replace(/[A-Z]/g, (m, i) => (i ? "_" : "") + m.toLowerCase());
 const WINDOWS = [[/^claude-(?:opus|sonnet|haiku)-4/, 200000], [/^claude-3/, 200000]]; // only models whose window is known; the rest stay blank
 const windowOf = (model) => (WINDOWS.find(([re]) => re.test(String(model || ""))) || [])[1] || null;
 const usageOf = (i, o, model, window) => { const inp = Number(i) || 0, out = Number(o) || 0; return inp || out ? { in: inp, out, context: inp + out, window: window || windowOf(model) } : null; };
@@ -76,7 +116,7 @@ function readClaude(file) {
   }
   if (!last) return null;
   const base = { pos: when(last.e.timestamp), usage: usage ? usageOf(usage[0], usage[1], model) : null, model };
-  if (last.kind === "error") { const text = (last.e.message.content || []).map((c) => c.text || "").join("").trim(); return turn({ ...base, id: last.e.uuid, said: text, stop: "error", error: text || String(last.e.error || "error"), authCode: last.e.error === "authentication_failed" }); }
+  if (last.kind === "error") { const text = (last.e.message.content || []).map((c) => c.text || "").join("").trim(); return turn({ ...base, id: last.e.uuid, said: text, stop: "error", error: text || String(last.e.error || "error"), authCode: last.e.error === "authentication_failed", code: last.e.error, status: last.e.apiErrorStatus }); }
   if (last.kind === "interrupt") return turn({ ...base, id: last.e.uuid, said: last.said, stop: "interrupted", interrupted: true });
   if (last.kind === "user") return turn({ ...base, id: last.e.uuid, pending: true, said: latest.trim() });
   const stop = last.e.message.stop_reason;
@@ -93,14 +133,16 @@ function readCodex(file) {
     else if (e.type === "response_item" && p.type === "message" && p.role === "user") last = { kind: "user", e };
     else if (e.type === "response_item" && /call/.test(String(p.type))) last = { kind: "tool", e };
     else if (e.type === "event_msg" && p.type === "token_count" && p.info) { const u = p.info.last_token_usage || p.info.total_token_usage || {}; usage = [u.input_tokens || 0, u.output_tokens || 0]; window = p.info.model_context_window || window; }
+    // A turn the provider cut off also ends in `task_complete`: with no last message, and the error it ended on.
+    else if (e.type === "event_msg" && p.type === "task_complete" && p.error) last = { kind: "error", e, id: p.turn_id, text: String((typeof p.error === "object" ? p.error.message : p.error) || "error"), code: codexCode(p.error.codex_error_info) };
     else if (e.type === "event_msg" && p.type === "task_complete") { last = { kind: "done", e, id: p.turn_id }; if (p.last_agent_message) said = p.last_agent_message; }
     else if (e.type === "event_msg" && p.type === "turn_aborted") last = { kind: "interrupt", e, id: p.turn_id };
-    else if (e.type === "event_msg" && (p.type === "error" || p.type === "stream_error")) last = { kind: "error", e, text: String(p.message || p.error || "error") };
+    else if (e.type === "event_msg" && (p.type === "error" || p.type === "stream_error")) last = { kind: "error", e, text: String(p.message || p.error || "error"), code: codexCode(p.codex_error_info) };
     else if (e.type === "event_msg" && p.type === "task_started") last = { kind: "user", e };
   }
   if (!last) return null;
   const base = { pos: when(last.e.timestamp), usage: usage ? usageOf(usage[0], usage[1], model, window) : null, model, id: last.id || String(when(last.e.timestamp)) };
-  if (last.kind === "error") return turn({ ...base, said: last.text, stop: "error", error: last.text });
+  if (last.kind === "error") return turn({ ...base, said: last.text, stop: "error", error: last.text, code: last.code });
   if (last.kind === "interrupt") return turn({ ...base, said, stop: "interrupted", interrupted: true });
   if (last.kind === "done" || last.kind === "final") return turn({ ...base, said: said.trim(), stop: "stop", finished: true });
   return turn({ ...base, pending: true, said: said.trim() });

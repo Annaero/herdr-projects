@@ -35,7 +35,7 @@ function fail(g, failure, extra = {}) {
 // A finish runner that finds another unhandled event when it is done keeps its marker and processes that one too.
 export async function finishJob(id, opts = {}) {
   for (let first = true; ; first = false) {
-    if (!(await finishOnce(id, first ? opts : {}))) return;
+    if (!(await finishOnce(id, first ? opts : {}))) { if (!first) release(id); return; } // a marker kept for an event that turned out not to be a worker's
     if (!release(id, { keep: true })) return;
   }
 }
@@ -127,6 +127,20 @@ async function finishOnce(id, { force = false } = {}) {
     if (turn && (turn.error || turn.stop === "length" || turn.stop === "refusal")) {
       const why = turn.error || (turn.stop === "length" ? "The agent's reply was cut off: it ran out of room (context or output limit)." : "The model refused to continue.");
       g.set(keep);
+      // A passing provider error (the model at capacity, an overloaded server, a rate limit, a dropped connection) is
+      // nobody's to fix: the board waits and tells the agent to carry on, a few times with growing waits, before it
+      // gives up. The failure is saved all the same, under the wait: a reply or ctrl+r still works meanwhile, and if
+      // the board gives up this is what it says. A turn that was itself such a retry counts on from the one before.
+      const tries = (wake?.reason === "retry" && wake.tries) || t.cutRetry?.tries || 0, waits = S.retryWaits();
+      if (turn.passing && tries < waits.length) {
+        const keepIntent = (!!wake?.keepIntent || !!t.cutRetry?.keepIntent) && !!t.mergeIntent;
+        const failure = { stage: "agent", auth: false, agentCanFix: true, title: "Agent cut off", detail: `${why}\n\nThe ${S.gaveUp("agent", turn.reason, 1)}. That passes by itself: the board tells the agent to carry on, up to ${waits.length} times with growing waits.`, next: "Nothing: the board tells the agent to continue by itself. Reply or press ctrl+r to do it now." };
+        const w = g.set((t) => { t.stage = "failed"; t.msg = `Agent stopped: ${S.oneLine(why, 200)}`; if (!keepIntent) t.mergeIntent = null; Object.assign(t, S.failurePatch(failure)); t.waiting = { who: "agent", reason: turn.reason, error: S.oneLine(why, 400), until: Date.now() + waits[tries], tries: tries + 1, keepIntent, for: t.failure.at }; });
+        F.labelPane(w, null);
+        return true;
+      }
+      const gaveUp = turn.passing ? `${S.gaveUp("agent", turn.reason, tries + 1)}. ` : "";
+      if (gaveUp) { fail(g, { stage: "agent", auth: false, agentCanFix: true, title: "Agent stopped", msg: `Agent stopped: ${gaveUp}Its error: ${S.oneLine(why, 200)}`, detail: `${gaveUp[0].toUpperCase()}${gaveUp.slice(1)}The board told it to carry on each time and has stopped trying.\n\nIts error:\n${why}`, next: "Wait for the provider to recover (or choose another model), then reply or press ctrl+r to tell the agent to continue." }); return true; }
       fail(g, { stage: "agent", auth: turn.error ? turn.auth : false, agentCanFix: true, title: turn.auth ? "Needs a login" : "Agent stopped", msg: turn.auth ? "Needs a login" : `Agent stopped: ${S.oneLine(why, 200)}`, detail: `${why}${turn.said && turn.said !== why ? `\n\nIts last message:\n${turn.said}` : ""}`, next: "Fix what it reports, then reply or press ctrl+r to tell the agent to continue." });
       return true;
     }
@@ -139,6 +153,7 @@ async function finishOnce(id, { force = false } = {}) {
       t = g.set((t) => { keep(t); t.stage = "nosummary"; t.msg = S.oneLine(lastLines(screen, 2)) || "stopped without a summary"; t.screen = screen; });
       return true;
     }
+    if (t.cutRetry) g.set({ cutRetry: null }); // the turn ended by itself: a later cut-off starts counting again
     const text = finished ? turn.said : freshNote ? freshNote.text : t.said || "";
     if (freshNote) { try { fs.writeFileSync(path.join(S.dirOf(id), "closing.md"), freshNote.text + "\n"); } catch {} }
     t = g.set((t) => { keep(t); t.expectedWake = null; t.said = text; if (a?.agent_session?.value && !t.session) t.session = a.agent_session.value; });
@@ -335,7 +350,8 @@ export async function pipeline(id, g, text, wake, synced = null) {
   else if (reviewNeeded) {
     const r = await runReview(id, g, { text, change, toLand, ch });
     if (r.aborted) return;
-    g.set((t) => { S.logReview(t, r.review || { error: r.error }); }); // the task keeps every review it had
+    // The task keeps every review it had. A review the provider cut off is not one: it is not on the list.
+    if (!r.cut) g.set((t) => { S.logReview(t, r.review || { error: r.error }); });
     if (!r.review) return void fail(g, { stage: "review", auth: r.auth ? true : undefined, title: r.auth ? "Needs a login" : "Review failed", msg: r.auth ? "The reviewer needs a login" : `Review failed: ${S.oneLine(r.error, 200)}. Retry the task to review again.`, detail: `Review failed: ${r.error}`, next: "Investigate the reviewer failure, then finish again for a fresh review. Do not bypass review or merge approval." }, { patch: { review: null } });
     review = r.review;
     // The pull request says what the review found, the findings below the gate marked as not required.
@@ -439,8 +455,30 @@ function fileFaults(id, g, review) {
   }
   if (changed) g.set({ filedFaults: filed });
 }
-async function runReview(id, g, { text, change, toLand, ch }) {
-  let t = g.set({ stage: "reviewing", msg: "under review", watch: null, reviewAt: Date.now() });
+// A reviewer whose turn ended in a provider error did not review anything: that is not a round. It uses up none of
+// the task's rounds and is not on the list of its reviews. When the error is one that passes by itself, the board
+// waits and starts the review again, a few times with growing waits; the row says why and when. Then, or at once for
+// an error that waiting cannot fix (a login, a model that does not exist), it fails with the provider's own words.
+async function runReview(id, g, o) {
+  const waits = S.retryWaits();
+  for (let tries = 0; ; tries++) {
+    const r = await reviewOnce(id, g, o);
+    if (!r.cut) return r;
+    if (!r.cut.passing) return { error: `the reviewer stopped: ${r.cut.error}`, auth: r.auth, cut: true };
+    if (tries >= waits.length) return { error: `${S.gaveUp("reviewer", r.cut.reason, tries + 1)}. Its error: ${r.cut.error.replace(/[.\s]+$/, "")}`, auth: false, cut: true };
+    try {
+      const until = Date.now() + waits[tries];
+      g.set((t) => { t.msg = "under review"; t.watch = null; t.waiting = { who: "reviewer", reason: r.cut.reason, error: S.oneLine(r.cut.error, 400), until, tries: tries + 1 }; });
+      while (Date.now() < until) { await sleep(Math.max(1, Math.min(1000, until - Date.now()))); g.check(); }
+    } catch (e) {
+      if (!e.aborted) throw e;
+      try { S.update(id, (t) => { if (t.waiting?.who !== "reviewer") return false; t.waiting = null; }, { waitMs: 10000 }); } catch {}
+      return { aborted: true };
+    }
+  }
+}
+async function reviewOnce(id, g, { text, change, toLand, ch }) {
+  let t = g.set({ stage: "reviewing", msg: "under review", watch: null, waiting: null, reviewAt: Date.now() });
   g.allow("reviewneeds");
   const api = F.h(t);
   const folder = S.cwdOf(t);
@@ -459,12 +497,16 @@ async function runReview(id, g, { text, change, toLand, ch }) {
   const earlier = (t.reviewRounds || 0) > 0 && before.length ? before.at(-1).findings : null;
   const used = before.flatMap((e) => e.findings.map((f) => f.id));
   const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, filed: Array.isArray(t.filedFaults) ? t.filedFaults : [] })}`;
-  let pane = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0;
-  // The reviewer ended its turn with no verdict: its own error when it has one, else its last message.
-  const noVerdict = (cur, ev) => {
-    const w = whyStopped(cur, "reviewer", ev);
+  let pane = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0, cut = null;
+  // The reviewer ended its turn with no verdict. Its saved conversation says why: a turn that ended in the provider's
+  // error was cut off (`cut`), and only one that really finished is "finished without a verdict", with its last message.
+  // Its own turn-end report can come before the end is on disk: the file is read again for a few seconds.
+  const noVerdict = async (ev, or = "") => {
+    let w = whyStopped(S.get(id), "reviewer", ev);
+    for (const until = Date.now() + ms("HERDR_SUPERWORK_READ_MS", 5000); ev && w.canRead && !(w.turn && (w.turn.finished || w.turn.error)) && Date.now() < until; ) { await sleep(400); w = whyStopped(S.get(id), "reviewer", ev); }
     auth = !!w.turn?.auth;
-    return w.turn?.error ? `the reviewer stopped: ${w.turn.error}` : `the reviewer finished without a verdict${w.turn?.said ? `. Its last message: ${w.turn.said.slice(0, 1500)}` : ""}`;
+    if (w.turn?.error) { cut = { passing: w.turn.passing, reason: w.turn.reason, error: w.turn.error }; return `the reviewer stopped: ${w.turn.error}`; }
+    return or || `the reviewer finished without a verdict${w.turn?.finished && w.turn.said ? `. Its last message: ${w.turn.said.slice(0, 1500)}` : ""}`;
   };
   try {
     preTrust(rkind, t.root || S.folderOf(t.id));
@@ -473,9 +515,9 @@ async function runReview(id, g, { text, change, toLand, ch }) {
     const taken = api.agents().map((a) => a.name).filter(Boolean);
     let name = `${t.link.agent || `sw-task-${t.n}`}-r`.slice(0, 32);
     if (taken.includes(name)) name = `${name.slice(0, 27)}-${String(Date.now() % 10000).padStart(4, "0")}`;
+    const startedAt = Date.now(); // a turn-end report older than this is from a try of this review that was cut off
     const x = launchExtras(t, "reviewer", { kind: rkind, round });
     t = g.set((t) => { t.link = { ...t.link, reviewer: { pane: pane.pane_id, agent: name, kind: rkind } }; t.reviewSession = x.session; });
-    const startedAt = Date.now();
     const start = (hook) => {
       try { api.agentStart(name, rkind, pane.pane_id, startArgs(rkind, { model: rmodel, effort: reffort, fast: ch.reviewerFast, session: x.session, extra: hook })); }
       catch (e) { if (e.code === "agent_not_ready") return; if (!hook.length) throw e; start([]); } // once more without the hook arguments
@@ -495,11 +537,11 @@ async function runReview(id, g, { text, change, toLand, ch }) {
       const now = S.get(id);
       // The reviewer's own turn-end report for this round, and still no verdict: the review failed, at once.
       // Codex also reports its side chats (it names a conversation with one, right after the first prompt): not this.
-      const rev = S.pendingEvents(now).find((e) => e.role === "reviewer" && e.round === round && !e.side);
+      const rev = S.pendingEvents(now).find((e) => e.role === "reviewer" && e.round === round && !e.side && e.at >= startedAt);
       if (rev?.session && !now.reviewSession) S.update(id, { reviewSession: rev.session }, { waitMs: 10000 });
-      if (rev && sent) { await sleep(Math.min(every, 1500)); if (!fs.existsSync(verdictFile)) { error = noVerdict(now, rev); break; } continue; }
+      if (rev && sent) { await sleep(Math.min(every, 1500)); if (!fs.existsSync(verdictFile)) { error = await noVerdict(rev); break; } continue; }
       const a = api.agentGet(pane.pane_id);
-      if (!a && sent) { error = "the reviewer exited without a verdict"; break; }
+      if (!a && sent) { error = await noVerdict(null, "the reviewer exited without a verdict"); break; }
       if (!a && !api.paneGet(pane.pane_id)) { error = "the reviewer's terminal was closed"; break; }
       // herdr status is used only to notice a reviewer that is blocked: "review needs you".
       const blocked = a?.agent_status === "blocked";
@@ -507,13 +549,13 @@ async function runReview(id, g, { text, change, toLand, ch }) {
       if (blocked && cur.stage === "reviewing") { g.set({ stage: "reviewneeds", msg: "the reviewer shows a dialog: open it and answer" }); g.allow("reviewing"); }
       else if (!blocked && cur.stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "under review" }); g.allow("reviewneeds"); }
       if (!sent && a && (a.agent_status === "idle" || a.agent_status === "done")) { try { api.agentPrompt(pane.pane_id, brief); sent = true; sentAt = Date.now(); } catch (e) { if (e.code !== "agent_blocked" && e.code !== "agent_not_ready") { sent = true; sentAt = Date.now(); } } }
-      else if (sent && a && adapter(rkind).readTurn && Date.now() - sentAt > 5000) {
+      else if (sent && a && adapter(rkind).readTurn && Date.now() - sentAt > ms("HERDR_SUPERWORK_ENDED_MS", 5000)) {
         // No hook: "idle" alone never fails a review (a reviewer in a long test run looks idle). Only its saved
         // conversation ending in a finished message or an error, and still no verdict 15 seconds later, does.
         let session = now.reviewSession;
         if (!session && adapter(rkind).findSession) { session = adapter(rkind).findSession(folder, startedAt, taskLine(t, "reviewer", round)); if (session) S.update(id, { reviewSession: session }, { waitMs: 10000 }); }
         const turn = session ? readTurnOf(rkind, { session, cwd: folder }) : null;
-        if (turn && turn.pos > sentAt && (turn.finished || turn.error)) { quietSince = quietSince || Date.now(); if (Date.now() - quietSince > ms("HERDR_SUPERWORK_QUIET_MS", 15000) && !fs.existsSync(verdictFile)) { error = noVerdict(S.get(id), null); break; } }
+        if (turn && turn.pos > sentAt && (turn.finished || turn.error)) { quietSince = quietSince || Date.now(); if (Date.now() - quietSince > ms("HERDR_SUPERWORK_QUIET_MS", 15000) && !fs.existsSync(verdictFile)) { error = await noVerdict(null); break; } }
         else quietSince = 0;
       }
       await sleep(every);
@@ -526,6 +568,11 @@ async function runReview(id, g, { text, change, toLand, ch }) {
   if (toLand) { try { S.gitOut(folder, ["reset", "--hard", change.head]); S.gitOut(folder, ["clean", "-fd"]); } catch {} }
   await closeReviewer(id);
   try { if (S.get(id).stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "review complete" }); } } catch (e) { if (e.aborted) return { aborted: true }; }
+  if (!review && cut) {
+    // Not a review: the task's count of reviews is put back, so the next try (or the next real review) has this number.
+    try { g.set((t) => { if (t.reviewRound === round) t.reviewRound = round - 1; }); } catch (e) { if (e.aborted) return { aborted: true }; }
+    return { cut, error, auth };
+  }
   if (!review) return { error: error || "no valid verdict", auth };
   G.stamp(review, ch.gate);
   try { fileFaults(id, g, review); } catch (e) { if (e.aborted) return { aborted: true }; }

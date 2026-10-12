@@ -3,7 +3,7 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import * as G from "../../gate.js";
 import { herdr } from "../../herdr.js";
 import { short, clean, age, prNumber, prCheck, prColor, bar } from "./words.js";
-import { MARK_STATES, failureFor, inReview, needsYou, statusColor } from "./states.js";
+import { MARK_STATES, failureFor, inReview, needsYou, statusColor, waitOf } from "./states.js";
 import { resultColor, roundWords, currentReview, reviewNote, verdict } from "./review-words.js";
 
 // The fewest cells a cut "doing now" sentence is still worth showing in.
@@ -39,6 +39,8 @@ export class Row {
     // What a row says is greyed out, never the title's colour: the two are told apart at a glance.
     const quiet = (s) => (s ? t.muted(s) : "");
     const failure = failureFor(r);
+    // Cut off by its provider, and the board tries again by itself: the row says why and when, not that it failed.
+    if (waitOf(r)) return { text: quiet(words(r.msg)) };
     if (failure && !failure.sentAt && (r.failure || r.prFailure)) return { text: quiet(words(failure.msg || failure.title)) };
     if (inReview(r)) {
       // The result and a short tally: "Pass · 2 minor". Which review it was only from the second on.

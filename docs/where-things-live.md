@@ -61,6 +61,7 @@ Colours and herdr's theme are `src/board/theme.js` (`test/theme.test.js`). Evide
 | Tasks on disk: reading, listing, changing, creating | `store/tasks.js` |
 | A task's reviews as saved: the current one, the round, the history | `store/reviews.js` |
 | Saved failures and login failures | `store/failures.js` |
+| The wait before a turn cut off by its provider is tried again | `store/retries.js` (which errors pass: `providerError` in `agents.js`; tests: `test/retry.test.js` on the recorded endings in `test/fixtures/endings/`) |
 | An agent's inbox, instructions for a Coordinator | `store/inbox.js` |
 | Git plumbing, repos and their names | `store/repos.js` |
 | The data folder, reading and writing files, locks, the stages | `store/files.js` |
@@ -91,5 +92,5 @@ and the rest. Shared setup: `helpers.js` (a test world), `board-helpers.js` (a b
 
 `README.md` lists them. One page per topic: `board.md`, `task-panel.md`, `keys.md`, `coordinator.md`,
 `roles-and-commands.md`, `how-work-gets-done.md`, `gate.md`, `settings.md`, `other-machines.md`,
-`checked-on-herdr.md`, `compared-with-pi-work.md`. A new key goes in `keys.md`, a new setting in `settings.md`, a
+`checked-on-herdr.md`, `compared-with-pi-work.md`, `provider-errors.md`. A new key goes in `keys.md`, a new setting in `settings.md`, a
 newly verified fact in `checked-on-herdr.md` beside the rows of its kind.

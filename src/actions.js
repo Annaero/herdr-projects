@@ -75,7 +75,7 @@ export function delegate(id, opts = {}) {
     t.app = t.agent;
     t.stage = "queued"; t.queuedAt = Date.now(); t.msg = ""; t.kind = undefined; t.since = Date.now(); t.watch = null;
     t.link = { ...(t.link || {}), socket };
-    t.mergeIntent = null; t.requireApproval = t.requireApproval || !!t.review; t.failure = null; t.expectedWake = null; t.turnOpen = false;
+    t.mergeIntent = null; t.requireApproval = t.requireApproval || !!t.review; t.failure = null; t.expectedWake = null; t.turnOpen = false; t.waiting = null;
     if (t.review) t.review = { ...t.review, stale: true };
     t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
   });
@@ -144,7 +144,7 @@ function cleaningUp(t) { if (t.stage === "done" && runnerAlive(t)) throw Object.
 // What every human-started turn does to a task.
 export function rearm(t, keepIntent = false) {
   cleaningUp(t);
-  t.tidy = null;
+  t.tidy = null; t.waiting = null; t.cutRetry = null;
   t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.turnBy = "reply"; t.selfBlocked = null;
   if (t.failure?.auth) t.failure = null; // a reply or a retry after a login problem is how "fixed" is said
   if (!keepIntent) { if (t.mergeIntent || t.stage === "approval") t.requireApproval = true; t.mergeIntent = null; }
@@ -163,7 +163,7 @@ export function stop(id) {
   try { F.assertLive(cur); a = F.h(cur).agentGet(cur.link.pane); } catch {}
   const t = S.update(cur.id, (t) => {
     t.stage = "stopped"; t.stoppedAt = Date.now(); t.stopSeq = a?.state_change_seq ?? t.last?.seq ?? 0; t.sawIdleAfterStop = false;
-    t.expectedWake = null; t.turnOpen = false; t.msg = ""; t.watch = null; t.mergeIntent = null;
+    t.expectedWake = null; t.turnOpen = false; t.msg = ""; t.watch = null; t.mergeIntent = null; t.waiting = null;
   });
   if (t.runner && t.runner.pid !== process.pid && S.markerAlive(t.runner)) { try { process.kill(-t.runner.pid, "SIGTERM"); } catch { try { process.kill(t.runner.pid, "SIGTERM"); } catch {} } }
   if (a && ["working", "blocked", "unknown"].includes(a.agent_status)) { try { F.h(t).agentKeys(t.link.pane, interruptKey(t.agent)); } catch {} }

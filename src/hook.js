@@ -11,6 +11,8 @@ import { herdr, currentSocket } from "./herdr.js";
 import { spawnRunner, runnerAlive } from "./runner.js";
 import { housekeeping } from "./housekeeping.js";
 import { ensureKeeper } from "./keeper.js";
+import { adapter, readTurnOf } from "./agents.js";
+import { taskLine } from "./delegate.js";
 
 // Stages in which a finished turn nobody saw start (a short turn, a herdr restart, a lock wait) still counts.
 const WAITING = ["asks", "nosummary", "approval", "failed", "reviewneeds"];
@@ -128,6 +130,9 @@ export function apply(id, a, api) {
       // herdr cannot classify this agent (normal for Codex): a closing note newer than armedAt is the stop signal.
       const note = F.noteStat(t);
       if (note && note.mtime > (t.armedAt || 0) && note.mtime !== t.handled?.note) then = "finish";
+      // So is its saved conversation ending in an error: a turn the provider cut off writes no closing note, and
+      // without the agent's own report nothing else would ever say that it stopped.
+      else if (endedInError(t)) then = "finish";
     }
   }, { waitMs: 10000 });
   if (then === "inbox") return void deliverInbox(t, api);
@@ -140,6 +145,16 @@ export function apply(id, a, api) {
   if (then === "recover") spawnRunner("recover", id);
   if (then === "finish") spawnRunner("finish", id);
   if (then === "finish-force") spawnRunner("finish", id, ["--force"]);
+}
+// The working agent's saved conversation ends in an error newer than the turn that was handled last and than the
+// prompt that armed this one (what the finish line itself asks before it takes an error for the turn's end).
+function endedInError(t) {
+  try {
+    const cwd = S.cwdOf(t);
+    const session = t.session || adapter(t.agent).findSession?.(cwd, t.startedAgentAt || t.armedAt || 0, taskLine(t)) || null;
+    const turn = readTurnOf(t.agent, { file: t.transcript || null, session, cwd });
+    return !!turn?.error && turn.pos > (t.handled?.pos || 0) && turn.pos > (t.armedAt || 0);
+  } catch { return false; }
 }
 // Is this reading from after the handled turn? A `working` that is not belongs to the turn already handled: the
 // agent's own turn-end hook runs inside its turn, so herdr still says "working" when the finish line is done with
