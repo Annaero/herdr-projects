@@ -1,4 +1,4 @@
-// The hidden helper, as a hidden model call: the watcher (a status line, a progress guess and minutes left for whatever is running).
+// The hidden helper, as a hidden model call: the watcher (a status line and a progress guess for whatever is running; the board works out the minutes left).
 // It goes through one small table of one-shot commands per agent kind (agents.js); a helper kind without an entry
 // turns it off. The Coordinator is not a helper: it is an ordinary agent of its own (coordinator.js).
 import path from "node:path";
@@ -7,6 +7,7 @@ import * as S from "./store.js";
 import * as F from "./flow.js";
 import { herdr } from "./herdr.js";
 import { adapter } from "./agents.js";
+import { began, etaOf } from "./state.js";
 import { userEnv } from "./runner.js";
 
 // Tests replace the model call with a stand-in: a JSON argv; the prompt arrives on stdin.
@@ -44,7 +45,8 @@ function helperEnv() {
 
 // ---- the watcher --------------------------------------------------------------------------------------------------------
 // Every 15 seconds per working task, the last screen lines (the reviewer's pane while reviewing, otherwise the
-// worker's) go to the helper, which answers {"msg", "progress", "eta"}. It starts fresh on every look.
+// worker's) go to the helper with the task, the time spent so far and its previous guess, and it answers
+// {"msg", "progress"}. It starts fresh on every look. It guesses no minutes: those follow from the percent (state.js).
 const watching = new Map(); // id -> { at, child }
 const MAX_WATCHERS = 4;
 export function watchTick(tasks, now = Date.now()) {
@@ -63,12 +65,21 @@ export function watchTick(tasks, now = Date.now()) {
     const lines = screen.split("\n").map((l) => l.trimEnd()).filter((l) => l.trim()).slice(-40).join("\n").slice(-5000);
     if (!lines || lines === w.lines) { w.at = now; watching.set(t.id, w); continue; } // an unchanged screen costs no call
     w.lines = lines;
+    const from = began(t, role);
+    const mins = from ? Math.max(0, Math.round((now - from) / 60000)) : 0;
+    const spent = mins < 1 ? "under a minute" : mins === 1 ? "1 minute" : `${mins} minutes`;
+    const about = S.oneLine(t.description, 6000).slice(0, 1500);
     const prompt = [
       role === "reviewer" ? "You are watching an adversarial reviewer check finished work. Write its status for a dashboard. Estimate progress through this review only, not through the agent's task." : "You are watching a coding agent work on a task. Write its status for a dashboard.",
       `Task: ${t.title}`,
+      ...(about ? ["What the task asks for:", about] : []),
+      `The ${role === "reviewer" ? "reviewer has been on this review" : "agent has been on this"} for ${spent} so far.`,
       `The last lines on the ${role}'s terminal right now:`, lines,
-      `Your previous guess of progress was ${t.watch?.progress ?? 0} percent${t.watch?.eta !== undefined ? `, with ${t.watch.eta} minutes left` : ""}. Only go lower if it clearly started over.`,
-      'Reply with only this JSON and nothing else: {"msg": "<what it is doing right now: at most 8 plain words, present tense, no tool or command names>", "progress": <whole number 0 to 99: your best guess of how far through its current assignment it is>, "eta": <whole number: your best guess of how many minutes are left until it is done>}',
+      t.watch?.role === role
+        ? `Your previous guess was ${t.watch.progress} percent. Keep it unless something on the screen is a reason to change it. Raise it as work gets done. Lower it when new work shows up: ${role === "reviewer" ? "more to check than it looked" : "a failing test, a merge conflict, review findings to fix, a bigger job than it looked"}.`
+        : "This is your first look at it.",
+      "The percent is the share of the whole job's time that is already spent: the dashboard works out the minutes left from it and the time spent so far, so do not guess high while much is left to do.",
+      'Reply with only this JSON and nothing else: {"msg": "<what it is doing right now: at most 8 plain words, present tense, no tool or command names>", "progress": <whole number 0 to 99: your best guess of how far through its current assignment it is>}',
     ].join("\n");
     const cmd = helperCommand({ prompt });
     if (!cmd) return;
@@ -82,12 +93,13 @@ export function watchTick(tasks, now = Date.now()) {
       try {
         const j = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
         if (!j.msg) return;
-        const watch = { msg: S.oneLine(j.msg, 120), progress: Math.max(0, Math.min(99, Math.round(Number(j.progress)) || 0)), eta: S.minutes(j.eta), at: Date.now(), role };
+        const watch = { msg: S.oneLine(j.msg, 120), progress: Math.max(0, Math.min(99, Math.round(Number(j.progress)) || 0)), at: Date.now(), role };
         // A late answer cannot overwrite a newer turn or its result.
         const cur = S.update(t.id, (c) => { if (c.stage !== stage || turnOf(c) !== mine || S.choices(c).watcher === "off") return false; c.watch = watch; });
         // Also to herdr as pane metadata tokens, so herdr's own sidebar can show it.
         if (cur.watch === watch || cur.watch?.at === watch.at) {
-          herdr(t.link.socket).metadata(pane, ["--token", `summary=${watch.msg}`, "--token", `progress=${watch.progress}%`, ...(watch.eta === undefined ? [] : ["--token", `eta=${watch.eta}m`]), "--ttl-ms", "120000"]);
+          const eta = etaOf(watch.progress, began(cur, role)); // herdr's sidebar holds it until the next look
+          herdr(t.link.socket).metadata(pane, ["--token", `summary=${watch.msg}`, "--token", `progress=${watch.progress}%`, ...(eta === undefined ? [] : ["--token", `eta=${eta}m`]), "--ttl-ms", "120000"]);
           if (t.link.workspace && t.link.ownsWorkspace) { try { herdr(t.link.socket).call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", "--token", `summary=${watch.msg}`, "--ttl-ms", "120000"]); } catch {} }
         }
       } catch {}

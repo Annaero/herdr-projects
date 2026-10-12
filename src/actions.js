@@ -73,7 +73,7 @@ export function delegate(id, opts = {}) {
     }
     t.agent = S.choices(t).agent || "claude";
     t.app = t.agent;
-    t.stage = "queued"; t.queuedAt = Date.now(); t.msg = ""; t.kind = undefined; t.since = Date.now();
+    t.stage = "queued"; t.queuedAt = Date.now(); t.msg = ""; t.kind = undefined; t.since = Date.now(); t.watch = null;
     t.link = { ...(t.link || {}), socket };
     t.mergeIntent = null; t.requireApproval = t.requireApproval || !!t.review; t.failure = null; t.expectedWake = null; t.turnOpen = false;
     if (t.review) t.review = { ...t.review, stale: true };

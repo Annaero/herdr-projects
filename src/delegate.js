@@ -127,7 +127,7 @@ export function startAgent(id, g, { prompt, resume = null }) {
   start(hooked);
   // The send time arms the pipeline: nothing older than this counts as the turn's end.
   t = g.set((t) => {
-    t.stage = "working"; t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.turnBy = "start"; t.msg = ""; t.link = { ...t.link, agent: name }; t.startedAgentAt = Date.now(); t.exitedAt = null;
+    t.stage = "working"; t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.turnBy = "start"; t.msg = ""; t.link = { ...t.link, agent: name }; if (!(t.workAt >= (t.since || 0))) t.workAt = Date.now(); t.startedAgentAt = Date.now(); t.exitedAt = null;
     t.hooked = hooked; t.agentVersion = x.version || "";
     const session = resume || x.session || null;
     if (session !== (t.session || null)) { t.session = session; t.transcript = null; t.handled = { ...(t.handled || {}), msg: null, pos: 0 }; }

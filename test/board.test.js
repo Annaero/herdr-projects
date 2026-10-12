@@ -649,17 +649,38 @@ test("the hidden helper: the watcher writes a line and a guess", async () => {
   const w = await world({ settings: { reviewer: "off", watcher: "on" } });
   try {
     process.env.HERDR_SUPERWORK_HELPER_CMD = JSON.stringify(["node", path.join(here, "fake-helper.js")]);
-    A.add(w.root, "build a login page");
+    const seen = path.join(w.root, "..", "watcher-prompt.txt"); process.env.FAKE_HELPER_PROMPT = seen;
+    A.add(w.root, "build a login page", { description: "It needs a password field.\n" + "x".repeat(3000) });
     // the watcher: only while herdr says working; 100k auto-compact on the watcher only
     w.script({ worker: [{ status: "working", screen: "● Writing greet.sh\n" }] });
     A.delegate("proj/1"); await settle("proj/1");
+    S.update("proj/1", (t) => { t.since = Date.now() - 40 * 60000; t.workAt = 0; }); // forty minutes into the work
     H.watchTick(F.board());
     for (let i = 0; i < 60 && !S.get("proj/1").watch; i++) await new Promise((r) => setTimeout(r, 50));
-    assert.deepEqual([S.get("proj/1").watch.msg, S.get("proj/1").watch.progress, S.get("proj/1").watch.eta], ["editing the greeting file", 42, 12]);
+    // It guesses the line and the percent only; the minutes left are worked out, never stored.
+    assert.deepEqual([S.get("proj/1").watch.msg, S.get("proj/1").watch.progress, "eta" in S.get("proj/1").watch], ["editing the greeting file", 42, false]);
     const shown = F.board().find((t) => t.id === "proj/1");
-    assert.deepEqual([shown.note, shown.progress, shown.eta], ["editing the greeting file", 42, 12]);
-    assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("summary=editing the greeting file") && m.args.join(" ").includes("progress=42% --token eta=12m")));
-  } finally { delete process.env.HERDR_SUPERWORK_HELPER_CMD; w.cleanup(); }
+    assert.deepEqual([shown.note, shown.progress, shown.eta], ["editing the greeting file", 42, 55]); // 40 × 58 ÷ 42
+    assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("summary=editing the greeting file") && m.args.join(" ").includes("progress=42% --token eta=55m")));
+    // What it was told: the task's description (cut short), the time spent, and no rule against going lower.
+    const first = fs.readFileSync(seen, "utf8");
+    assert.match(first, /Task: build a login page\nWhat the task asks for:\nIt needs a password field\. x+\n/); assert.ok(!first.includes("x".repeat(1600)));
+    assert.match(first, /The agent has been on this for 40 minutes so far\./); assert.match(first, /This is your first look at it\./);
+    assert.doesNotMatch(first, /"eta"|minutes are left|started over/);
+    // The next look gets the previous guess, and may lower it when new work shows up.
+    w.patchState((st) => { st.panes.find((p) => p.pane_id === S.get("proj/1").link.pane).agent.screen = "● 3 tests failed\n"; });
+    const at = S.get("proj/1").watch.at;
+    H.watchTick(F.board(), Date.now() + 20000);
+    for (let i = 0; i < 60 && S.get("proj/1").watch.at === at; i++) await new Promise((r) => setTimeout(r, 50));
+    const second = fs.readFileSync(seen, "utf8");
+    assert.match(second, /Your previous guess was 42 percent\. Keep it unless something on the screen is a reason to change it\./); assert.match(second, /Lower it when new work shows up: a failing test/);
+    // Stopped and delegated again: the old guess goes, so the new assignment starts with no percent and no minutes.
+    A.stop("proj/1"); S.update("proj/1", (t) => { t.watch = { msg: "reading the diff", progress: 80, role: "reviewer", at: Date.now() }; t.reviewAt = Date.now() - 40 * 60000; });
+    w.script({ worker: [{ status: "working", screen: "● Starting over\n" }] });
+    A.delegate("proj/1"); await settle("proj/1");
+    const fresh = F.board().find((t) => t.id === "proj/1");
+    assert.deepEqual([S.get("proj/1").stage, S.get("proj/1").watch, fresh.eta], ["working", null, undefined]);
+  } finally { delete process.env.HERDR_SUPERWORK_HELPER_CMD; delete process.env.FAKE_HELPER_PROMPT; w.cleanup(); }
 });
 
 test("other machines: the door answers one line of JSON, actions run where the task lives, and the SSH line uses a login shell", async () => {

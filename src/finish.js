@@ -425,7 +425,7 @@ function fileFaults(id, g, review) {
   if (changed) g.set({ filedFaults: filed });
 }
 async function runReview(id, g, { text, change, toLand, ch }) {
-  let t = g.set({ stage: "reviewing", msg: "under review", watch: null });
+  let t = g.set({ stage: "reviewing", msg: "under review", watch: null, reviewAt: Date.now() });
   g.allow("reviewneeds");
   const api = F.h(t);
   const folder = S.cwdOf(t);

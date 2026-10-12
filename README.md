@@ -203,7 +203,15 @@ different one this once, use `coordinator new --agent …` below: your default s
 `coordinator new [--agent KIND] [--model M] [--effort E]`, `coordinator stop`.
 
 **Four roles.** The **Agent** does the work. The **Reviewer** attacks finished work. The **Watcher** is a small
-model that writes the "doing now" line and guesses progress and how many minutes are left (it skips a look when the screen has not changed). The
+model that writes the "doing now" line and guesses one number: how far along the work is, in percent (it skips a look
+when the screen has not changed). It is shown the task and its description, the last lines on the agent's screen, how
+long the work has run and its own previous guess, which it keeps unless the screen gives a reason to change it. The
+guess goes down as well as up: a failing test, a merge conflict or review findings to fix mean more work, so a lower
+percent. The board works out the minutes left from that percent and the time spent: time spent × (100 − percent) ÷
+percent, so 40 minutes in at 80% is 10 minutes left. The time spent counts from when the agent began on what you last
+asked of it (or, while the Reviewer works, from the start of that review round), and the minutes are worked out anew
+every second, so they keep moving between looks. Under 5% there is too little to go on and no minutes are shown. Your
+own tasks are different: they show the `--progress` and `--eta` you give `report`, as given. The
 **Coordinator** is the agent you talk to in the chat: one long-lived chat that turns what you type into board commands, and
 can do whatever else an agent chat can. Like the Agent, it is Claude Code on its default model and effort unless you
 say otherwise, whatever the Agent is set to: set `coordinator`, `coordinatorModel`, `coordinatorEffort` (any
@@ -382,7 +390,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `reviewer`, `reviewerModel`, `reviewerEffort` | `codex` | the reviewer; `off` for none. Not installed here: the agent's own kind reviews, on its default model, and the task says so |
 | `coordinator`, `coordinatorModel`, `coordinatorEffort` | `claude`, its defaults | the Coordinator, the agent you talk to in the chat; `off` for none. For one use: `coordinator new --agent … --model … --effort …` |
 | `watcherAgent`, `watcherModel` | `claude`, `claude-haiku-5-5` | the Watcher's small model (`helper`, `helperModel` are still read as these) |
-| `watcher` | `on` | the "doing now" line, the progress guess and the minutes left, about every 15 seconds per working agent, board open or closed |
+| `watcher` | `on` | the "doing now" line, the progress guess and the minutes left worked out from it, a look about every 15 seconds per working agent, board open or closed |
 | `skill` | `true` | keep the how-to in each agent program's skills folder |
 | `ownTerminal` | `true` | the board always has the size of the herdr pane it runs in: another viewer attached straight to its terminal (`herdr terminal attach`, herdr's remote web UI) holds the terminal at its own size, so the board disconnects it. `false`: it stays, the board draws inside what both can see, says so, and alt+w disconnects it |
 | `theme` | `auto` | the board and the review page use herdr's own colours and status marks. herdr's sidebar is drawn by the client with the config of the device it runs on, and herdr does not pass that on to the board. `auto`: when herdr's `config.toml` on this machine sets a theme (`[theme]`, with its custom colours), the board follows it as herdr resolves it; when it sets none, the board paints with the terminal's own colours, as herdr's `terminal` theme does, which fits whatever device you look from. `herdr` follows this machine's config exactly, Catppuccin by default: choose it if you run an unconfigured herdr on this very machine and want the board to match it; `terminal` always uses the terminal's colours; `dark` or `light` picks herdr's dark or light theme by hand. `ui.status_indicators` is always followed. A task under review takes the theme's mauve; where that looks like another state's colour (the terminal's colours, Vesper), it is the terminal's magenta, so review never shares a colour with to do, working or any other state |

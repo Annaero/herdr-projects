@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { world } from "./helpers.js";
 import * as S from "../src/store.js";
-import { show } from "../src/state.js";
+import { show, etaOf, began } from "../src/state.js";
 import { parse } from "../src/cli.js";
 import { agentName } from "../src/delegate.js";
 
@@ -73,6 +73,36 @@ test("login failures are recognised from diagnostics, not from test names or ass
   assert.ok(!S.isAuthFailure("ok 3 - missing token returns 401"));
   assert.ok(!S.isAuthFailure("AssertionError: expected 401 received 200"));
   assert.ok(!S.isAuthFailure("test/credentials.test.ts:12:3"));
+});
+
+test("minutes left come from the percent and the time spent, and move as time passes", () => {
+  const min = 60000, t0 = 1e12;
+  assert.equal(etaOf(80, t0, t0 + 40 * min), 10); // the example: 40 minutes in at 80% is 10 left
+  assert.equal(etaOf(50, t0, t0 + 7.4 * min), 7); // whole minutes
+  for (const p of [0, 4, undefined, null, "x"]) assert.equal(etaOf(p, t0, t0 + 40 * min), undefined, `no guess at ${p}`); // too little to go on: none, not a huge number
+  assert.equal(etaOf(5, t0, t0 + 40 * min), 760);
+  assert.equal(etaOf(80, undefined, t0), undefined); // no start known
+  assert.equal(etaOf(80, t0, t0 - 5 * min), 1); // a clock that went back: never negative
+  assert.deepEqual([etaOf(99, t0, t0 + 2 * min), etaOf(42, t0, t0), etaOf(100, t0, t0 + 40 * min)], [1, 1, 0]); // never under a minute while work is left
+  assert.equal(etaOf(5, t0, t0 + 1e9 * min), 99999);
+  // On the board: the agent's guess counts from when its work began, the reviewer's from the start of this round.
+  const task = { id: "p/1", owner: "me", app: "claude", link: { pane: "w1:p1" }, stage: "working", since: t0 - 30 * min, workAt: t0, reviewAt: t0 + 60 * min };
+  const at = (t, mins) => show(t, { status: "working" }, t0 + mins * min).eta;
+  assert.equal(began({ ...task, watch: { progress: 80, role: "agent" } }), t0); // not the time it waited in the queue
+  assert.equal(began({ ...task, since: t0 + min, watch: { progress: 80, role: "agent" } }), t0 + min); // a reply starts the count again
+  assert.deepEqual([40, 60, 80].map((m) => at({ ...task, watch: { progress: 80, role: "agent" } }, m)), [10, 15, 20]); // same guess, later: more left
+  assert.equal(at({ ...task, watch: { progress: 2, role: "agent" } }, 40), undefined);
+  assert.equal(at({ ...task, watch: null }, 40), undefined);
+  assert.equal(at({ ...task, stage: "reviewing", watch: { progress: 50, role: "reviewer" } }, 66), 6);
+  // The stage decides whose clock runs. A reviewer's guess kept on a task whose agent works again (a stopped review,
+  // delegated again) is not shown as the agent's: no 80% and 10m beside an assignment that is a second old.
+  const again = show({ ...task, since: t0 + 100 * min, workAt: 0, reviewAt: t0 + 60 * min, watch: { msg: "reading the diff", progress: 80, role: "reviewer" } }, { status: "working" }, t0 + 100 * min + 1000);
+  assert.deepEqual([again.progress, again.eta, again.msg], [0, undefined, "working"]);
+  assert.equal(began({ ...task, watch: { progress: 80, role: "reviewer" } }), t0); // stage working: the agent's start, whatever the old guess says
+  assert.equal(at({ ...task, stage: "reviewing", watch: { progress: 50, role: "agent" } }, 66), undefined);
+  assert.equal(at({ ...task, stage: "merging", watch: { progress: 50, role: "reviewer" } }, 66), undefined); // no one is watched in a runner stage
+  // Your own task keeps the minutes you reported, as given.
+  assert.deepEqual([show({ ...task, stage: "progress", watch: { progress: 50, eta: 12 } }).eta, show({ ...task, stage: "progress", watch: { eta: 3 } }).eta], [12, 3]);
 });
 
 test("the one mapping function: stage and herdr status to board state", () => {
