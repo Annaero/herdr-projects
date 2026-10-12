@@ -106,13 +106,16 @@ it and shows it again, in a narrow window too (where the key does not fit beside
 and the board remembers which. `Alt+C` goes into the whole chat of whoever it names. Where the
 Coordinator stands (starting, working, needs you, a new reply) is said on that first line and nowhere else.
 
-**A board that looks cut off or half empty.** A remote view of the pane the board runs in (a `herdr terminal attach`,
+**A board that looks cut off or half empty.** The board takes its pane's size back by itself within a few seconds:
+the remote view described here is disconnected, and until then the board draws inside what herdr's window shows, so
+its text box and hints are never cut off. What follows is what you see with the setting `ownTerminal` off, where the
+view stays and `Alt+W` disconnects it. A remote view of the pane the board runs in (a `herdr terminal attach`,
 which herdr's web UI starts for each pane it shows) sets that pane's size to its own and holds it for as long as it
 runs, also after its browser tab is gone. herdr's own window then shows a cut-out of a board drawn for another size.
 The board notices within ten seconds and says so on its first line, top left where a cut-out still shows it, with what frees the size first so a narrow window keeps it:
 
 ```
- ! Held at 435×58: kill 2884 frees it. Drawn for a remote view of this pane, so herdr's own window (184×78) shows it cut off or half empty · herdr terminal attach, open 40m
+ ! Held at 435×58: alt+w, or kill 2884 frees it. Drawn for a remote view of this pane, so herdr's own window (184×78) shows it cut off or half empty · herdr terminal attach, open 40m
 ```
 
 Closing that view, or stopping the process it names, gives the pane its own size back at once. The line is not shown
@@ -345,6 +348,7 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 | `watcherAgent`, `watcherModel` | `claude`, `claude-haiku-5-5` | the Watcher's small model (`helper`, `helperModel` are still read as these) |
 | `watcher` | `on` | the "doing now" line, the progress guess and the minutes left, about every 15 seconds per working agent, board open or closed |
 | `skill` | `true` | keep the how-to in each agent program's skills folder |
+| `ownTerminal` | `true` | the board always has the size of the herdr pane it runs in: another viewer attached straight to its terminal (`herdr terminal attach`, herdr's remote web UI) holds the terminal at its own size, so the board disconnects it. `false`: it stays, the board draws inside what both can see, says so, and alt+w disconnects it |
 | `theme` | `auto` | the board and the review page use herdr's own colours and status marks. herdr's sidebar is drawn by the client with the config of the device it runs on, and herdr does not pass that on to the board. `auto`: when herdr's `config.toml` on this machine sets a theme (`[theme]`, with its custom colours), the board follows it as herdr resolves it; when it sets none, the board paints with the terminal's own colours, as herdr's `terminal` theme does, which fits whatever device you look from. `herdr` follows this machine's config exactly, Catppuccin by default: choose it if you run an unconfigured herdr on this very machine and want the board to match it; `terminal` always uses the terminal's colours; `dark` or `light` picks herdr's dark or light theme by hand. `ui.status_indicators` is always followed. A task under review takes the theme's mauve; where that looks like another state's colour (the terminal's colours, Vesper), it is the terminal's magenta, so review never shares a colour with to do, working or any other state |
 | `review` | `repos` | what gets reviewed: `repos`, `all` or `none` |
 | `artifacts`, `serve` | `true`, `tailscale` | evidence pages, linked privately on your tailnet (`local` for 127.0.0.1; also used, and said on the task, when Tailscale is not installed) |
@@ -390,6 +394,7 @@ machines.
 | Plugin event hooks fire on `pane.agent_status_changed` | yes; the event carries pane id, workspace id, status, agent |
 | Popup panes; `HERDR_PLUGIN_CONTEXT_JSON` in a popup | yes; no pane id, but workspace, focused pane and its folder, worktree's repo root |
 | `agent focus` from inside a popup holds after it closes | yes |
+| A second viewer on a pane's terminal (`herdr terminal attach`) | it sets the terminal's size; herdr then shows a cut-out of it from the top left. `pane layout` still gives the size herdr shows, so the board draws inside that and says what holds it; `terminal session control --takeover`, left at once, disconnects the other viewer and herdr sizes the terminal to the pane again: the board does it by itself (setting `ownTerminal`), or on alt+w. Nothing else gives the size back while the viewer is attached (a client resize, zoom, `control` without `--takeover`). Not in the popup: it has no pane id |
 | `agent start`; `state_change_seq`, `completion_seq` in `agent get` | yes; `completion_seq` appears after the first finished turn |
 | `agent_session` in `agent get` | only with herdr's own integration for that agent installed; without it a restarted agent starts fresh |
 | Workspace and pane ids across a server restart | survive; `terminal_id` does not; agents are gone without an integration |

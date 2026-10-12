@@ -120,6 +120,7 @@ export const DEFAULTS = {
   max: 4,                 // agents working at once
   skill: true,            // write a small how-to into each installed agent program's own skills folder, so any chat knows the board
   theme: "auto",          // the board's colours are herdr's: "auto" (the theme set in herdr's config here, else the terminal's colours), "herdr" (herdr's config exactly, its default included), "terminal", or herdr's "dark" or "light" theme
+  ownTerminal: true,      // the board's terminal has the size of its herdr pane: another viewer attached straight to it is disconnected
   trust: true,            // mark a new task's repo as trusted in the agent's own settings, so no dialog blocks the start
   agentArgs: {},          // per agent kind: extra arguments after `--` for `herdr agent start`; replaces the built-in default
 };

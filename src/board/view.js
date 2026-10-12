@@ -11,7 +11,7 @@ import * as A from "../actions.js";
 import * as F from "../flow.js";
 import * as H from "../helpers.js";
 import * as R from "../remote.js";
-import { herdr, currentSocket, inHerdr, readScreen, sessionName } from "../herdr.js";
+import { herdr, currentSocket, inHerdr, paneShown, readScreen, sessionName, takeTerminal } from "../herdr.js";
 import { housekeeping } from "../housekeeping.js";
 import { fullAccess, adapter } from "../agents.js";
 import { keeperAlive, tickOnce, codeStamp } from "../keeper.js";
@@ -86,6 +86,17 @@ export const asRow = (t) => ({ ...t, msg: t.note || "", raw: t.msg, app: t.shown
 // The fewest cells a cut "doing now" sentence is still worth showing in.
 const SENTENCE_MIN = 20;
 
+// What the board may draw on: its terminal, cut down to what herdr shows of it. `shown` is herdr's size for the pane
+// (see shownOf): the pane's outer rectangle, so beside other panes the borders come off it. Whether one more column
+// goes to herdr's own edge is not told, so a terminal up to that wide is taken as fitting, and one that is held is
+// drawn a column narrower. `held` says the terminal and what is shown disagree.
+export function fitShown({ cols, rows }, shown) {
+  if (!shown) return { cols, rows, held: false };
+  const border = shown.split ? 2 : 0, most = { cols: shown.cols - border, rows: shown.rows - border }, inside = { cols: most.cols - 1, rows: most.rows };
+  const over = cols > most.cols || rows > most.rows, under = cols < inside.cols || rows < inside.rows;
+  return { cols: cols > most.cols ? Math.max(1, inside.cols) : cols, rows: rows > most.rows ? Math.max(1, inside.rows) : rows, held: over || under };
+}
+
 export class View {
   items = []; rows = []; selectionRows = []; selectionLayout = "";
   sel = ""; top = 0;
@@ -130,6 +141,7 @@ export class View {
     try { this.startSetup(); } catch {}
     this.lookHeld();
     this.timer = setInterval(() => this.beat(), 1000);
+    this.askShown();
   }
   // A remote view of this pane (a `herdr terminal attach`, as herdr's web UI starts) can hold its terminal at its own
   // size: the board is then drawn for that size and herdr's window shows a cut-out of it. Said only after two looks
@@ -202,6 +214,7 @@ export class View {
   get atRest() { return !this.value() && !this.ask && !this.menu && !this.setup && !this.pasteText && !this.going && this.mode === "new"; }
   beat() {
     this.tick++;
+    if (this.tick % 2 === 0) this.askShown();
     if (this.all && this.tick % 5 === 0) this.pollRemotes();
     // With a keeper alive the board only looks: the keeper polls, watches and alerts. Without one the board does all
     // of it itself, as it always did, so a missing keeper never makes the board worse.
@@ -669,7 +682,7 @@ export class View {
   }
 
   handleInput(data) {
-    try { this.handle(data); } catch (e) { this.flash(e.message, "red"); }
+    try { if (this.off && matchesKey(data, "alt+w")) this.takeBack(); else this.handle(data); } catch (e) { this.flash(e.message, "red"); }
     this.syncReply();
     this.tui.requestRender();
   }
@@ -907,9 +920,51 @@ export class View {
     if (this.mode === "find") this.load();
   }
   render(width) { return this.draw(width).map((l) => this.theme.line(l)); }
+  // The terminal's size is the board's size, unless herdr shows this pane at another one: then something else that
+  // looks at the same terminal holds its size (a second viewer attached to it), and herdr shows a cut-out of it from
+  // the top left. The board draws inside what is shown, so nothing of it is cut off, and says what holds it.
+  askShown() {
+    if (!this.ctx.pane || this.askingShown) return;
+    this.askingShown = true;
+    paneShown(currentSocket(), this.ctx.pane, (shown) => { this.askingShown = false; if (!this.disposed) this.seeShown(shown); });
+  }
+  // A terminal held shorter than the window cannot be drawn on below its last row: only herdr can give it its size
+  // back, and only by disconnecting the other viewer (an attach is exclusive: herdr itself says "retry with
+  // --takeover"). So the board does that by itself, every time it has seen the two disagree twice in a row (a resize
+  // under way is not a second viewer): the board has the size of the pane it runs in, always. A try that failed is
+  // made again at every look after it. With `ownTerminal` off the viewer stays, and alt+w is the way.
+  get ownsTerminal() { return (this.ctx.ownTerminal ?? S.config().ownTerminal) !== false; }
+  seeShown(shown) {
+    const changed = JSON.stringify(shown) !== JSON.stringify(this.shown);
+    this.shown = shown;
+    const held = fitShown({ cols: this.tui.terminal.columns, rows: this.tui.terminal.rows }, shown).held;
+    this.offSeen = held ? (this.offSeen || 0) + 1 : 0;
+    if (held && /^(Another viewer held |Taken back:)/.test(this.msg || "")) this.msg = ""; // it is back: that is no longer true
+    if (this.offSeen >= 2 && this.ownsTerminal) this.takeBack(true);
+    if (changed || held) this.tui.requestRender();
+  }
+  // Your window wins: the other viewer is disconnected, and herdr gives the terminal the size it shows it at.
+  takeBack(auto = false) {
+    const cols = this.tui.terminal.columns, rows = this.tui.terminal.rows, f = fitShown({ cols, rows }, this.shown);
+    try {
+      (this.ctx.takeTerminal || takeTerminal)(currentSocket(), this.ctx.pane, { cols: f.cols, rows: f.rows });
+      this.offSeen = 0; this.takeFailed = "";
+      this.flash(auto ? `Another viewer held this terminal at ${cols}×${rows}: it was disconnected, and your window has it again.` : "Taken back: the other viewer was disconnected.");
+    } catch (e) {
+      this.takeFailed = clean(e?.message || "herdr refused"); // said in the note, and tried again at the next look
+      if (!auto) this.flash(`Could not take the terminal back: ${this.takeFailed}`, "red");
+    }
+    if (!auto) this.askShown();
+  }
   draw(width) {
+    const rows = this.tui.terminal.rows, f = fitShown({ cols: width, rows }, this.shown);
+    this.off = f.held;
+    // The line at the top (lookHeld) says the same with more: while it shows, this one is not needed.
+    this.offNote = f.held && !this.held ? `Another viewer holds this terminal at ${width}×${rows}; herdr shows it at ${this.shown.cols - (this.shown.split ? 2 : 0)}×${this.shown.rows - (this.shown.split ? 2 : 0)}. ${this.takeFailed && this.ownsTerminal ? `Taking it back failed (${this.takeFailed}): trying again.` : "alt+w takes it back."}` : "";
+    return this.pad(this.drawAt(f.cols, Math.max(8, f.rows)), Math.max(8, rows));
+  }
+  drawAt(width, rowsN) {
     this.width = width;
-    const rowsN = Math.max(8, this.tui.terminal.rows);
     const fit = (s) => truncateToWidth(s, width, "…", true);
     try {
       const t = this.theme;
@@ -931,7 +986,7 @@ export class View {
       const trimChat = (limit) => { if (chat.length > limit) chat.splice(limit > headN ? limit - 1 : limit, chat.length, ...(limit > headN ? [" " + t.fg("overlay0", "… alt+c: open its chat")] : [])); };
       // What just happened, on a line of its own: the hints below it stay readable.
       const stale = !this.stale ? "" : this.ctx.canReload === false ? "herdr-superwork was updated: close the board and open it again for the new version." : "herdr-superwork was updated: the new version loads when nothing is half typed.";
-      const said = this.msg ? wrapTextWithAnsi(t.fg(this.msgKind, this.msg) + (this.msgKind === "red" ? t.fg("overlay0", "  (esc)") : ""), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : stale ? ["  " + t.fg("overlay0", stale)] : [];
+      const said = this.msg && !(this.offNote && this.msgKind !== "red") ? wrapTextWithAnsi(t.fg(this.msgKind, this.msg) + (this.msgKind === "red" ? t.fg("overlay0", "  (esc)") : ""), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : this.offNote ? wrapTextWithAnsi(t.fg("yellow", this.offNote), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : stale ? ["  " + t.fg("overlay0", stale)] : [];
       const extraRows = Math.max(0, rowsN - inputLines.length - 2 - said.length - headN);
       const lastJobTop = Math.max(0, this.jobs.length - extraRows);
       if (selectedJob < 0) this.jobTop = lastJobTop;
@@ -977,7 +1032,7 @@ export class View {
     const d = this.held;
     if (!d) return [];
     const t = this.theme, who = d.by[0];
-    const text = `Held at ${d.columns}×${d.rows}: ${who ? `kill ${who.pid}` : "closing its remote view"} frees it. `
+    const text = `Held at ${d.columns}×${d.rows}: ${this.ctx.pane ? "alt+w, or " : ""}${who ? `kill ${who.pid}` : "closing its remote view"} frees it. `
       + `Drawn for a remote view of this pane, so herdr's own window (${d.room.columns}×${d.room.rows}) shows it cut off or half empty`
       + (who ? ` · herdr terminal attach, open ${age(who.seconds * 1000)}${d.by.length > 1 ? `, and ${d.by.length - 1} more` : ""}` : "");
     return [truncateToWidth(" " + t.fg("yellow", "! " + text), width, "…")];

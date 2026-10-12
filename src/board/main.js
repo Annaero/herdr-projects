@@ -36,7 +36,7 @@ export async function openBoard({ folder }) {
       // The watcher's helper calls are detached and must not keep the popup open.
       setTimeout(() => process.exit(0), 20);
     };
-    view = new View(tui, theme, done, { cwd: folder, leaveMs: 700, boardKey, canReload: reloads < 5 });
+    view = new View(tui, theme, done, { cwd: folder, leaveMs: 700, boardKey, canReload: reloads < 5, pane: process.env.HERDR_ENV === "1" && !process.env.HERDR_PLUGIN_ID && !process.env.TMUX ? process.env.HERDR_PANE_ID || "" : "" });
     tui.addChild(view);
     tui.setFocus(view);
     for (const sig of ["SIGTERM", "SIGHUP"]) process.on(sig, done);

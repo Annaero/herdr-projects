@@ -851,6 +851,110 @@ test("the done list is plain: newest first, and nothing marks a task as read or 
   } finally { w.cleanup(); }
 });
 
+// The chat block (who you talk to and their message, the text box, what just happened, the hints) ends on the
+// window's last line, and the list has every line above it: at any height, through a resize, whatever the block holds.
+test("the chat is pinned to the bottom of the window: tall, resized, and while the chat block grows or shrinks", async () => {
+  const w = await world({ settings: { helper: "off" } });
+  try {
+    for (let i = 1; i <= 230; i++) A.add(w.root, `Task number ${i}`);
+    const s = open(w, { rows: 84, side: false });
+    const chatOf = s.v.chatOf.bind(s.v);
+    let said = "";
+    s.v.chatOf = (r) => { const c = chatOf(r); return c && said ? { ...c, text: said, always: true } : c; };
+    const pinned = (rows, what) => {
+      s.v.tui.terminal.rows = rows; // the same open board: the window was resized under it
+      const lines = s.screen(120), note = `${what}, ${rows} rows`;
+      assert.equal(lines.length, rows, note); // one line per row of the window: nothing is left over below
+      const last = lines.length - 1, said = s.v.msg ? 1 : 0;
+      assert.match(lines[last], /^ {2}\S.* · /, note); // the hints are the last line
+      const box = lines.findLastIndex((l) => /^❯/.test(l));
+      assert.ok(box > 0, note); assert.match(lines[box - 1], /^─+$/, note);
+      const rule = lines.findLastIndex((l) => /^─+$/.test(l));
+      assert.equal(rule, last - 1 - said, note); // the text box sits right on the hints (and on what just happened)
+      const head = lines.findIndex((l) => /^─+$/.test(l)); // where the chat block starts
+      assert.match(lines[head + 1], /^ \S/, note); // who your words go to
+      for (let n = head; n <= last; n++) assert.notEqual(lines[n].trim(), "", `${note}: an empty line inside the chat block`);
+      const tasks = lines.slice(0, head).filter((l) => /Task number \d+/.test(l)).length;
+      // Every spare line is the list's: with more tasks than fit, no line above the chat is empty but the one under the header.
+      if (rows >= 16) assert.ok(tasks >= head - 4, `${note}: ${tasks} tasks in ${head} lines`);
+      return { head, tasks };
+    };
+    const tall = pinned(84, "tall");
+    assert.ok(tall.tasks > 70);
+    for (const rows of [120, 200, 61, 84, 40, 24, 16, 12, 9, 58, 84]) pinned(rows, "resized");
+    assert.deepEqual(pinned(84, "back to tall"), tall);
+    // A longer message from the Coordinator: the block grows upwards, into the list.
+    said = Array.from({ length: 6 }, (_, i) => `Line ${i + 1} of what it said.`).join("\n");
+    const long = pinned(84, "long message");
+    assert.equal(long.head, tall.head - 6); // its six lines
+    for (const rows of [200, 30, 84]) pinned(rows, "long message, resized");
+    // A draft that wraps: the box grows upwards too.
+    s.type("word ".repeat(60));
+    const draft = pinned(84, "wrapped draft");
+    assert.ok(draft.head < long.head);
+    for (const rows of [200, 20, 84]) pinned(rows, "wrapped draft, resized");
+    // A message on the line of what just happened, then back to nothing at all: it shrinks back down.
+    s.v.flash("Something just happened.", "yellow");
+    pinned(84, "with a message"); pinned(140, "with a message, resized");
+    s.v.msg = ""; s.v.setValue(""); said = "";
+    assert.deepEqual(pinned(84, "shrunk back"), tall);
+  } finally { w.cleanup(); }
+});
+
+// The same promise through the real screen: the library draws the board on a terminal that is resized under it, the
+// way a window is. What reaches the terminal is checked, at narrow, normal, very wide and very tall sizes.
+test("resizing the real screen keeps the chat on the last line and the working rows' columns at the right edge", async () => {
+  const w = await world({ settings: { helper: "off" } });
+  const { TuiAltScreen, visibleWidth } = await import("@earendil-works/pi-tui");
+  let tui;
+  try {
+    A.add(w.root, "Pin the chat to the bottom");
+    for (let i = 2; i <= 150; i++) A.add(w.root, `Task number ${i}`);
+    let resized = () => {};
+    const terminal = {
+      columns: 120, rows: 34, kittyProtocolActive: false,
+      start(_onInput, onResize) { resized = onResize; }, stop() {}, async drainInput() {}, write() {},
+      moveBy() {}, hideCursor() {}, showCursor() {}, clearLine() {}, clearFromCursor() {}, clearScreen() {}, setTitle() {}, setProgress() {}, setProgramStatus() {},
+    };
+    tui = new TuiAltScreen(terminal, { mouse: false });
+    const v = new View(tui, theme, () => {}, { cwd: w.root, canReload: true });
+    clearInterval(v.timer);
+    v.side = false;
+    // One task an agent works on: the bar, the percent, the minutes left, the PR number and the time are its columns on the right.
+    const first = v.rows.find((row) => row.rec).rec;
+    Object.assign(first, { title: "Pin the chat to the bottom", state: "working", msg: "Checking every window size.", progress: 55, eta: 12, pr: 3, at: Date.now() - 6 * 60000 });
+    v.chatOf = () => ({ mark: "○", name: "Coordinator", word: "idle", color: "green", meta: "claude · default model · default effort", label: "last message", enter: true, said: true, always: true, notes: [], text: "Tasks 31 and 32 are both waiting." });
+    tui.addChild(v); tui.setFocus(v); tui.start();
+    const frame = async (columns, rows) => {
+      terminal.columns = columns; terminal.rows = rows; resized(); // what a window resize does
+      let lines = [];
+      for (let n = 0; n < 100 && !(lines.length === rows && visibleWidth(lines[rows - 2]) === columns); n++) { await new Promise((r) => setTimeout(r, 10)); lines = tui.getScreenLines(); }
+      return lines.map((l) => stripVTControlCharacters(l).replace(/\x1b_pi:c\x07/g, "").replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, ""));
+    };
+    for (const [columns, rows] of [[120, 34], [190, 84], [435, 58], [412, 78], [50, 22], [50, 84], [435, 22], [300, 120], [40, 12], [435, 58], [120, 34]]) {
+      const lines = await frame(columns, rows), note = `${columns}x${rows}`;
+      assert.equal(lines.length, rows, note); // the whole window is drawn, to its last row
+      for (const l of lines) assert.ok(visibleWidth(l) <= columns, `${note}: a line is wider than the window`);
+      // The bottom: the hints on the last row, the text box with its rules right above them.
+      assert.match(lines[rows - 1], /^ {2}\S/, note); assert.doesNotMatch(lines[rows - 1].trimEnd(), /·$/, note);
+      assert.equal(lines[rows - 2], "─".repeat(columns), note); assert.match(lines[rows - 3], /^❯ /, note); assert.equal(lines[rows - 4], "─".repeat(columns), note);
+      const head = lines.findIndex((l) => /^─+$/.test(l));
+      for (let n = head; n < rows; n++) assert.notEqual(lines[n].trim(), "", `${note}: an empty line inside the chat block`);
+      // Who you talk to: its keys end at the right edge, whole, never on a dangling separator.
+      const who = lines[head + 1].trimEnd();
+      assert.match(who, /^ ○ Coordinator/, note); assert.doesNotMatch(who, /·$/, note);
+      if (columns >= 120) { assert.match(who, /alt\+c open its chat · alt\+v hide its message$/, note); assert.ok(visibleWidth(who) >= columns - 1, note); }
+      // The working row: its columns sit at the window's right edge, however wide the window is.
+      const row = lines.find((l) => /Pin the chat to the bottom/.test(l)) || "";
+      if (rows >= 20) assert.ok(row, `${note}: the working row is in view`);
+      if (row && columns >= 120) { assert.match(row, /Checking every window size\. +█+░+ +55% 12m PR#3 {2}6m {4}$/, note); assert.equal(visibleWidth(row), columns, note); }
+      else if (row) { assert.match(row, /6m *$/, note); if (columns >= 50) assert.match(row, /55% 12m PR#3 +6m *$/, note); }
+      // All spare height is the list's.
+      if (rows >= 20) assert.ok(lines.slice(0, head).filter((l) => /Task number \d+/.test(l)).length >= head - 6, `${note}: the list fills the space above the chat`);
+    }
+  } finally { try { tui?.stop(); } catch {} w.cleanup(); }
+});
+
 // The text box as the screen shows it: its rows without the prompt, how many rows it hides, and where the cursor is.
 function draft(s, width) {
   const raw = s.v.render(width), lines = raw.map((l) => stripVTControlCharacters(l).replace(/\x1b_pi:c\x07/g, ""));
@@ -986,6 +1090,133 @@ test("a reply to a task's agent wraps in the same box, under the agent's latest 
     assert.equal(d.rows.join(" "), words); assert.ok(d.rows.length > 5); assert.equal(d.above + d.below, 0);
     assert.equal(d.lines.length, 24); assert.ok(d.lines.every((l) => l.length <= 50));
     assert.ok(d.lines.some((l) => /Make f/.test(l)), "who the reply goes to still shows above the box");
+  } finally { w.cleanup(); }
+});
+
+// herdr shows a pane at one size, the terminal behind it can be held at another: a second viewer attached to the
+// same terminal sets its size, and herdr then shows a cut-out of it from the top left. Seen live: a terminal held at
+// 435x58, shown in windows of 184x78 (empty below the hints) and 412x56 (the right-hand columns and the text box cut off).
+test("a terminal held at another size than herdr shows: the board draws inside what is shown, and says what holds it", async () => {
+  const { fitShown } = await import("../src/board/view.js");
+  const { shownOf } = await import("../src/herdr.js");
+  // What `herdr pane layout` answers, as measured on 0.9.3 next to the pane's own terminal size.
+  const layout = (panes, zoomed = false, focused_pane_id = "w1:p1") => ({ area: { width: 124, height: 59, x: 0, y: 0 }, zoomed, focused_pane_id, panes: panes.map(([pane_id, width, height]) => ({ pane_id, rect: { width, height, x: 0, y: 0 } })) });
+  assert.deepEqual(shownOf(layout([["w1:p1", 124, 59]]), "w1:p1"), { cols: 124, rows: 59, split: false });
+  assert.deepEqual(shownOf(layout([["w1:p1", 124, 30], ["w1:p2", 124, 29]]), "w1:p2"), { cols: 124, rows: 29, split: true });
+  assert.deepEqual(shownOf(layout([["w1:p1", 124, 30], ["w1:p2", 124, 29]], true), "w1:p1"), { cols: 124, rows: 59, split: true }); // zoomed: the whole tab
+  // The pane beside it is the zoomed one: this one is hidden and keeps its place and its size, so nothing holds it.
+  { const hidden = shownOf(layout([["w1:p1", 124, 30], ["w1:p2", 124, 29]], true, "w1:p2"), "w1:p1");
+    assert.deepEqual(hidden, { cols: 124, rows: 30, split: true }); assert.equal(fitShown({ cols: 121, rows: 28 }, hidden).held, false); }
+  assert.equal(shownOf(layout([["w1:p1", 124, 59]]), "w9:p9"), null); assert.equal(shownOf(null, "w1:p1"), null);
+  // A terminal that fits what is shown is left alone: alone in its tab, beside other panes (borders), zoomed, or with no answer.
+  for (const [cols, rows, shown] of [[184, 78, { cols: 184, rows: 78, split: false }], [123, 59, { cols: 124, rows: 59, split: false }], [121, 28, { cols: 124, rows: 30, split: true }], [121, 27, { cols: 124, rows: 29, split: true }], [121, 57, { cols: 124, rows: 59, split: true }], [120, 34, null]])
+    assert.deepEqual(fitShown({ cols, rows }, shown), { cols, rows, held: false }, `${cols}x${rows}`);
+  // Held wider and taller than shown: cut down to it. Held smaller: nothing to draw on beyond it, but it is said.
+  assert.deepEqual(fitShown({ cols: 435, rows: 58 }, { cols: 412, rows: 56, split: false }), { cols: 411, rows: 56, held: true });
+  assert.deepEqual(fitShown({ cols: 435, rows: 58 }, { cols: 184, rows: 78, split: false }), { cols: 183, rows: 58, held: true });
+  assert.deepEqual(fitShown({ cols: 435, rows: 58 }, { cols: 124, rows: 30, split: true }), { cols: 121, rows: 28, held: true });
+  // One row short is a gap below the hints too: nothing is let through as close enough.
+  assert.equal(fitShown({ cols: 385, rows: 54 }, { cols: 386, rows: 55, split: false }).held, true);
+  assert.equal(fitShown({ cols: 122, rows: 59 }, { cols: 124, rows: 59, split: false }).held, true);
+  assert.equal(fitShown({ cols: 121, rows: 27 }, { cols: 124, rows: 30, split: true }).held, true);
+  // Beside other panes the borders are inside herdr's rectangle: a terminal held at exactly that rectangle is too big.
+  assert.deepEqual(fitShown({ cols: 386, rows: 28 }, { cols: 386, rows: 28, split: true }), { cols: 383, rows: 26, held: true });
+  assert.deepEqual(fitShown({ cols: 124, rows: 59 }, { cols: 124, rows: 59, split: true }), { cols: 121, rows: 57, held: true });
+
+  const w = await world({ settings: { helper: "off" } });
+  try {
+    for (let i = 1; i <= 150; i++) A.add(w.root, `Task number ${i}`);
+    const s = open(w, { rows: 58, side: false });
+    const first = s.v.rows.find((row) => row.rec).rec;
+    Object.assign(first, { title: "Pin the chat to the bottom", state: "working", msg: "Checking every window size.", progress: 55, eta: 12, pr: 3, at: Date.now() - 6 * 60000 });
+    s.v.chatOf = () => ({ mark: "○", name: "Coordinator", word: "idle", color: "green", meta: "claude · default model · default effort", label: "last message", enter: true, said: true, always: true, notes: [], text: "Tasks 31 and 32 are both waiting." });
+    // Not held: the board is the terminal's size, as before.
+    let lines = s.screen(435);
+    assert.equal(lines.length, 58); assert.match(lines[57], /^ {2}\S/); assert.match(lines.find((l) => /Pin the chat/.test(l)), /55% 12m PR#3 {2}6m {4}$/); assert.doesNotMatch(lines.join("\n"), /Another viewer/);
+    // Held at 435x58 while a 412x56 window shows it: everything is inside the 412x56 that can be seen.
+    s.v.shown = { cols: 412, rows: 56, split: false };
+    lines = s.screen(435);
+    assert.equal(lines.length, 58); // the terminal is still filled: the rows nobody sees are empty
+    assert.deepEqual(lines.slice(56).map((l) => l.trim()), ["", ""]);
+    for (const l of lines) assert.ok(l.trimEnd().length <= 411, "nothing is drawn right of what is shown");
+    assert.match(lines[55], /^ {2}\S.* · /); // the hints: the last row that is seen
+    assert.match(lines[54], /^ {2}Another viewer holds this terminal at 435×58; herdr shows it at 412×56\. alt\+w takes it back\. *$/);
+    assert.equal(lines[53], "─".repeat(411)); assert.match(lines[52], /^❯ /); assert.equal(lines[51], "─".repeat(411));
+    const row = lines.find((l) => /Pin the chat/.test(l));
+    assert.match(row, /Checking every window size\. +█+░+ +55% 12m PR#3 {2}6m {4}$/); assert.equal(row.length, 411); // the columns are back in view
+    assert.match(lines.find((l) => /^ ○ Coordinator/.test(l)).trimEnd(), /alt\+c open its chat · alt\+v hide its message$/); // whole, not cut after the dot
+    // Held at 435x58 while a taller, narrower window shows it: the width is cut down, the rows are all there are.
+    s.v.shown = { cols: 184, rows: 78, split: false };
+    lines = s.screen(435);
+    assert.equal(lines.length, 58); assert.match(lines[57], /^ {2}\S.* · /); assert.match(lines[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78/);
+    for (const l of lines) assert.ok(l.trimEnd().length <= 183);
+    assert.match(lines.find((l) => /Pin the chat/.test(l)), /55% 12m PR#3 {2}6m {4}$/);
+    // The board takes its terminal back by itself: seen held twice in a row, the other viewer is disconnected and herdr
+    // gives the terminal the window's size, so the chat is on the window's last row again with no key pressed.
+    {
+      const a = open(w, { rows: 58, side: false }), took = [];
+      Object.assign(a.v.tui.terminal, { columns: 435 }); a.v.ctx.pane = "w1:p1";
+      let comesBack = false;
+      a.v.ctx.takeTerminal = (socket, pane, size) => { took.push([pane, size]); if (!comesBack) Object.assign(a.v.tui.terminal, { columns: 184, rows: 78 }); };
+      const tall = { cols: 184, rows: 78, split: false };
+      a.v.seeShown(tall); assert.deepEqual(took, []); // once is a resize under way
+      assert.match(a.screen(435).join("\n"), /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. alt\+w takes it back\./);
+      a.v.seeShown(tall); assert.deepEqual(took, [["w1:p1", { cols: 183, rows: 58 }]]);
+      a.v.seeShown(tall);
+      let l = a.screen(184);
+      assert.equal(l.length, 78); assert.match(l[77], /^ {2}\S.* · /); assert.equal(l[75], "─".repeat(184));
+      assert.match(l[76], /Another viewer held this terminal at 435×58: it was disconnected, and your window has it again\./);
+      // A viewer that comes back is sent away again, every time: the board has its pane's size, always.
+      for (let round = 2; round <= 4; round++) {
+        Object.assign(a.v.tui.terminal, { columns: 435, rows: 58 });
+        a.v.seeShown(tall); assert.equal(took.length, round - 1);
+        assert.match(a.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. alt\+w takes it back\./); // what is true now, not what was done before
+        a.v.seeShown(tall); assert.equal(took.length, round);
+        l = a.screen(184); assert.equal(l.length, 78); assert.match(l[77], /^ {2}\S.* · /); assert.doesNotMatch(l.join("\n"), /holds this terminal/);
+      }
+      // A try that fails is made again at every look, and says so; when herdr answers again the window is back.
+      let fails = true; const tries = [];
+      const c = open(w, { rows: 58, side: false });
+      Object.assign(c.v.tui.terminal, { columns: 435 }); c.v.ctx.pane = "w1:p1";
+      c.v.ctx.takeTerminal = () => { tries.push(fails); if (fails) throw new Error("herdr did not answer"); Object.assign(c.v.tui.terminal, { columns: 184, rows: 78 }); };
+      for (let n = 0; n < 5; n++) c.v.seeShown(tall);
+      assert.deepEqual(tries, [true, true, true, true]);
+      assert.match(c.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. Taking it back failed \(herdr did not answer\): trying again\./);
+      fails = false; c.v.seeShown(tall); c.v.seeShown(tall);
+      assert.deepEqual(tries, [true, true, true, true, false]);
+      l = c.screen(184); assert.equal(l.length, 78); assert.match(l[77], /^ {2}\S.* · /); assert.match(l[76], /it was disconnected, and your window has it again/);
+      // `ownTerminal` off: the other viewer stays. The board draws inside what both see, says so, and alt+w is the way.
+      const d = open(w, { rows: 58, side: false }), never = [];
+      Object.assign(d.v.tui.terminal, { columns: 435 }); d.v.ctx.pane = "w1:p1"; d.v.ctx.ownTerminal = false; d.v.ctx.takeTerminal = (...x) => never.push(x);
+      for (let n = 0; n < 5; n++) d.v.seeShown(tall);
+      assert.deepEqual(never, []); assert.match(d.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. alt\+w takes it back\./);
+      delete d.v.ctx.ownTerminal; // the setting itself: on unless turned off
+      d.v.seeShown(tall); assert.equal(never.length, 1);
+      S.setConfig("ownTerminal", false); d.v.seeShown(tall); d.v.seeShown(tall); assert.equal(never.length, 1);
+      S.setConfig("ownTerminal", true);
+      // Sizes that agree never take anything, and a transient disagreement that is gone at the next look does not either.
+      const b = open(w, { rows: 78, side: false }), none = [];
+      b.v.tui.terminal.columns = 184; b.v.ctx.pane = "w1:p1"; b.v.ctx.takeTerminal = (...x) => none.push(x);
+      for (const shown of [tall, tall, { cols: 150, rows: 60, split: false }, tall, { cols: 150, rows: 60, split: false }, tall, null, null]) b.v.seeShown(shown);
+      assert.deepEqual(none, []);
+    }
+    // alt+w takes the terminal back, also in the middle of a draft: the other viewer is disconnected, and herdr gives
+    // the terminal the size of your window, so the chat is on its last row again. Nothing does this by itself.
+    const taken = [];
+    s.v.tui.terminal.columns = 435; s.v.ctx.pane = "w1:p1"; s.v.ctx.takeTerminal = (socket, pane, size) => { taken.push([pane, size]); Object.assign(s.v.tui.terminal, { columns: 184, rows: 78 }); };
+    s.v.askShown = () => {};
+    s.type("half a draft"); s.screen(435); assert.deepEqual(taken, []);
+    s.press("\x1bw");
+    assert.deepEqual(taken, [["w1:p1", { cols: 183, rows: 58 }]]); assert.equal(s.v.value(), "half a draft");
+    s.v.setValue("");
+    lines = s.screen(184);
+    assert.equal(lines.length, 78); assert.match(lines[77], /^ {2}\S.* · /); assert.match(lines[76], /Taken back: the other viewer was disconnected\./); assert.doesNotMatch(lines.join("\n"), /Another viewer/);
+    s.press("\x1bw"); assert.equal(taken.length, 1); // not held: the key is not the board's
+    s.v.msg = "";
+    // The other viewer went away: herdr and the terminal agree again, and the note is gone.
+    s.v.tui.terminal.rows = 78; s.v.shown = { cols: 184, rows: 78, split: false };
+    lines = s.screen(184);
+    assert.equal(lines.length, 78); assert.match(lines[77], /^ {2}\S.* · /); assert.equal(lines[76], "─".repeat(184)); assert.doesNotMatch(lines.join("\n"), /Another viewer/);
   } finally { w.cleanup(); }
 });
 

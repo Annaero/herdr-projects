@@ -6,7 +6,7 @@
 //     an official integration installed
 //   - a pane whose agent exited answers agent_not_found to `agent get`, and `pane get` shows agent: null
 //   - `agent start` answers agent_not_ready when a dialog blocks the start; `agent prompt` answers agent_blocked
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
@@ -42,6 +42,37 @@ function run(socket, args, { timeout = 30000, raw = false, input } = {}) {
   if (raw) return r.stdout;
   try { const j = JSON.parse(r.stdout); if (j.error) throw new HerdrError(j.error.code, j.error.message, args); return j.result ?? j; }
   catch (e) { if (e instanceof HerdrError) throw e; return { text: r.stdout }; }
+}
+
+// The size herdr shows a pane at, from `pane layout`: its rectangle, or the whole tab while it is the zoomed one. With other
+// panes beside it the borders are inside that rectangle (checked on 0.9.3: two rows and up to three columns).
+export function shownOf(layout, pane) {
+  const panes = layout?.panes || [], mine = panes.find((p) => p.pane_id === pane);
+  // Zooming a pane focuses it: only the focused pane has the tab, the hidden ones keep their place and their size.
+  const r = mine && (layout.zoomed && layout.focused_pane_id === pane && layout.area ? layout.area : mine.rect);
+  return r && r.width > 0 && r.height > 0 ? { cols: r.width, rows: r.height, split: panes.length > 1 } : null;
+}
+// Asked without blocking: the board asks this again and again while it is open. `cb(null)` when herdr does not say.
+export function paneShown(socket, pane, cb) {
+  const env = { ...process.env };
+  delete env.HERDR_PANE_ID; delete env.HERDR_TAB_ID; delete env.HERDR_WORKSPACE_ID; delete env.HERDR_SESSION;
+  if (socket) env.HERDR_SOCKET_PATH = socket;
+  let out = "", done = false;
+  const end = (v) => { if (!done) { done = true; cb(v); } };
+  try {
+    const c = spawn(bin(), ["pane", "layout", "--pane", pane], { env, stdio: ["ignore", "pipe", "ignore"], timeout: 5000 });
+    c.stdout.on("data", (d) => { out += d; });
+    c.on("error", () => end(null));
+    c.on("close", () => { try { end(shownOf(JSON.parse(out).result?.layout, pane)); } catch { end(null); } });
+  } catch { end(null); }
+}
+
+// Takes a pane's terminal back from whatever else is attached to it: the other viewer is disconnected ("terminal attach
+// taken over"), and as this one leaves at once herdr gives the terminal the size it shows the pane at (checked on 0.9.3).
+export function takeTerminal(socket, pane, { cols, rows }) {
+  const id = run(socket, ["pane", "get", pane], { timeout: 5000 }).pane?.terminal_id;
+  if (!id) throw new HerdrError("pane_not_found", "herdr does not know this pane.", [pane]);
+  run(socket, ["terminal", "session", "control", id, "--takeover", "--cols", String(cols), "--rows", String(rows)], { timeout: 5000, raw: true, input: "" });
 }
 
 // An API bound to one herdr session (by socket path). `null` means "whatever this process would talk to".
