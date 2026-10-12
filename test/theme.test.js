@@ -52,7 +52,7 @@ test("herdr's theme name, aliases, custom colours, old accent setting and symbol
     assert.equal(theme.mark(odd), "·"); assert.equal(theme.fg(odd, "x"), "x"); assert.equal(theme.bg(odd, "x"), "x");
   }
   // Every colour name the board paints with is one of herdr's.
-  const used = new Set(["view.js", "editor.js", "artifact-lines.js"].flatMap((f) => [...fs.readFileSync(new URL(`../src/board/${f}`, import.meta.url), "utf8").matchAll(/\b(?:fg|bg|under)\(([^,()]+),/g)].flatMap((m) => m[1].replace(/[!=]== "[^"]*"/g, "").match(/"[a-z0-9_]+"/g) || [])));
+  const used = new Set(["view.js", "editor.js", "artifact-lines.js", ...fs.readdirSync(new URL("../src/board/view/", import.meta.url)).map((f) => `view/${f}`)].flatMap((f) => [...fs.readFileSync(new URL(`../src/board/${f}`, import.meta.url), "utf8").matchAll(/\b(?:fg|bg|under)\(([^,()]+),/g)].flatMap((m) => m[1].replace(/[!=]== "[^"]*"/g, "").match(/"[a-z0-9_]+"/g) || [])));
   const known = Object.keys(resolve().palette);
   assert.ok(used.size > 6); for (const name of used) assert.ok(known.includes(JSON.parse(name)), `${name} is not a herdr colour`);
 });

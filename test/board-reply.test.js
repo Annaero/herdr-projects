@@ -1,0 +1,116 @@
+// Replying to a task's agent: who gets your words, and words put away.
+import test from "node:test";
+import assert from "node:assert/strict";
+import { world, settle } from "./helpers.js";
+import * as S from "../src/store.js";
+import * as A from "../src/actions.js";
+import { open } from "./board-helpers.js";
+
+test("only space chooses a task's agent: moving to another task is back to the Coordinator, and never sends your words to the task you moved to", async () => {
+  const w = await world({ settings: { helper: "off", reviewer: "off" } });
+  try {
+    const alpha = A.add(w.root, "Alpha"), beta = A.add(w.root, "Beta");
+    const s = open(w); s.v.sel = alpha.id; s.v.load(); s.screen(120);
+    s.press("space"); assert.equal(s.v.reply, true); assert.equal(s.v.replyId, alpha.id); assert.match(s.text(), /\n─+\n . Alpha {2}to do {2}no agent yet: your message starts one/);
+    // Up or down selects the other task: nobody pressed space on it, so the chat is not its agent's.
+    s.press(s.v.rows.filter((x) => x.rec).map((x) => x.rec.id).indexOf(alpha.id) ? "up" : "down");
+    assert.equal(s.v.sel, beta.id); assert.equal(s.v.reply, false);
+    assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ what's next\?/); assert.doesNotMatch(s.text(), /\n─+\n . Beta {2}/);
+    s.type("for nobody's agent"); s.press("enter");
+    assert.equal(S.get(beta.id).stage, "todo", "Beta's agent was not started"); assert.equal(S.get(alpha.id).stage, "todo"); assert.equal(S.list().length, 3, "it went where the chat said: a new task");
+    // Space on Beta talks to Beta; after the message is sent the chat is still Beta's, on the same row.
+    s.v.sel = beta.id; s.v.load(); s.press("space"); s.type("start on this"); s.press("enter");
+    assert.notEqual(S.get(beta.id).stage, "todo"); assert.equal(S.get(alpha.id).stage, "todo");
+    await settle(beta.id); s.v.load();
+    assert.equal(s.v.sel, beta.id); assert.equal(s.v.reply, true); assert.match(s.text(), /\n─+\n . Beta {2}/);
+    // The task you talk to going away is back to the Coordinator too, never on to a neighbour.
+    await A.clear(beta.id); s.v.load();
+    assert.equal(s.v.reply, false); assert.notEqual(s.v.sel, beta.id); assert.match(s.text(), /\n─+\n \+ New task {2}/);
+  } finally { w.cleanup(); }
+});
+
+test("a reply that was put away comes back as a reply to the same task, never as a new task", async () => {
+  const w = await world({ settings: { helper: "off", reviewer: "off" } });
+  try {
+    process.env.HERDR_ENV = "1";
+    w.script({ worker: [{ status: "working", screen: "● Working\n" }] });
+    const id = A.add(w.root, "Add a greeting").id; A.add(w.root, "Another one");
+    A.delegate(id); await settle(id);
+    const s = open(w);
+    for (const width of [120, 80]) { // beside the list, and with the panel full screen
+      s.screen(width); s.v.sel = id; s.v.load();
+      s.press("space"); s.type("also say goodbye");
+      s.press("esc"); assert.equal(s.v.value(), ""); assert.equal(s.v.reply, true); // the first esc only puts the words away
+      s.press("esc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); // the second hides the agent's message in the chat
+      s.press("esc"); assert.equal(s.v.reply, false); assert.match(s.text(width), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯/);
+      s.press("\x1bv"); assert.equal(s.v.chatOpen, true);
+      s.press("down"); assert.notEqual(s.v.sel, id);
+      s.press("ctrl+z");
+      assert.equal(s.v.sel, id); assert.equal(s.v.reply, true); assert.equal(s.v.full, width < 90);
+      assert.match(s.text(width), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ also say goodbye/);
+      w.script({ worker: [{ status: "working" }] });
+      const before = S.list().length;
+      s.press("enter");
+      assert.equal(S.list().length, before, "no new task was filed");
+      assert.match(w.state().panes.find((p) => p.pane_id === S.get(id).link.pane).agent.prompts.at(-1), /also say goodbye/);
+      s.press("esc"); if (s.v.reply || s.v.full) s.press("esc"); // the message in the chat, then the reply
+      assert.equal(s.v.reply, false); assert.equal(s.v.ask, null); s.press("\x1bv"); assert.equal(s.v.chatOpen, true);
+    }
+    // a new task that was put away comes back as a new task, also when you are replying to something by then
+    s.screen(120); s.type("buy milk"); s.press("esc", "space"); assert.equal(s.v.reply, true);
+    s.press("ctrl+z"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ buy milk/);
+    s.press("esc");
+    // the task a reply was for is gone: the words stay put away rather than go somewhere else
+    const gone = A.add(w.root, "Short lived").id; s.v.sel = gone; s.v.load();
+    s.press("space"); s.type("for the short lived one"); s.press("esc", "esc");
+    await A.clear(gone); s.v.load();
+    s.press("ctrl+z"); assert.equal(s.v.value(), ""); assert.match(s.text(), /The task that reply was for is gone\. ctrl\+z again brings the words back as a draft of their own\./);
+    s.press("ctrl+z"); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ for the short lived one/); assert.equal(s.v.reply, false); // asked for, so never lost and never a surprise
+    s.press("esc");
+    // the task disappears while the reply is still being typed: the words never slide over to whichever task is selected next
+    const doomed = A.add(w.root, "Doomed").id; s.v.sel = doomed; s.v.load();
+    s.press("space"); s.type("only for the doomed one");
+    await A.clear(doomed); s.v.beat();
+    assert.notEqual(s.v.sel, doomed); assert.equal(s.v.reply, false); assert.equal(s.v.value(), "");
+    assert.match(s.text(), /The task you were replying to is gone\. Nothing was sent; your words are put away\./);
+    const tasks = S.list().length, asked = JSON.stringify(w.state().panes.map((p) => p.agent?.prompts?.length));
+    s.press("enter"); // enter now only opens the selected agent or does nothing: it has no words to send anywhere
+    assert.equal(S.list().length, tasks); assert.equal(JSON.stringify(w.state().panes.map((p) => p.agent?.prompts?.length)), asked);
+    assert.equal(s.v.draftAway.text, "only for the doomed one");
+    // words that were put away survive the board closing or reloading itself: ctrl+z still brings them back
+    const s4 = open(w);
+    s4.v.sel = id; s4.v.load(); s4.press("space"); s4.type("kept across a reload"); s4.press("esc", "esc");
+    s4.v.tick = 4; s4.v.stamp = "old"; s4.v.beat(); s4.v.tick = 9; s4.v.beat();
+    assert.deepEqual(s4.closed(), { reload: true }); s4.v.dispose();
+    const s5 = open(w);
+    s5.press("ctrl+z"); assert.equal(s5.v.sel, id); assert.match(s5.text(), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ kept across a reload/);
+    // and so does a reply still in the text box when the board is closed from outside
+    s5.v.dispose();
+    const s6 = open(w); assert.equal(s6.v.value(), ""); s6.press("ctrl+z");
+    assert.match(s6.text(), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ kept across a reload/);
+  } finally { delete process.env.HERDR_ENV; w.cleanup(); }
+});
+
+test("a reply typed on the board to work that was merged and cleaned up starts a new round, also with the Coordinator off", async () => {
+  const w = await world({ settings: { helper: "off", reviewer: "off", coordinator: "off" } });
+  try {
+    process.env.HERDR_ENV = "1";
+    w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }] });
+    const id = A.add(w.root, "Work").id;
+    A.delegate(id);
+    assert.equal((await settle(id)).stage, "approval");
+    A.approve(id);
+    let t = await settle(id);
+    assert.equal(t.stage, "done"); assert.ok(t.cleaned && !t.link.pane);
+    const s = open(w);
+    s.v.sel = id; s.v.load();
+    s.press("space");
+    w.script({ worker: [{ files: { "g.txt": "g\n" }, commit: "g", note: "Did g." }] });
+    s.type("now add g"); s.press("enter");
+    assert.match(s.text(), /new round/); assert.equal(s.v.value(), "");
+    t = await settle(id);
+    assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.ok(!String(t.description || "").includes("now add g"));
+    assert.ok(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.some((x) => /now add g/.test(x)));
+    s.v.dispose();
+  } finally { delete process.env.HERDR_ENV; w.cleanup(); }
+});

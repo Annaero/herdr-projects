@@ -1,0 +1,25 @@
+// Small words and numbers the board's parts share: a time as "12m", a pull request as "PR#16", a long text cut short.
+import os from "node:os";
+import * as S from "../../store.js";
+
+export const ordinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"}`;
+// A long text's beginning, for the panel beside the list: cut between words, a few lines at most.
+export const brief = (text, max = 400, mark = " …") => {
+  let s = String(text ?? "").trim().replace(/\n{2,}/g, "\n");
+  const lines = s.split("\n");
+  if (lines.length > 8) { s = lines.slice(0, 8).join("\n"); if (s.length <= max) return s + mark; }
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  return cut.slice(0, Math.max(cut.lastIndexOf(" "), cut.lastIndexOf("\n"), max - 40)).trimEnd() + mark;
+};
+export const short = S.tilde;
+export const clean = (s) => String(s ?? "").replace(/[\x00-\x1f\x7f]+/g, " ");
+export const age = (ms) => { const x = Math.max(0, Math.round(ms / 1000)); return x < 60 ? `${x}s` : x < 3600 ? `${Math.floor(x / 60)}m` : x < 86400 ? `${Math.floor(x / 3600)}h` : `${Math.floor(x / 86400)}d`; };
+export const prNumber = (r) => (r.pr ? `PR#${String(r.pr).split("/").pop()}` : "");
+// A pull request's checks, as a mark beside its number: colour alone does not say it.
+export const prCheck = (r) => ({ passing: "✓", failing: "✗" }[r.prState] || "");
+export const prColor = (r) => ({ merged: "overlay0", passing: "green", failing: "red" }[r.prState] || "subtext0");
+export const repoLabel = (name) => (S.knownRepos()[name] === os.homedir() ? "~" : name);
+export const idLabel = (id) => { const [repo, ...rest] = String(id).split("/"); return [repoLabel(repo), ...rest].join("/"); };
+export const tokens = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n || 0));
+export const bar = (pct, n = 8) => "█".repeat(Math.round((pct / 100) * n)).padEnd(n, "░");

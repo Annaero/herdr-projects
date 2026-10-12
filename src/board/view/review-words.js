@@ -1,0 +1,18 @@
+// A review in a few words: its result, its colour, which round it was.
+import * as S from "../../store.js";
+import * as G from "../../gate.js";
+import { ordinal } from "./words.js";
+import { isAgent } from "./states.js";
+
+// A review's result is said in words; its colour only repeats it. One from before the gate: its advice, as it was.
+export const resultColor = (rv) => (G.isTagged(rv) ? (rv.pass ? "green" : "red") : rv.recommend === true ? "green" : rv.recommend === false ? "red" : "subtext0");
+// Nothing on the first review; from the second on, in words: "2nd review".
+export const roundWords = (r) => (S.reviewRound(r) >= 2 ? `${ordinal(S.reviewRound(r))} review` : "");
+export const currentReview = (r) => S.currentReview(r);
+// Strip only board-generated review metadata; task descriptions and agent wording stay intact.
+export const reviewNote = (r) => (isAgent(r) ? String(r.msg || "").replace(G.SENTENCE, "$1") : r.msg);
+// One review in a few words: "pass" in a list of them, "Pass · 2 minor" on its own. The colour repeats the result.
+// One from before the gate keeps its score and advice: "4/5 yes", "4/5, says merge".
+export const verdict = (t, e, long = false) => (e.error ? t.fg("red", long ? "No verdict" : "no verdict")
+  : G.isTagged(e) ? t.fg(resultColor(e), long ? G.word(e) : G.word(e).toLowerCase()) + (long && G.tally(e) ? ` · ${G.tally(e)}` : "")
+  : t.fg(resultColor(e), `${e.score}/5`) + (e.recommend === true ? (long ? ", says merge" : " yes") : e.recommend === false ? (long ? ", says don't merge" : " no") : ""));
