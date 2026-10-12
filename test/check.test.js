@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { filesFor, importsOf, reach, touched, treeOf, changedSince, remembered, remember, takeSlot, stretch, overBudget, BUDGET, SLOTS } from "./check.js";
+import { filesFor, importsOf, reach, touched, treeOf, changedSince, remembered, remember, takeSlot, stretch, overBudget, stepAside, BUDGET, SLOTS, NICE } from "./check.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "sw-check-test-"));
@@ -76,6 +76,19 @@ test("the budget: a file over its processor time, its time by the clock or its p
   assert.ok(SLOTS >= 1 && SLOTS <= 4);
 });
 
+test("a run steps aside: its priority is lowered somewhat, never raised, and a system that cannot do it changes nothing and fails nothing", () => {
+  const sys = (now, can = true) => ({ now, set: [], getPriority() { return this.now; }, setPriority(n) { if (!can) throw new Error("EACCES"); this.set.push(n); this.now = n; } });
+  let s = sys(0);
+  assert.equal(stepAside(5, s), 5); assert.deepEqual(s.set, [5]);
+  s = sys(10); assert.equal(stepAside(5, s), 10); assert.deepEqual(s.set, []); // started lower already (a reviewer under `nice`): left there
+  s = sys(5); assert.equal(stepAside(5, s), 5); assert.deepEqual(s.set, []);
+  s = sys(0); assert.equal(stepAside(0, s), 0); assert.deepEqual(s.set, []); // 0: as before
+  assert.equal(stepAside(5, sys(0, false)), 0); // not allowed: runs as it was
+  assert.equal(stepAside(5, { getPriority() { throw new Error("no such thing here"); }, setPriority() { throw new Error("nor this"); } }), null);
+  // somewhat lower, far from the lowest (19): the tests keep a decent share of a machine that is busy all the time
+  assert.ok(NICE >= 1 && NICE <= 7 || process.env.HERDR_SUPERWORK_CHECK_NICE !== undefined);
+});
+
 test("what passed is remembered per tree, added to by later runs, and kept apart from other trees", () => {
   const store = tmp();
   try {
@@ -105,12 +118,13 @@ test("[real programs] runs take turns: a slot that is held makes the next one wa
 
 test("[real programs] the command: runs what the change touches, answers at once for code that passed, in any worktree; fails over budget and on a failed test", () => {
   const base = tmp(), root = path.join(base, "repo"), store = path.join(base, "store");
-  const env = { ...process.env, HERDR_SUPERWORK_CHECK_DIR: store, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
+  const priority = path.join(base, "priority"), mine = os.getPriority();
+  const env = { ...process.env, HERDR_SUPERWORK_CHECK_DIR: store, HERDR_SUPERWORK_CHECK_NICE: "7", PRIORITY_SEEN: priority, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
   for (const k of ["NODE_TEST_CONTEXT", "NODE_OPTIONS", "HERDR_SUPERWORK_CHECK_PROBE", "HERDR_SUPERWORK_CHECK_BASE"]) delete env[k];
   const git = (cwd, ...args) => execFileSync("git", args, { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   const write = (dir, files) => { for (const [f, text] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), text); } };
   const check = (dir, ...args) => { const r = spawnSync(process.execPath, [path.join(dir, "test", args[0] === "tight" ? "tight.js" : "check.js"), ...args.filter((a) => a !== "tight")], { cwd: dir, env, encoding: "utf8" }); return { status: r.status, out: r.stdout + r.stderr }; };
-  const unit = (name) => `import test from "node:test";\nimport { ${name} } from "../src/${name}.js";\ntest("${name} is ${name}", () => { if (${name} !== "${name}") throw new Error("no"); });\n`;
+  const unit = (name) => `import test from "node:test";\nimport fs from "node:fs";\nimport os from "node:os";\nimport { ${name} } from "../src/${name}.js";\nfs.writeFileSync(process.env.PRIORITY_SEEN, String(os.getPriority()));\ntest("${name} is ${name}", () => { if (${name} !== "${name}") throw new Error("no"); });\n`;
   try {
     write(root, {
       "test/check.js": fs.readFileSync(path.join(here, "check.js"), "utf8"), "test/check-probe.cjs": fs.readFileSync(path.join(here, "check-probe.cjs"), "utf8"),
@@ -128,6 +142,8 @@ test("[real programs] the command: runs what the change touches, answers at once
     r = check(root);
     assert.equal(r.status, 0, r.out); assert.match(r.out, /check: 1 test file \(the tests your change touches: 3 files changed since main\) · 1 to run\n/);
     assert.match(r.out, /✔ a is a /); assert.doesNotMatch(r.out, /b is b/); assert.match(r.out, /\ncheck: 1 test file run · 1 tests passed · [\d.]+ s by the clock, [\d.]+ s of processor time · 0 programs started\n/);
+    // the test file ran at the lower priority the command took (or the still lower one this run already had)
+    if (process.platform !== "win32") assert.equal(fs.readFileSync(priority, "utf8"), String(Math.max(7, mine)));
     // asked again for the same code: answered at once, nothing run
     r = check(root);
     assert.equal(r.status, 0); assert.match(r.out, /check: 1 test file \(the tests your change touches: 3 files changed since main\) · 1 already passed for this exact code: nothing to run again\. ✔/); assert.doesNotMatch(r.out, /a is a/);

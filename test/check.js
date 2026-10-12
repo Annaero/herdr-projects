@@ -10,7 +10,7 @@
 // Three things make it cheap to run often, on a machine many agents share:
 // - It remembers which test files passed for this exact code (the git tree of the folder as it is now, uncommitted
 //   changes included), in one place for every worktree. Asked again for code that passed, it answers at once.
-// - Runs take turns, machine-wide: SLOTS at a time, the rest wait.
+// - Runs take turns, machine-wide: SLOTS at a time, the rest wait. A run steps aside for everything else (NICE).
 // - Each test file has a budget (processor time, time by the clock, programs started) and so has the whole suite.
 //   Over budget is a failed check that names the file.
 import fs from "node:fs";
@@ -133,6 +133,20 @@ export function takeSlot(store, slots = SLOTS, waiting = () => {}) {
   }
 }
 
+// ---- stepping aside ------------------------------------------------------------------------------------------------
+// How far a test run steps aside for everything else on the machine (the board, the agents, what you type): its
+// niceness, 0 for none. 5 is a third of the share of a core that a program at normal priority gets when both want
+// it: measured on 8 cores with 8 other programs busy all the time, the suite took 34 to 40 s at 5 (22 s at 0), 75 s
+// at 10, and had not ended after 5 minutes at 19. The numbers: docs/testing.md.
+export const NICE = /^\d+$/.test(process.env.HERDR_SUPERWORK_CHECK_NICE || "") ? Math.min(19, Number(process.env.HERDR_SUPERWORK_CHECK_NICE)) : 5;
+// Lowers the priority of this process, and so of every program it starts from here on (they inherit it). Never
+// raises it: a run started at a lower priority stays there. Where the system cannot do it, nothing changes and
+// nothing fails. Returns the priority the run has now, null when it cannot be read.
+export function stepAside(level = NICE, sys = os) {
+  try { if (level > sys.getPriority()) sys.setPriority(level); } catch {}
+  try { return sys.getPriority(); } catch { return null; }
+}
+
 // ---- over budget ----------------------------------------------------------------------------------------------------
 // How much longer things take by the clock here than on a quiet machine with eight cores. Three things stretch it: the
 // load beside this run, the share of the machine other programs used while it ran (`others`, 0 to 1: known at once,
@@ -205,7 +219,8 @@ export async function main(argv, { budget = BUDGET } = {}) {
     const cores = os.availableParallelism(), loadBefore = os.loadavg()[0], usedBefore = machineCpu(), began = Date.now();
     const failed = new Set();
     let tests = 0;
-    const stream = run({ files: need.map((f) => path.join(here, f)), concurrency: os.availableParallelism(), timeout: 120000 });
+    stepAside();
+    const stream = run({ files: need.map((f) => path.join(here, f)), concurrency: cores, timeout: 120000 });
     stream.on("test:pass", (d) => { if (d.file && d.nesting === 0 && path.resolve(d.name) !== d.file) tests += 1; });
     stream.on("test:fail", (d) => { if (d.file) failed.add(path.basename(d.file)); });
     stream.compose(spec).pipe(process.stdout);

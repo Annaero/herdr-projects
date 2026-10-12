@@ -25,7 +25,7 @@ Everything that runs tests uses the same command: you, an agent at work, the rev
   files. A file's own path works too. A name no file starts with is an error that lists the areas. Which file tests
   what: the tables in [where things live](where-things-live.md).
 
-Do not start tests another way (`node --test test/x.test.js`, a script of your own): that skips the three things below.
+Do not start tests another way (`node --test test/x.test.js`, a script of your own): that skips the four things below.
 
 ### It remembers what passed
 
@@ -41,6 +41,39 @@ test is never remembered. `--fresh` runs regardless.
 One test run at a time on a machine (`HERDR_SUPERWORK_CHECK_SLOTS` for another number). The tests use every core, so
 two runs side by side only make both slower. A run that finds the slot taken says `waiting for a turn` and starts when
 it is free. If the code it was asked about passed in the meantime, it answers without running.
+
+### A run steps aside
+
+A test run uses every core for ten to fifteen seconds. So that the board, the agents and what you type go first, the
+command lowers its own priority before it starts the tests, and every program the tests start inherits it: niceness 5
+(`NICE` in `test/check.js`; `HERDR_SUPERWORK_CHECK_NICE` for another level, `0` for none). Same tests, same results,
+for everyone who runs the command; only who goes first changes. A run that was started lower still stays there. Where
+the system cannot lower a priority, the run goes on as it was.
+
+Why 5 and not the lowest: at 5 a test still gets a third of what a program at normal priority gets when both want the
+same core, so a machine that is busy all the time slows the tests but never starves them. Measured on 8 cores, the
+whole suite, time by the clock:
+
+| Priority | Machine as it was (about eight agents at work) | And 8 more programs busy all the time |
+|---|---|---|
+| 0, as before | 13 to 15 s | 22 to 23 s |
+| 5 | 12 to 15 s | 34 to 40 s |
+| 10 | 15 s | 75 s |
+| 19, the lowest | | not ended after 5 minutes |
+
+How late a stand-in for the board (5 ms of work every 20 ms, at normal priority) finished its work during the run, 95
+in 100 times: within 15 to 18 ms at 0, within 13 to 17 ms at 5; the worst case went from 40 to 56 ms to 30 to 36 ms. The gain is
+small because the kernel already gives a program that mostly waits its turn quickly; what changes most is that agents
+that work at the same time lose less to the tests.
+
+Leaving two cores free on top of that was measured and not kept: the stand-in gained a few milliseconds more (within
+10 to 14 ms), the run took about 2 s longer on the machine as it was and 41 to 47 s beside the 8 busy programs, and a
+longer run keeps the one slot longer, so the others wait longer for their turn.
+
+The budget stays fair: a run that steps aside gets less of a busy machine, and the clock's budget is stretched by
+exactly that, the share other programs took while it ran. Beside the 8 busy programs no run at 5 was over its budget
+by the clock. Processor time is not stretched, and a run that takes longer uses a little more of it (1 to 3 s on the
+whole suite).
 
 ### The budget
 
