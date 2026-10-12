@@ -47,7 +47,7 @@ export class Panel {
   // lines to the height, never a setting. Full screen everything is whole, with every review, the newest first.
   panel(r, width, full = false, fit = 0) {
     const p = panelKit(this.theme, width);
-    const { t, w, dim, wrap, out, head, flow, first, callout, parts, part, text } = p;
+    const { t, w, dim, wrap, out, head, flow, first, callout, parts, part, text, attempt } = p;
 
     if (r.title === undefined) { // words on their way to another machine
       const bad = r.state === "error";
@@ -61,8 +61,9 @@ export class Panel {
     let cut = false; // beside the list: something is shorter here than on the full screen
     Object.assign(p, { r, width, full, agent, failure, c, underReview, approval });
 
-    const { title, top, stand, told } = this.panelStatus(p);
-    if (this.panelSuggestions(p)) cut = true;
+    // Each part is drawn on its own (`attempt`): one that fails says so in its place and takes nothing else with it.
+    const { title, top, stand, told } = attempt("Status", () => this.panelStatus(p), null) || { title: part([t.bold(clean(r.title || "(no title)"))]), top: { lines: [] }, stand: [], told: "" };
+    if (attempt("Suggestions", () => this.panelSuggestions(p))) cut = true;
 
     // The description: whole on the full screen, its first few hundred characters beside the list.
     const desc = this.desc(r).trim();
@@ -71,18 +72,18 @@ export class Panel {
     if (desc) text("Description", wrap(start), 2);
     else if (!agent && !r.archivedAt && r.state === "idle") part(wrap(`No agent is on this yet. ${keyName("delegate")} puts one on it.`).map((l) => dim(l)), { pri: 1, min: 1, at: () => [] });
 
-    if (this.panelReviews(p)) cut = true;
+    if (attempt("Reviews", () => this.panelReviews(p))) cut = true;
 
     // What the agent said: its last message, or its screen while a dialog or a review is on it.
-    if (agent && !(r.state === "error" && r.stage !== "nosummary") && !this.chatShows(r)) {
+    if (agent && !(r.state === "error" && r.stage !== "nosummary") && !this.chatShows(r)) attempt("The agent said", () => {
       const pv = this.previewOf(r), screen = pv.label === "on its screen now";
       const whole = pv.text || (approval ? r.summary : "") || "";
       const shown = full || screen ? whole : brief(whole, 400);
       if (shown !== whole) cut = true;
       if (whole && whole !== told) text(screen ? "On its screen now" : "The agent said", wrap(shown), 1, screen ? "end" : "start");
-    }
+    });
 
-    const { settings, rows, table } = this.panelSettings(p);
+    const { settings, rows, table } = attempt("Settings", () => this.panelSettings(p), null) || { settings: { lines: [] }, rows: [], table: () => [] };
 
     let lead = [""], gap = true;
     const render = () => [...lead, ...parts.filter((s) => s.lines.length).flatMap((s, n) => (n && gap ? ["", ...s.lines] : s.lines))];

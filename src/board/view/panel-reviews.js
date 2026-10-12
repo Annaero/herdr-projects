@@ -2,7 +2,7 @@
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import * as S from "../../store.js";
 import * as G from "../../gate.js";
-import { artifactLine, reviewArtifacts } from "../artifact-lines.js";
+import { artifactLine, artifactLines, reviewArtifacts } from "../artifact-lines.js";
 import { clean, age, brief } from "./words.js";
 import { verdict } from "./review-words.js";
 import { name as keyName } from "../keys.js";

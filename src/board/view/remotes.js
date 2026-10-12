@@ -2,6 +2,7 @@
 import * as S from "../../store.js";
 import * as R from "../../remote.js";
 import { herdr } from "../../herdr.js";
+import { asRow } from "./states.js";
 
 export class Remotes {
   // ---- other machines: ask each for its board, and send each action to the machine that owns the task ----

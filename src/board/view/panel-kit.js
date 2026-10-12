@@ -40,8 +40,18 @@ export function panelKit(t, width) {
   };
   const parts = [];
   const part = (lines, o = {}) => { const s = { lines, ...o }; parts.push(s); return s; };
+  // A part that fails to draw is one red line that says so, in its place: the rest of the panel, and the board, stay.
+  // What it had added before it failed goes. Returns what `draw` returns, or `or` when it failed.
+  const attempt = (label, draw, or) => {
+    const n = parts.length;
+    try { return draw(); } catch (e) {
+      parts.length = n;
+      part([head(label), ...wrap(`${t.mark("error")} This part could not be shown: ${e?.message || "unknown error"}`).map((l) => t.fg("red", l))], { failed: true });
+      return or;
+    }
+  };
   // A headline and a text under it. Short of room it keeps its beginning, or its end with `from: "end"`.
   const text = (label, lines, pri, from = "start") => part([head(label), ...lines], { pri, min: 3,
     at: (n) => (n < 3 ? [] : n > lines.length ? [head(label), ...lines] : from === "end" ? [head(label), dim("…"), ...lines.slice(lines.length - (n - 2))] : [head(label), ...first(lines, n - 1)]) });
-  return { t, w, dim, quiet, line, plain, wrap, out, head, flow, first, callout, card, parts, part, text };
+  return { t, w, dim, quiet, line, plain, wrap, out, head, flow, first, callout, card, parts, part, text, attempt };
 }

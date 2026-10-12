@@ -92,6 +92,8 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `panel-settings.js` | The settings in the task panel: every setting this task runs on, and its agent's session |
 | `panel-status.js` | The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you |
 | `panel.js` | The task panel: beside the list and full screen |
+| `panel.js` | The task panel: beside the list and full screen |
+| `panel.js` | The task panel: beside the list and full screen |
 | `remotes.js` | Other machines: ask each for its board, send each action to the machine that owns the task, and whose board you see |
 | `review-words.js` | A review in a few words: its result, its colour, which round it was |
 | `row.js` | One row of the list: its mark, its name, what it says, and its columns on the right |
@@ -169,7 +171,8 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | File | Holds |
 |---|---|
 | `docs.js` | The pages made from the code: `node scripts/docs.js` writes them, `node scripts/docs.js --check` only says which are out of date (the check does that too: scripts/guard.js) |
-| `guard.js` | The repo's own rules, checked: no source file past its size, and no made page out of date |
+| `guard.js` | The repo's own rules, checked: no source file past its size, no name used and never defined, and no made page out of date |
+| `names.js` | Names used but never defined: a function called in a file that neither declares nor imports it (what is left behind when code moves to another file) |
 
 ## The pages: `docs/`
 
@@ -204,6 +207,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `auto-merge.test.js` | The autoMerge setting: a green task merges by itself, your choice wins over the repo's "land", and a change counts for tasks already under way |
 | `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, stop or delete, retry |
 | `board-chat.test.js` | The chat's box: the latest message, an empty line, the line you type on |
+| `board-evidence.test.js` | The task details of a reviewed task with evidence, and what the board shows when a part of it fails to draw |
 | `board-helpers.js` | Shared by the board's tests (test/board-*.test.js): the keys, and a board opened on a test world |
 | `board-keys.test.js` | The board's keys, and the text box owning the keyboard |
 | `board-layout.test.js` | The whole screen: the chat pinned to the bottom, through a resize |
@@ -232,7 +236,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `fast.test.js` | Fast mode: the `fast` and `reviewerFast` settings, and what an agent or reviewer is started with |
 | `flow.test.js` |  |
 | `gate.test.js` | The gate: tagged findings in, a fixed rule decides what goes back and what may merge |
-| `guard.test.js` | The repo's own rules are part of the check: no source file past its size, no made page out of date (scripts/guard.js) |
+| `guard.test.js` | The repo's own rules are part of the check: no source file past its size, no name used and never defined, no made page out of date (scripts/guard.js) |
 | `helpers.js` | Shared test setup: a temporary board, a fake herdr and scripted fake agents |
 | `keys-list.test.js` | The keys list is the one place a key is defined: moving a key there moves it in the handler, the ? menu, the hints and the messages, with no other file changed |
 | `lifecycle.test.js` |  |

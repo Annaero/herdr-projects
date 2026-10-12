@@ -66,6 +66,15 @@ Where it stands (8 cores, a quiet machine): 40 files, 170 tests, about 8 s by th
 programs started (nearly all of them git). Before the tests were made light, on the same machine: 19 s by the clock,
 69 s of processor time, 20 600 programs.
 
+## Names used and never defined
+
+The check fails when a file uses a name it neither defines nor imports (`artifactLines(...)` with no import: what is
+left behind when code moves to another file), and names the file and the line. Such a fault is otherwise found only
+when that line runs. It is part of the guard (`test/guard.test.js`), so it runs on any change, over every file in
+`src`, `bin` and `scripts` (a test file runs from top to bottom in every check, which finds the same there); by hand:
+`node scripts/names.js`. It is eslint with the one rule `no-undef`, the
+repo's only development dependency (`npm ci` installs it).
+
 ## Light tests
 
 What makes a test slow here is starting programs and waiting. A new test does neither:

@@ -81,3 +81,9 @@ in its box: the review's number, when, the commit, the result, the summary, each
 that did not hold the work back is marked `not required` or `pre-existing`), what it checked and what it could not
 verify. A review that gave no verdict has its box too, with why. A review from before the gate keeps its score and
 its advice as they were (`4/5, says merge`). `herdr-superwork details <id>` prints the same list as `reviews`.
+
+**A part that fails to draw takes only itself.** Its headline stays, with one red line under it
+(`✗ This part could not be shown: …` and the error): every other part of the panel is there, and every key works.
+The same holds for each section of the screen: the list, the panel, the task details, the menu, the chat, the text
+box, the hints. One that fails is that red line in its place, and the others stay. Only a failure outside all of
+these replaces the board with `view error`.

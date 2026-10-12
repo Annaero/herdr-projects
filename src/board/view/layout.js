@@ -22,6 +22,13 @@ export class Layout {
       const r = this.current();
       if (this.pasteText) return this.pad(["", ...String(this.pasteText).split("\n").flatMap((l) => wrapTextWithAnsi(l, Math.max(10, width - 4))).map((l) => "  " + l), "", "  " + t.fg("overlay0", "any key continues")], rowsN).map(fit);
       if (this.setup) return this.setupLines(width, rowsN).map(fit);
+      // What fails to draw says so in its own place, in one red line, and nothing else goes with it: the list stays
+      // beside a failed panel, the text box and its hints under a failed page, and the page above a failed chat or
+      // text box. (A part of the panel that fails takes only itself: `attempt` in panel-kit.js.) `or`: what stands
+      // in for a value that is not lines.
+      const failed = (what, e, room, lead = []) => [...lead, ...wrapTextWithAnsi(t.fg("red", `${t.mark("error")} ${what} could not be shown: ${clean(e?.message) || "unknown error"}`), Math.max(10, room - 2)).slice(0, 3).map((l) => " " + l)];
+      const safe = (what, room, draw, lead) => { try { return draw(); } catch (e) { return failed(what, e, room, lead); } };
+      const calm = (draw, or) => { try { return draw(); } catch { return or; } };
       const selectedJob = this.jobs.findIndex((j) => j.id === this.sel);
       const jobLine = (j) => {
         const line = " " + (j.state === "error" ? t.fg("red", t.mark("error")) : t.fg("yellow", t.mark("working"))) + " " + clean(j.text) + (j.state === "error" ? t.fg("subtext0", `  ${clean(j.msg)}`) : "");
@@ -30,33 +37,33 @@ export class Layout {
       // The chat: one line that says who you talk to and, under it, the text box. With the chat open that box is a
       // frame around their latest message and the line you type on. None of it pushes the box or its hints off-screen:
       // the message gives up lines first, and the line that says who you talk to goes last.
-      const who = this.chatOf(r);
-      const chat = this.chatLines(width, r, rowsN < 16);
+      const who = calm(() => this.chatOf(r), null);
+      const chat = safe("The chat", width, () => this.chatLines(width, r, rowsN < 16));
       const headN = chat.length;
-      const framed = !this.ask && this.chatUp(who) && !!who.said && width >= 8; // a frame only where there can be a message in it (and room for its two edges)
+      const framed = calm(() => !this.ask && this.chatUp(who) && !!who.said && width >= 8, false); // a frame only where there can be a message in it (and room for its two edges)
       // What just happened, on a line of its own: the hints below it stay readable.
       const stale = !this.stale ? "" : this.ctx.canReload === false ? "herdr-superwork was updated: close the board and open it again for the new version." : "herdr-superwork was updated: the new version loads when nothing is half typed.";
       const said = this.msg && !(this.offNote && this.msgKind !== "red") ? wrapTextWithAnsi(t.fg(this.msgKind, this.msg) + (this.msgKind === "red" ? t.fg("overlay0", `  (${keyName("back")})`) : ""), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : this.offNote ? wrapTextWithAnsi(t.fg("yellow", this.offNote), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : stale ? ["  " + t.fg("overlay0", stale)] : [];
       // The text box grows with a draft that wraps, up to half the window (and never past what the line that says who
       // you talk to leaves): a longer draft scrolls inside it, never off-screen.
       const boxRows = Math.min(rowsN - 4 - headN - (selectedJob >= 0 ? 1 : 0), Math.max(5, Math.floor(rowsN / 2)));
-      let inputLines = this.ask ? this.askLines(width) : framed ? this.chatBox(width, boxRows, r, []) : this.boxLines(width, boxRows, r);
+      let inputLines = safe("The text box", width, () => (this.ask ? this.askLines(width) : framed ? this.chatBox(width, boxRows, r, []) : this.boxLines(width, boxRows, r)));
       // The message takes a third of the window at most, and only rows the list can spare: a longer one is cut with ….
-      if (framed) {
+      if (framed) inputLines = safe("The chat", width, () => {
         const spare = rowsN - inputLines.length - 1 - said.length - headN - 1 - Math.min(this.jobs.length, 1) - 2;
         const message = this.chatMessage(who, width - 4, Math.min(spare, Math.max(3, Math.min(8, Math.floor(rowsN / 3) - 2))));
-        if (message.length) inputLines = this.chatBox(width, boxRows, r, message);
-      }
+        return message.length ? this.chatBox(width, boxRows, r, message) : inputLines;
+      });
       const extraRows = Math.max(0, rowsN - inputLines.length - 2 - said.length - headN);
       const lastJobTop = Math.max(0, this.jobs.length - extraRows);
       if (selectedJob < 0) this.jobTop = lastJobTop;
       else if (selectedJob < this.jobTop) this.jobTop = selectedJob;
       else if (selectedJob >= this.jobTop + extraRows) this.jobTop = selectedJob - extraRows + 1;
       this.jobTop = Math.max(0, Math.min(this.jobTop, lastJobTop));
-      const jobs = extraRows ? this.jobs.slice(this.jobTop, this.jobTop + extraRows).map(jobLine) : [];
+      const jobs = extraRows ? safe("What is on its way", width, () => this.jobs.slice(this.jobTop, this.jobTop + extraRows).map(jobLine)) : [];
       // One greyed line that never runs off the screen: the main thing and the last one stay, what is between them
       // goes first, and of those the chat's own key last.
-      const hintList = this.hints(r).filter(Boolean).slice(0, 5);
+      const hintList = calm(() => this.hints(r).filter(Boolean).slice(0, 5), [["", "the hints could not be shown"]]);
       const hintText = () => t.fg("overlay0", hintList.map(([k, d]) => [k, d].filter(Boolean).join(" ")).join(" · "));
       const giveUp = () => { const at = hintList.length - 2; return at > 1 && hintList[at] === this.chatKey ? at - 1 : at; };
       while (hintList.length > 2 && visibleWidth(hintText()) > width - 2) hintList.splice(giveUp(), 1);
@@ -67,20 +74,20 @@ export class Layout {
       while (jobs.length + chat.length + inputLines.length + said.length + 1 > rowsN && (chat.length || jobs.length || said.length)) (chat.length ? chat.shift() : (jobs.length ? jobs : said).pop());
       const bottom = [...jobs, ...chat, ...inputLines, ...said, "  " + hints];
       // Top left, where a cut-out of the board still shows it.
-      const held = rowsN - bottom.length > 3 ? this.heldLines(width) : [];
+      const held = rowsN - bottom.length > 3 ? safe("Who holds the terminal", width, () => this.heldLines(width)) : [];
       const h = Math.max(1, rowsN - bottom.length - held.length);
       const shown = r || this.job();
       let top;
-      if (this.menu) top = this.menuLines(width, h);
-      else if (this.full && shown) top = this.fullPanel(shown, width, h);
+      if (this.menu) top = safe("The menu", width, () => this.menuLines(width, h), [""]);
+      else if (this.full && shown) top = safe("The task details", width, () => this.fullPanel(shown, width, h), [""]);
       else if (width >= WIDE && this.side) {
         // The task panel on the right, while you have it open, on herdr's sidebar colour when the theme gives it one.
         const paneW = Math.max(38, Math.min(70, Math.floor(width * 0.38)));
         const listW = width - paneW - 3;
-        const left = [...this.headLines(listW), ...this.listLines(listW, Math.max(1, h - 1))];
-        const right = shown ? this.panel(shown, paneW, false, h) : ["", " " + t.fg("overlay0", "nothing selected.")];
+        const left = safe("The list", listW, () => [...this.headLines(listW), ...this.listLines(listW, Math.max(1, h - 1))], [""]);
+        const right = shown ? safe("The task panel", paneW, () => this.panel(shown, paneW, false, h), [""]) : ["", " " + t.fg("overlay0", "nothing selected.")];
         top = Array.from({ length: h }, (_, i) => truncateToWidth(left[i] ?? "", listW, "…", true) + " " + t.fg("surface_dim", "│") + t.under("sidebar_bg", truncateToWidth(" " + (right[i] ?? ""), paneW + 1, "…", true)));
-      } else top = [...this.headLines(width), ...this.listLines(width, Math.max(1, h - 1))];
+      } else top = safe("The list", width, () => [...this.headLines(width), ...this.listLines(width, Math.max(1, h - 1))], [""]);
       return this.pad([...held, ...this.pad(top, h), ...bottom].slice(0, rowsN), rowsN).map(fit);
     } catch (e) {
       const out = [fit(" herdr-superwork view error: " + clean(e?.message)), fit(` press ${keyName("back")} to close`)];
