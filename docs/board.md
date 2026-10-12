@@ -38,11 +38,24 @@ tells a running review from one that passed. A review from before the gate goes 
 task that was never reviewed has no tag. Every row that has had a review keeps it: under review, back with the
 agent, waiting for your yes, done.
 
-A window too narrow for a row's name takes that row's columns away one at a time, so the name stays readable: the
-bar, the word `ago`, the minutes left, the percent, the `R#` tag, the pull request and, last, the time.
-
 `PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
 since it stopped. A row never repeats what its heading says.
+
+**The columns line up, whatever the width.** The columns on the right are laid out first, once for the whole list:
+each has one place and one width on every row, so the bars, the percents, the minutes left, the `R#` tags, the PR numbers and the
+times each stand under one another. The name and the sentence share what is left. When room is short, things give
+way in a fixed order:
+
+1. The sentence first (what the agent is doing, a question, how the review came out). It is cut, and with too
+   little left to say anything it is not shown. It never takes room from a column and never moves one.
+2. Then, only on a row whose name does not fit whole beside its columns, that row's columns, one at a time from the
+   left: the bar, the percent with its minutes left, the `R#` tag, the PR number, and the time last. The columns a row keeps stay
+   exactly where they are on the other rows. (No width takes the bars away by itself: a bar goes only for its
+   own row's name. The word `ago` goes for the whole list at once, as soon as that lets some row keep a column
+   other than its bar.)
+3. The name last: it is cut only when nothing else is left on its row.
+
+A row with no bar or PR of its own lets its words run on to its first column, not stop where another row's bar starts.
 
 **One chat, at the bottom.** The text box is a chat, and it is the same chat whoever you talk to. It always talks to
 someone and always says who: the Coordinator, until `Space` (on an empty text box) flips it to the selected task's

@@ -54,10 +54,13 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   assert.doesNotMatch(row({ ...pr, reviewRound: 1 }, 120), /review\b.*review|r1|1st/); assert.match(row({ ...pr, reviewRound: 1 }, 120), / R#1 ✗ PR#12 /);
   assert.match(row(second, 120), /^ ✓ Build a flying game {2}3\/5 reviewer says no +R#2 ✗ PR#12 ✓ {2}0s ago$/);
   assert.match(row({ ...pr, reviewRound: 3 }, 120), /3\/5 reviewer says no +R#3 ✗ PR#12/);
-  // narrower, the verdict is never cut: first the words go, the score last
-  assert.match(row(second, 64), /^ ✓ Build a flying game {2}3\/5 reviewer says no +R#2 ✗ PR#12 ✓ {2}0s$/);
-  assert.match(row(second, 46), /^ ✓ Build a flying game {2}3\/5 +R#2 ✗ PR#12 ✓ {2}0s$/);
-  assert.match(row(second, 34), /^ ✓ Build a flying game {2}3\/5 +0s$/);
+  // narrower, the verdict is never cut: first the words go, the score last. It gives way before any column does,
+  // the word "ago" too
+  assert.match(row(second, 67), /^ ✓ Build a flying game {2}3\/5 reviewer says no +R#2 ✗ PR#12 ✓ {2}0s ago$/);
+  assert.match(row(second, 66), /^ ✓ Build a flying game {2}3\/5 +R#2 ✗ PR#12 ✓ {2}0s ago$/);
+  assert.match(row(second, 50), /^ ✓ Build a flying game {2}3\/5 +R#2 ✗ PR#12 ✓ {2}0s ago$/);
+  assert.match(row(second, 49), /^ ✓ Build a flying game +R#2 ✗ PR#12 ✓ {2}0s ago$/);
+  assert.match(row(second, 34), /^ ✓ Build a flying game +0s ago$/);
   assert.match(row(pr, 24), /^ ✓ Build a flying game *$/);
   // a failed merge needs you: it says why, and the panel still has the score and which review gave it
   const failedMerge = { ...second, mergeFailed: true, review: { ...review, recommend: true, score: 5 }, msg: "The merge failed: conflict in src/game.js" };
@@ -135,7 +138,8 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   assert.match(row(gated, 120), /^ ✓ Build a flying game {2}Pass · 2 minor +R#1 ✓ PR#12 ✓ {2}0s ago$/);
   assert.match(row({ ...gated, review: failing }, 120), /^ ✓ Build a flying game {2}Fail · 1 critical, 1 major, 1 minor, 1 pre-existing +R#1 ✗ PR#12 ✓ {2}0s ago$/);
   assert.match(row({ ...gated, reviewRound: 2 }, 120), / {2}Pass · 2 minor +R#2 ✓ PR#12/); assert.match(row({ ...gated, review: { ...tagged, findings: [] } }, 120), / {2}Pass +R#1 ✓ PR#12/);
-  assert.match(row({ ...gated, reviewRound: 2 }, 58), /^ ✓ Build a flying game {2}Pass · 2 minor +R#2 ✓ PR#12 ✓ {2}0s( ago)?$/); assert.match(row({ ...gated, reviewRound: 2 }, 34), /^ ✓ Build a flying game {2}Pass +0s$/); // never cut: shorter, then the one word
+  assert.match(row({ ...gated, reviewRound: 2 }, 61), /^ ✓ Build a flying game {2}Pass · 2 minor +R#2 ✓ PR#12 ✓ {2}0s ago$/); assert.match(row({ ...gated, reviewRound: 2 }, 51), /^ ✓ Build a flying game {2}Pass +R#2 ✓ PR#12 ✓ {2}0s ago$/); // never cut: shorter, then the one word
+  assert.match(row({ ...gated, reviewRound: 2 }, 34), /^ ✓ Build a flying game +0s ago$/); // and gone before the time loses a letter
   // the R# tag: its own column left of the PR's, on every row that has had a review, with a mark for how it went that the colour repeats
   {
     const paint = { ...theme, fg: (c, s) => `<${c}>${s}</>` }, cv = Object.create(View.prototype); Object.assign(cv, v, { theme: paint });
@@ -163,7 +167,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     assert.match(row(long, 34), /^ ◐ Fix login +50% R#2 ✗ PR#12 +0s$/); assert.match(row(long, 30), /^ ◐ Fix login +R#2 ✗ PR#12 +0s$/);
     assert.match(row(long, 24), /^ ◐ Fix login +PR#12 +0s$/); assert.match(row(long, 20), /^ ◐ Fix login +0s$/);
   }
-  { const paint = { ...theme, fg: (c, s) => `<${c}>${s}</>` }, cv = Object.create(View.prototype); Object.assign(cv, v, { theme: paint }); assert.ok(cv.row(gated, 120, cv.rowLayout([gated], 120)).includes("<green>Pass</>")); assert.ok(cv.row({ ...gated, review: failing }, 120, cv.rowLayout([gated], 120)).includes("<red>Fail</>")); }
+  { const paint = { ...theme, fg: (c, s) => `<${c}>${s}</>` }, cv = Object.create(View.prototype); Object.assign(cv, v, { theme: paint }); assert.ok(cv.row(gated, 160, cv.rowLayout([gated], 160)).includes("<green>Pass</>")); assert.ok(cv.row({ ...gated, review: failing }, 160, cv.rowLayout([gated], 160)).includes("<red>Fail</>")); } // 160: this paint's tags take cells
   const loop = { ...gated, reviewRound: 3, reviews: [{ round: 1, at: Date.now() - 7200000, ...failing, head: "1111111aaaa" }, { round: 2, at: Date.now() - 3600000, score: 4, recommend: true, text: "An old one.", problems: ["game.js: old."] }, { round: 3, at: Date.now() - 60000, ...tagged, head: "abcdef12345" }] };
   assert.match(page(loop), /\n Reviews · 3 ─+\n fail → 4\/5 yes → pass\n ╭─ Review 3 ─+ 1m ago ─╮\n │ Pass · 2 minor +│\n │ Works\. +│\n ╰─+╯\n/); assert.doesNotMatch(page(loop), /Skylark[^\n]*Review:|Review: Pass/); // the board's own words about the review are not said twice
   assert.match(page(loop, true), /\n ╭─ Review 3 ─+ 1m ago · abcdef1 ─╮\n │ Pass · 2 minor +│\n │ Works\. +│\n │ +│\n │ Findings +│\n │ • \[minor\] A name is unclear \(game\.js\) · not required +│\n │ • \[minor\] A comment is stale \(sky\.js\) · not required +│\n ╰─+╯\n\n ╭─ Review 2 ─+ 1h ago ─╮\n │ 4\/5, says merge +│\n │ An old one\. +│\n │ +│\n │ Problems +│\n │ • game\.js: old\. +│\n ╰─+╯\n\n ╭─ Review 1 ─+ 2h ago · 1111111 ─╮\n │ Fail · 1 critical, 1 major, 1 minor, 1 pre-existing +│\n │ No fix\. +│\n │ +│\n │ Findings +│\n │ • \[critical\] The plane never takes off \(game\.js\) +│\n │ • \[major\] Crashes without a sky \(sky\.js\) +│\n │ • \[minor\] A name is unclear \(game\.js\) · not required +│\n │ • \[major\] The old menu flickers \(menu\.js\) · pre-existing, filed as proj\/7 +│\n │ • 1 smaller finding noticed late, left out +│\n ╰─+╯\n/);
@@ -171,9 +175,9 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   const stood = { ...loop, reviews: loop.reviews.map((e) => (e.round === 3 ? { ...e, kept: [{ at: Date.now() - 3600000, check: "npm test", resolved: [] }, { at: Date.now() - 30000, check: "npm test", resolved: ["game.js"] }] } : e)) };
   assert.match(page(stood), /\n ╭─ Review 3 ─+ 1m ago ─╮\n │ Pass · 2 minor +│\n │ Re-merged with main \(conflicts resolved in 1 file\), tests pass, review 3 +│\n │ still stands · 30s ago · 2 times +│\n │ Works\. +│\n/);
   assert.match(row(stood, 120), / {2}Pass · 2 minor +R#3 ✓ PR#12/);
-  // what a row needs from you outranks its bar
+  // what a row needs from you is cut like any other sentence: it never costs the row a column
   const stuck = { ...working, state: "blocked", kind: "question", stage: "asks", title: "Build a flying game", msg: "Which colour should the plane be?" };
-  assert.match(row(stuck, 72), /^ × Build a flying game {2}Which colour should the plane be\? +50% +0s ago$/); assert.match(row(stuck, 120), /be\? +█+░+ +50% +0s ago$/);
+  assert.match(row(stuck, 72), /^ × Build a flying game {2}Which colour should the … +█+░+ +50% +0s ago$/); assert.match(row(stuck, 120), /be\? +█+░+ +50% +0s ago$/);
   // rows that need you say what blocks them, after the name and without Markdown marks; with nothing said, in plain words
   const ask = "Which colour should the plane be, and should the **islands** have `palm` trees?";
   for (const r of [{ ...base, stage: "", kind: "question", msg: ask }, { ...base, mergeFailed: true, msg: ask }, { ...base, state: "error", kind: "", stage: "failed", msg: ask }])
