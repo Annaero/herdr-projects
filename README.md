@@ -89,7 +89,7 @@ something, tell it to do something, or just say what needs doing.
 
 ```
 ──────────────────────────────────────────────────────────────────────────────────────────────
- ○ Coordinator  idle  claude · default model · default effort    alt+c open its chat · alt+v hide its message
+ ○ Coordinator  idle  claude · default model · default effort    alt+c open its chat · esc hide its message
  › file the undo task
  Filed proj/4: Add an undo. An agent is on it.
 ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ window too short for that, the draft keeps the line). The text box and its hints
 chat gives way first. The
 prompt is only `❯`. Under that line is the latest thing they said (their screen while a dialog is up): `Alt+V` hides
 it and shows it again, in a narrow window too (where the key does not fit beside the name, the hint line says it),
-and the board remembers which. `Alt+C` goes into the whole chat of whoever it names. Where the
+and the board remembers which. `Esc` hides it too, as its first step back (with nothing typed): while the message is up, `Esc` does only that, and the chat's line names `esc` as the key. A Coordinator that could not be started says why even while the message is hidden; `Esc` (or `Alt+V`) puts that error away too, until the next one. `Alt+C` goes into the whole chat of whoever it names. Where the
 Coordinator stands (starting, working, needs you, a new reply) is said on that first line and nowhere else.
 
 **A board that looks cut off or half empty.** The board takes its pane's size back by itself within a few seconds:
@@ -152,19 +152,19 @@ your next key press, an error until `Esc` dismisses it.
 |---|---|
 | `↑` `↓` | move between tasks |
 | `Enter` | send what you typed; with nothing typed, open the task's agent: its real herdr pane. The board closes (the first few times it says how to get back); your key brings it back where you left it |
-| `Space` | talk to this task's agent: the chat says so, and `Space` or `Esc` goes back to the Coordinator. On a task with no agent, your message puts one on it |
+| `Space` | talk to this task's agent: the chat says so, and `Space` goes back to the Coordinator (so does `Esc`, once the chat's message is hidden). On a task with no agent, your message puts one on it |
 | `Tab` | put an agent on the task. With text typed for the Coordinator: send it, and every task it files from that message gets an agent at once, with nothing more to confirm (a message that files nothing delegates nothing) |
 | `Ctrl+A` | yes, to whatever the task waits for: approve the merge (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary as it is |
 | `Ctrl+R` | send it back: whatever went wrong (a failed check, a conflict, an error, a review with findings) goes to the task's agent to fix; a stopped agent is told to continue |
 | `Ctrl+X` | stop the agent. The selection stays on that row |
 | `Ctrl+F` | find |
 | `?` | a menu of everything else for the selected task, picked with `↑` `↓` and `Enter`: the whole task full screen, the side panel, archive, pin, delete, undo, the archive, group by repo, show all done, other machines, the Coordinator |
-| `Esc` | back, one step at a time; the last step asks before the board closes |
+| `Esc` | back, one step at a time: a draft is put away, then the chat's latest message is hidden (the Coordinator's or a task agent's), then the open task, the filter and the archive close. Only with none of those left does it ask before the board closes |
 
 The bottom line shows only what matters right now, the main thing first, at most four. The older chords still work
 when the text box is empty, and the menu shows each beside its line: `Ctrl+E` the whole task, `Ctrl+P` the side panel, `Alt+A` archive or
 restore, `Alt+H` the archive, `Ctrl+Z` undo, `Ctrl+T` pin, `Ctrl+S` group by repo, `Ctrl+D` all done, `Ctrl+O`
-other machines, `Delete` delete, `Alt+C` the whole chat, `Alt+V` the latest message shown or hidden, `Alt+R` and `Alt+N` restart the
+other machines, `Delete` delete, `Alt+C` the whole chat, `Alt+V` the latest message shown or hidden (`Esc` hides it too), `Alt+R` and `Alt+N` restart the
 Coordinator or start a new one. (`Ctrl+B` is herdr's own prefix key, so the side panel's key is `Ctrl+P`.)
 
 **The Coordinator is one agent chat.** It is a single long-lived agent, not a call per instruction: everything

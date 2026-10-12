@@ -55,7 +55,7 @@ Bold rows change.
 | `shift+enter` | new line | text box |
 | `delete` | delete the task (asks first) | task |
 | `?` | the menu | board |
-| `esc` | one step back; last step asks to close | board |
+| `esc` | one step back: draft, the chat's latest message, open task, filter, archive; last step asks to close | board |
 
 Arrows always move, whatever is held with them, so `alt+↑` and `ctrl+↑` belong here.
 

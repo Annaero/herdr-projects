@@ -327,7 +327,11 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     assert.match(s.text(), /Sent to the agent/);
     const t = S.get("proj/1");
     assert.match(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.at(-1), /also say goodbye/);
+    // esc, one step at a time: the agent's message in the chat is hidden first, and only the next esc leaves the reply
+    assert.match(s.text(), /esc hide its message/); assert.doesNotMatch(s.text(), /esc back/);
+    s.press("esc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.equal(s.v.ask, null); assert.match(s.text(), /alt\+v show its message/); assert.match(s.text(), /esc back/);
     s.press("esc"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯/);
+    s.press("\x1bv"); assert.equal(s.v.chatOpen, true);
     // enter: focus the agent's real pane by pane id and close the board; selection and filter come back on reopen
     s.press("enter");
     assert.deepEqual(s.closed(), { entered: "proj/1" });
@@ -495,7 +499,9 @@ test("a reply that was put away comes back as a reply to the same task, never as
       s.screen(width); s.v.sel = id; s.v.load();
       s.press("space"); s.type("also say goodbye");
       s.press("esc"); assert.equal(s.v.value(), ""); assert.equal(s.v.reply, true); // the first esc only puts the words away
+      s.press("esc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); // the second hides the agent's message in the chat
       s.press("esc"); assert.equal(s.v.reply, false); assert.match(s.text(width), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯/);
+      s.press("\x1bv"); assert.equal(s.v.chatOpen, true);
       s.press("down"); assert.notEqual(s.v.sel, id);
       s.press("ctrl+z");
       assert.equal(s.v.sel, id); assert.equal(s.v.reply, true); assert.equal(s.v.full, width < 90);
@@ -505,7 +511,8 @@ test("a reply that was put away comes back as a reply to the same task, never as
       s.press("enter");
       assert.equal(S.list().length, before, "no new task was filed");
       assert.match(w.state().panes.find((p) => p.pane_id === S.get(id).link.pane).agent.prompts.at(-1), /also say goodbye/);
-      s.press("esc"); if (s.v.reply || s.v.full) s.press("esc");
+      s.press("esc"); if (s.v.reply || s.v.full) s.press("esc"); // the message in the chat, then the reply
+      assert.equal(s.v.reply, false); assert.equal(s.v.ask, null); s.press("\x1bv"); assert.equal(s.v.chatOpen, true);
     }
     // a new task that was put away comes back as a new task, also when you are replying to something by then
     s.screen(120); s.type("buy milk"); s.press("esc", "space"); assert.equal(s.v.reply, true);
@@ -955,7 +962,7 @@ test("resizing the real screen keeps the chat on the last line and the working r
       // Who you talk to: its keys end at the right edge, whole, never on a dangling separator.
       const who = lines[head + 1].trimEnd();
       assert.match(who, /^ ○ Coordinator/, note); assert.doesNotMatch(who, /·$/, note);
-      if (columns >= 120) { assert.match(who, /alt\+c open its chat · alt\+v hide its message$/, note); assert.ok(visibleWidth(who) >= columns - 1, note); }
+      if (columns >= 120) { assert.match(who, /alt\+c open its chat · esc hide its message$/, note); assert.ok(visibleWidth(who) >= columns - 1, note); }
       // The working row: its columns sit at the window's right edge, however wide the window is.
       const row = lines.find((l) => /Pin the chat to the bottom/.test(l)) || "";
       if (rows >= 20) assert.ok(row, `${note}: the working row is in view`);
@@ -1156,7 +1163,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     assert.equal(lines[53], "─".repeat(411)); assert.match(lines[52], /^❯ /); assert.equal(lines[51], "─".repeat(411));
     const row = lines.find((l) => /Pin the chat/.test(l));
     assert.match(row, /Checking every window size\. +█+░+ +55% 12m PR#3 {2}6m {4}$/); assert.equal(row.length, 411); // the columns are back in view
-    assert.match(lines.find((l) => /^ ○ Coordinator/.test(l)).trimEnd(), /alt\+c open its chat · alt\+v hide its message$/); // whole, not cut after the dot
+    assert.match(lines.find((l) => /^ ○ Coordinator/.test(l)).trimEnd(), /alt\+c open its chat · esc hide its message$/); // whole, not cut after the dot
     // Held at 435x58 while a taller, narrower window shows it: the width is cut down, the rows are all there are.
     s.v.shown = { cols: 184, rows: 78, split: false };
     lines = s.screen(435);

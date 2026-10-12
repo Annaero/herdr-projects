@@ -71,7 +71,7 @@ const ASKS = { question: "Asks you", permission: "Asks for your OK", auth: "Need
 // The keys worth remembering. Everything else is a line in the menu.
 const KEYS = [
   ["↑ ↓", "move between tasks"], ["enter", "send, or open the agent"], ["space", "talk to this task's agent"], ["tab", "put an agent on it"],
-  ["ctrl+a", "yes: approve, retry, continue"], ["ctrl+r", "send it back to fix"], ["ctrl+x", "stop the agent"], ["ctrl+f", "find"], ["ctrl+p", "side panel, on or off"], ["ctrl+e", "the whole task, full screen"], ["?", "this menu"], ["esc", "back"],
+  ["ctrl+a", "yes: approve, retry, continue"], ["ctrl+r", "send it back to fix"], ["ctrl+x", "stop the agent"], ["ctrl+f", "find"], ["ctrl+p", "side panel, on or off"], ["ctrl+e", "the whole task, full screen"], ["?", "this menu"], ["esc", "one step back: the chat's message first, closing the board last"],
 ];
 const short = S.tilde;
 const clean = (s) => String(s ?? "").replace(/[\x00-\x1f\x7f]+/g, " ");
@@ -410,7 +410,17 @@ export class View {
   // One chat at the bottom of the board, the same for everyone you can talk to. Who that is follows one rule: the
   // task you pressed space on, its agent; otherwise the Coordinator. Only its latest message is drawn here: the whole
   // conversation is the agent's own pane, which `openChat` goes into.
-  toggleChat() { this.chatOpen = !this.chatOpen; this.savePrefs(); this.syncCoord(); }
+  // A start that failed says why even while the chat is hidden, so hiding it also puts that one error away: the
+  // same error stays hidden, the next one shows again.
+  toggleChat() {
+    const c = this.chatOf(this.current());
+    if (c?.always) { this.errHid = this.coord.error; this.chatOpen = false; } else this.chatOpen = !this.chatOpen;
+    this.savePrefs(); this.syncCoord();
+  }
+  // The chat's latest message is up, the Coordinator's or a task agent's: the first thing esc backs out of.
+  previewOpen(r) { const c = this.chatOf(r); return !!c?.said && (this.chatOpen || !!c.always); }
+  // The key that hides it: esc while the text box is empty (a draft is put away first), alt+v always.
+  hideKey() { return this.value() ? "alt+v" : "esc"; }
   openChat() { const r = this.current(); return this.reply && r ? this.chat(r) : this.enterCoord(); }
   // Called on every beat and after every change: a reply you can see counts as seen, and you go into the
   // Coordinator's chat once the Coordinator you asked to go into is there.
@@ -418,7 +428,7 @@ export class View {
     const v = this.coord;
     if (v.unseen && !this.reply && this.chatOpen && !this.setup) { C.seen(v.unseen); this.coord = { ...v, unseen: "" }; }
     // While you talk to a task's agent the chat shows that agent: the Coordinator's reply is said once, in a line.
-    else if (v.unseen && this.reply && this.toldReply !== v.unseen && !this.msg) { this.toldReply = v.unseen; this.flash("The Coordinator replied. esc goes back to it.", "green"); }
+    else if (v.unseen && this.reply && this.toldReply !== v.unseen && !this.msg) { this.toldReply = v.unseen; this.flash("The Coordinator replied. space goes back to it.", "green"); }
     if (!this.going) return;
     if (v.status && v.pane) return this.enterCoord();
     if (v.error) { this.going = 0; return this.flash(`The Coordinator could not be started: ${v.error}`, "red"); }
@@ -496,7 +506,7 @@ export class View {
     if (v.stale) notes.push(`your default is now ${C.describe(v.def)}: alt+n starts a new one on it`);
     for (const m of v.waiting || []) notes.push(`› ${clean(m)}  (waiting to be sent)`);
     if (!v.queue && v.last && v.state !== "none") notes.push(`› ${clean(v.last)}`);
-    return { mark, color: v.error ? "red" : color, name: "Coordinator", word, meta: `${v.run ? C.describe(v.run) : "off"}${v.oneOff ? " (this one only)" : ""}`, label, text, tone, raw: label === "on its screen now", notes, enter: true, said: true, always: !!v.error };
+    return { mark, color: v.error ? "red" : color, name: "Coordinator", word, meta: `${v.run ? C.describe(v.run) : "off"}${v.oneOff ? " (this one only)" : ""}`, label, text, tone, raw: label === "on its screen now", notes, enter: true, said: true, always: !!v.error && this.errHid !== v.error };
   }
   // The chat's first line names who you talk to, on the whole width: the name is never cut to make room for the rest.
   // What stands beside it goes first when the window is narrow: the keys, then the label, the program, the state.
@@ -506,7 +516,9 @@ export class View {
     const name = t.bold(c.name);
     const bits = [c.word && "  " + t.fg(c.color, c.word), c.meta && t.fg("overlay0", "  " + c.meta), c.label && this.chatOpen && t.fg("overlay0", "  · " + c.label)].filter(Boolean);
     // The chat's two keys, in full or in short. Where neither fits beside the name, the hint line below says alt+v.
-    const forms = [[c.enter && "alt+c open its chat", c.said && `alt+v ${this.chatOpen ? "hide" : "show"} its message`], [c.enter && "alt+c chat", c.said && `alt+v ${this.chatOpen ? "hide" : "show"}`]].map((f) => f.filter(Boolean).join(" · "));
+    const up = this.chatOpen || c.always;
+    const toggle = up ? `${this.hideKey()} hide` : "alt+v show";
+    const forms = [[c.enter && "alt+c open its chat", c.said && `${toggle} its message`], [c.enter && "alt+c chat", c.said && toggle]].map((f) => f.filter(Boolean).join(" · "));
     let keys = forms[0];
     const fits = (n, withKeys) => visibleWidth(name + bits.slice(0, n).join("")) + (withKeys && keys ? 3 + visibleWidth(keys) : 0) <= room;
     // The keys outlast the label and the program; the state outlasts the keys.
@@ -514,7 +526,7 @@ export class View {
     while (n > 1 && !fits(n, true)) n--;
     if (!fits(n, true)) { keys = forms[1]; n = bits.length; while (n > 1 && !fits(n, true)) n--; }
     if (!fits(n, true)) { showKeys = false; n = bits.length; while (n && !fits(n, false)) n--; }
-    this.chatKeyHint = c.said && !showKeys ? ["alt+v", `${this.chatOpen ? "hide" : "show"} its message`] : null;
+    this.chatKeyHint = c.said && !showKeys ? [toggle.split(" ")[0], `${up ? "hide" : "show"} its message`] : null;
     // A name longer than the window takes a second line before it is cut (in a short window that line is the draft's).
     if (!fits(0, false) && tight) return [lead + truncateToWidth(name, room, "…")];
     if (!fits(0, false)) { const [a, b, more] = wrapTextWithAnsi(name, room); return [lead + a, ...(b ? ["   " + (more ? truncateToWidth(b, room - 1, "") + "…" : b)] : [])]; }
@@ -832,9 +844,11 @@ export class View {
     const text = this.value().trim();
     const r = this.current();
     if (esc) {
-      // One step back at a time. A draft is put away, not thrown away; the last step asks before the board closes.
+      // One step back at a time. A draft is put away, not thrown away; the chat's latest message is hidden before
+      // anything behind it closes; the last step asks before the board closes.
       if (this.mode !== "new") { this.mode = "new"; this.setValue(""); }
       else if (this.value()) { if (text) { this.draftAway = { text: this.value(), to: this.reply && r ? r.id : "" }; this.flash("Put away. ctrl+z brings it back."); } this.setValue(""); }
+      else if (this.previewOpen(r)) return this.toggleChat();
       else if (this.full || this.reply) return this.closePanel();
       else if (this.filter) this.filter = "";
       else if (this.archiveView) return this.toggleArchive();
@@ -1089,11 +1103,13 @@ export class View {
       return [["enter", "add a task"], ["tab", "add it and start an agent"], ["esc", "put away"], ["shift+enter", "new line"]];
     }
     if (this.job()) return [["ctrl+x", "stop it"], ["enter", "take it back to change"], ["ctrl+↑", "back to the list"]];
-    if (!r) return [["", this.archiveView ? "esc back to the board" : "type what needs doing"], ...(this.chatKeyHint ? [this.chatKeyHint] : []), more];
-    const tail = this.full ? [["↑↓", "scroll"], ["esc", "back"]] : this.reply ? [["esc", "back"]] : [more];
+    // While the chat's message is up, esc hides it (the chat says so beside the name): "back" is the press after.
+    const up = this.previewOpen(r);
+    if (!r) return [["", this.archiveView && !up ? "esc back to the board" : "type what needs doing"], ...(this.chatKeyHint ? [this.chatKeyHint] : []), more];
+    const tail = this.full ? [["↑↓", "scroll"], ...(up ? [] : [["esc", "back"]])] : this.reply ? [up ? more : ["esc", "back"]] : [more];
     const failure = failureFor(r), rv = currentReview(r), reply = ["space", "reply"], open = ["enter", "open the agent"];
     let main;
-    if (r.archivedAt) main = [["?", "restore or delete"], ...(this.archiveView && !this.full ? [["esc", "back to the board"]] : [])];
+    if (r.archivedAt) main = [["?", "restore or delete"], ...(this.archiveView && !this.full && !up ? [["esc", "back to the board"]] : [])];
     else if (inReview(r)) main = [["ctrl+a", "approve and merge"], rv && G.sendable(rv) && ["ctrl+r", "send back"], reply];
     else if (r.stage === "approval" && r.syncBlocked) main = [reply, open];
     else if (r.stage === "approval" && r.state === "blocked") main = [failure?.agentCanFix && !failure.sentAt && ["ctrl+r", "send it to the agent to fix"], ["ctrl+a", "retry the merge"], reply];
@@ -1110,7 +1126,8 @@ export class View {
     main = main.filter(Boolean);
     if (this.reply && !r.archivedAt) main = [["", agentOn && r.state === "blocked" && r.kind === "question" ? "type your answer" : "type your reply"], ...main.filter(([k]) => k !== "space")];
     const key = this.chatKeyHint ? [this.chatKeyHint] : [];
-    return [...main.slice(0, 4 - tail.length - key.length), ...key, ...tail];
+    // In a narrow window the hint line carries the chat's key: where it is esc, it stands last, as "esc back" does.
+    return [...main.slice(0, 4 - tail.length - key.length), ...(up && key.length && this.full ? [...tail, ...key] : [...key, ...tail])];
   }
   // The ? menu: lines you act from, and under them the few keys worth remembering.
   menuLines(width, h) {

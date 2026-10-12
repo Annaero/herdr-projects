@@ -47,7 +47,7 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     w.script({ coordinator: [{ said: "Filed proj/1." }, { said: "Delegated proj/1." }] });
     const s = open(w);
     // The chat at the bottom is the Coordinator's: its first line says who you talk to, the prompt is only "❯".
-    assert.match(s.text(), /\n─+\n · Coordinator {2}not started {2}claude · default model · default effort +alt\+c open its chat · alt\+v hide its message *\n Ask or tell it anything: it starts with your first message, and stays\. *\n─+\n❯ ask or tell it anything *\n/);
+    assert.match(s.text(), /\n─+\n · Coordinator {2}not started {2}claude · default model · default effort +alt\+c open its chat · esc hide its message *\n Ask or tell it anything: it starts with your first message, and stays\. *\n─+\n❯ ask or tell it anything *\n/);
     assert.doesNotMatch(s.text(), /new task|reply to/);
     s.press("?"); assert.match(s.text(), /open the Coordinator's chat +alt\+c/); assert.match(s.text(), /hide the latest message in the chat +alt\+v/); s.press("esc"); // lines in the menu, not keys to learn
     s.type("build a login page");
@@ -82,6 +82,14 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     assert.doesNotMatch(s.text(), /Filed proj\/1\./); assert.match(s.text(), /\n─+\n ○ Coordinator {2}idle {2}[^\n]*alt\+v show its message *\n─+\n❯ ask or tell it anything/);
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).chat, "closed");
     s.press("esc"); assert.equal(s.v.ask.q, "Close the board?", "esc has nothing of the chat to close"); s.press("esc");
+    // Shown, esc hides it first and does nothing else: no question, the board stays. Only the next esc asks about closing.
+    s.press("alt+v"); assert.equal(s.v.chatOpen, true); assert.match(s.text(), /Filed proj\/1\./); assert.match(s.text(), /esc hide its message/);
+    s.press("esc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []); assert.doesNotMatch(s.text(), /Filed proj\/1\./);
+    assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).chat, "closed");
+    s.press("esc"); assert.equal(s.v.ask.q, "Close the board?"); s.press("esc"); assert.equal(s.v.ask, null);
+    // A draft comes before it: esc puts the words away and the message stays up; while you type, the chat names alt+v.
+    s.press("alt+v"); s.type("half"); assert.match(s.text(), /alt\+v hide its message/); s.press("esc"); assert.equal(s.v.value(), ""); assert.equal(s.v.chatOpen, true);
+    s.press("esc"); assert.equal(s.v.chatOpen, false);
     // The next thing you type goes to the same agent in the same conversation; Tab asks it to delegate.
     s.type("and start it"); s.press("tab");
     await drainJobs(runJob);
@@ -157,7 +165,7 @@ test("one chat for everyone: space on a task talks to its agent, otherwise to th
     assert.match(e.text(160), /The agent said *\n[^\n]*Done\./g); assert.match(e.text(160), /\n . Coordinator {2}/);
     e.press("space"); assert.equal(e.v.reply, true);
     let text = e.text(160);
-    assert.match(text, new RegExp(`\\n─+\\n . ${title} {2}\\S[^\\n]* {2}its agent · claude[^\\n]*alt\\+v hide its message *\\n Done\\. *\\n─+\\n❯ your reply`));
+    assert.match(text, new RegExp(`\\n─+\\n . ${title} {2}\\S[^\\n]* {2}its agent · claude[^\\n]*esc hide its message *\\n Done\\. *\\n─+\\n❯ your reply`));
     assert.doesNotMatch(text, /The agent said|Coordinator|reply to/); assert.equal(text.match(/Done\./g).length, 1);
     e.press("alt+v"); assert.match(e.text(160), /The agent said *\n[^\n]*Done\./g); assert.match(e.text(160), new RegExp(`\\n . ${title} {2}[^\\n]*\\n─+\\n❯ your reply`)); e.press("alt+v");
     // The name is never cut inside a prompt: a window narrower than the name gives it a second line.
@@ -165,11 +173,14 @@ test("one chat for everyone: space on a task talks to its agent, otherwise to th
     // While you talk to a task's agent the chat stays that agent's: the Coordinator's reply is said once, in a line.
     w.script({ coordinator: [{ said: "All done." }] });
     C.send(w.root, "do something"); await drainJobs(runJob); e.beat();
-    assert.match(e.text(), /The Coordinator replied\. esc goes back to it\./); assert.doesNotMatch(e.text(), /All done\./); assert.ok(C.look().unseen);
+    assert.match(e.text(), /The Coordinator replied\. space goes back to it\./); assert.doesNotMatch(e.text(), /All done\./); assert.ok(C.look().unseen);
     // What you type there is for that agent, not for the Coordinator.
     e.type("also say goodbye"); assert.match(e.text(), /enter send to its agent · esc put away/); e.press("esc");
-    // esc (or space) goes back to the Coordinator, and its reply is there.
-    e.press("esc"); assert.equal(e.v.reply, false); e.beat();
+    // esc backs out one step at a time: first the agent's message in the chat, then the reply itself. It never asks to close on the way.
+    e.press("esc"); assert.equal(e.v.chatOpen, false); assert.equal(e.v.reply, true); assert.equal(e.v.ask, null); assert.doesNotMatch(e.text(160), /\n Done\. *\n─+\n❯ your reply/); assert.match(e.text(160), /alt\+v show its message/);
+    e.press("esc"); assert.equal(e.v.reply, false); assert.equal(e.v.ask, null); assert.deepEqual(e.closed, []);
+    // space goes back to the Coordinator with its message up, and its reply is there.
+    e.press("alt+v", "space", "space"); assert.equal(e.v.chatOpen, true); assert.equal(e.v.reply, false); e.beat();
     assert.match(e.text(), /\n . Coordinator {2}idle[^\n]*\n › do something *\n All done\. *\n─+\n❯ ask or tell it anything/); assert.equal(C.look().unseen, "");
     // Nothing changes who the chat names while you type.
     e.type("half typed");
@@ -183,14 +194,14 @@ test("one chat for everyone: space on a task talks to its agent, otherwise to th
     w.script({ worker: [{ status: "working", screen: "● Editing greet.sh\n" }] });
     const u = A.add(w.root, "Still at it"); A.delegate(u.id); await settle(u.id);
     const g = open(w); g.v.sel = u.id; g.v.load(); g.press("space");
-    assert.match(g.text(160), /\n─+\n . Still at it {2}working {2}its agent · claude[^\n]*alt\+c open its chat · alt\+v hide its message *\n ● Editing greet\.sh *\n─+\n❯ your reply/);
+    assert.match(g.text(160), /\n─+\n . Still at it {2}working {2}its agent · claude[^\n]*alt\+c open its chat · esc hide its message *\n ● Editing greet\.sh *\n─+\n❯ your reply/);
     g.press("alt+c"); assert.deepEqual(g.closed, [{ entered: u.id }]);
     // A narrow window is the same chat: space opens the task's panel and talks to its agent, alt+v hides and shows
     // its message there too (the panel has it meanwhile), and space again goes back to the Coordinator.
     {
       const n = open(w); n.v.sel = t.id; n.v.load(); n.screen(70); n.press("space");
       assert.equal(n.v.reply, true); assert.equal(n.v.full, true);
-      assert.match(n.text(70), /\n Done\. *\n─+\n❯ your reply *\n─+\n[^\n]*alt\+v hide its message · /, "beside a name this long the key is on the hint line"); assert.doesNotMatch(n.text(70), /The agent said/);
+      assert.match(n.text(70), /\n Done\. *\n─+\n❯ your reply *\n─+\n[^\n]*esc hide its message *$/, "beside a name this long the key is on the hint line"); assert.doesNotMatch(n.text(70), /The agent said/);
       n.press("alt+v"); assert.match(n.text(70), /The agent said *\n Done\./); assert.match(n.text(70), /\n─+\n❯ your reply *\n─+\n[^\n]*alt\+v show its message · /);
       n.press("alt+v", "space"); assert.equal(n.v.reply, false); assert.equal(n.v.full, false); assert.match(n.text(70), /\n . Coordinator {2}/);
       // ctrl+e alone never changes who gets your words.
@@ -356,6 +367,16 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     C.fresh(C.pickOf({ agent: "nope" })); C.send(w.root, "second"); await drainJobs(runJob);
     assert.match(C.look().error, /"nope" is not installed here/); assert.equal(C.get().queue.length, 1);
     s.beat(); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n(?: ›[^\n]*\n)* It could not be started: "nope" is not installed here/); // also with its message hidden
+    // esc hides that too, as the chat's line says, and does nothing else; only the next esc asks about closing.
+    s.v.chatOpen = false; s.v.setValue(""); s.v.reply = false; s.v.full = false; s.v.filter = ""; s.v.msg = "";
+    assert.match(s.text(), /esc hide its message/);
+    s.press("esc"); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []);
+    assert.doesNotMatch(s.text(), /It could not be started:/); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*alt\+v show its message/);
+    s.beat(); assert.doesNotMatch(s.text(), /It could not be started:/, "the same error stays hidden");
+    s.press("esc"); assert.equal(s.v.ask.q, "Close the board?"); s.press("esc");
+    // alt+v shows it again and hides it again, shown by the setting or not.
+    s.press("alt+v"); assert.match(s.text(), /It could not be started:/); s.press("esc"); assert.doesNotMatch(s.text(), /It could not be started:/); assert.equal(s.v.ask, null);
+    s.v.errHid = ""; s.v.chatOpen = true; assert.match(s.text(), /It could not be started:/); s.press("alt+v"); assert.doesNotMatch(s.text(), /It could not be started:/);
     assert.throws(() => C.pickOf({ agent: "not a kind" }), /must be an agent kind/);
   } finally { delete process.env.HERDR_SUPERWORK_HANDLED_MS; w.cleanup(); }
 });
