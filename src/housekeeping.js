@@ -14,7 +14,8 @@ import { reconcile } from "./hook.js"; // a cycle, used only at call time
 import { startQueued } from "./actions.js";
 import * as Y from "./sync.js";
 import { owedFaults, suggestOwed } from "./finish/faults.js";
-import { autoMergePass } from "./finish/auto-merge.js";
+import { autoMergePass, green } from "./finish/auto-merge.js";
+import { linePass } from "./finish/line.js";
 
 const key = (socket) => createHash("sha1").update(String(socket)).digest("hex").slice(0, 8);
 
@@ -44,6 +45,8 @@ export function housekeeping(socket = currentSocket(), { force = false } = {}) {
     try { resync(tasks, socket); } catch {}
     // The autoMerge setting changed under a task that waits: it merges now, or waits for your yes after all.
     try { autoMergePass(tasks, socket); } catch {}
+    // Tasks that wait their turn to merge: the next one starts when the one before it is through.
+    try { linePass(tasks); } catch {}
     // An agent whose turn a passing provider error cut off is told to carry on once its wait is over.
     for (const t of tasks) { const w = S.waitingOf(t); if (w?.who === "agent" && t.link?.socket === socket && Date.now() >= w.until && !runnerAlive(t)) { try { F.resumeCut(t.id); } catch {} } }
   }
@@ -59,6 +62,9 @@ function resync(tasks, socket) {
   const known = new Map();
   for (const t of tasks) {
     if (!Y.resyncable(t) || t.link.socket !== socket || !Y.treeOf(t) || runnerAlive(t)) continue;
+    // A task that merges by itself is not brought up to date here, with every other one at once: it catches up when
+    // its turn to merge comes (finish/line.js), and so does that only once.
+    if (S.choices(t).autoMerge && green(t)) continue;
     const now = Y.knownTarget(t, known);
     if (now && (now !== t.syncSeen || t.syncBlocked) && Date.now() >= (t.syncRetryAt || 0)) spawnRunner("sync", t.id);
   }
@@ -115,6 +121,10 @@ async function pollOne(id, pr, j) {
   const local = () => { try { const c = S.get(id); return c?.branch ? S.gitOut(S.folderOf(id), ["rev-parse", "--verify", `refs/heads/${c.branch}`]) : ""; } catch { return ""; } };
   const covered = (tip, head) => { if (!tip || tip === head) return true; if (!head) return false; try { S.gitOut(S.folderOf(id), ["merge-base", "--is-ancestor", tip, head]); return true; } catch { return false; } };
   let mode = "always", legacy = false;
+  // The pull request names another commit than the one reviewed here. Someone pushed to it, unless the branch at the
+  // remote is that reviewed commit: then GitHub's answer is only late (asked right after the board's own push).
+  const was = S.get(id), mine = was?.mergeIntent?.verifiedHead || was?.prHead || "";
+  const lateFor = was?.autoMerge && mine && j.headRefOid && j.headRefOid !== mine && F.remoteHead(S.folderOf(id), was.branch) === mine ? mine : "";
   S.update(id, (t) => {
     if (t.archivedAt || t.pr !== pr || runnerAlive(t)) return false; // archived or active since the request started: next poll
     if (j.state === "MERGED") {
@@ -137,6 +147,7 @@ async function pollOne(id, pr, j) {
     // the approval is withdrawn, and nothing merges until that has been checked and reviewed here.
     const reviewed = t.mergeIntent?.verifiedHead || t.prHead || "";
     if (t.autoMerge && reviewed && j.headRefOid && j.headRefOid !== reviewed) {
+      if (reviewed === lateFor) return false; // GitHub has not caught up with the board's own push yet: next poll
       legacy = !t.autoMergeLocal;
       t.autoMerge = false; t.autoMergeLocal = false; t.stage = "approval"; t.mergeFailed = true; t.mergeIntent = null; t.requireApproval = true;
       t.msg = "Pull request has commits that were not reviewed";

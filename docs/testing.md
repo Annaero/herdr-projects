@@ -115,7 +115,7 @@ What makes a test slow here is starting programs and waiting. A new test does ne
 - **It calls the code**, in the test's own process. `world()` in `test/helpers.js` gives it a board of its own, a git
   repo and a fake herdr. The board's code still builds the same herdr command and reads the same output and exit
   status, but no program is started: the fake answers in this process, and so do the things that used to be a program
-  per call (locks, the agent's own turn-end report, the list of a process's children, the version of an agent program).
+  per call (locks, the agent's own turn-end report, the list of a process's children, the version of an agent program, `gh`: `test/fake-gh.js`).
 - **It does not sleep, and does not depend on the machine's speed.** `world()` sets the code's own waits to zero. For
   code that waits, `fastClock(t)` gives a clock that only moves when told to: `await clock(settle(id))` runs the code
   with its timers firing at once, `clock.tick(ms)` moves time by hand. A moment in the past or the future is written

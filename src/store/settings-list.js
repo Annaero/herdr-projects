@@ -37,13 +37,13 @@ export const SETTINGS = [
   { key: "rounds", default: 3, task: true, doc: "how many times agent and reviewer may go back and forth by themselves. Also caps conflict repairs" },
   { key: "artifacts", default: true, task: true, doc: "the reviewer brings evidence: screenshots, a recording, a link, test output" },
   { key: "serve", default: "tailscale", task: true, doc: "how evidence pages are linked: `tailscale`, privately on your tailnet, or `local` for 127.0.0.1 (also used, and said on the task, when Tailscale is not installed)" },
-  { key: "remerge", default: "tests", doc: "work that passed its review and then only took main in (conflict resolutions included): `tests` runs the check again and lets the review stand; `review` always reviews again" },
+  { key: "remerge", default: "tests", doc: "work that passed its review and then only took main in (conflict resolutions included): `tests` runs the check again and lets the review stand; `review` always reviews again. A task that merges by itself (`autoMerge`) is reviewed again where its agent had to resolve a conflict: there only the board's own clean merge of main lets the review stand" },
   // where the work happens and how it lands
   { key: "worktree", default: "auto", doc: "`none`: agents work in your checkout" },
   { key: "base", default: "fresh", doc: "`head`: worktrees start from your current commit" },
   { key: "pr", default: true, doc: "push the branch and open a draft pull request after the check passes" },
   { key: "merge", default: "squash", doc: "how approved work lands: `squash`, `merge` or `rebase`" },
-  { key: "autoMerge", default: false, shown: "the repo's `land`, else `false`", task: true, doc: "`true`: a task merges by itself the moment it may: its review passed the gate, its checks pass, nothing conflicts. `false`: it waits for your yes. Changing it counts from that moment, for tasks under way too. Never chosen by you: a repo whose `.herdr-superwork.json` says `\"land\": \"auto\"` merges by itself, every other repo asks. More: [the gate](gate.md#merging-by-itself)" },
+  { key: "autoMerge", default: false, shown: "the repo's `land`, else `false`", task: true, doc: "`true`: a task merges by itself the moment it may: its review passed the gate, its checks pass, nothing conflicts. Main moving under it does not stop that: it catches up, is checked again and merges, one task at a time. `false`: it waits for your yes. Changing it counts from that moment, for tasks under way too. Never chosen by you: a repo whose `.herdr-superwork.json` says `\"land\": \"auto\"` merges by itself, every other repo asks. More: [the gate](gate.md#merging-by-itself)" },
   { key: "cleanup", default: true, doc: "remove a done task's space, worktree and branch" },
   // other machines
   { key: "machines", default: "auto", doc: "other machines: `auto` (herdr's saved machines), names (`exedev@vm-a, vm-b`) or `off`" },

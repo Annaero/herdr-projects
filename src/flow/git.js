@@ -1,12 +1,22 @@
 // Git and GitHub helpers used by more than one step: the pull request, its checks, a task's change.
 import fs from "node:fs";
+import path from "node:path";
 import { spawnSync } from "node:child_process";
 import * as S from "../store.js";
 import { noteFile } from "./task.js";
 
 // ---- git/gh helpers used by more than one step -----------------------------------------------------------------------
-export function hasOrigin(root) { try { return S.gitOut(root, ["remote"]).split("\n").includes("origin"); } catch { return false; } }
-export const gh = (args, cwd, timeout = 120000) => spawnSync("gh", args, { cwd, encoding: "utf8", timeout, env: { ...process.env, GH_PROMPT_DISABLED: "1", GIT_TERMINAL_PROMPT: "0" } });
+// Asked on every pass, for every task: where the repo's own config file can answer (a primary checkout, with nothing
+// included from elsewhere and no remote kept the old way, as a file), it does, and no program is started.
+export function hasOrigin(root) {
+  try {
+    const dir = path.join(root, ".git"), cfg = fs.readFileSync(path.join(dir, "config"), "utf8");
+    if (/^\s*\[remote\s+"origin"\]/m.test(cfg)) return true;
+    if (!/^\s*\[include/im.test(cfg) && !fs.existsSync(path.join(dir, "remotes")) && !fs.existsSync(path.join(dir, "branches", "origin"))) return false;
+  } catch {}
+  try { return S.gitOut(root, ["remote"]).split("\n").includes("origin"); } catch { return false; } }
+// (Tests may answer for gh themselves, `globalThis.__swGh`, as they do for herdr: no program is started then.)
+export const gh = (args, cwd, timeout = 120000) => globalThis.__swGh ? globalThis.__swGh(args) : spawnSync("gh", args, { cwd, encoding: "utf8", timeout, env: { ...process.env, GH_PROMPT_DISABLED: "1", GIT_TERMINAL_PROMPT: "0" } });
 export const prNumber = (pr) => (String(pr).match(/\/pull\/(\d+)/) || [])[1] || String(pr);
 // All messages that resume work must first revoke a queued GitHub auto-merge. Throws when that fails: nothing is sent.
 // How GitHub words a check's result.
@@ -17,6 +27,11 @@ export const CHECK_GOOD = ["SUCCESS", "NEUTRAL", "SKIPPED"];
 export function dropRemoteBranch(root, branch, head) {
   if (!branch || !head || !hasOrigin(root)) return;
   try { S.gitOut(root, ["push", "origin", "--delete", branch, `--force-with-lease=${branch}:${head}`], { timeout: 60000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } }); } catch {}
+}
+// Where a branch stands at the remote, asked of the remote itself. Empty when it cannot be asked or is not there.
+export function remoteHead(root, branch) {
+  if (!branch) return "";
+  try { return S.gitOut(root, ["ls-remote", "origin", `refs/heads/${branch}`], { timeout: 60000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } }).split(/\s+/)[0] || ""; } catch { return ""; }
 }
 // A merge waiting for GitHub's checks is remembered here, on the task: the board merges it itself when they have
 // passed, at the reviewed commit only. (GitHub's own auto-merge would also merge commits pushed later.) Only a task

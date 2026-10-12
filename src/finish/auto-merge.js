@@ -4,6 +4,7 @@
 import * as S from "../store.js";
 import * as F from "../flow.js";
 import * as G from "../gate.js";
+import { liftOldHolds } from "./old-holds.js";
 import { runnerAlive, spawnRunner } from "../runner.js";
 import { approvalMessage } from "./shared.js";
 
@@ -14,12 +15,17 @@ export function green(t, ch = S.choices(t)) {
   if (t.failure || t.prFailure || t.syncBlocked || t.mergeFailed || t.requireApproval || t.mergeIntent || t.autoMerge) return false;
   return t.review ? G.passes(t.review) : ch.review === "none";
 }
+// Will this task merge with nobody's yes? A merge already under way says it itself (the board's own, or one you
+// approved); otherwise the setting does, unless you are owed an approval. Such a task has only the review to answer
+// for what merges, so a merge of main its agent had to repair by hand is reviewed (the pipeline).
+export const mergesItself = (t) => (t.mergeIntent ? !!t.mergeIntent.auto : !!S.choices(t).autoMerge && !t.requireApproval);
 // A merge the board itself started and that still waits (for GitHub's checks or its merge queue).
 const pending = (t) => t.stage === "merging" && !!t.autoMerge && !!t.mergeIntent?.auto;
 
 // Turned on: a green task that waits for your yes merges now, at the commit that was reviewed.
 // Turned off: a task waiting to merge by itself waits for your yes instead.
 export function autoMergePass(tasks, socket) {
+  try { liftOldHolds(tasks, socket); } catch {} // tried again on the next pass
   for (const seen of tasks) {
     if (seen.link?.socket !== socket || (seen.stage !== "approval" && !pending(seen)) || runnerAlive(seen)) continue;
     try {

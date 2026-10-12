@@ -241,8 +241,10 @@ test("gate off behaves like the manual mode: nothing goes back by itself; one ta
     assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.equal(S.reviewRound(t), 1); assert.equal(paneOf(w, t).agent.prompts.length, 1); assert.equal(t.review.pass, false);
     assert.match(t.msg, /^Approve to merge\? Review: Fail · 1 critical\./); assert.equal(F.labelOf(t), "approve? fail");
     assert.match(A.sendReview(id).msg, /review sent/); // by hand, as before
+    assert.equal(S.get(id).requireApproval, false); // the board's own words sent back are not you stepping in
     t = await settle(id, { max: 30 });
     assert.equal(S.reviewRound(t), 2); assert.equal(t.review?.pass ?? S.reviewHistory(t).at(-1).pass, true);
+    assert.equal(t.stage, "done", JSON.stringify(t.failure)); // so the repair, once it passes, merges by itself in this repo
 
     // one task with a stricter gate of its own: a minor finding goes back by itself
     w.script({ worker: [{ files: { "g.txt": "1\n" }, commit: "g1", note: "Did g1." }, { files: { "g.txt": "2\n" }, commit: "g2", note: "Did g2." }], reviewer: [verdict([finding("minor", "A name is unclear", { where: "g.txt" })]), verdict([])] });

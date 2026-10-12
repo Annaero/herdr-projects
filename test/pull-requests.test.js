@@ -92,18 +92,25 @@ test("a pull request only merges at the commit that was reviewed: a commit pushe
     const id = await toApproval(w, "With a PR");
     let t = S.get(id);
     const reviewed = git(t.worktree, "rev-parse", "HEAD"), other = "1".repeat(40);
-    // GitHub says the pull request's head is another commit: said plainly, nothing merges
+    // GitHub says the pull request's head is another commit, and so does the branch at the remote: said plainly, nothing merges
+    const pushed = (sha) => git(w.root, "push", "-q", "--force", "origin", `${sha}:refs/heads/${t.branch}`);
     fs.writeFileSync(path.join(w.fake, "gh.json"), JSON.stringify({ head: other, view: { state: "OPEN", headRefOid: other } }));
+    pushed("main");
     A.approve(id);
     t = await settle(id);
+    pushed(reviewed);
     assert.equal(t.stage, "approval"); assert.equal(t.mergeFailed, true); assert.ok(!t.autoMerge);
     assert.equal(t.failure.title, "Pull request has commits that were not reviewed"); assert.match(t.failure.detail, new RegExp(other));
     assert.ok(!/pr merge/.test(ghLog(w)));
     // it arrives between that look and the merge: GitHub itself refuses
-    fs.writeFileSync(path.join(w.fake, "gh.json"), JSON.stringify({ head: other }));
+    // (the look itself is first answered late, with a commit the branch at the remote does not stand at: asked again,
+    // not taken for a commit nobody reviewed)
+    fs.writeFileSync(path.join(w.fake, "gh.json"), JSON.stringify({ head: other, late: { head: other, times: 1 } }));
+    const looks = () => (ghLog(w).match(/^pr view 7 --json headRefOid$/gm) || []).length, looked = looks();
     A.approve(id);
     t = await settle(id);
     assert.equal(t.stage, "approval"); assert.ok(!t.autoMerge); assert.equal(t.failure.title, "Pull request could not merge"); assert.match(t.failure.detail, /Head branch was modified/);
+    assert.equal(looks(), looked + 2);
     assert.match(ghLog(w), new RegExp(`pr merge 7 --squash --match-head-commit ${reviewed}\\n`));
     assert.ok(!/--auto|--delete-branch/.test(ghLog(w)));
     assert.ok(fs.existsSync(t.worktree)); assert.ok(!t.tidy);
@@ -113,10 +120,16 @@ test("a pull request only merges at the commit that was reviewed: a commit pushe
     A.approve(id);
     t = await settle(id);
     assert.equal(t.stage, "merging"); assert.equal(t.autoMerge, true);
+    // GitHub naming another commit while the branch at the remote is still the reviewed one is only a late answer
+    // (it was asked right after the board's own push): nothing is withdrawn, the next poll asks again
     fs.writeFileSync(path.join(w.fake, "gh.json"), JSON.stringify({ head: other, view: view(other, "SUCCESS") }));
+    await pollPrs(); await settle(id);
+    assert.deepEqual([S.get(id).stage, S.get(id).autoMerge, !!S.get(id).failure], ["merging", true, false]);
+    pushed("main"); // someone really pushed to it
     await pollPrs(); await settle(id);
     t = S.get(id);
     assert.equal(t.stage, "approval"); assert.ok(!t.autoMerge && !t.mergeIntent); assert.equal(t.failure.title, "Pull request has commits that were not reviewed");
+    pushed(reviewed);
     // remembered again, the checks pass on the reviewed commit: the board merges it itself, the remote branch goes, clean-up follows
     fs.writeFileSync(path.join(w.fake, "gh.json"), JSON.stringify({ head: reviewed, mergeFail: "checks pending", view: view(reviewed, "PENDING") }));
     A.approve(id);

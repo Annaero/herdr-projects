@@ -1,20 +1,6 @@
 #!/usr/bin/env node
-// A stand-in for gh. Canned answers come from $HERDR_FAKE_DIR/gh.json; every call is logged to gh.log.
-import fs from "node:fs";
-import path from "node:path";
-const dir = process.env.HERDR_FAKE_DIR, a = process.argv.slice(2);
-let c = {}; try { c = JSON.parse(fs.readFileSync(path.join(dir, "gh.json"), "utf8")); } catch {}
-fs.appendFileSync(path.join(dir, "gh.log"), a.join(" ") + "\n");
-const fail = (m) => { process.stderr.write(m + "\n"); process.exit(1); };
-if (a[0] === "pr" && a[1] === "create") { if (c.createFail) fail(c.createFail); console.log("https://github.com/o/r/pull/7"); }
-else if (a[0] === "pr" && (a[1] === "ready" || a[1] === "comment")) {}
-else if (a[0] === "pr" && a[1] === "merge") {
-  const only = a.includes("--match-head-commit") ? a[a.indexOf("--match-head-commit") + 1] : "";
-  if (c.head && only && only !== c.head && !a.includes("--disable-auto")) fail("Head branch was modified. Review and try the merge again.");
-  if (a.includes("--disable-auto")) { if (c.disableFail) fail("could not disable auto-merge"); }
-  else if (a.includes("--auto")) { if (!c.autoOk) fail("auto-merge is not allowed"); }
-  else if (c.mergeFail) fail(c.mergeFail);
-  else if (!c.queue) fs.writeFileSync(path.join(dir, "gh-merged"), "1"); // `queue`: accepted, but only lined up to merge later
-}
-else if (a[0] === "pr" && a[1] === "view") console.log(JSON.stringify({ ...(c.view || { state: "OPEN", statusCheckRollup: [], comments: [], reviews: [], author: { login: "me" } }), ...(fs.existsSync(path.join(dir, "gh-merged")) ? { state: "MERGED" } : {}) }));
-else fail("fake gh: unknown " + a.join(" "));
+// The stand-in for gh (test/fake-gh.js), as a program.
+import { run } from "../fake-gh.js";
+const r = run(process.argv.slice(2));
+process.stdout.write(r.stdout); process.stderr.write(r.stderr);
+process.exit(r.status);

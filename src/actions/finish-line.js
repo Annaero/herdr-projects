@@ -35,15 +35,20 @@ export function approve(id, seen = null) {
   spawnRunner("land", t.id);
   return say(t, `${t.id}: approved, merging`);
 }
+// Sending the board's own words back (a review, a failure's details) is not stepping into the task: you added
+// nothing of your own, and what the agent then does is checked and reviewed like any other turn. So it leaves the
+// approval you are owed as it was: with `autoMerge` on, the repair merges by itself once it passes.
+const owedOf = (t) => !!t.requireApproval;
 // Hand the reviewer's findings to the working agent. By hand any time; by itself when the review fails the gate.
 export function sendReview(id) {
   const cur = S.find(id);
+  const owed = owedOf(cur);
   S.assertUnarchived(cur);
   const rv = cur.review;
   if (!rv || !rv.text) throw new Error(`${cur.id} has no review to send.`);
   if (!G.sendable(rv)) throw new Error(G.isTagged(rv) ? `${cur.id}: the review found nothing for the agent to fix, so there is nothing to send back.` : `${cur.id} was rated 5 out of 5: there is nothing to send back.`);
   const out = tell(cur.id, G.reviewMessage(rv, { all: true }));
-  S.update(cur.id, (t) => { t.reviewRounds = (cur.reviewRounds || 0) + 1; });
+  S.update(cur.id, (t) => { t.reviewRounds = (cur.reviewRounds || 0) + 1; t.requireApproval = owed; });
   return say(out.task, `${cur.id}: review sent to the agent`);
 }
 // Send the saved error, not stale review feedback, to the task's agent.
@@ -75,7 +80,7 @@ export function failureOf(t) {
 export function sendFailure(id) {
   const cur = S.find(id);
   S.assertUnarchived(cur);
-  const f = failureOf(cur);
+  const f = failureOf(cur), owed = owedOf(cur);
   if (!f) throw new Error(`${cur.id} has nothing that went wrong to send.`);
   if (!f.agentCanFix) throw new Error(f.next || "This needs the human first.");
   if (cur.stage === "merging" && runnerAlive(cur)) throw new Error("Wait for the merge to finish before sending repair details.");
@@ -90,7 +95,7 @@ export function sendFailure(id) {
     return say(S.get(cur.id), how === "queued" ? "queued: open the agent and answer its dialog first" : `${cur.id}: sent to the agent to fix`);
   }
   const out = tell(cur.id, text);
-  S.update(cur.id, (t) => { const cf = t.failure || t.prFailure; if (cf) { const sent = { ...cf, sentAt: Date.now() }; if (t.failure) t.failure = sent; else t.prFailure = sent; } });
+  S.update(cur.id, (t) => { t.requireApproval = owed; const cf = t.failure || t.prFailure; if (cf) { const sent = { ...cf, sentAt: Date.now() }; if (t.failure) t.failure = sent; else t.prFailure = sent; } });
   return say(out.task, out.msg.startsWith("queued") ? out.msg : `${cur.id}: sent to the agent to fix`);
 }
 // "Finish anyway": run the pipeline on a turn that left no closing note, with the screen text as the summary.

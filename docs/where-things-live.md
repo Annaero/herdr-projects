@@ -57,6 +57,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `homes.js` | Where each agent program keeps its own settings and files |
 | `installed.js` | What is installed on this machine, whether its turn-end hook can be used, and pre-trusting a repo |
 | `kinds.js` | Everything agent-specific lives in this one table |
+| `prompts.js` | What an agent was told: every prompt in its saved conversation, oldest first, where the program's file can be read |
 | `provider-error.js` | Provider errors: which ones pass by themselves, and which need the human |
 | `read-turn.js` | Reading the end of a saved conversation, one reader per agent program: last message, error, tokens |
 | `start.js` | The arguments an agent of a kind is started with, and whether it has a fast mode |
@@ -127,6 +128,8 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 |---|---|
 | `auto-merge.js` | Auto-merge, the setting: a task that may merge does so by itself while `autoMerge` is on, and waits for you while it is off |
 | `faults.js` | Faults a reviewer found that were there before the task: suggested to the human, never added as tasks, and what the next reviewer is told is known already |
+| `line.js` | The line: a repo's tasks merge one at a time |
+| `old-holds.js` | Approval holds an older version left behind: tasks owing you a yes although you never stepped into them |
 | `pipeline.js` | The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval |
 | `recover-job.js` | A finished turn re-armed by mistake: hand the task to the human as stopped without a summary |
 | `review-brief.js` | What the reviewer is told, and reading the verdict it writes back |
@@ -254,6 +257,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `coordinator-messages.test.js` | What you say to the Coordinator is never lost: dialogs, failed starts, stop, on and off |
 | `coordinator-place.test.js` | Where the Coordinator lives: a tab named Coordinator in the home space, found or started again, and moved over from the space of its own it had before |
 | `coordinator-restart.test.js` | The Coordinator's conversation: restart, new, the agent's own new-chat command, its default program |
+| `fake-gh.js` | A stand-in for gh |
 | `fake-helper.js` | A stand-in for the hidden helper model |
 | `fake-herdr.js` | A stand-in for the herdr binary, for tests: no server, no terminals, no model calls |
 | `fake-herdr.test.js` | The fake herdr itself: tests call it in their own process, programs they start run it as a program |

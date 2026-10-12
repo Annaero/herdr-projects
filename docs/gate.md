@@ -38,10 +38,31 @@ Finished work waits for your yes. The `autoMerge` setting makes it merge by itse
   to date with main with no conflict, and the pull request has no failed check or requested change.
 - **Only the reviewed commit merges.** The board remembers the commit the review saw and merges exactly that. A
   commit that reached the branch or the pull request afterwards stops the merge and is checked and reviewed first.
+  (GitHub, asked right after the board's own push, may still name the commit before it. That is not such a commit:
+  while the branch at the remote is the reviewed one, the board asks again.)
+- **Main moved since the review: the task catches up and merges, with nobody asked.** The board merges main into
+  the branch itself and runs the check on the result. When that merge is clean and the check passes, the review
+  still stands (the `remerge` setting) and the task merges at once: such a merge of the board's own counts as
+  reviewed. Any other new commit does not. When the merge conflicts, or the check fails after it, the task goes
+  back to its agent to repair (`conflictAuto`), and what the agent made of it is reviewed before it may merge, the
+  conflicts it resolved included.
+- **One at a time.** Every merge moves main under the tasks behind it, so a repo's tasks merge in a line: one
+  catches up, is checked and merges, then the next, in the order they became ready. A task that waits says
+  `waiting to merge: <id> goes first`; it is not brought up to date before its turn, so it catches up once, not
+  once for every merge ahead of it. A task that must be reviewed again leaves the line for that and joins it again.
+  The line moves with the board closed too.
 - **What needs you still stops and asks**: a review that fails the gate after its rounds, a merge that failed, a
   login, a question or a request for permission from the agent, a checkout of yours on another branch. A task you
   stepped into after it asked you (a reply to its agent, a turn in its terminal, delegating it again) asks you
-  again too, once; `config autoMerge true --id <id>` on that task says you do not need to be asked.
+  again too, once; `config autoMerge true --id <id>` on that task says you do not need to be asked. Sending the
+  board's own words back to the agent (the review, or what went wrong: `Ctrl+R`, `review`, `fix`) is not stepping
+  in: you added nothing of your own, the repair is checked and reviewed, and it merges by itself when it passes.
+  (An older version did count it, and left such tasks waiting for a yes. Such a task is let go only where that can
+  be proven from what its agent was told: its task once, before any review, and since then nothing but reviews of
+  its own, letter for letter as the board words them. With anything else in that conversation, a failure's details
+  sent back included (they are not kept, so they cannot be told from words of yours), or a conversation the board
+  cannot read (only Claude Code's can be), the task asks you once more. A hold made after the board stopped
+  counting a send-back is never lifted this way.)
 - **Set it like any other setting**: `herdr-superwork config autoMerge true` for every task,
   `config autoMerge true --id <id>` or `delegate <id> --autoMerge true` for one, `default` to take a choice back;
   or tell the Coordinator "auto-merge this one" or "always auto-merge". The task panel shows it as `Merge`.

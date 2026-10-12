@@ -7,6 +7,7 @@ import path from "node:path";
 import * as S from "./store.js";
 import * as F from "./flow.js";
 import { outputOf } from "./runner.js";
+import { mergesItself } from "./finish/auto-merge.js";
 
 const git = S.gitOut;
 const lines = (text) => String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
@@ -163,7 +164,7 @@ export function conflictFailure(t, tree, r) {
     next: `In ${tree} on ${t.branch}, merge target commit ${r.target} (${r.base}), resolve and commit the conflicts, then finish. The board checks the result again (and reviews it again, unless a review already passed and the merge is all that changed)${t.mergeIntent ? " and retries the approved merge" : ""}. Never alter the human's checkout.` };
 }
 // What the agent is told: the facts, and nothing else.
-const passedBefore = (t) => !!S.passedReview(t) && S.config().remerge !== "review" && !!t.repoCfg?.check;
+const passedBefore = (t) => !!S.passedReview(t) && S.config().remerge !== "review" && !!t.repoCfg?.check && !mergesItself(t);
 export function conflictMessage(t, tree, r) {
   return `Your branch ${t.branch} conflicts with ${r.base}, so this is not done yet.\n\nConflicting files:\n${lines(r.files).map((f) => `- ${f}`).join("\n")}\n\nTarget commit: ${r.target} (${r.base})\n\nIn your own worktree (${tree}), merge that commit into ${t.branch}, resolve the conflicts, commit, and finish again. The board's own merge attempt was rolled back, so your branch is as you left it. Do not touch the human's checkout.${passedBefore(t) ? " Your work already passed its review: change only the conflicting files, in that one merge commit, and the board reruns the tests instead of reviewing everything again. Anything more is reviewed again." : ""}${t.mergeIntent ? " The human already approved this merge: after your repair the board checks, reviews and merges it; do not push or merge it yourself." : ""}`;
 }

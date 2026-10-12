@@ -7,6 +7,7 @@ import * as G from "../gate.js";
 import * as Y from "../sync.js";
 import { firstLine, approvalMessage, fail } from "./shared.js";
 import { closeReviewer, runReview } from "./review.js";
+import { mergesItself } from "./auto-merge.js";
 
 // "Finish anyway" on a turn that left no closing note: the screen text is the summary.
 export async function pipelineJob(id) {
@@ -59,7 +60,9 @@ export async function pipeline(id, g, text, wake, synced = null) {
   const passedAt = !kept && stands && repo.check && tree && sync?.target && ch.review !== "none" ? S.passedReview(t) : null;
   if (passedAt) {
     const m = Y.mergeOnly(tree, passedAt.head, sync.target);
-    if (m.ok) { kept = passedAt.review; keptHow = { from: m.from, merges: m.merges, resolved: m.resolved }; }
+    // Where the task merges with nobody's yes, only the board's own clean merge of main stands in for a review: a
+    // merge whose conflicts the agent resolved is new work there, and is reviewed.
+    if (m.ok && !(m.resolved.length && mergesItself(t))) { kept = passedAt.review; keptHow = { from: m.from, merges: m.merges, resolved: m.resolved }; }
   }
   if (t.setupPending && repo.setup) {
     const setup = await sh(repo.setup, folder, env, { alive });

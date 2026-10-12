@@ -10,6 +10,7 @@ import { herdr, currentSocket, socketExists, readScreen } from "./herdr.js";
 import { claim, release, guardFor, sh, outputOf, sleep } from "./runner.js";
 import * as Y from "./sync.js";
 import { calledOff } from "./finish/auto-merge.js";
+import { takeTurn } from "./finish/line.js";
 import { readTurnOf } from "./agents.js";
 
 const git = S.gitOut;
@@ -171,6 +172,8 @@ export async function landJob(id) {
 // Runs with the task in stage "merging" and this runner's guard standing on it.
 export async function landCore(id, g) {
   if (calledOff(g)) return; // autoMerge was turned off before this merge of the board's own began
+  // One merge at a time in a repo: behind another task this one waits, and catches up with main when its turn comes.
+  if (!takeTurn(id, g)) return;
   let t = g.check();
   const root = S.folderOf(t.id);
   const tree = t.worktree && fs.existsSync(t.worktree) && path.resolve(t.worktree) !== path.resolve(root) ? t.worktree : "";
@@ -184,7 +187,7 @@ export async function landCore(id, g) {
   // `head`: the commit that was merged. Nothing newer on the branch is taken for merged.
   const landed = async (msg, head = "") => {
     const mark = F.tidyMark(t, "always", head);
-    const d = g.set((t) => { t.stage = "done"; t.tidy = mark; t.msg = msg; t.failure = null; t.prFailure = null; t.mergeIntent = null; t.autoMerge = false; t.autoMergeLocal = false; t.mergeFailed = false; t.requireApproval = false; if (t.pr) { t.prMerged = true; t.prState = "merged"; } });
+    const d = g.set((t) => { t.stage = "done"; t.tidy = mark; t.msg = msg; t.failure = null; t.prFailure = null; t.mergeIntent = null; t.autoMerge = false; t.autoMergeLocal = false; t.mergeFailed = false; t.requireApproval = false; t.lineAt = null; t.lineTurn = null; if (t.pr) { t.prMerged = true; t.prState = "merged"; } });
     F.labelPane(d, null);
     await tidy(id);
   };
@@ -228,7 +231,12 @@ export async function landCore(id, g) {
     const reviewed = t.mergeIntent?.verifiedHead || "";
     const only = reviewed ? ["--match-head-commit", reviewed] : [];
     if (reviewed) {
-      let remote = ""; try { remote = JSON.parse(F.gh(["pr", "view", pr, "--json", "headRefOid"], root, 60000).stdout).headRefOid || ""; } catch {}
+      const asked = () => { try { return JSON.parse(F.gh(["pr", "view", pr, "--json", "headRefOid"], root, 60000).stdout).headRefOid || ""; } catch { return ""; } };
+      let remote = asked();
+      // Asked right after a push (a catch-up with main), GitHub may still name the commit before it. While the branch
+      // at the remote is the reviewed commit, that answer is only late: it is asked again, a few times.
+      const lag = process.env.HERDR_SUPERWORK_PR_LAG_MS !== undefined ? Number(process.env.HERDR_SUPERWORK_PR_LAG_MS) : 5000;
+      for (let i = 0; i < 6 && remote && remote !== reviewed && F.remoteHead(root, t.branch) === reviewed; i++) { if (lag) await sleep(lag); remote = asked(); }
       if (remote && remote !== reviewed) return void fail("Pull request has commits that were not reviewed", `Pull request: ${t.pr}\nBranch: ${t.branch || "unknown"}\nReviewed here: ${reviewed}\nOn the pull request: ${remote}`, `Bring the pull request's commits into your own worktree (git pull origin ${t.branch || "<branch>"}), or push what was reviewed, then finish again so it is checked and reviewed before it merges.`, { auth: false });
     }
     if (calledOff(g)) return;
