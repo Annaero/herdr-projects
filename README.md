@@ -137,7 +137,7 @@ your next key press, an error until `Esc` dismisses it.
 | `↑` `↓` | move between tasks |
 | `Enter` | send what you typed; with nothing typed, open the task's agent: its real herdr pane. The board closes (the first few times it says how to get back); your key brings it back where you left it |
 | `Space` | talk to this task's agent: the chat says so, and `Space` or `Esc` goes back to the Coordinator. On a task with no agent, your message puts one on it |
-| `Tab` | put an agent on the task (with text typed for the Coordinator: send it, and have an agent put on what it files) |
+| `Tab` | put an agent on the task. With text typed for the Coordinator: send it, and every task it files from that message gets an agent at once, with nothing more to confirm (a message that files nothing delegates nothing) |
 | `Ctrl+A` | yes, to whatever the task waits for: approve the merge (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary as it is |
 | `Ctrl+R` | send it back: whatever went wrong (a failed check, a conflict, an error, a review below 5/5) goes to the task's agent to fix; a stopped agent is told to continue |
 | `Ctrl+X` | stop the agent. The selection stays on that row |
@@ -153,9 +153,18 @@ Coordinator or start a new one. (`Ctrl+B` is herdr's own prefix key, so the side
 
 **The Coordinator is one agent chat.** It is a single long-lived agent, not a call per instruction: everything
 you type goes into the same conversation, so "delegate that one too" works, and it can ask you something back. Your
-words reach it exactly as typed, with nothing added: which repo you were in, which task you had open and whether you
-pressed `Tab` are kept beside each message, and the Coordinator asks for them itself (`herdr-superwork coordinator where` lists
-the last few messages, each with its own). A board opened from the Coordinator's own pane stays in the repo it was
+words reach it exactly as typed: which repo you were in and which task you had open are kept beside each message,
+and the Coordinator asks for them itself (`herdr-superwork coordinator where` lists the last few messages, each with
+its own).
+
+**`Tab` means "and start it right away".** A message sent with `Tab` instead of `Enter` has every task the
+Coordinator files from it delegated at once, however many there are, with nothing more to confirm. That does not
+hang on the Coordinator remembering to look something up: the message carries one line under your words saying it
+was sent with `Tab` (the chat on the board shows your words alone), and the board does it too: a task the
+Coordinator files while it is still in the turn of a `Tab` message is delegated by `add` itself. A message that
+files nothing (a question, a status check, a word about an existing task) delegates nothing extra, and one sent with
+`Enter` is as before: its tasks are filed, and delegated only when you asked for that. From a shell,
+`herdr-superwork coordinator tell <text> --delegate` is the same as `Tab`. A board opened from the Coordinator's own pane stays in the repo it was
 last in: that pane's folder is nobody's repo. It is
 an ordinary herdr agent in a space of its own (named "Coordinator"), in a folder of its own inside the board's data
 folder (`HERDR_SUPERWORK_COORDINATOR_DIR` names another, which should be used for nothing else), started with the same

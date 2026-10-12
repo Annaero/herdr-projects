@@ -25,7 +25,9 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork pin|archive|restore|clear <id>
   herdr-superwork config [key [value]] [--id ID]   show or change settings; with --id, one task's own choice
   herdr-superwork coordinator                   the Coordinator (the agent behind the board's box): who it is, how it stands
-  herdr-superwork coordinator tell <text>       say something to it (it is started when it is not running)
+  herdr-superwork coordinator tell <text> [--delegate]
+                                                say something to it (it is started when it is not running); --delegate is
+                                                the board's tab: what it files from this message gets an agent at once
   herdr-superwork coordinator where             where the human was when they last wrote to it from the board (for the Coordinator itself)
   herdr-superwork coordinator restart           start its program again, in the same conversation
   herdr-superwork coordinator new [--agent KIND] [--model M] [--effort E]
@@ -145,8 +147,11 @@ export async function main(argv) {
   switch (cmd) {
     case "add": case "new": {
       const t = A.add(here, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "", repo: flags.repo });
-      if (flags.delegate) A.delegate(t.id, pickChoices(flags));
-      result = [brief(shownOf(t.id)), `${t.id}: filed${flags.delegate ? ", an agent is on it" : ""}`];
+      // Filed by the Coordinator from a message the human sent with tab: delegated here, flag or no flag.
+      let tab = false;
+      if (!flags.delegate && process.env.HERDR_PANE_ID && !process.env.HERDR_PLUGIN_ID) { try { tab = (await import("./coordinator.js")).tabTurn(process.env.HERDR_PANE_ID); } catch {} }
+      if (flags.delegate || tab) A.delegate(t.id, pickChoices(flags));
+      result = [brief(shownOf(t.id)), `${t.id}: filed${flags.delegate || tab ? `, an agent is on it${tab ? " (the message was sent with tab)" : ""}` : ""}`];
       break;
     }
     case "list": case "ls": {

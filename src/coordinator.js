@@ -63,9 +63,10 @@ export function ready(socket = currentSocket()) {
 
 // ---- its standing rules ------------------------------------------------------------------------------------------------
 export function rules(cmd = F.shim()) {
-  return `You are the Coordinator of the human's work board in herdr (herdr-superwork). You are an ordinary agent in a long-lived chat: you have all your tools, you may answer questions, look things up, ask the human something when you need to, and do what they ask of you. What the human types in the box at the bottom of the board reaches you word for word, with nothing added; the human sees your last message in the chat at the bottom of the board, so answer briefly and lead with the result.
+  return `You are the Coordinator of the human's work board in herdr (herdr-superwork). You are an ordinary agent in a long-lived chat: you have all your tools, you may answer questions, look things up, ask the human something when you need to, and do what they ask of you. What the human types in the box at the bottom of the board reaches you word for word; the only thing ever added is one line in square brackets under their words when they sent them with tab (see below). The human sees your last message in the chat at the bottom of the board, so answer briefly and lead with the result.
 The board's command is: ${cmd}  (written "board" below; always run it by that full path).
-- Before you file, delegate or change anything for a message, run: board coordinator where. It lists the human's last few messages from the board, the newest last, and for each one: which repo they were in when they sent it, which task they had open (then "it" and "this" in that message mean that task), and whether they sent it with the delegate key (then delegate what you file from that message). Go by the entry of the message you are acting on, not by a newer one.
+- Before you file, delegate or change anything for a message, run: board coordinator where. It lists the human's last few messages from the board, the newest last, and for each one: which repo they were in when they sent it, which task they had open (then "it" and "this" in that message mean that task), and whether they sent it with tab. Go by the entry of the message you are acting on, not by a newer one.
+- A message sent with tab ends with a line in square brackets saying so. It means "and start it right away": every task you file from that message gets an agent at once, with no question back. File each with "board add … --delegate" (per-task choices such as --agent go on that same command). "board add" answers "an agent is on it" when that is done; if it only says "filed", run "board delegate <id>". A message that leads to no new task (a question, a status check, something about an existing task) delegates nothing extra. A message without that line was sent with enter: file its tasks and delegate only what the human asked you to.
 - Work the human describes ("fix the login page", "add dark mode") is not yours to do: file it as a task. board add "<short title: a few words, no trailing period>" --repo <repo> --desc "<the full description in your own clear words; Markdown is fine; keep every requirement the human gave>". One task per distinct piece of work. The description says only what to build or do: never put handling instructions in it (delegating, reviewers, models, settings); act on those with the command instead. Do the work yourself only when the human plainly asks you, yourself, to do it or to answer something.
 - You run in a folder of your own, not in a repo and not in the human's home folder (${os.homedir()}): use full paths for the human's files, and every "board add" says where the task goes: --repo <a known repo's name, a folder name, or a path; "~" is the home folder>. That is the repo "board coordinator where" names, unless the human names another place ("in the other repo", "for project X", "in my home folder"). "board list" shows the tasks; "board list --archived" the archive; "board list --query <text>" searches everything; "board details <id>" says where one stands.
 - If they ask to start it, delegate it, or hand it to an agent, also run: board delegate <id>. Agents get their own git worktree by default; add --no-worktree only if the human says to work in place, in their checkout, or without a worktree. Worktrees start from the remote's default branch; add --base head if the human says to build on their current branch or their unpushed work.
@@ -79,9 +80,11 @@ When you acted on the board, end with one short line saying what you did, naming
 }
 
 // ---- requests: written down here, carried out by the pump --------------------------------------------------------------
-// What the human types goes in word for word: nothing is added to it. Where they were (the repo, the task they had
-// open, whether they asked for it to be delegated) is kept beside it, and the Coordinator asks for it with
-// `coordinator where`, so one conversation serves every repo the board is opened in.
+// What the human types goes in word for word. Where they were (the repo, the task they had open) is kept beside it,
+// and the Coordinator asks for it with `coordinator where`, so one conversation serves every repo the board is
+// opened in. One thing is not left to its asking: a message sent with tab carries a line under the words saying so,
+// since "start it right away" must not depend on the Coordinator remembering to look. The chat shows the words alone.
+export const TAB_NOTE = `[Sent with tab on the board: start every task you file from this message right away, without asking. File each with "board add … --delegate"; if "board add" answers only "filed", run "board delegate <id>". If this message leads to no new task, delegate nothing extra.]`;
 export function context(cwd, { delegate = false, about = null } = {}) {
   const here = S.repoOf(cwd);
   const t = about ? S.get(about) : null;
@@ -101,8 +104,22 @@ export function where(socket = currentSocket()) {
   if (!list.length) return "Nothing was sent from the board yet, so it is not known which repo the human is in: ask them, or see \"board list\".";
   const one = (w) => [`"${S.oneLine(w.said, 80)}" was sent from the repo "${w.repo}" (${S.tilde(w.root)}).`,
     w.task ? `Task ${w.task} ("${w.title}") was open: for this message "it" and "this" mean that task.` : "No task was open.",
-    w.delegate ? "It was sent with the delegate key: delegate what you file from it to an agent." : "It was not sent with the delegate key."].join(" ");
+    w.delegate ? "It was sent with tab: put an agent on every task you file from it, without asking." : "It was sent with enter: delegate only what the human asked you to."].join(" ");
   return [`The human's last ${list.length > 1 ? `${list.length} messages` : "message"} from the board${list.length > 1 ? ", the newest last. Each has its own repo, open task and delegate choice: use the ones of the message you are acting on" : ""}:`, ...list.map((w) => `- ${one(w)}`)].join("\n");
+}
+// The board's own half of "sent with tab": a task filed from the Coordinator's pane is delegated by `add` itself when
+// it can only come from a tab message, so a Coordinator that forgets the flag changes nothing. That is known when
+// the last message went in while it was at rest and it has not finished a turn since (it is still in that
+// message's turn), and no message it may still have ahead of it was sent with enter. Anything less clear (messages
+// with different choices in flight, words that went in while it was busy, a restart) is left to the line the
+// message carries.
+export function tabTurn(pane, socket = currentSocket()) {
+  const c = get(socket);
+  if (!pane || !c || c.pane !== pane || !c.mark?.rest || c.mark.run !== (c.startedAt || 0)) return false;
+  const open = (Array.isArray(c.where) ? c.where : []).filter((x) => x.sentAt && !x.handled);
+  if (!open.length || !open.every((x) => x.delegate)) return false;
+  let ag = null; try { ag = herdr(socket).agentGet(pane); } catch {}
+  return !!ag && (ag.completion_seq ?? null) === c.mark.seq;
 }
 // The Coordinator's own folder (or one inside it) is never where the human is working.
 export function inHome(dir, socket = currentSocket()) {
@@ -118,7 +135,7 @@ function kick(socket) {
 // Say something to the Coordinator. It is started (or started again, in the same conversation) when it is not there.
 export function send(cwd, text, opts = {}, socket = currentSocket()) {
   if (!socketExists(socket)) throw new Error("herdr is not running: the Coordinator lives in herdr.");
-  const c = change(socket, (c) => { c.queue = [...(c.queue || []), { id: randomUUID(), text: String(text), said: String(text), where: context(cwd, opts), at: Date.now() }]; c.error = ""; c.stopped = false; });
+  const c = change(socket, (c) => { c.queue = [...(c.queue || []), { id: randomUUID(), text: opts.delegate ? `${text}\n\n${TAB_NOTE}` : String(text), said: String(text), where: context(cwd, opts), at: Date.now() }]; c.error = ""; c.stopped = false; });
   kick(socket);
   return c;
 }
@@ -280,7 +297,7 @@ export function pump(socket = currentSocket()) {
           if (["agent_blocked", "agent_not_ready"].includes(e.code)) { unsay(); stuck = true; break; }
           if (!["agent_prompt_stalled", "timeout"].includes(e.code)) { unsay(); throw e; } // herdr: these do not prove nothing was sent; never send twice
         }
-        change(socket, (c) => { c.queue = c.queue.filter((x) => !same(x)); if (Array.isArray(c.where)) { for (const x of c.where) if (note && x.id === note.id) x.sentAt = Date.now(); c.where = trimmed(c.where); } c.mark = { run, seq }; c.intro = false; c.sentAt = Date.now(); c.last = m.said; });
+        change(socket, (c) => { c.queue = c.queue.filter((x) => !same(x)); if (Array.isArray(c.where)) { for (const x of c.where) if (note && x.id === note.id) x.sentAt = Date.now(); c.where = trimmed(c.where); } c.mark = { run, seq, rest: !!ag && ["idle", "done"].includes(ag.agent_status) }; c.intro = false; c.sentAt = Date.now(); c.last = m.said; });
       }
       if (stuck) break;
     }

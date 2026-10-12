@@ -68,8 +68,8 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     assert.ok(agent.args.includes("--dangerously-skip-permissions")); assert.ok(agent.args.includes("--session-id")); assert.ok(agent.args.includes("--append-system-prompt-file"));
     assert.ok(!agent.args.some((a) => /allowedTools|--tools/.test(a)), "nothing is held back from it");
     assert.match(fs.readFileSync(agent.args[agent.args.indexOf("--append-system-prompt-file") + 1], "utf8"), /You are the Coordinator of the human's work board/);
-    assert.equal(agent.prompts[0], "build a login page", "your words go in exactly as typed, with nothing added");
-    assert.match(C.where(), /^The human's last message from the board:\n- "build a login page" was sent from the repo "proj" \(.*\)\. No task was open\. It was not sent with the delegate key\.$/);
+    assert.equal(agent.prompts[0], "build a login page", "your words go in exactly as typed");
+    assert.match(C.where(), /^The human's last message from the board:\n- "build a login page" was sent from the repo "proj" \(.*\)\. No task was open\. It was sent with enter: delegate only what the human asked you to\.$/);
     assert.equal(C.get().queue.length, 0);
     // Its reply is in the chat, under what you said.
     s.beat();
@@ -87,9 +87,12 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     await drainJobs(runJob);
     assert.equal(w.agents().length, 1); assert.equal(w.state().calls.filter((c) => c.startsWith("agent start")).length, 1);
     assert.equal(w.agents()[0].agent.prompts.length, 2);
-    assert.equal(w.agents()[0].agent.prompts[1], "and start it");
+    // Sent with tab: that is said in the message itself, under the words, so it cannot be missed. The chat shows the words alone.
+    assert.equal(w.agents()[0].agent.prompts[1], `and start it\n\n${C.TAB_NOTE}`);
+    assert.match(C.TAB_NOTE, /^\[Sent with tab on the board: start every task you file from this message right away, without asking\./);
+    assert.equal(C.get().last, "and start it");
     // Each message keeps its own: the newer one does not take the first one's repo or delegate choice away.
-    assert.match(C.where(), /2 messages[^\n]*\n- "build a login page"[^\n]*It was not sent with the delegate key\.\n- "and start it"[^\n]*It was sent with the delegate key: delegate what you file from it to an agent\.$/);
+    assert.match(C.where(), /2 messages[^\n]*\n- "build a login page"[^\n]*It was sent with enter[^\n]*\n- "and start it"[^\n]*It was sent with tab: put an agent on every task you file from it, without asking\.$/);
     // Hidden, a new reply is said on the chat's one line; shown again, it is there.
     s.beat(); assert.equal(s.v.chatOpen, false); assert.doesNotMatch(s.text(), /Delegated proj\/1\./); assert.match(s.text(), /\n ○ Coordinator {2}new reply {2}/); assert.ok(C.look().unseen);
     s.press("alt+v"); assert.match(s.text(), /Delegated proj\/1\./); assert.equal(C.look().unseen, "");
@@ -100,7 +103,7 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     assert.match(s.text(160), /\n─+\n . Write the docs {2}done {2}no agent on it: your message goes to the Coordinator, about this task *\n─+\n❯ what should change\?/);
     s.type("make it shorter"); s.press("enter"); await drainJobs(runJob);
     assert.equal(w.agents()[0].agent.prompts[2], "make it shorter");
-    assert.match(C.where(), /\n- "make it shorter"[^\n]*Task proj\/1 \("Write the docs"\) was open: for this message "it" and "this" mean that task\. It was not sent/);
+    assert.match(C.where(), /\n- "make it shorter"[^\n]*Task proj\/1 \("Write the docs"\) was open: for this message "it" and "this" mean that task\. It was sent with enter/);
     const out = []; const write = process.stdout.write; process.stdout.write = (x) => (out.push(String(x)), true);
     try { assert.equal(await main(["coordinator", "where"]), 0); } finally { process.stdout.write = write; }
     assert.match(out.join("\n"), /was sent from the repo "proj"/, "the Coordinator's own command says it");
@@ -293,7 +296,7 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     w.patchState((st) => { st.panes.find((x) => x.agent).agent.status = "blocked"; });
     C.send(other, "later", { delegate: true }); await drainJobs(runJob);
     assert.equal(C.get().queue.length, 1); assert.deepEqual(C.get().where.map((x) => [x.said, x.repo, x.delegate]), [["first", "proj", false]]);
-    assert.doesNotMatch(C.where(), /later|elsewhere|was sent with the delegate key/);
+    assert.doesNotMatch(C.where(), /later|elsewhere|was sent with tab/);
     w.patchState((st) => { st.panes.find((x) => x.agent).agent.status = "idle"; });
     fs.rmSync(S.stampFile(`coordinator-default`), { force: true });
     C.tick(); await drainJobs(runJob);
@@ -303,7 +306,7 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     const now = Date.now; Date.now = () => 1700000000000;
     try { C.send(w.root, "same words"); C.send(other, "same words", { delegate: true }); } finally { Date.now = now; }
     await drainJobs(runJob);
-    assert.equal(C.get().queue.length, 0); assert.equal(w.agents()[0].agent.prompts.filter((p) => p === "same words").length, 2);
+    assert.equal(C.get().queue.length, 0); assert.deepEqual(w.agents()[0].agent.prompts.filter((p) => p.startsWith("same words")), ["same words", `same words\n\n${C.TAB_NOTE}`]);
     assert.deepEqual(C.get().where.slice(-2).map((x) => [x.said, x.repo, x.delegate]), [["same words", "proj", false], ["same words", "elsewhere", true]]);
     // The list is full (five that went in). One more that a dialog refuses takes nothing away from the oldest.
     process.env.HERDR_SUPERWORK_HANDLED_MS = "0"; // at rest means dealt with, for this part
@@ -322,14 +325,14 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     await drainJobs(runJob);
     assert.equal(C.look().state, "working");
     assert.deepEqual(C.get().where.map((x) => x.said), [1, 2, 3, 4, 5, 6, 7].map((n) => `busy ${n}`), "all seven it still has ahead of it; the ones dealt with before them are gone");
-    assert.match(C.where(), /- "busy 1" was sent from the repo "elsewhere"[^\n]*It was sent with the delegate key/);
+    assert.match(C.where(), /- "busy 1" was sent from the repo "elsewhere"[^\n]*It was sent with tab/);
     // There is no number at which one it has not dealt with is let go: 61 more, and the very first is still there.
     w.script({ coordinator: Array.from({ length: 61 }, () => ({ status: "working" })) });
     for (let n = 8; n <= 68; n++) C.send(w.root, `busy ${n}`);
     await drainJobs(runJob);
     assert.equal(C.get().queue.length, 0); assert.equal(C.get().where.length, 68);
     assert.deepEqual(C.get().where.slice(0, 1).map((x) => [x.said, x.repo, x.delegate]), [["busy 1", "elsewhere", true]]);
-    assert.match(C.where(), /- "busy 1" was sent from the repo "elsewhere"[^\n]*It was sent with the delegate key/);
+    assert.match(C.where(), /- "busy 1" was sent from the repo "elsewhere"[^\n]*It was sent with tab/);
     // Restarted in the middle of that work: its program is idle again, and none of it is done. Idle alone is not
     // taken for dealt with, however long ago the words went in, so the next message drops nothing.
     C.restart(); await drainJobs(runJob);
@@ -575,4 +578,62 @@ test("a stop asked for while a message is going in holds back the ones still wai
     await new Promise((r) => setTimeout(r, 5)); C.send(w.root, "three"); await drainJobs(runJob);
     assert.deepEqual(w.agents()[0].agent.prompts.map((p) => p.split("\n").at(-1)), ["two", "three"]);
   } finally { process.env.HERDR_BIN_PATH = real; w.cleanup(); }
+});
+
+test("sent with tab: every task the Coordinator files from that message gets an agent, said in the message and done by the board itself", async () => {
+  const w = await coordWorld();
+  const out = []; const write = process.stdout.write;
+  const board = async (...argv) => { out.length = 0; process.stdout.write = (x) => (out.push(String(x)), true); try { assert.equal(await main(argv), 0); } finally { process.stdout.write = write; } globalThis.__swJobs = []; return out.join(""); }; // (the agents themselves are not started here)
+  const started = (id) => ["queued", "starting"].includes(S.find(id).stage);
+  const ids = () => S.list().map((t) => t.id).sort((a, b) => a.split("/")[1] - b.split("/")[1]);
+  // The Coordinator ends its turn: herdr counts one more finished turn.
+  const endTurn = () => w.patchState((st) => { const p = st.panes.find((x) => x.agent); st.seq += 1; p.agent.status = "done"; p.agent.seq = st.seq; p.agent.completion = st.seq; });
+  try {
+    process.env.HERDR_SUPERWORK_HANDLED_MS = "0";
+    // tab: the message itself says so, under the words. The Coordinator is now in that message's turn.
+    w.script({ coordinator: [{ status: "working" }] });
+    C.send(w.root, "a login page, and dark mode", { delegate: true }); await drainJobs(runJob);
+    assert.equal(w.agents()[0].agent.prompts[0], `a login page, and dark mode\n\n${C.TAB_NOTE}`);
+    assert.match(C.rules(), /A message sent with tab ends with a line in square brackets saying so\.[^\n]*every task you file from that message gets an agent at once, with no question back/);
+    const pane = C.get().pane;
+    // A task filed from anywhere else is only filed: the human's shell, a working agent's pane.
+    assert.match(await board("add", "Mine", "--repo", w.root), /^proj\/1: filed\n$/);
+    process.env.HERDR_PANE_ID = "w9:p1";
+    assert.match(await board("add", "A worker's follow-up", "--repo", w.root), /^proj\/2: filed\n$/);
+    // Filed from the Coordinator's pane, with no flag at all (it forgot): the board delegates it. Every one of them.
+    process.env.HERDR_PANE_ID = pane;
+    assert.match(await board("add", "Login page", "--repo", w.root), /^proj\/3: filed, an agent is on it \(the message was sent with tab\)\n$/);
+    assert.match(await board("add", "Dark mode", "--repo", w.root), /^proj\/4: filed, an agent is on it \(the message was sent with tab\)\n$/);
+    // It remembered the flag: the same, once.
+    assert.match(await board("add", "Sign up", "--repo", w.root, "--delegate"), /^proj\/5: filed, an agent is on it\n$/);
+    assert.deepEqual(ids().filter(started), ["proj/3", "proj/4", "proj/5"]);
+    // Its turn is over. What it files later (asked in its own pane, say) is not that message's: filed, not delegated.
+    endTurn();
+    assert.match(await board("add", "Later", "--repo", w.root), /^proj\/6: filed\n$/);
+    // A tab message that files nothing (a question) delegates nothing: no task appears, none is started.
+    w.script({ coordinator: [{ said: "Two are being worked on." }] });
+    C.send(w.root, "how is it going?", { delegate: true }); await drainJobs(runJob);
+    assert.equal(ids().length, 6); assert.deepEqual(ids().filter(started), ["proj/3", "proj/4", "proj/5"]);
+    // enter: as before. The words go in alone, and what is filed from them is only filed.
+    w.script({ coordinator: [{ status: "working" }] });
+    C.send(w.root, "note down: tidy the footer"); await drainJobs(runJob);
+    assert.equal(w.agents()[0].agent.prompts.at(-1), "note down: tidy the footer");
+    assert.match(await board("add", "Tidy the footer", "--repo", w.root), /^proj\/7: filed\n$/);
+    // A tab message that goes in while it is still busy with the enter one: whose task the next one is cannot be
+    // known here, so the board leaves it to the line in the message.
+    w.script({ coordinator: [{ status: "working" }] });
+    C.send(w.root, "and a new logo", { delegate: true }); await drainJobs(runJob);
+    assert.equal(w.agents()[0].agent.prompts.at(-1), `and a new logo\n\n${C.TAB_NOTE}`);
+    assert.match(await board("add", "New logo", "--repo", w.root), /^proj\/8: filed\n$/);
+    // Both dealt with; the next tab message is clear again.
+    endTurn();
+    w.script({ coordinator: [{ status: "working" }] });
+    C.send(w.root, "a pricing page", { delegate: true }); await drainJobs(runJob);
+    assert.match(await board("add", "Pricing page", "--repo", w.root), /^proj\/9: filed, an agent is on it \(the message was sent with tab\)\n$/);
+    // A Coordinator that was restarted is not in that turn any more.
+    S.writeJson(path.join(S.dataDir(), "coordinator", "default", "state.json"), { ...C.get(), startedAt: C.get().startedAt + 1 });
+    assert.match(await board("add", "After a restart", "--repo", w.root), /^proj\/10: filed\n$/);
+    assert.deepEqual(ids().filter(started), ["proj/3", "proj/4", "proj/5", "proj/9"]);
+    globalThis.__swJobs = [];
+  } finally { process.stdout.write = write; delete process.env.HERDR_PANE_ID; delete process.env.HERDR_SUPERWORK_HANDLED_MS; w.cleanup(); }
 });
