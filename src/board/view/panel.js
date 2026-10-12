@@ -40,7 +40,7 @@ export class Panel {
     return [left + " ".repeat(Math.max(2, width - visibleWidth(left) - visibleWidth(right))) + right, t.fg("surface1", "─".repeat(width)), ...lines.slice(this.panelTop, end)];
   }
   // The task panel. One shape, beside the list and full screen, in parts that each stand on their own: the title and
-  // where it stands, what it needs from you (behind a bar in its state's colour), the description, the reviews (each
+  // where it stands (under `Status`), what it needs from you (behind a bar in its state's colour), the description, the reviews (each
   // one a box), what the agent said, and every setting. A part starts with a bold headline on a thin rule; labels are
   // greyed out and a setting that is only your default is quieter than one chosen for this task. Beside the list
   // (`fit` is the height there) the description is short and only the latest review shows; the long parts give up
@@ -61,7 +61,7 @@ export class Panel {
     let cut = false; // beside the list: something is shorter here than on the full screen
     Object.assign(p, { r, width, full, agent, failure, c, underReview, approval });
 
-    const { top, stand, told } = this.panelStatus(p);
+    const { title, top, stand, told } = this.panelStatus(p);
     if (this.panelSuggestions(p)) cut = true;
 
     // The description: whole on the full screen, its first few hundred characters beside the list.
@@ -87,29 +87,41 @@ export class Panel {
     let lead = [""], gap = true;
     const render = () => [...lead, ...parts.filter((s) => s.lines.length).flatMap((s, n) => (n && gap ? ["", ...s.lines] : s.lines))];
     if (full) return out(render());
-    const more = dim(`${keyName("panel")} shows the whole task`);
+    const more = dim(truncateToWidth(`${keyName("panel")} shows the whole task`, w, "…"));
     if (!fit || render().length + (cut ? 2 : 0) <= fit) return out([...render(), ...(cut ? ["", more] : [])]);
-    // Too tall for its place beside the list. No setting goes: the long parts give up lines, the least needed first
-    // (what the agent said, the description, the review, what it needs from you), each down to a few lines; then
-    // every setting keeps to one line; then the long parts go altogether, the review down to one line. The last
-    // line says where the rest is.
+    // Too tall for its place beside the list. The status and what the task is doing now stay whole, and no setting
+    // goes: the long parts give up lines, the least needed first (what the agent said, the description, the review,
+    // what it needs from you), each down to a few lines; then every setting keeps to one line; then the long parts
+    // go altogether, the review down to one line. The last line says where the rest is.
     const space = Math.max(1, fit - 1);
     const over = () => render().length - space;
     const flexible = parts.filter((s) => s.at).sort((a, b) => a.pri - b.pri);
     for (const s of flexible) if (over() > 0 && s.lines.length > s.min) s.lines = s.at(Math.max(s.min, s.lines.length - over()));
     if (over() > 0) settings.lines = [head("Settings"), ...table(rows, 1)];
     for (const s of flexible) if (over() > 0) s.lines = s.at(s.last || 0);
-    // A very short window. Before any setting goes: the empty lines, the settings' headline, all but the first line
-    // of the title and of the status, every other part but the review's one line, the rows that are not settings,
-    // and the status. The title and the review's line stay whatever the height: with no room left for every
-    // setting, the last ones are what the cut takes.
+    // A very short window. Before any setting goes: the empty lines, the two headlines, all but the first line of
+    // the title, every other part but the review's one line, and the rows that are not settings. Then the settings
+    // go, from the last, then the size of the change and its pull request, the review's line, and the title: the
+    // state's line with its progress and what the task is doing now are the last to stay.
     if (over() > 0) lead = [];
     if (over() > 0) gap = false;
     if (over() > 0) settings.lines.shift();
-    if (over() > 0) top.lines = [truncateToWidth(t.bold(clean(r.title || "(no title)")), w, "…"), ...stand.slice(0, 1)];
-    for (const s of parts) if (over() > 0 && s !== top && s !== settings && !s.last) s.lines = [];
+    if (over() > 0) top.lines.shift();
+    if (over() > 0) title.lines = [truncateToWidth(t.bold(clean(r.title || "(no title)")), w, "…")];
+    for (const s of parts) if (over() > 0 && ![title, top, settings].includes(s) && !s.last && !s.keep) s.lines = [];
     if (over() > 0) settings.lines = table(rows.filter(([k]) => !NOT_SETTINGS.includes(k)), 1);
-    if (over() > 0) top.lines.pop();
+    if (over() > 0) settings.lines = settings.lines.slice(0, Math.max(0, settings.lines.length - over()));
+    if (over() > 0) top.lines = stand;
+    for (const s of parts) if (over() > 0 && s.last) s.lines = [];
+    if (over() > 0) title.lines = [];
+    // Shorter still, with what it is doing now on show: the last line goes, then the status from its last line,
+    // then the word Now. A text longer than the whole panel is the only one cut, and its last line says so.
+    const now = parts.find((s) => s.keep);
+    if (now && over() > 0) {
+      while (render().length > fit && top.lines.length) top.lines.pop();
+      if (render().length > fit) now.lines = now.lines.length - 1 <= fit ? now.lines.slice(1) : first(now.lines, fit);
+      return out(render());
+    }
     return out([...render().slice(0, space), more]);
   }
 }

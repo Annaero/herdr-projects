@@ -72,7 +72,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   assert.match(page(behind), /Behind main, cannot be approved yet/); assert.match(page(behind), /main could not be fetched \(network is down\)/); assert.doesNotMatch(page(behind), /ready to approve/);
   // the panel, in the order you need it: where it stands and the change, the review in its box, what the agent said, the settings
   const ready = page({ ...second, summary: "Did the work.", said: "Built Skylark.", stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" });
-  assert.match(ready, /^\n Build a flying game\n ✓ ready to approve · 2nd review · claude · 0s ago · proj\/1\n 4 files, \+120 −31 · PR#12 ✓\n\n Review ─+\n ╭─ Review 2 ─+╮\n │ 3\/5, says don't merge +│\n │ Crashes\. +│\n ╰─+╯\n\n The agent said ─+\n Built Skylark\.\n\n Settings ─+\n Project /);
+  assert.match(ready, /^\n Build a flying game\n\n Status ─+\n ✓ ready to approve · 2nd review · claude · 0s ago · proj\/1\n 4 files, \+120 −31 · PR#12 ✓\n\n Review ─+\n ╭─ Review 2 ─+╮\n │ 3\/5, says don't merge +│\n │ Crashes\. +│\n ╰─+╯\n\n The agent said ─+\n Built Skylark\.\n\n Settings ─+\n Project /);
   assert.match(ready, /\n Permissions {2}[^\n]+$/); assert.doesNotMatch(ready, /https:|shows the whole task/); // every setting, tightly, at the end; the link is in the PR's number
   assert.match(page({ ...second, stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" }, true), /\n 4 files, \+120 −31 · PR#12 ✓\n https:\/\/github\.com\/a\/b\/pull\/12\n/); // full screen it is printed too
   assert.doesNotMatch(ready, /Description|None\./);
@@ -89,23 +89,50 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   // a narrow full screen drops nothing of a review: its age and commit move from the box's edge to its first line
   { const thin = stripVTControlCharacters(v.panel({ owner: "me", ...spiral }, 24, true).join("\n"));
     assert.match(thin, /\n ╭─ Review 3 ─+╮\n │ 1m ago · abcdef1 +│\n │ 4\/5, says merge +│\n/); assert.match(thin, /\n ╭─ Review 2 ─+╮\n │ 1h ago +│\n │ No verdict +│\n/); assert.match(thin, /\n ╭─ Review 1 ─+╮\n │ 2h ago · 1111111 +│\n/); }
-  // a side panel too short for every setting still has the latest review, on one line, before any setting
+  // a side panel too short for every setting still has where the task stands and the latest review, on one line,
+  // before any setting; with no room for both, the size of the change goes before the review's line
   for (const fit of [12, 8, 4]) {
     const lines = v.panel({ owner: "me", ...spiral, worktree: "", description: "Long. ".repeat(200) }, 46, false, fit).map((l) => stripVTControlCharacters(l));
-    assert.ok(lines.length <= fit); assert.equal(lines[0], " Build a flying game"); assert.equal(lines[1], " Review 3  4/5, says merge"); assert.match(lines[2], /^ Project /); assert.ok(!lines.some((l) => l.startsWith(" Branch ")), "the branch row goes before the review does");
+    assert.ok(lines.length <= fit); assert.equal(lines[0], " Build a flying game"); assert.match(lines[1], /^ ✓ ready to approve · 3rd review/);
+    assert.deepEqual(lines.slice(2, fit > 4 ? 6 : 4).map((l) => l.slice(0, 9)), fit > 4 ? [" 0s ago ·", " PR#12 ✓", " Review 3", " Project "] : [" 0s ago ·", " alt+t sh"]); assert.ok(!lines.some((l) => l.startsWith(" Branch ")), "the branch row goes before the review does");
   }
   // many reviews in a narrow panel: the trail keeps the newest and says that older ones are left out
   const many = { ...spiral, reviews: Array.from({ length: 12 }, (_, n) => ({ round: n + 1, score: 2, recommend: false, text: "Still broken." })) };
   assert.match(stripVTControlCharacters(v.panel({ owner: "me", ...many }, 44, false).join("\n")), /\n Reviews · 12 ─+\n … 2\/5 no → 2\/5 no → 2\/5 no → 2\/5 no\n ╭─ Review 12 ─/);
-  // a short window never costs a setting: the long parts give way, and in the end the review is one line
+  // a short window: the long parts give way and the review is one line, then the settings go, from the last. Where
+  // the task stands and what it is doing now stay whole at every height, wrapped and never cut
   const busy = { ...spiral, title: "Build a flying game with a very long name that wraps onto two lines", state: "working", kind: undefined, stage: "working", progress: 40, eta: 12, msg: "Running the whole test suite again after the last fix", said: "Working on it.", description: "Long. ".repeat(200), usage: { in: 1000, out: 2000, context: 5000, window: 200000 }, link: { pane: "p1", workspace: "w1" } };
-  for (const fit of [30, 20, 16, 14]) {
+  const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Merge", "Conflicts", "Permissions"];
+  for (const fit of [30, 20, 16, 12, 8, 6]) {
     const lines = v.panel({ owner: "me", ...busy }, 45, false, fit).map((l) => stripVTControlCharacters(l));
     assert.ok(lines.length <= fit, `fits in ${fit} lines`);
-    for (const fact of ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Merge", "Conflicts", "Permissions"]) assert.ok(lines.some((l) => l.startsWith(` ${fact} `)), `${fact} with room for ${fit} lines`);
-    assert.ok(lines.some((l) => /^ (╭─ )?Review 3 /.test(l)), `the latest review with room for ${fit} lines`);
+    const at = lines.indexOf(" ◐ working · claude · for 0s · proj/1");
+    assert.deepEqual(lines.slice(at + 1, at + 3), [" ██████████░░░░░░░░░░░░░░ 40% 12m", fit > 8 ? " PR#12 ✓" : " ▎ Now"], `the status with room for ${fit} lines`);
+    assert.deepEqual(lines.filter((l) => l.startsWith(" ▎")), [" ▎ Now", " ▎ Running the whole test suite again after", " ▎ the last fix"], `what it is doing, whole, with room for ${fit} lines`);
+    const kept = SETTINGS.filter((fact) => lines.some((l) => l.startsWith(` ${fact} `)));
+    assert.deepEqual(kept, SETTINGS.slice(0, fit >= 20 ? 11 : fit === 16 ? 7 : fit === 12 ? 3 : 0), `the settings with room for ${fit} lines, cut from the last`);
+    assert.equal(lines.some((l) => /^ (╭─ )?Review 3 /.test(l)), fit > 6, `the latest review with room for ${fit} lines`);
+    assert.equal(lines.includes(" Status ────────────────────────────────────"), fit === 30, `the headline with room for ${fit} lines`);
+    assert.equal(lines.some((l) => l.startsWith(" Build a flying game")), fit > 6, `the title with room for ${fit} lines`);
     assert.match(lines[lines.length - 1], /^ alt\+t shows the whole task$/);
   }
+  // shorter than the status and that text with the last line: the last line goes, not a word of the text; then the
+  // status from its last line, then the word Now; only a text longer than the panel is cut, and says so
+  { const at = (fit) => v.panel({ owner: "me", ...busy }, 45, false, fit).map((l) => stripVTControlCharacters(l)), text = [" ▎ Running the whole test suite again after", " ▎ the last fix"];
+    assert.deepEqual(at(5), [" ◐ working · claude · for 0s · proj/1", " ██████████░░░░░░░░░░░░░░ 40% 12m", " ▎ Now", ...text]);
+    assert.deepEqual(at(4), [" ◐ working · claude · for 0s · proj/1", " ▎ Now", ...text]);
+    assert.deepEqual(at(3), [" ▎ Now", ...text]); assert.deepEqual(at(2), text);
+    assert.deepEqual(at(1), [" ▎ Now …"]); }
+  // a long line of what it is doing is wrapped between words over as many lines as it takes, each behind its bar,
+  // in a narrow panel too; shorter than that, the title goes and the status and that text are all there is
+  { const long = { ...busy, msg: "Found cause: second device resizing board; now checking every caller of the resize handler for the same mistake" };
+    for (const [width, fit] of [[45, 30], [30, 30], [30, 10], [20, 0]]) {
+      const lines = v.panel({ owner: "me", ...long }, width, false, fit).map((l) => stripVTControlCharacters(l)), now = lines.filter((l) => l.startsWith(" ▎ ")).slice(1);
+      assert.ok(now.length > 2 && lines.every((l) => l.length <= width), `wrapped inside ${width} columns`);
+      assert.equal(now.map((l) => l.slice(3)).join(" "), long.msg, `nothing cut at ${width} columns in ${fit} lines`);
+      assert.ok(lines.some((l) => l.startsWith(" ◐ working")), `the status at ${width} columns in ${fit} lines`);
+      if (fit === 10) assert.ok(lines.length <= fit && !lines.some((l) => l.startsWith(" Build") || l.startsWith(" Project")));
+    } }
   assert.match(stripVTControlCharacters(v.panel({ owner: "me", ...busy }, 45, false, 30).join("\n")), /\n ▎ Now\n ▎ Running the whole test suite/); // with room, what it is doing is there, behind its bar
   if (!process.env.NO_COLOR) {
     // what a row says is greyed out, never in the title's colour

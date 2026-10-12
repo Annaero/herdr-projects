@@ -90,7 +90,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, callouts, boxes, and the list of parts |
 | `panel-reviews.js` | The reviews in the task panel: how each went, each one a box, and the evidence |
 | `panel-settings.js` | The settings in the task panel: every setting this task runs on, and its agent's session |
-| `panel-status.js` | The top of the task panel: the title, where the task stands, and what it needs from you |
+| `panel-status.js` | The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you |
 | `panel.js` | The task panel: beside the list and full screen |
 | `remotes.js` | Other machines: ask each for its board, send each action to the machine that owns the task, and whose board you see |
 | `review-words.js` | A review in a few words: its result, its colour, which round it was |

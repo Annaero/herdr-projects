@@ -11,6 +11,8 @@ empty line between:
 
 ```
  Build a flying game
+
+ Status ─────────────────────────────────────
  ✓ ready to approve · 3rd review · claude · 2m ago · proj/12
  4 files, +120 −31 · PR#12 ✓
 
@@ -33,10 +35,13 @@ empty line between:
  …
 ```
 
-- **Where it stands** comes first: the title, then the state with who is on it, since when and the task's id, then
-  the size of the change and its pull request (its number is a link; full screen the address is printed too).
+- **The title** is on top, by itself.
+- **Where it stands**, under `Status`: the state with who is on it, since when and the task's id, then the progress
+  bar with its percent and the minutes left, then the size of the change and its pull request (its number is a
+  link; full screen the address is printed too).
 - **What it needs from you**, or what it is doing right now, sits behind a bar in its state's colour: the question,
-  what went wrong and the next step, or the agent's current line.
+  what went wrong and the next step, or the agent's current line (`Now`). That line is never cut with an ellipsis:
+  it is wrapped between words over as many lines as it takes, each behind the bar.
 - **Suggested tasks**, when the task's agent or reviewer came across work outside it: each open
   [suggestion](suggestions.md) with who raised it, and the key that decides (`Ctrl+N`). Full screen, the ones you
   made a task or dismissed stay listed, greyed.
@@ -50,10 +55,23 @@ empty line between:
 
 Full screen the text keeps to 100 columns, and a last part, **Session**, has the agent's context, its tokens and
 where it runs in herdr. Beside the list, when anything is shorter than on the full screen, the last line says
-`alt+t shows the whole task`. In a short window the long parts give up lines (what the agent said first, then the
-description, then the review), every setting keeps to one line, and in the end the review is one line
-(`Review 3  Pass · 2 minor`): no setting drops out of the side panel. Only a window with fewer lines than there
-are settings cuts them, from the last; the title and the review's line stay. In a box too narrow for a review's
+`alt+t shows the whole task`.
+
+**In a short window the status and the `Now` text stay whole; everything else gives way to them**, in this order:
+
+1. The long parts give up lines: what the agent said first, then the description, then the review, then a question
+   or what went wrong.
+2. Every setting keeps to one line, and the long parts go: the review is one line (`Review 3  Pass · 2 minor`).
+3. The empty lines, the `Settings` and `Status` headlines, the title's second line, and the rows among the
+   settings that are not settings.
+4. The settings, from the last.
+5. The size of the change and its pull request, then the review's line, then the title.
+
+What is left then is the state's line, the progress bar and the `Now` text. With no room for those and the last
+line (`alt+t shows the whole task`), that line goes, then the progress bar, the state's line and the word `Now`:
+the text itself is the last to stay. Only a text longer than the whole panel is cut, and its last line ends in `…`.
+
+In a box too narrow for a review's
 age and commit in its top edge, they are the box's first line.
 
 **Every review is kept, and each is a box of its own.** Under the headline one line says how each went, oldest

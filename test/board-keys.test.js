@@ -15,7 +15,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
   try {
     process.env.HERDR_ENV = "1";
     w.script({ worker: [{ status: "working", screen: "● Editing greet.sh\n  esc to interrupt\n" }] });
-    const s = open(w);
+    const s = open(w, { rows: 36 });
     s.type("Add a greeting");
     assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─+\n❯ Add a greeting/); assert.match(s.text(), /enter add a task · tab add it and start an agent · esc put away/);
     s.press("enter");

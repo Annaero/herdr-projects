@@ -19,8 +19,8 @@ test("the task panel beside the list cuts a long description short and says wher
     // Beside the list the description is short: a few lines, then where the rest is.
     assert.match(text, /Line 8 of a very long description\. … *\n/); assert.match(text, /│ {2}alt\+t shows the whole task/);
     assert.doesNotMatch(text, /Line 9 of/); assert.doesNotMatch(text, /Line 80 of/);
-    // Status first, then the description, then the settings: each part under its own headline, an empty line between.
-    assert.match(text, /│ {2}Long one *\n[^\n]*│ {2}○ to do · \ds ago · proj\/2 *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n/);
+    // The title by itself, the status under its headline, then the description, then the settings: each part under its own headline, an empty line between.
+    assert.match(text, /│ {2}Long one *\n[^\n]*│ *\n[^\n]*│ {2}Status ─+ *\n[^\n]*│ {2}○ to do · \ds ago · proj\/2 *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n/);
     assert.match(text, /│ {2}Settings ─+ *\n[^\n]*│ {2}Project {6}\S+ *\n[^\n]*│ {2}Worktree {5}on *\n[^\n]*│ {2}Branch {7}main *\n[^\n]*│ {2}Agent /);
     // Every setting shows beside the list, also one that is only your default.
     const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Merge", "Conflicts", "Permissions"];
@@ -73,7 +73,7 @@ test("the task panel never opens full screen by itself: something going wrong on
   try {
     const id = A.add(w.root, "Match the colors").id;
     S.update(id, (t) => { t.stage = "failed"; t.failure = { stage: "merge", phase: "sync", title: "Merge conflict with main", detail: "Conflicting files:\nsrc/board/view.js", agentCanFix: true, next: "Resolve the conflict." }; });
-    const s = open(w);
+    const s = open(w, { rows: 36 });
     s.v.load();
     assert.equal(s.v.sel, id); assert.equal(s.v.full, false); assert.equal(s.v.reply, false);
     let text = s.text(80);

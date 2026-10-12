@@ -1,4 +1,4 @@
-// The top of the task panel: the title, where the task stands, and what it needs from you.
+// The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you.
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import * as S from "../../store.js";
 import { clean, age, prNumber, prCheck, prColor, idLabel, bar } from "./words.js";
@@ -9,15 +9,16 @@ import { name as keyName } from "../keys.js";
 const ASKS = { question: "Asks you", permission: "Asks for your OK", auth: "Needs a login" };
 
 export class PanelStatus {
-  // Returns the title's part, the status lines, and what the callout already printed.
+  // Returns the title's part, the status part, its lines without the change's, and what the callout already printed.
   panelStatus(p) {
-    const { r, full, t, w, agent, failure, c, underReview, approval, dim, quiet, wrap, flow, first, callout, part } = p;
+    const { r, full, t, w, agent, failure, c, underReview, approval, dim, quiet, wrap, head, flow, first, callout, part } = p;
     // The title and where it stands: the mark and the group, then quietly who is on it, since when, and its id.
     // Under them the size of the change and its pull request, with a mark for its checks.
     const who = underReview ? "" : r.app ? (!agent && r.app === S.me() ? "you" : r.app) : "";
     const when = `${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`;
     const stand = flow([this.mark(r) + " " + t.fg(c, t.bold(r.archivedAt ? "archived" : underReview ? reviewerWord(r) : groupOf(r))), (reviewing(r) || r.stage === "approval") && roundWords(r) ? t.fg(c, roundWords(r)) : "", who && dim(who), dim(when), dim(idLabel(r.id))]);
-    if (r.progress !== undefined && r.state !== "done") stand.push(t.fg(c, bar(r.progress, Math.min(24, w - 6))) + t.fg(c, ` ${r.progress}%${r.eta !== undefined ? ` ${r.eta}m` : ""}`));
+    const pct = ` ${r.progress}%${r.eta !== undefined ? ` ${r.eta}m` : ""}`; // the bar takes what the numbers leave
+    if (r.progress !== undefined && r.state !== "done") stand.push(t.fg(c, bar(r.progress, Math.max(1, Math.min(24, w - pct.length)))) + t.fg(c, pct));
     else if (r.eta !== undefined && r.state !== "done") stand.push(t.fg(c, `${r.eta}m`) + dim(" left"));
     const st = /(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?/.exec(String(r.stat || ""));
     const size = st ? `${st[1]} file${st[1] === "1" ? "" : "s"}, +${st[2] || 0} −${st[3] || 0}` : clean(r.stat || "").trim();
@@ -25,8 +26,9 @@ export class PanelStatus {
     const prName = url ? `\x1b]8;;${url}\x1b\\${prNumber(r)}\x1b]8;;\x1b\\` : prNumber(r);
     const pr = r.pr ? t.fg(prColor(r), prName + (prCheck(r) ? ` ${prCheck(r)}` : "")) + (r.prMerged || r.prState === "merged" ? dim(" merged") : "") : "";
     const change = size || pr ? [...flow([size && quiet(size), pr]), ...(full && url ? wrapTextWithAnsi(dim(url), w) : [])] : [];
-    const titleLines = wrapTextWithAnsi(t.bold(clean(r.title || "(no title)")), w);
-    const top = part([...titleLines, ...stand, ...change]);
+    // The title stands on top by itself; where the task stands is a part of its own, under its headline.
+    const title = part(wrapTextWithAnsi(t.bold(clean(r.title || "(no title)")), w));
+    const top = part([head("Status"), ...stand, ...change]);
 
     // What it needs from you, or what is going on right now.
     const said = agent ? this.lastSaid(r) : "";
@@ -44,7 +46,8 @@ export class PanelStatus {
     else if (approval) { /* the first line says it: ready to approve */ }
     else if (r.state === "blocked") { told = note || said || ""; alert(callout("red", ASKS[r.kind] || "Needs you", told)); }
     else if (r.state === "error") { told = (r.stage === "nosummary" ? r.screen : "") || note || said || "It failed."; alert(callout("red", r.stage === "nosummary" ? "Stopped without a summary" : "Went wrong", told)); }
-    else if (r.state === "working" && note) alert(callout(c, underReview ? "The reviewer, now" : "Now", note));
-    return { top, stand, told };
+    // What it is doing now is wrapped whole, behind its bar on every line: beside the list it never gives up a line.
+    else if (r.state === "working" && note) part(callout(c, underReview ? "The reviewer, now" : "Now", note), { keep: true });
+    return { title, top, stand, told };
   }
 }
