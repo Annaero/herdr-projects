@@ -15,6 +15,8 @@ export const brief = (text, max = 400, mark = " …") => {
 export const short = S.tilde;
 export const clean = (s) => String(s ?? "").replace(/[\x00-\x1f\x7f]+/g, " ");
 export const age = (ms) => { const x = Math.max(0, Math.round(ms / 1000)); return x < 60 ? `${x}s` : x < 3600 ? `${Math.floor(x / 60)}m` : x < 86400 ? `${Math.floor(x / 3600)}h` : `${Math.floor(x / 86400)}d`; };
+// The minutes left on a row, never wider than four cells ("999m"): from a thousand on they are hours ("17h").
+export const left = (min) => (min < 1000 ? `${min}m` : `${Math.min(999, Math.round(min / 60))}h`);
 export const prNumber = (r) => (r.pr ? `PR#${String(r.pr).split("/").pop()}` : "");
 // A pull request's checks, as a mark beside its number: colour alone does not say it.
 export const prCheck = (r) => ({ passing: "✓", failing: "✗" }[r.prState] || "");

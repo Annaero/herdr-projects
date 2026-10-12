@@ -2,8 +2,9 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import * as G from "../../gate.js";
 import { herdr } from "../../herdr.js";
-import { short, clean, age, prNumber, prCheck, prColor, bar } from "./words.js";
+import { short, clean, age, prNumber, prCheck, prColor, bar, left } from "./words.js";
 import { MARK_STATES, failureFor, inReview, needsYou, statusColor, waitOf } from "./states.js";
+import { ETA_STEADY, labelRoom, shownFrom } from "./row-fit.js";
 import { resultColor, reviewTag, reviewCheck, reviewTagColor, currentReview, reviewNote, verdict } from "./review-words.js";
 
 // The fewest cells a cut "doing now" sentence is still worth showing in.
@@ -28,7 +29,7 @@ export class Row {
     const paint = (c, s) => (s ? t.fg(c, s) : "");
     const live = r.state !== "done", has = live && r.progress !== undefined;
     // The time is "working for" on a working row and "ago" on every other: the word says which.
-    return { bar: has ? paint(color, bar(r.progress)) : "", percent: has ? paint(color, `${String(r.progress).padStart(3)}%`) : "", eta: live && r.eta !== undefined ? paint(color, `${r.eta}m`) : "", // minutes left show with no percent too
+    return { bar: has ? paint(color, bar(r.progress)) : "", percent: has ? paint(color, `${String(r.progress).padStart(3)}%`) : "", eta: live && r.eta !== undefined ? paint(color, left(r.eta)) : "", // minutes left show with no percent too
       review: paint(reviewTagColor(r), reviewTag(r)), reviewCheck: paint(reviewTagColor(r), reviewCheck(r)), pr: paint(prColor(r), prNumber(r)), check: paint(prColor(r), prCheck(r)), elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
   }
   // What a row says after its name. Never what its heading already says ("to do", "approve?").
@@ -65,26 +66,38 @@ export class Row {
     return { text: quiet(msg) };
   }
   rowTitle(r) { return clean(r.title || r.id) + (r.archivedAt ? " [archived]" : ""); }
+  // The fewest cells a row needs to say something: a sentence cut to a few letters says nothing.
+  sayNeed(said) { return said.forms ? Math.min(...said.forms.map((f) => visibleWidth(f))) : Math.min(visibleWidth(said.text || ""), SENTENCE_MIN); }
   // The columns on the right are laid out first, once for the whole list: which there are and how wide each is. Every
-  // row draws them at those widths, so each column starts at the same place on every row. Left to right they are
-  // also the order a row gives them up in (rowKeeps): the bar, the percent and the minutes left, the review
-  // tag, the pull request, the time.
-  rowLayout(records, width) {
-    const now = Date.now(), fields = records.map((r) => this.rowFields(r, now));
-    const max = (key) => Math.max(0, ...fields.map((f) => visibleWidth(f[key])));
+  // row draws them at those widths, so each column starts at the same place on every row. What is shown of them is
+  // decided one section at a time (row-fit.js): a section's rows give the same things up together, from the left.
+  rowLayout(records, width, sections = [records]) {
+    const now = Date.now(), fields = new Map(records.map((r) => [r, this.rowFields(r, now)]));
+    const max = (key) => Math.max(0, ...[...fields.values()].map((f) => visibleWidth(f[key])));
     const elapsed = Math.max(3, max("elapsed"));
     // Extremely long PR identifiers may shorten, but must never push time off-screen.
     const pr = Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), check = pr ? max("check") : 0, review = max("review"), reviewCheck = max("reviewCheck");
     const cols = [["bar", max("bar")], ["percent", max("percent")], ["eta", max("eta")], ["review", review + (reviewCheck ? 2 : 0)], ["pr", pr + (check ? 2 : 0)], ["time", elapsed]].filter(([, w]) => w);
-    const layout = { now, review, reviewCheck, pr, check, elapsed, cols, ago: fields.some((f) => f.ago) };
-    // The word "ago" sits right of everything, so one row cannot give it up without moving its columns: the whole
-    // list gives it up, as soon as that lets some row keep a column other than its bar.
-    const kept = (lay) => records.map((r, n) => this.rowKeeps(r, width, lay, fields[n]).kept);
-    if (layout.ago) { const lean = kept({ ...layout, ago: false }); layout.ago = !kept(layout).some((k, n) => lean[n] > k); }
+    const layout = { now, review, reviewCheck, pr, check, elapsed, cols, ago: [...fields.values()].some((f) => f.ago), show: new Map() };
+    // Decided at widths that do not move as the numbers tick: the minutes left count as their widest (words.js: left).
+    const cells = (ago) => cols.map(([key, w]) => ({ key, w: key === "eta" ? Math.max(w, ETA_STEADY) : w + (key === "time" && ago ? 4 : 0) }));
+    const fit = (r) => { const f = fields.get(r); return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, time: true } }; };
+    const parts = sections.map((recs) => recs.map(fit));
+    // The word "ago" sits right of everything, so one section cannot give it up without moving its columns: the
+    // whole list gives it up, as soon as that lets some section show a column other than its bar, or cut a name less.
+    const cheaper = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
+    if (layout.ago) layout.ago = !parts.some((rows) => cheaper(shownFrom(rows, cells(false)).cost, shownFrom(rows, cells(true)).cost));
+    sections.forEach((recs, n) => {
+      const steady = cells(layout.ago), { from } = shownFrom(parts[n], steady);
+      // What the rows say goes the same way: every row of the section that says something has room for it, or none says it.
+      // A row's name and what it says are drawn in the room decided here, so neither moves as the numbers tick.
+      const rooms = recs.map((r, m) => Math.max(0, labelRoom(parts[n][m], steady, from)));
+      const says = recs.every((r, m) => { const said = this.sentence(r); return !visibleWidth(said.text || "") || rooms[m] - visibleWidth(this.rowName(r, rooms[m])) - 2 >= this.sayNeed(said); });
+      recs.forEach((r, m) => layout.show.set(r, { from, says, room: rooms[m] }));
+    });
     return layout;
   }
-  // The columns one row keeps, drawn. A row whose name does not fit beside them gives up its own columns one at a
-  // time from the left, so the ones it keeps stay where they are on every other row. What a row says never counts here.
+  // The columns one row shows, drawn: its own from where its section's start (layout.show).
   rowKeeps(r, width, layout, f = this.rowFields(r, layout.now)) {
     const t = this.theme;
     const fill = (s, n, left) => { const gap = " ".repeat(Math.max(0, n - visibleWidth(s))); return left ? s + gap : gap + s; }; // by terminal cells, not string length
@@ -97,39 +110,32 @@ export class Row {
       time: t.fg("overlay0", f.elapsed.padStart(layout.elapsed) + (layout.ago ? (f.ago ? " ago" : "    ") : "")),
     };
     const cells = layout.cols.map(([key, w]) => ({ key, text: text[key], w: w + (key === "time" && layout.ago ? 4 : 0) }));
-    const room = Math.max(0, width - visibleWidth(this.mark(r)) - 2), need = Math.min(room, visibleWidth(this.rowTitle(r)));
-    const wide = (from) => cells.slice(from).reduce((n, c) => n + c.w + 1, 1); // the columns, a cell between each, two before them
     // Blank cells left of a row's first own column are not columns to that row: its words run into them.
-    const next = (from) => { while (from < cells.length && !cells[from].text) from++; return from; };
-    let from = next(0);
-    // The minutes left go with their percent: alone beside the time they would read as a second time.
-    while (from < cells.length && room - wide(from) < need) from = next(from + (cells[from].key === "percent" && cells[from + 1]?.key === "eta" ? 2 : 1));
-    const own = cells.slice(from);
-    return { kept: own.filter((c) => c.text && c.key !== "bar").length, metadata: own.map((c) => fill(c.text, c.w, c.key === "pr" || c.key === "review")).join(" ") };
+    let from = layout.show.get(r)?.from ?? 0;
+    while (from < cells.length && !cells[from].text) from++;
+    return { metadata: cells.slice(from).map((c) => fill(c.text, c.w, c.key === "pr" || c.key === "review")).join(" ") };
+  }
+  // A row's name in `w` cells. In the all-machines view the machine's name sits before the task's, in what the
+  // task's name leaves: it is cut first.
+  rowName(r, w) {
+    const t = this.theme, bright = r.state === "working" || r.state === "blocked";
+    // The title is plain text whatever the task's state: the mark and the group's heading carry the state's colour.
+    const shown = truncateToWidth(bright ? t.bold(this.rowTitle(r)) : this.rowTitle(r), w, "…");
+    const host = r.host && this.scope === "*" ? clean(r.host) : "", hostRoom = w - visibleWidth(shown) - 1;
+    return (host && hostRoom >= Math.min(3, visibleWidth(host)) ? t.fg("overlay0", truncateToWidth(host, hostRoom, "…")) + " " : "") + shown;
   }
   row(r, width, layout = this.rowLayout([r], width)) {
-    const t = this.theme;
-    const bright = r.state === "working" || r.state === "blocked";
-    // The title is plain text whatever the task's state: the mark and the group's heading carry the state's colour.
-    const name = bright ? t.bold(this.rowTitle(r)) : this.rowTitle(r);
     const prefix = ` ${this.mark(r)} `;
     const room = Math.max(0, width - visibleWidth(prefix));
-    // In the all-machines view the machine's name sits before the task's, in what the task's name leaves: it is cut first.
-    const host = r.host && this.scope === "*" ? clean(r.host) : "";
-    const labelName = (w) => {
-      const shown = truncateToWidth(name, w, "…");
-      const hostRoom = w - visibleWidth(shown) - 1;
-      return (host && hostRoom >= Math.min(3, visibleWidth(host)) ? t.fg("overlay0", truncateToWidth(host, hostRoom, "…")) + " " : "") + shown;
-    };
-    // One rule for every row. The columns first, at the list's widths; the name in what they leave, and the columns
-    // give way to it; what the row says in what is then left, and it never moves or costs a column.
+    // One rule for every row. The columns first, at the list's widths, as many as the row's section shows; the name
+    // in what they leave; what the row says in what is then left, when its section's rows say anything.
     const { metadata } = this.rowKeeps(r, width, layout);
-    const labelRoom = Math.max(0, room - visibleWidth(metadata) - (metadata ? 2 : 0));
-    const said = this.sentence(r), sayW = visibleWidth(said.text || "");
-    const renderedTitle = labelName(labelRoom);
+    const show = layout.show.get(r), labelRoom = Math.min(show?.room ?? room, Math.max(0, room - visibleWidth(metadata) - (metadata ? 2 : 0)));
+    const said = (show?.says ?? true) ? this.sentence(r) : { text: "" }, sayW = visibleWidth(said.text || "");
+    const renderedTitle = this.rowName(r, labelRoom);
     const sayRoom = labelRoom - visibleWidth(renderedTitle) - 2;
-    // A sentence cut to a few letters says nothing: it shows whole, or with at least SENTENCE_MIN cells, or not at all.
-    const tail = !sayW ? "" : said.forms ? said.forms.find((f) => visibleWidth(f) <= sayRoom) || "" : sayRoom >= Math.min(sayW, SENTENCE_MIN) ? truncateToWidth(said.text, sayRoom, "…") : "";
+    // A sentence cut to a few letters says nothing: it shows whole, or with at least SENTENCE_MIN cells.
+    const tail = !sayW || sayRoom < this.sayNeed(said) ? "" : said.forms ? said.forms.find((f) => visibleWidth(f) <= sayRoom) || "" : truncateToWidth(said.text, sayRoom, "…");
     const label = renderedTitle + (tail ? "  " + tail : "");
     return prefix + label + " ".repeat(Math.max(0, room - visibleWidth(label) - visibleWidth(metadata))) + metadata;
   }

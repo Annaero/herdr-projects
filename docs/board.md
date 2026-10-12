@@ -33,8 +33,33 @@ tells a running review from one that passed. A review from before the gate goes 
 task that was never reviewed has no tag. Every row that has had a review keeps it: under review, back with the
 agent, waiting for your yes, done.
 
-A window too narrow for a row's name takes that row's columns away one at a time, so the name stays readable: the
-bar, the word `ago`, the minutes left, the percent, the `R#` tag, the pull request and, last, the time.
+**When the window is narrow, rows hide the same things together.** What is shown is decided for one group at a time
+(the rows under one heading: `working`, `done`, ...), never row by row: each thing is on every row of the group that
+has it, or on none. So if one name under `working` leaves no room for a bar, no row under `working` has a bar. A
+long name under `done` costs `working` nothing, and the columns still start at the same place down the whole list.
+
+Things give way in this order, first to last, and the name wins over all of them:
+
+1. what the rows say: each is cut to its own room, and when one of them has not even 20 cells (or its whole
+   length, when that is less), none of the group's rows says anything;
+2. the bar;
+3. the word `ago`, on the whole list at once since it sits right of every column: it goes when that keeps a column
+   other than a bar, or cuts a name less, somewhere on the list;
+4. the end of a name longer than 40 cells: it is cut with `…`, down to 40, before its group loses a column;
+5. the percent and the minutes left, together;
+6. the `R#` tag;
+7. the pull request;
+8. the time;
+9. the rest of the name.
+
+Step 4 is why one long title does not cost a whole group its columns: a title is at most 60 characters
+([titles](titles.md)), so it loses a third at the very most, and a name of 40 cells or fewer is never cut while a
+column shows. A name is never cut for a bar.
+
+What is shown does not jump as the numbers tick: the minutes left are counted at their widest, four cells, when
+this is decided, so `9m` turning into `10m` hides nothing. They are never wider: from a thousand minutes on a row
+shows them as hours (`17h`). A name and what the row says are drawn in the room counted that way too, so neither
+is cut at another place from one minute to the next.
 
 `PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
 since it stopped. A row never repeats what its heading says.

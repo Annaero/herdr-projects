@@ -128,8 +128,11 @@ export class List {
       return out;
     }
     const lines = [];
-    // One layout for the displayed list, across groups and outside the scroll viewport.
-    const layout = this.rowLayout(this.rows.filter((row) => row.rec).map((row) => row.rec), width);
+    // One layout for the displayed list, across groups and outside the scroll viewport: the columns line up down the
+    // whole list. What is shown of them is decided one group at a time, under each heading.
+    const sections = [];
+    for (const row of this.rows) { if (row.header || !sections.length) sections.push([]); if (row.rec) sections.at(-1).push(row.rec); }
+    const layout = this.rowLayout(sections.flat(), width, sections);
     this.rows.forEach((row) => {
       if (row.header) lines.push({ text: "", sel: false }, { text: " " + (this.byRepo ? t.bold(t.fg("subtext0", repoLabel(row.header))) : t.fg(GROUP_COLOR[row.header] || "subtext0", row.header)), sel: false });
       else if (row.note) lines.push({ text: "   " + t.fg("overlay0", row.note), sel: false });

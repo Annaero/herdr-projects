@@ -95,6 +95,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `panel.js` | The task panel: beside the list and full screen |
 | `remotes.js` | Other machines: ask each for its board, send each action to the machine that owns the task, and whose board you see |
 | `review-words.js` | A review in a few words: its result, its colour, which round it was |
+| `row-fit.js` | What a section of the list shows when space is short: its rows give the same things up together, in one order |
 | `row.js` | One row of the list: its mark, its name, what it says, and its columns on the right |
 | `setup.js` | The first run: one screen asks what the plugin may add to herdr's settings |
 | `size.js` | The board's size: the window, what herdr shows of it, and another viewer holding the terminal at its own size |
@@ -214,6 +215,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `board-panel.test.js` | The task panel: beside the list and full screen |
 | `board-reply.test.js` | Replying to a task's agent: who gets your words, and words put away |
 | `board-review.test.js` | Reviews as the board shows them: on a row and in the task panel |
+| `board-row-fit.test.js` | What the rows of a section show when space is short: the same things on every row, given up together in one order |
 | `board-rows.test.js` | One row of the list: its name, what it says, its columns |
 | `board-setup.test.js` | The first run, and the board loading its new version |
 | `board-size.test.js` | A terminal held at another size than herdr shows |
