@@ -11,30 +11,30 @@ test("only space flips between the Coordinator and a task's agent: the arrows on
   try {
     const alpha = A.add(w.root, "Alpha"), beta = A.add(w.root, "Beta");
     const s = open(w); s.v.sel = alpha.id; s.v.load(); s.screen(120);
-    s.press("space"); assert.equal(s.v.reply, true); assert.equal(s.v.replyId, alpha.id); assert.match(s.text(), /\n─+\n . Alpha {2}no agent yet: your message starts one/);
+    s.press("space"); assert.equal(s.v.reply, true); assert.equal(s.v.replyId, alpha.id); assert.match(s.text(), /\n *\n . Alpha {2}no agent yet: your message starts one/);
     // Up or down selects the other task and nothing else: you still talk to a task's agent, now that task's.
     const toBeta = s.v.rows.filter((x) => x.rec).map((x) => x.rec.id).indexOf(alpha.id) ? "up" : "down", toAlpha = toBeta === "up" ? "down" : "up";
     s.press(toBeta);
     assert.equal(s.v.sel, beta.id); assert.equal(s.v.reply, true); assert.equal(s.v.replyId, beta.id);
-    assert.match(s.text(), /\n─+\n . Beta {2}no agent yet: your message starts one/); assert.doesNotMatch(s.text(), /\n─+\n . Alpha {2}|New task/);
-    s.press(toAlpha); assert.equal(s.v.replyId, alpha.id); assert.match(s.text(), /\n─+\n . Alpha {2}/);
+    assert.match(s.text(), /\n *\n . Beta {2}no agent yet: your message starts one/); assert.doesNotMatch(s.text(), /\n *\n . Alpha {2}|New task/);
+    s.press(toAlpha); assert.equal(s.v.replyId, alpha.id); assert.match(s.text(), /\n *\n . Alpha {2}/);
     // Find, and leaving it with esc, changes nothing about who you talk to; nor is the search kept as a put-away reply.
-    s.press("ctrl+f"); s.type("Alp"); assert.doesNotMatch(s.text(), /\n─+\n . Alpha {2}/); s.press("esc");
-    assert.equal(s.v.mode, "new"); assert.equal(s.v.reply, true); assert.equal(s.v.sel, alpha.id); assert.equal(s.v.draftAway, null); assert.match(s.text(), /\n─+\n . Alpha {2}/);
+    s.press("ctrl+f"); s.type("Alp"); assert.doesNotMatch(s.text(), /\n *\n . Alpha {2}/); s.press("esc");
+    assert.equal(s.v.mode, "new"); assert.equal(s.v.reply, true); assert.equal(s.v.sel, alpha.id); assert.equal(s.v.draftAway, null); assert.match(s.text(), /\n *\n . Alpha {2}/);
     // Talking to the Coordinator, the arrows change nothing about that either: no task's agent is talked to unasked.
     s.press("space"); assert.equal(s.v.reply, false);
     s.press(toBeta); assert.equal(s.v.sel, beta.id); assert.equal(s.v.reply, false);
-    assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ what's next\?/); assert.doesNotMatch(s.text(), /\n─+\n . Beta {2}/);
+    assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─+\n❯ what's next\?/); assert.doesNotMatch(s.text(), /\n *\n . Beta {2}/);
     s.type("for nobody's agent"); s.press("enter");
     assert.equal(S.get(beta.id).stage, "todo", "Beta's agent was not started"); assert.equal(S.get(alpha.id).stage, "todo"); assert.equal(S.list().length, 3, "it went where the chat said: a new task");
     // Space on Alpha, then over to Beta: what you send goes to the one the chat names, and the chat stays Beta's.
     s.v.sel = alpha.id; s.v.load(); s.press("space", toBeta); assert.equal(s.v.sel, beta.id); s.type("start on this"); s.press("enter");
     assert.notEqual(S.get(beta.id).stage, "todo"); assert.equal(S.get(alpha.id).stage, "todo");
     await settle(beta.id); s.v.load();
-    assert.equal(s.v.sel, beta.id); assert.equal(s.v.reply, true); assert.match(s.text(), /\n─+\n . Beta {2}/);
+    assert.equal(s.v.sel, beta.id); assert.equal(s.v.reply, true); assert.match(s.text(), /\n *\n . Beta {2}/);
     // The task you talk to going away is back to the Coordinator too, never on to a neighbour.
     await A.clear(beta.id); s.v.load();
-    assert.equal(s.v.reply, false); assert.notEqual(s.v.sel, beta.id); assert.match(s.text(), /\n─+\n \+ New task {2}/);
+    assert.equal(s.v.reply, false); assert.notEqual(s.v.sel, beta.id); assert.match(s.text(), /\n *\n \+ New task {2}/);
   } finally { w.cleanup(); }
 });
 
@@ -51,7 +51,7 @@ test("a reply that was put away comes back as a reply to the same task, never as
       s.press("space"); s.type("also say goodbye");
       s.press("esc"); assert.equal(s.v.value(), ""); assert.equal(s.v.reply, true); // the first esc only puts the words away
       s.press("esc"); assert.equal(s.v.chatOpen, true); assert.equal(s.v.reply, true); // a second one touches neither the chat nor who you talk to
-      s.press("space"); assert.equal(s.v.reply, false); assert.match(s.text(width), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯/);
+      s.press("space"); assert.equal(s.v.reply, false); assert.match(s.text(width), /\n *\n \+ New task {2}[^\n]*\n─+\n❯/);
       s.press("down"); assert.notEqual(s.v.sel, id);
       // ctrl+z never changes who you talk to, nor the selection: with the Coordinator, or with another task's agent,
       // it says who the words were for, and they stay put away until the chat names that task's agent again.
@@ -63,7 +63,7 @@ test("a reply that was put away comes back as a reply to the same task, never as
       s.press("up"); assert.equal(s.v.sel, id);
       s.press("ctrl+z");
       assert.equal(s.v.sel, id); assert.equal(s.v.reply, true); assert.equal(s.v.full, false); assert.equal(s.v.draftAway, null);
-      assert.match(s.text(width), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ also say goodbye/);
+      assert.match(s.text(width), /\n *\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?│ ❯ also say goodbye/);
       w.script({ worker: [{ status: "working" }] });
       const before = S.list().length;
       s.press("enter");
@@ -76,14 +76,14 @@ test("a reply that was put away comes back as a reply to the same task, never as
     s.screen(120); s.type("buy milk"); s.press("esc", "space"); assert.equal(s.v.reply, true);
     s.press("ctrl+z"); assert.equal(s.v.reply, true); assert.equal(s.v.value(), ""); assert.equal(s.v.draftAway.text, "buy milk");
     assert.match(s.text().replace(/\s+/g, " "), /Those words were for the Coordinator\. space goes back to it, then ctrl\+z brings them back\./);
-    s.press("space", "ctrl+z"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ buy milk/);
+    s.press("space", "ctrl+z"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─+\n❯ buy milk/);
     s.press("esc");
     // the task a reply was for is gone: the words stay put away rather than go somewhere else
     const gone = A.add(w.root, "Short lived").id; s.v.sel = gone; s.v.load();
     s.press("space"); s.type("for the short lived one"); s.press("esc", "esc");
     await A.clear(gone); s.v.load();
     s.press("ctrl+z"); assert.equal(s.v.value(), ""); assert.match(s.text(), /The task that reply was for is gone\. ctrl\+z again brings the words back as a draft of their own\./);
-    s.press("ctrl+z"); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ for the short lived one/); assert.equal(s.v.reply, false); // asked for, so never lost and never a surprise
+    s.press("ctrl+z"); assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─+\n❯ for the short lived one/); assert.equal(s.v.reply, false); // asked for, so never lost and never a surprise
     s.press("esc");
     // the task disappears while the reply is still being typed: the words never slide over to whichever task is selected next
     const doomed = A.add(w.root, "Doomed").id; s.v.sel = doomed; s.v.load();
@@ -102,11 +102,11 @@ test("a reply that was put away comes back as a reply to the same task, never as
     assert.deepEqual(s4.closed(), { reload: true }); s4.v.dispose();
     const s5 = open(w);
     s5.press("ctrl+z"); assert.equal(s5.v.reply, false); assert.equal(s5.v.value(), ""); // the board reopens with the Coordinator: the reply waits for its task
-    s5.v.sel = id; s5.v.load(); s5.press("space", "ctrl+z"); assert.equal(s5.v.sel, id); assert.match(s5.text(), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ kept across a reload/);
+    s5.v.sel = id; s5.v.load(); s5.press("space", "ctrl+z"); assert.equal(s5.v.sel, id); assert.match(s5.text(), /\n *\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?│ ❯ kept across a reload/);
     // and so does a reply still in the text box when the board is closed from outside
     s5.v.dispose();
     const s6 = open(w); assert.equal(s6.v.value(), ""); s6.v.sel = id; s6.v.load(); s6.press("space", "ctrl+z");
-    assert.match(s6.text(), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ kept across a reload/);
+    assert.match(s6.text(), /\n *\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?│ ❯ kept across a reload/);
   } finally { delete process.env.HERDR_ENV; w.cleanup(); }
 });
 
@@ -145,9 +145,9 @@ test("a row with no task talks to the Coordinator: words typed or brought back t
     // Words for the Coordinator, put away; then space on Alpha and down to the row with no task: the chat names the
     // Coordinator there, and ctrl+z brings the words back as what they were.
     s.type("only for the Coordinator"); s.press("esc", "space"); assert.equal(s.v.replyId, alpha.id);
-    onJob(); assert.equal(s.v.reply, true); assert.equal(s.v.replyId, ""); assert.match(s.text(), /\n─+\n \+ New task {2}/);
+    onJob(); assert.equal(s.v.reply, true); assert.equal(s.v.replyId, ""); assert.match(s.text(), /\n *\n \+ New task {2}/);
     s.press("ctrl+z"); s.v.beat();
-    assert.equal(s.v.value(), "only for the Coordinator"); assert.equal(s.v.draftAway, null); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ only for the Coordinator/);
+    assert.equal(s.v.value(), "only for the Coordinator"); assert.equal(s.v.draftAway, null); assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─+\n❯ only for the Coordinator/);
     // Put away again from there, they are still the Coordinator's: on Alpha ctrl+z does not bring them back as a reply.
     s.press("esc"); assert.deepEqual(s.v.draftAway, { text: "only for the Coordinator", to: "" });
     onAlpha(); assert.equal(s.v.replyId, alpha.id); s.press("ctrl+z");

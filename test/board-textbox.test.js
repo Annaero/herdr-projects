@@ -9,11 +9,13 @@ import { open } from "./board-helpers.js";
 // The text box as the screen shows it: its rows without the prompt, how many rows it hides, and where the cursor is.
 function draft(s, width) {
   const raw = s.v.render(width), lines = raw.map((l) => stripVTControlCharacters(l).replace(/\x1b_pi:c\x07/g, ""));
-  const first = lines.findIndex((l) => l.startsWith("❯ ")), last = lines.findIndex((l, n) => n > first && /^─/.test(l));
+  // With the chat open the text box is inside the chat's rounded box: the same rows, two cells in from each side.
+  const framed = lines.some((l) => l.startsWith("│ ❯ ")), inner = lines.map((l) => (framed && /^│ .* │$/.test(l) ? l.slice(2, -2) : l));
+  const first = inner.findIndex((l) => l.startsWith("❯ ")), last = inner.findIndex((l, n) => n > first && /^[─╰]/.test(l));
   const at = raw.findIndex((l) => l.includes("\x1b_pi:c\x07"));
   const hidden = (l) => Number(l.match(/(\d+) more/)?.[1] || 0);
-  return { lines, rows: lines.slice(first, last).map((l) => l.slice(2).trimEnd()), above: hidden(lines[first - 1]), below: hidden(lines[last]),
-    cursor: [at - first, stripVTControlCharacters(raw[at].split("\x1b_pi:c\x07")[0]).length - 2] };
+  return { lines, framed, rows: inner.slice(first, last).map((l) => l.slice(2).trimEnd()), above: hidden(inner[first - 1]), below: hidden(inner[last]),
+    cursor: [at - first, stripVTControlCharacters(raw[at].split("\x1b_pi:c\x07")[0]).length - 2 - (framed ? 2 : 0)] };
 }
 
 test("a draft longer than the text box wraps onto further lines, between words, and the box grows with it", async () => {
@@ -140,6 +142,11 @@ test("a reply to a task's agent wraps in the same box, under the agent's latest 
     const d = draft(s, 50);
     assert.equal(d.rows.join(" "), words); assert.ok(d.rows.length > 5); assert.equal(d.above + d.below, 0);
     assert.equal(d.lines.length, 24); assert.ok(d.lines.every((l) => l.length <= 50));
-    assert.ok(d.lines.some((l) => /Make f/.test(l)), "who the reply goes to still shows above the box");
+    assert.ok(d.lines.some((l) => /^ . Make f/.test(l)), "who the reply goes to still shows above the box");
+    assert.ok(d.framed); assert.ok(d.lines.some((l) => /^│ Made f\. +│$/.test(l)), "the agent's latest message is in the same box");
+    // A draft taller than the box scrolls inside it, and the box's own lines say how much is off it.
+    s.type(" " + words + " " + words);
+    const e = draft(s, 50);
+    assert.equal(e.lines.length, 24); assert.ok(e.above > 0); assert.equal(e.below, 0); assert.match(e.lines.at(-1), /enter send to its agent/);
   } finally { w.cleanup(); }
 });

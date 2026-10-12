@@ -9,6 +9,9 @@ export class Hints {
   // The hint line: what matters right now, the main thing first, at most four.
   hints(r) {
     const more = hint("menu"), enter = name("enter"), esc = name("back"), tab = name("delegate"), put = [esc, "put away"], line = hint("newline"), arrows = [name("up"), name("down")].join(name("up").length + name("down").length > 2 ? " " : ""); // ↑↓
+    // The chat's own key, only where it does something: while there is a message to show or hide.
+    const who = this.chatOf(r);
+    const key = (this.chatKey = who?.said ? hint("chatMessage", this.chatUp(who) ? "hide the chat" : "show the chat") : null) ? [this.chatKey] : [];
     if (this.ask) return [];
     if (this.closing) return [["", `Press ${name("close")} again to close the board`]];
     if (this.menu) return [[arrows, "pick"], [enter, "do it"], [esc, "close"]];
@@ -20,7 +23,7 @@ export class Hints {
       return [[enter, "add a task"], [tab, "add it and start an agent"], put, line];
     }
     if (this.job()) return [hint("stop", "stop it"), [enter, "take it back to change"], [name("up"), "back to the list"]];
-    if (!r) return [["", this.archiveView ? `${esc} back to the board` : "type what needs doing"], more];
+    if (!r) return [["", this.archiveView ? `${esc} back to the board` : "type what needs doing"], ...key, more];
     // esc leaves the whole task; who you talk to is space's to flip back.
     const tail = this.full ? [[arrows, "scroll"], hint("back")] : this.reply ? [hint("talk", "back to the Coordinator")] : [more];
     const failure = failureFor(r), rv = currentReview(r), reply = hint("talk"), open = hint("enter"), fix = hint("sendBack"), retry = hint("yes"), stop = hint("stop"), agent = hint("delegate");
@@ -44,6 +47,6 @@ export class Hints {
     // A suggested task waits on this one: its key, when there is room. It never takes a hint's place.
     const shown = main.slice(0, 4 - tail.length);
     const asked = !this.reply && r.title !== undefined && openSuggestions(r).length && shown.length + tail.length < 4 ? [hint("suggested")] : [];
-    return [...shown, ...asked, ...tail];
+    return [...shown, ...asked, ...key, ...tail];
   }
 }

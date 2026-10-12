@@ -17,8 +17,8 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     C.send(w.root, "first"); await drainJobs(runJob);
     assert.equal(C.get().queue.length, 1); assert.equal(C.look().state, "blocked");
     const s = open(w);
-    assert.match(s.text(), /Coordinator {2}needs you/); assert.match(s.text(), /› first {2}\(waiting to be sent\)/);
-    s.press("alt+c"); assert.match(s.text(), /\n . Coordinator {2}needs you · /); assert.doesNotMatch(s.text(), /waiting to be sent/); // hidden: its one line still says it
+    assert.match(s.text(), /\n . Coordinator {2}needs you · 1 message waits to be sent *\n╭─+╮\n/); // what waits for you is on its screen: that is in the box
+    s.press("alt+c"); assert.match(s.text(), /\n . Coordinator {2}needs you · 1 message waits to be sent *\n─+\n❯ /); // hidden: its one line still says it
     // You answer the dialog in its chat; the tick then types the waiting words in.
     w.patchState((st) => { const p = st.panes.find((x) => x.agent); p.agent.status = "idle"; });
     fs.rmSync(S.stampFile(`coordinator-default`), { force: true });
@@ -89,13 +89,13 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     S.writeJson(path.join(S.dataDir(), "versions.json"), { nope: { v: "", at: Date.now(), found: false } });
     C.fresh(C.pickOf({ agent: "nope" })); C.send(w.root, "second"); await drainJobs(runJob);
     assert.match(C.look().error, /"nope" is not installed here/); assert.equal(C.get().queue.length, 1);
-    s.beat(); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n(?: ›[^\n]*\n)* It could not be started: "nope" is not installed here/); // also with its message hidden
-    // alt+c hides that too (the chat's line does not say so: the ? menu does); esc does not.
+    s.beat(); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n╭─+╮\n│ It could not be started: "nope" is not installed here/); // also with its message hidden
+    // alt+c hides that too, as the chat's line says; esc does not.
     s.v.chatOpen = false; s.v.setValue(""); s.v.reply = false; s.v.full = false; s.v.filter = ""; s.v.msg = "";
-    assert.doesNotMatch(s.text(), /alt\+c/);
+    assert.match(s.text(), /alt\+c hide the chat/);
     s.press("esc"); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []); assert.match(s.text(), /It could not be started:/);
     s.press("alt+c");
-    assert.doesNotMatch(s.text(), /It could not be started:/); assert.match(s.text(), /Coordinator {2}could not be started · [^\n]*\n─+\n❯ /); assert.doesNotMatch(s.text(), /alt\+c/);
+    assert.doesNotMatch(s.text(), /It could not be started:/); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n─+\n❯ [^\n]*\n─+\n[^\n]*alt\+c show the chat/);
     s.beat(); assert.doesNotMatch(s.text(), /It could not be started:/, "the same error stays hidden");
     s.press("esc"); assert.ok(s.v.closing); s.v.closeSoon();
     // alt+c shows it again and hides it again, shown by the setting or not.
@@ -109,7 +109,7 @@ test("turning the Coordinator on while the board is open takes effect at once, a
   const w = await coordWorld({ coordinator: "off" });
   try {
     const s = open(w);
-    assert.match(s.text(), /\n─+\n \+ New task {2}what you type is filed as a task, word for word *\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(s.text(), /Coordinator/); // with it off, the chat says what the box does
+    assert.match(s.text(), /\n *\n \+ New task {2}what you type is filed as a task, word for word *\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(s.text(), /Coordinator/); // with it off, the chat says what the box does
     s.type("first thing"); s.press("enter");
     assert.equal(S.get("proj/1").title, "first thing"); assert.equal(C.get(), null);
     S.setConfig("coordinator", "default"); // the board stays open

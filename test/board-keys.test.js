@@ -17,7 +17,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     w.script({ worker: [{ status: "working", screen: "● Editing greet.sh\n  esc to interrupt\n" }] });
     const s = open(w);
     s.type("Add a greeting");
-    assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ Add a greeting/); assert.match(s.text(), /enter add a task · tab add it and start an agent · esc put away/);
+    assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─+\n❯ Add a greeting/); assert.match(s.text(), /enter add a task · tab add it and start an agent · esc put away/);
     s.press("enter");
     assert.equal(S.get("proj/1").title, "Add a greeting"); assert.equal(s.v.sel, "proj/1"); assert.equal(s.v.value(), "");
     assert.match(s.text(), /\n {2}tab put an agent on it · space reply · \? more/);
@@ -29,21 +29,22 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     assert.match(s.text(), /\n {2}enter open the agent · space reply · ctrl\+x stop · \? more/);
     // space: the text box now belongs to this task's agent, and says so for as long as you type
     s.press("space");
-    assert.match(s.text(), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ your reply/);
+    assert.match(s.text(), /\n *\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?│ ❯ your reply/);
     w.script({ worker: [{ status: "working" }] });
     s.type("also say goodbye");
-    assert.match(s.text(), /\n─+\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ also say goodbye/); assert.match(s.text(), /enter send to its agent · esc put away/);
+    assert.match(s.text(), /\n *\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?│ ❯ also say goodbye/); assert.match(s.text(), /enter send to its agent · esc put away/);
     s.press("enter");
-    assert.match(s.text(), /Sent to the agent/);
+    // What you just sent stands in the box, in place of what the agent had said, until it says something new.
+    assert.match(s.text(), /\n╭─+╮\n│ also say goodbye +│\n│ +│\n│ ❯ your reply +│\n╰─+╯\n/); assert.doesNotMatch(s.text(), /Sent to the agent/);
     const t = S.get("proj/1");
     assert.match(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.at(-1), /also say goodbye/);
     // esc has nothing to go back from here: it never hides the chat's message, never changes who you talk to, never
-    // closes the board. alt+c is the one key for the message, space the one key for who. The chat's line names neither key.
-    assert.doesNotMatch(s.text(), /alt\+c/); assert.doesNotMatch(s.text(), /esc hide|esc back/); assert.match(s.text(), /space back to the Coordinator *$/);
+    // closes the board. alt+c is the one key for the message, space the one key for who.
+    assert.match(s.text(), /alt\+c hide the chat/); assert.doesNotMatch(s.text(), /esc hide|esc back/); assert.match(s.text(), /space back to the Coordinator *$/);
     s.press("esc"); assert.equal(s.v.chatOpen, true); assert.equal(s.v.reply, true); assert.equal(s.v.ask, null); assert.equal(s.closed(), undefined); assert.ok(s.v.closing); assert.match(s.text(), /Press ctrl\+c again to close the board *$/); s.v.closeSoon();
-    s.press("\x1bc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.match(s.text(), /\n─+\n . Add a greeting {2}\S[^\n]*\n─+\n❯ /); assert.doesNotMatch(s.text(), /alt\+c/);
+    s.press("\x1bc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.match(s.text(), /\n *\n . Add a greeting {2}[^\n]*\n─+\n❯ your reply *\n─+\n[^\n]*alt\+c show the chat/);
     s.press("\x1bc"); assert.equal(s.v.chatOpen, true);
-    s.press("space"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n─+\n \+ New task {2}[^\n]*\n─+\n❯/);
+    s.press("space"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─+\n❯/);
     // enter: focus the agent's real pane by pane id and close the board; selection and filter come back on reopen
     s.press("enter");
     assert.deepEqual(s.closed(), { entered: "proj/1" });

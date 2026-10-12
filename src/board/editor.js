@@ -3,7 +3,7 @@
 import { CURSOR_MARKER, Editor, visibleWidth } from "@earendil-works/pi-tui";
 
 export class DraftEditor extends Editor {
-  hiddenAbove = 0; hiddenBelow = 0; viewportTop = 0; paste = undefined; bodyRows = 1;
+  hiddenAbove = 0; hiddenBelow = 0; above = 0; below = 0; viewportTop = 0; paste = undefined; bodyRows = 1;
   constructor(tui, theme) {
     // pi-tui shows at most 30% of the terminal's rows of a draft (never fewer than 5). The board says how many rows the
     // box may take, so the editor is told of a terminal tall enough for exactly those: a wrapped draft is seen whole.
@@ -50,8 +50,11 @@ export class DraftEditor extends Editor {
     if (cursor >= this.viewportTop + height) this.viewportTop = cursor - height + 1;
     this.viewportTop = Math.max(0, Math.min(this.viewportTop, body.length - height));
     const visible = body.slice(this.viewportTop, this.viewportTop + height);
-    return [super.renderTopBorder(width, this.hiddenAbove + this.viewportTop),
+    this.above = this.hiddenAbove + this.viewportTop; this.below = this.hiddenBelow + body.length - this.viewportTop - visible.length;
+    return [super.renderTopBorder(width, this.above),
       ...visible.map((line, n) => (n === 0 ? label + " " : " ".repeat(lw)) + line),
-      super.renderBottomBorder(width, this.hiddenBelow + body.length - this.viewportTop - visible.length)];
+      super.renderBottomBorder(width, this.below)];
   }
+  // A rule of another width that says the same as the last draw's: how much of the draft is off it, above or below.
+  rule(width, up) { return up ? super.renderTopBorder(width, this.above) : super.renderBottomBorder(width, this.below); }
 }

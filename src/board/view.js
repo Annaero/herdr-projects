@@ -57,6 +57,7 @@ export class View {
   // message shows above the text box.
   chatOpen = true; coord = { state: "none", queue: 0, said: "" };
   sent = new Map(); setup = null;
+  justSent = new Map(); // what you just sent to a task's agent, until that agent says something new
 
   constructor(tui, theme, done, ctx) {
     this.tui = tui; this.theme = theme; this.done = done; this.ctx = ctx;

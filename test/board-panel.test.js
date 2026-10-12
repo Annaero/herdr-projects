@@ -88,13 +88,13 @@ test("the task panel never opens full screen by itself: something going wrong on
     // Narrow, space does what it does at every width: the chat names the task, and the list stays. alt+t opens the
     // same panel full screen; esc leaves it, and the chat stays the task's.
     s.screen(80); s.press("space");
-    assert.equal(s.v.full, false); assert.equal(s.v.reply, true); assert.match(s.text(80), /^ herdr-superwork/); assert.match(s.text(80), /\n─+\n . Match the colors {2}/);
+    assert.equal(s.v.full, false); assert.equal(s.v.reply, true); assert.match(s.text(80), /^ herdr-superwork/); assert.match(s.text(80), /\n *\n . Match the colors {2}/);
     s.press("alt+t"); text = s.text(80);
     assert.equal(s.v.full, true); assert.equal(s.v.reply, true);
     assert.match(text, /^ Task details {2}proj\/1/); assert.match(text, /Merge conflict with main/); assert.match(text, /▎ Conflicting files: *\n ▎ src\/board\/view\.js/);
-    assert.match(text, /\n─+\n . Match the colors {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯/);
+    assert.match(text, /\n *\n . Match the colors {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯/);
     s.press("esc");
-    assert.equal(s.v.full, false); assert.equal(s.v.reply, true); assert.doesNotMatch(s.text(80), /Conflicting files/); assert.match(s.text(80), /\n─+\n . Match the colors {2}/);
+    assert.equal(s.v.full, false); assert.equal(s.v.reply, true); assert.doesNotMatch(s.text(80), /Conflicting files/); assert.match(s.text(80), /\n *\n . Match the colors {2}/);
     // Nor does coming back from the archive bring it up, and an open panel is not remembered when the board reopens.
     s.press("alt+t"); assert.equal(s.v.full, true);
     s.press("esc", "alt+a"); assert.equal(s.v.archiveView, true);

@@ -21,11 +21,6 @@ name, a sentence, then on the right the progress bar, the percent and the minute
  ◐ Tidy the first-run questions  Running the tests           ███░░░░░  40% 12m R#1   PR#17    5m
 ```
 
-While an agent works, the sentence is what it is doing. Around its turns the row says where it stands: `starting`
-while the agent program comes up and has not begun (a new task never says anything else first), `about to continue`
-when it has been sent something and has not picked it up yet, and `finishing` only when an agent that has worked has
-stopped and the board is about to check its work.
-
 The row says how the review came out and a short tally of what it found (`Pass · 2 minor`, `Fail · 1 critical, 1 major`). While the
 reviewer works, the mark, the bar, the percent and the minutes left are the green of `ready to approve` (the same holds in the task panel, on the details screen and on the chat line): a green `◐` with a bar says a review is running, a green `✓` that it is ready for you,
 and the sentence says only what the reviewer is doing.
@@ -38,24 +33,11 @@ tells a running review from one that passed. A review from before the gate goes 
 task that was never reviewed has no tag. Every row that has had a review keeps it: under review, back with the
 agent, waiting for your yes, done.
 
+A window too narrow for a row's name takes that row's columns away one at a time, so the name stays readable: the
+bar, the word `ago`, the minutes left, the percent, the `R#` tag, the pull request and, last, the time.
+
 `PR#18 ✓` means its checks pass, `✗` that they fail. A bare time is how long it has been working; `ago` is
 since it stopped. A row never repeats what its heading says.
-
-**The columns line up, whatever the width.** The columns on the right are laid out first, once for the whole list:
-each has one place and one width on every row, so the bars, the percents, the minutes left, the `R#` tags, the PR numbers and the
-times each stand under one another. The name and the sentence share what is left. When room is short, things give
-way in a fixed order:
-
-1. The sentence first (what the agent is doing, a question, how the review came out). It is cut, and with too
-   little left to say anything it is not shown. It never takes room from a column and never moves one.
-2. Then, only on a row whose name does not fit whole beside its columns, that row's columns, one at a time from the
-   left: the bar, the percent with its minutes left, the `R#` tag, the PR number, and the time last. The columns a row keeps stay
-   exactly where they are on the other rows. (No width takes the bars away by itself: a bar goes only for its
-   own row's name. The word `ago` goes for the whole list at once, as soon as that lets some row keep a column
-   other than its bar.)
-3. The name last: it is cut only when nothing else is left on its row.
-
-A row with no bar or PR of its own lets its words run on to its first column, not stop where another row's bar starts.
 
 **One chat, at the bottom.** The text box is a chat, and it is the same chat whoever you talk to. It always talks to
 someone and always says who: the Coordinator, until `Space` (on an empty text box) flips it to the selected task's
@@ -70,30 +52,54 @@ selected again. If the task you talk to goes away (deleted, cleared), you are ba
 to a neighbour's agent.
 
 ```
-──────────────────────────────────────────────────────────────────────────────────────────────
- ○ Coordinator  idle · claude · default model · default effort
- › file the undo task
- Filed proj/4: Add an undo. An agent is on it.
+ ○ Coordinator  idle
+╭────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Filed proj/4: Add an undo. An agent is on it.                                              │
+│                                                                                            │
+│ ❯ ask or tell it anything                                                                  │
+╰────────────────────────────────────────────────────────────────────────────────────────────╯
+  type what needs doing · alt+c hide the chat · ? more
+```
+
+The chat is three things, and looks the same for the Coordinator and for a task's agent, at every window width:
+
+- **One line that says who you talk to**: the board's own mark for where they stand (the mark the task's row has),
+  the name in bold, and one greyed line: what the task's row says (the Watcher's "doing now" line) or where it stands,
+  for the Coordinator `idle`, `working`, `needs you`, `new reply`, and how many of your messages still wait to be
+  sent. It is cut with `…` where it does not fit; the name is never cut to make room for it (a name longer than the
+  window takes a second line; in a window too short for that, the draft keeps the line). No program, model or effort
+  is named there, and no keys. (One thing gets a greyed line of its own under it: a default that changed while a
+  Coordinator runs, with the command that starts a new one on it.)
+- **One rounded box**: their latest message in grey, an empty line, and the line you type on (the prompt is only
+  `❯`). Nothing else is in it. A long message wraps; it takes at most eight lines, and only lines the list can spare,
+  and is cut with `…` (an agent's message keeps its end, where it asks or concludes). While a dialog is up on their
+  screen, the box shows that screen instead.
+- **One greyed hint line under the box**, with only the keys that do something right now. While you type, it says
+  what the keys do with your words (`enter send · tab send, and put an agent on it · esc put away · shift+enter new
+  line`). In a narrow window the keys between the first and the last go first, the chat's own key last of them.
+
+**What you just sent takes the message's place.** Send something and the box shows your words, in the bright text
+colour, where the agent's message was, over an empty line to type on. The old message is never shown under them. When
+the agent says something new, that takes their place, in grey (also when it answers in the very same words as before). For the Coordinator this holds when the board is
+closed and opened again; for a task's agent, for as long as the board stays open.
+
+```
+ ○ Coordinator  idle
 ──────────────────────────────────────────────────────────────────────────────────────────────
 ❯ ask or tell it anything
 ──────────────────────────────────────────────────────────────────────────────────────────────
+  type what needs doing · alt+c show the chat · ? more
 ```
 
-The chat's first line says who you talk to, and it is what herdr's sidebar says about that agent, drawn with the
-board's own mark: the mark and colour of its state (the one its row has), its name in bold, and what it is doing now,
-greyed. For a task's agent that is its row's sentence (the Watcher's "doing now" line, or where it stands when there
-is none); for the Coordinator, where it stands and which program and model it runs on; for a task with no agent,
-where your message goes. The name is never cut to make room: the status takes what is left and is cut with `…` (a
-name longer than the window takes a second line; in a window too short for that, the draft keeps the line). The line
-names no key: `Alt+C` is in the `?` menu and on the [keys](keys.md) page. The text box and its hints are never pushed off the window: the
-chat gives way first. The
-prompt is only `❯`. Under that line is the latest thing they said (their screen while a dialog is up). One key shows
-and hides it, the same key both ways and the same for the Coordinator and a task's agent: `Alt+C` (on an empty text
-box, like `Alt+P` for the side panel), and the board remembers which. Hidden, the line that says who you talk to stays, so a message is
-never sent blind. Nothing else shows or hides it: `Esc` never does. A Coordinator that could not be started says why
-even while the message is hidden; `Alt+C` puts that error away too, until the next one. The whole chat of a
-task's agent is its own pane: `Enter`, with nothing typed, goes into it. Where the
-Coordinator stands (starting, working, needs you, a new reply) is said on that first line and nowhere else.
+One key shows and hides the message, the same key both ways and the same for the Coordinator and a task's agent:
+`Alt+C` (on an empty text box, like `Alt+P` for the side panel); the hint line names it, and the board remembers
+which. Hidden, there is only the line that says who you talk to and the line you type on, between two thin rules: a
+message is never sent blind. Nothing else shows or hides it: `Esc` never does. A Coordinator that could not be
+started says why even while the message is hidden; `Alt+C` puts that error away too, until the next one. The whole
+chat of a task's agent is its own pane: `Enter`, with nothing typed, goes into it. Someone who has no message to show
+(a task with no agent on it, the board with no Coordinator) gets the plain line between two rules, whether the chat is
+hidden or not. The text box and its hints are never pushed off the window: the message gives way first. In a very
+narrow window the box stays whole: the message wraps inside it, and a placeholder that does not fit is cut with `…`.
 
 **A board that looks cut off or half empty.** The board takes its pane's size back by itself within a few seconds:
 the remote view described here is disconnected, and until then the board draws inside what herdr's window shows, so

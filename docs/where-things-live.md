@@ -197,6 +197,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | File | Tests |
 |---|---|
 | `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, stop or delete, retry |
+| `board-chat.test.js` | The chat's box: the latest message, an empty line, the line you type on |
 | `board-helpers.js` | Shared by the board's tests (test/board-*.test.js): the keys, and a board opened on a test world |
 | `board-keys.test.js` | The board's keys, and the text box owning the keyboard |
 | `board-layout.test.js` | The whole screen: the chat pinned to the bottom, through a resize |

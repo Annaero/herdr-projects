@@ -37,7 +37,10 @@ export function look(socket = currentSocket()) {
   // While it is being launched herdr may already see its program in the pane: it is not ready until the start returned.
   const state = c.starting && pumping(c) ? "starting" : status === "working" ? "working" : status === "blocked" ? "blocked" : status ? "idle" : c.stopped && !c.want ? "exited" : busy || (c.queue || []).length ? "starting" : c.run ? "exited" : "none";
   return { state, status, run, oneOff: !!c.run?.oneOff, queue: (c.queue || []).length, waiting: (c.queue || []).map((m) => m.said), error: c.error || "", pane: c.pane || "", workspace: c.workspace || "", agent,
-    turn, readable: !!adapter(run?.kind).readTurn, said: turn?.said || "", last: c.last || "", unseen: turn?.finished && turn.id && turn.said && turn.id !== c.seen ? turn.id : "",
+    turn, readable: !!adapter(run?.kind).readTurn, said: turn?.said || "", last: c.last || "",
+    // Your newest words while they are not answered yet: still waiting to go in, or gone in with nothing new said
+    // since (no other words, and no other finished turn: it may answer twice with the same "Done.").
+    sent: (c.queue || []).length ? c.queue[c.queue.length - 1].said : c.last && adapter(run?.kind).readTurn && typeof c.over === "string" && c.over === (turn?.said || "") && !(turn?.finished && turn.id && String(turn.id) !== (c.overId || "")) ? c.last : "", unseen: turn?.finished && turn.id && turn.said && turn.id !== c.seen ? turn.id : "",
     // The default changed since this one started: it keeps running as it is until you start a new one.
     stale: !!c.run && !c.run.oneOff && !!def && !sameChoice(c.run, def), def };
 }

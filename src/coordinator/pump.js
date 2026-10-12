@@ -8,7 +8,7 @@ import { dirOf, get, change, home } from "./state.js";
 import { choice } from "./who.js";
 import { rules } from "./rules.js";
 import { restMs, trimmed, where, kick, send, stop, open, seen } from "./requests.js";
-import { turns } from "./look.js";
+import { turns, look as lookNow } from "./look.js";
 import { settle, hand, confirm, look, shown } from "../submit.js";
 
 // ---- the pump: one at a time per herdr session -------------------------------------------------------------------------
@@ -156,13 +156,16 @@ export function pump(socket = currentSocket()) {
         const said = (c) => (Array.isArray(c.where) ? c.where : []).filter((x) => x.id !== note.id);
         const unsay = () => { if (note) { try { change(socket, (c) => { c.where = said(c); }); } catch {} } };
         if (note) change(socket, (c) => { c.where = [...said(c), note]; });
+        // What it had last said when these words went in: the board shows them in its place until it says something new.
+        // (Its turn's id too: an answer in the very same words is still a new one.)
+        let over = "", overId = ""; try { const now = lookNow(socket); over = now.said; overId = now.turn?.finished ? String(now.turn.id || "") : ""; } catch {}
         let typed = null;
         try { typed = hand(api, c.pane, c.intro ? `[Your standing rules as the Coordinator of the human's work board are in the file ${path.join(dirOf(socket), "rules.md")}: read it first.]\n\n${m.text}` : m.text); }
         catch (e) {
           if (["agent_blocked", "agent_not_ready"].includes(e.code)) { unsay(); stuck = true; break; }
           unsay(); throw e;
         }
-        change(socket, (c) => { c.queue = c.queue.filter((x) => !same(x)); if (Array.isArray(c.where)) { for (const x of c.where) if (note && x.id === note.id) x.sentAt = Date.now(); c.where = trimmed(c.where); } c.mark = { run, seq, rest: !!ag && ["idle", "done"].includes(ag.agent_status) }; c.intro = false; c.sentAt = Date.now(); c.last = m.said; });
+        change(socket, (c) => { c.queue = c.queue.filter((x) => !same(x)); if (Array.isArray(c.where)) { for (const x of c.where) if (note && x.id === note.id) x.sentAt = Date.now(); c.where = trimmed(c.where); } c.mark = { run, seq, rest: !!ag && ["idle", "done"].includes(ag.agent_status) }; c.intro = false; c.sentAt = Date.now(); c.last = m.said; c.over = over; c.overId = overId; });
         // Typed is not sent: if it still sits at its prompt, enter is pressed again (never the words). Words that
         // stay in its box are said so on the board, and nothing more is typed on top of them.
         // Typed into a turn it was in the middle of: looked at again by the tick, once it is at rest.

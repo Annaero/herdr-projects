@@ -38,7 +38,7 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     assert.match(text, /◐ My own task {2}half way +█+░+ +50% 12m +\ds {5}│/); assert.match(text, /│ +█+░+ 50% 12m *\n/); // on the row and in the task panel assert.match(text, /○ Write the docs {6,}\ds ago │/);
     assert.match(text, /│ {2}My own task/); assert.match(text, /◐ working · you · for \ds · proj\/2/);
     // The text box names who gets your words, and its empty line says only "what's next?".
-    assert.match(text, /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(text, /Coordinator|sidebar/);
+    assert.match(text, /\n *\n \+ New task {2}[^\n]*\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(text, /Coordinator|sidebar/);
     assert.equal(s.screen(120).length, 34); assert.ok(s.screen(120).every((l) => l.length <= 120));
     assert.ok(!/│ {2}My own task/.test(s.text(80)), "no panel beside the list below 90 columns");
     // ctrl+b is herdr's own prefix key: the board has no use for it.
@@ -85,9 +85,9 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     text = s.text(80);
     assert.match(text, /^ Task details {2}proj\/1/); assert.match(text, /○ to do · \ds ago · proj\/1/); assert.match(text, /Description ─+ *\n All of them\./);
     // The whole panel never changes who you talk to: only space does. Space there talks to the task, space again goes back.
-    assert.equal(s.v.reply, false); assert.match(text, /\n─+\n \+ New task {2}[^\n]*\n─+\n❯ what's next\?/);
+    assert.equal(s.v.reply, false); assert.match(text, /\n *\n \+ New task {2}[^\n]*\n─+\n❯ what's next\?/);
     s.press("space"); assert.equal(s.v.reply, true); assert.equal(s.v.full, true);
-    assert.match(s.text(80), /\n─+\n . Write the docs {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯ your message starts an agent on it/);
+    assert.match(s.text(80), /\n *\n . Write the docs {2}[^\n]*\n─+\n❯ your message starts an agent on it/);
     s.press("alt+t"); assert.equal(s.v.full, false); assert.equal(s.v.reply, true, "folding the panel keeps who you talk to");
     s.press("alt+t", "space"); assert.equal(s.v.reply, false); assert.equal(s.v.full, true, "space never opens or folds the panel");
     // esc leaves the whole task, and who you talk to stays as it was: also a task's agent.

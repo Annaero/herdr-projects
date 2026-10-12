@@ -27,17 +27,26 @@ export class Layout {
         const line = " " + (j.state === "error" ? t.fg("red", t.mark("error")) : t.fg("yellow", t.mark("working"))) + " " + clean(j.text) + (j.state === "error" ? t.fg("subtext0", `  ${clean(j.msg)}`) : "");
         return j.id === this.sel ? this.hl(line, width) : line;
       };
-      // The chat, above the text box: who you talk to and their latest message. It never pushes the box or its hints
-      // off-screen: the message gives up lines first, and the line that says who you talk to goes last.
-      const chat = this.chatLines(width, Math.max(3, Math.min(10, Math.floor(rowsN / 3) - 2)), r, rowsN < 16);
-      const headN = chat.length ? this.chatHeadRows : 0;
-      // The text box grows with a draft that wraps, up to half the window (and never past what the line that says who
-      // you talk to leaves): a longer draft scrolls inside it, never off-screen.
-      const inputLines = this.ask ? this.askLines(width) : this.boxLines(width, Math.min(rowsN - 4 - headN - (selectedJob >= 0 ? 1 : 0), Math.max(5, Math.floor(rowsN / 2))), r);
-      const trimChat = (limit) => { if (chat.length > limit) chat.splice(limit > headN ? limit - 1 : limit, chat.length, ...(limit > headN ? [" " + t.fg("overlay0", "…")] : [])); };
+      // The chat: one line that says who you talk to and, under it, the text box. With the chat open that box is a
+      // frame around their latest message and the line you type on. None of it pushes the box or its hints off-screen:
+      // the message gives up lines first, and the line that says who you talk to goes last.
+      const who = this.chatOf(r);
+      const chat = this.chatLines(width, r, rowsN < 16);
+      const headN = chat.length;
+      const framed = !this.ask && this.chatUp(who) && !!who.said && width >= 8; // a frame only where there can be a message in it (and room for its two edges)
       // What just happened, on a line of its own: the hints below it stay readable.
       const stale = !this.stale ? "" : this.ctx.canReload === false ? "herdr-superwork was updated: close the board and open it again for the new version." : "herdr-superwork was updated: the new version loads when nothing is half typed.";
       const said = this.msg && !(this.offNote && this.msgKind !== "red") ? wrapTextWithAnsi(t.fg(this.msgKind, this.msg) + (this.msgKind === "red" ? t.fg("overlay0", `  (${keyName("back")})`) : ""), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : this.offNote ? wrapTextWithAnsi(t.fg("yellow", this.offNote), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : stale ? ["  " + t.fg("overlay0", stale)] : [];
+      // The text box grows with a draft that wraps, up to half the window (and never past what the line that says who
+      // you talk to leaves): a longer draft scrolls inside it, never off-screen.
+      const boxRows = Math.min(rowsN - 4 - headN - (selectedJob >= 0 ? 1 : 0), Math.max(5, Math.floor(rowsN / 2)));
+      let inputLines = this.ask ? this.askLines(width) : framed ? this.chatBox(width, boxRows, r, []) : this.boxLines(width, boxRows, r);
+      // The message takes a third of the window at most, and only rows the list can spare: a longer one is cut with ….
+      if (framed) {
+        const spare = rowsN - inputLines.length - 1 - said.length - headN - 1 - Math.min(this.jobs.length, 1) - 2;
+        const message = this.chatMessage(who, width - 4, Math.min(spare, Math.max(3, Math.min(8, Math.floor(rowsN / 3) - 2))));
+        if (message.length) inputLines = this.chatBox(width, boxRows, r, message);
+      }
       const extraRows = Math.max(0, rowsN - inputLines.length - 2 - said.length - headN);
       const lastJobTop = Math.max(0, this.jobs.length - extraRows);
       if (selectedJob < 0) this.jobTop = lastJobTop;
@@ -45,14 +54,17 @@ export class Layout {
       else if (selectedJob >= this.jobTop + extraRows) this.jobTop = selectedJob - extraRows + 1;
       this.jobTop = Math.max(0, Math.min(this.jobTop, lastJobTop));
       const jobs = extraRows ? this.jobs.slice(this.jobTop, this.jobTop + extraRows).map(jobLine) : [];
-      trimChat(headN + Math.max(0, extraRows - jobs.length));
-      // The hint line never runs off the screen: the main thing and the last one stay, what is between them goes first.
-      const hintList = this.hints(r).filter(Boolean).slice(0, 4);
-      const hintText = () => hintList.map(([k, d]) => [k && t.fg("text", k), d && t.fg("overlay0", d)].filter(Boolean).join(" ")).join(t.fg("overlay0", " · "));
-      while (hintList.length > 2 && visibleWidth(hintText()) > width - 2) hintList.splice(hintList.length - 2, 1);
+      // One greyed line that never runs off the screen: the main thing and the last one stay, what is between them
+      // goes first, and of those the chat's own key last.
+      const hintList = this.hints(r).filter(Boolean).slice(0, 5);
+      const hintText = () => t.fg("overlay0", hintList.map(([k, d]) => [k, d].filter(Boolean).join(" ")).join(" · "));
+      const giveUp = () => { const at = hintList.length - 2; return at > 1 && hintList[at] === this.chatKey ? at - 1 : at; };
+      while (hintList.length > 2 && visibleWidth(hintText()) > width - 2) hintList.splice(giveUp(), 1);
+      // Still too wide with two left: words that name no key ("type your reply") go before a key is cut.
+      if (hintList.length === 2 && !hintList[0][0] && visibleWidth(hintText()) > width - 2) hintList.shift();
       const hints = hintText();
       // Whatever the window, the text box and its hints are whole: the chat, then the rows above it, give way.
-      while (jobs.length + chat.length + inputLines.length + said.length + 1 > rowsN && (chat.length || jobs.length || said.length)) (chat.length ? chat : jobs.length ? jobs : said).pop();
+      while (jobs.length + chat.length + inputLines.length + said.length + 1 > rowsN && (chat.length || jobs.length || said.length)) (chat.length ? chat.shift() : (jobs.length ? jobs : said).pop());
       const bottom = [...jobs, ...chat, ...inputLines, ...said, "  " + hints];
       // Top left, where a cut-out of the board still shows it.
       const held = rowsN - bottom.length > 3 ? this.heldLines(width) : [];

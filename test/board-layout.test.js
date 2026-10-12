@@ -18,23 +18,26 @@ test("the chat is pinned to the bottom of the window: tall, resized, and while t
     const s = open(w, { rows: 84, side: false });
     const chatOf = s.v.chatOf.bind(s.v);
     let said = "";
-    s.v.chatOf = (r) => { const c = chatOf(r); return c && said ? { ...c, text: said, always: true } : c; };
+    s.v.chatOf = (r) => { const c = chatOf(r); return c && said ? { ...c, text: said, said: true, always: true } : c; };
     const pinned = (rows, what) => {
       s.v.tui.terminal.rows = rows; // the same open board: the window was resized under it
       const lines = s.screen(120), note = `${what}, ${rows} rows`;
       assert.equal(lines.length, rows, note); // one line per row of the window: nothing is left over below
       const last = lines.length - 1, said = s.v.msg ? 1 : 0;
       assert.match(lines[last], /^ {2}\S.* · /, note); // the hints are the last line
-      const box = lines.findLastIndex((l) => /^❯/.test(l));
-      assert.ok(box > 0, note); assert.match(lines[box - 1], /^─+$/, note);
-      const rule = lines.findLastIndex((l) => /^─+$/.test(l));
+      // The text box: plain between two rules, or (with a message showing) inside the one rounded box.
+      const box = lines.findLastIndex((l) => /^(│ )?❯/.test(l));
+      assert.ok(box > 0, note);
+      const rule = lines.findLastIndex((l) => /^(─+|╰─+╯)$/.test(l));
       assert.equal(rule, last - 1 - said, note); // the text box sits right on the hints (and on what just happened)
-      const head = lines.findIndex((l) => /^─+$/.test(l)); // where the chat block starts
-      assert.match(lines[head + 1], /^ \S/, note); // who your words go to
+      const head = lines.findIndex((l) => /^ \+ New task {2}/.test(l)); // where the chat block starts: who your words go to
+      assert.ok(head > 0, note); assert.match(lines[head + 1], /^(─+|╭─+╮)$/, note); // the box is right under that line
+      if (rows >= 16) assert.equal(lines[head - 1].trim(), "", `${note}: an empty line sets the chat off from the list`);
       for (let n = head; n <= last; n++) assert.notEqual(lines[n].trim(), "", `${note}: an empty line inside the chat block`);
       const tasks = lines.slice(0, head).filter((l) => /Task number \d+/.test(l)).length;
-      // Every spare line is the list's: with more tasks than fit, no line above the chat is empty but the one under the header.
-      if (rows >= 16) assert.ok(tasks >= head - 4, `${note}: ${tasks} tasks in ${head} lines`);
+      // Every spare line is the list's: with more tasks than fit, no line above the chat is empty but the one under the
+      // header and the one above the chat.
+      if (rows >= 16) assert.ok(tasks >= head - 5, `${note}: ${tasks} tasks in ${head} lines`);
       return { head, tasks };
     };
     const tall = pinned(84, "tall");
@@ -44,7 +47,8 @@ test("the chat is pinned to the bottom of the window: tall, resized, and while t
     // A longer message from the Coordinator: the block grows upwards, into the list.
     said = Array.from({ length: 6 }, (_, i) => `Line ${i + 1} of what it said.`).join("\n");
     const long = pinned(84, "long message");
-    assert.equal(long.head, tall.head - 6); // its six lines
+    assert.equal(long.head, tall.head - 7); // its six lines, and the empty one between them and the line you type on
+    assert.deepEqual(s.screen(120).slice(long.head + 1, long.head + 10).map((l) => l.replace(/ +│$/, "")), ["╭" + "─".repeat(118) + "╮", ...Array.from({ length: 6 }, (_, i) => `│ Line ${i + 1} of what it said.`), "│", "│ ❯ what's next?"]);
     for (const rows of [200, 30, 84]) pinned(rows, "long message, resized");
     // A draft that wraps: the box grows upwards too.
     s.type("word ".repeat(60));
@@ -81,7 +85,7 @@ test("resizing the real screen keeps the chat on the last line and the working r
     // One task an agent works on: the bar, the percent, the minutes left, the PR number and the time are its columns on the right.
     const first = v.rows.find((row) => row.rec).rec;
     Object.assign(first, { title: "Pin the chat to the bottom", state: "working", msg: "Checking every window size.", progress: 55, eta: 12, pr: 3, at: Date.now() - 6 * 60000 });
-    v.chatOf = () => ({ mark: "○", name: "Coordinator", status: "idle · claude · default model · default effort", enter: true, said: true, always: true, notes: [], text: "Tasks 31 and 32 are both waiting." });
+    v.chatOf = () => ({ mark: "○", name: "Coordinator", status: "idle", color: "green", enter: true, said: true, always: true, text: "Tasks 31 and 32 are both waiting." });
     tui.addChild(v); tui.setFocus(v); tui.start();
     const frame = async (columns, rows) => {
       terminal.columns = columns; terminal.rows = rows; resized(); // what a window resize does
@@ -93,24 +97,23 @@ test("resizing the real screen keeps the chat on the last line and the working r
       const lines = await frame(columns, rows), note = `${columns}x${rows}`;
       assert.equal(lines.length, rows, note); // the whole window is drawn, to its last row
       for (const l of lines) assert.ok(visibleWidth(l) <= columns, `${note}: a line is wider than the window`);
-      // The bottom: the hints on the last row, the text box with its rules right above them.
+      // The bottom: the hints on the last row, and right above them the one rounded box, as wide as the window: the
+      // message, an empty line, the line you type on.
       assert.match(lines[rows - 1], /^ {2}\S/, note); assert.doesNotMatch(lines[rows - 1].trimEnd(), /·$/, note);
-      assert.equal(lines[rows - 2], "─".repeat(columns), note); assert.match(lines[rows - 3], /^❯ /, note); assert.equal(lines[rows - 4], "─".repeat(columns), note);
-      const head = lines.findIndex((l) => /^─+$/.test(l));
-      for (let n = head; n < rows; n++) assert.notEqual(lines[n].trim(), "", `${note}: an empty line inside the chat block`);
-      // Who you talk to: the name, then its status in what is left, cut with "…" and never on a dangling separator. No keys.
-      const who = lines[head + 1].trimEnd();
-      assert.match(who, /^ ○ Coordinator/, note); assert.doesNotMatch(who, /·$/, note);
-      assert.doesNotMatch(who, /alt\+/, note);
-      if (columns >= 120) assert.equal(who, " ○ Coordinator  idle · claude · default model · default effort", note);
-      if (columns === 40) assert.equal(who, " ○ Coordinator  idle · claude · default…", note);
+      const inBox = (n) => { assert.match(lines[n], /^│ .* │$/, note); assert.equal(visibleWidth(lines[n]), columns, note); return lines[n].slice(2, -2).trimEnd(); };
+      assert.equal(lines[rows - 2], "╰" + "─".repeat(columns - 2) + "╯", note); assert.match(inBox(rows - 3), /^❯ /, note); assert.equal(inBox(rows - 4), "", note);
+      const head = lines.findIndex((l) => /^ ○ Coordinator/.test(l));
+      assert.equal(lines[head + 1], "╭" + "─".repeat(columns - 2) + "╮", note);
+      assert.equal(Array.from({ length: rows - 5 - head - 1 }, (_, i) => inBox(head + 2 + i)).join(" "), "Tasks 31 and 32 are both waiting.", note);
+      // Who you talk to: a mark, the name, where it stands. No keys, no program, no label.
+      assert.equal(lines[head].trimEnd(), " ○ Coordinator  idle", note);
       // The working row: its columns sit at the window's right edge, however wide the window is.
       const row = lines.find((l) => /Pin the chat to the bottom/.test(l)) || "";
       if (rows >= 20) assert.ok(row, `${note}: the working row is in view`);
       if (row && columns >= 120) { assert.match(row, /Checking every window size\. +█+░+ +55% 12m PR#3 {2}6m {4}$/, note); assert.equal(visibleWidth(row), columns, note); }
       else if (row) { assert.match(row, /6m *$/, note); if (columns >= 50) assert.match(row, /55% 12m PR#3 +6m *$/, note); }
       // All spare height is the list's.
-      if (rows >= 20) assert.ok(lines.slice(0, head).filter((l) => /Task number \d+/.test(l)).length >= head - 6, `${note}: the list fills the space above the chat`);
+      if (rows >= 20) assert.ok(lines.slice(0, head).filter((l) => /Task number \d+/.test(l)).length >= head - 7, `${note}: the list fills the space above the chat`);
     }
   } finally { try { tui?.stop(); } catch {} w.cleanup(); }
 });
