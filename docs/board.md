@@ -53,7 +53,11 @@ colours it is the terminal's blue.
 sits one cell left of the `PR#`, and the tags end under each other down the list. Its colour says how that review
 went, and it has no mark beside it: green, it passed; red, it failed, and it stays so while the agent fixes what
 the review found; blue, the reviewer is on it right now, whatever the review before it said. The three are told apart
-in the light themes and the dark ones alike. A review from before the gate goes by its advice. A
+in the light themes and the dark ones alike. A review from before the gate goes by its advice. Once the task is
+merged (through its pull request, or here on this machine with none) the tag goes quiet, the same grey as its merged `PR#` tag: nearly every done task passed its review, and a
+column of green says nothing. One stays red: a task merged although its last review failed (you approved it anyway),
+the only one worth noticing later. The task panel and the details page do the same with how each review went, and so
+does the archive. A
 task that was never reviewed has no tag. Every row that has had a review keeps it: under review, back with the
 agent, waiting for your yes, done.
 
@@ -91,7 +95,10 @@ none). A merged pull request goes quiet, grey like the time beside it: nothing t
 done tasks is not a wall of green. The greens and reds are the theme's own, the ones the `R#` tag uses, and the
 three are told apart in the light themes and the dark ones alike. The task panel and the details page colour it
 the same way. A bare time is how long it has been working; `ago` is
-since it stopped. A row never repeats what its heading says.
+since it stopped. On a finished task the time is quiet like its merged tags, in the very same grey: a done task has
+nothing live about it, so its whole right-hand side (review tag, pull request, time) is quiet, and a bright colour
+on the board means "this is happening now". That grey is the theme's own for greyed-out words, easy to read in the
+light themes and the dark ones. The time of a task that is not done is drawn as it always was. A row never repeats what its heading says.
 
 **One chat, at the bottom.** The text box is a chat, and it is the same chat whoever you talk to. It always talks to
 someone and always says who: the Coordinator, until `Space` (on an empty text box) flips it to the selected task's

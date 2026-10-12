@@ -5,7 +5,7 @@ import { herdr } from "../../herdr.js";
 import { short, clean, age, prTag, bar, left } from "./words.js";
 import { MARK_STATES, failureFor, inReview, needsYou, statusColor, waitOf } from "./states.js";
 import { ETA_STEADY, labelRoom, shownFrom } from "./row-fit.js";
-import { resultColor, reviewTag, reviewTagColor, currentReview, reviewNote, verdict } from "./review-words.js";
+import { resultColor, reviewTagInk, currentReview, reviewNote, verdict } from "./review-words.js";
 
 // The fewest cells a cut "doing now" sentence is still worth showing in.
 const SENTENCE_MIN = 20;
@@ -32,7 +32,7 @@ export class Row {
     const live = r.state !== "done", has = live && r.progress !== undefined;
     // The time is "working for" on a working row and "ago" on every other: the word says which.
     return { bar: has ? paint(color, bar(r.progress)) : "", percent: has ? paint(color, `${String(r.progress).padStart(3)}%`) : "", eta: live && r.eta !== undefined ? paint(color, left(r.eta)) : "", // minutes left show with no percent too
-      review: paint(reviewTagColor(r), reviewTag(r)), pr: prTag(t, r), elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
+      review: reviewTagInk(t, r), pr: prTag(t, r), elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
   }
   // What a row says after its name. Never what its heading already says ("to do", "approve?").
   sentence(r) {
@@ -116,7 +116,8 @@ export class Row {
       // PR#16 the same way, so the "PR#" parts line up. Its colour says how its checks went: it has no mark.
       pr: f.pr ? fill(truncateToWidth(f.pr, layout.pr, "…"), layout.pr, true) : "",
       gap: "",
-      time: t.fg("overlay0", f.elapsed.padStart(layout.elapsed) + (layout.ago ? (f.ago ? " ago" : "    ") : "")),
+      // A finished row's time is quiet like its merged tags (the theme's muted): nothing on its right is live.
+      time: (r.state === "done" ? (s) => t.muted(s) : (s) => t.fg("overlay0", s))(f.elapsed.padStart(layout.elapsed) + (layout.ago ? (f.ago ? " ago" : "    ") : "")),
     };
     const cells = layout.cols.map(([key, w]) => ({ key, text: text[key], w: w + (key === "time" && layout.ago ? 4 : 0) }));
     // Blank cells left of a row's first own column are not columns to that row: its words run into them.

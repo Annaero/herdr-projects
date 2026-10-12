@@ -1,6 +1,6 @@
 // The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you.
 import * as S from "../../store.js";
-import { clean, age, prNumber, prTag, idLabel, bar } from "./words.js";
+import { clean, age, prNumber, prTag, merged, idLabel, bar } from "./words.js";
 import { reviewing, groupOf, waitOf, reviewerWord } from "./states.js";
 import { roundWords, reviewNote } from "./review-words.js";
 import { name as keyName } from "../keys.js";
@@ -32,7 +32,7 @@ export class PanelStatus {
     const size = st ? `${st[1]} file${st[1] === "1" ? "" : "s"}, +${st[2] || 0} −${st[3] || 0}` : clean(r.stat || "").trim();
     const url = /^https?:\/\/\S+$/.test(String(r.pr || "")) ? String(r.pr) : "";
     const prName = url ? `\x1b]8;;${url}\x1b\\${prNumber(r)}\x1b]8;;\x1b\\` : prNumber(r);
-    const pr = r.pr ? prTag(t, r, prName) + (r.prMerged || r.prState === "merged" ? dim(" merged") : "") : "";
+    const pr = r.pr ? prTag(t, r, prName) + (merged(r) ? dim(" merged") : "") : "";
     if (size || pr) rows.change = fact("Change", [...flow([pr, size && quiet(size)]), ...(full && url ? [dim(url)] : [])]);
     rows.task = fact("Task", idLabel(r.id), quiet);
     if (!agent && !r.archivedAt && r.state === "idle" && !String(r.description || "").trim()) rows.next = fact("Next", wrap(`No agent is on this yet. ${keyName("delegate")} puts one on it.`, room), dim);

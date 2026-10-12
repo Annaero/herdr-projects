@@ -184,7 +184,10 @@ test("the task panel has one form for every part, in every state and at every wi
     if (!process.env.NO_COLOR) {
       // A result and a severity are said in words and marks; the colour only repeats them. A headline that needs you is in its state's colour.
       const raw = s.v.panel(STATES.done, 100, true).join("\n"), red = "\x1b[38;2;243;139;168m", green = "\x1b[38;2;166;227;161m", yellow = "\x1b[38;2;249;226;175m";
-      assert.ok(raw.includes(`${green}✓`) && raw.includes(`${red}✗`) && raw.includes(`${red}critical  `) && raw.includes(`${yellow}minor     `), "marks and severities in their colours");
+      // Merged, how its reviews went is quiet like its pull request; not merged, they keep their colours.
+      const open = s.v.panel({ ...STATES.done, state: "blocked", kind: "permission", stage: "approval", prState: "passing", prMerged: false }, 100, true).join("\n"), quietInk = "\x1b[38;2;108;112;134m";
+      assert.ok(open.includes(`${green}✓`) && open.includes(`${red}✗`) && raw.includes(`${red}critical  `) && raw.includes(`${yellow}minor     `), "marks and severities in their colours");
+      assert.ok(raw.includes(`${quietInk}✓`) && raw.includes(`${quietInk}✗`) && !raw.includes(`${green}✓`) && !raw.includes(`${red}✗`), "merged: the marks of its reviews are quiet");
       assert.ok(s.v.panel(STATES.failed, 70, false).join("\n").includes(`${red}\x1b[1mWent wrong\x1b[22m`), "what went wrong has a red headline");
     }
   } finally { w.cleanup(); }

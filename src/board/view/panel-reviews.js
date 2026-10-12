@@ -3,7 +3,7 @@ import * as S from "../../store.js";
 import * as G from "../../gate.js";
 import { artifactRows, reviewArtifacts } from "../artifact-lines.js";
 import { clean, age, brief } from "./words.js";
-import { verdict, verdictMark } from "./review-words.js";
+import { verdict, verdictMark, quietReview } from "./review-words.js";
 import { name as keyName } from "../keys.js";
 
 // A finding's severity is said in words; its colour only repeats it.
@@ -22,7 +22,7 @@ export class PanelReviews {
     const hist = S.reviewHistory(r), last = hist[hist.length - 1];
     const stale = !!r.review?.stale;
     const name = (e) => `Review ${e.round}`;
-    const result = (e) => flow([verdictMark(t, e) + " " + t.bold(verdict(t, e, true)), e.at ? dim(`${age(Date.now() - e.at)} ago`) : "", full && e.head ? dim(String(e.head).slice(0, 7)) : ""]);
+    const result = (e) => flow([verdictMark(t, e, quietReview(r, e, last)) + " " + t.bold(verdict(t, e, true, quietReview(r, e, last))), e.at ? dim(`${age(Date.now() - e.at)} ago`) : "", full && e.head ? dim(String(e.head).slice(0, 7)) : ""]);
     // A review that still stood after main was merged in says so, with what ran instead: the newest time, and how often.
     const kept = (e) => { const k = (e.kept || []).at(-1); if (!k) return []; const words = S.keptWords(k, e.round); return wrap(`${words[0].toUpperCase()}${words.slice(1)}${k.at ? ` · ${age(Date.now() - k.at)} ago` : ""}${e.kept.length > 1 ? ` · ${e.kept.length} times` : ""}`, room).map((l) => dim(l)); };
     const notes = (e) => [...(e === last && stale && !e.error ? wrap("The work changed since this review.", room).map((l) => dim(l)) : []), ...kept(e)];
@@ -32,7 +32,7 @@ export class PanelReviews {
     const found = (e) => { const s = G.split(e); return fact("Findings", [...s.required.flatMap((f) => finding(f)), ...s.optional.flatMap((f) => finding(f, " · not required")), ...s.preexisting.flatMap((f) => finding(f, ` · pre-existing${G.wentTo(f) ? `, ${G.wentTo(f)}` : ""}`)), ...(e.left ? wrap(`${e.left} smaller finding${e.left === 1 ? "" : "s"} noticed late, left out`, room).map((l) => dim(l)) : [])]); };
     const whole = (e) => [...fact(name(e), [...result(e), ...notes(e), ...wrap(e.error || e.text || "No comment.", room)]),
       ...(G.isTagged(e) ? (e.findings?.length || e.left ? found(e) : []) : items("Problems", e.problems)), ...items("Checked", e.checks), ...items("Unverified", e.limitations)];
-    const trail = () => fact("History", flow(hist.map((e) => verdict(t, e)), room, " → "));
+    const trail = () => fact("History", flow(hist.map((e) => verdict(t, e, false, quietReview(r, e, last))), room, " → "));
     const title = hist.length > 1 ? `Reviews · ${hist.length}` : "Review";
     const evidence = reviewArtifacts(r.review?.artifacts);
     if (hist.length && full) {
@@ -47,7 +47,7 @@ export class PanelReviews {
       if (hist.length > 1 || brief(said, 280) !== said || [last.findings, last.problems, last.checks, last.limitations].some((x) => x?.length) || last.left || last.head || evidence.length > 1 || evidence.some((a) => a.detail || a.link || a.url)) cut = true;
       // Short of room the summary gives up lines, then the history goes, the evidence, the summary and the headline:
       // what is left last is the review's own row, which one and how it went.
-      const shapes = [...all.map((_, n) => [head(title), ...(hist.length > 1 ? trail() : []), ...row(all.length - n), ...links]), [head(title), ...row(1), ...links], [head(title), ...row(1)], [head(title), ...fact(name(last), result(last))], fact(name(last), verdictMark(t, last) + " " + t.bold(verdict(t, last, true)))];
+      const shapes = [...all.map((_, n) => [head(title), ...(hist.length > 1 ? trail() : []), ...row(all.length - n), ...links]), [head(title), ...row(1), ...links], [head(title), ...row(1)], [head(title), ...fact(name(last), result(last))], fact(name(last), verdictMark(t, last, quietReview(r, last, last)) + " " + t.bold(verdict(t, last, true, quietReview(r, last, last))))];
       part(shapes[0], { pri: 3, min: shapes.at(-3).length, last: shapes.at(-1).length, at: (n) => shapes.find((s) => s.length <= n) || [] });
     } else if (stale) part([head("Review"), dim("The work changed since its review.")], { pri: 3, min: 2, at: () => [] });
     return cut;

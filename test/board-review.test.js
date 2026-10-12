@@ -43,6 +43,33 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     const plainInk = "\x1b[38;2;166;173;200m", quietInk = "\x1b[38;2;108;112;134m", shown = (r) => [v.row(r, 120), v.panel({ owner: "me", ...r }, 80, false).join("\n")];
     for (const [state, ink] of [["passing", green], ["failing", red], ["waiting", plainInk], ["", plainInk], ["closed", plainInk], ["merged", quietInk]]) for (const out of shown({ ...pr, prState: state })) assert.match(out.replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, ""), new RegExp(`${ink.replace("[", "\\[")}PR#12`), `PR tag when ${state || "unknown"}`);
     for (const out of shown({ ...pr, state: "done", stage: "done", kind: undefined, prState: "passing", prMerged: true })) assert.ok(out.replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, "").includes(`${quietInk}PR#12`), "merged and done: quiet, not green");
+    // merged, the review tag goes quiet with the PR's: on the row, in the task panel and on the details page, in the
+    // list and in the archive. One that failed and was merged anyway stays red. Not merged, nothing changes.
+    const done = { ...pr, state: "done", stage: "done", kind: undefined, prMerged: true }, passed = { ...review, recommend: true }, views = (r) => [v.panel({ owner: "me", ...r }, 80, false).join("\n"), v.panel({ owner: "me", ...r }, 80, true).join("\n")];
+    for (const r of [{ ...done, review: passed }, { ...done, review: passed, archivedAt: 1 }, { ...pr, prState: "merged", review: passed }]) {
+      assert.ok(v.row(r, 120).includes(`${quietInk}R#1`) && !v.row(r, 120).includes(`${green}R#1`), "merged and passed: a quiet tag");
+      for (const out of views(r)) assert.ok(out.includes(`${quietInk}3/5`) && !out.includes(`${green}3/5`), "merged and passed: a quiet verdict");
+    }
+    { // merged here with no pull request: no pull request flag is set, and it is quiet all the same; a failed one red
+      const local = { ...base, state: "done", stage: "done", kind: undefined, msg: "Merged into main.", review: passed };
+      assert.ok(v.row(local, 120).includes(`${quietInk}R#1`) && !v.row(local, 120).includes(green)); for (const out of views(local)) assert.ok(out.includes(`${quietInk}3/5`) && !out.includes(green), "merged locally: a quiet verdict");
+      assert.ok(v.row({ ...local, review }, 120).includes(`${red}R#1`)); for (const out of views({ ...local, review })) assert.ok(out.includes(`${red}3/5`), "merged locally although it failed: red");
+    }
+    assert.ok(v.row(done, 120).includes(`${red}R#1`)); for (const out of views(done)) assert.ok(out.includes(`${red}3/5`), "merged although it failed: red");
+    assert.ok(v.row({ ...done, reviewRound: 1, reviews: [{ error: "The reviewer gave no verdict.", round: 1 }] }, 120).includes(`${red}R#1`), "merged with no verdict: red");
+    assert.ok(v.row({ ...done, review: { score: 3 } }, 120).includes(`${quietInk}R#1`), "merged with no advice: quiet");
+    // a finished row's time is quiet the same way, so its whole right-hand side is: in a theme whose grey is the
+    // terminal's text colour it is faint like the tags, where a row that is not done keeps the time as it was
+    assert.ok(v.row(done, 120).includes(theme.muted(" 0s ago")) && v.row(pr, 120).includes(theme.fg("overlay0", " 0s ago")) && v.row(working, 120).includes(theme.fg("overlay0", " 0s")));
+    { const t = Object.create(theme); t.muted = (x) => `<quiet>${x}</quiet>`; const w = Object.create(v); w.theme = t; const tail = (r) => stripVTControlCharacters(w.row(r, 120)).replace(/^.*?(?=<|$)/, "");
+      assert.equal(tail({ ...done, review: passed }), "<quiet>R#1</quiet> <quiet>PR#12</quiet> <quiet> 0s ago</quiet>"); assert.equal(tail({ ...done, pr: undefined, review: undefined, prMerged: false }), "<quiet> 0s ago</quiet>", "done with no pull request: its time is quiet too");
+      for (const r of [pr, working, { ...working, stage: "reviewing", reviewRound: 1 }, { ...working, state: "idle" }, { ...working, state: "blocked", kind: "question" }]) assert.doesNotMatch(stripVTControlCharacters(w.row(r, 120)), /<quiet>[^<]*\ds/, `not done (${r.state}): the time as it was`); }
+    { // an earlier review that failed is quiet too: only the last one counts
+      const at = Date.now(), twice = { ...done, reviewRound: 2, review: passed, reviews: [{ ...review, round: 1, at }, { ...passed, round: 2, at }] }, lost = { ...twice, review, reviews: [{ ...passed, round: 1, at }, { ...review, round: 2, at }] };
+      assert.ok(v.row(twice, 120).includes(`${quietInk}R#2`)); for (const out of views(twice)) assert.ok(!out.includes(red) && !out.includes(green), "merged after a fail then a pass: all quiet");
+      assert.ok(v.row(lost, 120).includes(`${red}R#2`)); for (const out of views(lost)) assert.ok(out.includes(`${red}3/5`) && !out.includes(green), "merged on a fail: the last one red, the pass before it quiet");
+      for (const out of [v.row({ ...twice, state: pr.state, stage: pr.stage, kind: pr.kind, prMerged: false }, 120), ...views({ ...twice, state: pr.state, stage: pr.stage, kind: pr.kind, prMerged: false })]) assert.ok(out.includes(green), "not merged: its colours as they were");
+    }
     // whatever the state, the title is plain text
     for (const r of [pr, working, { ...working, state: "error", stage: "failed" }, { ...working, state: "done" }, { ...working, state: "idle" }]) assert.match(v.row(r, 120), /^ \S+ (\x1b\[1m)?[A-Z]/);
     // while the reviewer works, the mark, the bar, the percent, the minutes left and the R# tag are blue: never the
@@ -200,7 +227,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     assert.equal(tag(fixing), "red R#2"); assert.match(row(fixing, 120), /50% {2}R#2 PR#12 +0s$/);
     assert.equal(tag({ ...fixing, stage: "reviewing", reviewRound: 3 }), "review R#3"); // the next review runs: blue, whatever the last one said
     assert.equal(tag({ ...fixing, reviews: [{ round: 1, pass: true, meets: true, findings: [] }, { round: 2, error: "no verdict" }], review: undefined }), "red R#2"); // ended with no verdict: it failed
-    assert.equal(tag({ ...gated, state: "done", stage: "done", reviewRound: 3 }), "green R#3"); // done rows keep it
+    assert.equal(tag({ ...gated, state: "done", stage: "done", reviewRound: 3 }), "overlay0 R#3"); // done rows keep it, quietly: merged, with or without a pull request
     // cut off by its provider and waiting to start again: still that review, the counter put back for the wait
     const cut = { who: "reviewer", reason: "capacity", error: "at capacity", until: Date.now() + 60000, tries: 1 };
     assert.equal(tag({ ...working, stage: "reviewing", reviewRound: 0, waiting: cut }), "review R#1"); assert.match(row({ ...working, stage: "reviewing", reviewRound: 0, waiting: cut }, 120), / R#1 +0s$/);

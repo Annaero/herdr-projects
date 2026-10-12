@@ -22,8 +22,13 @@ export const prNumber = (r) => (r.pr ? `PR#${String(r.pr).split("/").pop()}` : "
 // beside it: green, they pass; red, they fail; plain, no result yet (they run, or there are none). Merged, it goes
 // quiet: nothing there needs your eye, and a list of done tasks must not be a wall of green.
 // Quiet is the theme's own muted, so that it is quieter than plain in the terminal's colours too.
-export const prTag = (t, r, s = prNumber(r)) => (!s ? "" : prColor(r) === "overlay0" ? t.muted(s) : t.fg(prColor(r), s));
-export const prColor = (r) => (r.prMerged || r.prState === "merged" ? "overlay0" : { passing: "green", failing: "red" }[r.prState] || "subtext0");
+export const merged = (r) => !!(r.prMerged || r.prState === "merged");
+// The work landed: its pull request is merged, or the task finished (stage "done": a branch merged here with no pull
+// request sets no pull request flag).
+export const landed = (r) => merged(r) || r.stage === "done";
+export const ink = (t, c, s) => (!s ? "" : c === "overlay0" ? t.muted(s) : t.fg(c, s));
+export const prTag = (t, r, s = prNumber(r)) => ink(t, prColor(r), s);
+export const prColor = (r) => (merged(r) ? "overlay0" : { passing: "green", failing: "red" }[r.prState] || "subtext0");
 export const repoLabel = (name) => (S.knownRepos()[name] === os.homedir() ? "~" : name);
 export const idLabel = (id) => { const [repo, ...rest] = String(id).split("/"); return [repoLabel(repo), ...rest].join("/"); };
 export const tokens = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n || 0));
