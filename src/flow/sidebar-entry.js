@@ -35,7 +35,9 @@ export function taskName(t) {
 export function entryOf(t, { who = "", now = Date.now() } = {}) {
   const r = asRow(t), at = whoStands(r), f = plain.rowFields(r, now);
   const tags = [isResearch(r) && "[research]", r.automation?.id && "[auto]"].filter(Boolean).join(" ");
-  const where = [who || (at.who === WHO.reviewer ? WHO.agent : at.who), at.stand].filter(Boolean).join(SEP);
+  // An agent that took over from another (docs/fallback.md) is named: `agent codex · working`, `reviewer pi · under review`.
+  const whose = who || (at.who === WHO.reviewer ? WHO.agent : at.who), took = whose === WHO.reviewer ? S.agentOf(t.reviewerOn).kind : whose === WHO.agent && t.on ? t.agent : "";
+  const where = [[whose, took].filter(Boolean).join(" "), at.stand].filter(Boolean).join(SEP);
   const stands = [where, [f.review, f.pr].filter(Boolean).join(" "), tags].filter(Boolean).join(SEP);
   // A task with no words of its own has a row that says what it waits for once more ("Needs a login"): that is
   // row 2 here, so row 3 stays empty.

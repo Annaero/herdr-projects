@@ -10,6 +10,8 @@ import { closeReviewer, runReview } from "./review.js";
 import { runCheck } from "./check-run.js";
 import { mergesItself, byItself } from "./auto-merge.js";
 import { researchOnly, keptReport } from "./research.js";
+import { WORDS } from "../status-words.js";
+import { handOver } from "./hand-over.js";
 import { tokensOver, stopAt } from "../limits.js";
 import { keepDiff } from "../attempts/diff.js";
 
@@ -90,6 +92,8 @@ export async function pipeline(id, g, text, wake, synced = null) {
       const fails = (S.get(id).checkFails || 0) + 1, last = fails > ch["review.rounds"]; // it goes back by itself `review.rounds` times
       const auth = S.isAuthFailure(r.out);
       const failure = { stage: "check", auth, agentCanFix: true, title: `Check failed${last && fails > 1 ? ` after ${fails} tries` : ""}`, ...(last && fails > 1 ? { msg: `The check still fails after ${fails} tries (${repo.check}): ${r.out.split("\n").filter(Boolean).slice(-1)[0] || ""}` } : {}), detail: `Command: ${repo.check}\nFolder: ${folder}\n\n${r.out}`, next: "Fix the failed check, run it again and finish for a fresh review." };
+      // The agent had its rounds and the check still fails: the next one on `worker.fallback` takes over (hand-over.js).
+      if (last && !auth && ch["review.rounds"] > 0 && !S.get(id).mergeIntent && handOver(id, g, { why: `the check still failed after ${fails} tries`, findings: `The check still fails, so this is not done yet.${merged}\n\n${S.boundDetail(failure.detail)}` })) return;
       if (last || auth) return void fail(g, failure, { patch: { checkFails: fails } });
       g.check();
       // Straight back to the agent. The turn it causes is the plugin's own: an approved merge survives it.
@@ -184,6 +188,11 @@ export async function pipeline(id, g, text, wake, synced = null) {
   if (review && !review.keptAt && !passed && rounds < ch["review.rounds"]) {
     F.sendOwn(id, G.reviewMessage(review), { reason: "review", keepIntent: !!t.mergeIntent, patch: { review: { ...review, stale: true }, reviewRounds: rounds + 1 } });
     return;
+  }
+  // Still failing after the last round: the next agent on `worker.fallback` takes over, with the open findings.
+  if (review && !review.keptAt && !passed && ch["review.rounds"] > 0 && !t.mergeIntent) {
+    g.set((t) => { t.review = { ...review, stale: true }; });
+    if (handOver(id, g, { why: `its work still failed review after ${rounds} round${rounds === 1 ? "" : "s"}` })) return;
   }
   const head = change?.head || F.headOf(folder) || null;
   const { landCore } = await import("../land.js");

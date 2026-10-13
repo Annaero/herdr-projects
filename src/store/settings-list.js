@@ -7,7 +7,7 @@
 //   kind     "work": looked up task -> your entry for the repo -> you -> the repo's file -> built in
 //            "board": yours only (everything under board., coordinator. and watcher.)
 //            "repo": a fact about one repo, said for that repo only: your entry for the repo -> the repo's file -> built in
-//   type     what a value is (store/settings/values.js): switch, choice, time, count, tokens, agent, effort, access,
+//   type     what a value is (store/settings/values.js): switch, choice, time, count, tokens, agent, agents, effort, access,
 //            text, list, machines, notify, key, attempts
 //   builtin  what it is until somebody says otherwise
 //   values   a choice's words
@@ -34,7 +34,9 @@ import { THEME_NAMES } from "../board/palettes.js";
 export const SETTINGS = [
   // who works, who reviews, who you talk to
   ...role("worker", "the working agent", { agent: "claude", fast: false }, "work"),
+  { name: "worker.fallback", label: "Agent's fallback", kind: "work", type: "agents", builtin: "none", doc: "who takes over when the working agent cannot go on: a list of agents tried in order (`codex, claude/claude-opus-5-5`; a model after a slash, as in `worker.agent`), or `none`. It takes over in the same worktree, with the task, what was done so far and the open findings, when the agent's provider is down (after the board's own tries), the agent is out of allowance or logged out, or its work still fails the review or the check after `review.rounds` rounds. With the list used up the task waits for you. Nobody extra runs until then. More: [the fallback agent](fallback.md)" },
   ...role("reviewer", "the reviewer", { agent: "codex", fast: true }, "work"),
+  { name: "reviewer.fallback", label: "Reviewer's fallback", kind: "work", type: "agents", builtin: "none", doc: "who takes over when the reviewer cannot go on: a list of agents tried in order (`codex, claude/claude-opus-5-5`; a model after a slash, as in `reviewer.agent`), or `none`. It reviews in its place when the reviewer's provider is down (after the board's own tries), the reviewer is out of allowance or logged out, or its program is not installed here; it then reviews the later rounds of that task too. With the list used up the review fails as before. Nobody extra runs until then. More: [the fallback agent](fallback.md)" },
   ...role("coordinator", "the Coordinator, the agent you talk to in the chat", { agent: "claude", fast: false }, "board"),
   // the Watcher
   { name: "watcher.agent", label: "Watcher's program", kind: "board", type: "agent", builtin: "claude/claude-haiku-5-5", none: true, doc: "the Watcher: a small model behind the \"doing now\" line, the progress guess and the minutes left. `none`: none of the three. More: [the Watcher](watcher.md)" },
@@ -76,7 +78,9 @@ export const SETTINGS = [
 ];
 
 export const NAMES = SETTINGS.map((s) => s.name);
-export const entryOf = (name) => SETTINGS.find((s) => s.name === name) || null;
+// Asked for every lookup of every setting: by name, not by going through the list.
+const BY_NAME = new Map(SETTINGS.map((s) => [s.name, s]));
+export const entryOf = (name) => BY_NAME.get(name) || null;
 export const WORK = SETTINGS.filter((s) => s.kind === "work").map((s) => s.name);
 export const BOARD = SETTINGS.filter((s) => s.kind === "board").map((s) => s.name);
 // The seven facts a repo's own committed file may hold, and no more.

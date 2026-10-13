@@ -82,7 +82,8 @@ export function startAgent(id, g, { prompt, resume = null }) {
   // The worker's settings, read now, as it starts. Its program is the one the task was delegated with: a model set
   // for another program is not handed to it.
   const now = S.work(t), who = roleOf("worker", (n) => now[n]);
-  const model = who.kind === kind ? who.model : "", level = effortFor(kind, who.effort);
+  // One that took over from another (finish/hand-over.js) runs on the model its entry on the list names.
+  const took = S.agentOf(t.on), model = took.kind === kind ? took.model : who.kind === kind ? who.model : "", level = effortFor(kind, who.effort);
   preTrust(kind, t.root || S.folderOf(t.id), who.access);
   const taken = api.agents().filter((a) => a.pane_id !== t.link.pane).map((a) => a.name).filter(Boolean);
   const name = agentName(t, taken);
@@ -119,7 +120,7 @@ export function startAgent(id, g, { prompt, resume = null }) {
 // its program, which is the one that holds it.
 function agentNow(g, t) {
   if (t.startedAgentAt && resumable(t)) return t;
-  const kind = S.agentOf(S.setting("worker.agent", t)).kind;
+  const kind = S.agentOf(t.on || S.setting("worker.agent", t)).kind; // the one that took over stays on it
   return kind && kind !== t.agent ? g.set((t) => { t.agent = kind; t.app = kind; t.session = null; t.transcript = null; }) : t;
 }
 

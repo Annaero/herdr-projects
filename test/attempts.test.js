@@ -132,7 +132,9 @@ test("two settings like every other: what a value may be and what a refusal name
       let text = b.text();
       assert.match(text, /Attempts by: a count from 1 to 5, or programs with commas between them \(claude, codex, pi\)/);
       assert.match(text, /Attempts by +1 +built in +attempts\.by/);
-      assert.match(text, /Attempt picked by +you +built in +attempts\.pick/);
+      b.v.editing.at = n + 1; // the row under it: the page keeps the selected row on screen, and it has more rows than the window now
+      assert.match(b.text(), /Attempt picked by +you +built in +attempts\.pick/);
+      b.v.editing.at = n;
       b.press("enter"); b.type("claude, pi"); b.press("enter");
       assert.equal(S.get(id).settings["attempts.by"], "claude, pi");
       b.v.editing.at = n + 1;
@@ -211,6 +213,25 @@ test("a council: a list of agents, the reviewer compares and picks, and the task
     // done and tidied: the losers' worktrees, branches and folders went with it
     assert.equal(kids(id).length, 0);
     assert.equal(git(w.root, "branch", "--list", "work/*"), "");
+  } finally { w.cleanup(); }
+});
+
+test("an attempt that another agent took over (worker.fallback) is chosen: the task keeps that agent, its model and the hand-overs", async () => {
+  const w = await world({ settings: { "review.when": "never", "worker.fallback": "codex/gpt-5.5" } });
+  try {
+    w.script({ worker: [step(1), step(2)] });
+    const id = A.add(w.root, "Greet").id;
+    A.delegate(id, { "attempts.by": 2 });
+    await settleAll(id);
+    assert.equal(S.get(id).stage, "pick");
+    // attempt A changed hands on the way (finish/hand-over.js writes exactly this on it)
+    const a = kids(id)[0], over = { at: Date.now(), role: "worker", from: "claude", to: "codex/gpt-5.5", why: "out of allowance" };
+    S.update(a.id, (c) => { c.agent = "codex"; c.app = "codex"; c.on = "codex/gpt-5.5"; c.tried = ["claude", "codex/gpt-5.5"]; c.handovers = [over]; });
+    A.pick(id, "A");
+    const t = S.get(id);
+    assert.deepEqual([t.agent, t.on, t.tried, t.handovers, t.settings["worker.agent"]], ["codex", "codex/gpt-5.5", ["claude", "codex/gpt-5.5"], [over], "codex/gpt-5.5"]);
+    assert.equal(S.onNow(t, S.setting("worker.agent", t)), "codex/gpt-5.5"); // a restart starts the one that did the work, on its model
+    assert.equal(S.nextFallback(S.setting("worker.fallback", t), { on: S.onNow(t), tried: t.tried }).agent, ""); // and it is not handed to itself
   } finally { w.cleanup(); }
 });
 

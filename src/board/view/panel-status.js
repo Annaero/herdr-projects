@@ -12,7 +12,7 @@ import { NEAR, timeLine, tokensLine, stoppedAtLimit, usedSay, canCount } from ".
 const same = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
 const asks = (kind) => (NEEDS[kind] ? NEEDS[kind][0].toUpperCase() + NEEDS[kind].slice(1) : "Needs you");
 // The facts under Status, in the order they are drawn. In a short window they go from the last of GIVE.
-const ORDER = ["head", "state", "progress", "now", "time", "tokens", "who", "made", "change"];
+const ORDER = ["head", "state", "progress", "now", "time", "tokens", "who", "over", "made", "change"];
 
 export class PanelStatus {
   // Returns the title's part, the status part (its facts by name in `rows`, redrawn by `draw`), and what the part
@@ -40,6 +40,9 @@ export class PanelStatus {
     if (lim?.tokens) rows.tokens = fact("Tokens", tokensLine(lim.tokens, counted), counted ? nearInk(lim.tokens, S.tokensOf(lim.tokens.limit)) : quiet);
     const who = underReview ? "" : r.app ? (!agent && r.app === S.me() ? "you" : r.app) : "";
     if (who) rows.who = fact("On it", clean(who), quiet);
+    // Every hand-over the task had, in plain words (docs/fallback.md): beside the list the latest, full screen all of them.
+    const overs = S.handovers(r);
+    if (overs.length) rows.over = fact("Took over", (full ? overs : overs.slice(-1)).flatMap((h) => wrap(`${S.handoverLine(h)} · ${age(Date.now() - h.at)} ago`, room)), quiet);
     if (madeByWords(r)) rows.made = fact("Made by", wrap(madeByWords(r), room), quiet); // an automation's task says so
     const st = /(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?/.exec(String(r.stat || ""));
     const size = st ? `${st[1]} file${st[1] === "1" ? "" : "s"}, +${st[2] || 0} −${st[3] || 0}` : clean(r.stat || "").trim();

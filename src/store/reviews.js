@@ -9,7 +9,7 @@ export const reviewRound = (t) => Math.max(0, Math.floor(Number(t?.reviewRound) 
 // Every review a task has had, oldest first: which one it was, how it came out, what it found, its short summary.
 // A review that failed is kept too, with why. Nothing is ever dropped from the list. A review from before the gate
 // keeps its score and its advice as they were.
-const reviewEntry = (rv, round, at) => ({ round, at, ...(rv.error ? { error: oneLine(rv.error, 400) }
+const reviewEntry = (rv, round, at) => ({ round, at, ...(rv.by ? { by: rv.by } : {}), ...(rv.error ? { error: oneLine(rv.error, 400) }
   : { ...(isTagged(rv) ? { meets: rv.meets, findings: rv.findings, gate: rv.gate, pass: rv.pass, left: rv.left || 0 } : { score: rv.score, recommend: rv.recommend, problems: rv.problems || [] }), text: rv.text, checks: rv.checks || [], limitations: rv.limitations || [], head: rv.head || null }) });
 // The one review saved on a task from before the list existed. `round`: which review it was.
 const savedReview = (t, round) => (t?.review && (Number.isInteger(t.review.score) || isTagged(t.review)) ? [reviewEntry(t.review, Math.max(1, round), t.review.at)] : []);

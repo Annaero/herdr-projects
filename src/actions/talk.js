@@ -61,7 +61,7 @@ function cleaningUp(t) { if (t.stage === "done" && runnerAlive(t)) throw Object.
 export function rearm(t, keepIntent = false) {
   cleaningUp(t);
   granted(t); // stopped at a limit: your word gives it the limit once more (limits/spent.js)
-  t.tidy = null; t.waiting = null; t.cutRetry = null;
+  t.tidy = null; t.waiting = null; t.cutRetry = null; S.freshList(t);
   if (t.failure?.stage === "send") t.failure = null; // what you say now goes into the same box, and out with what sat there (submit.js keeps both)
   t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.turnBy = "reply"; t.selfBlocked = null; t.blocked = null;
   if (t.failure?.auth) t.failure = null; // a reply or a retry after a login problem is how "fixed" is said

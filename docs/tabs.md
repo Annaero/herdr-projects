@@ -12,6 +12,9 @@ Every task an agent takes on has a herdr space of its own. Its helpers are laid 
   its own worktree, and a tab for the reviewer while it compares them. When one attempt is chosen the others' tabs
   close and its own keeps its name ([several attempts](attempts.md)).
 
+Once an agent took over from another ([the fallback agent](fallback.md)) its tab names the one that is on it now:
+`Agent (codex)`, `Reviewer #2 (claude)`.
+
 Opening a reviewer's tab changes nothing you look at: herdr is told not to focus it, so you stay where you are, and
 as it is a tab of its own the agent's pane and the board keep their size. Go to the tab to watch the reviewer work;
 the task panel and the chat show what it says meanwhile ([the board](board.md)).

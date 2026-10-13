@@ -99,6 +99,16 @@ const CHECKS = {
     if (w.includes("/") && !/^[A-Za-z0-9][A-Za-z0-9._:\/\[\]-]*$/.test(model)) refuse(`${e.name}: "${model}" is not a model name.`);
     return model ? `${k}/${model}` : k;
   },
+  // A list of agents, tried in order, or none. One wrong name refuses the whole list, and names the nearest right one.
+  agents(e, v) {
+    if (typeof v === "string" && v.trim().toLowerCase() === NONE) return NONE;
+    const items = Array.isArray(v) ? v : typeof v === "string" ? v.split(/[\s,]+/) : null;
+    if (!items || !items.every((x) => typeof x === "string")) refuse(`${e.name} is a list of agents (${AGENT_KINDS().join(", ")}, each with an optional model after a slash), or none.`);
+    const names = items.map((x) => x.trim()).filter(Boolean);
+    if (!names.length) refuse(`${e.name} needs a list of agents (${AGENT_KINDS().join(", ")}, each with an optional model after a slash), or none.`);
+    if (names.some((x) => x.toLowerCase() === NONE)) refuse(`${e.name}: none stands alone. Say none, or a list of agents without it.`);
+    return [...new Set(names.map((x) => CHECKS.agent({ name: e.name }, x)))];
+  },
   effort(e, v) {
     const w = word(v).toLowerCase();
     if (!/^[a-z]+$/.test(w)) refuse(`${e.name} must be an effort level such as low, medium or high, or default.`);

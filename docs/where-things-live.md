@@ -192,12 +192,14 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 |---|---|
 | `auto-merge.js` | Auto-merge, the setting: a task that may merge does so by itself while `merge.by` is `itself`, and waits for you while it is `you` |
 | `check-run.js` | Running the repo's check with its progress shown: the file the command reports to, and what is kept on the task while it runs (the row shows that, and herdr's sidebar the row: flow/sidebar.js) |
+| `hand-over.js` | The working agent's hand-over (`worker.fallback`, docs/fallback.md): the agent on a task cannot go on, and the next one on the list takes the task over in the same worktree and the same pane, with the task, what was… |
 | `line.js` | The line: a repo's tasks merge one at a time |
 | `old-holds.js` | Approval holds an older version left behind: tasks owing you a yes although you never stepped into them |
 | `pipeline.js` | The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval |
 | `recover-job.js` | A finished turn re-armed by mistake: hand the task to the human as stopped without a summary |
 | `research.js` | A research-only task at the finish line: a change in the repo goes back to its agent, and every task's report is kept |
 | `review-brief.js` | What the reviewer is told, and reading the verdict it writes back |
+| `review-fallback.js` | The reviewer's hand-over (`reviewer.fallback`, docs/fallback.md): the reviewer cannot review (its provider is still down after the board's own tries, it is out of allowance or logged out, or its program is not… |
 | `review.js` | The reviewer: a visible herdr agent in a tab of its own in the task's space |
 | `shared.js` | The finish line's shared pieces: the approval question's words, and marking a task as failed |
 | `sync-job.js` | Main moved while a task waits for approval: bring its branch up to date and check it again |
@@ -246,6 +248,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `check-runs.js` | How long a repo's check took the last few times it ran in full on this machine: what its minutes left are worked out from |
 | `failures.js` | Failures: workflow diagnostics that live beside the task |
 | `files.js` | Where the board keeps things, reading and writing files, and locks |
+| `handovers.js` | Hand-overs: one agent taking over from another that could not go on (`worker.fallback`, `reviewer.fallback`; docs/fallback.md) |
 | `inbox.js` | Text on its way: an agent's inbox, and instructions for a Coordinator |
 | `keys.js` | A repo's short key (`repo.key`: `HSW` for herdr-superwork) and what it does to a task's name: its tag reads `HSW-134` instead of `#134`, and `HSW-134` names the task wherever its id does |
 | `marks.js` | Small shared files: stamps, hook tokens, turn-ended events, marks |
@@ -346,6 +349,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [colours.md](colours.md) | Colours: herdr's theme, and the box that says who you type to |
 | [compared-with-pi-work.md](compared-with-pi-work.md) | Compared with pi-work |
 | [coordinator.md](coordinator.md) | The Coordinator |
+| [fallback.md](fallback.md) | The fallback agent: another agent takes over |
 | [gate.md](gate.md) | The gate |
 | [handing-over.md](handing-over.md) | Handing text to an agent |
 | [home-folder.md](home-folder.md) | The home folder: where the board keeps its files |
@@ -423,6 +427,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `fake-helper.js` | A stand-in for the hidden helper model |
 | `fake-herdr.js` | A stand-in for the herdr binary, for tests: no server, no terminals, no model calls |
 | `fake-herdr.test.js` | The fake herdr itself: tests call it in their own process, programs they start run it as a program |
+| `fallback.test.js` | The fallback agent (`worker.fallback`, `reviewer.fallback`; docs/fallback.md): the next agent on the list takes a task over when the one on it cannot go on, in the same worktree, with what was done and what is open |
 | `fast.test.js` | Fast mode: the `fast` and `reviewerFast` settings, and what an agent or reviewer is started with |
 | `flow.test.js` |  |
 | `gate.test.js` | The gate: tagged findings in, a fixed rule decides what goes back and what may merge |

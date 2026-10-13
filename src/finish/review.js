@@ -13,6 +13,7 @@ import * as G from "../gate.js";
 import { ms, fail } from "./shared.js";
 import { reviewBrief, parseVerdict } from "./review-brief.js";
 import { REPORT } from "../research.js";
+import { reviewerNow, nextReviewer } from "./review-fallback.js";
 import { count } from "../limits/spent.js";
 import { tokensOver, stopAt } from "../limits/reached.js";
 
@@ -29,12 +30,17 @@ export async function closeReviewer(id) {
 // an error that waiting cannot fix (a login, a model that does not exist), it fails with the provider's own words.
 export async function runReview(id, g, o) {
   const waits = S.retryWaits();
+  const tried = [];
   for (let tries = 0; ; tries++) {
     const r = await reviewOnce(id, g, o);
     if (!r.cut) return r;
     // At the task's token limit a cut-off review is not started again by itself (limits/reached.js).
     const spent = tokensOver(id);
     if (spent) { stopAt(id, "tokens", spent, { role: "reviewer" }); return { aborted: true }; }
+    // It cannot review: the next one on `reviewer.fallback` does, as the same review, with the tries counted afresh.
+    if (!r.cut.passing || tries >= waits.length) {
+      try { tried.push(r.by); if (nextReviewer(g, o.ch, { from: r.by, cut: r.cut, auth: r.auth, tries: tries + 1, tried })) { tries = -1; continue; } } catch (e) { if (e.aborted) return { aborted: true }; throw e; }
+    }
     if (!r.cut.passing) return { error: `the reviewer stopped: ${r.cut.error}`, auth: r.auth, cut: true };
     if (tries >= waits.length) return { error: `${S.gaveUp("reviewer", r.cut.reason, tries + 1)}. Its error: ${r.cut.error.replace(/[.\s]+$/, "")}`, auth: false, cut: true };
     try {
@@ -49,7 +55,8 @@ export async function runReview(id, g, o) {
   }
 }
 async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
-  let t = g.set({ stage: "reviewing", msg: "Under review", watch: null, waiting: null, reviewAt: Date.now() });
+  // One that just took the review over says so on the row until the Watcher has a line of it (review-fallback.js).
+  let t = g.set((t) => { const took = S.lastHandover(t, "reviewer"); t.msg = took && t.msg === S.handoverLine(took) ? t.msg : "Under review"; t.stage = "reviewing"; t.watch = null; t.waiting = null; t.reviewAt = Date.now(); });
   g.allow("reviewneeds");
   const api = F.h(t);
   const folder = S.cwdOf(t);
@@ -60,11 +67,16 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
   // The configured reviewer program may not be installed here: review with the working agent's kind instead, on that
   // kind's own default model and effort, and say so on the task.
-  const who = roleOf("reviewer", (n) => ch[n]);
-  let rkind = who.kind, rmodel = who.model, reffort = who.effort;
-  if (!installed(rkind) && installed(t.agent)) { rkind = t.agent; rmodel = ""; reffort = ""; }
-  const round = (t.reviewRound || 0) + 1;
-  t = g.set((t) => { S.keepSavedReview(t); t.reviewRound = round; t.reviewSession = null; t.fallbacks = { ...(t.fallbacks || {}), reviewer: rkind !== who.kind ? `reviewed by ${rkind}: ${who.kind} is not installed here` : undefined }; });
+  // Or, with a `reviewer.fallback`, the first on that list that is installed; and one that took the review over
+  // earlier on this task (`reviewerOn`) reviews its later rounds too.
+  const who = roleOf("reviewer", (n) => ch[n]), now = reviewerNow(t, ch), on = S.agentOf(now.agent);
+  let rkind = on.kind, rmodel = on.model, reffort = who.effort, by = now.agent;
+  if (!installed(rkind) && installed(t.agent)) { rkind = t.agent; rmodel = ""; reffort = ""; by = rkind; }
+  // A stand-in for a program that is not installed is a hand-over like any other: written on the task, and the
+  // reviewer of its later rounds.
+  if (now.standIn) g.set((t) => { const h = S.logHandover(t, { role: "reviewer", from: ch["reviewer.agent"], to: now.agent, why: `${now.standIn} is not installed here` }); t.reviewerOn = now.agent; t.msg = S.handoverLine(h); });
+  const round = (t.reviewRound || 0) + 1, other = by !== ch["reviewer.agent"];
+  t = g.set((t) => { S.keepSavedReview(t); t.reviewRound = round; t.reviewSession = null; t.fallbacks = { ...(t.fallbacks || {}), reviewer: rkind !== who.kind && !t.reviewerOn && !now.standIn ? `reviewed by ${rkind}: ${who.kind} is not installed here` : undefined }; });
   // From the second round of a send-back on, the reviewer checks the earlier findings instead of starting over.
   const before = S.reviewHistory(t).filter((e) => G.isTagged(e));
   const earlier = (t.reviewRounds || 0) > 0 && before.length ? before.at(-1).findings : null;
@@ -85,7 +97,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
     preTrust(rkind, t.root || S.folderOf(t.id), who.access);
     await closeReviewer(id); // a tab left over from an interrupted round
     // Its own tab, never focused: the human stays where they are, and the agent's tab and the board keep their size.
-    const made = F.openReviewerTab(api, t, round, { cwd: folder, env: S.boardEnv() });
+    const made = F.openReviewerTab(api, t, round, { cwd: folder, env: S.boardEnv(), by: other ? rkind : "" });
     tab = made.tab; pane = { pane_id: made.pane };
     const taken = api.agents().map((a) => a.name).filter(Boolean);
     let name = `${t.link.agent || `sw-task-${t.n}`}-r`.slice(0, 32);
@@ -158,10 +170,11 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   if (!review && cut) {
     // Not a review: the task's count of reviews is put back, so the next try (or the next real review) has this number.
     try { g.set((t) => { if (t.reviewRound === round) t.reviewRound = round - 1; }); } catch (e) { if (e.aborted) return { aborted: true }; }
-    return { cut, error, auth };
+    return { cut, error, auth, by };
   }
   if (!review) return { error: error || "no valid verdict", auth };
   G.stamp(review, ch["review.mustFix"]);
+  review.by = by; // who reviewed: the task's history keeps it
   // Move the folder to the task's artifacts and publish the evidence page.
   const art = S.artifactsDir(id);
   try { for (const f of fs.existsSync(art) ? fs.readdirSync(art) : []) if (f !== REPORT) fs.rmSync(path.join(art, f), { recursive: true, force: true }); /* the task's report is kept there too (research.js) */ fs.mkdirSync(art, { recursive: true }); fs.cpSync(dir, art, { recursive: true }); fs.rmSync(dir, { recursive: true, force: true }); } catch {}

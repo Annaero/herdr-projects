@@ -52,6 +52,8 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
 - \`herdr-superwork delegate <id>\`: put an agent on a task. It works in its own git worktree, as an ordinary herdr
   agent in its own herdr space. Any work setting can be chosen for this one task as \`--<name> <value>\`:
   \`--worker.agent claude|codex|pi\` (a model after a slash: \`codex/gpt-5.5\`), \`--worker.effort\`, \`--reviewer.agent\`,
+  \`--worker.fallback "codex, claude/claude-opus-5-5"\` (who takes over, in order, when the agent cannot go on: out of
+  allowance, logged out, its provider down, its rounds used up; \`--reviewer.fallback\` the same for the reviewer),
   \`--review.when always|repos|never\`, \`--review.mustFix critical|major|minor|trivial\`, \`--merge.by you|itself\`,
   \`--workspace.from here\` (start from their current commit). A refused option changes nothing on the task.
 - \`herdr-superwork show [<id>]\`: every setting, its value and the place it came from (for one task, or the human's own).

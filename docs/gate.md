@@ -23,7 +23,9 @@ The board then applies fixed rules to what came back:
   is what "may merge" means everywhere: a task with `merge.by: itself` merges it ([merging by itself](#merging-by-itself)),
   an approved merge that was repaired goes through, and the board says `Pass`.
 - A **fail** goes back to the agent by itself, at most `review.rounds` times: the findings at or above the gate as
-  required, the rest as optional. When the cap is reached and it still fails, it stops and waits for you.
+  required, the rest as optional. When the cap is reached and it still fails, it stops and waits for you; with a
+  fallback agent set (`worker.fallback`) the next agent on that list takes the work over first, with the open
+  findings and rounds of its own ([the fallback agent](fallback.md)).
 - From the second round on the reviewer gets the earlier findings and only checks that each is fixed and that the
   fixes broke nothing. It may add a new finding only if it is critical, with proof; anything smaller it notices
   late is left out (a pre-existing fault is still noted). A reply from you starts a full review again.

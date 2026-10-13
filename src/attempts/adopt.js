@@ -10,7 +10,8 @@ import { reportFolder } from "../research.js";
 
 // What of an attempt is the task's once it is chosen.
 const TAKEN = ["worktree", "branch", "from", "baseSha", "repoFile", "repoRefused", "agent", "session", "transcript", "said", "summary", "usage", "model", "hooked", "agentVersion", "handled", "terms", "last",
-  "startedAgentAt", "workedAt", "workAt", "armedAt", "ownNote", "stat", "checkedHead", "checkedWith", "syncedTo", "syncSeen", "syncBranch", "fallbacks"];
+  "startedAgentAt", "workedAt", "workAt", "armedAt", "ownNote", "stat", "checkedHead", "checkedWith", "syncedTo", "syncSeen", "syncBranch", "fallbacks",
+  "on", "tried", "handovers", "reviewerOn"]; // and who took over from whom in it (store/handovers.js): the agent that is on it stays on it
 const apiOf = (t) => (t.link?.socket && socketExists(t.link.socket) ? herdr(t.link.socket) : null);
 
 // `by`: who chose ("you", "reviewer", or "check" when it was the only one that passed). Returns the task, on its
@@ -29,7 +30,8 @@ export function adopt(id, letter, by) {
     t.app = kid.agent; t.as = kid.id; t.startedOnce = true; t.root = kid.root || t.root;
     t.link = { socket: t.link?.socket || kid.link?.socket, workspace: t.link?.workspace || kid.link?.workspace, ownsWorkspace: true, tab: kid.link?.tab, pane: kid.link?.pane, terminal: kid.link?.terminal, agent: kid.link?.agent, reviewer: null };
     // Its program, and its model, are this task's own from now on: a restart starts the one that did the work.
-    t.settings = { ...(t.settings || {}), "worker.agent": kid.settings?.["worker.agent"] || kid.agent };
+    // Where another agent took the attempt over (`worker.fallback`), that one did the work.
+    t.settings = { ...(t.settings || {}), "worker.agent": kid.on || kid.settings?.["worker.agent"] || kid.agent };
     t.picked = { letter: kid.letter, by, at: Date.now() }; t.comparing = null;
     t.stage = "checking"; t.msg = `Attempt ${kid.letter} goes on`; t.failure = null; t.checkFails = 0; t.reviewRounds = 0; t.turnOpen = false; t.expectedWake = null; t.watch = null; t.kind = undefined;
   }, { waitMs: 10000 });

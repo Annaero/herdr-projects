@@ -31,6 +31,8 @@ export function rows(scope = {}) {
       const kinds = [task?.agent || agentOf(lookup("worker.agent", scope, mine, at).value).kind, lookup("review.when", scope, mine, at).value === "never" ? "" : agentOf(lookup("reviewer.agent", scope, mine, at).value).kind].filter((k) => k && typeof AGENTS[k]?.tokens !== "function");
       if (kinds.length) note = `does nothing for ${[...new Set(kinds)].join(" and ")}: its tokens cannot be counted`;
     }
+    // A list of agents does nothing where its only use is to hand over to the one that is on it anyway.
+    else if (s.type === "agents" && Array.isArray(r.value) && r.value.every((a) => a === lookup(`${s.name.split(".")[0]}.agent`, scope, mine, at).value)) note = `does nothing: ${r.value[0]} is the ${s.name.split(".")[0] === "worker" ? "agent" : "reviewer"} already`;
     return { name: s.name, kind: s.kind, value: r.value, from: r.from, place: r.place, own: r.place === (task ? "task" : scope.repo ? "repo" : "you"), note, ...(s.name === RESEARCH && task && laterWords(task, r.value) ? { later: laterWords(task, r.value) } : {}) };
   });
 }

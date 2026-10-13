@@ -45,7 +45,7 @@ Both have the same parts, in the same order, and **one form for every part**:
 - **The title** is on top, by itself.
 - **Status**, where it stands, one fact a row and always in this order: `State` (its mark and word, which review
   it is on, since when), `Progress` (the bar, its percent and the minutes left), `Now` (what the agent or the
-  reviewer is doing right now, wrapped whole), `On it` (who), `Made by` (the [automation](automations.md) that made it, when one did), `Change` (the pull request, in the colour of its
+  reviewer is doing right now, wrapped whole), `On it` (who), `Took over` (each hand-over to [a fallback agent](fallback.md), in plain words), `Made by` (the [automation](automations.md) that made it, when one did), `Change` (the pull request, in the colour of its
   checks, and the size of the change; the number is a link, and full screen the address is printed too). A task
   nobody is on says what puts an agent on it (`Next`). The task is named as its row names it (`#84`, or `HSW-84`), in
   the title and in the heading of the whole-task page (`Task details  #84 "Max length for task titles"`); its id as

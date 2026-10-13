@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import * as S from "../../store.js";
 import { sessionName } from "../../herdr.js";
+import { hasFast } from "../../agents/start.js";
 import { short, tokens } from "./words.js";
 import { name as keyName } from "../keys.js";
 import { isResearch } from "../../research.js";
@@ -31,16 +32,19 @@ export class PanelSettings {
     const branch = RX ? RX.branch : S.branchOf(tree || folder);
     if (branch) rows.push(["Branch", branch + (tree && r.from ? `  (from ${r.from === "HEAD" ? "your checkout" : r.from})` : ""), false]);
     // Each role reads the same way: program and version, model, effort; fast and "asks first" only where they are so.
+    // Where an agent took over from another (docs/fallback.md), the row is the one that is on it now.
     const role = (name, kind, version = "") => {
-      const who = S.agentOf(val(`${name}.agent`)), k = kind || who.kind, model = k === who.kind ? who.model : "", effort = val(`${name}.effort`) === "default" ? "" : val(`${name}.effort`);
-      const fast = val(`${name}.fast`) !== true ? "" : all[`${name}.fast`]?.note ? ` · no fast mode in ${k}` : " · fast";
+      const who = S.agentOf((name === "worker" ? r.on : r.reviewerOn) || val(`${name}.agent`)), k = kind || who.kind, model = k === who.kind ? who.model : "", effort = val(`${name}.effort`) === "default" ? "" : val(`${name}.effort`);
+      const fast = val(`${name}.fast`) !== true ? "" : all[`${name}.fast`]?.note || !hasFast(k) ? ` · no fast mode in ${k}` : " · fast";
       return `${k}${version ? ` ${version}` : ""} · ${model || "default model"} · ${effort || "default effort"}${fast}${val(`${name}.access`) === "ask" ? " · asks before acting" : ""}`;
     };
-    rows.push(["Agent", role("worker", r.agent, r.agentVersion), mine("worker.")]);
+    // Under each of the two: who takes over when it cannot go on, where a list says so.
+    const list = (name) => (Array.isArray(val(name)) ? [["Takes over", `${val(name).join(", then ")} · when the ${name === "worker.fallback" ? "agent" : "reviewer"} cannot go on`, mine(name)]] : []);
+    rows.push(["Agent", role("worker", r.agent, r.agentVersion), mine("worker.")], ...list("worker.fallback"));
     // Done several times at once: how many and by whom, and who picks (attempts.js).
     if (r.attempts?.length > 1 || S.attemptCount(val("attempts.by")) > 1) rows.push(["Attempts", `${r.attempts?.length > 1 ? r.attempts.map((a) => `${a.letter} ${a.agent}`).join(", ") : S.say(val("attempts.by"))} · ${r.picked ? `${r.picked.letter} was chosen` : val("attempts.pick") === "reviewer" ? "the reviewer picks" : "you pick"}`, mine("attempts.")]);
     const noReview = val("review.when") === "never";
-    rows.push(["Reviewer", noReview ? "off" : role("reviewer"), mine("reviewer.", "review.when")]);
+    rows.push(["Reviewer", noReview ? "off" : role("reviewer"), mine("reviewer.", "review.when")], ...(noReview ? [] : list("reviewer.fallback")));
     rows.push(["Review when", noReview ? "never" : val("review.when") === "always" ? "always" : "the task is in a repo", mine("review.when")]);
     const bar = val("review.mustFix"), rounds = val("review.rounds");
     rows.push(["Send back", `${bar === "trivial" ? "any finding" : bar === "critical" ? "critical only" : `${bar} or worse`} · ${rounds === 0 ? "by hand" : `${rounds ?? "?"} round${rounds === 1 ? "" : "s"} max`}`, mine("review.mustFix", "review.rounds")]);

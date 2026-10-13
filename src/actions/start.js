@@ -35,6 +35,7 @@ export function delegate(id, opts = {}) {
       for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "syncedTo", "syncSeen", "syncBranch", "syncRepairs", "syncRetryAt", "syncBlocked", "handled", "session", "said", "summary", "stat", "kept", "tidy", "exitedAt", "repoFile", "repoRefused", "researchRun", "researchTurned", "attempts", "picked", "as", "comparison", "comparing", "checkedHead", "checkedWith", "spaceDir"]) delete t[k];
       t.link = {};
     }
+    t.on = null; S.freshList(t); // a new start is `worker.agent` again, with its whole fallback list before it
     // Attempts of an earlier round that none was chosen from (all were out, or it was stopped): it starts over.
     if (t.attempts?.length && !t.picked) { stale = S.attemptsOf(t); for (const k of ["attempts", "comparison", "comparing", "spaceDir"]) delete t[k]; if (t.link?.workspace && t.link.ownsWorkspace) old = { socket: t.link.socket, workspace: t.link.workspace }; t.link = { socket: t.link?.socket }; }
     // Research only or not is decided when the agent starts (delegate.js: startsAs), not here: until then the task

@@ -13,6 +13,7 @@ import { closeReviewer } from "./review.js";
 import { name as keyName } from "../board/keys.js";
 import { pendingSent } from "../submit.js";
 import { waits, stay } from "./waiting.js";
+import { handOver } from "./hand-over.js";
 import { tokensOver, stopAt } from "../limits.js";
 
 // ---- job: the agent's turn ended ----------------------------------------------------------------------------------------
@@ -34,7 +35,7 @@ function humanTurn(t) {
   if (t.mergeIntent || t.stage === "approval") t.requireApproval = true;
   t.mergeIntent = null;
   if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
-  t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
+  t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0; S.freshList(t);
   t.armedAt = t.handled?.at || t.armedAt || 0; t.expectedWake = null; t.turnOpen = false;
   t.stage = "working"; t.msg = ""; t.kind = undefined; t.mergeFailed = false;
   if (t.failure?.auth) t.failure = null;
@@ -137,6 +138,9 @@ async function finishOnce(id, { force = false } = {}) {
         F.tellSidebar(w);
         return true;
       }
+      // It cannot go on: its provider is still down after those tries, it is out of allowance or logged out, or its
+      // reply was cut for good. The next agent on `worker.fallback` takes the task over; with nobody left it waits for you.
+      if (handOver(id, g, { why: turn.error ? S.whyOf({ error: why, auth: turn.auth, passing: turn.passing, reason: turn.reason, tries: tries + 1 }) : turn.stop === "length" ? "it ran out of room (context or output limit)" : "its model refused to continue" })) return true;
       const gaveUp = turn.passing ? `${S.gaveUp("agent", turn.reason, tries + 1)}. ` : "";
       if (gaveUp) { fail(g, { stage: "agent", auth: false, agentCanFix: true, title: "Agent stopped", msg: `Agent stopped: ${gaveUp}Its error: ${S.oneLine(why, 200)}`, detail: `${gaveUp[0].toUpperCase()}${gaveUp.slice(1)}The board told it to carry on each time and has stopped trying.\n\nIts error:\n${why}`, next: `Wait for the provider to recover (or choose another model), then reply or press ${keyName("sendBack")} to tell the agent to continue.` }); return true; }
       fail(g, { stage: "agent", auth: turn.error ? turn.auth : false, agentCanFix: true, title: turn.auth ? "Needs a login" : "Agent stopped", msg: turn.auth ? "Needs a login" : `Agent stopped: ${S.oneLine(why, 200)}`, detail: `${why}${turn.said && turn.said !== why ? `\n\nIts last message:\n${turn.said}` : ""}`, next: `Fix what it reports, then reply or press ${keyName("sendBack")} to tell the agent to continue.` });
@@ -147,7 +151,7 @@ async function finishOnce(id, { force = false } = {}) {
       // Nothing says the turn finished normally (interrupted, a crash, an unreadable conversation): commit nothing and
       // hold, with what is on the screen as the message. A login screen is recognised from its text.
       const screen = lastLines(readScreen(api, t.link.pane, a?.agent_status ?? null, 60));
-      if (S.isAuthFailure(screen)) { g.set(keep); fail(g, { stage: "agent", auth: true, title: "Needs a login", msg: "Needs a login", detail: screen }); return true; }
+      if (S.isAuthFailure(screen)) { g.set(keep); if (handOver(id, g, { why: "logged out" })) return true; fail(g, { stage: "agent", auth: true, title: "Needs a login", msg: "Needs a login", detail: screen }); return true; }
       t = g.set((t) => { keep(t); t.stage = "nosummary"; t.msg = S.oneLine(lastLines(screen, 2)) || "Stopped without a summary"; t.screen = screen; });
       return true;
     }
