@@ -43,7 +43,7 @@ export class Panel {
   // thin rule, then either facts (a greyed-out label on the left, its value on the right, every value starting in the
   // same column and wrapped under itself) or a text. An empty line stands between two parts and nowhere else. The
   // parts: the title, where it stands (`Status`), what it needs from you (its headline in the state's colour),
-  // suggested tasks, the description, the reviews, what the agent said, and every setting. Beside the list (`fit` is
+  // suggested tasks, the description, the report, the reviews, what the agent said, and every setting. Beside the list (`fit` is
   // the height there) the description is short and only the latest review shows; full screen everything is whole,
   // with every review, the newest first.
   panel(r, width, full = false, fit = 0) {
@@ -74,6 +74,7 @@ export class Panel {
     if (start !== desc) cut = true;
     if (desc) text("Description", wrap(start), 2);
 
+    attempt("Report", () => this.panelReport(p));
     if (attempt("Reviews", () => this.panelReviews(p))) cut = true;
 
     // What the agent said: its last message, or its screen while a dialog or a review is on it.

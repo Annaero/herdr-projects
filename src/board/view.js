@@ -35,6 +35,7 @@ import { Layout } from "./view/layout.js";
 import { Panel } from "./view/panel.js";
 import { PanelStatus } from "./view/panel-status.js";
 import { PanelReviews } from "./view/panel-reviews.js";
+import { PanelReport } from "./view/panel-report.js";
 import { PanelSettings } from "./view/panel-settings.js";
 import { Suggestions } from "./view/suggestions.js";
 
@@ -159,6 +160,7 @@ const PARTS = [
   Panel,
   PanelStatus,
   PanelReviews,
+  PanelReport,
   PanelSettings,
   Suggestions,
 ];

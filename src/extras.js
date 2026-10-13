@@ -38,6 +38,8 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
 - \`herdr-superwork add "<short title>" --desc "<full description>"\`: add a new task to the current repo
   (a title is a few words, ${S.TITLE_RULE}: a longer one is cut short and its full text kept in the description;
   \`--repo <name or path>\` for another). Adding starts nothing. Add \`--delegate\` only if the human asked for an agent.
+  Add \`--research\` when the human plainly asked for research, a review or a report with nothing changed: the task's agent
+  then changes nothing in the repo and its result is a report (later: \`config research true --id <id>\`).
   Add a task only when the human asked for it: nothing adds tasks by itself.
 - \`herdr-superwork suggestions [<id>]\`: work that agents and reviewers came across outside their own task. Each is a
   suggestion on the task that raised it, waiting for the human. \`accept <id> [S1]\` makes one a task, \`dismiss <id> [S1]\`

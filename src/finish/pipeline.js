@@ -9,6 +9,7 @@ import { firstLine, approvalMessage, fail } from "./shared.js";
 import { closeReviewer, runReview } from "./review.js";
 import { runCheck } from "./check-run.js";
 import { mergesItself } from "./auto-merge.js";
+import { researchOnly, keptReport } from "./research.js";
 
 // "Finish anyway" on a turn that left no closing note: the screen text is the summary.
 export async function pipelineJob(id) {
@@ -30,8 +31,13 @@ export async function pipeline(id, g, text, wake, synced = null) {
   const env = { HERDR_SUPERWORK_ID: t.id, HERDR_SUPERWORK_WORKTREE: folder, HERDR_SUPERWORK_REPO: root };
   const ch = S.choices(t);
   const alive = () => !!g.check();
+  // A research-only task changes nothing in the repo: with a change it goes back, and nothing below is committed,
+  // brought up to date, checked as a change, pushed or merged for it (research.js). Its report is what is reviewed.
+  const research = researchOnly(id, g, tree);
+  if (research === "back") return;
+  t = keptReport(g, ch);
   // 3. Commit leftovers. A plain folder has nothing to commit.
-  if (tree) {
+  if (tree && !research) {
     try { if (F.dirty(tree)) { S.gitOut(tree, ["add", "-A"]); S.gitOut(tree, ["commit", "-m", `${t.title || id}\n\nTask: ${id}`]); } }
     catch (e) { return void fail(g, { stage: "commit", title: "Could not commit the work", detail: outputOf(e), next: "Fix the Git error in your own worktree, commit the work and finish again." }); }
   }
@@ -39,7 +45,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
   // Bring the branch up to date with main before anything is checked or reviewed, so the reviewer sees the work as
   // it will really land. The board does it; the agent hears nothing unless there is a real conflict.
   let sync = synced;
-  if (!sync && Y.treeOf(t)) {
+  if (!sync && Y.treeOf(t) && !research) {
     // Work on another branch than the task's own cannot be brought up to date, pushed or landed as this task: it is
     // not checked or reviewed as if it could.
     const on = S.branchOf(tree);
@@ -71,7 +77,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
     if (!setup.ok) return void fail(g, { stage: "setup", title: "Setup still fails", detail: `Command: ${repo.setup}\nFolder: ${folder}\n\n${setup.out}`, next: "Fix the setup problem and finish again. Setup must pass before the check." });
     g.set({ setupPending: false });
   }
-  if (repo.check) {
+  if (repo.check && !research) {
     const r = await runCheck(g, t, { cmd: repo.check, folder, env, alive, root });
     if (r.aborted) return;
     if (!r.ok) {
@@ -88,8 +94,8 @@ export async function pipeline(id, g, text, wake, synced = null) {
   }
   g.check();
   // Push and open a draft pull request, when an origin remote exists.
-  let note = "";
-  if (tree && S.config().pr) {
+  let note = research && !t.report ? " No report was found." : "";
+  if (tree && S.config().pr && !research) {
     try {
       const hasCommits = Number(S.gitOut(tree, ["rev-list", "--count", `${t.baseSha || t.from || "HEAD"}..HEAD`])) > 0;
       if (hasCommits && F.hasOrigin(root)) {
@@ -110,13 +116,13 @@ export async function pipeline(id, g, text, wake, synced = null) {
     } catch (e) { return void fail(g, { stage: "push", title: "Could not push the branch", detail: `Branch: ${t.branch}\nFolder: ${tree}\n\n${outputOf(e)}`, next: "Inspect the Git error and fix what you safely can without altering the human's checkout. Finish again so the board retries the push." }); }
   }
   t = g.check();
-  const change = tree ? F.changeOf(t) : null;
+  const change = tree && !research ? F.changeOf(t) : null;
   const toLand = !!(change && change.stat);
   // Done with nothing to merge leaves herdr's sidebar like merged work does; its branch goes only if git calls it merged.
   const tidyDone = async (id) => { const { tidy } = await import("../land.js"); await tidy(id, { deleteBranch: "merged" }); };
   const done = (msg, patch = {}) => { const mark = F.tidyMark(t, "merged"); const d = g.set((t) => { t.stage = "done"; t.tidy = mark; t.msg = S.oneLine(msg); t.failure = null; t.mergeIntent = null; Object.assign(t, patch); }); F.labelPane(d, null); return d; };
   // Nothing to land: it is simply done, unless work outside a repo is reviewed too (review "all").
-  if (!toLand && ch.review !== "all") {
+  if (!toLand && ch.review !== "all" && !(research && ch.review !== "none")) {
     if (holdPrFailure(g, t)) return;
     done(`${firstLine(text) || "finished"}${note}`);
     return void (await tidyDone(id));

@@ -57,6 +57,25 @@ export function changeOf(t) {
 }
 // Work that ended and was cleaned up: the next round starts fresh, never in your checkout.
 export const cleanedUp = (t) => !!t.cleaned || (t.stage === "done" && !!t.worktree && !fs.existsSync(t.worktree));
-export const headOf = (dir) => { try { return S.gitOut(dir, ["rev-parse", "HEAD"]); } catch { return ""; } };
+// The commit a folder is on. Asked on every pass, for every task, so git's own files answer where they can (the
+// folder is a checkout or a worktree, on a branch whose ref is a file of its own, or on a commit) and no program is
+// started; anything else (a ref only in packed-refs, another ref format, a folder inside a checkout) is asked of git.
+const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
+function headFile(dir) {
+  try {
+    let gitDir = path.join(dir, ".git");
+    if (fs.statSync(gitDir).isFile()) gitDir = path.resolve(dir, fs.readFileSync(gitDir, "utf8").replace(/^gitdir:\s*/, "").trim());
+    const head = fs.readFileSync(path.join(gitDir, "HEAD"), "utf8").trim();
+    if (SHA.test(head)) return head;
+    const ref = /^ref: (refs\/[\w./-]+)$/.exec(head)?.[1];
+    if (!ref || ref.includes("..")) return "";
+    // A worktree keeps its own HEAD; its branches are in the repo it belongs to.
+    let common = gitDir;
+    try { common = path.resolve(gitDir, fs.readFileSync(path.join(gitDir, "commondir"), "utf8").trim()); } catch {}
+    const sha = fs.readFileSync(path.join(common, ref), "utf8").trim();
+    return SHA.test(sha) ? sha : "";
+  } catch { return ""; }
+}
+export const headOf = (dir) => { const known = headFile(dir); if (known) return known; try { return S.gitOut(dir, ["rev-parse", "HEAD"]); } catch { return ""; } };
 export const dirty = (dir) => { try { return S.gitOut(dir, ["status", "--porcelain"]); } catch { return ""; } };
 export const noteStat = (t) => { try { const s = fs.statSync(noteFile(t)); return { mtime: s.mtimeMs, text: fs.readFileSync(noteFile(t), "utf8").trim() }; } catch { return null; } };

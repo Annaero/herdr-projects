@@ -6,6 +6,7 @@ import { short, clean, age, prTag, bar, left } from "./words.js";
 import { MARK_STATES, failureFor, inReview, isLive, needsYou, statusColor, waitOf } from "./states.js";
 import { ETA_STEADY, labelRoom, shownFrom } from "./row-fit.js";
 import { tallAt } from "./row-tall.js";
+import { isResearch } from "../../research.js";
 import { resultColor, reviewTagInk, currentReview, reviewNote, verdict } from "./review-words.js";
 
 // The fewest cells a cut "doing now" sentence is still worth showing in.
@@ -71,7 +72,7 @@ export class Row {
   }
   // What a row says on its first line, after its name: nothing on a live task's row, which says it on its second.
   saysBeside(r) { return isLive(r) ? { text: "" } : this.sentence(r); }
-  rowTitle(r) { return clean(r.title || r.id) + (r.archivedAt ? " [archived]" : ""); }
+  rowTitle(r) { return clean(r.title || r.id) + (isResearch(r) ? " [research]" : "") + (r.archivedAt ? " [archived]" : ""); }
   // The fewest cells a row needs to say something: a sentence cut to a few letters says nothing.
   sayNeed(said) { return Math.min(visibleWidth(said.text || ""), SENTENCE_MIN); }
   // The columns on the right are laid out first, once for the whole list: which there are and how wide each is. Every

@@ -30,6 +30,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `keeper.js` | The keeper: a small always-on background process that does what the open board's tick does, with no screen, so the board's information stays fresh and you are alerted with the board closed |
 | `land.js` | Landing: bring the branch up to date with main in the task's own worktree, merge (through the pull request when there is one, else locally), then clean up |
 | `remote.js` | Other machines |
+| `research.js` | Reports and research-only tasks: a report never goes into the repo, and a task marked research only changes nothing in it |
 | `review-page.js` | The evidence page |
 | `runner.js` | Long jobs (delegate, finish line, land, restart) run in a detached runner so the board stays responsive and hook commands never hold herdr up |
 | `state.js` | (herdr status, stage) -> what the board shows |
@@ -97,6 +98,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `mouse.js` | The mouse wheel: it scrolls the chat's message under the pointer and the whole-task page, and moves between tasks over the list |
 | `osc.js` | The same tasks, told to the terminal (OSC 7501) |
 | `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, label-and-value rows, and the list of parts |
+| `panel-report.js` | The report in the task panel: that a task is research only, and the link to the report its agent wrote |
 | `panel-reviews.js` | The reviews in the task panel: how each went, each one under its own label, and the evidence |
 | `panel-settings.js` | The settings in the task panel: every setting this task runs on, and its agent's session |
 | `panel-status.js` | The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you |
@@ -137,6 +139,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `old-holds.js` | Approval holds an older version left behind: tasks owing you a yes although you never stepped into them |
 | `pipeline.js` | The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval |
 | `recover-job.js` | A finished turn re-armed by mistake: hand the task to the human as stopped without a summary |
+| `research.js` | A research-only task at the finish line: a change in the repo goes back to its agent, and every task's report is kept |
 | `review-brief.js` | What the reviewer is told, and reading the verdict it writes back |
 | `review.js` | The reviewer: a visible herdr agent in a tab of its own in the task's space |
 | `shared.js` | The finish line's shared pieces: the approval question's words, and marking a task as failed |
@@ -217,6 +220,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [mouse.md](mouse.md) | The mouse |
 | [other-machines.md](other-machines.md) | Other machines |
 | [provider-errors.md](provider-errors.md) | A turn cut off by the provider |
+| [research.md](research.md) | Reports, and research-only tasks |
 | [roles-and-commands.md](roles-and-commands.md) | Roles and commands |
 | [settings.md](settings.md) | Settings: two places |
 | [suggestions.md](suggestions.md) | Suggested tasks |
@@ -290,6 +294,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `rearm.test.js` |  |
 | `remerge.test.js` | Work that passed its review and then only took main in is not reviewed again: the tests run on the merged result and the review stands |
 | `remote.test.js` | Other machines: the door, actions where the task lives, the SSH line |
+| `research.test.js` | Reports and research-only tasks: a report never goes into the repo, a research-only task that changed the repo is sent back and never pushed or merged, one that changed nothing ends as done with its report's link, and… |
 | `retry.test.js` | A turn cut off by the model's provider: recognised from the agent's own conversation file, retried by the board when the error is one that passes, and never taken for a finished turn or a review |
 | `status-kept.test.js` | A working task's line before the Watcher's first look of a run: the last sentence kept with its age, or "Just started", never a bare "…" |
 | `store.test.js` |  |

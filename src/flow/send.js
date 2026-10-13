@@ -8,6 +8,7 @@ import { adapter, needsNote } from "../agents.js";
 import { RULE_DIR, h } from "./task.js";
 import { labelPane } from "./sidebar.js";
 import { hand, noteSent } from "../submit.js";
+import { isResearch } from "../research.js";
 
 // ---- sending text to an agent ----------------------------------------------------------------------------------------
 // Undelivered text is never dropped: when herdr refuses a prompt because the agent is blocked on a dialog (or not
@@ -28,7 +29,7 @@ export function deliver(t, text, wake = null, { first = false } = {}) {
 // The closing-note rule. With a working hook the note is only the fallback, so it is repeated on plugin-sent prompts
 // only for kinds without one; kinds with no launch flag for standing rules also get a two-line short form of the rules.
 export const promptTail = (t) => [
-  adapter(t.agent).standing ? "" : `Rules still apply: do the work yourself on your own branch, never push or merge.\nIf you cannot continue without the human, run: ${shim()} report ${t.id} --state blocked --msg "<why>" and stop.`,
+  adapter(t.agent).standing ? "" : `Rules still apply: do the work yourself on your own branch, never push or merge.${isResearch(t) ? " This task is research only: change nothing in the repo, and keep your report out of it." : ""}\nIf you cannot continue without the human, run: ${shim()} report ${t.id} --state blocked --msg "<why>" and stop.`,
   needsNote(t.agent) || t.hooked === false ? noteRule(t) : "",
 ].filter(Boolean).join("\n\n");
 export const withTail = (t, text) => [text, promptTail(t)].filter(Boolean).join("\n\n");

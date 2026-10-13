@@ -13,6 +13,7 @@ import * as G from "../gate.js";
 import { ms, fail } from "./shared.js";
 import { reviewBrief, parseVerdict } from "./review-brief.js";
 import { suggestFaults, knownFaults } from "./faults.js";
+import { REPORT } from "../research.js";
 
 // ---- the reviewer: a visible herdr agent in a tab of its own in the task's space (flow/tabs.js) -------------------------
 export async function closeReviewer(id) {
@@ -155,7 +156,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   try { suggestFaults(id, review); } catch (e) { if (e.aborted) return { aborted: true }; }
   // Move the folder to the task's artifacts and publish the evidence page.
   const art = S.artifactsDir(id);
-  try { fs.rmSync(art, { recursive: true, force: true }); fs.mkdirSync(path.dirname(art), { recursive: true }); fs.cpSync(dir, art, { recursive: true }); fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+  try { for (const f of fs.existsSync(art) ? fs.readdirSync(art) : []) if (f !== REPORT) fs.rmSync(path.join(art, f), { recursive: true, force: true }); /* the task's report is kept there too (research.js) */ fs.mkdirSync(art, { recursive: true }); fs.cpSync(dir, art, { recursive: true }); fs.rmSync(dir, { recursive: true, force: true }); } catch {}
   try {
     t = S.get(id);
     review.artifacts = await publishReview({ enabled: ch.artifacts, dir: art, listed: review.listed, review, task: t, serve: ch.serve, onFallback: (why) => { try { S.update(id, (t) => { t.fallbacks = { ...(t.fallbacks || {}), serve: why }; }, { waitMs: 10000 }); } catch {} },

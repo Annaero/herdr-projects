@@ -11,7 +11,7 @@ import { approvalMessage } from "./shared.js";
 // Green to merge: checked, reviewed past the gate (or not to be reviewed at all), up to date with main, and nothing
 // that is yours to decide: no failure, no pull-request blocker, no approval you are owed after stepping in.
 export function green(t, ch = S.choices(t)) {
-  if (t.stage !== "approval" || t.archivedAt || !F.isAgentTask(t) || !t.reviewedHead) return false;
+  if (t.stage !== "approval" || t.archivedAt || !F.isAgentTask(t) || !t.reviewedHead || t.own?.research === true) return false; // research only: never merged
   if (t.failure || t.prFailure || t.syncBlocked || t.mergeFailed || t.requireApproval || t.mergeIntent || t.autoMerge) return false;
   return t.review ? G.passes(t.review) : ch.review === "none";
 }

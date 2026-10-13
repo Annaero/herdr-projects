@@ -26,7 +26,9 @@ tests and its words go, so that two tasks do not edit the same file.
   grows a second topic is split.
 - **Do not touch `README.md` for feature work.** It is only what this is, how to install and start it, and the list
   of pages; a new page adds one line to that list.
-- `docs/archive/` holds one-off reports. Nothing there is kept up to date.
+- **A report, a review or a research result is never committed to the repo**, in no folder. It is kept in the task's
+  own folder among the board's reports (`~/.herdr-superwork/reports/<repo>/<task number>/`, outside every repo) and
+  shared as a private link by the board ([docs/research.md](docs/research.md)).
 
 ## Tests
 

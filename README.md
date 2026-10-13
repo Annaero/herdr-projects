@@ -45,6 +45,7 @@ One page per topic, in [docs/](docs/):
 - [A turn cut off by the provider](docs/provider-errors.md)
 - [The gate](docs/gate.md)
 - [Suggested tasks](docs/suggestions.md)
+- [Reports, and research-only tasks](docs/research.md)
 - [Titles and their length limit](docs/titles.md)
 - [Settings](docs/settings.md)
 - [The home folder: where the board keeps its files](docs/home-folder.md)

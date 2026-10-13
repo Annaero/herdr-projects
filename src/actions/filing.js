@@ -9,8 +9,11 @@ import { stop } from "./talk.js";
 import { details } from "./finish-line.js";
 
 // ---- adding and editing ----------------------------------------------------------------------------------------------
-export function add(folder, title, { description = "", repo } = {}) {
-  return S.create(S.folderFor(repo, folder), title, { description });
+// `research`: the task is research only from the start (research.js).
+export function add(folder, title, { description = "", repo, research = false } = {}) {
+  const t = S.create(S.folderFor(repo, folder), title, { description });
+  if (research) S.setTaskConfig(t.id, "research", true);
+  return research ? S.get(t.id) : t;
 }
 // A new title follows the same limit as a first one: too long, it is shortened and its full text opens the description.
 const retitle = (t, title) => { const now = S.titled(title, t.description); if (now.title) { t.title = now.title; t.description = now.description; if (now.subject) t.subject = now.subject; else delete t.subject; } };

@@ -10,6 +10,7 @@ import { report } from "./filing.js";
 import { delegate } from "./start.js";
 import { tell, stop } from "./talk.js";
 import { name as keyName } from "../board/keys.js";
+import { isResearch } from "../research.js";
 
 // ---- the finish line's keys -------------------------------------------------------------------------------------------
 // Approve: the one decision that ships finished work. An agent's own request for permission gets a yes instead.
@@ -21,7 +22,7 @@ export function approve(id, seen = null) {
   const moved = (t) => { if (seen && t.stage === "approval" && ((seen.pr ?? null) !== (t.pr ?? null) || (seen.head ?? null) !== (t.reviewedHead ?? null))) throw new Error(`${t.id} changed while you were asked. Nothing was merged: look at it again, then approve.`); };
   moved(cur);
   if (cur.stage === "asks" && cur.kind === "permission") return tell(cur.id, "Yes, go ahead.");
-  if (cur.stage !== "approval") throw new Error(`${cur.id} is not waiting for an approval to merge.`);
+  if (isResearch(cur)) throw new Error(`${cur.id} is research only: nothing of it is merged. To merge its change after all, turn that off first: config research false --id ${cur.id}`);
   const t = S.update(cur.id, (t) => {
     if (t.stage !== "approval") throw new Error(`${t.id} is not waiting for an approval to merge.`);
     moved(t);
@@ -146,5 +147,5 @@ export function takeApprove(socket = currentSocket()) {
 }
 export function details(id) {
   const t = S.find(id);
-  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), suggestions: S.suggestionsOf(t), pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null };
+  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), suggestions: S.suggestionsOf(t), research: isResearch(t), report: t.report || null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null };
 }

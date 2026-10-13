@@ -58,6 +58,7 @@ export const SETTINGS = [
   { key: "ownTerminal", default: true, doc: "the board always has the size of the herdr pane it runs in: another viewer attached straight to its terminal (`herdr terminal attach`, herdr's remote web UI) holds the terminal at its own size, so the board disconnects it. `false`: it stays, the board draws inside what both can see, says so, and disconnects nobody: turn the setting on again, or close that view, to get the size back" },
   // per task only
   { key: "conflictAuto", default: true, taskOnly: true, doc: "a conflict with main goes back to the task's agent by itself" },
+  { key: "research", default: false, taskOnly: true, doc: "`true`: the task is research only. Its agent changes nothing in the repo and its result is a report with a private link; nothing is pushed, opened as a pull request or merged for it, and a change in its worktree or on its branch goes back to its agent. Also `add --research`. More: [research-only tasks](research.md)" },
 ];
 
 const of = (pick) => SETTINGS.filter(pick);

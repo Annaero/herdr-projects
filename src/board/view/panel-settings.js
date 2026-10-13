@@ -43,7 +43,9 @@ export class PanelSettings {
     rows.push(["Evidence", ch.artifacts === false ? "off" : `on · ${ch.serve === "local" ? "local links" : `${ch.serve || "tailscale"} links`}`, mine("artifacts", "serve")]);
     const conf = RX ? RX.config || {} : S.config();
     rows.push(["Watcher", ch.watcher === "off" ? "off" : `${conf.watcherAgent || conf.helper || "claude"} · ${conf.watcherModel || conf.helperModel || "default model"}`, mine("watcher")]);
-    rows.push(["Merge", ch.autoMerge ? "by itself, once it passes" : "after your yes", mine("autoMerge")]);
+    // A research-only task merges nothing: its row says so in place of how it would merge.
+    if (ch.research) rows.push(["Research", "only · no change to the repo", true]);
+    else rows.push(["Merge", ch.autoMerge ? "by itself, once it passes" : "after your yes", mine("autoMerge")]);
     rows.push(["Conflicts", ch.conflictAuto ? "repaired automatically" : "repaired by hand", mine("conflictAuto")]);
     rows.push(["Permissions", (RX ? RX.fullAccess : fullAccess(kind)) ? "full access" : "asks before acting", false]);
     const fell = Object.values(r.fallbacks || {}).filter(Boolean);

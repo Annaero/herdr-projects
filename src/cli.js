@@ -9,7 +9,8 @@ import { name as keyName } from "./board/keys.js";
 const HELP = `herdr-superwork: a work board for herdr
 
   herdr-superwork                     open the board here (in herdr: bind a key to the plugin action "open")
-  herdr-superwork add <title> [--desc TEXT] [--repo NAME|PATH] [--delegate]
+  herdr-superwork add <title> [--desc TEXT] [--repo NAME|PATH] [--delegate] [--research]
+                                      (--research: research only. Its agent changes nothing in the repo; the result is a report)
   herdr-superwork suggest <title> [--desc TEXT] --from <id>   (an agent: work you came across that is not yours; the human decides)
   herdr-superwork suggestions [<id>]            the suggested tasks still open (of one task, or all)
   herdr-superwork accept <id> [S1]              make a suggestion a task (only when the human says so)
@@ -20,7 +21,7 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork describe <id> <text>          write or replace a task's description
   (a title is at most 60 characters: a longer one is shortened at a word, its full text kept in the description)
   herdr-superwork delegate <id> [--agent KIND] [--model M] [--effort E] [--fast] [--reviewer KIND|off] [--no-reviewerFast] [--no-worktree] [--base head|fresh]
-                           [--gate critical|major|minor|trivial|off] [--rounds N] [--autoMerge true|false]
+                           [--gate critical|major|minor|trivial|off] [--rounds N] [--autoMerge true|false] [--research]
   herdr-superwork tell <id> <text>              send a message to the task's agent
   herdr-superwork stop <id>                     stop its agent
   herdr-superwork approve <id>                  merge finished work that waits for approval
@@ -47,7 +48,7 @@ const HELP = `herdr-superwork: a work board for herdr
 // positional arguments, --flag value, --flag (true), --no-flag (false)
 export function parse(argv) {
   const pos = [], flags = {};
-  const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "worktree", "no-worktree", "fast", "reviewerFast"]);
+  const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "worktree", "no-worktree", "fast", "reviewerFast", "research"]);
   if (argv[0] === "config") BOOL.delete("skill");
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -161,12 +162,12 @@ export async function main(argv) {
         result = [{ suggestion: r.suggestion || null, on: r.on || null, known: r.known || null }, `${r.msg}${r.suggestion ? S.titleNote(rest(1)) : ""} Carry on with your own task.`];
         break;
       }
-      const t = A.add(here, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "", repo: flags.repo });
+      const t = A.add(here, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "", repo: flags.repo, research: flags.research === true });
       // Added by the Coordinator from a message the human sent with tab: delegated here, flag or no flag.
       let tab = false;
       if (!flags.delegate && process.env.HERDR_PANE_ID && !process.env.HERDR_PLUGIN_ID) { try { tab = (await import("./coordinator.js")).tabTurn(process.env.HERDR_PANE_ID); } catch {} }
       if (flags.delegate || tab) A.delegate(t.id, pickChoices(flags));
-      result = [brief(shownOf(t.id)), `${t.id}: added${flags.delegate || tab ? `, an agent is on it${tab ? ` (the message was sent with ${keyName("delegate")})` : ""}` : ""}${S.titleNote(rest(1))}`];
+      result = [brief(shownOf(t.id)), `${t.id}: added${flags.research === true ? " as research only" : ""}${flags.delegate || tab ? `, an agent is on it${tab ? ` (the message was sent with ${keyName("delegate")})` : ""}` : ""}${S.titleNote(rest(1))}`];
       break;
     }
     case "list": case "ls": {

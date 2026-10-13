@@ -39,7 +39,7 @@ export function knownTarget(t, cache = null) {
   let sha = "";
   // For a task that lands locally the branch your checkout is on is part of the answer: another branch at the same commit is
   // still another place to land.
-  try { sha = viaRemote(root, t) ? git(root, ["rev-parse", "--verify", `refs/remotes/origin/${mainBranch(root, t)}`]) : `${git(root, ["rev-parse", "HEAD"])} ${S.branchOf(root)}`; } catch {}
+  try { sha = viaRemote(root, t) ? git(root, ["rev-parse", "--verify", `refs/remotes/origin/${mainBranch(root, t)}`]) : `${F.headOf(root) || git(root, ["rev-parse", "HEAD"])} ${S.branchOf(root)}`; } catch {}
   cache?.set(key, sha);
   return sha;
 }
