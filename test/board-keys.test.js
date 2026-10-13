@@ -38,10 +38,11 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     assert.match(s.text(), /\n╭─+╮\n│ also say goodbye +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n/); assert.doesNotMatch(s.text(), /Sent to the agent/);
     const t = S.get("proj/1");
     assert.match(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.at(-1), /also say goodbye/);
-    // esc has nothing to go back from here: it never hides the chat's message, never changes who you talk to, never
-    // closes the board. alt+c is the one key for the message, space the one key for who.
+    // esc has nothing to go back from here: it never hides the chat's message and never changes who you talk to.
+    // This board is the popup, so that last esc closes it (a board in a pane only shows how it closes: the test
+    // about closing). alt+c is the one key for the message, space the one key for who.
     assert.match(s.text(), /alt\+c hide the latest message/); assert.doesNotMatch(s.text(), /esc hide|esc back/); assert.match(s.text(), /space back to the Coordinator *$/);
-    s.press("esc"); assert.equal(s.v.chatOpen, true); assert.equal(s.v.reply, true); assert.equal(s.v.ask, null); assert.equal(s.closed(), undefined); assert.ok(s.v.closing); assert.match(s.text(), /Press ctrl\+c again to close the board *$/); s.v.closeSoon();
+    s.press("esc"); assert.equal(s.v.chatOpen, true); assert.equal(s.v.reply, true); assert.equal(s.v.ask, null); assert.equal(s.closed(), null); assert.ok(!s.v.closing);
     s.press("\x1bc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.match(s.text(), /\n *\n . Add a greeting {2}[^\n]*\n─+\n❯ Send message to Agent *\n─+\n[^\n]*alt\+c show the latest message/);
     s.press("\x1bc"); assert.equal(s.v.chatOpen, true);
     s.press("space"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─+\n❯/);
@@ -50,11 +51,12 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     assert.deepEqual(s.closed(), { entered: "proj/1" });
     assert.ok(w.state().focus.includes(`agent ${t.link.pane}`));
     s.v.dispose();
-    assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).sel, "proj/1");
+    // The popup keeps its view in a file of its own: a board in a tab may be open beside it, with its own selection.
+    assert.equal(S.readJson(path.join(S.dataDir(), "view-popup.json")).sel, "proj/1"); assert.equal(S.readJson(path.join(S.dataDir(), "view.json")), null);
     // ctrl+x stops the agent, and the selection stays on that row. The stop asks nothing and deletes nothing: only a
     // second ctrl+x, on the task that now has no agent running, asks to remove it, and only y would.
     A.add(w.root, "Another one"); A.add(w.root, "And one more");
-    const s2 = open(w);
+    const s2 = open(w, { ctx: { popup: true } });
     assert.equal(s2.v.sel, "proj/1");
     s2.press("ctrl+x");
     assert.equal(S.get("proj/1").stage, "stopped"); assert.match(s2.text(), /proj\/1: stopped\./); assert.equal(s2.v.sel, "proj/1"); assert.equal(s2.v.ask, null);

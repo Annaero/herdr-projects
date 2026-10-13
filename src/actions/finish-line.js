@@ -136,14 +136,17 @@ export function retry(id) {
   return say(t, `${t.id}: trying again`);
 }
 // The herdr action "approve the task in the focused pane" has no screen to ask on: it leaves the request here and
-// opens the board, which asks "Merge?" before anything is merged.
+// opens the board, which asks "Merge?" before anything is merged. `to`: the pane of the board that was shown for it,
+// so that with two boards open (one in a tab, one as the popup) the one in front of you asks.
 const approveFile = () => `${S.dataDir()}/approve-request.json`;
-export function askApprove(id, socket = currentSocket()) { S.writeJson(approveFile(), { id, socket, at: Date.now() }); }
-export function takeApprove(socket = currentSocket()) {
+export function askApprove(id, socket = currentSocket(), to = "") { S.writeJson(approveFile(), { id, socket, at: Date.now(), ...(to ? { to } : {}) }); }
+export function takeApprove(socket = currentSocket(), me = "") {
   const q = S.readJson(approveFile());
   if (!q || q.socket !== socket) return "";
+  const fresh = Date.now() - q.at < 15000;
+  if (fresh && q.to && me && q.to !== me) return ""; // the other board's
   try { fs.rmSync(approveFile(), { force: true }); } catch {}
-  return Date.now() - q.at < 15000 ? String(q.id || "") : "";
+  return fresh ? String(q.id || "") : "";
 }
 export function details(id) {
   const t = S.find(id);

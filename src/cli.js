@@ -131,7 +131,7 @@ export async function main(argv) {
     if (!t || t.stage !== "approval") return 0;
     // A merge cannot be undone and this action has no screen to ask on: the board opens on the task and asks first.
     const A = await import("./actions.js");
-    try { A.askApprove(t.id); (await import("./board/place.js")).show(); } catch {}
+    try { A.askApprove(t.id, undefined, (await import("./board/place.js")).show(undefined, { keep: true })); } catch {}
     return 0;
   }
   if (cmd === "serve") { const { serveMain } = await import("./review-page.js"); await serveMain(); return 0; }

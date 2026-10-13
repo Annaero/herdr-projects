@@ -46,6 +46,9 @@ herdr's workspace picker). `herdr --default-config` lists most of the keys herdr
 nor swapping panes, `prefix+shift+h` `j` `k` `l`); to move the board, change the `key`
 line and run `herdr server reload-config`.
 
+The key opens the board in a tab of its own. To have it open the board as a popup over the tab you are in, and
+close it again: `herdr-superwork set board.open popup` ([the board](board.md)). The key itself stays as it is.
+
 Optionally bind `herdr-superwork.approve-current` too: for the task that owns the focused pane it opens the board on
 that task with the merge question up (`y` = yes, `n` or `esc` = no), and does nothing anywhere else.
 

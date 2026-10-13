@@ -13,7 +13,7 @@ const LIVE_STAGES = [...S.SLOT_STAGES, "asks"];
 export class Actions {
   // herdr's "approve the task in the focused pane" action lands here: the board opens on that task and asks first.
   takeApprove() {
-    const id = A.takeApprove();
+    const id = A.takeApprove(undefined, this.ctx.ownPane);
     const r = id && this.items.find((x) => x.id === id && !x.archivedAt);
     if (!r) return;
     this.menu = null; this.sel = r.id; this.load();
@@ -103,6 +103,7 @@ export class Actions {
           : `Those words were for the agent on ${name}. Select it and press ${keyName("talk")}, then ${keyName("undo")} brings them back.`, "yellow");
       }
       this.draftAway = null;
+      this.awayHome(d); // the popup, reopened in another repo since: back to the one these words were typed for
       this.setValue(d.text); this.load();
       return;
     }

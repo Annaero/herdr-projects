@@ -378,13 +378,54 @@ on).
 The key opens the board in a herdr tab of its own, named `board`, in the space you are in, and from then on goes to
 that running board from anywhere instead of opening a second one. A board you started yourself in a pane
 (`herdr-superwork` typed there) is found the same way, and the key puts the keyboard on it also when an agent's pane
-is split beside it in the same tab. Closing the board (`Ctrl+C` twice) closes its tab. Outside a herdr client (plain
-SSH) the terminal becomes the agent's until you detach, and the board is back.
+is split beside it in the same tab. Pressed on the board itself, the key takes you back to the pane you came from, so
+it is a way there and a way back; when that pane is closed, or you started the board by hand, the board says on its
+message line that it is the board already. Closing the board (`Ctrl+C` twice) closes its tab. Outside a herdr client
+(plain SSH) the terminal becomes the agent's until you detach, and the board is back.
 
-The board is not herdr's popup, and that is on purpose: a popup lies over every pane of its tab, so it has to close
-to show an agent, and for as long as one exists, shown or hidden, no other plugin's popup can open. (Opened as a popup
-by hand, `herdr plugin pane open ... --placement popup`, the board still works: it closes when you go into an agent
-and reopens where you left it.)
+**The board as a popup.** `herdr-superwork set board.open popup` makes the same key open the board over the tab you
+are in, and take it away again ([settings](settings.md)); `unset board.open` brings the tab back. The popup is a
+plugin pane in herdr's overlay: herdr lays it over all of that tab, inside a frame with the board's name.
+
+- **The key again closes it**, and so does `Esc` once there is nothing left to step back from (a draft, the whole
+  task, the filter and the archive come first, as on every board), and `Ctrl+C` twice. What you typed, the task you
+  were on and the filter are there when it opens again.
+- **`Enter` on a task closes the popup and lands in that task's agent**, also when the agent is in the tab the popup
+  was over. The first three times it says for a moment how to get back.
+- **It opens on the task you were looking at**: pressed in the pane of a task's agent or reviewer, that task is
+  selected, also when the filter left from last time would hide it; a view of one other machine only gives way to
+  this machine's tasks, so the task shows and the chat talks to this machine. Anywhere else it opens where it was.
+- **Words left in its box stay with their repo.** The popup opens in the repo of the pane you are in, and what you
+  type is sent from there. With a draft waiting from last time it opens in the repo the draft was typed for and says
+  so, so `Enter` never sends it from another one; once it is sent or put away, the popup opens where you are again.
+  Words put away with `Esc` keep their repo too: `Ctrl+Z` in a popup that opened elsewhere takes the board to the
+  repo they were typed for, and says so. When that folder is gone, the board stays where it is and says which repo
+  the words would be sent from now.
+- **Left behind over another tab or space**, where herdr hides it, it is closed there and opened where you are, so
+  the key always does something.
+- **A board in a tab keeps running beside it.** Each has its own note of where it is, and its own selection, filter
+  and words (the popup's are in `view-popup.json`, and the first popup starts from the tab's view without its
+  draft). There is one keeper, one Watcher and one Coordinator whichever board you look at, and the approve action
+  for the focused pane is asked by the board that was shown for it.
+- **When herdr will not open it**, the board opens in a tab and says why on its message line.
+
+What herdr's overlay brings with it, and the board does not hide: it has the tab's whole size less its frame, not a
+window floating in the middle; it is the tab's zoomed pane, so herdr's zoom key (`prefix+z`) turns it into an
+ordinary pane beside the others, which the key still closes; and a pane you had zoomed is no longer zoomed when the
+popup closes (herdr gives one zoom to a tab and does not put the old one back).
+
+herdr has a second, floating kind (`--placement popup`), and the board key does not use it: while it shows, herdr
+gives it every key, its own included, so no key of yours could close it; it has no pane to find or close from
+outside; and while one exists, shown or hidden, no other plugin's can open (`ui_busy`). Opened by hand
+(`herdr plugin pane open --plugin herdr-superwork --entrypoint board --placement popup`) the board still works in it:
+it closes on `Esc` and for an agent, and reopens where it was.
+
+**The one case where the key does nothing you can see.** While a floating popup shows (another plugin's, or a
+`type = "popup"` command of your own config), herdr hands every key to the program in that popup, the prefix and the
+board key included. herdr starts no action, so no code of the board runs: it cannot open, and it cannot say why.
+Close that popup first. What is missing in herdr 0.9.3 is either of two things: its own key bindings handled while a
+popup has the keyboard, or an event to plugins that a key was held back. Nothing in the plugin can stand in for
+that, so nothing does.
 
 **A board that looks cut off or half empty.** (What changes the board's size at all, and why a size that lasts a
 moment is not drawn for: [the board's size](board-size.md).) The board takes its pane's size back by itself within a few seconds:
@@ -400,14 +441,14 @@ The board notices within ten seconds and says so on its first line, top left whe
 ```
 
 Closing that view, or stopping the process it names, gives the pane its own size back at once. The line is not shown
-outside herdr, in a tmux inside the pane, or in a popup (which has no pane of its own).
+outside herdr, in a tmux inside the pane, or in herdr's floating popup (which has no pane of its own).
 
 **The board's tab is named `herdr-superwork`.** Run `herdr-superwork` in a terminal inside herdr and the tab that
 terminal is in gets that name for as long as the board is open, so you can tell it from your other tabs. Only that
 one tab is renamed. When the board closes (also when it closes to take you into an agent) the tab gets back the name
 it had before; a name you gave it yourself while the board was open is kept. A board that was killed leaves the
-name, and the next board that opens and closes in that tab puts the old one back. Nothing is renamed in the popup
-(it has no tab of its own), in the tab your board key opens (that one is named `board`, above), outside herdr, in a tmux inside the pane, or by a subcommand that opens no board (`add`,
+name, and the next board that opens and closes in that tab puts the old one back. Nothing is renamed by the popup
+(it lies over a tab of yours and has none of its own), in the tab your board key opens (that one is named `board`, above), outside herdr, in a tmux inside the pane, or by a subcommand that opens no board (`add`,
 `list`, `show` and the rest). The code is `src/board/tab.js`.
 
 While the text box holds text it owns the keyboard: only `Enter`, `Tab`, `Esc` and `Ctrl+C` act on the board, so no shortcut

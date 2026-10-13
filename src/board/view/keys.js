@@ -58,13 +58,14 @@ export class Keys {
     const r = this.current();
     if (esc) {
       // One step back at a time, and nothing else: a draft is put away, not thrown away; then the whole task, the
-      // filter and the archive close; the last step only shows how the board closes. esc never shows or hides the
-      // chat and never changes who you talk to.
+      // filter and the archive close; the last step only shows how the board closes (the popup closes on it: it is
+      // back, as it was, with the board key). esc never shows or hides the chat and never changes who you talk to.
       if (this.mode !== "new") { this.mode = "new"; this.setValue(""); }
       else if (this.value()) { if (text) { this.draftAway = { text: this.value(), to: this.reply && r ? r.id : "" }; this.flash(`Put away. ${K.name("undo")} brings it back.`); } this.setValue(""); }
       else if (this.full) return this.foldPanel();
       else if (this.filter) this.filter = "";
       else if (this.archiveView) return this.toggleArchive();
+      else if (this.ctx.popup) return this.done(undefined); // the popup: nothing left to step back from, so it closes
       else return this.closeHint();
       return this.load();
     }

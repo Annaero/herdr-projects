@@ -170,6 +170,11 @@ export function herdr(socket = null) {
     // ---- the rest
     // The board in a tab of its own, an ordinary pane that stays when you go elsewhere. Answers that pane.
     openBoard: () => call(["plugin", "pane", "open", "--plugin", "herdr-superwork", "--entrypoint", "board", "--placement", "tab"]).plugin_pane?.pane || null,
+    // The board over the tab that shows, in herdr's overlay: a pane of its own that lies over that tab's panes (herdr
+    // splits the tab and zooms the new pane). `env` reaches the board. Answers that pane.
+    openBoardOver: (env = {}) => call(["plugin", "pane", "open", "--plugin", "herdr-superwork", "--entrypoint", "board", "--placement", "overlay", ...Object.entries(env).flatMap(([k, v]) => ["--env", `${k}=${v}`])]).plugin_pane?.pane || null,
+    // Close a pane a plugin opened. herdr ends its program the way a closed terminal does, so the board saves first.
+    pluginPaneClose: (id) => call(["plugin", "pane", "close", id]),
     tabRename: (id, label) => quiet(() => call(["tab", "rename", id, label])),
     // The plugins herdr has installed, and the folder one keeps its own settings in ("" when herdr names none).
     plugins: () => quiet(() => { const j = JSON.parse(run(null, ["plugin", "list", "--json"], { raw: true, timeout: 8000 })); return j.result?.plugins || j.plugins || []; }, []),

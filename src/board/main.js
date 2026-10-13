@@ -10,6 +10,7 @@ import * as S from "../store.js";
 import { userEnv } from "../runner.js";
 import { boardPane, nameBoardTab, restoreBoardTab } from "./tab.js";
 import * as P from "./place.js";
+import * as Popup from "./popup.js";
 
 export async function openBoard({ folder }) {
   userEnv(); // the popup starts with herdr's server environment: helpers and git need the user's PATH
@@ -30,7 +31,7 @@ export async function openBoard({ folder }) {
       try { view.dispose(); } catch {}
       try { if (result && result.reload) stopKeepingScreen(() => tui.stop()); else tui.stop(); } catch {}
       if (!result?.reload) restoreBoardTab(named); // the board that starts in its place closes in this tab too
-      try { P.depart(); } catch {}
+      try { P.depart(); Popup.depart(); } catch {}
       // The plugin was updated under an open board: the same command starts again on the new code, in this terminal,
       // and this process only waits for it. Selection, filter and draft were saved a line above.
       if (result && result.reload) {
@@ -45,13 +46,13 @@ export async function openBoard({ folder }) {
       // The watcher's helper calls are detached and must not keep the popup open.
       setTimeout(() => process.exit(0), 20);
     };
-    view = new View(tui, theme, done, { cwd: folder, leaveMs: 700, settleMs: 1000, boardKey, canReload: reloads < 5, popup: P.inPopup(), pane: process.env.HERDR_ENV === "1" && !process.env.TMUX ? process.env.HERDR_PANE_ID || "" : "" });
+    view = new View(tui, theme, done, { cwd: folder, leaveMs: 700, settleMs: 1000, boardKey, canReload: reloads < 5, popup: P.inPopup(), from: P.context().pane, ownPane: P.ownPane() || Popup.overPane(), pane: process.env.HERDR_ENV === "1" && !process.env.TMUX ? process.env.HERDR_PANE_ID || "" : "" });
     { const moved = S.moveNote(); if (moved) { view.flash(moved, "green"); S.moveTold(); } } // the one-time move, said once
     tui.addChild(view);
     tui.setFocus(view);
     for (const sig of ["SIGTERM", "SIGHUP"]) process.on(sig, done);
     startOnKeptScreen(); // after a reload the old board's frame is still up: drawn over, not cleared first
     tui.start();
-    P.arrive();
+    P.arrive(); Popup.arrive();
   });
 }

@@ -80,6 +80,9 @@ error stays on screen with `(esc dismisses)` after it.
 [first run](install.md) as `prefix+a`. The board never takes a key herdr binds itself (`prefix+w` is herdr's
 workspace picker) or one your config already binds: it refuses it and says what the key does today.
 
+Pressed again, the board key takes you back: on the board in its tab, to the pane you came from; with
+`board.open` set to `popup`, it closes the popup ([the board](board.md)).
+
 Restarting the Coordinator, starting a new one and going into its whole chat are not on the board: see
 [the Coordinator](coordinator.md).
 
@@ -89,10 +92,10 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 | Key | Does |
 |---|---|
 | `↑` `↓` | move between tasks |
-| `Enter` | send what you typed; with nothing typed, open the task's agent: its real herdr pane. The board keeps running in its own tab and is there as you left it; your key goes back to it |
+| `Enter` | send what you typed; with nothing typed, open the task's agent: its real herdr pane. The board keeps running in its own tab and is there as you left it; your key goes back to it (as a popup it closes, and your key opens it again where it was) |
 | `Space` | flip who you talk to: the selected task's agent, and back to the Coordinator. The chat says who. Nothing else changes it: while it is a task's agent, moving with `↑` `↓` makes it the agent of the task you moved to. On a task with no agent, your message puts one on it |
 | `Tab` | put an agent on the task. With text typed for the Coordinator: send it, and every task it adds from that message gets an agent at once, with nothing more to confirm (a message that adds no task delegates nothing) |
-| `Esc` | back, one step at a time, and nothing else: find is left, a draft is put away, then the whole task, the filter and the archive close. With none of those left it shows the same hint as `Ctrl+C`. It never shows or hides the chat, never changes who you talk to, and never closes the board by itself |
+| `Esc` | back, one step at a time, and nothing else: find is left, a draft is put away, then the whole task, the filter and the archive close. With none of those left it shows the same hint as `Ctrl+C`; the board as a popup (`board.open`) closes on it. It never shows or hides the chat and never changes who you talk to |
 | `?` | the menu: every key in these three groups, each line with its key. A ctrl or alt line can be picked with `↑` `↓` and `Enter`, which does what its key does. Under the keys, what a row's `R#2` review tag and its colour say; where the window is too short for all of it, `↓` on the last line scrolls on down, and `↑` on the first scrolls up |
 | `y` `n` | answer a question the board asks: `y` yes, `n` or `Esc` no. Only while a question is up; `Enter` never confirms |
 

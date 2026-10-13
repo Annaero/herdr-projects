@@ -23,6 +23,7 @@ import { Coordinator } from "./view/coordinator.js";
 import { Chat } from "./view/chat.js";
 import { ChatScroll } from "./view/chat-scroll.js";
 import { AgentPane } from "./view/agent-pane.js";
+import { Place } from "./view/place.js";
 import { Remotes } from "./view/remotes.js";
 import { Actions } from "./view/actions.js";
 import { Ask } from "./view/ask.js";
@@ -75,17 +76,18 @@ export class View {
   constructor(tui, theme, done, ctx) {
     this.tui = tui; this.theme = theme; this.done = done; this.ctx = ctx;
     this.input = new DraftEditor(tui, theme);
-    this.prefs = path.join(S.dataDir(), "view.json");
-    const prefs = S.readJson(this.prefs) || {};
+    const prefs = this.readPrefs();
     // Opened from the Coordinator's own pane (you went into it and came back): its folder is nobody's repo. The board
     // is where it was when you left it, so the draft that comes back is still sent from the repo it was typed in.
     try { if (C.inHome(ctx.cwd)) ctx.cwd = prefs.cwd && fs.existsSync(prefs.cwd) ? prefs.cwd : os.homedir(); } catch {}
+    this.keepDraftHome(prefs);
     this.byRepo = !!prefs.byRepo; this.side = !!prefs.side; this.scope = String(prefs.scope || ""); this.told = Number(prefs.told) || 0;
     // The popup closes each time you open an agent: selection, filter and draft come back when it reopens.
     this.sel = String(prefs.sel || ""); this.filter = String(prefs.filter || ""); if (prefs.draft) this.input.setText(String(prefs.draft));
     // So do words that were put away: ctrl+z still brings them back after the board closed or reloaded itself.
-    if (prefs.away && prefs.away.text) this.draftAway = { text: String(prefs.away.text), to: String(prefs.away.to || "") };
+    if (prefs.away && prefs.away.text) this.draftAway = { text: String(prefs.away.text), to: String(prefs.away.to || ""), cwd: String(prefs.away.cwd || prefs.cwd || "") };
     this.chatOpen = prefs.chat !== "closed";
+    this.openWhereYouAre();
     if (this.all) this.pollRemotes();
     this.repo = S.repoOf(ctx.cwd);
     try { this.canDispatch = C.ready(); } catch { this.canDispatch = false; }
@@ -95,6 +97,7 @@ export class View {
     try { this.stamp = codeStamp(); } catch {}
     try { this.startSetup(); } catch {}
     this.lookHeld();
+    try { this.hear(); } catch {}
     this.timer = setInterval(() => this.beat(), 1000);
     this.askShown();
   }
@@ -123,6 +126,7 @@ export class View {
     if (this.tick === 3) { try { this.askWebUi(); } catch {} }
     try { this.load(); } catch {}
     try { this.takeApprove(); } catch {}
+    try { this.hear(); } catch {}
     try { this.syncCoord(); } catch {}
     try { this.announce(); } catch {}
     try { this.ring(); } catch {}
@@ -132,7 +136,7 @@ export class View {
   invalidate() { this.input.invalidate(); }
   get focused() { return this.input.focused; }
   set focused(value) { this.input.focused = value; }
-  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, side: this.side, scope: this.scope, sel: this.sel, filter: this.filter, told: this.told, draft: this.mode === "new" && !this.reply ? this.value() : "", chat: this.chatOpen ? "open" : "closed", cwd: this.ctx.cwd, away: this.mode === "new" && this.reply && this.value().trim() ? { text: this.value(), to: this.replyId } : this.draftAway }); } catch {} }
+  savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, side: this.side, scope: this.scope, sel: this.sel, filter: this.filter, told: this.told, draft: this.mode === "new" && !this.reply ? this.value() : "", chat: this.chatOpen ? "open" : "closed", cwd: this.ctx.cwd, away: this.mode === "new" && this.reply && this.value().trim() ? { text: this.value(), to: this.replyId } : this.draftAway && { ...this.draftAway, cwd: this.draftAway.cwd || this.ctx.cwd } }); } catch {} }
   // A message stays until the next key press; an error stays until esc dismisses it.
   flash(text, kind = "overlay0") { this.msg = clean(text); this.msgKind = kind; }
   value() { return this.input.getText(); }
@@ -157,6 +161,7 @@ const PARTS = [
   Chat,
   ChatScroll,
   AgentPane,
+  Place,
   Remotes,
   Actions,
   Ask,

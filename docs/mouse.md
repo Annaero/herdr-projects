@@ -37,8 +37,10 @@ What changes for you:
 wheel as `↑` and `↓`, with no word on where the pointer is: the board could not tell a turn over the chat from one
 over the list.
 
-**In herdr's popup.** The board asks for the mouse the same way and draws the same there. It was tried for real in a
-pane of herdr 0.9.3 ([what was checked](checked-on-herdr.md)); the popup was not.
+**In the popup.** The board asks for the mouse the same way and draws the same there. It was tried for real in a
+pane of herdr 0.9.3 and in the popup the board key opens (`board.open`: herdr's overlay), where the wheel arrives
+with its position as in any pane ([what was checked](checked-on-herdr.md)). herdr's floating popup was not tried
+with the mouse.
 
 The two keys that scroll the chat without a mouse, `Alt+U` and `Alt+J`, are in [the keys](keys.md); how the chat
 grows and where a message starts is in [the board](board.md).
