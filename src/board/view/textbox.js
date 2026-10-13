@@ -1,9 +1,15 @@
 // The text box you type in.
 import { CURSOR_MARKER, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { isAgent } from "./states.js";
+import { AGENT_TAB } from "../../flow/tabs.js";
+import { COORDINATOR_TAB } from "../../coordinator/place.js";
+
+// The grey words of an empty box that sends a message: they name who gets it, by the name of its tab.
+const sendTo = (who) => `Send message to ${who}`;
 
 export class TextBox {
-  // The text box. Who gets your words is said by the chat's first line, right above it, never by the prompt.
+  // The text box. Its prompt is only ❯: who gets your words is said by its grey words while it is empty, and by the
+  // chat's first line, right above it.
   boxLines(width, maxRows, r) {
     const t = this.theme;
     const replying = this.mode !== "find" && this.reply && !!r;
@@ -11,8 +17,8 @@ export class TextBox {
     const lines = this.input.renderWithin(width, maxRows, label);
     if (this.value()) return lines;
     const place = this.mode === "find" ? "type to filter, archived tasks too"
-      : replying ? (r.archivedAt ? "archived: read-only" : isAgent(r) ? (r.state === "blocked" && r.kind === "question" ? "your answer" : "your reply") : !r.host && ["todo", "progress"].includes(r.stage) ? "your message starts an agent on it" : "what should change?")
-      : this.talksToCoord ? "ask or tell it anything" : "what's next?";
+      : replying ? (r.archivedAt ? "archived: read-only" : isAgent(r) ? sendTo(AGENT_TAB) : !r.host && ["todo", "progress"].includes(r.stage) ? "your message starts an agent on it" : this.canDispatch || r.host ? sendTo(COORDINATOR_TAB) : "what should change?")
+      : this.talksToCoord ? sendTo(COORDINATOR_TAB) : "what's next?";
     // The placeholder never runs past the box: it is cut with … like any other greyed line.
     const shown = truncateToWidth(place, Math.max(1, width - visibleWidth(label) - 1), "…");
     lines[1] = `${label} ${this.focused ? CURSOR_MARKER : ""}${t.inverse(shown[0])}${t.fg("overlay0", shown.slice(1))}`;

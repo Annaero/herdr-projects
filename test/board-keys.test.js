@@ -29,20 +29,20 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     assert.match(s.text(), /\n {2}enter open this task's agent · space talk to the agent · ctrl\+x stop the agent · \? all keys/);
     // space: the text box now belongs to this task's agent, and says so for as long as you type
     s.press("space");
-    assert.match(s.text(), /\n *\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?│ ❯ your reply/);
+    assert.match(s.text(), /\n *\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?│ ❯ Send message to Agent/);
     w.script({ worker: [{ status: "working" }] });
     s.type("also say goodbye");
     assert.match(s.text(), /\n *\n . Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?│ ❯ also say goodbye/); assert.match(s.text(), /enter send to this task's agent · shift\+enter new line · esc put away/);
     s.press("enter");
     // What you just sent stands in the box, in place of what the agent had said, until it says something new.
-    assert.match(s.text(), /\n╭─+╮\n│ also say goodbye +│\n│ +│\n│ ❯ your reply +│\n╰─+╯\n/); assert.doesNotMatch(s.text(), /Sent to the agent/);
+    assert.match(s.text(), /\n╭─+╮\n│ also say goodbye +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n/); assert.doesNotMatch(s.text(), /Sent to the agent/);
     const t = S.get("proj/1");
     assert.match(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.at(-1), /also say goodbye/);
     // esc has nothing to go back from here: it never hides the chat's message, never changes who you talk to, never
     // closes the board. alt+c is the one key for the message, space the one key for who.
     assert.match(s.text(), /alt\+c hide the latest message/); assert.doesNotMatch(s.text(), /esc hide|esc back/); assert.match(s.text(), /space back to the Coordinator *$/);
     s.press("esc"); assert.equal(s.v.chatOpen, true); assert.equal(s.v.reply, true); assert.equal(s.v.ask, null); assert.equal(s.closed(), undefined); assert.ok(s.v.closing); assert.match(s.text(), /Press ctrl\+c again to close the board *$/); s.v.closeSoon();
-    s.press("\x1bc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.match(s.text(), /\n *\n . Add a greeting {2}[^\n]*\n─+\n❯ your reply *\n─+\n[^\n]*alt\+c show the latest message/);
+    s.press("\x1bc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.match(s.text(), /\n *\n . Add a greeting {2}[^\n]*\n─+\n❯ Send message to Agent *\n─+\n[^\n]*alt\+c show the latest message/);
     s.press("\x1bc"); assert.equal(s.v.chatOpen, true);
     s.press("space"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─+\n❯/);
     // enter: focus the agent's real pane by pane id; the popup closes for it, and selection and filter come back on reopen

@@ -42,8 +42,8 @@ The bottom line shows only what matters right now, the main thing first, at most
   board closes. `↑↓ scroll the task` shows on the whole task only while it is longer than the window. `alt+c` shows
   only while there is a message to show or hide. `ctrl+x` says what it would do here: `stop the agent`, `remove this
   task`, or, on a task you marked as your own work, `put it back in to do`.
-- **What the screen already says is not said again.** The text box's own grey words say what to type (`your reply`,
-  `ask or tell it anything`), so the line does not.
+- **What the screen already says is not said again.** The text box's own grey words say who gets your message (`Send message
+  to Agent`, `Send message to Coordinator`), so the line does not.
 - **While you type**, it says where `Enter` sends your words: `enter send to the Coordinator`, `enter send to this
   task's agent`, `enter send, and start an agent on this task`, `enter add it as a task`.
 

@@ -263,7 +263,7 @@ to a neighbour's agent.
 ╭────────────────────────────────────────────────────────────────────────────────────────────╮
 │ Added proj/4: Add an undo. An agent is on it.                                              │
 │                                                                                            │
-│ ❯ ask or tell it anything                                                                  │
+│ ❯ Send message to Coordinator                                                              │
 ╰────────────────────────────────────────────────────────────────────────────────────────────╯
   alt+c hide the latest message · ? all keys
 ```
@@ -278,7 +278,8 @@ The chat is three things, and looks the same for the Coordinator and for a task'
   is named there, and no keys. (One thing gets a greyed line of its own under it: a default that changed while a
   Coordinator runs, with the command that starts a new one on it.)
 - **One rounded box**: their latest message in grey, an empty line, and the line you type on (the prompt is only
-  `❯`). Nothing else is in it. A long message wraps, and the box grows with it: it takes the lines the message
+  `❯`). While that line is empty it says in grey who gets your message, by the name of their tab: `Send message to
+  Coordinator`, or `Send message to Agent` for a task's agent. Nothing else is in it. A long message wraps, and the box grows with it: it takes the lines the message
   needs, up to two thirds of the window, and shrinks back for a short one. The list above gives up those rows and
   keeps the selected task in view. (Under the whole task, `Alt+T`, and the `?` menu, which are there to be read
   themselves, the message keeps to a third of the window.) While a dialog is up on their screen, the box shows that
@@ -300,7 +301,7 @@ only the arrow).
 │ 3. The check fails on main too: it is not this task's change.                              │
 │ 4. I filed proj/7 for it and put an agent on it.                                           │
 │                                                                               alt+j more ↓ │
-│ ❯ ask or tell it anything                                                                  │
+│ ❯ Send message to Coordinator                                                              │
 ╰────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -321,7 +322,7 @@ closed and opened again; for a task's agent, for as long as the board stays open
 ```
  ○ Coordinator  idle
 ──────────────────────────────────────────────────────────────────────────────────────────────
-❯ ask or tell it anything
+❯ Send message to Coordinator
 ──────────────────────────────────────────────────────────────────────────────────────────────
   alt+c show the latest message · ? all keys
 ```
