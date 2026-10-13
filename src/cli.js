@@ -52,6 +52,8 @@ const HELP = `herdr-superwork: a work board for herdr
                                                 a fresh one; with options, that choice is for this one only
   herdr-superwork coordinator stop              close it; the next message starts it again where it left off (words still waiting go in then)
   herdr-superwork --skill                       instructions an agent can load
+  herdr-superwork machines                      other machines: whether each answers, its version, or why not and what to do;
+                                                and whether another machine could ask this one
   herdr-superwork web-ui [link|unlink]          the board inside the herdr web UI: how it stands; point the web UI's shared link at it, or back
   herdr-superwork remove-extras                 take out what the plugin added outside its own folders (the how-to
                                                 files, its blocks in herdr's config); run it before unlinking
@@ -229,6 +231,7 @@ export async function main(argv) {
       result = [s, said[what === "fresh" ? "new" : what] || `Coordinator: ${s.state} · ${[s.agent, s.model || "default model", s.effort || "default effort"].join(" · ")}${s.oneOff ? " (for this one only)" : ""} · default: ${s.default}${s.error ? `\n${s.error}` : ""}${s.said ? `\n\n${s.said}` : ""}`];
       break;
     }
+    case "machines": { const M = await import("./remote/check.js"); const r = await M.check(); result = [r, M.say(r)]; break; }
     case "web-ui": { const W = await import("./webui/command.js"); const r = await W.main(pos.slice(1), { json: !!flags.json }); if (!r.ok) throw new Error(r.msg); result = [r, r.msg]; break; }
     case "remove-extras": { const X = await import("./extras.js"); const web = await X.removeWebUi(); const r = { ...X.removeExtras(), webUi: web.n }; result = [r, `Removed: the how-to files${r.blocks ? " and the plugin's blocks in herdr's config (a backup is beside it)" : ""}. The how-to is not written again and the key question will not be asked again.${web.n || !web.ok ? ` ${web.msg}` : ""}`]; break; }
     case "reopen": { const D = await import("./delegate.js"); const r = D.reopen(need(1, "an id"), { restart: true }); result = [{ pane: r.pane.pane_id, hasAgent: r.hasAgent }, `${r.task.id}: its space is open${r.hasAgent ? "" : ", no agent in it"}`]; break; }

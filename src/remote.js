@@ -1,6 +1,7 @@
 // Other machines. Every machine keeps its own tasks; a home board asks each machine for its list and sends each
 // action to the machine that owns the task, through one entry point there: `herdr-superwork remote list|do|dispatch`,
-// run over SSH with a login shell so PATH is set. Work never moves between machines.
+// run over SSH with a login shell so PATH is set. Work never moves between machines. Why a machine did not answer is
+// remote/why.js; the check you can run (`herdr-superwork machines`) is remote/check.js.
 //
 // Machines come from `herdr machine list --json` (the ones the client added with `herdr machine add`). Each has an
 // `id`, a `label`, a `target` (`user@host` or `ssh://user@host:port`), a `session` and `enabled` (seen on herdr
@@ -11,6 +12,8 @@ import { spawn } from "node:child_process";
 import * as S from "./store.js";
 import * as F from "./flow.js";
 import { herdr } from "./herdr.js";
+import { readAnswer, whyNot } from "./remote/why.js";
+export * from "./remote/why.js";
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 export function machines(done) {
@@ -35,15 +38,23 @@ export function sshCommand(m, remote, tty = false) {
   const d = S.dataDir();
   return { command: "ssh", args: [...(tty ? ["-t"] : ["-o", "BatchMode=yes"]), "-o", "ConnectTimeout=6", "-o", "StrictHostKeyChecking=accept-new", "-o", `UserKnownHostsFile=${path.join(d, "known_hosts")}`, "-o", "ControlMaster=auto", "-o", `ControlPath=${path.join(d, "ssh-%C")}`, "-o", "ControlPersist=120", "-o", "LogLevel=ERROR", m.target, line] };
 }
+// `cb(answer, why)`: the answer (one line of JSON, wherever the shell's start-up files printed around it), or null
+// with why there is none (remote/why.js): the exit code and stderr are kept for that.
 export function ask(m, what, arg, cb, ms = 20000) {
   const { command, args } = sshCommand(m, `herdr-superwork remote ${what}${arg ? " " + b64(arg) : ""}`);
-  let out = "", ended = false;
-  const end = (j) => { if (!ended) { ended = true; clearTimeout(timer); try { cb(j); } catch {} } };
-  const c = spawn(command, args, { stdio: ["ignore", "pipe", "ignore"] });
-  const timer = setTimeout(() => { try { c.kill("SIGKILL"); } catch {} end(null); }, ms);
-  c.on("error", () => end(null));
-  c.stdout.on("data", (d) => { out += d; });
-  c.on("close", () => { try { end(JSON.parse(out.trim().split("\n").pop() || "")); } catch { end(null); } });
+  let out = "", err = "", ended = false;
+  const end = (how) => {
+    if (ended) return;
+    ended = true; clearTimeout(timer);
+    const j = how.timedOut || how.error ? null : readAnswer(out);
+    try { j ? cb(j) : cb(null, whyNot({ ...how, stdout: out, stderr: err, ms }, m)); } catch {}
+  };
+  const c = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+  const timer = setTimeout(() => { try { c.kill("SIGKILL"); } catch {} end({ timedOut: true }); }, ms);
+  c.on("error", (e) => end({ error: String((e && e.message) || e) }));
+  c.stdout.on("data", (d) => { if (out.length < 64 << 20) out += d; });
+  c.stderr.on("data", (d) => { if (err.length < 1 << 16) err += d; });
+  c.on("close", (code) => end({ code }));
 }
 // Entering a remote task's agent: SSH to that machine and `herdr agent attach <pane id>` there, in the board's own
 // terminal. A direct view of that one agent's terminal, no nested herdr; detaching (ctrl+b q) returns to the board.
@@ -71,6 +82,7 @@ export async function remoteMain([what, payload]) {
   const say = (o) => process.stdout.write(JSON.stringify(o) + "\n");
   try {
     if (what === "list") return say(remoteList());
+    if (what === "hello") return say({ ok: true, host: os.hostname(), version: S.VERSION }); // the check a machine runs on itself (remote/check.js)
     if (what === "do") {
       const A = await import("./actions.js");
       let t = S.find(a.id);

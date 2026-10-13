@@ -4,6 +4,7 @@ import * as S from "../../store.js";
 import * as A from "../../actions.js";
 import * as C from "../../coordinator.js";
 import { name as keyName } from "../keys.js";
+import { unanswered } from "../../remote/why.js";
 
 export class Coordinator {
   // What you typed, for the Coordinator: this machine's one long-lived agent. For another machine's, the words are a
@@ -15,11 +16,11 @@ export class Coordinator {
     if (there) {
       const words = (about && about.host) || !(named && this.remotes[named[1]] === there) ? text : named[2];
       const job = S.newDispatch(`@${there.label} ${words}`, { remote: there.label });
-      this.ssh(there, "dispatch", { text: words, delegate, settings: S.toSend(""), from: os.hostname(), about: about && about.host ? about.rid : undefined }, (j) => {
+      this.ssh(there, "dispatch", { text: words, delegate, settings: S.toSend(""), from: os.hostname(), about: about && about.host ? about.rid : undefined }, (j, why) => {
         try {
           if (!S.getDispatch(job.id)) return;
           if (j && j.ok) S.clearDispatch(job.id);
-          else S.setDispatch(job.id, { state: "error", msg: j ? j.msg : `${there.label} did not answer` });
+          else S.setDispatch(job.id, { state: "error", msg: j ? j.msg : unanswered(there.label, why) });
           this.pollRemotes(true); this.load(); this.tui.requestRender();
         } catch {}
       }, 150000);

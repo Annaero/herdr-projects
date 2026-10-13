@@ -144,7 +144,11 @@ export class List {
   }
   move(d) {
     const ids = [...(this.steps || this.rows.filter((r) => r.rec).map((r) => r.rec.id)), ...this.jobs.map((j) => j.id)]; // the dispatcher's rows sit below the list
-    if (ids.length) this.sel = ids[Math.max(0, Math.min(ids.length - 1, ids.indexOf(this.sel) + d))];
+    // No task to move to: what the list says instead (why a machine does not answer) scrolls. Words on their way
+    // to that machine have rows below it: down reaches them after the last line, up leaves them from the first.
+    const at = ids.indexOf(this.sel), top = this.unreadTop || 0, max = this.unreadMax || 0;
+    if (!this.rows.some((r) => r.rec) && max && (d > 0 ? top < max : top > 0 && at <= 0)) { this.unreadTop = Math.max(0, Math.min(max, top + d * 3)); return; }
+    if (ids.length) this.sel = ids[Math.max(0, Math.min(ids.length - 1, at + d))];
     if (this.grouped) this.rows = this.foldRows(); // the to-do it landed on is never folded away
   }
   // The header: one line. Which project, and anything unusual about what the list shows.
@@ -166,12 +170,22 @@ export class List {
     const t = this.theme, tall = tallAt(screen);
     // The room the list has decides how many done rows show (foldRows): when it changes, they are folded again.
     if (h !== this.listRoom || tall !== this.listTall || width !== this.listWidth || this.sel !== this.foldSel) { this.listRoom = h; this.listTall = tall; this.listWidth = width; if (this.grouped) this.rows = this.foldRows(); }
+    // A machine whose tasks could not be read is said where they would be, never shown as an empty one (remotes.js).
+    const unread = this.unreadLines(width);
     if (!this.rows.length) {
-      const out = ["", " " + t.fg("overlay0", this.filter || this.mode === "find" ? "nothing matches." : this.archiveView ? "No archived tasks." : "Nothing here yet. Type what needs doing.")];
+      const none = " " + t.fg("overlay0", this.filter || this.mode === "find" ? "nothing matches." : this.archiveView ? "No archived tasks." : "Nothing here yet. Type what needs doing.");
+      const all = ["", ...unread, ...(unread.length && this.scope !== "*" ? [] : [...(unread.length ? [""] : []), none])];
+      // More than fits (why a machine does not answer, on a small screen): up and down scroll it, and a line says so.
+      this.unreadMax = Math.max(0, all.length - h);
+      const top = this.unreadTop = Math.min(this.unreadTop || 0, this.unreadMax);
+      const out = all.slice(top, top + h), more = (text) => " " + t.fg("overlay0", truncateToWidth(text, Math.max(1, width - 1), "…"));
+      if (top > 0 && out.length) out[0] = more(`↑ more above (${keyName("up")})`);
+      if (top + h < all.length && out.length > 1) out[out.length - 1] = more(`↓ more below (${keyName("down")})`);
       while (out.length < h) out.push("");
       return out;
     }
-    const lines = [];
+    this.unreadMax = 0;
+    const lines = unread.length ? [{ text: "", sel: false }, ...unread.map((text) => ({ text, sel: false }))] : [];
     // One layout for the displayed list, across groups and outside the scroll viewport: the columns line up down the
     // whole list. What is shown of them is decided one group at a time, under each heading.
     const sections = [];

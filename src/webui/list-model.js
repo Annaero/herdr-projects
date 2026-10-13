@@ -37,6 +37,7 @@ export function listOf(v) {
   for (const g of groups) for (const r of g.rows) r.tagWidth = tagCells(r.tag.length, column) || r.tag.length;
   const session = sessionName(currentSocket());
   const asked = v.archiveView ? 0 : v.suggestionCount();
+  const unread = v.unread();
   return {
     head: {
       where: v.archiveView ? "archive" : v.repo.root === os.homedir() ? "~" : `${v.repo.name} · ${short(v.repo.root)}`,
@@ -47,6 +48,8 @@ export function listOf(v) {
     groups, selected: v.sel || "",
     // Words on their way to another machine: rows of their own under the list, until that machine has taken them.
     jobs: v.jobs.map((j) => ({ id: j.id, text: String(j.text || ""), failed: j.state === "error", msg: String(j.msg || "") })),
-    empty: v.rows.length ? "" : v.filter ? "Nothing matches." : v.archiveView ? "No archived tasks." : "Nothing here yet. Type what needs doing.",
+    // Machines whose tasks could not be read, each with why and what to do: said where their tasks would be.
+    unread,
+    empty: v.rows.length || (unread.length && v.scope !== "*") ? "" : v.filter ? "Nothing matches." : v.archiveView ? "No archived tasks." : "Nothing here yet. Type what needs doing.",
   };
 }

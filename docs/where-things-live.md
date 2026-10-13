@@ -197,6 +197,13 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `talk.js` | A task's conversation as the board shows it: its agent's, or its reviewer's while the task is under review |
 | `task.js` | A task's own places and its herdr: the closing note, the review folder, whether an agent is on it |
 
+## `src/remote/`
+
+| File | Holds |
+|---|---|
+| `check.js` | `herdr-superwork machines`: the check you can run |
+| `why.js` | Why another machine's tasks could not be read, and what to do about it |
+
 ## `src/store/`
 
 | File | Holds |
@@ -389,6 +396,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `pull-requests.test.js` |  |
 | `rearm.test.js` |  |
 | `remerge.test.js` | Work that passed its review and then only took main in is not reviewed again: the tests run on the merged result and the review stands |
+| `remote-why.test.js` | Other machines that do not answer: why not, for each kind of failure, on both boards and in `herdr-superwork machines` |
 | `remote.test.js` | Other machines: the door, actions where the task lives, the SSH line |
 | `research.test.js` | Reports and research-only tasks: a report never goes into the repo, a research-only task that changed the repo is sent back and never pushed or merged, one that changed nothing ends as done with its report's link, and… |
 | `retry.test.js` | A turn cut off by the model's provider: recognised from the agent's own conversation file, retried by the board when the error is one that passes, and never taken for a finished turn or a review |

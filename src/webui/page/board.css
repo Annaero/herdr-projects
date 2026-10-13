@@ -115,6 +115,10 @@
 .sw-toast-red { border-color: var(--sw-red); color: var(--danger-text, #ffd9d4); background: color-mix(in srgb, var(--sw-red) 14%, var(--sw-lift)); }
 .sw-toast-green { border-color: var(--sw-green); } .sw-toast-yellow { border-color: var(--sw-yellow); }
 .sw-toast-x { flex: none; width: 24px; height: 24px; min-width: 24px; min-height: 24px; }
+.sw-unread { margin: var(--space-3, 12px) var(--space-3, 12px) 0; padding: var(--space-2, 8px) var(--space-3, 12px); border: var(--hairline, 1px) solid var(--sw-yellow); border-radius: var(--radius-md, 8px); font-size: var(--fs-sm, 13px); }
+.sw-unread-line { margin: 0; color: var(--sw-text); overflow-wrap: anywhere; }
+.sw-unread summary { margin-top: var(--space-1, 4px); color: var(--sw-dim); cursor: pointer; }
+.sw-unread-detail { margin: var(--space-2, 8px) 0 0; color: var(--sw-dim); font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
 .sw-empty { color: var(--sw-dim); padding: var(--space-6, 24px) var(--space-4, 16px); margin: 0; text-align: center; }
 
 .sw-group { margin-top: var(--space-4, 16px); }

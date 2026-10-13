@@ -43,9 +43,12 @@ export function listEl(list, opts) {
   return el;
 }
 function drawList(list, { onPick, onMore }) {
-  if (!list.groups.length && !list.jobs.length) return h("p.sw-empty", list.empty);
+  // A machine whose tasks could not be read: one line, and behind it what happened and what to do.
+  const unread = (list.unread || []).map((u) => h("div.sw-unread", { role: "status" }, h("p.sw-unread-line", u.line),
+    u.detail.length ? h("details", h("summary", "Why, and what to do"), h("pre.sw-unread-detail", u.detail.join("\n"))) : null));
+  if (!list.groups.length && !list.jobs.length) return unread.length ? h("div.sw-list", unread, list.empty ? h("p.sw-empty", list.empty) : null) : h("p.sw-empty", list.empty);
   const jobs = list.jobs.length ? h("section.sw-group", h("h3.sw-group-name.sw-c-overlay0", "on their way"), h("ul.sw-rows", list.jobs.map((j) => jobEl(j, { selected: j.id === list.selected, onPick })))) : null;
-  return h("div.sw-list", { role: "listbox", "aria-label": "Tasks" }, jobs, list.groups.map((g) => h("section.sw-group",
+  return h("div.sw-list", { role: "listbox", "aria-label": "Tasks" }, unread, jobs, list.groups.map((g) => h("section.sw-group",
     h(`h3.sw-group-name.sw-c-${g.color}`, g.name, h("span.sw-count", String(g.rows.length + g.more))),
     h("ul.sw-rows", g.rows.map((r) => rowEl(r, { selected: r.id === list.selected, onPick }))),
     g.more ? h("button.btn.btn-ghost.sw-more", { type: "button", onclick: () => onMore(g) }, `${g.more} more`) : null)));

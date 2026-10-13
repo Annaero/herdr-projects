@@ -59,8 +59,8 @@ export function webChat(v, r) {
   // A machine on an older plugin sends no version and would not know "reopen": the pane it last named is opened.
   if (!r.machine.version) { v.flash(`Update herdr-superwork on ${r.host}: it cannot reopen a closed space yet.`, "yellow"); return land(r.link.pane, "", true); }
   v.flash(`${r.host}: opening…`);
-  v.ssh(r.machine, "do", { action: "reopen", id: r.rid }, (j) => {
-    if (!j || !j.ok) return v.flash(j ? j.msg : `${r.host} did not answer`, "red");
+  v.ssh(r.machine, "do", { action: "reopen", id: r.rid }, (j, why) => {
+    if (!j || !j.ok) return v.flash(j ? j.msg : R.unanswered(r.host, why), "red");
     if (/^[^:]+: opening…$/.test(v.msg || "")) v.msg = "";
     land(j.pane || r.link.pane, j.workspace, j.hasAgent !== false);
   }, 60000);

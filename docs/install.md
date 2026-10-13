@@ -10,6 +10,12 @@ npm link                          # puts `herdr-superwork` on your PATH (agents 
 herdr plugin link "$PWD"          # hooks, the board's tab and the actions
 ```
 
+On a machine that another one will ask for its tasks ([other machines](other-machines.md)), `herdr-superwork` and
+`node` must be found by a login shell that nobody types into, which is what SSH starts: a PATH set only in `~/.bashrc`
+is often not enough. `herdr-superwork machines` checks it on the machine itself and says how to fix it; from the other
+machine the test is `ssh <machine> 'exec $SHELL -lc "herdr-superwork remote list"' | tail -c 200`, which ends with a
+line of JSON.
+
 Typing `herdr-superwork` in any pane opens the board. The first time it opens inside herdr it shows one screen with
 two things it can add to your herdr `config.toml`. Each is your choice, answered with single keys: `1` and `2` switch
 them on or off, `k` picks another key, `enter` saves, `esc` asks again next time. The file is backed up first, each

@@ -25,7 +25,7 @@ It gives the command by its full path, so `npm link` is not needed. `herdr-super
 exactly what was written, and it is not written back; a folder of that name the plugin did not write is left alone.
 
 Commands: `add`, `suggest`, `suggestions`, `accept`, `dismiss`, `list`, `report`, `describe`, `delegate`, `tell`, `stop`, `approve`, `review`, `retry`, `fix`,
-`finish`, `details`, `pin`, `archive`, `restore`, `clear`, `set`, `unset`, `show`, `automations` ([automations](automations.md)), `remove-extras`; `herdr-superwork help` lists
+`finish`, `details`, `pin`, `archive`, `restore`, `clear`, `set`, `unset`, `show`, `automations` ([automations](automations.md)), `machines` ([other machines](other-machines.md)), `remove-extras`; `herdr-superwork help` lists
 them.
 
 **Agents the board started: able, not nudged.** An agent or a reviewer the board itself started on a task can run
