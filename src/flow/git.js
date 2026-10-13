@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import * as S from "../store.js";
-import { noteFile } from "./task.js";
 
 // ---- git/gh helpers used by more than one step -----------------------------------------------------------------------
 // Asked on every pass, for every task: where the repo's own config file can answer (a primary checkout, with nothing
@@ -78,4 +77,3 @@ function headFile(dir) {
 }
 export const headOf = (dir) => { const known = headFile(dir); if (known) return known; try { return S.gitOut(dir, ["rev-parse", "HEAD"]); } catch { return ""; } };
 export const dirty = (dir) => { try { return S.gitOut(dir, ["status", "--porcelain"]); } catch { return ""; } };
-export const noteStat = (t) => { try { const s = fs.statSync(noteFile(t)); return { mtime: s.mtimeMs, text: fs.readFileSync(noteFile(t), "utf8").trim() }; } catch { return null; } };

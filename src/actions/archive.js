@@ -35,6 +35,7 @@ export async function clear(id) {
   // Removing the worktree is a clean-up like the one after a merge: it holds a runner marker while it runs.
   try { S.update(cur.id, (t) => { t.runner = S.marker({ job: "cleanup" }); }, { waitMs: 5000 }); } catch {}
   const kept = await cleanup(t, { deleteBranch: "merged" }); // herdr and git calls: never under the task lock
+  if (!kept.length) F.clearNotes(t); // the old place too: the task's folder goes whole below
   S.withTaskLock(cur.id, () => S.remove(cur.id), { waitMs: 5000 });
   return { id: cur.id, kept };
 }

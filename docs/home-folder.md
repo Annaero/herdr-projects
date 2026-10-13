@@ -6,7 +6,7 @@ Everything the board keeps for you is in one folder, the same on every machine: 
 ~/.herdr-superwork/
   settings/     config.json: your own preferences (docs/settings.md)
   data/         everything the board writes while it runs
-    tasks/<repo>/<n>/        one folder per task: task.json, inbox.jsonl, artifacts/
+    tasks/<repo>/<n>/        one folder per task: task.json, inbox.jsonl, closing-note.md, artifacts/
     coordinator/<session>/   the Coordinator's saved state, and chat/, the folder it starts in
     bin/herdr-superwork      the command agents are handed, by its full path
     locks/ stamps/ *.json *.log   the board's own bookkeeping
@@ -26,15 +26,31 @@ Everything the board keeps for you is in one folder, the same on every machine: 
 The `XDG_*` variables (`XDG_STATE_HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`) no longer choose a place. They are
 read for one thing only: to find where an older version kept its files, for the move below.
 
-## The same name in a repo is something else
+## Nothing of the board's goes into the folder an agent works in
 
-A repo the board works in gets a `.herdr-superwork/` folder too (ignored by git): a task's closing note
-(`closing-<n>.md`) and a review's files (`review-<n>/`) go there. Tasks whose repo is your home folder itself
-write those into `~/.herdr-superwork/`, beside the folders above. That is where a `closing-1.md` in the home folder
-comes from. The two never meet: the board's own folders are `settings`, `data`, `reports` and `set-aside`, a task's
-files are `closing-<n>.md` and `review-<n>`. The board never clears the home folder, and neither the move nor
-anything else touches a file there it did not write. `.herdr-superwork.json` (a repo's own settings) is a file of
-another name.
+What an agent writes for the board goes in its task's own folder, `data/tasks/<repo>/<n>/`: its closing note
+(`closing-note.md`) and, while a review runs, the reviewer's verdict and evidence (`review/`, moved to `artifacts/`
+when the review ends). The agent is told the full path. So a task that works in your home folder writes nothing
+into `~/.herdr-superwork/` itself, and no repo or worktree gets a folder of the board's.
+
+The closing note is removed when its task is cleaned up (after a merge, a task that ended with nothing to merge,
+or `clear`), and the whole task folder goes when the task is cleared away.
+
+**Older versions** had agents write into `.herdr-superwork/` inside the folder they worked in (ignored by git):
+`closing-<n>.md` and `review-<n>/`. For a task in the home folder that was `~/.herdr-superwork/` itself, which is
+where a `closing-1.md` beside `data` and `settings` comes from. What that means now:
+
+- An agent that was started with the old rule keeps working: the board still reads a note from the old place for
+  its task, the newer one when both places have one, until that task is done. A task started by this version is
+  never looked for there.
+- When such a task is cleaned up, its own note in the old place is removed with it, and the old folder too when
+  that leaves it empty.
+- Anything else in an old `.herdr-superwork/` folder is left alone (a task started by this version removes nothing
+  from it, whatever the files are called), and so is a folder that is not empty: delete
+  it yourself when no agent from before is still running. The line for it in the repo's `.git/info/exclude` stays,
+  so leftovers never show up as changes.
+
+`.herdr-superwork.json` (a repo's own settings) is a file of another name.
 
 ## What stays outside it
 

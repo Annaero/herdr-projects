@@ -5,7 +5,7 @@ import * as S from "../store.js";
 import { spawnRunner } from "../runner.js";
 import { herdr } from "../herdr.js";
 import { adapter, needsNote } from "../agents.js";
-import { RULE_DIR, h } from "./task.js";
+import { noteFile, h } from "./task.js";
 import { labelPane } from "./sidebar.js";
 import { hand, noteSent } from "../submit.js";
 import { isResearch } from "../research.js";
@@ -47,7 +47,7 @@ export function shim() {
   } catch {}
   return file;
 }
-export const noteRule = (t) => `Before you stop, write your closing summary (or your question to the human, if you cannot continue) to ${RULE_DIR}/closing-${t.n}.md in this folder.`;
+export const noteRule = (t) => `Before you stop, write your closing summary (or your question to the human, if you cannot continue) to ${noteFile(t)} (the board's own folder for this task, not the folder you work in).`;
 // A prompt the plugin itself sends (check output, review findings, conflict or pull-request repair). It writes
 // expectedWake first, so the turn it causes is known to be the plugin's own: counters and an approved merge survive.
 export function sendOwn(id, text, { reason, keepIntent = false, patch = {}, tries = 0 } = {}) {

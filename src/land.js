@@ -147,7 +147,7 @@ export async function tidy(id, { deleteBranch = "always" } = {}) {
       const msg = prev?.msg ?? t.msg;
       // In use: tried again by the housekeeping pass, and after a turn of the agent only once it has been quiet a while.
       t.tidy = kept.retry ? { deleteBranch, tip: kept.tip, comp: kept.comp, still: kept.still || undefined, eventSeq: kept.eventSeq, quietFrom: kept.turn ? Date.now() : prev?.quietFrom || 0, msg } : null;
-      if (kept.length) t.kept = [...kept]; else { delete t.kept; t.worktree = null; t.cleaned = Date.now(); t.link = { socket: t.link?.socket }; }
+      if (kept.length) t.kept = [...kept]; else { F.clearNotes(t); delete t.kept; t.worktree = null; t.cleaned = Date.now(); t.link = { socket: t.link?.socket }; }
       t.msg = kept.length ? `${msg} Kept: ${kept.join(", ")}` : msg;
     }, { waitMs: 10000 });
   } catch {}

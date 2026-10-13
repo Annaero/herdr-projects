@@ -94,7 +94,7 @@ test("review: a verdict for another commit is ignored, a missing verdict is a sa
     t = await settle(id);
     assert.equal(t.stage, "approval"); assert.equal(t.review.pass, false); assert.match(t.msg, /^Approve to merge\? Review: Fail · 1 major\./); // gate "off": a failed review waits for you
     assert.equal(git(t.worktree, "status", "--porcelain"), ""); // what you approve is exactly what the agent committed
-    assert.ok(!fs.existsSync(path.join(t.worktree, ".herdr-superwork", "review-1", "verdict.json")));
+    assert.ok(!fs.existsSync(path.join(F.reviewDir(t), "verdict.json")));
     assert.ok(fs.existsSync(path.join(S.artifactsDir(id), "verdict.json")));
     // ctrl+r now hands the findings to the agent
     w.script({ worker: [{ files: { "f.txt": "v2\n" }, commit: "v2", note: "Fixed it." }] });

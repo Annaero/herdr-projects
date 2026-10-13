@@ -270,6 +270,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `cleanup-retry.test.js` |  |
 | `cleanup-space.test.js` |  |
 | `cli.test.js` | The command line |
+| `closing-note.test.js` | Where an agent writes for the board: the task's own folder in the board's data folder, never the folder it works in; the old place is still read for agents started with the old rule; a cleaned-up task leaves no note… |
 | `coordinator-chat.test.js` | The Coordinator's chat: one long-lived agent behind the box, and its latest message shown or hidden |
 | `coordinator-helpers.js` | Shared by the Coordinator's tests (test/coordinator-*.test.js): a world with a Coordinator, and a board opened on it |
 | `coordinator-messages.test.js` | What you say to the Coordinator is never lost: dialogs, failed starts, stop, on and off |

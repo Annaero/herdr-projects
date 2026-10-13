@@ -122,10 +122,13 @@ function answer(argv, env) {
     if (step.merge) { try { git(p.cwd, ["merge", "-q", "--no-edit", String(step.merge)]); } catch {} } // conflicts are resolved by `files` and `commit`
     for (const [rel, text] of Object.entries(step.files || {})) { fs.mkdirSync(path.dirname(path.join(p.cwd, rel)), { recursive: true }); fs.writeFileSync(path.join(p.cwd, rel), text); }
     if (step.commit) { git(p.cwd, ["add", "-A"]); git(p.cwd, ["-c", "user.email=agent@test", "-c", "user.name=agent", "commit", "-qm", String(step.commit)]); }
-    if (step.note !== undefined && step.note !== null) { const f = path.join(p.cwd, ".herdr-superwork", `closing-${n}.md`); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, step.note); const t = new Date(Date.now() + 5); fs.utimesSync(f, t, t); }
+    // The task's own folder on the board, where its agent is told to write: the task numbered `n` that this pane is on.
+    const tasks = path.join(env.HERDR_SUPERWORK_DATA_DIR || "", "tasks");
+    const mine = (() => { try { const all = fs.readdirSync(tasks).map((r) => path.join(tasks, r, String(n))).filter((d) => fs.existsSync(path.join(d, "task.json"))); return all.find((d) => fs.readFileSync(path.join(d, "task.json"), "utf8").includes(`"${p.pane_id}"`)) || all[0]; } catch { return null; } })();
+    // `oldNote`: the note where an older version's rule put it, in the folder the agent works in.
+    if (step.note !== undefined && step.note !== null) { const f = step.oldNote || !mine ? path.join(p.cwd, ".herdr-superwork", `closing-${n}.md`) : path.join(mine, "closing-note.md"); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, step.note); const t = new Date(Date.now() + 5); fs.utimesSync(f, t, t); }
     if (step.verdict) {
-      const d = fs.readdirSync(path.join(p.cwd, ".herdr-superwork")).find((x) => x.startsWith("review-"));
-      const out = path.join(p.cwd, ".herdr-superwork", d);
+      const out = path.join(mine, "review");
       for (const [name, text] of Object.entries(step.evidence || {})) fs.writeFileSync(path.join(out, name), text);
       let commit = step.verdict.commit;
       if (!commit || commit === "HEAD") { try { commit = git(p.cwd, ["rev-parse", "HEAD"]); } catch { commit = ""; } }

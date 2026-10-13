@@ -46,8 +46,8 @@ export function freeBranch(root, t) {
   for (let i = 2; ; i++) { try { S.gitOut(root, ["rev-parse", "--verify", `refs/heads/${branch}`]); branch = `${stem}-${i}`; } catch { break; } }
   return branch;
 }
-// Keep the plugin's own folder out of the repo's status without touching a committed file. The exclude file is shared
-// by all of the repo's worktrees.
+// Keep the folder older versions had agents write notes into out of the repo's status, for agents still running with
+// that rule, without touching a committed file. The exclude file is shared by all of the repo's worktrees.
 export function excludeRuleDir(root) {
   try {
     const file = path.resolve(root, S.gitOut(root, ["rev-parse", "--git-path", "info/exclude"]));
@@ -84,7 +84,7 @@ export function rules(t) {
     `If you cannot continue without the human, run this and then stop: ${cmd} report ${t.id} --state blocked --kind <question|permission|auth> --msg "<why, in one line>"  (question: the human must type an answer; permission: you need approval to do something; auth: a login, token or credential is missing). Do not end with a question otherwise.`,
     `If you come across unrelated work that should be done (a bug elsewhere, a follow-up), do not do it and do not add it as a task: suggest it to the human with ${cmd} suggest "<short title: a few words, ${S.TITLE_RULE}>" --desc "<what and why, and the file it is in>" --from ${t.id} and carry on. It becomes a task only if they accept it. Suggest a thing once: ${cmd} suggestions lists what is suggested already and ${cmd} list the tasks, and what the board knows already is not added again. These are the only board commands you may run.`,
     R.reportRule(t),
-    `Before you stop, also write your closing summary (or your question to the human) to ${F.RULE_DIR}/closing-${t.n}.md in this folder (git ignores that folder). It is the board's fallback when it cannot read your last message.`,
+    `Before you stop, also write your closing summary (or your question to the human) to ${F.noteFile(t)} (the board's own folder for this task, not the folder you work in). It is the board's fallback when it cannot read your last message.`,
   ].filter(Boolean);
   return `Rules for this task (its id on the work board is ${t.id}):\n${lines.map((l) => `- ${l}`).join("\n")}`;
 }
@@ -200,11 +200,11 @@ export async function delegateJob(id) {
         const repoCfg = S.repoConfig(root, from);
         excludeRuleDir(root);
         copyIncludes(root, dir, repoCfg.include || []);
-        patch = { worktree: dir, branch, from, baseSha: (from === "HEAD" && F.headOf(root)) || S.gitOut(root, ["rev-parse", from]), repoCfg, fresh: true };
+        patch = { worktree: dir, branch, from, baseSha: (from === "HEAD" && F.headOf(root)) || S.gitOut(root, ["rev-parse", from]), repoCfg, fresh: true, ownNote: true };
       } else {
         res = api.workspaceCreate({ cwd: root, label, env: S.boardEnv() });
         if (S.isRepo(root)) excludeRuleDir(root);
-        patch = { repoCfg: t.repoCfg || S.repoConfig(root), fresh: !t.startedOnce, startMark: S.isRepo(root) ? R.startMark(root) : null }; // your checkout as the agent finds it
+        patch = { repoCfg: t.repoCfg || S.repoConfig(root), fresh: !t.startedOnce, startMark: S.isRepo(root) ? R.startMark(root) : null, ...(t.startedOnce ? {} : { ownNote: true }) }; // your checkout as the agent finds it
       }
       const pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
       t = g.set((t) => { Object.assign(t, patch); t.root = root; t.startedOnce = true; t.link = { ...t.link, workspace: res.workspace.workspace_id, tab: res.tab?.tab_id || pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true, reviewer: null }; });

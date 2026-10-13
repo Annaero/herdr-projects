@@ -21,7 +21,7 @@ async function asking(w, title) {
 }
 // The agent's turn ends by hand: a closing note, and herdr says done.
 function endTurn(w, t, text) {
-  const note = path.join(t.worktree, ".herdr-superwork", `closing-${t.n}.md`);
+  const note = F.noteFile(t);
   fs.writeFileSync(note, text); const later = new Date(Date.now() + 2000); fs.utimesSync(note, later, later);
   w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = "done"; p.agent.seq = s.seq; p.agent.completion = s.seq; });
 }

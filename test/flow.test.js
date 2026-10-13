@@ -30,7 +30,7 @@ test("delegate: a herdr worktree workspace, the agent in its root pane, the firs
     const prompt = pane.agent.prompts[0];
     assert.match(prompt, /\n\nAdd a greeting\n\nSay hello\./);
     const standing = fs.readFileSync(pane.agent.args[pane.agent.args.indexOf("--append-system-prompt-file") + 1], "utf8"); // the rules ride on the launch, in a file, in force for the whole session
-    assert.match(standing, /closing-1\.md/); assert.match(standing, /herdr-superwork report proj\/1 --state blocked/); assert.match(standing, /Do not push/); assert.match(prompt, /^Work board task proj\/1, role: agent\./);
+    assert.match(standing, /closing-note\.md/); assert.match(standing, /herdr-superwork report proj\/1 --state blocked/); assert.match(standing, /Do not push/); assert.match(prompt, /^Work board task proj\/1, role: agent\./);
     assert.match(git(w.root, "rev-parse", "--git-path", "info/exclude") && fs.readFileSync(path.join(w.root, ".git/info/exclude"), "utf8"), /\.herdr-superwork\//);
     assert.equal(JSON.parse(fs.readFileSync(process.env.HERDR_SUPERWORK_CLAUDE_JSON, "utf8")).projects[w.root].hasTrustDialogAccepted, true); // pre-trusted
     assert.equal(stateOf(t.id).state, "working");
@@ -211,7 +211,7 @@ test("a failed check goes straight back to the agent, three tries, then a saved 
     assert.match(t.failure.title, /Check failed after 3 tries/);
     const prompts = w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts;
     assert.equal(prompts.length, 3); // the task, then two repair rounds
-    assert.match(prompts[1], /The check failed, so this is not done yet/); assert.match(prompts[1], /closing-1\.md/);
+    assert.match(prompts[1], /The check failed, so this is not done yet/); assert.match(prompts[1], /closing-note\.md/);
     assert.equal(stateOf(id).state, "error");
   } finally { w.cleanup(); }
 });

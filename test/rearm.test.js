@@ -25,7 +25,7 @@ test("typing in the agent's own terminal re-arms the pipeline: approval revoked,
     t = S.get(id);
     assert.equal(t.stage, "working"); assert.equal(t.review.stale, true); assert.equal(t.requireApproval, true); assert.equal(t.turnOpen, true);
     assert.equal(stateOf(id).state, "working");
-    const note = path.join(t.worktree, ".herdr-superwork", "closing-1.md");
+    const note = F.noteFile(t);
     fs.writeFileSync(note, "Did v2."); const later = new Date(Date.now() + 50); fs.utimesSync(note, later, later);
     w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = "done"; p.agent.seq = s.seq; p.agent.completion = s.seq; });
     t = await settle(id);
@@ -46,7 +46,7 @@ test("a `working` reading from the turn the finish line already handled does not
     const api = herdr(), late = api.agentGet(t.link.pane);
     assert.equal(late.agent_status, "working");
     // meanwhile the turn ends and the finish line handles it
-    const note = path.join(t.worktree, ".herdr-superwork", "closing-1.md");
+    const note = F.noteFile(t);
     fs.mkdirSync(path.dirname(note), { recursive: true }); fs.writeFileSync(note, "Did v1."); const later = new Date(Date.now() + 50); fs.utimesSync(note, later, later);
     w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = "done"; p.agent.seq = s.seq; p.agent.completion = s.seq; });
     t = await settle(id);
@@ -114,7 +114,7 @@ test("a late `working` from the terminal herdr had before it restarted does not 
     apply(id, { ...old, agent_status: "done" }, api);
     assert.equal(S.get(id).stage, "working"); assert.equal(S.get(id).last.term, "term_after_restart"); assert.equal(globalThis.__swJobs.length, 0);
     delete process.env.HERDR_SUPERWORK_REOPEN_MS;
-    const note = path.join(t.worktree, ".herdr-superwork", "closing-1.md");
+    const note = F.noteFile(t);
     fs.writeFileSync(note, "Did v2."); const later = new Date(Date.now() + 50); fs.utimesSync(note, later, later);
     w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = "done"; p.agent.seq = s.seq; p.agent.completion = s.seq; });
     t = await settle(id);
@@ -237,7 +237,7 @@ test("a task already stuck re-armed (working, turn open, no runner, completion h
     assert.deepEqual(quiet(), ["working", 0]);
     // a turn really in progress is left alone: the agent has written a newer note than the handled one
     S.update(id, (t) => { t.stage = "working"; t.turnOpen = true; t.armedAt = t.handled.at + 11; });
-    const note = path.join(t.worktree, ".herdr-superwork", "closing-1.md");
+    const note = F.noteFile(t);
     const later = new Date(Date.now() + 50); fs.utimesSync(note, later, later);
     onPane(w.socket, t.link.pane);
     assert.equal(S.get(id).stage, "working"); assert.equal(globalThis.__swJobs.length, 0);
@@ -250,7 +250,7 @@ test("a turn nobody saw start still counts: a new commit behind an approval is c
     const id = await toApproval(w);
     let t = S.get(id);
     fs.writeFileSync(path.join(t.worktree, "f.txt"), "sneaky\n"); git(t.worktree, "commit", "-qam", "sneaky");
-    const note = path.join(t.worktree, ".herdr-superwork", "closing-1.md");
+    const note = F.noteFile(t);
     fs.writeFileSync(note, "Changed it again."); const later = new Date(Date.now() + 2000); fs.utimesSync(note, later, later);
     w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 2; p.agent.seq = s.seq; p.agent.completion = s.seq; p.agent.status = "done"; });
     t = await settle(id);

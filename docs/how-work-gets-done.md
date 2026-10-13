@@ -30,8 +30,9 @@ login error, token use. With the board open or closed it then:
 **Without a hook** (a crash, a program older than the adapter's minimum version, another agent kind, Codex when you
 have your own `notify` configured, or a hook that failed three turns in a row) herdr's
 status is only a guess from the screen, so "idle" alone never finishes a task. The turn counts as ended when the
-saved conversation ends in a finished message or an error, or a closing note was written to
-`.herdr-superwork/closing-<n>.md` (the rules still ask for one as the fallback). Otherwise the task is held as
+saved conversation ends in a finished message or an error, or a closing note was written to the task's own folder
+(`closing-note.md`, [where it is](home-folder.md#nothing-of-the-boards-goes-into-the-folder-an-agent-works-in); the
+rules still ask for one as the fallback). Otherwise the task is held as
 "stopped without a summary": `Ctrl+R` tells the agent to continue, `Ctrl+L` takes the work as it is. Typing in the agent's own
 terminal, or replying from the board, re-arms all of this: an approval is revoked, a pending auto-merge cancelled (a
 cancellation that fails is saved as a visible failure), the old review marked stale.

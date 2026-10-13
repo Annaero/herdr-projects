@@ -1,7 +1,7 @@
 // A turn that is already handled: the same turn seen again, and a task re-armed for a turn that never came.
 import * as S from "../store.js";
 import { readTurnOf } from "../agents.js";
-import { noteStat } from "./git.js";
+import { noteStat } from "./task.js";
 
 // ---- a turn that is already handled ------------------------------------------------------------------------------------
 // The saved conversation still ends in the message the finish line already handled.

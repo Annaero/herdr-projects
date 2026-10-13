@@ -51,7 +51,8 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   const folder = S.cwdOf(t);
   const dir = F.reviewDir(t);
   const verdictFile = path.join(dir, "verdict.json");
-  // The folder is emptied before the reviewer starts. Inside the working folder, so an agent's sandbox allows the writes.
+  // The folder is emptied before the reviewer starts. It is the task's own, in the board's data folder: nothing of the
+  // board's is written into the folder the work is in.
   fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
   // The configured reviewer program may not be installed here: review with the working agent's kind instead, on that
   // kind's own default model and effort, and say so on the task.

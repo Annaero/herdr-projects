@@ -78,8 +78,8 @@ test("reconcile: a pane that is gone, an agent that exited, and a finished turn 
     reconcile(S.get(id), herdr());
     assert.equal(S.get(id).link.pane, "w9:p1");
     // it finished while no hook fired
-    fs.mkdirSync(path.join(t.worktree, ".herdr-superwork"), { recursive: true });
-    fs.writeFileSync(path.join(t.worktree, ".herdr-superwork", "closing-1.md"), "Finished unseen."); const later = new Date(Date.now() + 2000); fs.utimesSync(path.join(t.worktree, ".herdr-superwork", "closing-1.md"), later, later);
+    fs.mkdirSync(path.dirname(F.noteFile(t)), { recursive: true });
+    fs.writeFileSync(F.noteFile(t), "Finished unseen."); const later = new Date(Date.now() + 2000); fs.utimesSync(F.noteFile(t), later, later);
     w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === "w9:p1"); s.seq += 1; p.agent.status = "done"; p.agent.seq = s.seq; p.agent.completion = s.seq; });
     housekeeping(w.socket, { force: true });
     t = await settle(id);

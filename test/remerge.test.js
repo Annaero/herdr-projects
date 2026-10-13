@@ -9,6 +9,7 @@ import { world, settle, git, paneOf } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as Y from "../src/sync.js";
+import * as F from "../src/flow.js";
 
 const holds = (dir, sha) => { try { git(dir, "merge-base", "--is-ancestor", sha, "HEAD"); return true; } catch { return false; } };
 const big = (first, last) => [first, ...Array.from({ length: 18 }, (_, i) => `line ${i + 2}`), last].join("\n") + "\n";
@@ -78,7 +79,7 @@ test("more than the merge needed is reviewed again: a file that did not conflict
       let t = await resync(w, id, { max: 30 });
       if (t.stage === "working") { // the second case: the merge, then new work in a commit of its own
         fs.writeFileSync(path.join(t.worktree, "extra.txt"), "new work\n"); git(t.worktree, "add", "-A"); git(t.worktree, "commit", "-qm", "more");
-        const note = path.join(t.worktree, ".herdr-superwork", `closing-${t.n}.md`);
+        const note = F.noteFile(t);
         fs.writeFileSync(note, "Resolved, and more."); const later = new Date(Date.now() + 2000); fs.utimesSync(note, later, later);
         w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = "done"; p.agent.seq = s.seq; p.agent.completion = s.seq; });
         t = await settle(id, { max: 30 });
