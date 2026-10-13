@@ -104,7 +104,8 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `review-words.js` | A review in a few words: its result, its colour, which round it was |
 | `row-fit.js` | What a section of the list shows when space is short: its rows give the same things up together, in one order |
 | `row-tall.js` | A live task's third line on a narrow screen: the bar, the percent, the minutes left, the review tag, the pull request and the time, which have no room beside the name there |
-| `row.js` | One row of the list: its mark, its name, its columns on the right and, for a live task, a second line that says what it does (a third on a narrow screen: row-tall.js) |
+| `row-wrap.js` | A row on a narrow screen, wrapped instead of cut: a live task's name and what it says take up to two lines each, and the selected task's name as many as it needs |
+| `row.js` | One row of the list: its mark, its name, its columns on the right and, for a live task, a second line that says what it does (a third on a narrow screen: row-tall.js, where long ones wrap: row-wrap.js) |
 | `setup.js` | The first run: one screen asks what the plugin may add to herdr's settings |
 | `size.js` | The board's size: the window, what herdr shows of it, and another viewer holding the terminal at its own size |
 | `states.js` | Where a task stands, as the board sorts it: its group, its colour, whether an agent is on it, whether it waits for you |
@@ -245,6 +246,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `board-review.test.js` | Reviews as the board shows them: on a row and in the task panel |
 | `board-row-fit.test.js` | What the rows of a section show when space is short: the same things on every row, given up together in one order |
 | `board-row-tall.test.js` | A live task's row on a narrow screen: its third line (the bar, the percent, the minutes left, the review tag, the pull request, the time), the width where it switches, the highlight, scrolling, and the to-dos giving… |
+| `board-row-wrap.test.js` | Rows on a narrow screen wrap instead of being cut: a live task's name and what it says take up to two lines each, the selected task's name as many as it needs, one-line rows go without their time, and the highlight,… |
 | `board-rows.test.js` | One row of the list: its name, what it says, its columns |
 | `board-setup.test.js` | The first run, and the board loading its new version |
 | `board-size.test.js` | A terminal held at another size than herdr shows |

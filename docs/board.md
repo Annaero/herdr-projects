@@ -41,7 +41,7 @@ doing now, how its review came out with a short tally of what it found (`Pass ·
 major`, the result in its own colour), or what it waits for. While the reviewer works, it says only what the reviewer
 is doing. In the all-machines view, where a machine's name sits before a task's, the second line still starts under
 the task's name, right of the machine's. That line has the row's whole width, so it is rarely cut; one longer than the window is cut at its end with
-`…`, never wrapped.
+`…`, never wrapped (on a narrow screen it wraps: below).
 
 A done or to-do task has nothing to say and keeps one line, so that many of them show at once. (A to-do task that
 carries a note says it after its name, on that one line.)
@@ -54,7 +54,7 @@ The highlight of the selected task covers all its lines. `↑` and `↓` go task
 
 **On a narrow screen a live task's row is three lines.** On a phone (about 50 columns) the name leaves no room
 beside it, so the bar, the percent, the minutes left, the review tag and the pull request used to be hidden. Under 80
-columns they have a line of their own, the third:
+columns they have a line of their own, the last of the row:
 
 ```
  working
@@ -69,41 +69,75 @@ columns they have a line of their own, the third:
                                              20s
 ```
 
-- **Line 1** is the mark and the name, with the whole width: a name is cut only at the screen's edge.
+- **Line 1** is the mark and the name, with the whole width.
 - **Line 2** is what the task says, as on a wide screen.
-- **Line 3** is, in this order, the bar, the percent, the minutes left, the `R#` tag, the pull request and the time,
+- **The last line** is, in this order, the bar, the percent, the minutes left, the `R#` tag, the pull request and the time,
   in their usual colours. It starts right of the mark and ends at the right edge (in the all-machines view too, where
   it does not move right under a machine's name: a long one would leave it no room). Each of them is as wide as the widest
   of its kind on the list, so they start under each other on every live row, and the bar takes all the room that is
   left: every bar is the same length, and the line fills the width. The time ends at the edge with the word `ago`
   or without it.
-- A task with nothing to show yet (no progress, no review, no pull request) still has its time there, so every live
-  row is the same height and nothing moves when its first percent arrives.
-- Done and to-do rows stay one line, with their columns beside the name as before.
+- A task with nothing to show yet (no progress, no review, no pull request) still has its time there, so nothing
+  moves when its first percent arrives.
+- Done and to-do rows stay one line.
+
+**On a narrow screen long rows wrap instead of being cut.** A phone has about 45 cells for a name, and a name cut
+there with `…` often does not say which task it is. So under 80 columns:
+
+```
+ working
+ ◐ Research capy.ai and other coding agents for
+   ideas we could use on the board
+   Researching coding agents and harnesses for
+   ideas, reading their docs and changelogs one …
+   █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   3%   34s
+
+ to do
+ ○ Check herdr-projects /autoproject for ideas w…
+ ○ Bring the board to herdr's web UI
+ ○ Rethink how the Coordinator works, restarts
+   and remembers what it was told before
+```
+
+- **A live task's name takes up to two lines, and so does what it says.** Each is cut with `…` only after its
+  second line. What fits one line takes one: a row is three lines at least and five at most, with the line of the
+  bar and the time always the last.
+- **The selected task shows its whole name**, on as many lines as it needs, whichever group it is in (the third
+  to-do above). It gives up the tags beside its name for that. Move on, and it is one line again.
+- **Done and to-do rows stay one line, without their time** (`5h`): the name has that room, and the tags (`R#`,
+  `PR#`) still show where there is room beside it. The time of a task is in its panel.
+- **Wrapped lines start under the name**, never under the mark, so the marks stay a column of their own. In the
+  all-machines view a name that wraps has the line to itself, without the machine's name before it; and what a task
+  says starts under the machine's name when a long one would leave it fewer than 20 cells a line.
+- No limit on how long a name or a sentence may be has changed: this is only how they are drawn.
+- The highlight covers every line of the selected row, the arrow keys still go task by task, and the list counts
+  each row at the height it has: what gives way in a list taller than the window, and the scroll, are as below.
+
+From 80 columns on, nothing wraps and every row is as it was.
 
 **Where it switches: 80 columns of screen.** At 80 a name of 40 cells (what a name keeps before a column goes,
 below) sits beside every column at its widest: the mark (3), the name (40), the bar (8), the percent (4), the minutes
 left (4), `R#12` (4), `PR#123` (6), the time (3) and the gaps between them (8). Narrower than that, line 1 always
 goes without something, so the columns move down; from 80 on the row is the two lines it was, and nothing changes.
 It is the screen's width that is counted, never the names or the numbers on it: all live rows switch together, and
-no row changes height when a task is renamed or gets a pull request. And it is the whole screen, not the list: a
+no row gets or loses that line when a task is renamed or gets a pull request. And it is the whole screen, not the list: a
 list made narrow by the task panel beside it, on a wide screen, keeps two-line rows (the panel shows the rest).
 
-In a width too small even for the third line (under 38 columns with every column there) things go in this order:
+In a width too small even for that line (under 38 columns with every column there) things go in this order:
 the word `ago`, the bar, the `R#` tag with the pull request, the percent with the minutes left. The time stays.
 
 **A list taller than the window.** The done rows give way first: the list shows the latest five of them, and when it
 still does not fit, one fewer for each line it is short, down to the newest one (the line under them says how many
 more there are, and `?` has the key that shows all of them). Then the to-dos, from the last one up, down to the
 first, with a line under them that counts the rest (`… 4 more to do`). So the live tasks, which are the ones that
-need your eye, stay on the screen, also on a phone where each takes three lines. The task you have selected is never
+need your eye, stay on the screen, also on a phone where each takes three lines to five. The task you have selected is never
 folded away, and nothing is while you search or have asked for all done.
 
 A to-do that gave way is still one `↓` away: the arrow keys go through every to-do, and the ones that show are then
 the ones that end at the selected task. To-dos give way only on a list that has live tasks: with none there is
 nothing to keep in view, and the list scrolls as it always did, with no line spent on a count.
 
-Only when the list is still too tall does it scroll, and then by whole rows: a row of two or three lines is never
+Only when the list is still too tall does it scroll, and then by whole rows: a row of more than one line is never
 shown in part. Its lines come into view together, and where only some would fit at the bottom those lines are left
 empty. (In a list squeezed to a single line, the selected task shows its name.)
 
@@ -139,8 +173,8 @@ agent, waiting for your yes, done.
 (the rows under one heading: `working`, `done`, ...), never row by row: each thing is on every row of the group that
 has it, or on none. So if one name under `working` leaves no room for a bar, no row under `working` has a bar. A
 long name under `done` costs `working` nothing, and the columns still start at the same place down the whole list.
-(On a screen under 80 columns a live row's columns are on its third line, above: what follows is then about the
-one-line rows.)
+(On a screen under 80 columns a live row's columns are on its last line, above: what follows is then about the
+one-line rows, which have no time there.)
 
 Things give way in this order, first to last, and the name wins over all of them:
 

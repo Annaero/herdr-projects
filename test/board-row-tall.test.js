@@ -32,12 +32,15 @@ test("narrow screen: a live row's third line has the bar, the percent, the minut
   for (const width of [40, 44, 48, 50, 55, 79]) {
     const layout = v.rowLayout(LIVE, width), rows = LIVE.map((r) => plain(v.rowLines(r, width, layout)));
     const note = `at ${width}:\n${rows.flat().join("\n")}`;
-    for (const lines of rows) { assert.equal(lines.length, 3, note); assert.ok(lines.every((l) => l.length <= width), note); assert.equal(lines[2].length, width, note); }
-    // Line 1 is the mark and the name with the whole width: nothing beside it, and a name is cut only at the edge.
+    // A name longer than its line wraps onto a second one (board-row-wrap.test.js): that row is one line taller.
+    const long = width < 3 + review.title.length ? 1 : 0;
+    rows.forEach((lines, n) => { assert.equal(lines.length, n === 1 ? 3 + long : 3, note); assert.ok(lines.every((l) => l.length <= width), note); assert.equal(lines.at(-1).length, width, note); });
+    // Line 1 is the mark and the name with the whole width: nothing beside it.
     assert.equal(rows[0][0].trimEnd(), " ◐ Agent at work"); assert.equal(rows[2][0].trimEnd(), " ✓ Good work"); assert.equal(rows[3][0].trimEnd(), " ◐ Just started");
-    assert.equal(rows[1][0].trimEnd(), width >= 3 + review.title.length ? ` ◐ ${review.title}` : ` ◐ ${review.title.slice(0, width - 4)}…`, note);
-    // Line 2 is what the task says, as on a wide screen.
-    assert.deepEqual(rows.map((lines) => lines[1].trimEnd()), ["   Reading the panel and its tests.", "   Running the tests", "   Pass · 1 minor", "   …"]);
+    assert.equal(rows[1].slice(0, 1 + long).map((l) => l.trim().replace(/^◐ /, "")).join(" "), review.title, note);
+    // Then what the task says, as on a wide screen.
+    assert.deepEqual(rows.map((lines) => lines.at(-2).trimEnd()), ["   Reading the panel and its tests.", "   Running the tests", "   Pass · 1 minor", "   …"]);
+    for (const lines of rows) lines[2] = lines.at(-1);
     // Line 3, in order. The bar takes the room the others leave, so it is as long on every row.
     const bar = width - 34;
     assert.match(rows[0][2], new RegExp(`^ {3}█+░+ {3}40% {2}12m +2h$`), note); assert.match(rows[1][2], new RegExp(`^ {3}█+░+ {3}70% {3}3m {2}R#1 PR#17 +2h$`), note);
@@ -48,7 +51,7 @@ test("narrow screen: a live row's third line has the bar, the percent, the minut
     assert.equal(rows[1][2].indexOf("R#1"), rows[2][2].indexOf("R#1"), note); // the tags start under each other
   }
   if (!process.env.NO_COLOR) { // their usual colours: the agent's amber, the reviewer's blue, a passed review's green, the time greyed
-    const ink = (c) => theme.fg(c, "\0").split("\0")[0], layout = v.rowLayout(LIVE, 48), third = (r) => v.rowLines(r, 48, layout)[2];
+    const ink = (c) => theme.fg(c, "\0").split("\0")[0], layout = v.rowLayout(LIVE, 48), third = (r) => v.rowLines(r, 48, layout).at(-1);
     assert.ok(third(agent).includes(`${ink("yellow")}█`) && third(agent).includes(`${ink("yellow")} 40%`) && third(agent).includes(`${ink("yellow")}12m`));
     assert.ok(third(review).includes(`${ink("review")}█`) && third(review).includes(`${ink("review")}R#1`));
     assert.ok(third(waits).includes(`${ink("green")}R#1`)); assert.ok(third(fresh).includes(`${ink("overlay0")}2h`));
@@ -60,14 +63,18 @@ test("the third line is there under 80 columns of screen and gone from 80 on, fo
   const v = board([...LIVE, ...quiet]);
   assert.equal(TALL_BELOW, 80);
   const heights = (width, screen) => { const layout = v.rowLayout([...LIVE, ...quiet], width, undefined, screen); return [...LIVE, ...quiet].map((r) => v.rowLines(r, width, layout).length); };
-  for (const width of [30, 40, 55, 79]) assert.deepEqual(heights(width), [3, 3, 3, 3, 1, 1], `at ${width}`);
+  for (const width of [60, 79]) assert.deepEqual(heights(width), [3, 3, 3, 3, 1, 1], `at ${width}`);
+  // Narrower, the names and words that do not fit their line wrap (board-row-wrap.test.js): no live row is under three.
+  for (const width of [30, 40, 55]) { const tall = heights(width); assert.ok(tall.slice(0, 4).every((n) => n >= 3), `at ${width}`); assert.deepEqual(tall.slice(4), [1, 1], `at ${width}`); }
   for (const width of [80, 81, 120, 200]) assert.deepEqual(heights(width), [2, 2, 2, 2, 1, 1], `at ${width}`);
   // It is the screen that counts: a list made narrow by the task panel beside it, on a wide screen, is as it was.
   assert.deepEqual(heights(60, 120), [2, 2, 2, 2, 1, 1]);
-  // The list: headings and one-line rows as ever, a one-line row's columns still beside its name.
-  const narrow = plain(v.listLines(50, 40)), wide = plain(v.listLines(80, 40));
+  // The list: headings and one-line rows as ever, a one-line row's tags still beside its name. Its time is not: on
+  // a narrow screen its name has that room.
+  const narrow = plain(v.listLines(60, 40)), wide = plain(v.listLines(80, 40));
   assert.equal(narrow.filter((l) => l.trim()).length - wide.filter((l) => l.trim()).length, 4, "one more line for each of the four live rows");
-  assert.match(narrow.find((l) => /Finished/.test(l)), /^ ✓ Finished +R#1 PR#3 +2h ago$/); assert.match(narrow.find((l) => /Not begun/.test(l)), /^ ○ Not begun +2h ago$/);
+  assert.match(narrow.find((l) => /Finished/.test(l)), /^ ✓ Finished +R#1 PR#3$/); assert.match(narrow.find((l) => /Not begun/.test(l)), /^ ○ Not begun *$/);
+  assert.match(wide.find((l) => /Finished/.test(l)), /^ ✓ Finished +R#1 PR#3 +2h$/); assert.match(wide.find((l) => /Not begun/.test(l)), /^ ○ Not begun +2h$/);
   // At 80 the columns sit beside a name of 40 cells: the widest of each kind, bar and all.
   const full = [{ ...agent, title: "A".repeat(40), eta: 120, reviewRound: 12, stage: "reviewing", pr: 123 }];
   assert.match(plain(v.rowLines(full[0], 80, v.rowLayout(full, 80)))[0], /^ ◐ A{40} {2}[█░]{8} {2}40% 120m {2}R#12 PR#123 {2}2h$/);
@@ -77,9 +84,9 @@ test("in a width too small for all of the third line the time stays and nothing 
   const v = board(LIVE);
   for (const width of [14, 20, 24, 30, 36]) {
     const layout = v.rowLayout(LIVE, width);
-    for (const r of LIVE) { const lines = plain(v.rowLines(r, width, layout)); assert.ok(lines.every((l) => l.length <= width), `at ${width}`); assert.match(lines[2], / 2h( ago)?$/, `at ${width}: ${lines[2]}`); }
+    for (const r of LIVE) { const lines = plain(v.rowLines(r, width, layout)); assert.ok(lines.every((l) => l.length <= width), `at ${width}`); assert.match(lines.at(-1), / 2h( ago)?$/, `at ${width}: ${lines.at(-1)}`); }
   }
-  const third = (width) => plain(v.rowLines(review, width, v.rowLayout(LIVE, width)))[2];
+  const third = (width) => plain(v.rowLines(review, width, v.rowLayout(LIVE, width))).at(-1);
   assert.match(third(36), /^ {3}[█░]+ {3}70% {3}3m {2}R#1 PR#17 {3}2h$/); // the word "ago" goes for a bar that can be read
   assert.match(third(30), /^ +70% {3}3m {2}R#1 PR#17 {3}2h$/); // then the bar
   assert.match(third(20), /^ +70% {3}3m +2h$/); // then the tags, the percent and the minutes last

@@ -8,16 +8,13 @@ import { herdr, currentSocket, sessionName } from "../../herdr.js";
 import { short, repoLabel } from "./words.js";
 import { GROUPS, GROUP_COLOR, groupOf, asRow, isLive } from "./states.js";
 import { name as keyName } from "../keys.js";
-import { rowHeight, tallAt } from "./row-tall.js";
+import { tallAt } from "./row-tall.js";
 
 // A long done list folds to its latest few. A list taller than its room shows fewer still, down to one.
 const DONE_SHOWN = 5;
 const isDone = (r) => r.state === "done" && !r.pinned && !r.archivedAt;
 const rank = (r) => (r.archivedAt ? -2 : r.pinned ? -1 : GROUPS.indexOf(groupOf(r)));
 const isTodo = (r) => groupOf(r) === "to do" && !r.pinned && !r.archivedAt;
-// The lines a list of rows takes: an empty line and a heading for each group, two lines for a live task's row (three
-// on a narrow screen).
-const linesOf = (rows, tall) => rows.reduce((n, row) => n + (row.header ? 2 : row.rec ? rowHeight(row.rec, tall) : 1), 0);
 
 export class List {
   load() {
@@ -126,7 +123,10 @@ export class List {
       }
       return rows;
     };
-    const over = (rows) => !whole && this.listRoom && linesOf(rows, this.listTall) > this.listRoom;
+    // The lines a list of rows takes: an empty line and a heading for each group, and each row's own height (two
+    // lines for a live task, more on a narrow screen, where rows wrap: row-wrap.js).
+    const linesOf = (rows) => rows.reduce((n, row) => n + (row.header ? 2 : row.rec ? this.rowHeight(row.rec, this.listWidth, this.listTall) : 1), 0);
+    const over = (rows) => !whole && this.listRoom && linesOf(rows) > this.listRoom;
     let keep = DONE_SHOWN, rows = lay(keep);
     while (keep > 1 && over(rows)) rows = lay(--keep);
     // The arrow keys go through every to-do, folded or not: the one they land on is selected, so it shows.
@@ -160,7 +160,7 @@ export class List {
   listLines(width, h, screen = width) {
     const t = this.theme, tall = tallAt(screen);
     // The room the list has decides how many done rows show (foldRows): when it changes, they are folded again.
-    if (h !== this.listRoom || tall !== this.listTall || this.sel !== this.foldSel) { this.listRoom = h; this.listTall = tall; if (this.grouped) this.rows = this.foldRows(); }
+    if (h !== this.listRoom || tall !== this.listTall || width !== this.listWidth || this.sel !== this.foldSel) { this.listRoom = h; this.listTall = tall; this.listWidth = width; if (this.grouped) this.rows = this.foldRows(); }
     if (!this.rows.length) {
       const out = ["", " " + t.fg("overlay0", this.filter || this.mode === "find" ? "nothing matches." : this.archiveView ? "No archived tasks." : "Nothing here yet. Type what needs doing.")];
       while (out.length < h) out.push("");
@@ -175,7 +175,7 @@ export class List {
     this.rows.forEach((row) => {
       if (row.header) lines.push({ text: "", sel: false }, { text: " " + (this.byRepo ? t.bold(t.fg("subtext0", repoLabel(row.header))) : t.fg(GROUP_COLOR[row.header] || "subtext0", row.header)), sel: false });
       else if (row.note) lines.push({ text: "   " + t.fg("overlay0", row.note), sel: false });
-      // A live task's row is two lines or three, and all are the selected row's: the highlight covers them.
+      // A row of more than one line (a live task's, a wrapped name) is the selected row's in all of them: the highlight covers them.
       else this.rowLines(row.rec, width, layout).forEach((text, n, all) => lines.push({ text, sel: row.rec.id === this.sel, n, rest: all.length - n }));
     });
     const at = lines.findIndex((l) => l.sel), end = lines.findLastIndex((l) => l.sel);

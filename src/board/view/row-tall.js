@@ -1,7 +1,7 @@
 // A live task's third line on a narrow screen: the bar, the percent, the minutes left, the review tag, the pull request and the time, which have no room beside the name there.
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { bar } from "./words.js";
-import { isLive, statusColor } from "./states.js";
+import { statusColor } from "./states.js";
 import { ETA_STEADY } from "./row-fit.js";
 
 // Below this many columns every live row has the third line; from it on, none has. It is the width at which a name
@@ -15,8 +15,6 @@ export const TALL_BELOW = 80;
 const BAR_MIN = 4;
 
 export const tallAt = (screen) => screen < TALL_BELOW;
-// The lines a row takes: one, two for a live task, three for a live task on a narrow screen.
-export const rowHeight = (r, tall) => (isLive(r) ? (tall ? 3 : 2) : 1);
 
 export class RowTall {
   // The third line's columns, once for the whole list: each is as wide as the widest of its kind, so they start at
