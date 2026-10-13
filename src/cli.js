@@ -20,6 +20,8 @@ const HELP = `herdr-superwork: a work board for herdr
                          [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
   herdr-superwork describe <id> <text>          write or replace a task's description
   (a title is at most 60 characters: a longer one is shortened at a word, its full text kept in the description)
+  (an <id> is repo/134; where its repo has a short key, HSW-134 names the same task, in any letter case.
+   A key: herdr-superwork set repo.key HSW --repo NAME)
   herdr-superwork delegate <id> [--<setting> VALUE ...] [--research|--no-research]
                                       any work setting, for this task only: --reviewer.agent claude --merge.by itself
                                       (a refused option changes nothing on the task)
@@ -106,7 +108,8 @@ const brief = (t) => ({ id: t.id, state: t.state, kind: t.kind, app: t.shownApp,
 export async function main(argv) {
   const { pos, flags } = parse(argv);
   const cmd = pos[0] || (flags.skill ? "--skill" : flags.help ? "help" : "board");
-  const out = (value, text) => process.stdout.write(flags.json ? JSON.stringify(value, null, 2) + "\n" : `${text ?? JSON.stringify(value, null, 2)}\n`);
+  // What a person reads names a task by its repo's short key where it has one (`HSW-134: updated`); --json keeps the ids.
+  const out = (value, text) => process.stdout.write(flags.json ? JSON.stringify(value, null, 2) + "\n" : `${text === undefined || text === null ? JSON.stringify(value, null, 2) : S.sayIds(text)}\n`);
   const need = (n, what) => { if (!pos[n]) throw new Error(`${cmd} needs ${what}. Try: herdr-superwork help`); return pos[n]; };
   const rest = (n) => pos.slice(n).join(" ");
   S.homeAtStart(cmd); // an older version's folders move into the one home folder, once (store/move-home.js)
@@ -170,9 +173,9 @@ export async function main(argv) {
       break;
     }
     case "list": case "ls": {
-      const q = String(flags.query || "").trim().toLowerCase();
+      const q = String(flags.query || "").trim().toLowerCase(), keys = q ? S.repoKeys() : {}; // a task is found by its number and its tag too: 134, #134, hsw-134
       const all = F.board({ includeArchived: true }).filter((t) => (flags.archived ? t.archivedAt : flags.all || q || !t.archivedAt))
-        .filter((t) => !q || `${t.id} ${t.title} ${t.note || ""} ${t.state} ${t.shownApp || ""} ${t.description || ""}`.toLowerCase().includes(q));
+        .filter((t) => !q || `${S.tagOf(t.id, keys)} #${t.n} ${t.id} ${t.title} ${t.note || ""} ${t.state} ${t.shownApp || ""} ${t.description || ""}`.toLowerCase().includes(q));
       result = [all.map(brief), all.length ? all.map(line).join("\n") : "No tasks."];
       break;
     }

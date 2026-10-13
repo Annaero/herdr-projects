@@ -1,8 +1,9 @@
 // What a section of the list shows when space is short: its rows give the same things up together, in one order.
 //
 // The order, first to go to last: what a row says, the bar, the word "ago", the part of a name past NAME_OWED cells,
-// the percent with the minutes left, the review tag with the pull request, the time, and then the rest of the name.
-// A row is { room, name, has }: the cells right of its mark, its name's width, which columns it has something in.
+// the percent with the minutes left, the review tag with the pull request, the time, the task's number (for the whole
+// list at once: row-number.js), and then the rest of the name.
+// A row is { room, name, has }: the cells right of its mark and of the tasks' numbers, its name's width, which columns it has something in.
 // A cell is { key, w }: one column of the list, left to right, at the width it is decided with.
 
 // A name is whole up to this many cells. What is past them is cut before a column goes, so that one long name does

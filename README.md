@@ -49,6 +49,7 @@ One page per topic, in [docs/](docs/):
 - [Reports, and research-only tasks](docs/research.md)
 - [Automations: tasks made on a schedule, or when something happens on the board](docs/automations.md)
 - [Titles and their length limit](docs/titles.md)
+- [Task numbers and repo keys: `#134`, `HSW-134`](docs/task-numbers.md)
 - [Settings](docs/settings.md)
 - [The home folder: where the board keeps its files](docs/home-folder.md)
 - [Other machines](docs/other-machines.md)

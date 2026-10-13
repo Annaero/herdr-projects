@@ -6,16 +6,18 @@ import { agentOf, say } from "./values.js";
 import { yours, repoFile } from "./places.js";
 import { folderOf } from "../repos.js";
 import { lookup, placesOf, inRepo } from "./lookup.js";
+import { repoKeys } from "../keys.js";
 
 // One row per setting: { name, value, from, place, own, kind, note }. `own`: said in the nearest place of the scope
 // (this task, or you). `note`: why a value does nothing here.
 export function rows(scope = {}) {
   const mine = yours(), task = scope.task || null, at = placesOf(scope, mine);
   const noRepo = at.noRepo;
-  return SETTINGS.filter((s) => task || !scope.repo || s.kind === "work").map((s) => {
+  return SETTINGS.filter((s) => task || (scope.repo ? s.kind !== "board" : s.kind !== "repo")).map((s) => {
     const r = lookup(s.name, scope, mine, at);
     let note = "";
     if (noRepo && needsRepo(s.name)) note = "does not apply: this task is in no repo";
+    else if (s.name === "repo.key" && r.value !== "none" && (task || scope.repo)) { const repo = scope.repo || String(task.id).split("/")[0]; if (repoKeys()[repo] !== r.value) note = "not used: another repo says the same key"; }
     else if (s.name.endsWith(".fast") && r.value === true) {
       const { kind } = agentOf(lookup(`${s.name.split(".")[0]}.agent`, scope, mine, at).value);
       if (kind && typeof AGENTS[kind]?.fast !== "function") note = `does nothing: ${kind} has no fast mode`;

@@ -39,7 +39,7 @@ export class Panel {
     if (editing) this.panelTop = Math.min(this.editLine, Math.max(this.panelTop, this.editLine - this.panelHeight + 1));
     this.panelTop = Math.max(0, Math.min(this.panelTop, Math.max(0, lines.length - this.panelHeight)));
     const end = Math.min(lines.length, this.panelTop + this.panelHeight);
-    const left = " " + t.bold(editing ? "Settings" : "Task details") + t.muted(`  ${idLabel(r.id)}`), right = lines.length > this.panelHeight ? t.muted(`lines ${this.panelTop + 1}–${end} of ${lines.length} `) : "";
+    const left = " " + t.bold(editing ? "Settings" : "Task details") + t.muted(`  ${r.title === undefined ? idLabel(r.id) : this.idWords(r)}`), right = lines.length > this.panelHeight ? t.muted(`lines ${this.panelTop + 1}–${end} of ${lines.length} `) : "";
     return [left + " ".repeat(Math.max(2, width - visibleWidth(left) - visibleWidth(right))) + right, t.fg("surface1", "─".repeat(width)), ...lines.slice(this.panelTop, end)];
   }
   // The task panel. One shape, beside the list and full screen, and one form for every part: a bold headline on a
@@ -122,7 +122,7 @@ export class Panel {
     for (const s of parts) if (over() > 0 && s.alert) s.lines = s.alert(Math.max(2, s.lines.length - over()));
     if (over() > 0) gap = false;
     if (over() > 0) top.drop("head");
-    if (over() > 0) title.lines = [truncateToWidth(t.bold(clean(r.title || "(no title)")), w, "…")];
+    if (over() > 0) title.lines = [truncateToWidth(title.lines[0] || "", w, "…")];
     for (const s of parts) if (over() > 0 && ![title, top].includes(s) && !s.last) s.lines = [];
     if (over() > 0) top.drop("change");
     for (const s of parts) if (over() > 0 && s.last) s.lines = [];

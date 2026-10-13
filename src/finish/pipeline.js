@@ -39,7 +39,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
   t = keptReport(g);
   // 3. Commit leftovers. A plain folder has nothing to commit.
   if (tree && !research) {
-    try { if (F.dirty(tree)) { S.gitOut(tree, ["add", "-A"]); S.gitOut(tree, ["commit", "-m", `${t.title || id}\n\nTask: ${id}`]); } }
+    try { if (F.dirty(tree)) { S.gitOut(tree, ["add", "-A"]); S.gitOut(tree, ["commit", "-m", `${t.title || id}\n\nTask: ${S.taskRef(id)}`]); } }
     catch (e) { return void fail(g, { stage: "commit", title: "Could not commit the work", detail: outputOf(e), next: "Fix the Git error in your own worktree, commit the work and finish again." }); }
   }
   t = g.check();
@@ -106,7 +106,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
         g.set({ prHead: S.gitOut(tree, ["rev-parse", `refs/remotes/origin/${t.branch}`]) });
         let url = t.pr || "";
         if (!url) {
-          const r = F.gh(["pr", "create", "--draft", "--head", t.branch, "--title", t.title || id, "--body", `${text || t.title || ""}\n\nTask: ${id}`], tree);
+          const r = F.gh(["pr", "create", "--draft", "--head", t.branch, "--title", t.title || id, "--body", `${text || t.title || ""}\n\nTask: ${S.taskRef(id)}`], tree);
           url = ((r.stdout || "").match(/https?:\/\/\S+/) || [""])[0];
           if (!url) return void fail(g, { stage: "pr", title: "Could not open the pull request", detail: `Branch: ${t.branch}\nFolder: ${tree}\n\ngh pr create:\n${outputOf(r)}`, next: "Inspect the GitHub error, fix what you safely can, then finish again. The board retries opening the pull request; do not push or ship manually." });
           g.set({ pr: url, prSeen: "", prState: "waiting" });

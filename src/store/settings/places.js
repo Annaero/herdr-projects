@@ -50,11 +50,11 @@ function readYours() {
   let raw = null, broken = "";
   try { raw = JSON.parse(fs.readFileSync(configFile(), "utf8")); } catch (e) { if (e.code !== "ENOENT") broken = "it is not valid JSON, so nothing in it counts"; }
   const { repos, ...mine } = isGroup(raw) ? raw : {};
-  const you = read(mine, "your settings");
+  const you = read(mine, "your settings", NAMES.filter((n) => entryOf(n).kind !== "repo"), "is one repo's own: say it under \"repos\", in that repo's entry");
   const entries = {}, problems = [...you.problems];
   if (broken) problems.push({ where: "your settings", name: "", why: broken });
   for (const [repo, obj] of Object.entries(isGroup(repos) ? repos : {})) {
-    const r = read(obj, `your entry for ${repo}`, NAMES.filter((n) => entryOf(n).kind === "work"), "is a board setting, yours only: say it outside \"repos\"");
+    const r = read(obj, `your entry for ${repo}`, NAMES.filter((n) => entryOf(n).kind !== "board"), "is a board setting, yours only: say it outside \"repos\"");
     entries[repo] = r.values; problems.push(...r.problems);
   }
   return { you: you.values, repos: entries, problems };
@@ -73,9 +73,9 @@ export function writeYours(name, value, repo = "") {
   writeJson(configFile(), file);
 }
 
-// ---- the repo's own committed file: five facts, no more ---------------------------------------------------------------------
+// ---- the repo's own committed file: six facts, no more ----------------------------------------------------------------------
 // Read from the commit a worktree starts from (`ref`), so an agent's own branch cannot change the rules it is checked
-// by; anything but the five facts is refused, so code written by agents can never loosen a guard.
+// by; anything but the six facts is refused, so code written by agents can never loosen a guard.
 // Returns { facts, refused }: `refused` is one sentence per thing that did not count.
 export function repoFile(root, ref) {
   let text = "";

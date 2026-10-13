@@ -24,7 +24,7 @@ export class Suggestions {
     const lines = [head(waiting.length ? `Suggested tasks · ${waiting.length}` : "Suggested tasks"),
       ...waiting.flatMap((s) => [...item(s, `from ${S.suggestedBy(s)}${s.at ? ` · ${age(Date.now() - s.at)} ago` : ""}`), ...said(s)]),
       ...(waiting.length ? wrap(`${keyName("suggested")} makes ${waiting.length === 1 ? "it" : "one"} a task, or dismisses it`).map((l) => dim(l)) : []),
-      ...done.flatMap((s) => item(s, s.state === "accepted" ? `made a task${s.task ? `: ${s.task}` : ""}` : "dismissed")).map((l) => dim(l))];
+      ...done.flatMap((s) => item(s, s.state === "accepted" ? `made a task${s.task ? `: ${S.sayId(s.task)}` : ""}` : "dismissed")).map((l) => dim(l))];
     part(lines, { pri: 2, min: 3, at: (n) => first(lines, n) });
     return cut;
   }
@@ -36,7 +36,7 @@ export class Suggestions {
       const next = [...this.rows.filter((x) => x.rec).map((x) => x.rec), ...this.items.filter((x) => !x.archivedAt)].find((x) => open(x).length);
       if (!next) return this.flash("No suggested tasks.");
       this.sel = next.id; this.load(); r = this.current();
-      if (!r || r.id !== next.id) return this.flash(`${next.id} has a suggested task.`);
+      if (!r || r.id !== next.id) return this.flash(`${this.idSay(next)} has a suggested task.`);
     }
     this.askSuggestion(r);
   }

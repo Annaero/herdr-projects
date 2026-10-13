@@ -19,6 +19,7 @@ import { List } from "./view/list.js";
 import { Row } from "./view/row.js";
 import { RowTall } from "./view/row-tall.js";
 import { RowWrap } from "./view/row-wrap.js";
+import { RowNumber } from "./view/row-number.js";
 import { Coordinator } from "./view/coordinator.js";
 import { Chat } from "./view/chat.js";
 import { ChatScroll } from "./view/chat-scroll.js";
@@ -138,7 +139,8 @@ export class View {
   set focused(value) { this.input.focused = value; }
   savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, side: this.side, scope: this.scope, sel: this.sel, filter: this.filter, told: this.told, draft: this.mode === "new" && !this.reply ? this.value() : "", chat: this.chatOpen ? "open" : "closed", cwd: this.ctx.cwd, away: this.mode === "new" && this.reply && this.value().trim() ? { text: this.value(), to: this.replyId } : this.draftAway && { ...this.draftAway, cwd: this.draftAway.cwd || this.ctx.cwd } }); } catch {} }
   // A message stays until the next key press; an error stays until esc dismisses it.
-  flash(text, kind = "overlay0") { this.msg = clean(text); this.msgKind = kind; }
+  // A message names a task by its repo's short key where it has one (store/keys.js).
+  flash(text, kind = "overlay0") { let said = clean(text); try { said = S.sayIds(said); } catch {} this.msg = said; this.msgKind = kind; }
   value() { return this.input.getText(); }
   setValue(v) { this.input.setText(v); }
   current() { return this.automationsView ? undefined : this.items.find((r) => r.id === this.sel); }
@@ -157,6 +159,7 @@ const PARTS = [
   Row,
   RowTall,
   RowWrap,
+  RowNumber,
   Coordinator,
   Chat,
   ChatScroll,

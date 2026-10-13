@@ -27,25 +27,25 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     const raw = s.v.render(120), text0 = "\x1b[38;2;205;214;244m", yellow = "\x1b[38;2;249;226;175m", grey = "\x1b[38;2;108;112;134m";
     assert.ok(raw.every((l) => (process.env.NO_COLOR ? !l.includes("\x1b[38;2;") : l.startsWith(text0))));
     if (!process.env.NO_COLOR) {
-      assert.ok(raw.some((l) => l.includes(`${yellow}◐\x1b[39m${text0} \x1b[1mMy own task\x1b[22m `)), "a working task's mark is the working colour, its title plain text");
-      assert.ok(raw.some((l) => l.includes(`${grey}○\x1b[39m${text0} Write the docs `)), "a task nobody started is grey, not green");
+      assert.ok(raw.some((l) => l.includes(`${yellow}◐\x1b[39m${text0} ${grey}#2\x1b[39m${text0} \x1b[1mMy own task\x1b[22m `)), "a working task's mark is the working colour, its title plain text");
+      assert.ok(raw.some((l) => l.includes(`${grey}○\x1b[39m${text0} ${grey}#1\x1b[39m${text0} Write the docs `)), "a task nobody started is grey, not green");
       assert.ok(raw.some((l) => l.includes(`${yellow}working\x1b[39m`)) && raw.some((l) => l.includes(`${grey}to do\x1b[39m`)), "the headings are in their group's colour");
       assert.ok(raw.some((l) => l.includes(`${yellow}50%`)), "progress is in the working colour while working");
       assert.ok(raw.some((l) => l.includes(`${yellow}50%\x1b[39m${text0} ${yellow}12m\x1b[39m`)), "the minutes left sit right of the percent, in the same colour");
     }
     // A row does not repeat its heading ("idle" under "to do"), and its time says which kind it is.
     assert.match(text, /\n working +│/); assert.match(text, /\n to do +│/);
-    assert.match(text, /◐ My own task +█+░+ +50% 12m +\ds {5}│[^\n]*\n {3}half way +│/); assert.match(text, /│ {2}Progress {5}█+░+ 50% · 12m left *\n/); // on the row and in the task panel assert.match(text, /○ Write the docs {6,}\ds ago │/);
-    assert.match(text, /│ {2}My own task/); assert.match(text, /│ {2}State {8}◐ working · for \ds *\n/); assert.match(text, /│ {2}On it {8}you *\n[^\n]*│ {2}Task {9}proj\/2 *\n/);
+    assert.match(text, /◐ #2 My own task +█+░+ +50% 12m +\ds {5}│[^\n]*\n {6}half way +│/); assert.match(text, /│ {2}Progress {5}█+░+ 50% · 12m left *\n/); // on the row and in the task panel assert.match(text, /○ #1 Write the docs {6,}\ds ago │/);
+    assert.match(text, /│ {2}#2 My own task/); assert.match(text, /│ {2}State {8}◐ working · for \ds *\n/); assert.match(text, /│ {2}On it {8}you *\n[^\n]*│ {2}Task {9}proj\/2 *\n/);
     // The text box names who gets your words, and its empty line says only "what's next?".
     assert.match(text, /\n *\n \+ New task {2}[^\n]*\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(text, /Coordinator|sidebar/);
     assert.equal(s.screen(120).length, 34); assert.ok(s.screen(120).every((l) => l.length <= 120));
-    assert.ok(!/│ {2}My own task/.test(s.text(80)), "no panel beside the list below 90 columns");
+    assert.ok(!/│ {2}#2 My own task/.test(s.text(80)), "no panel beside the list below 90 columns");
     // ctrl+b is herdr's own prefix key: the board has no use for it.
-    s.press("ctrl+b"); assert.match(s.text(120), /│ {2}My own task/); assert.equal(s.v.value(), "");
+    s.press("ctrl+b"); assert.match(s.text(120), /│ {2}#2 My own task/); assert.equal(s.v.value(), "");
     // alt+p closes the side panel and opens it again: closed, the list has the whole width.
     s.press("alt+p"); text = s.text(120);
-    assert.equal(s.v.side, false); assert.doesNotMatch(text, /│/); assert.match(text, /◐ My own task {70,}█[^\n]*\n {3}half way *\n/); assert.match(text, /Side panel off\. alt\+p shows it\./);
+    assert.equal(s.v.side, false); assert.doesNotMatch(text, /│/); assert.match(text, /◐ #2 My own task {70,}█[^\n]*\n {6}half way *\n/); assert.match(text, /Side panel off\. alt\+p shows it\./);
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).side, false); // your choice is remembered
     s.press("?"); assert.match(s.text(120), /alt\+p +show the side panel/);
     // what a row's R# tag says is the menu's last lines, under the keys. A window too short for the whole menu cuts
@@ -75,9 +75,9 @@ test("the board: one header line, the five groups, a symbol for each state, the 
       s.v.tui.terminal.rows = tall; }
     s.press("esc");
     // Closed, it stays closed while you talk to a task's agent: only alt+p opens it.
-    s.press("space"); assert.equal(s.v.reply, true); assert.doesNotMatch(s.text(120), /│ {2}My own task/); assert.equal(s.v.full, false);
+    s.press("space"); assert.equal(s.v.reply, true); assert.doesNotMatch(s.text(120), /│ {2}#2 My own task/); assert.equal(s.v.full, false);
     s.press("space"); assert.equal(s.v.reply, false);
-    s.press("alt+p"); assert.equal(s.v.side, true); assert.match(s.text(120), /│ {2}My own task/);
+    s.press("alt+p"); assert.equal(s.v.side, true); assert.match(s.text(120), /│ {2}#2 My own task/);
     s.screen(80); s.press("alt+p", "alt+p"); assert.match(s.text(80), /The side panel needs a wider window\. alt\+t shows the task full screen\./); s.screen(120);
     // A board opened for the first time has it closed.
     { const fresh = open(w, { side: false }); fs.rmSync(path.join(S.dataDir(), "view.json"), { force: true }); const first = new View(fresh.v.tui, theme, () => {}, { cwd: w.root }); clearInterval(first.timer); assert.equal(first.side, false); }
@@ -87,7 +87,7 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     // The whole panel never changes who you talk to: only space does. Space there talks to the task, space again goes back.
     assert.equal(s.v.reply, false); assert.match(text, /\n *\n \+ New task {2}[^\n]*\n─+\n❯ what's next\?/);
     s.press("space"); assert.equal(s.v.reply, true); assert.equal(s.v.full, true);
-    assert.match(s.text(80), /\n *\n . Write the docs {2}[^\n]*\n─+\n❯ your message starts an agent on it/);
+    assert.match(s.text(80), /\n *\n . #\d+ Write the docs {2}[^\n]*\n─+\n❯ your message starts an agent on it/);
     s.press("alt+t"); assert.equal(s.v.full, false); assert.equal(s.v.reply, true, "folding the panel keeps who you talk to");
     s.press("alt+t", "space"); assert.equal(s.v.reply, false); assert.equal(s.v.full, true, "space never opens or folds the panel");
     // esc leaves the whole task, and who you talk to stays as it was: also a task's agent.
@@ -104,7 +104,7 @@ test("the done list is plain: newest first, and nothing marks a task as read or 
     // `seen` is what an older version saved in a task: it changes neither the order nor the row
     ids.forEach((id, n) => { S.update(id, { stage: "done" }); S.update(id, { at: now - (3 - n) * 60000, seen: n !== 0 }); });
     const s = open(w);
-    const lines = s.screen(80), at = titles.map((title) => lines.findIndex((l) => l.startsWith(` ✓ ${title}`)));
+    const lines = s.screen(80), at = titles.map((title) => lines.findIndex((l) => /^ ✓ #\d /.test(l) && l.slice(6).startsWith(title)));
     assert.ok(at[2] > 0 && at[2] < at[1] && at[1] < at[0], lines.join("\n"));
     assert.doesNotMatch(lines.join("\n"), /unread/);
     for (const r of s.v.items) assert.equal(s.v.row(r, 80).includes("\x1b[1m"), false, "no done row stands out from the others");

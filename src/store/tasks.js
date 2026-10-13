@@ -1,10 +1,11 @@
-// Tasks on disk: reading, listing, changing, creating.
+// Tasks on disk: reading, listing, changing, creating, and finding one by what it is called (its id, its number, its repo's key).
 import fs from "node:fs";
 import path from "node:path";
 import { STAGES, tasksDir, dirOf, me, readJson, writeJson, withLock, withTaskLock } from "./files.js";
 import { repoOf } from "./repos.js";
 import { titled } from "./titles.js";
 import { movedOnRead } from "./settings/migrate.js";
+import { idOfKey } from "./keys.js";
 
 // ---- tasks ----------------------------------------------------------------------------------------------------------
 const SEGMENT = /^[A-Za-z0-9_.+-]{1,32}$/;
@@ -34,8 +35,8 @@ export function list({ includeArchived = false, archived = false } = {}) {
   return out.sort((a, b) => (b.created || 0) - (a.created || 0));
 }
 export function find(ref) {
-  const s = String(ref || "").trim();
-  const hit = (/^[^/]+\/\d+$/.test(s) && get(s)) || list({ includeArchived: true }).find((t) => t.id.toLowerCase() === s.toLowerCase() || String(t.n) === s);
+  const s = String(ref || "").trim(), byKey = idOfKey(s); // `HSW-134`: the repo's short key and the number (store/keys.js)
+  const hit = (/^[^/]+\/\d+$/.test(s) && get(s)) || (byKey && get(byKey)) || list({ includeArchived: true }).find((t) => t.id.toLowerCase() === s.toLowerCase() || String(t.n) === s.replace(/^#/, ""));
   if (!hit) throw new Error(`No task ${ref}`);
   return hit;
 }

@@ -33,13 +33,13 @@ test("narrow screen: a live row's third line has the bar, the percent, the minut
     const layout = v.rowLayout(LIVE, width), rows = LIVE.map((r) => plain(v.rowLines(r, width, layout)));
     const note = `at ${width}:\n${rows.flat().join("\n")}`;
     // A name longer than its line wraps onto a second one (board-row-wrap.test.js): that row is one line taller.
-    const long = width < 3 + review.title.length ? 1 : 0;
+    const long = width < 6 + review.title.length ? 1 : 0; // 6: the mark, and the task's number with the cell after it
     rows.forEach((lines, n) => { assert.equal(lines.length, n === 1 ? 3 + long : 3, note); assert.ok(lines.every((l) => l.length <= width), note); assert.equal(lines.at(-1).length, width, note); });
-    // Line 1 is the mark and the name with the whole width: nothing beside it.
-    assert.equal(rows[0][0].trimEnd(), " ◐ Agent at work"); assert.equal(rows[2][0].trimEnd(), " ! Good work"); assert.equal(rows[3][0].trimEnd(), " ◐ Brand new");
-    assert.equal(rows[1].slice(0, 1 + long).map((l) => l.trim().replace(/^◑ /, "")).join(" "), review.title, note);
+    // Line 1 is the mark, the task's number and the name with the whole width: nothing beside it.
+    assert.equal(rows[0][0].trimEnd(), " ◐ #1 Agent at work"); assert.equal(rows[2][0].trimEnd(), " ! #3 Good work"); assert.equal(rows[3][0].trimEnd(), " ◐ #4 Brand new");
+    assert.equal(rows[1].slice(0, 1 + long).map((l) => l.trim().replace(/^◑ #2 /, "")).join(" "), review.title, note);
     // Then what the task says, as on a wide screen.
-    assert.deepEqual(rows.map((lines) => lines.at(-2).trimEnd()), ["   Reading the panel and its tests.", "   Running the tests", "   Pass · 1 minor", "   Just started"]);
+    assert.deepEqual(rows.map((lines) => lines.at(-2).trimEnd()), ["      Reading the panel and its tests.", "      Running the tests", "      Pass · 1 minor", "      Just started"]);
     for (const lines of rows) lines[2] = lines.at(-1);
     // Line 3, in order. The bar takes the room the others leave, so it is as long on every row.
     const bar = width - 30;
@@ -73,12 +73,14 @@ test("the third line is there under 80 columns of screen and gone from 80 on, fo
   // a narrow screen its name has that room.
   const narrow = plain(v.listLines(60, 40)), wide = plain(v.listLines(80, 40));
   assert.equal(narrow.filter((l) => l.trim()).length - wide.filter((l) => l.trim()).length, 4, "one more line for each of the four live rows");
-  assert.match(narrow.find((l) => /Finished/.test(l)), /^ ✓ Finished +R#1 PR#3$/); assert.match(narrow.find((l) => /Not begun/.test(l)), /^ ○ Not begun *$/);
-  assert.match(wide.find((l) => /Finished/.test(l)), /^ ✓ Finished +R#1 PR#3 +2h$/); assert.match(wide.find((l) => /Not begun/.test(l)), /^ ○ Not begun +2h$/);
+  assert.match(narrow.find((l) => /Finished/.test(l)), /^ ✓ #\d+ Finished +R#1 PR#3$/); assert.match(narrow.find((l) => /Not begun/.test(l)), /^ ○ #\d+ Not begun *$/);
+  assert.match(wide.find((l) => /Finished/.test(l)), /^ ✓ #\d+ Finished +R#1 PR#3 +2h$/); assert.match(wide.find((l) => /Not begun/.test(l)), /^ ○ #\d+ Not begun +2h$/);
   // At 80 the columns sit beside a name of 40 cells: the widest of each kind, bar and all (the percent is counted at
-  // the four cells of "100%", so a cell is left over).
+  // the four cells of "100%", so a cell is left over). The task's number is not counted in the 80: with it (`#1` and
+  // the cell after it) that is 83, and at 80 the bar is what gives way.
   const full = [{ ...agent, title: "A".repeat(40), eta: 120, reviewRound: 12, stage: "reviewing", pr: 123 }];
-  assert.match(plain(v.rowLines(full[0], 80, v.rowLayout(full, 80)))[0], /^ ◑ A{40} {3}[█░]{8} 40% 120m {2}R#12 PR#123 {2}2h$/);
+  assert.match(plain(v.rowLines(full[0], 83, v.rowLayout(full, 83)))[0], /^ ◑ #1 A{40} {3}[█░]{8} 40% 120m {2}R#12 PR#123 {2}2h$/);
+  assert.match(plain(v.rowLines(full[0], 80, v.rowLayout(full, 80)))[0], /^ ◑ #1 A{40} +40% 120m {2}R#12 PR#123 {2}2h$/);
 });
 
 test("in a width too small for all of the third line the time stays and nothing runs off the edge", () => {
@@ -113,11 +115,11 @@ test("narrow screen: the highlight covers all three lines of the selected row, a
   const v = board([agent, fresh, { ...done, id: "p/9", title: "Finished" }], { sel: "p/1" });
   const mark = theme.selected("\0").split("\0")[0], lit = () => v.listLines(50, 20).filter((l) => l.startsWith(mark)).map((l) => stripVTControlCharacters(l));
   if (!process.env.NO_COLOR) {
-    assert.deepEqual(lit().map((l) => l.trimEnd().replace(/ {2,}/g, "  ").replace(/[█░]+/, "bar")), [" ◐ Agent at work", "  Reading the panel and its tests.", "  bar 40% 12m  2h"]);
+    assert.deepEqual(lit().map((l) => l.trimEnd().replace(/ {2,}/g, "  ").replace(/[█░]+/, "bar")), [" ◐ #1 Agent at work", "  Reading the panel and its tests.", "  bar 40% 12m  2h"]);
     assert.ok(lit().every((l) => l.length === 50)); // each to the screen's edge
   }
   v.move(1); assert.equal(v.sel, "p/4"); // one press, one task: never onto a row's second or third line
-  if (!process.env.NO_COLOR) assert.deepEqual(lit().map((l) => l.trim()), ["◐ Brand new", "Just started", "2h"]);
+  if (!process.env.NO_COLOR) assert.deepEqual(lit().map((l) => l.trim()), ["◐ #4 Brand new", "Just started", "2h"]);
   v.move(1); assert.equal(v.sel, "p/9");
   if (!process.env.NO_COLOR) assert.equal(lit().length, 1); // a done row is one line
   v.move(-1); v.move(-1); assert.equal(v.sel, "p/1");
@@ -130,14 +132,14 @@ test("narrow screen: the list scrolls by whole rows, a row of three lines is nev
     const look = () => {
       const lines = plain(v.listLines(50, h)), note = `h ${h}, at ${v.sel}\n${lines.join("\n")}`;
       assert.equal(lines.length, h);
-      const kind = (l) => { const m = /^ ◐ Working (\d) /.exec(l) || /^ {3}Says (\d)/.exec(l) || /^ {3}[█░]+ +(\d)0% /.exec(l); return m ? [[/^ ◐/, /^ {3}S/, /^ {3}[█░]/].findIndex((re) => re.test(l)), m[1]] : null; };
+      const kind = (l) => { const m = /^ ◐ #\d+ +Working (\d) /.exec(l) || /^ {7}Says (\d)/.exec(l) || /^ {3}[█░]+ +(\d)0% /.exec(l); return m ? [[/^ ◐/, /^ {7}S/, /^ {3}[█░]/].findIndex((re) => re.test(l)), m[1]] : null; };
       lines.forEach((l, n) => {
         const k = kind(l); if (!k) return;
         const [part, row] = k;
         for (let p = 0; p < 3; p++) assert.deepEqual(kind(lines[n - part + p] ?? ""), [p, row], `line ${p + 1} of Working ${row} is missing: ${note}`);
       });
       const n = v.sel.split("/")[1];
-      assert.ok(lines.some((l) => new RegExp(n < 20 ? `^ ◐ Working ${n} ` : `^ ○ Later ${n - 19} `).test(l)), `the selected task is in view: ${note}`);
+      assert.ok(lines.some((l) => new RegExp(n < 20 ? `^ ◐ #${n}  Working ${n} ` : `^ ○ #${n} Later ${n - 19} `).test(l)), `the selected task is in view: ${note}`);
     };
     look();
     for (let n = 1; n < many.length; n++) { v.move(1); look(); }

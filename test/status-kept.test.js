@@ -72,12 +72,12 @@ test("no bare … as a status line: the list, the panel, the whole-task page and
     const bare = (lines) => lines.some((l) => /(^|[│\s]{2})…\s*($|│)/.test(l) || /Now\s+…\s*$/.test(l));
     // First run.
     let d = drawn();
-    assert.equal(row().msg, "Just started"); assert.ok(d.side.some((l) => l.startsWith("   Just started")), "the list");
+    assert.equal(row().msg, "Just started"); assert.ok(d.side.some((l) => l.startsWith("      Just started")), "the list");
     for (const k of ["side", "page"]) { assert.ok(d[k].some((l) => /Now\s+Just started/.test(l)), k); assert.ok(!bare(d[k]), k); }
     // The Watcher's first look: until its answer herdr's sidebar gets the same words, and no percent.
     look();
     assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("summary=Just started") && m.args.join(" ").includes("--clear-token progress")));
-    assert.ok(drawn().side.some((l) => l.startsWith("   editing the greeting file")));
+    assert.ok(drawn().side.some((l) => l.startsWith("      editing the greeting file")));
     // Told to go on (a new turn): the guess goes, the sentence stays, with how old it is.
     // The task as an older version saved it: the guess only, no kept sentence. It is kept all the same.
     S.update("proj/1", (t) => { t.watch = { ...t.watch, at: Date.now() - 5 * min }; delete t.lastLine; });
@@ -89,12 +89,12 @@ test("no bare … as a status line: the list, the panel, the whole-task page and
     S.update("proj/1", (t) => { t.watch = { msg: "Reading the diff", progress: 5, role: "reviewer", at: Date.now() }; }); S.update("proj/1", (t) => { t.watch = null; });
     assert.equal(S.get("proj/1").lastLine.msg, "editing the greeting file");
     d = drawn();
-    assert.ok(d.side.some((l) => l.startsWith("   5m ago: editing the greeting file")), "the list");
+    assert.ok(d.side.some((l) => l.startsWith("      5m ago: editing the greeting file")), "the list");
     for (const k of ["side", "page"]) { assert.ok(d[k].some((l) => /Now\s+5m ago: editing/.test(l)), k); assert.ok(!bare(d[k]), k); }
     look();
     assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("summary=5m ago: editing the greeting file")));
     assert.ok(S.get("proj/1").watch); // the new sentence takes its place
-    assert.ok(drawn().side.some((l) => l.startsWith("   editing the greeting file")));
+    assert.ok(drawn().side.some((l) => l.startsWith("      editing the greeting file")));
   } finally { delete process.env.HERDR_SUPERWORK_HELPER_CMD; w.cleanup(); }
 });
 

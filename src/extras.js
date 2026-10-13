@@ -36,6 +36,8 @@ full path works even when it is not on your PATH):
 Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that path.
 
 - \`herdr-superwork list\`: the tasks: id (\`<repo>/<number>\`), state (idle, working, blocked, done, error), who is on it, title.
+  Where a repo has a short key, the human may name a task by it: \`HSW-134\` (any letter case) is accepted wherever an
+  \`<id>\` is and means the same task. The id stays its real name: use the id in what you write back.
   \`--query TEXT\` searches, \`--archived\` shows the archive, \`--all\` includes it.
 - \`herdr-superwork add "<short title>" --desc "<full description>"\`: add a new task to the current repo
   (a title is a few words, ${S.TITLE_RULE}: a longer one is cut short and its full text kept in the description;

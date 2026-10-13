@@ -12,7 +12,7 @@ import { pieces, plain } from "./ink.js";
 export function rowOf(v, r, now = Date.now()) {
   const f = v.rowFields(r, now), mark = pieces(v.mark(r))[0] || { t: "·" };
   return {
-    id: r.id, label: idLabel(r.rid || r.id), host: r.host || "", title: plain(v.rowTitle(r)), strong: r.state === "working" || r.state === "blocked",
+    id: r.id, label: idLabel(r.rid || r.id), tag: v.numberTag(r), host: r.host || "", title: plain(v.rowTitle(r)), strong: r.state === "working" || r.state === "blocked",
     mark: mark.t, markDim: !!mark.d, markBold: !!mark.b, color: statusColor(r), live: isLive(r),
     says: pieces(v.sentence(r).text),
     progress: r.state !== "done" && r.progress !== undefined ? Math.max(0, Math.min(100, Number(r.progress) || 0)) : null,
@@ -40,6 +40,8 @@ export function listOf(v) {
       only: v.all && v.scope !== "*" ? v.scope : "", filter: v.filter || "", suggested: asked, host: os.hostname(), version: S.VERSION,
     },
     groups, selected: v.sel || "",
+    // The widest of the tasks' tags (`#134`, `HSW-134`), in characters: the page gives them one column, as the terminal board does.
+    tagWidth: Math.max(0, ...groups.flatMap((g) => g.rows.map((r) => r.tag.length))),
     // Words on their way to another machine: rows of their own under the list, until that machine has taken them.
     jobs: v.jobs.map((j) => ({ id: j.id, text: String(j.text || ""), failed: j.state === "error", msg: String(j.msg || "") })),
     empty: v.rows.length ? "" : v.filter ? "Nothing matches." : v.archiveView ? "No archived tasks." : "Nothing here yet. Type what needs doing.",

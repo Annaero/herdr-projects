@@ -20,16 +20,16 @@ test("a blocked task's mark says what it needs, on a row, narrow and wide, and i
   tc.mock.timers.enable({ apis: ["Date"], now: Date.now() });
   const v = view(), row = (r, width) => stripVTControlCharacters(v.rowLines(r, width, v.rowLayout([r], width, undefined, 200)).join("\n"));
   for (const width of [40, 80, 160]) {
-    assert.match(row(asks("question"), width), /^ \? Plan v1 /, `a question at ${width}`);
-    assert.match(row(asks("permission"), width), /^ ! Plan v1 /, `a yes or no at ${width}`);
-    assert.match(row(asks("auth"), width), /^ ⚷ Plan v1 /, `a sign-in at ${width}`);
-    assert.match(row(login, width), /^ ⚷ Plan v1 /, `a login that failed at ${width}`);
-    assert.match(row(asks(undefined), width), /^ ! Plan v1 /, `no kind known at ${width}`);
-    assert.match(row(broke, width), /^ ✗ Plan v1 /, `gone wrong at ${width}`);
+    assert.match(row(asks("question"), width), /^ \? #\d+ Plan v1 /, `a question at ${width}`);
+    assert.match(row(asks("permission"), width), /^ ! #\d+ Plan v1 /, `a yes or no at ${width}`);
+    assert.match(row(asks("auth"), width), /^ ⚷ #\d+ Plan v1 /, `a sign-in at ${width}`);
+    assert.match(row(login, width), /^ ⚷ #\d+ Plan v1 /, `a login that failed at ${width}`);
+    assert.match(row(asks(undefined), width), /^ ! #\d+ Plan v1 /, `no kind known at ${width}`);
+    assert.match(row(broke, width), /^ ✗ #\d+ Plan v1 /, `gone wrong at ${width}`);
   }
   // Finished work that waits for the one yes that merges it wants a yes or no too: the same mark, in the green of its group.
   const ready = { ...base, state: "blocked", kind: "permission", stage: "approval", msg: "Approve to merge?" };
-  for (const width of [40, 160]) assert.match(row(ready, width), /^ ! Plan v1 /, `a merge to approve at ${width}`);
+  for (const width of [40, 160]) assert.match(row(ready, width), /^ ! #\d+ Plan v1 /, `a merge to approve at ${width}`);
   if (!process.env.NO_COLOR) { assert.ok(v.mark(ready).startsWith(theme.fg("green", "\0").split("\0")[0])); assert.ok(v.mark(asks("permission")).startsWith(theme.fg("red", "\0").split("\0")[0])); }
   // Every one is a single column, so the names start under each other.
   const marks = [asks("question"), asks("permission"), asks("auth"), asks(undefined)].map((r) => stripVTControlCharacters(v.mark(r)));

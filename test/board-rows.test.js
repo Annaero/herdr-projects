@@ -29,32 +29,32 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
     assert.match(rows[1], /Fix ugly blocked row on the board +█+░+ +55% {2}PR#3 {2}6m {4}$/);
     { // what a working task says is under its name, with the row's whole width: cut at its end only when it is longer than that
       const under = (width) => stripVTControlCharacters(s.v.rowLines(records[0], width, s.v.rowLayout([records[0]], width, undefined, 200))[1]);
-      assert.equal(under(200), "   Removing pop-up calls from plugin, fixing tests, writing closing note."); assert.equal(under(80), under(200));
-      assert.match(under(50), /^ {3}Removing pop-up calls from plugin, fixing[^…]*…$/); assert.equal(under(50).length, 50);
+      assert.equal(under(200), "      Removing pop-up calls from plugin, fixing tests, writing closing note."); assert.equal(under(80), under(200));
+      assert.match(under(50), /^ {6}Removing pop-up calls from plugin, fixing[^…]*…$/); assert.equal(under(50).length, 50);
       assert.equal(s.v.rowLines(records[2], 200).length, 1); // a finished task has nothing to say: one line
     }
     assert.match(rows[2], /Truncate long descriptions in sidebar +PR#2 {2}6m ago$/); // "ago" on what has ended, a bare time on what still runs
     assert.equal(rows[1].indexOf("PR#3"), rows[2].indexOf("PR#2")); // the PR numbers sit in one column, next to the time
-    rows = draw(72); // the name and the columns are whole
+    rows = draw(75); // the name and the columns are whole
     assert.match(rows[0], /Remove notification pop-ups +\S.* 95% +6m {4}$/); assert.doesNotMatch(rows[0], /Remov[^ ]* {2}Re/);
     assert.match(rows[1], /Fix ugly blocked row on the board +█+░+ +55% {2}PR#3 {2}6m {4}$/);
-    rows = draw(56); // a name needs its bar's room, so no row has a bar; "ago" stays wherever there is room for it
+    rows = draw(59); // a name needs its bar's room, so no row has a bar; "ago" stays wherever there is room for it
     assert.match(rows[0], /Remove notification pop-ups +95% +6m {4}$/);
     assert.match(rows[1], /Fix ugly blocked row on the board +55% {2}PR#3 +6m {4}$/); // a PR row keeps its percent while it fits
     assert.match(rows[2], /Truncate long descriptions in sidebar +PR#2 +6m ago$/);
     { // narrow, a finished task still reads differently from a working one
       const pair = [{ id: "proj/5", state: "working", title: "Still going", at }, { id: "proj/6", state: "done", title: "All done", at }];
       const lay = s.v.rowLayout(pair, 50, undefined, 200), [going, ended] = pair.map((r) => stripVTControlCharacters(s.v.row(r, 50, lay)));
-      assert.match(going, /^ ◐ Still going +6m {4}$/); assert.match(ended, /^ ✓ All done +6m ago$/);
+      assert.match(going, /^ ◐ #\d+ Still going +6m {4}$/); assert.match(ended, /^ ✓ #\d+ All done +6m ago$/);
     }
-    rows = draw(45); // the rows give up together what one name needs, from the left: the percent, then the PR number
+    rows = draw(48); // the rows give up together what one name needs, from the left: the percent, then the PR number
     assert.match(rows[0], /Remove notification pop-ups +6m$/); assert.doesNotMatch(rows[0], /%/);
     assert.match(rows[1], /Fix ugly blocked row on the board +6m$/);
     assert.match(rows[2], /Truncate long descriptions in sidebar +6m$/);
-    rows = draw(40); // last of all the time
-    assert.match(rows[0], /^ \S Remove notification pop-ups *$/); assert.match(rows[1], /^ \S Fix ugly blocked row on the board *$/); assert.match(rows[2], /^ \S Truncate long descriptions in sidebar$/);
-    rows = draw(30); // only now is a name cut
-    assert.match(rows[0], /^ \S Remove notification pop-ups$/); assert.match(rows[1], /^ \S Fix ugly blocked row on th…$/);
+    rows = draw(43); // last of all the time
+    assert.match(rows[0], /^ \S #\d+ Remove notification pop-ups *$/); assert.match(rows[1], /^ \S #\d+ Fix ugly blocked row on the board *$/); assert.match(rows[2], /^ \S #\d+ Truncate long descriptions in sidebar$/);
+    rows = draw(33); // only now is a name cut
+    assert.match(rows[0], /^ \S #\d+ Remove notification pop-ups$/); assert.match(rows[1], /^ \S #\d+ Fix ugly blocked row on th…$/);
     { // the minutes left: right of the percent, always in minutes, in a column of their own so the percents line up
       const eta = [{ ...records[0], eta: 3 }, { ...records[1], eta: 130 }, records[2], { id: "proj/4", state: "working", title: "No guess yet", progress: 0, at }];
       const lines = (width) => { const lay = s.v.rowLayout(eta, width, undefined, 200); return eta.map((r) => stripVTControlCharacters(s.v.row(r, width, lay))); };
@@ -63,10 +63,10 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
       assert.match(e[0], /█+ +95% {3}3m {8}6m {4}$/); assert.equal(e[0].indexOf("3m"), e[1].indexOf("130m") + 2); assert.match(e[1], /█+░+ +55% 130m {2}PR#3 {2}6m {4}$/);
       assert.match(e[2], /sidebar +PR#2 {2}6m ago$/); assert.match(e[3], /No guess yet +░+ {2}0% {13}6m {4}$/); // no guess: no "m", the percent stays in line
       assert.equal(e[0].indexOf("95%"), e[1].indexOf("55%"));
-      e = lines(57); // no bars: the minutes left stay beside the percent
+      e = lines(60); // no bars: the minutes left stay beside the percent
       assert.match(e[0], /Remove notification pop-ups +95% {3}3m +6m$/); assert.match(e[1], /Fix ugly blocked row on the board +55% 130m {2}PR#3 +6m$/);
       assert.match(e[2], /sidebar +PR#2 +6m$/); // the list gives up the word "ago" so that a row keeps its percent
-      e = lines(52); // short of room, the rows give up their percent and their minutes left together: no row keeps either
+      e = lines(55); // short of room, the rows give up their percent and their minutes left together: no row keeps either
       assert.match(e[1], /Fix ugly blocked row on the board +PR#3 +6m$/); assert.match(e[0], /pop-ups +6m$/); assert.match(e[3], /No guess yet +6m$/);
       assert.equal(e[1].indexOf("PR#3"), e[2].indexOf("PR#2")); assert.ok(e.every((l) => !/%|\dm .*\dm/.test(l)));
       if (!process.env.NO_COLOR) { // the same colour as the percent, whatever the state: green under review
@@ -77,7 +77,7 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
       }
       { // minutes left with no percent still show
         const only = { id: "proj/7", state: "working", title: "Only minutes", eta: 7, at };
-        assert.match(stripVTControlCharacters(s.v.row(only, 60, s.v.rowLayout([only], 60, undefined, 200))), /^ ◐ Only minutes +7m +6m$/);
+        assert.match(stripVTControlCharacters(s.v.row(only, 60, s.v.rowLayout([only], 60, undefined, 200))), /^ ◐ #\d+ Only minutes +7m +6m$/);
         assert.match(stripVTControlCharacters(s.v.row(only, 20, s.v.rowLayout([only], 20, undefined, 200))), /^ ◐ Only minutes +6m$/);
       }
       assert.match(osc(eta[1]), /:progress=55:eta=130:/); assert.doesNotMatch(osc(eta[3]), /eta=/);
@@ -86,17 +86,17 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
     records.splice(0, 3,
       { id: "proj/8", state: "working", title: "Fix login", msg: "Tracing why the login form rejects valid passwords.", progress: 55, pr: 3, at },
       { id: "proj/9", state: "working", title: "Fix layout for task names in narrow terminal board", msg: "Working.", progress: 20, at });
-    rows = draw(100);
+    rows = draw(103);
     assert.match(rows[0], /Fix login +█+░+ +55% {2}PR#3 +6m$/); assert.match(rows[1], /board +█+░+ +20% +6m$/);
-    rows = draw(72); // the long name has no room for a bar: neither row has one
+    rows = draw(75); // the long name has no room for a bar: neither row has one
     assert.match(rows[0], /Fix login +55% {2}PR#3 +6m$/); assert.match(rows[1], /Fix layout for task names in narrow terminal board +20% +6m$/);
     // All machines: the machine's name is cut before the task's, and before any column goes.
     s.v.scope = "*";
     const far = { ...records[0], host: "very-long-machine-name-on-the-tailnet" };
     const one = (width) => stripVTControlCharacters(s.v.row(far, width, s.v.rowLayout([far], width, undefined, 200)));
     assert.match(one(120), /very-long-machine-name-on-the-tailnet Fix login +█/);
-    assert.match(one(50), /very-long-m\S*… Fix login +█+░+ +55% {2}PR#3 +6m$/); assert.match(one(41), /^ \S ve… Fix login +█+░+ +55% {2}PR#3 +6m$/);
-    assert.match(one(26), /^ \S ve… Fix login +PR#3 +6m$/); assert.match(one(24), /^ \S Fix login +PR#3 +6m$/); assert.match(one(18), /^ \S Fix login +6m$/);
+    assert.match(one(53), /very-long-m\S*… Fix login +█+░+ +55% {2}PR#3 +6m$/); assert.match(one(44), /^ \S #\d+ ve… Fix login +█+░+ +55% {2}PR#3 +6m$/);
+    assert.match(one(29), /^ \S #\d+ ve… Fix login +PR#3 +6m$/); assert.match(one(27), /^ \S #\d+ Fix login +PR#3 +6m$/); assert.match(one(18), /^ \S Fix login +6m$/); // too narrow for the task's number: it went too
     for (const width of [200, 60, 40, 30, 24, 16]) assert.ok(one(width).length <= width, `fits ${width}`);
   } finally { w.cleanup(); }
 });
@@ -115,13 +115,13 @@ test("a row with no PR and no bar uses the empty space on its right, also with c
   // an empty cell wrapped in colour codes is not empty, and was taken for a column the row had to leave room for.)
   for (const width of [80, 100, 150]) {
     const [line, under] = v.rowLines(quiz, width, v.rowLayout([quiz, ...full], width, undefined, SCREEN)).map((l) => stripVTControlCharacters(l));
-    assert.match(line, /^ \? Choose the palette +0s ago$/, `the time at the right edge at ${width}`);
+    assert.match(line, /^ \? #\d+ Choose the palette +0s ago$/, `the time at the right edge at ${width}`);
     assert.equal(line.length, width);
-    assert.equal(under, "   Sand or pebbles on the beach, and which palm?", `whole sentence at ${width}`);
+    assert.equal(under, "      Sand or pebbles on the beach, and which palm?", `whole sentence at ${width}`);
   }
   // Too narrow for the whole sentence: it is cut at the window's edge, not where the other rows' columns start.
-  const tight = stripVTControlCharacters(v.rowLines(quiz, 40, v.rowLayout([quiz, ...full], 40, undefined, SCREEN))[1]);
-  assert.match(tight, /^ {3}Sand or pebbles on the beach, and wh[^…]*…$/); assert.equal(tight.length, 40);
+  const tight = stripVTControlCharacters(v.rowLines(quiz, 43, v.rowLayout([quiz, ...full], 43, undefined, SCREEN))[1]);
+  assert.match(tight, /^ {6}Sand or pebbles on the beach, and wh[^…]*…$/); assert.equal(tight.length, 43);
   // The cause, pinned down: a cell a row does not have is the empty string, never colour codes around nothing.
   for (const r of [quiz, ...full, { ...quiz, state: "done", stage: "done" }, { ...quiz, state: "idle", stage: "todo" }])
     for (const [name, cell] of Object.entries(v.rowFields(r, now)))
@@ -161,13 +161,13 @@ test("a live task's row is two lines, the second what it says under its name; a 
   for (const r of LIVE) assert.equal(isLive(r), true, r.title);
   for (const r of QUIET) { assert.equal(isLive(r), false, r.title); assert.equal(v.rowLines(r, 100).length, 1, r.title); }
   const under = (r, width = 100) => { const lines = plain(v.rowLines(r, width, v.rowLayout([r], width, undefined, SCREEN))); assert.equal(lines.length, 2, r.title); assert.doesNotMatch(lines[0], /Reading|Running|Pass|Fail|Sand|check failed/); assert.ok(lines.every((l) => l.length <= width)); return lines[1]; };
-  // Indented to the name, which starts after the mark; never beside the name.
-  assert.deepEqual(LIVE.map((r) => under(r)), ["   Reading the panel and its tests.", "   Running the tests", "   Running the repo's check", "   Pass · 1 minor", "   Fail · 1 critical", "   Sand or pebbles?", "   The check failed"]);
-  assert.match(plain(v.rowLines(LIVE[0], 100))[0], /^ ◐ Agent at work +█+░+ +40% 12m +2h$/);
+  // Indented to the name, which starts after the mark and the task's number; never beside the name.
+  assert.deepEqual(LIVE.map((r) => under(r)), ["      Reading the panel and its tests.", "      Running the tests", "      Running the repo's check", "      Pass · 1 minor", "      Fail · 1 critical", "      Sand or pebbles?", "      The check failed"]);
+  assert.match(plain(v.rowLines(LIVE[0], 100))[0], /^ ◐ #\d+ Agent at work +█+░+ +40% 12m +2h$/);
   // It has the row's whole width, and is cut at its end when it is longer still: never a third line.
   const long = { ...LIVE[0], msg: "Tracing how prefix+w got suggested, checking keys.js and the herdr defaults before changing the hint line." };
-  assert.equal(under(long, 120), "   " + long.msg);
-  assert.match(under(long, 60), /^ {3}Tracing how prefix\+w got suggested, checking k[^…]*…$/); assert.equal(under(long, 60).length, 60);
+  assert.equal(under(long, 120), "      " + long.msg);
+  assert.match(under(long, 63), /^ {6}Tracing how prefix\+w got suggested, checking k[^…]*…$/); assert.equal(under(long, 63).length, 63);
   assert.equal(v.rowLines(long, 20, v.rowLayout([long], 20, undefined, SCREEN)).length, 2);
   if (!process.env.NO_COLOR) { // muted, and a review's result in its own colour
     const muted = theme.muted("\0").split("\0")[0], green = theme.fg("green", "\0").split("\0")[0], red = theme.fg("red", "\0").split("\0")[0];
@@ -182,34 +182,34 @@ test("all machines: a remote task's second line starts under its task's name, ri
     const [first, under] = plain(v.rowLines(r, width, v.rowLayout(list, width, undefined, SCREEN)));
     assert.equal(under.search(/\S/), first.indexOf("Remote"), `${r.host || "this machine"} at ${width}:\n${first}\n${under}`); assert.ok(under.length <= width);
   }
-  assert.deepEqual(plain(v.rowLines(far, 100)).map((l) => l.slice(0, 44).trimEnd()), [" ◐ other-machine Remote task", " ".repeat(17) + "Checking the implementation"]);
+  assert.deepEqual(plain(v.rowLines(far, 100)).map((l) => l.slice(0, 47).trimEnd()), [" ◐ #1 other-machine Remote task", " ".repeat(20) + "Checking the implementation"]);
   v.scope = ""; // one machine's board names no machine: under the name, right of the mark
-  assert.equal(plain(v.rowLines(far, 100))[1], "   Checking the implementation");
+  assert.equal(plain(v.rowLines(far, 100))[1], "      Checking the implementation");
 });
 
 test("a row with nothing to say yet keeps its second line: rows do not change height when the words arrive", () => {
   const silent = { ...work, id: "p/1", title: "New one", msg: "Just started" }, waits = { ...ready, id: "p/2", title: "Never reviewed" };
   const v = board([silent, waits, { ...done, id: "p/3", title: "Finished" }]);
   // A working task: "Just started" until its first words, never a bare "…". One that waits with nothing to say: an empty line.
-  assert.deepEqual(plain(v.rowLines(silent, 60, v.rowLayout([silent], 60, undefined, SCREEN))), [" ◐ New one" + " ".repeat(48) + "2h", "   Just started"]);
+  assert.deepEqual(plain(v.rowLines(silent, 60, v.rowLayout([silent], 60, undefined, SCREEN))), [" ◐ #1 New one" + " ".repeat(45) + "2h", "      Just started"]);
   assert.equal(plain(v.rowLines({ ...silent, msg: "" }, 60, v.rowLayout([silent], 60, undefined, SCREEN)))[1].trim(), ""); // a board of an older version says nothing: an empty line
-  assert.deepEqual(plain(v.rowLines(waits, 60, v.rowLayout([waits], 60, undefined, SCREEN))).map((l) => l.trimEnd()), [" ! Never reviewed" + " ".repeat(37) + "2h ago", ""]);
+  assert.deepEqual(plain(v.rowLines(waits, 60, v.rowLayout([waits], 60, undefined, SCREEN))).map((l) => l.trimEnd()), [" ! #2 Never reviewed" + " ".repeat(34) + "2h ago", ""]);
   const before = plain(v.listLines(60, 20, SCREEN));
   silent.msg = "Reading the code."; waits.review = pass;
   const after = plain(v.listLines(60, 20, SCREEN));
   assert.equal(before.findIndex((l) => l.includes("Finished")), after.findIndex((l) => l.includes("Finished"))); // nothing below moved
-  assert.deepEqual(after.filter((l) => l.startsWith("   ")).map((l) => l.trimEnd()), ["   Pass · 1 minor", "   Reading the code."]);
+  assert.deepEqual(after.filter((l) => l.startsWith("      ")).map((l) => l.trimEnd()), ["      Pass · 1 minor", "      Reading the code."]);
 });
 
 test("the highlight covers both lines of the selected row, and the arrow keys go task by task", () => {
   const v = board([...LIVE.slice(0, 2), QUIET[0]], { sel: "p/1" });
   const mark = theme.selected("\0").split("\0")[0], lit = () => v.listLines(80, 20).filter((l) => l.startsWith(mark)).map((l) => stripVTControlCharacters(l));
   if (!process.env.NO_COLOR) {
-    assert.equal(lit().length, 2); assert.match(lit()[0], /^ ◐ Agent at work +█+░+ +40% 12m +2h *$/); assert.equal(lit()[1].trimEnd(), "   Reading the panel and its tests.");
+    assert.equal(lit().length, 2); assert.match(lit()[0], /^ ◐ #\d+ Agent at work +█+░+ +40% 12m +2h *$/); assert.equal(lit()[1].trimEnd(), "      Reading the panel and its tests.");
     assert.ok(lit().every((l) => l.length === 80)); // each to the window's edge
   }
   v.move(1); assert.equal(v.sel, "p/2"); // one press, one task: never onto a row's second line
-  if (!process.env.NO_COLOR) assert.deepEqual(lit().map((l) => l.slice(0, 20).trimEnd()), [" ◑ Under review", "   Running the tests"]);
+  if (!process.env.NO_COLOR) assert.deepEqual(lit().map((l) => l.slice(0, 23).trimEnd()), [" ◑ #2 Under review", "      Running the tests"]);
   v.move(1); assert.equal(v.sel, "p/8");
   if (!process.env.NO_COLOR) assert.equal(lit().length, 1); // a done row is one line
   v.move(-1); v.move(-1); v.move(-1); assert.equal(v.sel, "p/1");
@@ -223,12 +223,12 @@ test("the list scrolls by whole rows: no row is ever shown half, and the selecte
       const lines = plain(v.listLines(60, h, SCREEN));
       assert.equal(lines.length, h);
       lines.forEach((l, n) => {
-        const first = /^ ◐ Working (\d+) /.exec(l), second = /^ {3}Says (\d+)/.exec(l);
-        if (first) assert.equal(lines[n + 1]?.trimEnd(), `   Says ${first[1]}`, `h ${h}, at ${v.sel}: a first line with no second\n${lines.join("\n")}`);
-        if (second) assert.match(lines[n - 1] ?? "", new RegExp(`^ ◐ Working ${second[1]} `), `h ${h}, at ${v.sel}: a second line with no first\n${lines.join("\n")}`);
+        const first = /^ ◐ #\d+ +Working (\d+) /.exec(l), second = /^ {7}Says (\d+)/.exec(l); // `#1` and `#20` share one column: every name starts in the same place
+        if (first) assert.equal(lines[n + 1]?.trimEnd(), `       Says ${first[1]}`, `h ${h}, at ${v.sel}: a first line with no second\n${lines.join("\n")}`);
+        if (second) assert.match(lines[n - 1] ?? "", new RegExp(`^ ◐ #\\d+ +Working ${second[1]} `), `h ${h}, at ${v.sel}: a second line with no first\n${lines.join("\n")}`);
       });
       const n = v.sel.split("/")[1];
-      assert.ok(lines.some((l) => new RegExp(n < 20 ? `^ ◐ Working ${n} ` : `^ ○ Later ${n - 19} `).test(l)), `h ${h}: ${v.sel} is in view\n${lines.join("\n")}`);
+      assert.ok(lines.some((l) => new RegExp(n < 20 ? `^ ◐ #${n}  Working ${n} ` : `^ ○ #${n} Later ${n - 19} `).test(l)), `h ${h}: ${v.sel} is in view\n${lines.join("\n")}`);
     };
     look();
     for (let n = 1; n < many.length; n++) { v.move(1); look(); }
@@ -236,7 +236,7 @@ test("the list scrolls by whole rows: no row is ever shown half, and the selecte
   }
   // In a list of one line there is no room for both: the selected row's first line, its name, is what shows.
   const v = board(many, { sel: "p/3" });
-  assert.match(plain(v.listLines(60, 1, SCREEN))[0], /^ ◐ Working 3 /);
+  assert.match(plain(v.listLines(60, 1, SCREEN))[0], /^ ◐ #3  Working 3 /);
 });
 
 test("a list taller than its room shows fewer done rows first, down to the newest one, before it scrolls", () => {

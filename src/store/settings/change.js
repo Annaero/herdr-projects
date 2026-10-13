@@ -6,6 +6,8 @@ import { check, known, fits, nearest } from "./values.js";
 import { writeYours } from "./places.js";
 import { lookup, inRepo } from "./lookup.js";
 import { needsRepo, entryOf } from "../settings-list.js";
+import { saidKeys } from "../keys.js";
+import { NONE } from "./values.js";
 
 const refuse = (msg) => { throw Object.assign(new Error(msg), { refused: true }); };
 const roleOf = (name) => name.split(".")[0];
@@ -13,6 +15,7 @@ const roleOf = (name) => name.split(".")[0];
 function allowed(name, { task, repo }) {
   const e = known(name);
   if (e.kind === "board" && (task || repo)) refuse(`${name} is a board setting: it is yours only and cannot be set ${task ? "on a task" : "for a repo"}. Set it for yourself: herdr-superwork set ${name} <value>`);
+  if (e.kind === "repo" && !repo) refuse(`${name} is one repo's own: it cannot be set ${task ? "on a task" : "for every repo at once"}. Set it for the repo: herdr-superwork set ${name} <value> --repo <name>, or in the repo's own .herdr-superwork.json.`);
   if (repo && !knownRepos()[repo]) { const near = nearest(repo, Object.keys(knownRepos())); refuse(`No repo "${repo}" on the board.${near ? ` Did you mean ${near}?` : ""} Known: ${Object.keys(knownRepos()).join(", ") || "none yet"}.`); }
   if (task && needsRepo(name) && !inRepo(task)) refuse(`${name} does not apply to ${task.id}: it is in no repo.`);
   return e;
@@ -22,6 +25,8 @@ function allowed(name, { task, repo }) {
 export function checked(pairs, scope = {}) {
   const out = {};
   for (const [name, value] of Object.entries(pairs)) { allowed(name, scope); out[name] = check(name, value); }
+  // Two repos with one key would make `HSW-134` two tasks: the second is refused, and told who has it.
+  if (out["repo.key"] && out["repo.key"] !== NONE) { const other = saidKeys().find((s) => s.key === out["repo.key"] && s.repo !== scope.repo); if (other) refuse(`repo.key: ${other.repo} already has the key ${other.key}. Choose another for ${scope.repo}.`); }
   const agentFor = (role) => out[`${role}.agent`] ?? lookup(`${role}.agent`, scope).value;
   for (const [name, value] of Object.entries(out)) {
     const e = known(name);

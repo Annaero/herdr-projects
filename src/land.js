@@ -276,7 +276,7 @@ export async function landCore(id, g) {
       fail(files ? "Merge conflict" : "Merge failed", detail + (restored ? "\n\nThe merge attempt was rolled back; the human's checkout is unchanged." : "\n\nRollback failed. The human must inspect the checkout before retrying."),
         restored ? `In your own worktree on ${t.branch}, bring in target commit ${target} (${onto}), resolve the conflicts, run the checks and commit. Do not change the human's checkout. Finish again for review, then ask for merge approval.` : "Inspect and restore the human's checkout before retrying. Do not let the agent reset or discard it.", { agentCanFix: restored, auth: false });
     };
-    const message = `${t.title || id}\n\nTask: ${id}`;
+    const message = `${t.title || id}\n\nTask: ${S.taskRef(id)}`;
     // The commit that was checked and reviewed is the one merged, by its id: a commit that reaches the branch while
     // this runs is neither merged unseen nor deleted as merged.
     const head = t.mergeIntent?.verifiedHead || git(root, ["rev-parse", "--verify", `refs/heads/${t.branch}`]);

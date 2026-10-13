@@ -1,9 +1,10 @@
 // The one lookup. A work setting is looked up in one order and the nearest answer wins:
 //   this task -> your entry for this repo -> you -> the repo's own file -> built in
-// A board setting is yours only: you -> built in. No setting has a lookup of its own. A setting is read when its
+// A board setting is yours only: you -> built in. A repo's own fact (its key) is said for that repo only: your entry
+// for the repo -> the repo's own file, as it is in the repo's folder now -> built in. No setting has a lookup of its own. A setting is read when its
 // step starts (the agent at its next start, the review settings at the next review, the merge settings right before
 // the merge): callers ask here at that moment and keep nothing.
-import { folderOf, isRepo } from "../repos.js";
+import { folderOf, isRepo, knownRepos } from "../repos.js";
 import { SETTINGS, WORK, entryOf, needsRepo } from "../settings-list.js";
 import { known, fits, NONE } from "./values.js";
 import { yours, repoFile, read } from "./places.js";
@@ -37,7 +38,12 @@ export function placesOf({ task = null, repo = "" } = {}, mine = yours()) {
   // Read only when a setting gets that far down: most are answered above it.
   if (task && repoPlaces) { let facts = null; work.push({ place: "file", from: "the repo's file", get values() { return (facts ??= fileOf(task)); } }); }
   work.push(BUILTIN);
-  return { work, board: [you, BUILTIN], noRepo: !!task && !repoPlaces, problems };
+  // A repo's own fact: never a task's and never yours for every repo. Its file is the one in the repo's folder now.
+  const own = [];
+  if (name && mine.repos[name]) own.push({ place: "repo", from: `your entry for ${name}`, values: mine.repos[name] });
+  if (name && knownRepos()[name]) { let facts = null; own.push({ place: "file", from: "the repo's file", get values() { if (!facts) { try { facts = repoFile(knownRepos()[name]).facts; } catch { facts = {}; } } return facts; } }); }
+  own.push(BUILTIN);
+  return { work, board: [you, BUILTIN], repo: own, noRepo: !!task && !repoPlaces, problems };
 }
 // { name, value, place, from, applies }. Instructions add up, broadest first; everything else is the nearest answer.
 export function lookup(name, scope = {}, mine = undefined, at = placesOf(scope, mine)) {

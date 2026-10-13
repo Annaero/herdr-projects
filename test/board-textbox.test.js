@@ -142,7 +142,7 @@ test("a reply to a task's agent wraps in the same box, under the agent's latest 
     const d = draft(s, 50);
     assert.equal(d.rows.join(" "), words); assert.ok(d.rows.length > 5); assert.equal(d.above + d.below, 0);
     assert.equal(d.lines.length, 24); assert.ok(d.lines.every((l) => l.length <= 50));
-    assert.ok(d.lines.some((l) => /^ . Make f/.test(l)), "who the reply goes to still shows above the box");
+    assert.ok(d.lines.some((l) => /^ . #\d+ Make f/.test(l)), "who the reply goes to still shows above the box");
     assert.ok(d.framed); assert.ok(d.lines.some((l) => /^│ Made f\. +│$/.test(l)), "the agent's latest message is in the same box");
     // A draft taller than the box scrolls inside it, and the box's own lines say how much is off it.
     s.type(" " + words + " " + words);

@@ -29,7 +29,7 @@ export function panelEl(snap, handlers) {
   return h("article.sw-panel", { "aria-label": p.automation ? "Automation" : "Task" },
     h("header.sw-panel-head",
       h("button.icon-button.sw-panel-back", { type: "button", "aria-label": "Back to the list", title: "Back to the list", onclick: handlers.onClose }, icon("back")),
-      h("h3.sw-panel-title", p.title || "(no title)")),
+      h("h3.sw-panel-title", p.tag ? h("span.sw-id", p.tag + " ") : null, p.title || "(no title)")),
     actionsEl(snap, handlers),
     h("div.sw-parts", p.parts.map((part) => h("section.sw-part",
       h(`h4.sw-part-head${part.color ? `.sw-c-${part.color}` : ""}`, part.head),

@@ -49,5 +49,5 @@ export function panelOf(v, r) {
   // The progress is a bar on the page, not a row of block characters.
   const bar = r.state !== "done" && r.progress !== undefined ? Math.max(0, Math.min(100, Number(r.progress) || 0)) : null;
   for (const p of parts) for (const f of p.items) if (f.k === "fact" && f.label === "Progress" && bar !== null) { f.bar = bar; f.lines = f.lines.map((l) => l.map((x) => ({ ...x, t: x.t.replace(/^[█░]+ ?/, "") })).filter((x) => x.t)); }
-  return { id: r.id, title: String(r.title ?? r.text ?? ""), task: r.title !== undefined, parts };
+  return { id: r.id, tag: r.title !== undefined ? v.numberTag(r) : "", title: String(r.title ?? r.text ?? ""), task: r.title !== undefined, parts };
 }

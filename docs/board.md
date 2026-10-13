@@ -40,19 +40,20 @@ that waits from one that went wrong. The key is U+26B7, one column wide in termi
 same marks. The records the board writes to the terminal carry no mark: they name the state and the kind
 (`state=blocked:kind=question`) and the terminal draws its own.
 
-A row reads: the
+A row reads: the task's number, greyed (`#134`, or `HSW-134` where its repo has a short key:
+[task numbers and repo keys](task-numbers.md)), the
 name, then on the right two groups with a wider gap between them: the progress (the bar, the percent and the minutes
 left), and then the review, the pull request and the time:
 
 ```
  ready to approve
- ! Add an undo for clear                                              R#2 PR#18 12m ago
-   Fail · 1 critical, 1 major
+ ! #98  Add an undo for clear                                         R#2 PR#18 12m ago
+        Fail · 1 critical, 1 major
  working
- ◐ Tidy the first-run questions                      ███░░░░░ 40% 12m  R#1 PR#17  5m
-   Running the tests
+ ◐ #134 Tidy the first-run questions                 ███░░░░░ 40% 12m  R#1 PR#17  5m
+        Running the tests
  done
- ✓ Blue while the reviewer works                                      R#1 PR#76  1h ago
+ ✓ #76  Blue while the reviewer works                                 R#1 PR#76  1h ago
 ```
 
 **The spacing is one rule: one cell between two things, and one wider gap of two cells on a row, right of the
@@ -220,7 +221,9 @@ Things give way in this order, first to last, and the name wins over all of them
 6. the `R#` tag and the pull request, together: a review is never shown without its pull request, nor the other
    way round;
 7. the time;
-8. the rest of the name.
+8. the task's number, on the whole list at once, so that the names stay in one column: it goes when it would leave a
+   row's name fewer than 16 cells with nothing else beside it;
+9. the rest of the name.
 
 Step 4 is why one long title does not cost a whole group its columns: a title is at most 60 characters
 ([titles](titles.md)), so it loses a third at the very most, and a name of 40 cells or fewer is never cut while a

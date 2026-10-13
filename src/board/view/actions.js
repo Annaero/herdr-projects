@@ -39,7 +39,7 @@ export class Actions {
     this.try(() => {
       if (action === "archive") { A.archive(r.id); this.archiveUndo = r; } else A.restore(r.id);
       this.full = false;
-      this.flash(action === "archive" ? `${r.id}: archived. ${keyName("undo")} undoes it; ${keyName("archiveView")} shows the archive.` : `${r.id}: restored.`, "green");
+      this.flash(action === "archive" ? `${this.idSay(r)}: archived. ${keyName("undo")} undoes it; ${keyName("archiveView")} shows the archive.` : `${this.idSay(r)}: restored.`, "green");
     });
   }
   // ---- what the keys do -------------------------------------------------------------------------------------------------
@@ -75,13 +75,13 @@ export class Actions {
     if (!this.running(r)) return this.remove(r);
     this.stick = r.id; // the selection stays on this row: a second tap never lands on another task
     if (r.host) return this.act(r, "stop");
-    return this.try(() => { A.stop(r.id); this.flash(`${r.id}: stopped.`, "yellow"); });
+    return this.try(() => { A.stop(r.id); this.flash(`${this.idSay(r)}: stopped.`, "yellow"); });
   }
   remove(r) {
     this.confirm(`Remove "${truncateToWidth(clean(r.title || r.id), 32, "…")}"? Its worktree goes too.`, () => {
       if (r.host) return this.act(r, "clear");
-      A.clear(r.id).then((out) => { this.flash(out.kept.length ? `${r.id}: removed. Kept, so no work is lost: ${out.kept.join(", ")}` : `${r.id}: removed`, out.kept.length ? "yellow" : "overlay0"); this.load(); this.tui.requestRender(); }, (e) => { this.flash(e.message, "red"); this.tui.requestRender(); });
-      this.flash(`${r.id}: removing…`);
+      A.clear(r.id).then((out) => { this.flash(out.kept.length ? `${this.idSay(r)}: removed. Kept, so no work is lost: ${out.kept.join(", ")}` : `${this.idSay(r)}: removed`, out.kept.length ? "yellow" : "overlay0"); this.load(); this.tui.requestRender(); }, (e) => { this.flash(e.message, "red"); this.tui.requestRender(); });
+      this.flash(`${this.idSay(r)}: removing…`);
     });
   }
   undo() {
@@ -110,6 +110,6 @@ export class Actions {
     const r = this.archiveUndo; this.archiveUndo = null;
     if (!r) return this.flash("Nothing to undo.");
     if (r.host) return this.act(r, "restore");
-    return this.try(() => { A.restore(r.id); this.flash(`${r.id}: restored`, "green"); });
+    return this.try(() => { A.restore(r.id); this.flash(`${this.idSay(r)}: restored`, "green"); });
   }
 }

@@ -28,7 +28,7 @@ test("a task agent's chat: its message, then your just-sent words in its place, 
     s.v.sel = id; s.v.load(); s.press("space");
     for (const width of [120, 48]) {
       const c = chat(s, width);
-      assert.ok(c.framed); assert.match(c.who, /^ \S Make f {2}\S/); assert.doesNotMatch(c.who, /agent|claude|alt\+|last message/);
+      assert.ok(c.framed); assert.match(c.who, /^ \S #\d+ Make f {2}\S/); assert.doesNotMatch(c.who, /agent|claude|alt\+|last message/);
       assert.deepEqual(c.box, ["Made f, with one line in it.", "", "❯ Send message to Agent"]); // nothing else is in it
       assert.match(c.hints, /space back to the Coordinator$/); // whole at every width: the key is never the part that is cut
     }
@@ -46,7 +46,7 @@ test("a task agent's chat: its message, then your just-sent words in its place, 
     // Hidden: who you talk to and the line you type on, between two rules. alt+c is the key both ways.
     s.press("\x1bc");
     let c = chat(s);
-    assert.equal(c.framed, false); assert.match(c.who, /^ \S Make f {2}\S/); assert.deepEqual(c.box, ["❯ Send message to Agent"]); assert.match(c.hints, /alt\+c show the latest message · space back to the Coordinator$/);
+    assert.equal(c.framed, false); assert.match(c.who, /^ \S #\d+ Make f {2}\S/); assert.deepEqual(c.box, ["❯ Send message to Agent"]); assert.match(c.hints, /alt\+c show the latest message · space back to the Coordinator$/);
     assert.doesNotMatch(s.text(), /│ Made g\./);
     // With the chat hidden nothing shows your words, so one line says they went.
     s.type("thanks"); s.press("enter"); assert.match(s.text(), /Sent to the agent/);

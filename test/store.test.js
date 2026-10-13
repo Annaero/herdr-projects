@@ -63,7 +63,7 @@ test("settings: the built-in values, your own, one task's own (the rule itself: 
     assert.deepEqual(t.settings, {});
     assert.equal(S.setValue("worker.agent", "codex", { task: S.get(t.id) }).value, "codex");
     assert.equal(S.unsetValue("worker.agent", { task: S.get(t.id) }).value, "claude");
-    for (const s of S.SETTINGS) assert.ok(s.name && s.doc && s.builtin !== undefined && ["work", "board"].includes(s.kind), s.name);
+    for (const s of S.SETTINGS) assert.ok(s.name && s.doc && s.builtin !== undefined && ["work", "board", "repo"].includes(s.kind), s.name);
   } finally { w.cleanup(); }
 });
 

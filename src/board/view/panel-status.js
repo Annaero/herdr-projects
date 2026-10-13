@@ -1,6 +1,6 @@
 // The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you.
 import * as S from "../../store.js";
-import { clean, age, prNumber, prTag, merged, idLabel, bar } from "./words.js";
+import { clean, age, prNumber, prTag, merged, bar } from "./words.js";
 import { reviewing, standing, waitOf, reviewerWord, NEEDS } from "./states.js";
 import { roundWords, reviewNote } from "./review-words.js";
 import { name as keyName } from "../keys.js";
@@ -15,7 +15,9 @@ export class PanelStatus {
   // about what it needs from you already printed.
   panelStatus(p) {
     const { r, full, t, room, agent, failure, c, underReview, approval, dim, quiet, wrap, head, flow, fact, alert, part } = p;
-    const title = part(wrap(r.title || "(no title)").map((l) => t.bold(l)));
+    // The title, with the task's number before it, greyed as on its row (row-number.js).
+    const tag = this.numberTag(r);
+    const title = part(wrap((tag ? tag + " " : "") + (r.title || "(no title)")).map((l, n) => (!n && tag && l.startsWith(tag) ? t.muted(tag) + t.bold(l.slice(tag.length)) : t.bold(l))));
     // Where it stands, one fact a row. The state with its mark and since when; the progress; what it is doing right
     // now, wrapped whole; who is on it; the change, its pull request in the colour of its checks; the task's id.
     const when = `${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`;
@@ -36,7 +38,7 @@ export class PanelStatus {
     const prName = url ? `\x1b]8;;${url}\x1b\\${prNumber(r)}\x1b]8;;\x1b\\` : prNumber(r);
     const pr = r.pr ? prTag(t, r, prName) + (merged(r) ? dim(" merged") : "") : "";
     if (size || pr) rows.change = fact("Change", [...flow([pr, size && quiet(size)]), ...(full && url ? [dim(url)] : [])]);
-    rows.task = fact("Task", idLabel(r.id), quiet);
+    rows.task = fact("Task", this.idWords(r), quiet);
     if (!agent && !r.archivedAt && r.state === "idle" && !String(r.description || "").trim()) rows.next = fact("Next", wrap(`No agent is on this yet. ${keyName("delegate")} puts one on it.`, room), dim);
     const top = part([], { rows });
     top.draw = () => { top.lines = [...ORDER, "next"].flatMap((k) => rows[k] || []); return top; };

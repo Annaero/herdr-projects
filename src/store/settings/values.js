@@ -111,6 +111,15 @@ const CHECKS = {
     if (bad) refuse(`${e.name}: "${bad}" is not a machine name (host or user@host). Other values: auto, none.`);
     return names.join(", ");
   },
+  // A repo's short key: kept in capitals. `PR` would read as a pull request on a row.
+  key(e, v) {
+    const w = word(v);
+    if (w.toLowerCase() === NONE) return NONE;
+    const k = w.toUpperCase();
+    if (typeof v !== "string" || !/^[A-Z][A-Z0-9]{1,4}$/.test(k)) refuse(`${e.name} is a short key: 2 to 5 letters or digits, the first a letter (HSW), or none; not "${w}".`);
+    if (k === "PR") refuse(`${e.name} cannot be PR: on a row that already means a pull request. Choose another.`);
+    return k;
+  },
   notify(e, v) {
     if (typeof v !== "string" || !v.trim()) refuse(`${e.name} must be none, bell, or a command.`);
     const w = v.trim();

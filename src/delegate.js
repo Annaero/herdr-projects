@@ -48,7 +48,8 @@ export function rules(t) {
     R.reportRule(t),
     `Before you stop, also write your closing summary (or your question to the human) to ${F.noteFile(t)} (the board's own folder for this task, not the folder you work in). It is the board's fallback when it cannot read your last message.`,
   ].filter(Boolean);
-  return `Rules for this task (its id on the work board is ${t.id}):\n${lines.map((l) => `- ${l}`).join("\n")}${words ? `\n\n${ownWords(words)}` : ""}`;
+  const short = S.sayId(t.id); // the repo's short key, where it has one: the human may call the task by it
+  return `Rules for this task (its id on the work board is ${t.id}${short !== t.id ? `; the human also calls it ${short}, and every command takes that name too` : ""}):\n${lines.map((l) => `- ${l}`).join("\n")}${words ? `\n\n${ownWords(words)}` : ""}`;
 }
 // Every worker's first prompt starts with one line naming the task and the role: it is how a conversation file is
 // matched to its task for an agent kind that names its own sessions.
@@ -170,7 +171,7 @@ export async function delegateJob(id) {
         const from = baseRef(root, S.setting("workspace.from", t));
         res = F.openingWorktree(api, root, () => api.worktreeCreate({ cwd: root, branch, base: from, label }));
         const dir = res.worktree?.path || res.workspace?.worktree?.checkout_path;
-        // The repo's own file, read from the commit the worktree starts from: its five facts, and what it was refused.
+        // The repo's own file, read from the commit the worktree starts from: its six facts, and what it was refused.
         const file = S.repoFile(root, from);
         excludeRuleDir(root);
         patch = { worktree: dir, branch, from, baseSha: (from === "HEAD" && F.headOf(root)) || S.gitOut(root, ["rev-parse", from]), repoFile: file.facts, repoRefused: file.refused, fresh: true, ownNote: true, copy: true };

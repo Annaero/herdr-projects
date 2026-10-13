@@ -64,7 +64,7 @@ export class Chat {
       // While the board runs its check, the check's progress as the row has it, in the row's colour: the bar, the percent and the minutes left; without the bar where that is too wide.
       const f = toAgent && checking(r) ? this.rowFields(r, Date.now()) : {};
       const progress = [[f.bar, f.percent, f.eta], [f.percent, f.eta]].map((cells) => cells.filter(Boolean).join(" ")).filter((p, n, all) => p && all.indexOf(p) === n);
-      return { mark: this.mark(r), name: clean(r.title || r.id), status: t.muted(echo ? word : status), progress, text, mine: !!mine, raw: raw && !mine, said, turn: JSON.stringify(this.turnMark(r)) };
+      return { mark: this.mark(r), tag: this.numberTag(r), name: clean(r.title || r.id), status: t.muted(echo ? word : status), progress, text, mine: !!mine, raw: raw && !mine, said, turn: JSON.stringify(this.turnMark(r)) };
     }
     const far = this.scope && this.scope !== "*" && this.remotes[this.scope] ? this.scope : "";
     if (far) return { mark: t.fg("overlay0", t.mark("unknown")), color: "overlay0", name: `Coordinator on ${far}`, status: t.muted(`what you type goes to ${far}`), text: "" };
@@ -95,7 +95,9 @@ export class Chat {
   // that is. The chat's keys are not named here: they are on the hint line under the box.
   chatHead(c, width, tight = false) {
     const t = this.theme;
-    const lead = " " + c.mark + " ", room = Math.max(1, width - visibleWidth(lead));
+    // A task's number stands before its name, greyed, as on its row (row-number.js); the narrowest windows go without it.
+    const bare = " " + c.mark + " ", tagged = c.tag && width - visibleWidth(bare) - visibleWidth(c.tag) - 1 >= CHAT_STATUS_MIN;
+    const lead = bare + (tagged ? t.muted(c.tag) + " " : ""), room = Math.max(1, width - visibleWidth(lead));
     const name = t.bold(c.name), nameW = visibleWidth(name);
     // A name longer than the window takes a second line before it is cut (in a short window that line is the draft's).
     if (nameW > room && tight) return [lead + truncateToWidth(name, room, "…")];

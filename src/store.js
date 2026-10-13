@@ -7,6 +7,7 @@ export * from "./store/files.js";
 export * from "./store/move-home.js";
 export * from "./store/settings.js";
 export * from "./store/repos.js";
+export * from "./store/keys.js";
 export * from "./store/tasks.js";
 export * from "./store/titles.js";
 export * from "./store/inbox.js";

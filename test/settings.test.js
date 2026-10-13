@@ -1,4 +1,4 @@
-// The settings' one rule: the order of the places, the repo file's five facts, board settings refused on a task,
+// The settings' one rule: the order of the places, the repo file's six facts, board settings refused on a task,
 // instructions adding up, `none` against unset, what a value may be, a mistake made by hand, and a refused delegate.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -31,7 +31,7 @@ test("one order for every work setting: this task, your entry for the repo, you,
     S.unsetValue("check.command", { repo: "proj" }); assert.deepEqual(at(), ["from you", "you"]);
     S.unsetValue("check.command"); assert.deepEqual(at(), ["from the file", "the repo's file"]);
     assert.deepEqual(saved(), { "watcher.agent": "none", "coordinator.agent": "none" }); // nothing of it is left in the file
-    for (const name of S.NAMES) { const scope = S.entryOf(name).kind === "work" ? { task: S.get(id) } : {}; assert.equal(S.unsetValue(name, scope).name, name); }
+    for (const name of S.NAMES) { const kind = S.entryOf(name).kind, scope = kind === "work" ? { task: S.get(id) } : kind === "repo" ? { repo: "proj" } : {}; assert.equal(S.unsetValue(name, scope).name, name); }
     // the same one function answers for every setting: another repo's entry is not this task's
     S.setValue("review.rounds", "7", { repo: "proj" }); assert.deepEqual(at("review.rounds"), [7, "your entry for proj"]);
     const other = fs.mkdtempSync(path.join(w.base, "other-")); git(other, "init", "-q", "-b", "main");
@@ -43,12 +43,12 @@ test("one order for every work setting: this task, your entry for the repo, you,
   } finally { w.cleanup(); }
 });
 
-test("the repo's own file holds five facts and no more, read from the commit the worktree started from", async () => {
+test("the repo's own file holds six facts and no more, read from the commit the worktree started from", async () => {
   const w = await world({ repoSettings: { workspace: { setup: "true", include: [".env"], teardown: "down" }, check: { command: "npm test", timeout: "5m" }, merge: { by: "itself" }, review: { when: "never" }, worker: { access: "full" }, setup: "old name" } });
   try {
     const f = S.repoFile(w.root, "HEAD");
     assert.deepEqual(f.facts, { "workspace.setup": "true", "workspace.include": [".env"], "workspace.teardown": "down", "check.command": "npm test", "check.timeout": "5m" });
-    assert.deepEqual(S.REPO_FACTS, ["workspace.setup", "workspace.include", "workspace.teardown", "check.command", "check.timeout"]);
+    assert.deepEqual(S.REPO_FACTS, ["workspace.setup", "workspace.include", "workspace.teardown", "check.command", "check.timeout", "repo.key"]);
     assert.equal(f.refused.length, 4);
     for (const name of ["merge.by", "review.when", "worker.access"]) assert.ok(f.refused.some((r) => r.startsWith(`.herdr-superwork.json: ${name} is refused: the repo's file may only hold`)), name);
     assert.ok(f.refused.includes('.herdr-superwork.json: unknown setting "setup" (did you mean workspace.setup?)'));

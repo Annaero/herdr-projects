@@ -6,13 +6,14 @@
 //   name     its name everywhere: in config.json, on the command line, on a task
 //   kind     "work": looked up task -> your entry for the repo -> you -> the repo's file -> built in
 //            "board": yours only (everything under board., coordinator. and watcher.)
+//            "repo": a fact about one repo, said for that repo only: your entry for the repo -> the repo's file -> built in
 //   type     what a value is (store/settings/values.js): switch, choice, time, count, agent, effort, access, text,
-//            list, machines, notify
+//            list, machines, notify, key
 //   builtin  what it is until somebody says otherwise
 //   values   a choice's words
 //   none     true: an agent setting that may be `none`
 //   min      a count's smallest number
-//   repo     true: one of the five facts the repo's own committed file may hold
+//   repo     true: one of the six facts the repo's own committed file may hold
 //   adds     true: its values add up across the places instead of the nearest one winning
 //   doc      what it means, for docs/settings.md
 
@@ -50,6 +51,8 @@ export const SETTINGS = [
   { name: "merge.by", kind: "work", type: "choice", values: ["you", "itself"], builtin: "you", doc: "`you`: finished work waits for your yes. `itself`: it merges the moment it may: its review passed, its checks pass, nothing conflicts. Read right before the merge, so a change counts for tasks under way. More: [the gate](gate.md#merging-by-itself)" },
   { name: "merge.method", kind: "work", type: "choice", values: ["squash", "merge", "rebase"], builtin: "squash", doc: "how approved work lands" },
   { name: "merge.pr", kind: "work", type: "switch", builtin: true, doc: "push the branch and open a draft pull request after the check passes" },
+  // how its tasks are named
+  { name: "repo.key", kind: "repo", type: "key", builtin: "none", repo: true, doc: "a short key for this repo's tasks, as `HSW` for herdr-superwork: 2 to 5 letters or digits, the first a letter, kept in capitals. With one, a task's tag on the board reads `HSW-134` instead of `#134`, and `HSW-134` (in any letter case) names the task wherever its id `herdr-superwork/134` does. `none`: no key. A key another repo already has is refused. More: [task numbers and keys](task-numbers.md)" },
   // the board (yours only)
   { name: "board.agents", kind: "board", type: "count", min: 1, builtin: 4, doc: "how many agents work at once" },
   { name: "board.machines", kind: "board", type: "machines", builtin: "auto", doc: "other machines: `auto` (herdr's saved machines), names (`exedev@vm-a, vm-b`) or `none`" },
@@ -63,7 +66,7 @@ export const NAMES = SETTINGS.map((s) => s.name);
 export const entryOf = (name) => SETTINGS.find((s) => s.name === name) || null;
 export const WORK = SETTINGS.filter((s) => s.kind === "work").map((s) => s.name);
 export const BOARD = SETTINGS.filter((s) => s.kind === "board").map((s) => s.name);
-// The five facts a repo's own committed file may hold, and no more.
+// The six facts a repo's own committed file may hold, and no more.
 export const REPO_FACTS = SETTINGS.filter((s) => s.repo).map((s) => s.name);
 // These mean nothing for a task in no repo.
 export const needsRepo = (name) => /^(workspace|check|merge)\./.test(name);

@@ -7,7 +7,8 @@ import { PERCENT_MIN } from "./row-fit.js";
 // Below this many columns every live row has the third line; from it on, none has. It is the width at which a name
 // of 40 cells (NAME_OWED: what a name keeps before a column goes) sits beside every column: the mark (3), the name
 // (40), the bar (8), the percent (4), the minutes left (4), `R#12` (4), `PR#123` (6), the time (3) and the gaps
-// between them (8) are 80. Narrower than that, line 1 always goes without something. It is the screen that is
+// between them (8) are 80 (the task's number, left of the name, is not counted: with it the bar is what goes first
+// at 80). Narrower than that, line 1 always goes without something. It is the screen that is
 // counted, not the names on it: the rows do not change height when a task is renamed or gets its pull request, and
 // they all switch together.
 export const TALL_BELOW = 80;

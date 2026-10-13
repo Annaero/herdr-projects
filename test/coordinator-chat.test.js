@@ -89,7 +89,7 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     const t = A.add(w.root, "Write the docs");
     A.report(t.id, { state: "done" });
     s.v.sel = t.id; s.v.load(); s.press("space"); assert.equal(s.v.reply, true);
-    assert.match(s.text(160), /\n *\n . Write the docs {2}no agent on it: your message goes to the Coordinator, about this task *\n─+\n❯ Send message to Coordinator/);
+    assert.match(s.text(160), /\n *\n . #\d+ Write the docs {2}no agent on it: your message goes to the Coordinator, about this task *\n─+\n❯ Send message to Coordinator/);
     s.type("make it shorter"); s.press("enter"); await drainJobs(runJob);
     assert.equal(w.agents()[0].agent.prompts[2], "make it shorter");
     assert.match(C.where(), /\n- "make it shorter"[^\n]*Task proj\/1 \("Write the docs"\) was open: for this message "it" and "this" mean that task\. It was sent with enter/);
@@ -135,12 +135,12 @@ test("one chat for everyone: space on a task talks to its agent, otherwise to th
     assert.match(e.text(160), /The agent said ─+ *\n[^\n]*Done\./g); assert.match(e.text(160), /\n . Coordinator {2}/);
     e.press("space"); assert.equal(e.v.reply, true);
     let text = e.text(160);
-    assert.match(text, new RegExp(`\\n *\\n ${e.v.mark(e.v.current()).replace(/\x1b\[[0-9;]*m/g, "")} ${title} {2}\\S[^\\n]*\\n╭─+╮\\n│ Done\\. +│\\n│ +│\\n│ ❯ Send message to Agent +│\\n╰─+╯\\n`)); // the row's own mark
+    assert.match(text, new RegExp(`\\n *\\n ${e.v.mark(e.v.current()).replace(/\x1b\[[0-9;]*m/g, "")} #\\d+ ${title} {2}\\S[^\\n]*\\n╭─+╮\\n│ Done\\. +│\\n│ +│\\n│ ❯ Send message to Agent +│\\n╰─+╯\\n`)); // the row's own mark
     assert.doesNotMatch(text.split("\n").slice(-8, -1).join("\n"), /its agent|claude|last message|alt\+c/); // the key is on the hint line, under the box
     assert.doesNotMatch(text, /The agent said|\n . Coordinator {2}|reply to/); assert.match(text, /space back to the Coordinator *$/); assert.equal(text.match(/Done\./g).length, 1);
-    e.press("alt+c"); assert.match(e.text(160), /The agent said ─+ *\n[^\n]*Done\./g); assert.match(e.text(160), new RegExp(`\\n . ${title} {2}[^\\n]*\\n─+\\n❯ Send message to Agent`)); e.press("alt+c");
+    e.press("alt+c"); assert.match(e.text(160), /The agent said ─+ *\n[^\n]*Done\./g); assert.match(e.text(160), new RegExp(`\\n . #\\d+ ${title} {2}[^\\n]*\\n─+\\n❯ Send message to Agent`)); e.press("alt+c");
     // The name is never cut inside a prompt: a window narrower than the name gives it a second line.
-    { const lines = e.screen(44), at = lines.findLastIndex((l) => /^ \S Add a greeting/.test(l)); assert.equal(lines.slice(at, at + 2).map((l) => l.trim().replace(/^\S /, "")).join(" "), title); assert.equal(lines[at - 1].trim(), ""); assert.match(lines[at + 2], /^╭─+╮$/); assert.match(lines.join("\n"), /\n│ ❯ Send message to Agent/); }
+    { const lines = e.screen(44), at = lines.findLastIndex((l) => /^ \S #\d+ Add a greeting/.test(l)); assert.equal(lines.slice(at, at + 2).map((l) => l.trim().replace(/^\S /, "")).join(" "), `#1 ${title}`); assert.equal(lines[at - 1].trim(), ""); assert.match(lines[at + 2], /^╭─+╮$/); assert.match(lines.join("\n"), /\n│ ❯ Send message to Agent/); }
     // While you talk to a task's agent the chat stays that agent's: the Coordinator's reply is said once, in a line.
     w.script({ coordinator: [{ said: "All done." }] });
     C.send(w.root, "do something"); await drainJobs(runJob); e.beat();
@@ -154,9 +154,9 @@ test("one chat for everyone: space on a task talks to its agent, otherwise to th
     // Hidden, the chat still says who you talk to, and that follows the selection: a message is never sent blind.
     { const other = A.add(w.root, "Somebody else").id; e.v.load(); const order = e.v.rows.filter((x) => x.rec).map((x) => x.rec.id), d = order.indexOf(other) - order.indexOf(t.id);
       for (let n = 0; n < Math.abs(d); n++) e.press(d > 0 ? "\x1b[B" : "\x1b[A");
-      assert.equal(e.v.sel, other); assert.equal(e.v.reply, true); assert.equal(e.v.chatOpen, false); assert.match(e.text(160), /\n *\n . Somebody else {2}no agent yet: your message starts one *\n─+\n❯ your message starts an agent on it/);
+      assert.equal(e.v.sel, other); assert.equal(e.v.reply, true); assert.equal(e.v.chatOpen, false); assert.match(e.text(160), /\n *\n . #\d+ Somebody else {2}no agent yet: your message starts one *\n─+\n❯ your message starts an agent on it/);
       for (let n = 0; n < Math.abs(d); n++) e.press(d > 0 ? "\x1b[A" : "\x1b[B");
-      assert.equal(e.v.sel, t.id); assert.match(e.text(160), new RegExp(`\\n *\\n . ${title} {2}[^\\n]*\\n─+\\n❯ Send message to Agent *\\n─+\\n[^\\n]*alt\\+c show the latest message`)); await A.clear(other); e.v.load(); }
+      assert.equal(e.v.sel, t.id); assert.match(e.text(160), new RegExp(`\\n *\\n . #\\d+ ${title} {2}[^\\n]*\\n─+\\n❯ Send message to Agent *\\n─+\\n[^\\n]*alt\\+c show the latest message`)); await A.clear(other); e.v.load(); }
     e.press("alt+c"); assert.equal(e.v.chatOpen, true); assert.match(e.text(160), /\n│ Done\. +│\n│ +│\n│ ❯ Send message to Agent/);
     // space goes back to the Coordinator with its message up, and its reply is there.
     e.press("space"); assert.equal(e.v.chatOpen, true); assert.equal(e.v.reply, false); e.beat();
@@ -171,15 +171,16 @@ test("one chat for everyone: space on a task talks to its agent, otherwise to th
     w.script({ worker: [{ status: "working", screen: "● Editing greet.sh\n" }] });
     const u = A.add(w.root, "Still at it"); A.delegate(u.id); await settle(u.id);
     const g = open(w); g.v.sel = u.id; g.v.load(); g.press("space");
-    assert.match(g.text(160), /\n *\n . Still at it {2}working *\n╭─+╮\n│ ● Editing greet\.sh +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n/);
+    assert.match(g.text(160), /\n *\n . #\d+ Still at it {2}working *\n╭─+╮\n│ ● Editing greet\.sh +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n/);
     // That line is what herdr's sidebar says about the agent, with the board's own mark: the row's mark, the name in
     // bold, and the Watcher's "doing now" line greyed, cut with "…" where it does not fit. No keys are named on it.
     S.update(u.id, (c) => { c.msg = "Verifying the test run after the rebase onto main"; }); g.v.load();
-    assert.match(g.text(160), /\n . Still at it {2}Verifying the test run after the rebase onto main *\n╭─+╮\n│ ● Editing/); assert.doesNotMatch(g.text(160).split("\n").at(-7), /alt\+c|its agent · /);
+    assert.match(g.text(160), /\n . #\d+ Still at it {2}Verifying the test run after the rebase onto main *\n╭─+╮\n│ ● Editing/); assert.doesNotMatch(g.text(160).split("\n").at(-7), /alt\+c|its agent · /);
     const plain = stripVTControlCharacters, mark = g.v.mark(g.v.current()), headAt = (w) => g.v.chatHead(g.v.chatOf(g.v.current()), w)[0];
-    assert.ok(headAt(40).startsWith(` ${mark} ${g.v.theme.bold("Still at it")}  `)); assert.equal(g.v.chatOf(g.v.current()).status, g.v.theme.muted("Verifying the test run after the rebase onto main"));
+    assert.match(plain(headAt(40)), /^ \S #\d+ Still at it {2}/); assert.ok(headAt(40).startsWith(` ${mark} ${g.v.theme.muted(g.v.numberTag(g.v.current()))} ${g.v.theme.bold("Still at it")}  `)); assert.equal(g.v.chatOf(g.v.current()).status, g.v.theme.muted("Verifying the test run after the rebase onto main"));
     // However little room the name leaves, the status is cut, never dropped: down to the "…" alone.
-    for (const [w, want] of [[40, "  Verifying the test run …"], [23, "  Verify…"], [18, "  V…"], [17, "  …"], [16, ""]]) assert.equal(plain(headAt(w)), ` ${plain(mark)} Still at it${want}`, `at ${w}`);
+    // The task's number stands before its name while the status keeps a readable width beside it; then it goes.
+    for (const [w, want] of [[40, " #3 Still at it  Verifying the test r…"], [26, " #3 Still at it  Verify…"], [25, " Still at it  Verifyin…"], [23, " Still at it  Verify…"], [18, " Still at it  V…"], [17, " Still at it  …"], [16, " Still at it"]]) assert.equal(plain(headAt(w)), ` ${plain(mark)}${want}`, `at ${w}`);
     // A review's verdict is coloured on its row; here it is the same grey as every other status.
     g.v.sentence = () => ({ text: "\x1b[32mPass\x1b[39m\x1b[90m · 1 minor\x1b[39m" });
     assert.equal(g.v.chatOf(g.v.current()).status, g.v.theme.muted("Pass · 1 minor")); delete g.v.sentence;

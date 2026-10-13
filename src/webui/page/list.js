@@ -4,7 +4,7 @@ import { h, ink, said } from "./dom.js";
 
 const MARK = { "●": "working", "◑": "working", "◒": "working", "?": "blocked", "!": "blocked", "⚷": "blocked", "✓": "done", "✕": "error", "○": "idle", "·": "idle" };
 
-export function rowEl(r, { selected, onPick }) {
+export function rowEl(r, { selected, onPick, tagWidth = 0 }) {
   const tags = h("span.sw-tags", r.review?.length ? ink(r.review, "sw-tag") : null,
     r.pr?.length ? (r.prUrl ? h("a.sw-tag", { href: r.prUrl, target: "_blank", rel: "noopener noreferrer", onclick: (e) => e.stopPropagation() }, ink(r.pr)) : ink(r.pr, "sw-tag")) : null);
   const meter = r.progress === null && !r.eta ? null : h("span.sw-meter", { className: `sw-meter sw-c-${r.color}` },
@@ -15,7 +15,7 @@ export function rowEl(r, { selected, onPick }) {
     onclick: () => onPick(r.id), onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(r.id); } } },
     h(`span.sw-mark.sw-mark-${MARK[r.mark] || "idle"}.sw-c-${r.color}${r.markDim ? ".sw-d" : ""}`, { "aria-hidden": "true" }, r.mark),
     h("span.sw-main",
-      h("span.sw-line", h(`span.sw-title${r.strong ? ".sw-b" : ""}`, r.host ? h("span.sw-host", r.host + " ") : null, r.title), h("span.sw-time", r.time)),
+      h("span.sw-line", r.tag ? h("span.sw-id", { style: `min-width:${tagWidth || r.tag.length}ch` }, r.tag) : null, h(`span.sw-title${r.strong ? ".sw-b" : ""}`, r.host ? h("span.sw-host", r.host + " ") : null, r.title), h("span.sw-time", r.time)),
       says ? h("span.sw-says", ink(r.says)) : null,
       meter || tags.childNodes.length ? h("span.sw-under", meter, tags) : null));
 }
@@ -30,6 +30,6 @@ export function listEl(list, { onPick, onMore }) {
   const jobs = list.jobs.length ? h("section.sw-group", h("h3.sw-group-name.sw-c-overlay0", "on their way"), h("ul.sw-rows", list.jobs.map((j) => jobEl(j, { selected: j.id === list.selected, onPick })))) : null;
   return h("div.sw-list", { role: "listbox", "aria-label": "Tasks" }, jobs, list.groups.map((g) => h("section.sw-group",
     h(`h3.sw-group-name.sw-c-${g.color}`, g.name, h("span.sw-count", String(g.rows.length + g.more))),
-    h("ul.sw-rows", g.rows.map((r) => rowEl(r, { selected: r.id === list.selected, onPick }))),
+    h("ul.sw-rows", g.rows.map((r) => rowEl(r, { selected: r.id === list.selected, onPick, tagWidth: list.tagWidth }))),
     g.more ? h("button.btn.btn-ghost.sw-more", { type: "button", onclick: () => onMore(g) }, `${g.more} more`) : null)));
 }

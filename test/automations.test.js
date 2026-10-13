@@ -372,7 +372,7 @@ test("a task an automation made says so on its row and in its panel; with the bo
     s.v.beat(); assert.deepEqual(S.list(), []);
     clock.tick(2 * HOUR + 1000); s.v.beat(); // no keeper runs: the open board fires what is due
     assert.deepEqual(S.list().map((t) => [t.id, t.title, t.stage]), [["proj/1", "Look for old dependencies", "starting"]]); assert.equal(S.firingsOf(a.id)[0].cause, "schedule");
-    assert.match(T(s), /\n . Look for old dependencies \[auto\] /);
+    assert.match(T(s), /\n . #1 Look for old dependencies \[auto\] /);
     s.press("alt+t"); assert.match(T(s), /\n Made by {6}the automation "Look for old dependencies"\n/); s.press("esc");
     // in the list of automations with no Coordinator on, what is typed makes no task: it says how one is made, and the words stay
     s.press("alt+o"); s.type("every day at nine, tidy up"); s.press("enter");

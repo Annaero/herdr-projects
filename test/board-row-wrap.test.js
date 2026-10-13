@@ -26,50 +26,51 @@ const LIST = [busy, long, brief, old];
 
 test("narrow screen: a live task's name and what it says wrap to two lines each, under the name, and are cut only after the second", () => {
   const v = board(LIST), rows = (r, width) => plain(v.rowLines(r, width, v.rowLayout(LIST, width)));
-  assert.deepEqual(rows(busy, 49).slice(0, 4), [
-    " ◐ Research capy.ai and other coding agents for",
-    "   ideas we could use",
-    "   Researching coding agents and harnesses for",
-    "   ideas, reading what each one says about itself",
+  assert.deepEqual(rows(busy, 52).slice(0, 4), [
+    " ◐ #1 Research capy.ai and other coding agents for",
+    "      ideas we could use",
+    "      Researching coding agents and harnesses for",
+    "      ideas, reading what each one says about itself",
   ]);
-  assert.match(rows(busy, 49)[4], /^ {3}[█░]+ +3% +5h$/); assert.equal(rows(busy, 49).length, 5); // the progress line stays under them
+  assert.match(rows(busy, 52)[4], /^ {3}[█░]+ +3% +5h$/); assert.equal(rows(busy, 52).length, 5); // the progress line stays under them
   // Longer than two lines: the second one is cut with "…", never a third.
-  const wordy = { ...busy, title: words(30), msg: words(30, "say") }, lines = rows(wordy, 40);
-  assert.equal(lines.length, 5); assert.ok(lines.every((l) => l.length <= 40));
-  assert.match(lines[0], /^ ◐ word1 word2 .*\d$/); assert.match(lines[1], /^ {3}word\d+ .*…$/); assert.match(lines[2], /^ {3}say1 say2 .*\d$/); assert.match(lines[3], /^ {3}say\d+ .*…$/);
+  const wordy = { ...busy, title: words(30), msg: words(30, "say") }, lines = rows(wordy, 43);
+  assert.equal(lines.length, 5); assert.ok(lines.every((l) => l.length <= 43));
+  assert.match(lines[0], /^ ◐ #1 word1 word2 .*\d$/); assert.match(lines[1], /^ {6}word\d+ .*…$/); assert.match(lines[2], /^ {6}say1 say2 .*\d$/); assert.match(lines[3], /^ {6}say\d+ .*…$/);
   // What fits one line takes one line: a short row is the three lines it was.
-  assert.deepEqual(rows({ ...busy, title: "Short", msg: "Busy." }, 49).slice(0, 2), [" ◐ Short", "   Busy."]);
+  assert.deepEqual(rows({ ...busy, title: "Short", msg: "Busy." }, 52).slice(0, 2), [" ◐ #1 Short", "      Busy."]);
   // With nothing to say, its line is still there, and empty: never a bare "…".
-  assert.deepEqual(rows({ ...busy, msg: "" }, 49).slice(2, 3).map((l) => l.trim()), [""]); assert.equal(rows({ ...busy, msg: "" }, 49).length, rows({ ...busy, msg: "Busy." }, 49).length);
-  // Every width: nothing runs off the edge, every line after the first starts under the name.
+  assert.deepEqual(rows({ ...busy, msg: "" }, 52).slice(2, 3).map((l) => l.trim()), [""]); assert.equal(rows({ ...busy, msg: "" }, 52).length, rows({ ...busy, msg: "Busy." }, 52).length);
+  // Every width: nothing runs off the edge, every line after the first starts under the name (right of the task's
+  // number, where the list is wide enough to have it).
   for (const width of [20, 30, 38, 49, 60, 79]) for (const l of rows(wordy, width)) { assert.ok(l.length <= width, `at ${width}: ${l}`); assert.match(l, /^ ◐ | {3}\S/, `at ${width}: ${l}`); }
 });
 
 test("narrow screen: the selected row shows its whole name, on as many lines as it needs, in every section", () => {
   for (const r of [busy, long, old]) {
     const title = `${words(40)} end`, rec = { ...r, title }, list = LIST.map((x) => (x === r ? rec : x));
-    const v = board(list, { sel: r.id }), lines = plain(v.rowLines(rec, 49, v.rowLayout(list, 49)));
+    const v = board(list, { sel: r.id }), lines = plain(v.rowLines(rec, 52, v.rowLayout(list, 52)));
     const name = lines.slice(0, groupOf(rec) === "working" ? -3 : undefined);
-    assert.ok(name.length > 4, "more than two lines"); assert.ok(name.every((l) => l.length <= 49));
-    assert.equal(name.map((l) => l.slice(3)).join(" "), title, "the whole name, not cut"); assert.ok(name.slice(1).every((l) => l.startsWith("   ") && l[3] !== " "));
+    assert.ok(name.length > 4, "more than two lines"); assert.ok(name.every((l) => l.length <= 52));
+    assert.equal(name.map((l) => l.slice(6)).join(" "), title, "the whole name, not cut"); assert.ok(name.slice(1).every((l) => l.startsWith("      ") && l[6] !== " ")); // under the name, right of the task's number
     // Not selected, it is cut again: two lines for a live task, one for any other.
-    v.sel = ""; const back = plain(v.rowLines(rec, 49, v.rowLayout(list, 49)));
+    v.sel = ""; const back = plain(v.rowLines(rec, 52, v.rowLayout(list, 52)));
     assert.equal(back.length, groupOf(rec) === "working" ? 5 : 1); assert.match(back[groupOf(rec) === "working" ? 1 : 0], /…$/);
   }
   // In the list: the highlight covers every line of it, each to the edge, and its neighbours stay one line.
   const v = board(LIST, { sel: "p/2" }), mark = theme.selected("\0").split("\0")[0];
-  const drawn = v.listLines(49, 30), lit = drawn.filter((l) => l.startsWith(mark));
-  assert.deepEqual(plain(drawn).filter((l) => /Rethink|told before|Bring/.test(l)), [" ○ Rethink how the Coordinator works, restarts", "   and remembers what it was told before it", " ○ Bring the board to herdr's web UI"]);
-  if (!process.env.NO_COLOR) { assert.equal(lit.length, 3); assert.ok(lit.every((l) => stripVTControlCharacters(l).length === 49)); }
+  const drawn = v.listLines(52, 30), lit = drawn.filter((l) => l.startsWith(mark));
+  assert.deepEqual(plain(drawn).filter((l) => /Rethink|told before|Bring/.test(l)), [" ○ #2 Rethink how the Coordinator works, restarts", "      and remembers what it was told before it", " ○ #3 Bring the board to herdr's web UI"]);
+  if (!process.env.NO_COLOR) { assert.equal(lit.length, 3); assert.ok(lit.every((l) => stripVTControlCharacters(l).length === 52)); }
 });
 
 test("narrow screen: to-do and done rows stay one line and go without their time, so the name has that room", () => {
-  const v = board(LIST), narrow = plain(v.listLines(49, 30)), wide = plain(v.listLines(140, 30));
-  assert.ok(narrow.includes(" ✓ Third row line on narrow screens for progress…")); assert.ok(narrow.includes(" ○ Bring the board to herdr's web UI"));
-  assert.ok(narrow.includes(` ○ ${long.title.slice(0, 45)}…`), "a name cut at the edge, not before a time");
+  const v = board(LIST), narrow = plain(v.listLines(52, 30)), wide = plain(v.listLines(140, 30));
+  assert.ok(narrow.includes(" ✓ #4 Third row line on narrow screens for progress…")); assert.ok(narrow.includes(" ○ #3 Bring the board to herdr's web UI"));
+  assert.ok(narrow.includes(` ○ #2 ${long.title.slice(0, 45)}…`), "a name cut at the edge, not before a time");
   assert.ok(!narrow.some((l) => /^ [○✓].* 5h/.test(l)));
   // A wider screen is as it was: the time at the right of every row, one line for a to-do or done row, two for a live one.
-  assert.equal(wide.filter((l) => / 5h ago$/.test(l)).length, 3); assert.match(wide.find((l) => /Research/.test(l)), /^ ◐ Research.* 5h {4}$|^ ◐ Research.* 5h$/);
+  assert.equal(wide.filter((l) => / 5h ago$/.test(l)).length, 3); assert.match(wide.find((l) => /Research/.test(l)), /^ ◐ #\d+ Research.* 5h {4}$|^ ◐ #\d+ Research.* 5h$/);
   assert.equal(wide.filter((l) => l.trim()).length, 3 + 5);
   const sel = board(LIST, { sel: "p/2" }), list = plain(sel.listLines(140, 30));
   assert.equal(list.filter((l) => l.trim()).length, 3 + 5, "the selected row does not wrap on a wide screen");
@@ -124,8 +125,8 @@ test("narrow screen: the fold counts wrapped lines, so the '… N more' lines st
 test("all machines, narrow screen: a wrapped name has the line to itself, and what a task says never wraps in a few cells beside a long machine name", () => {
   const v = board([], { scope: "*" });
   const far = { ...busy, host: "very-long-machine-name-on-the-tailnet", title: "Fix login", msg: "Running the tests one by one" }, wordy = { ...busy, host: "box" };
-  const rows = (r) => plain(v.rowLines(r, 40, v.rowLayout([far, wordy], 40)));
-  assert.match(rows(far)[0], /^ ◐ very-long-machine.*… Fix login$/); assert.equal(rows(far)[1], "   Running the tests one by one"); assert.equal(rows(far).length, 3);
-  assert.deepEqual(rows(wordy).slice(0, 2), [" ◐ Research capy.ai and other coding", "   agents for ideas we could use"]); // the name wins over the machine's
-  assert.deepEqual(rows({ ...far, host: "box" }).slice(0, 2), [" ◐ box Fix login", "       Running the tests one by one"]);
+  const rows = (r) => plain(v.rowLines(r, 43, v.rowLayout([far, wordy], 43)));
+  assert.match(rows(far)[0], /^ ◐ #1 very-long-machine.*… Fix login$/); assert.equal(rows(far)[1], "      Running the tests one by one"); assert.equal(rows(far).length, 3);
+  assert.deepEqual(rows(wordy).slice(0, 2), [" ◐ #1 Research capy.ai and other coding", "      agents for ideas we could use"]); // the name wins over the machine's
+  assert.deepEqual(rows({ ...far, host: "box" }).slice(0, 2), [" ◐ #1 box Fix login", "          Running the tests one by one"]);
 });

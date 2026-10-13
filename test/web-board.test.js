@@ -3,6 +3,7 @@
 // whole, the same actions, and a firing as a link to the task it made. And other machines: the web UI's PCs (below).
 import test from "node:test";
 import assert from "node:assert/strict";
+import path from "node:path";
 import { world, settle } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
@@ -193,6 +194,49 @@ test("the web board has the automations: the list, one of them whole, the button
     CALLS.pick.run(v, { id: a.id, open: true }); s = CALLS.pick.run(v, { id: a.id, open: false }); assert.equal(s.panel, null); assert.equal(s.flags.automations, true);
     s = CALLS.press.run(v, { id: "automations", role: "watch" }); assert.equal(s.flags.automations, false); assert.notEqual(s.list.head.where, "automations");
   } finally { w.cleanup(); }
+});
+
+test("the web board has each task's tag, as the terminal board's rows do: on its row with the width of the column, on the open task, in the chat's line, and find goes to a task by it", () => {
+  // On the board the tests above left: two more tasks, with numbers of one and of three digits.
+  S.writeJson(path.join(S.tasksDir(), "proj", "seq"), 8); const nine = A.add(w.root, "Number nine").id;
+  S.writeJson(path.join(S.tasksDir(), "proj", "seq"), 133); const big = A.add(w.root, "Number one three four").id;
+  const v = new WebView({ cwd: w.root }), tags = (s) => Object.fromEntries(rowsOf(s.list).map((r) => [r.id, r.tag]));
+  let s = snapshot(v);
+  assert.equal(tags(s)[big], "#134"); assert.equal(tags(s)[nine], "#9"); assert.equal(s.list.tagWidth, 4);
+  S.setValue("repo.key", "hsw", { repo: "proj" }); v.look(); s = snapshot(v);
+  assert.equal(tags(s)[big], "HSW-134"); assert.equal(tags(s)[nine], "HSW-9"); assert.equal(s.list.tagWidth, 7);
+  v.pick(big, true); s = snapshot(v); assert.equal(s.panel.tag, "HSW-134"); assert.equal(s.panel.title, "Number one three four");
+  v.press("talk"); s = snapshot(v); assert.equal(s.chat.tag, "HSW-134"); assert.equal(s.chat.name, "Number one three four");
+  v.pick(big); v.find("hsw-9"); assert.equal(v.sel, nine); v.find("#134"); assert.equal(v.sel, big); v.find("");
+  S.unsetValue("repo.key", { repo: "proj" });
+});
+
+// The page's own code, drawn into a stand-in for the browser's document: enough of it to read back what a part holds.
+// As in a browser, replaceChildren writes anything that is not a node out as text: a missing part handed to it as
+// `null` shows as the word "null".
+class El {
+  constructor(tag) { this.tag = tag; this.nodeType = 1; this.kids = []; this.style = {}; this.dataset = {}; this.className = ""; this.hidden = false; this.value = ""; this.scrollHeight = 0; this.clientHeight = 0;
+    this.classList = { toggle() {}, remove() {}, add() {} }; }
+  append(...xs) { for (const x of xs) this.kids.push(x && x.nodeType ? x : String(x)); }
+  replaceChildren(...xs) { this.kids = []; this.append(...xs); }
+  addEventListener() {} setAttribute() {} focus() {}
+  get textContent() { return this.kids.map((k) => (typeof k === "string" ? k : k.textContent)).join(""); }
+  set textContent(v) { this.kids = [String(v)]; }
+}
+test("the web page's chat line shows only what there is: with no task's tag (the Coordinator, a new task) nothing stands in its place", async () => {
+  const had = { document: globalThis.document, window: globalThis.window, sessionStorage: globalThis.sessionStorage, requestAnimationFrame: globalThis.requestAnimationFrame };
+  Object.assign(globalThis, { document: { createElement: (tag) => new El(tag) }, window: { innerHeight: 800, matchMedia: () => ({ matches: true }) }, sessionStorage: { getItem: () => "", setItem() {} }, requestAnimationFrame() {} });
+  try {
+    const { chatEl } = await import("../src/webui/page/chat.js");
+    const chat = chatEl({ onSend() {}, onPress() {} }), who = chat.el.kids[0];
+    const snap = (c, selected = "") => ({ chat: { mark: { t: "+" }, status: "idle", progress: "", text: "", note: "", ...c }, list: { selected }, panel: null, send: { enter: "", delegate: "", place: "" }, role: "drive" });
+    const drawn = () => who.kids.map((k) => (typeof k === "string" ? `text:${k}` : `${k.className}:${k.textContent}`));
+    chat.update(snap({ tag: "", name: "New task" }));
+    assert.deepEqual(drawn(), ["sw-mark:+", "sw-who-name:New task", "sw-who-status:idle"]); assert.doesNotMatch(who.textContent, /null|undefined/);
+    chat.update(snap({ name: "Coordinator" })); assert.deepEqual(drawn(), ["sw-mark:+", "sw-who-name:Coordinator", "sw-who-status:idle"]);
+    chat.update(snap({ tag: "HSW-134", name: "Add an undo", toAgent: true }, "proj/134"));
+    assert.deepEqual(drawn(), ["sw-mark:+", "sw-id:HSW-134", "sw-who-name:Add an undo", "sw-who-status:idle", "sw-who-flip:Talk to the Coordinator"]);
+  } finally { Object.assign(globalThis, had); }
 });
 
 // ---- across machines: which of the web UI's PCs is which of the board's machines, opening another machine's agent in

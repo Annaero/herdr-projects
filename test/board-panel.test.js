@@ -16,12 +16,12 @@ test("the task panel beside the list cuts a long description short and says wher
     const s = open(w, { rows: 44 });
     s.v.sel = big.id; s.v.load();
     let text = s.text(120);
-    assert.match(text, /│ {2}Long one/); assert.match(text, /Line 1 of a very long/);
+    assert.match(text, /│ {2}#2 Long one/); assert.match(text, /Line 1 of a very long/);
     // Beside the list the description is short: a few lines, then where the rest is.
     assert.match(text, /Line 8 of a very long description\. … *\n/); assert.match(text, /│ {2}alt\+t shows the whole task/);
     assert.doesNotMatch(text, /Line 9 of/); assert.doesNotMatch(text, /Line 80 of/);
     // The title by itself, the status under its headline as facts (a label, then its value, every value in one column), then the description, then the settings: each part under its own headline, an empty line between.
-    assert.match(text, /│ {2}Long one *\n[^\n]*│ *\n[^\n]*│ {2}Status ─+ *\n[^\n]*│ {2}State {8}○ to do · \ds ago *\n[^\n]*│ {2}Task {9}proj\/2 *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n/);
+    assert.match(text, /│ {2}#2 Long one *\n[^\n]*│ *\n[^\n]*│ {2}Status ─+ *\n[^\n]*│ {2}State {8}○ to do · \ds ago *\n[^\n]*│ {2}Task {9}proj\/2 *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n/);
     assert.match(text, /│ {2}Settings ─+ *\n[^\n]*│ {2}Project {6}\S+ *\n[^\n]*│ {2}Worktree {5}on *\n[^\n]*│ {2}Branch {7}main *\n[^\n]*│ {2}Agent /);
     // Every setting shows beside the list, also one that is only your default.
     const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Merge"];
@@ -82,7 +82,7 @@ test("the task panel never opens full screen by itself: something going wrong on
     s.v.load();
     assert.equal(s.v.sel, id); assert.equal(s.v.full, false); assert.equal(s.v.reply, false);
     let text = s.text(80);
-    assert.match(text, /\n needs you *\n ✗ Match the colors [^\n]*\n {3}Merge conflict with main/);
+    assert.match(text, /\n needs you *\n ✗ #1 Match the colors [^\n]*\n {6}Merge conflict with main/);
     assert.doesNotMatch(text, /Conflicting files/);
     // The hint line: what matters now, the main thing first, never more than four.
     assert.match(s.text(120), /\n {2}ctrl\+r tell this task's agent to fix it · ctrl\+l retry as it is · space talk about this task · \? all keys *$/);
@@ -93,13 +93,13 @@ test("the task panel never opens full screen by itself: something going wrong on
     // Narrow, space does what it does at every width: the chat names the task, and the list stays. alt+t opens the
     // same panel full screen; esc leaves it, and the chat stays the task's.
     s.screen(80); s.press("space");
-    assert.equal(s.v.full, false); assert.equal(s.v.reply, true); assert.match(s.text(80), /^ herdr-superwork/); assert.match(s.text(80), /\n *\n . Match the colors {2}/);
+    assert.equal(s.v.full, false); assert.equal(s.v.reply, true); assert.match(s.text(80), /^ herdr-superwork/); assert.match(s.text(80), /\n *\n . #1 Match the colors {2}/);
     s.press("alt+t"); text = s.text(80);
     assert.equal(s.v.full, true); assert.equal(s.v.reply, true);
     assert.match(text, /^ Task details {2}proj\/1/); assert.match(text, /Merge conflict with main/); assert.match(text, /\n Details {6}Conflicting files: *\n {14}src\/board\/view\.js/);
-    assert.match(text, /\n *\n . Match the colors {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯/);
+    assert.match(text, /\n *\n . #1 Match the colors {2}[^\n]*\n(?:[^\n]*\n)*?─+\n❯/);
     s.press("esc");
-    assert.equal(s.v.full, false); assert.equal(s.v.reply, true); assert.doesNotMatch(s.text(80), /Conflicting files/); assert.match(s.text(80), /\n *\n . Match the colors {2}/);
+    assert.equal(s.v.full, false); assert.equal(s.v.reply, true); assert.doesNotMatch(s.text(80), /Conflicting files/); assert.match(s.text(80), /\n *\n . #1 Match the colors {2}/);
     // Nor does coming back from the archive bring it up, and an open panel is not remembered when the board reopens.
     s.press("alt+t"); assert.equal(s.v.full, true);
     s.press("esc", "alt+a"); assert.equal(s.v.archiveView, true);

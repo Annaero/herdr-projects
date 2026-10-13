@@ -7,7 +7,7 @@ import { sayTrigger } from "./triggers.js";
 const span = (ms) => { const x = Math.max(0, Math.round(ms / 1000)); return x < 60 ? `${x}s` : x < 3600 ? `${Math.floor(x / 60)}m` : x < 86400 ? `${Math.floor(x / 3600)}h` : `${Math.floor(x / 86400)}d`; };
 export const ago = (at, now = Date.now()) => `${span(now - at)} ago`;
 // One firing: when, what fired it, the task it made or why it was skipped.
-export const firingWords = (f, now = Date.now()) => ({ when: ago(f.at, now), what: f.what || f.cause, made: f.task || "", result: f.task ? `made ${f.task}${f.note ? ` (${f.note})` : ""}` : `skipped${f.n > 1 ? ` ×${f.n}` : ""}: ${f.skipped}` });
+export const firingWords = (f, now = Date.now()) => ({ when: ago(f.at, now), what: f.what || f.cause, made: f.task || "", result: f.task ? `made ${S.sayId(f.task)}${f.note ? ` (${f.note})` : ""}` : `skipped${f.n > 1 ? ` ×${f.n}` : ""}: ${f.skipped}` });
 export const firingLine = (f, now) => { const w = firingWords(f, now); return `${w.when.padEnd(8)} ${w.what}  →  ${w.result}`; };
 // Its firings, newest first.
 export const firings = (a) => S.firingsOf(a.id).reverse();
@@ -17,7 +17,7 @@ export function rowOf(a, now = Date.now()) {
   const last = S.firingsOf(a.id).at(-1);
   return {
     id: a.id, name: a.name, on: !!a.on, state: a.on ? "on" : "off", trigger: sayTrigger(a.trigger), repo: a.repo,
-    last: last ? `${ago(last.at, now)} · ${last.task || "skipped"}` : "never fired", lastTask: last?.task || "",
+    last: last ? `${ago(last.at, now)} · ${last.task ? S.sayId(last.task) : "skipped"}` : "never fired", lastTask: last?.task || "",
     next: a.on && a.trigger?.kind === "schedule" && a.nextAt ? (a.nextAt <= now ? "now" : `in ${span(a.nextAt - now)}`) : "",
     why: a.offWhy || "",
   };

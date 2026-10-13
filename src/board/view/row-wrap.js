@@ -18,15 +18,16 @@ export class RowWrap {
   // A wrapping row's name and what it says, in lines without their indent. They are measured from the width alone:
   // such a row has no columns beside its name (they are on its last line, or not shown), so the list knows a row's
   // height before it lays its columns out.
-  wrapParts(r, width) {
-    const indent = Math.min(width, visibleWidth(this.mark(r)) + 2), room = Math.max(1, width - indent);
+  wrapParts(r, width, cells = this.numberCells(width, this.numbering([r]))) {
+    // The name starts right of the mark and of the task's number (row-number.js), and wraps under itself.
+    const lead = Math.min(width, visibleWidth(this.mark(r)) + 2), indent = Math.min(width, lead + (cells ? cells + 1 : 0)), room = Math.max(1, width - indent);
     const name = upTo(wrapTextWithAnsi(this.rowTitle(r), room), r.id === this.sel ? Infinity : WRAP_LINES, room);
-    if (!isLive(r)) return { indent, name, says: [] };
+    if (!isLive(r)) return { indent, cells, name, says: [] };
     // What it says starts under the task's name: right of the machine's name too, when that shows before it.
     // A long machine name would leave it a few cells a line: it then starts under the machine's name instead.
-    const host = name.length > 1 ? 0 : visibleWidth(this.rowNameParts(r, room).host), lead = indent + (room - host < SAY_MIN ? 0 : host), sayRoom = Math.max(1, width - lead);
+    const host = name.length > 1 ? 0 : visibleWidth(this.rowNameParts(r, room).host), sayLead = indent + (room - host < SAY_MIN ? 0 : host), sayRoom = Math.max(1, width - sayLead);
     const said = this.sentence(r).text;
-    return { indent, lead, name, says: upTo(wrapTextWithAnsi(said, sayRoom), WRAP_LINES, sayRoom).map(closed) };
+    return { indent, cells, lead: sayLead, name, says: upTo(wrapTextWithAnsi(said, sayRoom), WRAP_LINES, sayRoom).map(closed) };
   }
   // The lines a row takes in the list.
   rowHeight(r, width, tall) {
@@ -38,8 +39,8 @@ export class RowWrap {
   // Every line after the first starts under the name, not under the mark. A name that fits one line is the row it
   // always was, with the machine's name before it and a to-do's note after it.
   wrappedLines(r, width, layout) {
-    const { indent, lead, name, says } = this.wrapParts(r, width), under = " ".repeat(indent);
-    const first = name.length > 1 ? name.map((l, n) => (n ? under : ` ${this.mark(r)} `) + this.nameInk(r, l)) : [this.row(r, width, layout)];
+    const { indent, cells, lead, name, says } = this.wrapParts(r, width, layout.num), under = " ".repeat(indent);
+    const first = name.length > 1 ? name.map((l, n) => (n ? under : ` ${this.mark(r)} ` + this.numberLead(r, cells)) + this.nameInk(r, l)) : [this.row(r, width, layout)];
     return isLive(r) ? [...first, ...says.map((l) => " ".repeat(lead) + l), this.tallLine(r, width, layout)] : first;
   }
 }

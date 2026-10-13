@@ -2,7 +2,7 @@
 
 Every choice about how work happens is a setting, and every setting is looked up by one rule. A setting is either a
 **work** setting (who works, where, how it is checked, how it lands) or a **board** setting (the board itself, the
-Coordinator, the Watcher).
+Coordinator, the Watcher). One setting is neither: `repo.key`, a fact about one repo.
 
 ## The rule
 
@@ -13,7 +13,10 @@ Coordinator, the Watcher).
    for a repo is refused, and the answer says how to set it for yourself.
 3. A setting is read when its step starts, and a step under way is never changed: the agent's settings at its next
    start, the review's at the next review, the merge's right before the merge.
-4. A task in no repo skips the two repo places; `workspace.*`, `check.*` and `merge.*` do not apply to it, and `show`
+4. A repo's own fact (`repo.key`, the short key of its tasks) is said for that repo and nowhere else: **your entry
+   for the repo → the repo's own file → built in.** It is refused on a task and for yourself. More:
+   [task numbers and repo keys](task-numbers.md).
+5. A task in no repo skips the two repo places; `workspace.*`, `check.*` and `merge.*` do not apply to it, and `show`
    says so.
 
 ## The places
@@ -22,8 +25,8 @@ Coordinator, the Watcher).
 - **Your entry for a repo**: the `repos` section of that same file, keyed by the repo's name on the board.
 - **This task**: saved on the task, only the settings that differ. A task an [automation](automations.md) made
   starts with the automation's own settings here; an automation is no place of its own.
-- **The repo's own file**: `.herdr-superwork.json`, committed in that repo. It may hold five facts only:
-  `workspace.setup`, `workspace.include`, `workspace.teardown`, `check.command` and `check.timeout`. Anything else in
+- **The repo's own file**: `.herdr-superwork.json`, committed in that repo. It may hold six facts only:
+  `workspace.setup`, `workspace.include`, `workspace.teardown`, `check.command`, `check.timeout` and `repo.key`. Anything else in
   it is refused and said on the task (a `Note` in the task panel, and `show <id>`). It is read from the commit the
   worktree started from, so code written by agents can never loosen a guard: it cannot switch on merging by itself,
   drop the review, or change the rules its own branch is checked by.
@@ -116,6 +119,7 @@ that are this task's own and every other row names the place its value comes fro
 | `merge.by` | `you` | task, repo entry, you | `you`: finished work waits for your yes. `itself`: it merges the moment it may: its review passed, its checks pass, nothing conflicts. Read right before the merge, so a change counts for tasks under way. More: [the gate](gate.md#merging-by-itself) |
 | `merge.method` | `squash` | task, repo entry, you | how approved work lands |
 | `merge.pr` | `true` | task, repo entry, you | push the branch and open a draft pull request after the check passes |
+| `repo.key` | `none` | repo entry, repo file | a short key for this repo's tasks, as `HSW` for herdr-superwork: 2 to 5 letters or digits, the first a letter, kept in capitals. With one, a task's tag on the board reads `HSW-134` instead of `#134`, and `HSW-134` (in any letter case) names the task wherever its id `herdr-superwork/134` does. `none`: no key. A key another repo already has is refused. More: [task numbers and keys](task-numbers.md) |
 | `board.agents` | `4` | you only | how many agents work at once |
 | `board.machines` | `auto` | you only | other machines: `auto` (herdr's saved machines), names (`exedev@vm-a, vm-b`) or `none` |
 | `board.open` | `tab` | you only | what the board key opens. `tab`: the board in a herdr tab of its own, which stays when you go into an agent; pressed on the board itself, the key takes you back to where you came from. `popup`: the board over the tab you are in, in herdr's overlay; the key again closes it, and it closes when you go into an agent. More: [the board](board.md) |

@@ -1,4 +1,4 @@
-// One row of the list: its mark, its name, its columns on the right and, for a live task, a second line that says what it does (a third on a narrow screen: row-tall.js, where long ones wrap: row-wrap.js).
+// One row of the list: its mark, its number (row-number.js), its name, its columns on the right and, for a live task, a second line that says what it does (a third on a narrow screen: row-tall.js, where long ones wrap: row-wrap.js).
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import * as G from "../../gate.js";
 import { herdr } from "../../herdr.js";
@@ -87,24 +87,27 @@ export class Row {
   // live task's columns are on its third line: its first line has none, and they take no part in what is decided here.
   // Neither do the selected row's there, which gives them up for its whole name (row-wrap.js), and no row has its
   // time: a one-line row's name gets that room.
+  // Left of the names, the tasks' numbers have one column of their own (row-number.js), which every row's room is
+  // counted without: it is the last thing to go before the rest of a name, for the whole list at once.
   rowLayout(records, width, sections = [records], screen = width) {
     const now = Date.now(), tall = tallAt(screen), below = (r) => tall && isLive(r), bare = (r) => this.wraps(r, tall);
     const fields = new Map(records.filter((r) => !bare(r)).map((r) => [r, this.rowFields(r, now)]));
     const max = (key) => Math.max(0, ...[...fields.values()].map((f) => visibleWidth(f[key])));
     const elapsed = Math.max(3, max("elapsed"));
+    const numbering = this.numbering(records), num = this.numberCells(width, numbering);
     // Extremely long PR identifiers may shorten, but must never push time off-screen.
     const pr = Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), review = max("review");
     const cols = [["bar", max("bar")], ["percent", max("percent") && Math.max(PERCENT_MIN, max("percent"))], ["eta", max("eta")], ["review", review], ["pr", pr], ["time", tall ? 0 : elapsed]].filter(([, w]) => w);
     // The wider gap is a column with nothing in it, right of the progress: the cell on each side of it makes two.
     const group = cols.findIndex(([key]) => !PROGRESS.includes(key));
     if (group > 0) cols.splice(group, 0, ["gap", 0]);
-    const layout = { now, review, pr, elapsed, cols, ago: !tall && [...fields.values()].some((f) => f.ago), show: new Map(), tall };
+    const layout = { now, review, pr, elapsed, cols, num, numbering, ago: !tall && [...fields.values()].some((f) => f.ago), show: new Map(), tall };
     if (tall) layout.third = this.tallLayout(records.filter(below).map((r) => this.rowFields(r, now)), width);
     // Decided at widths that do not move as the numbers tick: the percent and the minutes left count as their widest
     // ("100%", and words.js: left).
     const steady = { percent: PERCENT_STEADY, eta: ETA_STEADY };
     const cells = (ago) => cols.map(([key, w]) => ({ key, w: steady[key] ? Math.max(w, steady[key]) : w + (key === "time" && ago ? 4 : 0) }));
-    const fit = (r) => { const f = fields.get(r) || {}; return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, time: !tall } }; };
+    const fit = (r) => { const f = fields.get(r) || {}; return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2 - (num ? num + 1 : 0)), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, time: !tall } }; };
     const parts = sections.map((recs) => recs.map(fit));
     // The word "ago" sits right of everything, so one section cannot give it up without moving its columns: the
     // whole list gives it up, as soon as that lets some section show a column other than its bar, or cut a name less.
@@ -153,9 +156,9 @@ export class Row {
   // The title is plain text whatever the task's state: the mark and the group's heading carry the state's colour.
   nameInk(r, s) { return r.state === "working" || r.state === "blocked" ? this.theme.bold(s) : s; }
   rowName(r, w) { const { host, shown } = this.rowNameParts(r, w); return host + shown; }
-  // A row's first line, measured: its mark, the columns it keeps, and the room they leave its name.
+  // A row's first line, measured: its mark and its number, the columns it keeps, and the room they leave its name.
   rowRoom(r, width, layout) {
-    const prefix = ` ${this.mark(r)} `, room = Math.max(0, width - visibleWidth(prefix));
+    const prefix = ` ${this.mark(r)} ` + this.numberLead(r, layout.num, layout.numbering), room = Math.max(0, width - visibleWidth(prefix));
     const { metadata } = this.rowKeeps(r, width, layout), show = layout.show.get(r);
     return { prefix, room, metadata, show, labelRoom: Math.min(show?.room ?? room, Math.max(0, room - visibleWidth(metadata) - (metadata ? 2 : 0))) };
   }
