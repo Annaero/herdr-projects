@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { world, settle } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
-import { open } from "./board-helpers.js";
+import { open, keyed } from "./board-helpers.js";
 
 test("only space flips between the Coordinator and a task's agent: the arrows only move, and while you talk to an agent the chat follows the selection", async () => {
   const w = await world({ settings: { "review.when": "never" } });
@@ -57,9 +57,9 @@ test("a reply that was put away comes back as a reply to the same task, never as
       // it says who the words were for, and they stay put away until the chat names that task's agent again.
       const other = s.v.sel;
       s.press("ctrl+z"); assert.equal(s.v.sel, other); assert.equal(s.v.reply, false); assert.equal(s.v.value(), ""); assert.equal(s.v.draftAway.text, "also say goodbye");
-      assert.match(s.text(width).replace(/\s+/g, " "), /Those words were for the agent on "Add a greeting"\. Select it and press space, then ctrl\+z brings them back\./);
+      assert.match(s.text(width).replace(/\s+/g, " "), keyed(/Those words were for the agent on "Add a greeting"\. Select it and press space, then {undo} brings them back\./));
       s.press("space", "ctrl+z"); assert.equal(s.v.sel, other); assert.equal(s.v.reply, true); assert.equal(s.v.replyId, other); assert.equal(s.v.value(), "");
-      assert.match(s.text(width).replace(/\s+/g, " "), /Those words were for "Add a greeting"\. Move to it, then ctrl\+z brings them back\./);
+      assert.match(s.text(width).replace(/\s+/g, " "), keyed(/Those words were for "Add a greeting"\. Move to it, then {undo} brings them back\./));
       s.press("up"); assert.equal(s.v.sel, id);
       s.press("ctrl+z");
       assert.equal(s.v.sel, id); assert.equal(s.v.reply, true); assert.equal(s.v.full, false); assert.equal(s.v.draftAway, null);
@@ -75,14 +75,14 @@ test("a reply that was put away comes back as a reply to the same task, never as
     // ctrl+z says so and changes nothing; space goes back, and there it comes back
     s.screen(120); s.type("buy milk"); s.press("esc", "space"); assert.equal(s.v.reply, true);
     s.press("ctrl+z"); assert.equal(s.v.reply, true); assert.equal(s.v.value(), ""); assert.equal(s.v.draftAway.text, "buy milk");
-    assert.match(s.text().replace(/\s+/g, " "), /Those words were for the Coordinator\. space goes back to it, then ctrl\+z brings them back\./);
+    assert.match(s.text().replace(/\s+/g, " "), keyed(/Those words were for the Coordinator\. space goes back to it, then {undo} brings them back\./));
     s.press("space", "ctrl+z"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─[^\n]*\n❯ buy milk/);
     s.press("esc");
     // the task a reply was for is gone: the words stay put away rather than go somewhere else
     const gone = A.add(w.root, "Short lived").id; s.v.sel = gone; s.v.load();
     s.press("space"); s.type("for the short lived one"); s.press("esc", "esc");
     await A.clear(gone); s.v.load();
-    s.press("ctrl+z"); assert.equal(s.v.value(), ""); assert.match(s.text(), /The task that reply was for is gone\. ctrl\+z again brings the words back as a draft of their own\./);
+    s.press("ctrl+z"); assert.equal(s.v.value(), ""); assert.match(s.text(), keyed(/The task that reply was for is gone\. {undo} again brings the words back as a draft of their own\./));
     s.press("ctrl+z"); assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─[^\n]*\n❯ for the short lived one/); assert.equal(s.v.reply, false); // asked for, so never lost and never a surprise
     s.press("esc");
     // the task disappears while the reply is still being typed: the words never slide over to whichever task is selected next
@@ -151,7 +151,7 @@ test("a row with no task talks to the Coordinator: words typed or brought back t
     // Put away again from there, they are still the Coordinator's: on Alpha ctrl+z does not bring them back as a reply.
     s.press("esc"); assert.deepEqual(s.v.draftAway, { text: "only for the Coordinator", to: "" });
     onAlpha(); assert.equal(s.v.replyId, alpha.id); s.press("ctrl+z");
-    assert.equal(s.v.value(), ""); assert.equal(s.v.draftAway.to, ""); assert.match(s.text().replace(/\s+/g, " "), /Those words were for the Coordinator\. space goes back to it, then ctrl\+z brings them back\./);
+    assert.equal(s.v.value(), ""); assert.equal(s.v.draftAway.to, ""); assert.match(s.text().replace(/\s+/g, " "), keyed(/Those words were for the Coordinator\. space goes back to it, then {undo} brings them back\./));
     // Typed on that row and still in the box when the row goes: put away for the Coordinator, never sent to Alpha.
     s.v.draftAway = null; onJob(); s.type("typed on the row"); s.v.beat(); assert.equal(s.v.value(), "typed on the row");
     S.clearDispatch(job.id); s.v.beat();

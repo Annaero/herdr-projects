@@ -66,3 +66,4 @@ export class AutomationPanel {
     else this.panelTop = Math.max(0, this.panelTop - 1);
   }
 }
+export const part = AutomationPanel; // what this file adds to the board: view.js loads every file here that names its part

@@ -171,3 +171,4 @@ export class Row {
     return (r.auto ? this.saysUnder(r, layout) : isLive(r)) ? [this.row(r, width, layout), this.statusLine(r, width, layout)] : [this.row(r, width, layout)];
   }
 }
+export const part = Row; // what this file adds to the board: view.js loads every file here that names its part

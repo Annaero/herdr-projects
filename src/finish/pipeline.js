@@ -1,20 +1,22 @@
 // The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval.
 import fs from "node:fs";
-import * as S from "../store.js";
-import * as F from "../flow.js";
-import { claim, release, guardFor, sh, outputOf } from "../runner.js";
-import * as G from "../gate.js";
-import * as Y from "../sync.js";
-import { firstLine, approvalMessage, fail } from "./shared.js";
-import { closeReviewer, runReview } from "./review.js";
-import { runCheck } from "./check-run.js";
-import { mergesItself, byItself } from "./auto-merge.js";
-import { researchOnly, keptReport } from "./research.js";
-import { pending as planPending } from "../plan.js";
-import { WORDS } from "../status-words.js";
-import { handOver } from "./hand-over.js";
-import { tokensOver, stopAt } from "../limits.js";
+// One import per line, sorted by path: a new one goes in its place, never at the end.
 import { keepDiff } from "../attempts/diff.js";
+import * as F from "../flow.js";
+import * as G from "../gate.js";
+import { tokensOver, stopAt } from "../limits.js";
+import { pending as planPending } from "../plan.js";
+import { claim, release, guardFor, sh, outputOf } from "../runner.js";
+import { WORDS } from "../status-words.js";
+import * as S from "../store.js";
+import * as Y from "../sync.js";
+import { conflictRepaired, conflictLogged } from "../sync/conflict-log.js";
+import { mergesItself, byItself } from "./auto-merge.js";
+import { runCheck } from "./check-run.js";
+import { handOver } from "./hand-over.js";
+import { researchOnly, keptReport } from "./research.js";
+import { closeReviewer, runReview } from "./review.js";
+import { firstLine, approvalMessage, fail } from "./shared.js";
 
 // "Finish anyway" on a turn that left no closing note: the screen text is the summary.
 export async function pipelineJob(id) {
@@ -63,7 +65,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
     // Main could not be read: work that was not brought up to date is never reviewed or put up for approval as if it were.
     if (sync.status === "error") return void fail(g, { stage: "merge", phase: "fetch", title: "Could not synchronize main", detail: `Branch: ${t.branch}\nFolder: ${tree}\n\n${sync.detail}`, next: "Investigate the fetch/Git error and fix what you safely can without altering the human's checkout. Finish again so the board retries the sync." }, { keepIntent: true });
   }
-  if (sync) t = g.set((t) => Y.seenPatch(t, sync));
+  if (sync) t = g.set((t) => { Object.assign(t, Y.seenPatch(t, sync)); if (sync.status === "current" || sync.status === "merged") conflictRepaired(t); });
   // A clean update that touched none of the files the task changed leaves its review standing: the check runs again
   // on the merged result, the reviewer is not asked twice about the same change.
   // So does work that passed its review and has only taken main in since, also into its own files and with conflicts
@@ -103,6 +105,11 @@ export async function pipeline(id, g, text, wake, synced = null) {
       F.sendOwn(id, `The check failed, so this is not done yet.${merged}\n\n${S.boundDetail(failure.detail)}\n\nFix it and finish again.`, { reason: "check", keepIntent: !!wake?.keepIntent || !!S.get(id).mergeIntent, patch: { checkFails: fails, ...S.failurePatch(failure), failure: { ...S.failurePatch(failure).failure, sentAt: Date.now() } } });
       return;
     }
+  }
+  // What a passing check wrote into files that are in git is part of what passed (this repo's check writes the tables
+  // made from its code): committed, so that what is reviewed and merged is what was checked.
+  if (repo.check && tree && !research && !proven) {
+    try { if (S.gitOut(tree, ["diff", "--name-only"])) S.gitOut(tree, ["commit", "-am", `Written by the check\n\nTask: ${S.taskRef(id)}`]); } catch {}
   }
   t = g.check();
   // One of several attempts stops here: it passed, and waits to be chosen. Only the chosen one is pushed, reviewed
@@ -165,6 +172,8 @@ export async function pipeline(id, g, text, wake, synced = null) {
     // The pull request says what the review found, the findings below the gate marked as not required.
     if (t.pr && toLand) { try { F.gh(["pr", "comment", F.prNumber(t.pr), "--body", G.prComment(review, S.reviewRound(S.get(id))) + F.BOARD_COMMENT], root, 60000); } catch {} }
   }
+  // A conflict with main that was repaired on the way here: one line in the record, with whether a review followed.
+  g.set((t) => { conflictLogged(t, reviewNeeded && !review?.keptAt); });
   // A merge the board itself was on its way to (`merge.by: itself`) is only kept while that setting still says so.
   t = g.set((t) => { t.failure = null; if (t.mergeIntent?.auto && !byItself(t)) t.mergeIntent = null; });
   // The loop: a review that fails the gate goes straight back, at most `review.rounds` times (0: never).

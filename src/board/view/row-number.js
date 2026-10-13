@@ -79,3 +79,4 @@ export class RowNumber {
   // A task's id as the panel says it: with a key, the short name and the id it stands for.
   idWords(r) { const said = this.idSay(r); return said === r.id ? idLabel(r.id) : `${said} · ${idLabel(r.id)}`; }
 }
+export const part = RowNumber; // what this file adds to the board: view.js loads every file here that names its part

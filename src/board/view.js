@@ -12,43 +12,7 @@ import { keeperAlive, tickOnce, codeStamp } from "../keeper.js";
 import { DraftEditor } from "./editor.js";
 import { clean } from "./view/words.js";
 import { asRow } from "./view/states.js";
-import { oscClear, Announce } from "./view/osc.js";
-import { Size } from "./view/size.js";
-import { Setup } from "./view/setup.js";
-import { List } from "./view/list.js";
-import { Row } from "./view/row.js";
-import { RowSays } from "./view/row-says.js";
-import { RowTall } from "./view/row-tall.js";
-import { RowWrap } from "./view/row-wrap.js";
-import { RowNumber } from "./view/row-number.js";
-import { Coordinator } from "./view/coordinator.js";
-import { Chat } from "./view/chat.js";
-import { ChatScroll } from "./view/chat-scroll.js";
-import { AgentPane } from "./view/agent-pane.js";
-import { Talk } from "./view/talk.js";
-import { Place } from "./view/place.js";
-import { Remotes } from "./view/remotes.js";
-import { Actions } from "./view/actions.js";
-import { Ask } from "./view/ask.js";
-import { Keys } from "./view/keys.js";
-import { Mouse } from "./view/mouse.js";
-import { Menu } from "./view/menu.js";
-import { Hints } from "./view/hints.js";
-import { TextBox } from "./view/textbox.js";
-import { Layout } from "./view/layout.js";
-import { Panel } from "./view/panel.js";
-import { PanelStatus } from "./view/panel-status.js";
-import { PanelReviews } from "./view/panel-reviews.js";
-import { PanelReport } from "./view/panel-report.js";
-import { PanelPlan } from "./view/panel-plan.js";
-import { PanelAttempts } from "./view/panel-attempts.js";
-import { Attempts } from "./view/attempts.js";
-import { PanelSettings } from "./view/panel-settings.js";
-import { PanelEdit } from "./view/panel-edit.js";
-import { WebUi } from "./view/web-ui.js";
-import { AutomationRows } from "./view/automation-rows.js";
-import { Automations } from "./view/automations.js";
-import { AutomationPanel } from "./view/automation-panel.js";
+import { oscClear } from "./view/osc.js";
 
 export { asRow } from "./view/states.js";
 export { fitShown } from "./view/size.js";
@@ -154,48 +118,19 @@ export class View {
   try(fn) { let ok = true; try { fn(); } catch (e) { ok = false; this.flash(e.message, "red"); } this.load(); return ok; }
 }
 
-// The rest of the board is in view/, one file per area (docs/where-things-live.md says which). Each is a class only so
-// that its methods read as View's own; they are copied onto View here, so `this` is the one View everywhere.
-// One part per line: a new part is one new line beside the parts it belongs with, never at the end.
-const PARTS = [
-  Announce,
-  Size,
-  Setup,
-  List,
-  Row,
-  RowSays,
-  RowTall,
-  RowWrap,
-  RowNumber,
-  Coordinator,
-  Chat,
-  ChatScroll,
-  AgentPane,
-  Talk,
-  Place,
-  Remotes,
-  Actions,
-  Ask,
-  Keys,
-  Mouse,
-  Menu,
-  Hints,
-  TextBox,
-  Layout,
-  Panel,
-  PanelStatus,
-  PanelReviews,
-  PanelReport,
-  PanelPlan,
-  PanelAttempts,
-  Attempts,
-  PanelSettings,
-  PanelEdit,
-  AutomationRows,
-  Automations,
-  AutomationPanel,
-  WebUi,
-];
-for (const part of PARTS) {
-  for (const [name, d] of Object.entries(Object.getOwnPropertyDescriptors(part.prototype))) if (name !== "constructor") Object.defineProperty(View.prototype, name, d);
+// The rest of the board is in view/, one file per area (`node scripts/docs.js --where src/board/view` says which). Each
+// is a class only so that its methods read as View's own; they are copied onto View here, so `this` is the one View
+// everywhere. There is no list of them: a file in view/ that names its part (`export const part = TheClass`) is
+// loaded, so a new part is a new file and nothing here changes. (The list that stood here, with an import above for
+// each entry, was the most-conflicted place in the repo.) Two parts may not give the board the same name.
+const viewDir = new URL("./view/", import.meta.url), gives = {};
+for (const file of fs.readdirSync(viewDir).filter((f) => f.endsWith(".js")).sort()) {
+  const { part } = await import(new URL(file, viewDir).href);
+  if (!part) continue;
+  for (const [name, d] of Object.entries(Object.getOwnPropertyDescriptors(part.prototype))) {
+    if (name === "constructor") continue;
+    if (gives[name]) throw new Error(`src/board/view/${file} and src/board/view/${gives[name]} both give the board "${name}": one name, one part`);
+    gives[name] = file;
+    Object.defineProperty(View.prototype, name, d);
+  }
 }

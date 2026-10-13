@@ -271,3 +271,4 @@ export class List {
     return tinted === barred ? t.inverse(barred.replace(/\x1b\[27m/g, "")) : tinted;
   }
 }
+export const part = List; // what this file adds to the board: view.js loads every file here that names its part

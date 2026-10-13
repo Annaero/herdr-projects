@@ -10,6 +10,7 @@ Everything the board keeps for you is in one folder, the same on every machine: 
     coordinator/<session>/   the Coordinator's saved state, and chat/, the folder it starts in
     automations/             the automations, their firings, the board events counted already (docs/automations.md)
     bin/herdr-superwork      the command agents are handed, by its full path
+    conflicts.jsonl          one line per conflict with main, once repaired (docs/how-work-gets-done.md)
     locks/ stamps/ *.json *.log   the board's own bookkeeping
   reports/      pages and reports an agent made for you that belong in no repo, one folder per task
     old-suggestions.md       the suggested tasks that still waited for an answer when they were removed from the board

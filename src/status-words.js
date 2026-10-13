@@ -16,8 +16,6 @@ export const WORDS = { needs: "needs you", ready: "ready to approve", reviewFail
 export const reviewFailed = (t) => { if (t?.stage !== "approval") return false; const rv = currentReview(t); return !!rv && (G.isTagged(rv) ? !rv.pass : rv.recommend === false); }; // one from before the gate: by the reviewer's own advice
 // "1 critical, 1 major"; a review from before the gate: "2/5, reviewer says no".
 export const reviewTally = (t) => { const rv = currentReview(t); return !rv ? "" : G.isTagged(rv) ? G.tally(rv) : Number.isInteger(rv.score) ? `${rv.score}/5${rv.recommend === false ? ", reviewer says no" : ""}` : ""; };
-// The line such a task says: "Review failed · 1 critical, 1 major".
-export const reviewFailedLine = (t) => `Review failed${reviewTally(t) ? ` · ${reviewTally(t)}` : ""}`;
 
 // Who is on a task, as herdr's sidebar names them before where it stands: `agent · working`, `board · checking`.
 export const WHO = { agent: "agent", reviewer: "reviewer", board: "board", you: "you" };

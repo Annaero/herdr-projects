@@ -27,43 +27,10 @@ Type `herdr-superwork` in any pane: that opens the board. Type what needs doing 
 
 ## The pages
 
-One page per topic, in [docs/](docs/):
-
-- [Installing, the first run, and taking it out again](docs/install.md)
-- [The board: the list and the chat](docs/board.md)
-- [The board's size: what changes it, and how the board stands still](docs/board-size.md)
-- [Colours: herdr's theme, and the box that says who you type to](docs/colours.md)
-- [The task panel](docs/task-panel.md)
-- [Keys, questions and the ? menu](docs/keys.md)
-- [The mouse: the wheel, and selecting text](docs/mouse.md)
-- [The Coordinator](docs/coordinator.md)
-- [herdr's sidebar: a small copy of the board's rows](docs/sidebar.md)
-- [Roles and commands](docs/roles-and-commands.md)
-- [How work gets done](docs/how-work-gets-done.md)
-- [An agent that waits for you is not finished](docs/waiting-for-you.md)
-- [The Watcher: how often it looks, and what it costs](docs/watcher.md)
-- [The check's progress: what the board shows, and how a check reports it](docs/check-progress.md)
-- [A task's tabs in herdr: Agent, Reviewer #1](docs/tabs.md)
-- [Several attempts, and one kept: best of three, a council](docs/attempts.md)
-- [Handing text to an agent: typed is not sent](docs/handing-over.md)
-- [A turn cut off by the provider](docs/provider-errors.md)
-- [A plan first: nothing is changed until the plan is approved](docs/plan.md)
-- [The fallback agent: another agent takes over](docs/fallback.md)
-- [The gate](docs/gate.md)
-- [Limits: how long a run may take, how many tokens a task may use](docs/limits.md)
-- [Reports, and research-only tasks](docs/research.md)
-- [Automations: tasks made on a schedule, or when something happens on the board](docs/automations.md)
-- [Titles and their length limit](docs/titles.md)
-- [Task numbers and repo keys: `#134`, `HSW-134`](docs/task-numbers.md)
-- [Settings](docs/settings.md)
-- [The home folder: where the board keeps its files](docs/home-folder.md)
-- [Other machines](docs/other-machines.md)
-- [The board in the herdr web UI](docs/web-ui.md)
-- [The web board's chat box: the web UI's own, built again and measured](docs/web-chat-box.md)
-- [What was checked on herdr 0.9.3](docs/checked-on-herdr.md)
-- [Compared with pi-work](docs/compared-with-pi-work.md)
+One page per topic, in [docs/](docs/): start with [the board](docs/board.md), [how work gets done](docs/how-work-gets-done.md)
+and [settings](docs/settings.md).
 
 ## Working on the code
 
-[AGENTS.md](AGENTS.md) says where new things go; [where things live](docs/where-things-live.md) says which file
-holds what; [tests](docs/testing.md) says how to run them.
+[AGENTS.md](AGENTS.md) says where new things go and how to run the tests; `node scripts/docs.js --where` prints
+which file holds what.

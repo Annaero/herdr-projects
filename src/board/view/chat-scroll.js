@@ -45,3 +45,4 @@ export class ChatScroll {
     return word ? this.theme.fg("overlay0", word) : "";
   }
 }
+export const part = ChatScroll; // what this file adds to the board: view.js loads every file here that names its part

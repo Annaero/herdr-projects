@@ -60,3 +60,4 @@ export class RowWrap {
     return hasUnder(r) ? [...first, ...says.map((l) => " ".repeat(lead) + l), ...(lone ? [] : [this.tallLine(r, width, layout)])] : first;
   }
 }
+export const part = RowWrap; // what this file adds to the board: view.js loads every file here that names its part

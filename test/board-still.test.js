@@ -6,7 +6,7 @@ import * as A from "../src/actions.js";
 import * as C from "../src/coordinator.js";
 import { runJob } from "../src/jobs.js";
 import { drainJobs } from "../src/runner.js";
-import { open } from "./board-helpers.js";
+import { open, keyed } from "./board-helpers.js";
 import { coordWorld } from "./coordinator-helpers.js";
 
 // An open board as main.js starts it: a size has to last a second before the board lays itself out for it. `at` is
@@ -135,7 +135,7 @@ test("a second herdr window on the session: the board takes its terminal twice, 
     assert.match(s.at(54, 24)[0], /^[ ▌]! Shown cut off: another herdr window on this/);
     assert.match(s.at(54, 24).join("\n"), /^(?![\s\S]*Another viewer holds)/); // one note, not two
     s.v.held = { ...s.v.held, by: [{ pid: 4242, seconds: 60 }] }; // a real attach on the terminal: the line names the key that ends it, never its process
-    assert.match(s.at(54, 24).slice(0, 3).join(" ").replace(/\s+/g, " "), /Shown cut off: a remote view holds this pane at 54×24 [^.]*\. ctrl\+k ends that view/); assert.doesNotMatch(s.at(54, 24).join("\n"), /kill 4242/);
+    assert.match(s.at(54, 24).slice(0, 3).join(" ").replace(/\s+/g, " "), keyed(/Shown cut off: a remote view holds this pane at 54×24 [^.]*\. {free} ends that view/)); assert.doesNotMatch(s.at(54, 24).join("\n"), /kill 4242/);
     s.v.held = null;
     // You type in your window and herdr gives it the size: nothing claims to have disconnected anybody.
     s.at(141, 46); s.wait(2000); s.v.seeShown({ cols: 141, rows: 46, split: false });

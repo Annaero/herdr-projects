@@ -39,22 +39,53 @@ test("the board's own setting: herdr's theme as herdr shows it, Catppuccin with 
   assert.equal(resolve({ theme: { name: "nord" } }, null, "no-such-theme").name, "nord"); // a word that names nothing: herdr's own
 });
 
-test("a task nobody started is a dim grey of its own in every theme: never the plain text colour, the green of ready or the blue of a review", () => {
-  for (const name of THEME_NAMES.filter((n) => n !== "terminal")) {
-    const p = resolve({ theme: { name } }, null, "herdr").palette, three = { "to do": p.todo, "ready to approve": p.green, "under review": p.review };
-    // The board's own three colours are told apart from each other; the green and the blue from plain text too.
-    for (const [a, c] of Object.entries(three)) { if (a !== "to do") assert.ok(apart(c, p.text) >= 50, `${name}: ${a} and plain text are ${Math.round(apart(c, p.text))} apart`); for (const [b, d] of Object.entries(three)) if (a !== b) assert.ok(apart(c, d) >= 45, `${name}: ${a} and ${b} are ${Math.round(apart(c, d))} apart`); }
-    // It is a grey, and a dim one: by the contrast ratio, plain text stands out from the background 1.3 times as much or more.
-    const [r, g, b] = [p.todo >> 16, (p.todo >> 8) & 255, p.todo & 255]; assert.ok(Math.max(r, g, b) - Math.min(r, g, b) <= 80, `${name}: a grey`);
-    assert.ok(contrast(p.text, p.panel_bg) / contrast(p.todo, p.panel_bg) >= TODO_DIMMER, `${name}: dimmer than text`);
+// One loop for every colour the board gives a meaning of its own: in every theme it is the kind of colour it is
+// called, and told apart from everything it sits beside. A new such colour is one more line in the table.
+const OWN = [
+  // name, what it is told apart from, by how much, what kind of colour it is (null: any)
+  ["todo", TODO_BESIDE, 45, null], // a task nobody started: a dim grey, never the green of ready or the blue of a review
+  ["auto", AUTO_BESIDE, AUTO_APART, isPurple], // an automation: never taken for a status, for plain or greyed words, or lost on the background
+  ["review", REVIEW_BESIDE, REVIEW_APART, isBlue], // a review that is running, and the review tag beside passed, failed and no result
+  ["green", ["red", "subtext0"], 50, null], // a tag's colour alone says pass, fail or no result yet
+  ["red", ["green", "subtext0"], 50, null],
+];
+test("every colour with a meaning of its own is told apart in every theme, light and dark, and colours of your own cannot take that away", () => {
+  const told = (p, why) => {
+    for (const [name, beside, by, kind] of OWN) {
+      if (kind) assert.ok(kind(p[name]), `${why}: ${name} is the colour it is called`);
+      // The terminal's own sixteen are its own to tell apart: there, different is enough.
+      for (const k of beside) assert.ok(p[name] < 0 || p[k] < 0 ? p[name] !== p[k] : apart(p[name], p[k]) >= by, `${why}: ${name} and ${k} are ${Math.round(apart(p[name], p[k]))} apart`);
+    }
+  };
+  for (const name of THEME_NAMES) {
+    const p = resolve({ theme: { name } }, null, "herdr").palette;
+    told(p, name);
+    if (name === "terminal") continue;
+    assert.notEqual(p.overlay0, p.subtext0, `${name}: quiet and plain are one colour`);
+    // "to do" is a grey, and a dim one: plain text stands out from the background 1.3 times as much or more.
+    const [r, g, b] = [p.todo >> 16, (p.todo >> 8) & 255, p.todo & 255]; assert.ok(Math.max(r, g, b) - Math.min(r, g, b) <= 80, `${name}: to do is a grey`);
+    assert.ok(contrast(p.text, p.panel_bg) / contrast(p.todo, p.panel_bg) >= TODO_DIMMER, `${name}: to do is dimmer than text`);
+    assert.ok(p.review === p.blue || p.review === REVIEW_BLUE, `${name}: the theme's blue, or the board's`);
   }
-  // Colours of your own cannot take it away: a grey that is your text colour, or your green, gives way to another grey.
-  for (const custom of [{ overlay0: "#cdd6f4" }, { overlay0: "#a6e3a1", overlay1: "#a6e3a1" }, { overlay0: "white" }, { overlay0: "#3b82f6", overlay1: "#cdd6f4" }]) {
-    const p = resolve({ theme: { custom } }, null, "herdr").palette;
-    for (const k of TODO_BESIDE) assert.ok(apart(p.todo, p[k]) >= TODO_APART, `${JSON.stringify(custom)}: to do and ${k}`);
-    assert.ok(contrast(p.todo, p.panel_bg) >= FLOOR && contrast(p.text, p.panel_bg) / contrast(p.todo, p.panel_bg) >= TODO_DIMMER, JSON.stringify(custom));
+  // The theme's own colour is taken where it fits: herdr's mauve and its blue, and a colour of your own that is one.
+  assert.equal(resolve({}, null, "herdr").palette.auto, 0xcba6f7); assert.equal(resolve({}, null, "terminal").palette.auto, -16 + 5); assert.equal(resolve({}, null, "terminal").palette.review, -16 + 4);
+  assert.equal(resolve({ theme: { custom: { mauve: "#9333ea" } } }, null, "herdr").palette.auto, 0x9333ea);
+  assert.equal(resolve({ theme: { custom: { blue: "#0000ff" } } }, null, "herdr").palette.review, 0x0000ff);
+  assert.equal(resolve({ theme: { custom: { blue: "#a6e3a1" } } }, null, "herdr").palette.review, REVIEW_BLUE); // one that is the theme's green is not
+  // Colours of your own cannot take a meaning away: a grey that is your text colour or your green, a mauve that is the
+  // theme's red, a blue that is no blue or is the red of what failed. In a dark theme, a light one and the terminal's.
+  const yours = [{ overlay0: "#cdd6f4" }, { overlay0: "#a6e3a1", overlay1: "#a6e3a1" }, { overlay0: "#3b82f6", overlay1: "#cdd6f4" }, { mauve: "#f38ba8" }, { mauve: "#cdd6f4" }, { mauve: "#a6e3a1" },
+    { blue: "#f38ba8" }, { blue: "#f9e2af" }, { blue: "#a6e3a1", teal: "#3b82f6" }, { blue: "#8839ef" }, { blue: "#808080" }, { blue: "#fe640b" }, { blue: "#3b82f6", red: "#3b82f6" }];
+  for (const name of ["catppuccin", "catppuccin-latte"]) for (const custom of yours) {
+    const p = resolve({ theme: { name, custom } }, null, "herdr").palette, why = `${name} ${JSON.stringify(custom)}`;
+    assert.ok(isPurple(p.auto) && isBlue(p.review), why);
+    for (const [c, beside, by] of [["todo", TODO_BESIDE, TODO_APART], ["auto", AUTO_BESIDE, AUTO_APART], ["review", REVIEW_BESIDE, REVIEW_APART]]) for (const k of beside) assert.ok(apart(p[c], p[k]) >= by, `${why}: ${c} and ${k}`);
+    assert.ok(contrast(p.todo, p.panel_bg) >= FLOOR, why);
   }
-  if (!process.env.NO_COLOR) { loadTheme(); assert.notEqual(theme.fg("todo", "to do"), theme.fg("text", "to do")); assert.notEqual(theme.fg("todo", "x"), theme.fg("green", "x")); assert.notEqual(theme.fg("todo", "x"), theme.fg("review", "x")); }
+  { const p = resolve({ theme: { name: "terminal", custom: { blue: "red" } } }, null, "herdr").palette; assert.notEqual(p.review, p.red); }
+  for (const [c, yes] of [[0x3b82f6, true], [0x076678, true], [-16 + 4, true], [0xa6e3a1, false], [0x8839ef, false], [0xb0b0b0, false], [-16 + 2, false], [null, false]]) assert.equal(isBlue(c), yes, String(c));
+  // Painted, each comes out as a text of its own.
+  if (!process.env.NO_COLOR) for (const light of [false, true]) { loadTheme(); setTerminal(light); assert.equal(new Set(["green", "red", "review", "subtext0", "todo", "auto", "text"].map((c) => theme.fg(c, "R#2"))).size, 7); }
 });
 
 test("the greys are quiet but always readable: each stands out from the background by the floor, in every theme", () => {
@@ -127,36 +158,6 @@ test("herdr's theme name, aliases, custom colours, old accent setting and symbol
   assert.ok(used.size > 6); for (const name of used) assert.ok(known.includes(JSON.parse(name)), `${name} is not a herdr colour`);
 });
 
-test("an automation has a purple of its own in every theme: the theme's mauve where that is one and told apart, else the board's, and the terminal's magenta among its own colours", () => {
-  const own = [];
-  for (const name of THEME_NAMES) {
-    const p = resolve({ theme: { name } }, null, "herdr").palette;
-    assert.ok(isPurple(p.auto), `${name}: it is a purple`); if (p.auto === p.mauve) own.push(name);
-    // never taken for a status (needs you, ready, working, done, under review, to do), for plain or greyed words, or lost on the background
-    for (const k of AUTO_BESIDE) assert.ok(apart(p.auto, p[k]) >= AUTO_APART, `${name}: an automation and ${k} are ${Math.round(apart(p.auto, p[k]))} apart`);
-  }
-  for (const k of ["red", "green", "yellow", "teal", "review", "todo", "text", "subtext0", "overlay0", "panel_bg"]) assert.ok(AUTO_BESIDE.includes(k), k);
-  // herdr's own mauve in most themes; not where it is no purple (Vesper's amber) or sits on the theme's greyed words
-  assert.deepEqual(THEME_NAMES.filter((n) => !own.includes(n)), ["terminal", "nord", "kanagawa", "kanagawa-lotus", "rose-pine", "vesper"]);
-  assert.equal(resolve({}, null, "herdr").palette.auto, 0xcba6f7); assert.equal(resolve({}, null, "terminal").palette.auto, -16 + 5);
-  assert.equal(resolve({ theme: { name: "kanagawa-lotus" } }, null, "herdr").palette.auto, 0x7c3aed); assert.equal(resolve({ theme: { name: "nord" } }, null, "herdr").palette.auto, 0xa855f7); // the darker one on a light background
-  // a mauve of your own is followed when it is a purple, and not when it is the theme's red or its text colour
-  assert.equal(resolve({ theme: { custom: { mauve: "#9333ea" } } }, null, "herdr").palette.auto, 0x9333ea);
-  for (const mauve of ["#f38ba8", "#cdd6f4", "#a6e3a1", "red"]) { const p = resolve({ theme: { custom: { mauve } } }, null, "herdr").palette; assert.ok(isPurple(p.auto), mauve); for (const k of AUTO_BESIDE) assert.ok(apart(p.auto, p[k]) >= AUTO_APART, `${mauve}: ${k}`); }
-});
-
-test("green, red and plain are told apart in every theme, light and dark: a tag's colour alone says pass, fail or no result yet", () => {
-  const names = ["catppuccin", "catppuccin-latte", "tokyo-night", "tokyo-night-day", "dracula", "nord", "gruvbox", "gruvbox-light", "one-dark", "one-light", "solarized", "solarized-light", "kanagawa", "kanagawa-lotus", "rose-pine", "rose-pine-dawn", "vesper"];
-  const rgb = (c) => [c >> 16, (c >> 8) & 255, c & 255], apart = (a, b) => Math.hypot(...rgb(a).map((x, i) => x - rgb(b)[i]));
-  for (const name of names) {
-    const r = resolve({ theme: { name } }), p = r.palette; assert.equal(r.name, name);
-    for (const [a, b] of [["green", "red"], ["green", "subtext0"], ["red", "subtext0"]]) assert.ok(apart(p[a], p[b]) >= 50, `${name}: ${a} and ${b} look alike`);
-    assert.notEqual(p.overlay0, p.subtext0, `${name}: quiet and plain are one colour`);
-  }
-  // The terminal's own colours: three different ones of its sixteen.
-  const term = resolve({}, null, "terminal").palette; assert.equal(new Set([term.green, term.red, term.subtext0]).size, 3);
-});
-
 test("light and dark: only when herdr switches by appearance, or the board's own setting picks one", () => {
   const manual = { theme: { name: "gruvbox" } };
   assert.equal(resolve(manual, true).name, "gruvbox");
@@ -207,43 +208,6 @@ test("the whole of TOML is read, so nothing herdr accepts is lost", () => {
   assert.equal(resolve(evil).symbols, false); assert.equal(resolve(evil).palette.accent, 0x89b4fa);
   const real = process.env.HOME && path.join(process.env.HOME, ".config", "herdr", "config.toml");
   if (real && fs.existsSync(real)) assert.doesNotThrow(() => parseToml(fs.readFileSync(real, "utf8")));
-});
-
-test("a review that is running is a blue of its own in every theme: the theme's blue where that is told apart, else the board's", () => {
-  const names = ["catppuccin", "catppuccin-latte", "tokyo-night", "tokyo-night-day", "dracula", "nord", "gruvbox", "gruvbox-light", "one-dark", "one-light", "solarized", "solarized-light", "kanagawa", "kanagawa-lotus", "rose-pine", "rose-pine-dawn", "vesper"];
-  const rgb = (c) => [c >> 16, (c >> 8) & 255, c & 255], own = [];
-  for (const name of names) {
-    const p = resolve({ theme: { name } }, null, "herdr").palette, [r, g, b] = rgb(p.review);
-    assert.ok(p.review === p.blue || p.review === REVIEW_BLUE, name); if (p.review === p.blue) own.push(name);
-    assert.ok(isBlue(p.review) && b > r && b > g, `${name}: it is a blue`);
-    // Told apart from all it sits beside: passed and ready (green), failed (red), the agent working (amber), herdr's
-    // own dot for done and idle (teal), muted text (both greys), plain text, and the background it is drawn on.
-    for (const k of REVIEW_BESIDE) assert.ok(apart(p.review, p[k]) >= REVIEW_APART, `${name}: review and ${k} are ${Math.round(apart(p.review, p[k]))} apart`);
-  }
-  // The theme's own blue is taken where it fits, in light themes and dark ones; where it is the theme's teal, its
-  // green, a grey or near its muted text, the board's blue stands in.
-  assert.deepEqual(own, ["catppuccin-latte", "gruvbox-light", "one-light", "solarized", "solarized-light"]);
-  for (const name of ["catppuccin", "dracula", "rose-pine", "rose-pine-dawn", "vesper"]) assert.equal(resolve({ theme: { name } }, null, "herdr").palette.review, REVIEW_BLUE, name);
-  // The terminal's own colours: its blue, which is none of its green, its cyan and its greys.
-  { const p = resolve({}, null, "terminal").palette; assert.equal(p.review, -16 + 4); for (const k of ["green", "red", "yellow", "teal", "subtext0", "overlay0"]) assert.notEqual(p.review, p[k], k); }
-  assert.equal(resolve({ theme: { custom: { blue: "#0000ff" } } }, null, "herdr").palette.review, 0x0000ff); // a blue of your own is followed
-  assert.equal(resolve({ theme: { custom: { blue: "#a6e3a1" } } }, null, "herdr").palette.review, REVIEW_BLUE); // one that is the theme's green is not
-  // Colours of your own cannot take the blue away: a blue that is the red of what failed, or the agent's amber, is not
-  // followed; the board's blue is not used where it is your teal; and with every one of the board's blues taken, it is
-  // still a blue told apart from all it sits beside.
-  // Nor can a `blue` that is no blue: a pale green, a purple, a grey, an orange, in a dark theme, a light one and the terminal's.
-  for (const name of ["catppuccin", "catppuccin-latte", "terminal"]) for (const custom of [{ blue: "#f38ba8" }, { blue: "#f9e2af" }, { blue: "#a6e3a1", teal: "#3b82f6" }, { blue: "#a6e3a1" }, { blue: "#8839ef" }, { blue: "#808080" }, { blue: "#fe640b" }, { blue: "green" }, { blue: "magenta" }, { blue: "#3b82f6", red: "#3b82f6" }, { teal: "#3b82f6", green: "#1d4ed8", red: "#93c5fd", yellow: "#0000ff", text: "#6366f1", subtext0: "#0ea5e9" }]) {
-    const p = resolve({ theme: { name, custom } }, null, "herdr").palette, [r, g, b] = rgb(p.review < 0 ? 0x0000ee : p.review);
-    assert.ok(isBlue(p.review) && b > r && b > g, `${name} ${JSON.stringify(custom)}: it is a blue`);
-    for (const k of REVIEW_BESIDE) assert.ok(apart(p.review, p[k]) >= REVIEW_APART, `${name} ${JSON.stringify(custom)}: review and ${k} are ${Math.round(apart(p.review, p[k]))} apart`);
-  }
-  assert.equal(resolve({ theme: { name: "catppuccin", custom: { blue: "#f38ba8" } } }, null, "herdr").palette.review, REVIEW_BLUE);
-  assert.notEqual(resolve({ theme: { name: "catppuccin", custom: { blue: "#a6e3a1", teal: "#3b82f6" } } }, null, "herdr").palette.review, REVIEW_BLUE);
-  { const p = resolve({ theme: { name: "terminal", custom: { blue: "red" } } }, null, "herdr").palette; assert.notEqual(p.review, p.red); assert.equal(p.review, REVIEW_BLUE); } // the terminal's colours too
-  for (const name of ["catppuccin-latte", "terminal"]) assert.equal(resolve({ theme: { name, custom: { blue: "#a6e3a1", teal: "#3b82f6" } } }, null, "herdr").palette.review, 0x1d4ed8, name); // a pale green is no blue, and the board's first blue is your teal
-  for (const [c, yes] of [[0x3b82f6, true], [0x076678, true], [-16 + 4, true], [-16 + 12, true], [0xa6e3a1, false], [0x8839ef, false], [0xff00ff, false], [0xb0b0b0, false], [0x94e2d5, false], [-16 + 2, false], [null, false]]) assert.equal(isBlue(c), yes, String(c));
-  // Painted, it is its own text: never the green of passed, the amber of the agent, the teal of done or a grey.
-  if (!process.env.NO_COLOR) for (const light of [false, true]) { loadTheme(); setTerminal(light); for (const c of ["green", "red", "yellow", "teal", "subtext0", "overlay0"]) assert.notEqual(theme.fg("review", "R#2"), theme.fg(c, "R#2"), c); assert.notEqual(theme.fg("review", "R#2"), "R#2"); }
 });
 
 test("the board paints with what it read: true colour, the terminal's 16 colours, herdr's marks", () => {
@@ -302,15 +266,3 @@ test("the board paints with what it read: true colour, the terminal's 16 colours
   }
 });
 
-test("the review tag's colours are told apart in every theme, light and dark: passed, failed, the reviewer on it, no review result", () => {
-  const names = ["catppuccin", "catppuccin-latte", "terminal", "tokyo-night", "tokyo-night-day", "dracula", "nord", "gruvbox", "gruvbox-light", "one-dark", "one-light", "solarized", "solarized-light", "kanagawa", "kanagawa-lotus", "rose-pine", "rose-pine-dawn", "vesper"];
-  const said = ["passed", "failed", "the reviewer on it", "no result"];
-  for (const name of names) {
-    const p = resolve({ theme: { name } }, null, "herdr").palette, four = [p.green, p.red, p.review, p.subtext0];
-    assert.equal(new Set(four).size, 4, `${name}: four colours`);
-    // A theme's own colours: no two of them are near each other (the terminal's 16 are its own to tell apart).
-    if (four.every((c) => c >= 0)) for (const a of [0, 1, 2, 3]) for (const b of [0, 1, 2, 3].slice(a + 1)) assert.ok(apart(four[a], four[b]) >= REVIEW_APART, `${name}: ${said[a]} and ${said[b]} are ${Math.round(apart(four[a], four[b]))} apart`);
-  }
-  // Painted, they come out as four different texts.
-  if (!process.env.NO_COLOR) for (const light of [false, true]) { setTerminal(light); assert.equal(new Set(["green", "red", "review", "subtext0"].map((c) => theme.fg(c, "R#2"))).size, 4); }
-});

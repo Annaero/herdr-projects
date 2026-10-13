@@ -1,5 +1,6 @@
 // What you say to the Coordinator is never lost: dialogs, failed starts, stop, on and off.
 import test from "node:test";
+import { keyed } from "./board-helpers.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -95,10 +96,10 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     s.beat(); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n╭─[^\n]*╮\n│ It could not be started: "pi" is not installed here/); // also with its message hidden
     // alt+c hides that too, as the chat's line says; esc does not.
     s.v.chatOpen = false; s.v.setValue(""); s.v.reply = false; s.v.full = false; s.v.filter = ""; s.v.msg = "";
-    assert.match(s.text(), /alt\+c hide the latest message/);
+    assert.match(s.text(), keyed(/{chatMessage} hide the latest message/));
     s.press("esc"); assert.equal(s.v.ask, null); assert.deepEqual(s.closed, []); assert.match(s.text(), /It could not be started:/);
     s.press("alt+c");
-    assert.doesNotMatch(s.text(), /It could not be started:/); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n─[^\n]*\n❯ [^\n]*\n─+\n[^\n]*alt\+c show the latest message/);
+    assert.doesNotMatch(s.text(), /It could not be started:/); assert.match(s.text(), keyed(/Coordinator {2}could not be started[^\n]*\n─[^\n]*\n❯ [^\n]*\n─+\n[^\n]*{chatMessage} show the latest message/));
     s.beat(); assert.doesNotMatch(s.text(), /It could not be started:/, "the same error stays hidden");
     s.press("esc"); assert.ok(s.v.closing); s.v.closeSoon();
     // alt+c shows it again and hides it again, shown by the setting or not.

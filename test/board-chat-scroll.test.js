@@ -1,6 +1,7 @@
 // The chat's message when it is long: the box grows with it, it scrolls with two keys and the mouse wheel, and the
 // box says where there is more. The wheel on the rest of the board.
 import test from "node:test";
+import { keyed } from "./board-helpers.js";
 import assert from "node:assert/strict";
 import * as A from "../src/actions.js";
 import { coordWorld, open as openCoord } from "./coordinator-helpers.js";
@@ -55,11 +56,11 @@ test("alt+u and alt+j scroll a message longer than its box, with a draft too; th
   try {
     // The box names the key where there is more: under the message at first, on its top edge too once scrolled.
     let c = b.chat();
-    assert.match(c.lines[c.top], /^╭─[^\n]*╮$/); assert.match(c.lines[c.end - 2], / alt\+j more ↓ │$/);
+    assert.match(c.lines[c.top], /^╭─[^\n]*╮$/); assert.match(c.lines[c.end - 2], keyed(/ {chatScrollDown} more ↓ │$/));
     // Down half a box at a time, to the end and no further.
     b.key("alt+j"); c = b.chat();
     assert.equal(c.message[0], "Line 9 of the answer."); assert.equal(c.up, true); assert.equal(c.down, true);
-    assert.match(c.lines[c.top], /^╭─+ alt\+u more ↑ ─╮$/); assert.match(b.chat(40).lines.find((l) => /↑/.test(l)), /^╭─+ alt\+u more ↑ ─╮$/);
+    assert.match(c.lines[c.top], keyed(/^╭─+ {chatScrollUp} more ↑ ─╮$/)); assert.match(b.chat(40).lines.find((l) => /↑/.test(l)), keyed(/^╭─+ {chatScrollUp} more ↑ ─╮$/));
     assert.match(b.chat(14).lines.find((l) => /↑/.test(l)), /^╭─+ more ↑ ─╮$/); assert.match(b.chat(9).lines.find((l) => /↑/.test(l)), /^╭─+ ↑ ─╮$/);
     b.key("alt+j", "alt+j", "alt+j", "alt+j"); c = b.chat();
     assert.equal(c.message.at(-1), "Line 40 of the answer."); assert.equal(c.message.length, 16); assert.equal(c.up, true); assert.equal(c.down, false);
@@ -71,7 +72,7 @@ test("alt+u and alt+j scroll a message longer than its box, with a draft too; th
     const sel = b.s.v.sel; b.key("alt+j"); assert.equal(b.s.v.sel, sel); assert.equal(b.s.v.value(), "");
     // With a draft in the text box the two keys still scroll, the box still names them, and the draft is whole.
     b.s.type("my draft"); c = b.chat();
-    assert.match(c.lines[c.top], / alt\+u more ↑ ─╮$/);
+    assert.match(c.lines[c.top], keyed(/ {chatScrollUp} more ↑ ─╮$/));
     b.key("alt+j"); c = b.chat();
     assert.equal(c.message[0], "Line 17 of the answer."); assert.equal(b.s.v.value(), "my draft"); assert.match(c.draft.join(" "), /❯ my draft/);
     b.key("alt+u", "alt+u", "alt+u"); assert.equal(b.s.v.value(), "my draft"); assert.equal(b.chat().message[0], "Line 1 of the answer.");

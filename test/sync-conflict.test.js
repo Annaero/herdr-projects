@@ -8,6 +8,7 @@ import { world, settle, git, stateOf, paneOf } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
+import { conflicts, conflictLog, conflictFound, conflictRepaired, conflictLogged } from "../src/sync/conflict-log.js";
 
 const holds = (dir, sha) => { try { git(dir, "merge-base", "--is-ancestor", sha, "HEAD"); return true; } catch { return false; } };
 const mainMoves = (w, file, text) => { fs.writeFileSync(path.join(w.root, file), text); git(w.root, "add", "-A"); git(w.root, "commit", "-qm", `main: ${file}`); return git(w.root, "rev-parse", "HEAD"); };
@@ -53,6 +54,11 @@ test("a conflict with main goes to the agent by itself, before any approval; the
     t = await settle(id);
     assert.equal(t.stage, "approval", JSON.stringify(t.failure));
     assert.equal(t.failure, null); assert.equal(t.syncRepairs, 0); assert.equal(t.review.pass, true); assert.ok(holds(t.worktree, target));
+    // the conflict left one line in the record: the task, the files, the minutes, and that a review followed
+    const kept = conflicts();
+    assert.equal(kept.length, 1); assert.deepEqual([kept[0].task, kept[0].files, kept[0].repairs, kept[0].review], [id, ["a.txt"], 1, true]);
+    assert.ok(kept[0].minutes >= 0 && !Number.isNaN(Date.parse(kept[0].at))); assert.equal(t.conflict, null);
+    assert.equal(conflictLog(), path.join(S.dataDir(), "conflicts.jsonl"));
     A.approve(id);
     t = await settle(id);
     assert.equal(t.stage, "done", JSON.stringify(t.failure));
@@ -185,5 +191,21 @@ test("your checkout on another branch: nothing is merged into a waiting task, an
     assert.equal(t.stage, "done", JSON.stringify(t.failure));
     assert.equal(git(w.root, "symbolic-ref", "--short", "HEAD"), "main");
     assert.equal(fs.readFileSync(path.join(w.root, "a.txt"), "utf8"), "from the agent\n");
+  } finally { w.cleanup(); }
+});
+
+test("the record of conflicts: a repair that conflicts again is one conflict, the minutes run to the repair, and nothing is written before it", async () => {
+  const w = await world();
+  try {
+    const t = { id: "proj/7" }, T0 = Date.parse("2026-10-13T10:00:00Z");
+    assert.equal(conflictLogged(t, true), null); // no conflict: no line
+    conflictFound(t, { files: "a.js\nb.js" }, T0);
+    assert.equal(conflictLogged(t, true), null); // found, not repaired yet: no line
+    conflictFound(t, { files: "b.js\nc.js" }, T0 + 5 * 60000); // sent back a second time
+    conflictRepaired(t, T0 + 12 * 60000); conflictRepaired(t, T0 + 50 * 60000); // the first time it is up to date is the repair
+    assert.deepEqual(conflictLogged(t, false), { at: "2026-10-13T10:00:00.000Z", task: "proj/7", files: ["a.js", "b.js", "c.js"], minutes: 12, repairs: 2, review: false });
+    assert.equal(t.conflict, null); assert.equal(conflictLogged(t, false), null);
+    conflictFound(t, { files: "d.js" }, T0 + 60 * 60000); conflictRepaired(t, T0 + 60 * 60000 + 90000); conflictLogged(t, true);
+    assert.deepEqual(conflicts().map((c) => [c.task, c.files.join(","), c.minutes, c.repairs, c.review]), [["proj/7", "a.js,b.js,c.js", 12, 2, false], ["proj/7", "d.js", 1.5, 1, true]]);
   } finally { w.cleanup(); }
 });

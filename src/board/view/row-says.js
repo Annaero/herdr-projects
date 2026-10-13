@@ -66,3 +66,4 @@ export class RowSays {
     return { text: quiet(msg) };
   }
 }
+export const part = RowSays; // what this file adds to the board: view.js loads every file here that names its part

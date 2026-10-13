@@ -69,3 +69,4 @@ export class Talk {
     return { parts: withMine(parts, v.sent), mine: !!v.sent };
   }
 }
+export const part = Talk; // what this file adds to the board: view.js loads every file here that names its part

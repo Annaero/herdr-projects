@@ -99,3 +99,4 @@ export class Automations {
       .map((k) => ({ id: k.id, group: k.group, key: K.name(k.id), label: k.id in words ? words[k.id] : k.menu(this, undefined), run: () => (does[k.id] ? does[k.id]() : k.run(this, undefined)) })).filter((i) => i.label);
   }
 }
+export const part = Automations; // what this file adds to the board: view.js loads every file here that names its part

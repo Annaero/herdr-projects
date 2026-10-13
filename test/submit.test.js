@@ -13,7 +13,10 @@ import { spawnRunner } from "../src/runner.js";
 import { drainJobs } from "../src/runner.js";
 import { runJob } from "../src/jobs.js";
 import { name as keyName } from "../src/board/keys.js";
-import { drawn, took, markOf, TRIES, NOT_STARTED } from "../src/submit.js";
+import fs from "node:fs";
+import path from "node:path";
+import * as F from "../src/flow.js";
+import { drawn, took, markOf, shown, tookAfterAll, TRIES, NOT_STARTED } from "../src/submit.js";
 
 // The code's waits, for one test: how long a start is waited for, and how long an agent gets before enter is pressed again.
 function waits(t, { ready, submit }) {
@@ -242,6 +245,105 @@ test("a message typed into a running turn is not taken for sent because the agen
     assert.equal(calls(w, /^agent start/).length, 2);
     assert.equal(paneOf(w, S.get(id)).agent.prompts.filter((x) => /REFUSED WHILE BUSY/.test(x)).length, 1); // handed to the new program, once
     assert.ok(!S.get(id).unsent && S.get(id).failure?.stage !== "send");
+  } finally { w.cleanup(); }
+});
+
+// What Claude Code writes when it takes, in the middle of a turn, a message that was typed while it worked: not a
+// user entry but an attachment (seen on claude 2.1.296, task 175). Then more than a megabyte of the turn's own work follows (3.5 MB on that task).
+function tookMidTurn(w, id, text, { after = 1200 * 1024 } = {}) {
+  const file = path.join(w.base, `conversation-${S.get(id).n}.jsonl`), at = () => new Date().toISOString();
+  const work = JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "tool_result", content: "x".repeat(64 * 1024) }] }, timestamp: at() });
+  fs.writeFileSync(file, [
+    JSON.stringify({ type: "queue-operation", operation: "enqueue", timestamp: at(), content: text }),
+    JSON.stringify({ type: "queue-operation", operation: "remove", timestamp: at(), content: text }),
+    JSON.stringify({ type: "attachment", attachment: { type: "queued_command", prompt: text }, timestamp: at() }),
+    ...Array.from({ length: Math.ceil(after / work.length) }, () => work),
+    JSON.stringify({ type: "assistant", message: { id: "msg_done", role: "assistant", content: [{ type: "text", text: "All of it is done." }], stop_reason: "end_turn" }, timestamp: at() }),
+  ].join("\n") + "\n");
+  S.update(id, (t) => { t.transcript = file; });
+  w.patchState((st) => { st.panes.find((x) => x.agent).agent.box = null; }); // the program took it out of its box
+}
+
+test("a message the agent took in the middle of a long turn is delivered: more than a megabyte of work later the task is not 'not started', and no enter is pressed", async (t) => {
+  const w = await world({ settings: { "review.when": "never" } });
+  try {
+    waits(t, { ready: 60000, submit: 0 });
+    w.script({ worker: [{ status: "working" }] });
+    const id = A.add(w.root, "Long turn").id;
+    A.delegate(id);
+    await settle(id);
+    w.patchState((st) => { st.swallow = 1; }); // herdr's counters do not move for a message a busy program queues
+    A.tell(id, "ONE MORE THING while you are at it");
+    pass(w);
+    assert.ok(S.get(id).sent?.busy);
+    tookMidTurn(w, id, S.get(id).sent.text);
+    // Counted as delivered the moment the agent takes it, while it still works.
+    for (let i = 0; i < 2; i++) pass(w);
+    assert.deepEqual([S.get(id).stage, S.get(id).sent], ["working", null]);
+    // Its turn ends, far later in its conversation than the board reads for an ending: that turn is the answer.
+    fs.mkdirSync(path.dirname(F.noteFile(S.get(id))), { recursive: true }); fs.writeFileSync(F.noteFile(S.get(id)), "All of it is done.");
+    w.patchState((st) => { const a = st.panes.find((x) => x.agent).agent; st.seq += 1; a.status = "idle"; a.seq = st.seq; a.completion = st.seq; });
+    for (let i = 0; i < TRIES + 3; i++) { pass(w); await settle(id); }
+    const c = S.get(id);
+    assert.notEqual(stateOf(id).note, NOT_STARTED); assert.ok(!c.unsent && c.failure?.stage !== "send", JSON.stringify(c.failure));
+    assert.equal(calls(w, /^agent send-keys .* enter$/).length, 0); assert.equal(calls(w, /^agent start/).length, 1);
+    assert.equal(c.stage, "done", c.msg);
+  } finally { w.cleanup(); }
+});
+
+test("a message taken mid-turn and found only when the agent rests (the board was closed meanwhile) is still delivered; one that is only queued is not", async (t) => {
+  const w = await world({ settings: { "review.when": "never" } });
+  try {
+    waits(t, { ready: 60000, submit: 0 });
+    w.script({ worker: [{ status: "working" }] });
+    const id = A.add(w.root, "Long turn, board closed").id;
+    A.delegate(id);
+    await settle(id);
+    w.patchState((st) => { st.swallow = 1; });
+    A.tell(id, "SAID WITH NOBODY LOOKING");
+    const text = S.get(id).sent.text, file = path.join(w.base, "queued.jsonl");
+    // Only queued so far: the program has the words, but has not read them. That is not delivered.
+    fs.writeFileSync(file, JSON.stringify({ type: "queue-operation", operation: "enqueue", timestamp: new Date().toISOString(), content: text }) + "\n");
+    assert.equal(shown("claude", { file }, S.get(id).sent, text), false);
+    tookMidTurn(w, id, text);
+    assert.equal(shown("claude", { file: S.get(id).transcript }, S.get(id).sent, text), true); // more than a megabyte back from the end, past what one look at an ending reads
+    fs.mkdirSync(path.dirname(F.noteFile(S.get(id))), { recursive: true }); fs.writeFileSync(F.noteFile(S.get(id)), "Done, with the addition.");
+    w.patchState((st) => { const a = st.panes.find((x) => x.agent).agent; st.seq += 1; a.status = "idle"; a.seq = st.seq; a.completion = st.seq; });
+    for (let i = 0; i < TRIES + 3; i++) { pass(w); await settle(id); }
+    assert.equal(S.get(id).stage, "done", S.get(id).msg); assert.equal(calls(w, /^agent send-keys .* enter$/).length, 0);
+  } finally { w.cleanup(); }
+});
+
+test("retry on 'not started' never restarts a session that is alive and took the text: the error goes, the same program stays", async (t) => {
+  const w = await world({ settings: { "review.when": "never" } });
+  try {
+    waits(t, { ready: 60000, submit: 0 });
+    w.script({ worker: [{ status: "working" }] });
+    const id = A.add(w.root, "Wrongly not started").id;
+    A.delegate(id);
+    await settle(id);
+    // As an older board left it: the text was taken, the turn's work is done and saved, and the task says not started.
+    w.patchState((st) => { st.swallow = 1; });
+    A.tell(id, "TAKEN ALL ALONG");
+    const text = S.get(id).sent.text;
+    tookMidTurn(w, id, text);
+    fs.mkdirSync(path.dirname(F.noteFile(S.get(id))), { recursive: true }); fs.writeFileSync(F.noteFile(S.get(id)), "Done long ago.");
+    w.patchState((st) => { const a = st.panes.find((x) => x.agent).agent; st.seq += 1; a.status = "idle"; a.seq = st.seq; a.completion = st.seq; });
+    // The record is an older board's: it holds the moment the agent came to rest, a minute after it took the words.
+    S.update(id, (c) => { c.unsent = { text, first: false, at: Date.now() + 60000 }; c.sent = null; c.stage = "failed"; c.msg = NOT_STARTED; Object.assign(c, S.failurePatch({ stage: "send", title: "The agent has not started on its instructions", detail: "", next: "" })); });
+    const pid = paneOf(w, S.get(id)).agent.pid, quits = calls(w, /^pane quit/).length;
+    assert.match(A.retry(id).msg, /its agent had taken the text/);
+    assert.deepEqual([S.get(id).stage, S.get(id).unsent, S.get(id).failure], ["working", null, null]);
+    assert.equal(globalThis.__swJobs.length, 0, "no restart was asked for");
+    assert.equal(paneOf(w, S.get(id)).agent.pid, pid); assert.equal(calls(w, /^pane quit/).length, quits);
+    await settle(id);
+    assert.equal(calls(w, /^agent start/).length, 1); // the one program, start to end
+    assert.equal(S.get(id).stage, "done", S.get(id).msg);
+    // What this board writes down is when the text was typed: only words standing since then count, and words the
+    // program never took still get it started again.
+    assert.equal(tookAfterAll({ agent: "claude", transcript: S.get(id).transcript, unsent: { text, at: Date.now() + 60000, typed: true } }), false);
+    assert.equal(tookAfterAll({ agent: "claude", transcript: S.get(id).transcript, unsent: { text, at: Date.now() - 60000, typed: true } }), true);
+    assert.equal(tookAfterAll({ agent: "claude", transcript: S.get(id).transcript, startedAgentAt: 1, unsent: { text: "NEVER SAID TO IT AT ALL", at: Date.now() } }), false);
   } finally { w.cleanup(); }
 });
 

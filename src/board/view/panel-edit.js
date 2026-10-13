@@ -31,7 +31,18 @@ export class PanelEdit {
   valueWords(row) {
     const e = S.entryOf(row.name), words = wordsOf(e);
     if (words) return words.map((w) => (w === row.value ? `[${valueSay(w)}]` : valueSay(w))).join(" · ") + (e.means ? `. On: ${e.means}` : "");
-    const typed = { time: `a time, such as 90s or 15m${e.none ? "; none for none" : ""}`, tokens: "a count of tokens, such as 500k or 2m; none for none", count: `a whole number${e.min !== undefined ? `, ${e.min} or more` : ""}`, agent: `a program (claude, codex or pi), with a model after a slash if you like${e.none ? "; none for none" : ""}`, agents: "programs (claude, codex or pi), each with a model after a slash if you like, in the order they are tried, with commas between them; none for none", effort: "an effort level its program accepts, or default", text: "text; none for none", list: "names, with commas between them; none for none", attempts: "a count from 1 to 5, or programs with commas between them (claude, codex, pi), each with a model after a slash if you like" }[e.type] || "typed";
+    // What to type, by the kind of value. One kind per line: a new one goes beside the kinds it belongs with.
+    const typed = {
+      time: `a time, such as 90s or 15m${e.none ? "; none for none" : ""}`,
+      tokens: "a count of tokens, such as 500k or 2m; none for none",
+      count: `a whole number${e.min !== undefined ? `, ${e.min} or more` : ""}`,
+      agent: `a program (claude, codex or pi), with a model after a slash if you like${e.none ? "; none for none" : ""}`,
+      agents: "programs (claude, codex or pi), each with a model after a slash if you like, in the order they are tried, with commas between them; none for none",
+      effort: "an effort level its program accepts, or default",
+      text: "text; none for none",
+      list: "names, with commas between them; none for none",
+      attempts: "a count from 1 to 5, or programs with commas between them (claude, codex, pi), each with a model after a slash if you like",
+    }[e.type] || "typed";
     return typed + (e.means ? `. Means: ${e.means}` : "");
   }
   // The page's own hints: only its keys act while it is open, so only they are named.
@@ -120,3 +131,4 @@ export class PanelEdit {
     return lines;
   }
 }
+export const part = PanelEdit; // what this file adds to the board: view.js loads every file here that names its part

@@ -152,6 +152,7 @@ const sgr = (c, bg) => (c < 0 ? String((c - A < 8 ? (bg ? 40 : 30) : (bg ? 92 : 
 // A blocked task is not a failed one, so it never takes a cross: its mark says what it needs from you (NEEDS), and
 // `!` where that is not known. Finished work that passed and waits for your yes to merge has a mark of its own, a
 // filled diamond in green (row.js): an exclamation mark reads as "something is wrong", and nothing is.
+export const MARK_STATES = ["working", "review", "board", "ready", "blocked", "done", "idle", "unknown", "error"], NEED_KINDS = ["question", "permission", "auth"]; // every state and need that has a mark
 const MARKS = table({ working: ["●", "◐"], review: ["●", "◑"], board: ["●", "◒"], ready: ["◆", "◆"], blocked: ["!", "!"], done: ["●", "✓"], idle: ["○", "○"], unknown: ["·", "·"], error: ["✗", "✗"] });
 // What a blocked task needs, by its kind (OSC 7501): an answer, a yes or no, or a sign-in. All three are characters
 // every font has (the sign-in was a key, U+26B7, which many fonts lack and some draw two cells wide).

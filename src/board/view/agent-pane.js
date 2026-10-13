@@ -106,3 +106,4 @@ export class AgentPane {
     }, 60000);
   }
 }
+export const part = AgentPane; // what this file adds to the board: view.js loads every file here that names its part

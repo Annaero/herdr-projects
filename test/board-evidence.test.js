@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { world } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
-import { open } from "./board-helpers.js";
+import { open, keyed } from "./board-helpers.js";
 import { undefinedNames } from "../scripts/names.js";
 
 // A task that had several reviews, the newest one with evidence: what herdr-superwork/85 was when its page failed.
@@ -31,7 +31,7 @@ test("the task details of a task with reviews and evidence show every review and
     s.v.sel = id; s.v.load();
     // Beside the list: the latest review, the first piece of evidence, and where the rest is.
     let text = s.text(120);
-    assert.match(text, /Reviews · 3 ─/); assert.match(text, /↗ The plane takes off/); assert.match(text, /… 1 more: alt\+t/);
+    assert.match(text, /Reviews · 3 ─/); assert.match(text, /↗ The plane takes off/); assert.match(text, keyed(/… 1 more: {panel}/));
     s.press("alt+t");
     text = s.text(120);
     assert.doesNotMatch(text, /view error|could not be shown|is not defined/);
@@ -59,7 +59,7 @@ test("a part of the board that fails to draw says so in its place: the rest of t
       assert.doesNotMatch(text, /view error/);
       // (Beside the list the line wraps: read it without the panel's edge and its line breaks.)
       assert.match(text, /Reviews ─+/); assert.match(text.replace(/[\s│]+/g, " "), /✗ This part could not be shown: artifactLines is not defined/);
-      assert.match(text, /Build a flying game/); assert.match(text, /Description ─/); assert.match(text, /A small game\./); assert.match(text, /Settings ─/); assert.match(text, full ? /Merge / : /all as usual · ctrl\+e shows them/); // beside the list only the settings that are this task's own
+      assert.match(text, /Build a flying game/); assert.match(text, /Description ─/); assert.match(text, /A small game\./); assert.match(text, /Settings ─/); assert.match(text, full ? /Merge / : keyed(/all as usual · {settings} shows them/)); // beside the list only the settings that are this task's own
       assert.doesNotMatch(text, /Review 3/);
     }
     s.press("esc"); assert.equal(s.v.full, false);

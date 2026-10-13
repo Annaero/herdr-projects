@@ -22,3 +22,4 @@ export class WebUi {
     }).catch(() => {});
   }
 }
+export const part = WebUi; // what this file adds to the board: view.js loads every file here that names its part

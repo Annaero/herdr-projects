@@ -53,3 +53,4 @@ export class PanelReviews {
     return cut;
   }
 }
+export const part = PanelReviews; // what this file adds to the board: view.js loads every file here that names its part

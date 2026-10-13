@@ -41,6 +41,13 @@ its agent do that. Work it merely comes across is never a task and it does not d
 tell it to report itself `blocked` and nothing else (the finish line marks its work done), but a `report` of
 `done`, `idle` or `error` from it is taken like anyone's.
 
+**A flag a command does not know is refused.** Every command takes only its own flags (and `--json`, `--help`);
+`add`, `delegate` and `automations` also take any work setting by its name. Anything else stops the command before
+it does anything, and names the nearest right flag: `list --archvied` answers `list does not know --archvied. Did
+you mean --archived?`. A mistyped flag used to be kept and ignored, so the command did something other than what was
+asked. Settings given to `add` are the task's own from the start, with `--delegate` or without. The list of flags
+is `src/cli/flags.js`.
+
 **What a command answers.** Each command answers in one line that starts with the task's id, in the same few plain
 words everywhere (the board's own messages and the Coordinator's closing line use them too): `add` says **added**
 (`proj/12: added`, or `proj/12: added, an agent is on it` with `--delegate`); `describe`, a new title and `report`

@@ -5,7 +5,7 @@ import { world } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import { GROUPS } from "../src/board/view/states.js";
-import { open } from "./board-helpers.js";
+import { open, keyed } from "./board-helpers.js";
 
 test("done comes last: below to do under each heading of the status view and inside each repo, with its fold line at the bottom", async () => {
   const w = await world();
@@ -25,7 +25,7 @@ test("done comes last: below to do under each heading of the status view and ins
     const byStatus = ["needs you", asks, "working", working, "to do", newer, older, "done", ...done.slice(0, 5), more];
     assert.deepEqual(shape(), byStatus);
     const lines = s.screen(120).map((l) => l.split("│")[0]), at = (re) => lines.findIndex((l) => re.test(l));
-    assert.ok(at(/^ to do/) > at(/^ working/) && at(/^ done/) > at(/older to do/) && at(/↓ 2 more done \(alt\+d shows them\)/) > at(/done 4/), lines.join("\n"));
+    assert.ok(at(/^ to do/) > at(/^ working/) && at(/^ done/) > at(/older to do/) && at(keyed(/↓ 2 more done \({allDone} shows them\)/)) > at(/done 4/), lines.join("\n"));
     // The arrow keys follow the order shown: from the last to-do down into done, and no further than the last done row.
     s.v.sel = older; s.v.load();
     s.press("down"); assert.equal(s.v.sel, done[0]);

@@ -81,3 +81,4 @@ export class Remotes {
     return out;
   }
 }
+export const part = Remotes; // what this file adds to the board: view.js loads every file here that names its part

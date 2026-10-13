@@ -83,3 +83,4 @@ export class Menu {
     return [title, ...L.slice(top, top + view), ...(cut ? [" " + t.fg("overlay0", note)] : [])];
   }
 }
+export const part = Menu; // what this file adds to the board: view.js loads every file here that names its part

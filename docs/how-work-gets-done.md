@@ -73,7 +73,9 @@ were) and goes straight to the task's agent as a plain message: the conflicting 
 it should resolve them in its own worktree and finish again. Until it has, the task is not waiting for approval: its
 row says "resolving a conflict with main". After `review.rounds` repairs in a row that
 still conflict, you are asked, with the details kept. `review.rounds 0` on a task keeps its conflicts for you to
-send with `Ctrl+R`. Only a task at rest is ever updated: its worktree clean, on exactly the commit that was reviewed.
+send with `Ctrl+R`. Every conflict leaves one line in `data/conflicts.jsonl` in [the home folder](home-folder.md)
+once it is repaired: the task, the files, the minutes from found to up to date again, how often the agent was sent
+back, and whether a new review followed (`src/sync/conflict-log.js`). Only a task at rest is ever updated: its worktree clean, on exactly the commit that was reviewed.
 A fetch that fails is never taken for a sync: a finished turn is saved as "Could not synchronize main" instead of
 going on to review (and as "Task is on the wrong branch" when its worktree has left the task's own branch). A waiting task whose main cannot be fetched, or that was not at rest when main moved, is held
 as "behind main": its row says so, `Ctrl+L` is refused with the reason, and the board tries again

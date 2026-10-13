@@ -141,3 +141,4 @@ export class Panel {
     return out([...shown, ...(shown.length + 2 <= fit ? [""] : []), more]);
   }
 }
+export const part = Panel; // what this file adds to the board: view.js loads every file here that names its part

@@ -10,7 +10,7 @@ import * as A from "../src/actions.js";
 import { View, osc } from "../src/board/view.js";
 import { theme } from "../src/board/theme.js";
 import { machines } from "../src/remote.js";
-import { open } from "./board-helpers.js";
+import { open, ink } from "./board-helpers.js";
 import { GROUPS, groupOf, isLive, asRow } from "../src/board/view/states.js";
 import { entryOf, reviewerEntry, coordinatorEntry, taskName, CAP } from "../src/flow/sidebar-entry.js";
 import { NAME_OWED } from "../src/board/view/row-fit.js";
@@ -74,7 +74,7 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
       assert.match(e[1], /Fix ugly blocked row on the board +PR#3 +6m$/); assert.match(e[0], /pop-ups +6m$/); assert.match(e[3], /No guess yet +6m$/);
       assert.equal(e[1].indexOf("PR#3"), e[2].indexOf("PR#2")); assert.ok(e.every((l) => !/%|\dm .*\dm/.test(l)));
       if (!process.env.NO_COLOR) { // the same colour as the percent, whatever the state: green under review
-        const paint = (r) => s.v.row(r, 120, s.v.rowLayout([r], 120)), yellow = "\x1b[38;2;249;226;175m";
+        const paint = (r) => s.v.row(r, 120, s.v.rowLayout([r], 120)), yellow = ink("yellow");
         assert.ok(paint(eta[1]).includes(`${yellow}55%\x1b[39m`) && paint(eta[1]).includes(`${yellow}130m left\x1b[39m`));
         const under = paint({ ...eta[1], stage: "reviewing", agent: "claude" }), colour = (s, word) => s.slice(0, s.indexOf(word)).match(/\x1b\[38;2;[\d;]+m(?!.*\x1b\[38)/s)?.[0];
         assert.ok(colour(under, "130m") && colour(under, "130m") === colour(under, "55%") && colour(under, "130m") !== yellow);

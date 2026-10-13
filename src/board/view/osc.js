@@ -39,3 +39,4 @@ export class Announce {
     if (out) process.stdout.write(out);
   }
 }
+export const part = Announce; // what this file adds to the board: view.js loads every file here that names its part

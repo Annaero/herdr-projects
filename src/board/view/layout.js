@@ -133,3 +133,4 @@ export class Layout {
   }
   pad(lines, n) { const out = lines.slice(0, n); while (out.length < n) out.push(""); return out; }
 }
+export const part = Layout; // what this file adds to the board: view.js loads every file here that names its part

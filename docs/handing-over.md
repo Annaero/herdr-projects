@@ -30,6 +30,16 @@ noticed.
    started like any other, and stays so until you retry or press enter. The Coordinator's messages are looked at
    the same way, on the board's tick.
 
+   **A message the agent takes while it still works is delivered then.** A program that reads what was typed
+   between two steps of its turn (Claude Code does) writes the words into its saved conversation at that moment, as
+   a note of its own kind (`queued_command`), not as a prompt. The board looks for them there every few seconds
+   while the agent works, and from then on the message is delivered: the turn's end, however much later, is the
+   answer to it and goes to the finish line. The board reads back as far as the moment the text was typed, however
+   long the conversation has grown since. It used to read only the last 768 KB: a message taken early in a long
+   turn (3.5 MB before its end on one real task) was not found, enter was pressed three times into an empty box,
+   and the task stood as "not started" with its work done and saved. A program's note that the words only wait in
+   its queue is not counted: it has not read them yet.
+
    An agent herdr cannot classify (status `unknown`) is checked too: its counters and its saved conversation still
    say whether it moved.
 3. **It says so.** While it waits, the task's row reads `Starting` (or `About to continue`), then `Has not started yet:
@@ -43,6 +53,11 @@ noticed.
   hold the old text, and typing on top of it would send it twice.
 - An agent whose program ends with typed text it never took is shown the same way, at once: the text went with the
   program. A late report of the turn it finished before that changes nothing; retry starts it again with the text.
+- **Retry never ends a program that is alive and has the text.** When the words stand in the agent's saved
+  conversation after all, retry only takes the error away: the same program, the same conversation, and a turn that
+  ended meanwhile goes to the finish line. That holds for a task an older
+  version of the board marked too: it wrote down when the agent came to rest, not when the text was typed, so for
+  such a task the whole conversation of the running program is read.
 - **Or go into the agent and press enter yourself.** The board sees it start and the error goes away.
 - A reply from the board is typed into the same box and goes out together with what sat there. The board keeps both: if
   that does not start either, retry hands over all of it, in order.

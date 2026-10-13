@@ -2,12 +2,12 @@
 // the same program as the plugin's pane in herdr. The subcommands replace pi-work's `work` tool, so any agent can drive the
 // board from its shell.
 import fs from "node:fs";
-import path from "node:path";
 import * as S from "./store.js";
 import { name as keyName } from "./board/keys.js";
 import { isResearch } from "./research.js";
+import { refuseUnknown } from "./cli/flags.js";
 
-const HELP = `herdr-superwork: a work board for herdr
+export const HELP = `herdr-superwork: a work board for herdr
 
   herdr-superwork                     open the board here (in herdr: bind a key to the plugin action "open")
   herdr-superwork add <title> [--desc TEXT] [--repo NAME|PATH] [--delegate] [--<setting> VALUE ...] [--research|--no-research]
@@ -60,9 +60,12 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork remove-extras                 take out what the plugin added outside its own folders (the how-to
                                                 files, its blocks in herdr's config); run it before unlinking
 `;
-// positional arguments, --flag value, --flag (true), --no-flag (false)
+// positional arguments, --flag value, --flag (true), --no-flag (false). `typed`: each flag as it was written.
 export function parse(argv) {
-  const pos = [], flags = {};
+  const pos = [], flags = {}, typed = {};
+  // Every name is kept as the object's own, whatever it is: `--__proto__` assigned the plain way sets nothing, and
+  // the flag was gone before anything could refuse it.
+  const put = (o, k, v) => Object.defineProperty(o, k, { value: v, enumerable: true, writable: true, configurable: true });
   const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "research", "every-repo", "anyway"]);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -70,13 +73,14 @@ export function parse(argv) {
     if (a.startsWith("--") && a.length > 2) {
       const eq = a.indexOf("=");
       const name = eq > 0 ? a.slice(2, eq) : a.slice(2);
-      if (eq > 0) flags[name] = a.slice(eq + 1);
-      else if (name.startsWith("no-")) flags[name.slice(3)] = false;
-      else if (BOOL.has(name) || i + 1 >= argv.length || argv[i + 1].startsWith("--")) flags[name] = true;
-      else flags[name] = argv[++i];
+      put(typed, eq < 0 && name.startsWith("no-") ? name.slice(3) : name, eq > 0 ? a.slice(0, eq) : a);
+      if (eq > 0) put(flags, name, a.slice(eq + 1));
+      else if (name.startsWith("no-")) put(flags, name.slice(3), false);
+      else if (BOOL.has(name) || i + 1 >= argv.length || argv[i + 1].startsWith("--")) put(flags, name, true);
+      else put(flags, name, argv[++i]);
     } else pos.push(a);
   }
-  return { pos, flags };
+  return { pos, flags, typed };
 }
 // Where the board is "in". Run as a command: the current folder. Run as the plugin's pane (the board key's tab,
 // whose own working directory is the plugin folder): the folder of the pane you opened it from; for a worktree
@@ -110,12 +114,15 @@ const line = (t) => `${t.id.padEnd(14)} ${String(t.state).padEnd(8)}${t.kind ? `
 const brief = (t) => ({ id: t.id, state: t.state, kind: t.kind, app: t.shownApp, title: t.title, msg: t.note, stage: t.stage, progress: t.progress, eta: t.eta, pr: t.pr || undefined, research: t.research || undefined, archivedAt: t.archivedAt || undefined, review: S.currentReview(t) || undefined, reviewRound: S.reviewRound(t) || undefined });
 
 export async function main(argv) {
-  const { pos, flags } = parse(argv);
+  const { pos, flags, typed } = parse(argv);
   const cmd = pos[0] || (flags.skill ? "--skill" : flags.help ? "help" : "board");
   // What a person reads names a task by its repo's short key where it has one (`HSW-134: updated`); --json keeps the ids.
   const out = (value, text) => process.stdout.write(flags.json ? JSON.stringify(value, null, 2) + "\n" : `${text === undefined || text === null ? JSON.stringify(value, null, 2) : S.sayIds(text)}\n`);
   const need = (n, what) => { if (!pos[n]) throw new Error(`${cmd} needs ${what}. Try: herdr-superwork help`); return pos[n]; };
   const rest = (n) => pos.slice(n).join(" ");
+  // A flag the command does not know is refused before anything is done, with the nearest right one named
+  // (cli/flags.js). Every command: the ones herdr, a hook and the board itself run too.
+  refuseUnknown(cmd, flags, typed, pos[1] || "");
   S.homeAtStart(cmd); // an older version's folders move into the one home folder, once (store/move-home.js)
   // …and its settings into the new names, once (store/settings/migrate.js). Asking for help changes nothing.
   if (!["help", "--skill", "skill"].includes(cmd) && !flags.help) S.moveSettings();
@@ -126,7 +133,7 @@ export async function main(argv) {
   if (cmd === "hook") { const { hookMain } = await import("./hook.js"); hookMain(); return 0; }
   if (cmd === "keeper") { const { keeperMain } = await import("./keeper.js"); await keeperMain(); return 0; }
   if (cmd === "keeper-work") { const { keeperWork } = await import("./keeper.js"); await keeperWork(); return 0; }
-  if (cmd === "run") { const { runJob } = await import("./jobs.js"); await runJob(pos[1], pos[2], pos.slice(3).concat(flags.force ? ["--force"] : [])); return 0; }
+  if (cmd === "run") { const { runJob } = await import("./jobs.js"); await runJob(pos[1], pos[2], pos.slice(3).concat(flags.force ? ["--force"] : [], flags.merged ? ["--merged"] : [])); return 0; }
   if (cmd === "open") { (await import("./board/place.js")).show(); return 0; }
   // Into the Coordinator's chat: herdr moves to its real pane, as for any agent. No board in between.
   if (cmd === "open-coordinator") { const C = await import("./coordinator.js"); try { await C.goIn(); } catch (e) { console.error(e.message); return 1; } return 0; }
@@ -237,11 +244,10 @@ export async function main(argv) {
   return 0;
 }
 // The options of add and delegate that are the task's own settings: every --<setting> (a name with a dot), and
-// --research / --no-research, the short form of research.only. Any other option is refused there.
+// --research / --no-research, the short form of research.only. Any other option was refused before (cli/flags.js).
 function pickChoices(flags) {
   const o = {};
   for (const [k, v] of Object.entries(flags)) if (k.includes(".")) o[k] = v;
   if (flags.research !== undefined) o.research = flags.research === true;
   return o;
 }
-export const pluginRoot = () => path.resolve(S.ROOT);

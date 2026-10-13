@@ -2,7 +2,7 @@
 //
 // One folder per task: <data>/tasks/<repo>/<n>/ holding task.json, inbox.jsonl and artifacts/.
 // task.json is the whole truth the plugin owns about a task; what herdr knows (agent status) is read live.
-// Each area is a file of its own in store/ (docs/where-things-live.md says which); everything is still reached as S.name.
+// Each area is a file of its own in store/ (`node scripts/docs.js --where src/store` says which); everything is still reached as S.name.
 export * from "./store/files.js";
 export * from "./store/move-home.js";
 export * from "./store/settings.js";

@@ -22,7 +22,6 @@ export const attemptCount = (by) => Math.max(1, attemptAgents(by, "x").length);
 // `herdr-superwork/12` and `B` -> `herdr-superwork/12b`. An attempt's id is its task's with its letter.
 export const attemptId = (id, letter) => `${id}${String(letter).toLowerCase()}`;
 export const isAttemptId = (id) => /^[^/]+\/\d+[a-e]$/.test(String(id));
-export const taskOfAttempt = (id) => String(id).replace(/[a-e]$/, "");
 const fileOf = (id) => path.join(dirOf(id), "task.json");
 // The attempts of a task, in the order of their letters: the sub-tasks as they are on disk now.
 export function attemptsOf(t) {

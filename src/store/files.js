@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const BIN = path.join(ROOT, "bin", "herdr-superwork.js");
-export const PLUGIN_ID = "herdr-superwork";
 
 // Every stage a task can be in. The board's five states are derived from these in state.js.
 export const STAGES = ["todo", "progress", "queued", "starting", "setup", "working", "stopped", "nosummary", "asks", "checking",

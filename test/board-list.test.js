@@ -8,7 +8,7 @@ import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import { View } from "../src/board/view.js";
 import { theme } from "../src/board/theme.js";
-import { here, open } from "./board-helpers.js";
+import { here, open, ink, keyed } from "./board-helpers.js";
 import { stripVTControlCharacters } from "node:util";
 import * as F from "../src/flow.js";
 import { groupOf, standing } from "../src/board/view/states.js";
@@ -28,7 +28,7 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     assert.match(text, /^ herdr-superwork {2}proj · 1 working · 1 to do +│ *\n +│/); // where you are and how many tasks stand where: no folder path assert.doesNotMatch(text, /work board for herdr|\d (blocked|idle|working)/);
     // Every line is in herdr's text colour (Catppuccin's here), unless colours are switched off. Each task's mark is
     // a symbol of its own in its group's colour (working yellow, to do grey), and its title stays plain text.
-    const raw = s.v.render(120), text0 = "\x1b[38;2;205;214;244m", yellow = "\x1b[38;2;249;226;175m", grey = "\x1b[38;2;126;131;155m";
+    const raw = s.v.render(120), text0 = ink("text"), yellow = ink("yellow"), grey = ink("overlay0");
     assert.ok(raw.every((l) => (process.env.NO_COLOR ? !l.includes("\x1b[38;2;") : l.startsWith(text0))));
     if (!process.env.NO_COLOR) {
       assert.ok(raw.some((l) => l.includes(`${yellow}◐\x1b[39m${text0} ${grey}#2\x1b[39m${text0} \x1b[1mMy own task\x1b[22m `)), "a working task's mark is the working colour, its title plain text");
@@ -49,9 +49,9 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     s.press("ctrl+b"); assert.match(s.text(120), /│ {2}#2 My own task/); assert.equal(s.v.value(), "");
     // alt+p closes the side panel and opens it again: closed, the list has the whole width.
     s.press("alt+p"); text = s.text(120);
-    assert.equal(s.v.side, false); assert.doesNotMatch(text, /│/); assert.match(text, /◐ #2 My own task {70,}█[^\n]*\n[ ▌] {5}half way *\n/); assert.match(text, /Side panel off\. alt\+p shows it\./);
+    assert.equal(s.v.side, false); assert.doesNotMatch(text, /│/); assert.match(text, /◐ #2 My own task {70,}█[^\n]*\n[ ▌] {5}half way *\n/); assert.match(text, keyed(/Side panel off\. {side} shows it\./));
     assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).side, false); // your choice is remembered
-    s.press("?"); assert.match(s.text(120), /alt\+p +show the side panel/);
+    s.press("?"); assert.match(s.text(120), keyed(/{side} +show the side panel/));
     // what a row's R# tag says is the menu's last lines, under the keys. A window too short for the whole menu cuts
     // them: ↓ on the menu's last line scrolls on down to them, however little room the chat leaves, and ↑ comes back
     { const tall = s.v.tui.terminal.rows, legend = /\n[ ▌] {2}R#2 +the review it is on or last had, coloured by where it stands: passed, failed, the reviewer working/, n = s.v.menuItems().length;
@@ -83,7 +83,7 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     s.press("space"); assert.equal(s.v.reply, true); assert.doesNotMatch(s.text(120), /│ {2}#2 My own task/); assert.equal(s.v.full, false);
     s.press("space"); assert.equal(s.v.reply, false);
     s.press("alt+p"); assert.equal(s.v.side, true); assert.match(s.text(120), /│ {2}#2 My own task/);
-    s.screen(80); s.press("alt+p", "alt+p"); assert.match(s.text(80), /The side panel needs a wider window\. alt\+t shows the task full screen\./); s.screen(120);
+    s.screen(80); s.press("alt+p", "alt+p"); assert.match(s.text(80), keyed(/The side panel needs a wider window\. {panel} shows the task full screen\./)); s.screen(120);
     // A board opened for the first time has it closed.
     { const fresh = open(w, { side: false }); fs.rmSync(path.join(S.dataDir(), "view.json"), { force: true }); const first = new View(fresh.v.tui, theme, () => {}, { cwd: w.root }); clearInterval(first.timer); assert.equal(first.side, false); }
     s.press("down", "alt+t");
@@ -136,7 +136,7 @@ test("work whose review failed is not ready: it stands under needs you, its yes 
     assert.match(s.text(), /^ herdr-superwork {2}proj · 1 needs you · 1 ready/);
     // Its hints: send the review back first, and the yes is "merge anyway". The question says what failed.
     s.v.sel = bad; s.v.load();
-    assert.match(s.text(), /\n {2}ctrl\+r send the review to this task's agent · ctrl\+l merge this task anyway · /);
+    assert.match(s.text(), keyed(/\n {2}{sendBack} send the review to this task's agent · {yes} merge this task anyway · /));
     s.press("ctrl+l");
     assert.match(s.text(), /\n \? Merge #1 "Add an undo for clear" into \S+\? *\n {3}Its last review failed: 1 critical, 1 major\. A merge cannot be undone\. *\n {3}y = merge anyway · n = do not merge *\n/);
     assert.equal(s.v.ask.danger, true);

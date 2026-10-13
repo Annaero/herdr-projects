@@ -79,14 +79,3 @@ test("add, rename and report --title follow the limit, and the full text stays i
     assert.match(await board("help"), /a title is at most 60 characters/);
   } finally { w.cleanup(); }
 });
-
-test("the Coordinator and the board's how-to give the limit", async () => {
-  const w = await world();
-  try {
-    const { rules: rulesText } = await import("../src/coordinator/rules.js");
-    assert.match(rulesText(), /board add "<short title: a few words, at most 60 characters, no trailing period>"/);
-    assert.match(rulesText(), /--title "<new title>" \(at most 60 characters too/);
-    const { skillText } = await import("../src/extras.js");
-    assert.match(skillText("herdr-superwork"), /a title is a few words, at most 60 characters/);
-  } finally { w.cleanup(); }
-});

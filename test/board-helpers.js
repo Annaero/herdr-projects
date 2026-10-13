@@ -4,8 +4,17 @@ import { fileURLToPath } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { View } from "../src/board/view.js";
 import { theme } from "../src/board/theme.js";
+import { KEY as KEYS_BY_ID, name as keyName } from "../src/board/keys.js";
 
 export const here = path.dirname(fileURLToPath(import.meta.url));
+// Colours by the name the theme gives them, never by their numbers: `ink("red")` is what starts text painted in the
+// theme's red, as the board would paint it now. A test that names a colour stays right when a theme's numbers change.
+export const ink = (name) => theme.fg(name, "\0").split("\0")[0];
+// The colour the word is painted in on a line: what `ink(name)` gives for it, or undefined for none.
+export const inkAt = (out, word) => String(out).slice(0, String(out).indexOf(word)).match(/\x1b\[38;[\d;]+m(?!.*\x1b\[38)/s)?.[0];
+// Keys by their name in the list of keys, never by their chord: `keyed(/{sendBack} sends it/)` is that pattern with
+// each `{id}` replaced by what the board calls the key now (`ctrl+r`). A key moved in src/board/keys.js moves here too.
+export const keyed = (re) => new RegExp(re.source.replace(/\{([A-Za-z]+)\}/g, (m, id) => (KEYS_BY_ID[id] ? keyName(id).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : m)), re.flags);
 // Alt keys arrive as esc and then the letter: what a terminal sends without the kitty keyboard protocol.
 export const KEY = {
   enter: "\r", tab: "\t", esc: "\x1b", space: " ", right: "\x1b[C", down: "\x1b[B", up: "\x1b[A",

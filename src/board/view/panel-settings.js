@@ -93,3 +93,4 @@ export class PanelSettings {
     return { settings, rows: shown, table, cut: !full && !!tree };
   }
 }
+export const part = PanelSettings; // what this file adds to the board: view.js loads every file here that names its part

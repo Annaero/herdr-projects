@@ -1,5 +1,4 @@
 // Adding and editing a task: add, rename, describe, pin, and a report of where it stands.
-import fs from "node:fs";
 import * as S from "../store.js";
 import * as F from "../flow.js";
 import { spawnRunner, runnerAlive } from "../runner.js";
@@ -63,4 +62,3 @@ export function report(id, { state, kind, msg, title, progress, eta, asAgent = f
 const clampPct = (p) => Math.max(0, Math.min(100, Math.round(Number(p)) || 0));
 // ---- the human's own tasks -------------------------------------------------------------------------------------------
 export function startHuman(id) { return report(id, { state: "working" }); }
-export function existsWorktree(t) { return !!t.worktree && fs.existsSync(t.worktree); }

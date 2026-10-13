@@ -5,9 +5,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { Writable } from "node:stream";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { reporter, joinLine, stayInLine, leaveLine, waitingBefore, LINE_GONE_MS } from "./check-report.js";
-import { filesFor, importsOf, reach, touched, treeOf, changedSince, remembered, remember, takeSlot, stretch, overBudget, stepAside, BUDGET, SLOTS, NICE } from "./check.js";
+import { filesFor, importsOf, foldersOf, reach, touched, treeOf, changedSince, remembered, remember, takeSlot, stretch, overBudget, suiteTotals, stepAside, installed, keyOf, BUDGET, SLOTS, SMALL, NICE } from "./check.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "sw-check-test-"));
@@ -21,9 +22,9 @@ test("an area name stands for every test file that starts with it; no name is al
   assert.deepEqual(filesFor(["store", "nope"], all), { files: ["store.test.js"], unknown: ["nope"] });
 });
 
-test("the tests a change touches: those that reach a changed file through their imports or name it; a page touches no other test; anything else unknown is all of them", () => {
+test("the tests a change touches: those that reach a changed file through their imports or name it in their own text; a page touches no other test; anything else unknown is all of them", () => {
   const repo = {
-    "src/store.js": `import fs from "node:fs";\nexport * from "./store/tasks.js";`,
+    "src/store.js": `import fs from "node:fs";\nexport * from "./store/tasks.js";\n// README.md and notes.md say more; package.json has the version`,
     "src/store/tasks.js": `export const x = 1;`,
     "src/gate.js": `import "./store.js";\nconst rules = fs.readFileSync("rules.json");`,
     "src/board/view.js": `import * as S from "../store.js";\nconst later = () => import("./theme.js");`,
@@ -47,33 +48,43 @@ test("the tests a change touches: those that reach a changed file through their 
   assert.deepEqual(hit("docs/keys.md", "README.md"), { files: ["test/pages.test.js"], all: null });
   assert.deepEqual(hit("docs/board.md"), { files: [], all: null });
   assert.deepEqual(hit("package.json").files, ["test/pages.test.js"]);
-  // a file that source code reads touches every test that reaches that source file, not only a test that names it itself
-  assert.deepEqual(hit("rules.json"), { files: ["test/gate.test.js"], all: null });
+  // only a test's own text counts: a page that a source file every test reaches merely mentions runs nothing
+  assert.deepEqual(hit("README.md", "notes.md"), { files: [], all: null });
+  // a file that only source code reads, named by no test: not a page, so any test may depend on it
+  assert.deepEqual(hit("rules.json"), { files: tests, all: "rules.json" });
   // a file no test reaches or names, and not a page (a program a test starts, a recording): any test may depend on it
   assert.deepEqual(hit("docs/board.md", "test/bin/herdr"), { files: tests, all: "test/bin/herdr" });
   assert.deepEqual(hit(), { files: [], all: null });
+  assert.deepEqual(hit("test/gone.test.js"), { files: [], all: null }); // a deleted test file runs nothing
+  // a file that loads a folder whole reaches every file in it: a part of the board's view, loaded with no list of parts
+  const parts = { ...repo, "src/board/view.js": `const dir = new URL("./view/", import.meta.url);\nfor (const f of fs.readdirSync(dir)) await import(new URL(f, dir).href);`, "src/board/view/list.js": `import "./words.js";`, "src/board/view/words.js": ``, "src/board/view/notes.txt": `` };
+  const inFolder = (dir) => Object.keys(parts).filter((f) => path.posix.dirname(f) === dir.replace(/\/$/, "")).map((f) => path.posix.basename(f));
+  assert.deepEqual(foldersOf(parts["src/board/view.js"]), ["./view/"]);
+  assert.deepEqual([...reach("test/board.test.js", (f) => parts[f] ?? null, new Set(), inFolder)].sort(), ["src/board/view.js", "src/board/view/list.js", "src/board/view/words.js", "test/board.test.js"]);
+  assert.deepEqual(touched(["src/board/view/words.js"], tests, (f) => parts[f] ?? null, [], inFolder), { files: ["test/board.test.js"], all: null });
   // a test that reads the whole repo (the guard) is touched by any change, and by none when nothing changed
   assert.deepEqual(touched(["docs/board.md"], [...tests, "test/guard.test.js"], read).files, ["test/guard.test.js"]);
   assert.deepEqual(touched([], [...tests, "test/guard.test.js"], read).files, []);
 });
 
-test("the budget: a file over its processor time, its time by the clock or its programs is named; so is the whole suite; a busy machine stretches only the clock", () => {
-  const b = { fileCpu: 5, fileWall: 4, fileLaunches: 100, suiteCpu: 12, suiteWall: 10 };
+test("the budget: a file over its processor time, its time by the clock or its programs is named; the whole suite has none, its totals are only printed; a busy machine stretches only the clock", () => {
+  const b = { fileCpu: 5, fileWall: 4, fileLaunches: 100 };
   const ok = { wall: 1, cpu: 2, launches: 10, ran: true };
-  assert.deepEqual(overBudget({ "a.test.js": ok, "b.test.js": ok }, { whole: true, wall: 3, budget: b }), []);
+  assert.deepEqual(overBudget({ "a.test.js": ok, "b.test.js": ok }, { budget: b }), []);
   assert.deepEqual(overBudget({ "a.test.js": { ...ok, cpu: 5.5 }, "b.test.js": { ...ok, wall: 4.2 }, "c.test.js": { ...ok, launches: 101 } }, { budget: b }),
     ["test/a.test.js: 5.5 s of processor time (budget 5 s)", "test/b.test.js: 4.2 s by the clock (budget 4.0 s)", "test/c.test.js: starts 101 programs (budget 100)"]);
   // the machine is twice as busy as it has cores: the clock's budget doubles, the others stay
   assert.deepEqual(overBudget({ "a.test.js": { ...ok, cpu: 5.5, wall: 7 }, "b.test.js": { ...ok, wall: 9 } }, { by: 2, budget: b }),
     ["test/a.test.js: 5.5 s of processor time (budget 5 s)", "test/b.test.js: 9.0 s by the clock (budget 8.0 s, stretched: the machine is busy)"]);
-  // a result remembered from an earlier run is not held to this run's clock, but still counts into the suite's processor time
-  assert.deepEqual(overBudget({ "a.test.js": { wall: 9, cpu: 5, launches: 1 }, "b.test.js": { ...ok, cpu: 4 }, "c.test.js": { ...ok, cpu: 4 } }, { whole: true, wall: null, budget: b }), ["the whole suite: 13.0 s of processor time (budget 12 s)"]);
-  assert.deepEqual(overBudget({ "a.test.js": ok }, { whole: true, wall: 10.5, budget: b }), ["the whole suite: 10.5 s by the clock (budget 10.0 s)"]);
-  assert.deepEqual(overBudget({ "a.test.js": ok }, { whole: false, wall: 10.5, budget: b }), []); // a part of the suite has no suite budget
+  // however much the files cost together, nothing is over: the suite's totals are a line to read
+  const many = Object.fromEntries([..."abcdefgh"].map((n) => [`${n}.test.js`, { ...ok, cpu: 4.5 }]));
+  assert.deepEqual(overBudget(many, { budget: b }), []);
+  assert.equal(suiteTotals(many), "the whole suite: 8 test files · 36.0 s of processor time · 80 programs started (printed, never a reason to fail)");
+  assert.deepEqual(Object.keys(BUDGET).sort(), ["fileCpu", "fileLaunches", "fileWall"]);
   assert.equal(stretch(4, 8), 1); assert.equal(stretch(16, 8), 2); assert.equal(stretch(1, 4), 2); assert.equal(stretch(8, 4), 4);
   assert.equal(stretch(1, 8, 0.75), 4); assert.equal(stretch(24, 8, 0.5), 3); assert.equal(stretch(1, 8, 1), 10); // other programs had three quarters of the machine while it ran: four times as long
-  // the budget itself: a few seconds a file, the suite well under a minute of processor time, a small fixed number of runs at once
-  assert.ok(BUDGET.fileCpu <= 6 && BUDGET.fileWall <= 6 && BUDGET.fileLaunches <= 1000 && BUDGET.suiteWall <= 15 && BUDGET.suiteCpu <= 90);
+  // the budget itself: a few seconds a file, a small fixed number of runs at once
+  assert.ok(BUDGET.fileCpu <= 6 && BUDGET.fileWall <= 6 && BUDGET.fileLaunches <= 1000);
   assert.ok(SLOTS >= 1 && SLOTS <= 4);
 });
 
@@ -101,6 +112,21 @@ test("what passed is remembered per tree, added to by later runs, and kept apart
     assert.deepEqual(remembered(store, "bbb"), {}); assert.deepEqual(remembered(store, ""), {});
     assert.deepEqual(fs.readdirSync(path.join(store, "passed")).length, 1); // no half-written file left
   } finally { fs.rmSync(store, { recursive: true, force: true }); }
+});
+
+test("what passed is kept under the code and what is installed: another node, or other packages in node_modules, is another key", () => {
+  const root = tmp();
+  try {
+    const bare = installed(root);
+    assert.match(bare, /^[0-9a-f]{12}$/); assert.equal(installed(root), bare);
+    assert.notEqual(installed(root, "22.19.0"), installed(root, "22.20.0")); // node's full version, not only its first number
+    fs.mkdirSync(path.join(root, "node_modules")); fs.writeFileSync(path.join(root, "node_modules", ".package-lock.json"), `{"packages":{"node_modules/espree":{"version":"11.2.0"}}}`);
+    const withOne = installed(root); assert.notEqual(withOne, bare);
+    fs.writeFileSync(path.join(root, "node_modules", ".package-lock.json"), `{"packages":{}}`);
+    assert.notEqual(installed(root), withOne); // a package taken out
+    assert.equal(keyOf(root, "abc"), `abc-${installed(root)}`); assert.equal(keyOf(root, ""), ""); // outside git: nothing is remembered
+    assert.ok(SMALL >= 1 && SMALL <= 10);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
 test("the command reports to the file it was given and takes its name out of the environment; with no file it reports nothing", () => {
@@ -150,31 +176,45 @@ test("[real programs] runs take turns: a slot that is held makes the next one wa
   } finally { fs.rmSync(store, { recursive: true, force: true }); }
 });
 
-test("[real programs] the command: runs what the change touches, answers at once for code that passed, in any worktree; fails over budget and on a failed test", () => {
+test("[real programs] the command: runs what the change touches, answers at once for code that passed, in any worktree; fails on a file over its budget and on a failed test; never on the suite's totals", async () => {
   const base = tmp(), root = path.join(base, "repo"), store = path.join(base, "store");
   const priority = path.join(base, "priority"), mine = os.getPriority();
   const env = { ...process.env, HERDR_SUPERWORK_CHECK_DIR: store, HERDR_SUPERWORK_CHECK_NICE: "7", HERDR_SUPERWORK_PROGRESS: path.join(base, "progress"), PRIORITY_SEEN: priority, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
   for (const k of ["NODE_TEST_CONTEXT", "NODE_OPTIONS", "HERDR_SUPERWORK_CHECK_PROBE", "HERDR_SUPERWORK_CHECK_BASE"]) delete env[k];
   const git = (cwd, ...args) => execFileSync("git", args, { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   const write = (dir, files) => { for (const [f, text] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), text); } };
-  const check = (dir, ...args) => { const r = spawnSync(process.execPath, [path.join(dir, "test", args[0] === "tight" ? "tight.js" : "check.js"), ...args.filter((a) => a !== "tight")], { cwd: dir, env, encoding: "utf8" }); return { status: r.status, out: r.stdout + r.stderr }; };
+  // The command as a program, started once below as a smoke test (it is also what lowers its own priority)…
+  const program = (dir, ...args) => { const r = spawnSync(process.execPath, [path.join(dir, "test", "check.js"), ...args], { cwd: dir, env, encoding: "utf8" }); return { status: r.status, out: r.stdout + r.stderr }; };
+  // …and every other time in this process: the folder's own copy of the command, called. It still starts each test
+  // file as a program, which is its work; what is saved is a Node program for the command itself, thirty times over.
+  // `tight`: with a budget of two programs a file. The environment is the command's to change, and put back after.
+  const check = async (dir, ...args) => {
+    const { main, BUDGET } = await import(pathToFileURL(path.join(dir, "test", "check.js")).href);
+    const before = { ...process.env }, log = console.log, error = console.error;
+    let out = "";
+    // Its report goes to a stream of the test's own: this process's output carries the test runner's records, and is left alone.
+    const report = new Writable({ write(chunk, enc, done) { out += chunk.toString(); done(); } });
+    for (const k of Object.keys(process.env)) delete process.env[k];
+    Object.assign(process.env, env, { HERDR_SUPERWORK_CHECK_NICE: "0" }); // this process is the test's own: it does not step aside
+    console.log = (...a) => { out += `${a.join(" ")}\n`; }; console.error = console.log;
+    try { return { status: await main(args.filter((a) => a !== "tight"), { out: report, ...(args[0] === "tight" ? { budget: { ...BUDGET, fileLaunches: 2 } } : {}) }), out }; }
+    finally { console.log = log; console.error = error; for (const k of Object.keys(process.env)) delete process.env[k]; Object.assign(process.env, before); }
+  };
   const unit = (name) => `import test from "node:test";\nimport fs from "node:fs";\nimport os from "node:os";\nimport { ${name} } from "../src/${name}.js";\nfs.writeFileSync(process.env.PRIORITY_SEEN, String(os.getPriority()));\ntest("${name} is ${name}", () => { if (${name} !== "${name}") throw new Error("no"); if (process.env.HERDR_SUPERWORK_PROGRESS) throw new Error("a test must not see the board's progress file"); });\n`;
   const told = () => JSON.parse(fs.readFileSync(path.join(base, "progress"), "utf8"));
   try {
     write(root, {
       "test/check.js": fs.readFileSync(path.join(here, "check.js"), "utf8"), "test/check-probe.cjs": fs.readFileSync(path.join(here, "check-probe.cjs"), "utf8"), "test/check-report.js": fs.readFileSync(path.join(here, "check-report.js"), "utf8"),
-      // the same command with a budget of two programs a file
-      "test/tight.js": `import { main, BUDGET } from "./check.js";\nprocess.exit(await main(process.argv.slice(2), { budget: { ...BUDGET, fileLaunches: 2 } }));\n`,
-      "src/a.js": `export const a = "a";\n`, "src/b.js": `export const b = "b";\n`, "test/a.test.js": unit("a"), "test/b.test.js": unit("b"), "docs/x.md": "x\n", "package.json": `{ "type": "module" }\n`,
+      "src/a.js": `export const a = "a";\n`, "src/b.js": `export const b = "b";\n`, "test/a.test.js": unit("a"), "test/b.test.js": unit("b"), "docs/x.md": "x\n", "package.json": `{ "type": "module" }\n`, ".gitignore": "node_modules/\n",
     });
     git(root, "init", "-q", "-b", "main"); git(root, "add", "-A"); git(root, "commit", "-qm", "init"); git(root, "checkout", "-qb", "work");
     assert.deepEqual(changedSince(root), []);
-    let r = check(root);
+    let r = await check(root);
     assert.equal(r.status, 0); assert.match(r.out, /check: nothing to run \(nothing changed since main\)\. The whole suite: npm run check -- --all/);
     // a change to one source file, not committed, and a page: only the test that reaches the source file runs
     write(root, { "src/a.js": `export const a = "a"; // changed\n`, "docs/x.md": "y\n", "docs/new.md": "new\n" });
     assert.deepEqual(changedSince(root).sort(), ["docs/new.md", "docs/x.md", "src/a.js"]);
-    r = check(root);
+    r = program(root); // the one real launch
     assert.equal(r.status, 0, r.out); assert.match(r.out, /check: 1 test file \(the tests your change touches: 3 files changed since main\) · 1 to run\n/);
     assert.match(r.out, /✔ a is a /); assert.doesNotMatch(r.out, /b is b/); assert.match(r.out, /\ncheck: 1 test file run · 1 tests passed · [\d.]+ s by the clock, [\d.]+ s of processor time · 0 programs started\n/);
     // the test file ran at the lower priority the command took (or the still lower one this run already had)
@@ -182,53 +222,67 @@ test("[real programs] the command: runs what the change touches, answers at once
     // whoever gave it a progress file (the board) was told the true count: test files finished out of all of them
     assert.deepEqual(told(), { state: "running", done: 1, total: 1, before: 0, unit: "tests" });
     // asked again for the same code: answered at once, nothing run, and the board is told that
-    r = check(root);
+    r = await check(root);
     assert.deepEqual(told(), { state: "known" });
     assert.equal(r.status, 0); assert.match(r.out, /check: 1 test file \(the tests your change touches: 3 files changed since main\) · 1 already passed for this exact code: nothing to run again\. ✔/); assert.doesNotMatch(r.out, /a is a/);
     // the whole suite runs only what has not passed yet; --fresh runs it all the same
-    r = check(root, "--all");
+    r = await check(root, "--all");
     assert.equal(r.status, 0, r.out); assert.match(r.out, /check: 2 test files \(the whole suite\) · 1 already passed for this exact code · 1 to run\n/); assert.match(r.out, /b is b/); assert.doesNotMatch(r.out, /a is a/);
     assert.deepEqual(told(), { state: "running", done: 2, total: 2, before: 1, unit: "tests" }); // the file that passed before counts as finished
-    assert.match(check(root, "--all").out, /2 already passed for this exact code: nothing to run again/);
-    r = check(root, "--all", "--fresh"); assert.match(r.out, /a is a/); assert.match(r.out, /b is b/); assert.match(r.out, /2 test files run · 2 tests passed/);
+    assert.match((await check(root, "--all")).out, /2 already passed for this exact code: nothing to run again/);
+    r = await check(root, "--all", "--fresh"); assert.match(r.out, /a is a/); assert.match(r.out, /b is b/); assert.match(r.out, /2 test files run · 2 tests passed/);
     // the same code in another worktree, on another branch and commit there (a reviewer's, the board's): it has passed already
     git(root, "add", "-A"); git(root, "commit", "-qm", "work");
-    assert.match(check(root, "--all").out, /2 already passed for this exact code: nothing to run again/); // committing changes no file
+    assert.match((await check(root, "--all")).out, /2 already passed for this exact code: nothing to run again/); // committing changes no file
     const other = path.join(base, "other");
     git(root, "worktree", "add", "-q", "-b", "review", other, "work");
     assert.equal(treeOf(other), treeOf(root)); assert.match(treeOf(root), /^[0-9a-f]{40}$/);
-    r = check(other, "--all"); assert.equal(r.status, 0); assert.match(r.out, /2 already passed for this exact code: nothing to run again/);
+    r = await check(other, "--all"); assert.equal(r.status, 0); assert.match(r.out, /2 already passed for this exact code: nothing to run again/);
     // named areas, and a name no file has
-    assert.match(check(root, "b").out, /check: 1 test file \(named: b\) · 1 already passed/);
-    r = check(root, "nope"); assert.equal(r.status, 2); assert.match(r.out, /No test file starts with: nope\nThe areas: a b/);
-    assert.equal(check(root, "--everything").status, 2);
+    assert.match((await check(root, "b")).out, /check: 1 test file \(named: b\) · 1 already passed/);
+    r = await check(root, "nope"); assert.equal(r.status, 2); assert.match(r.out, /No test file starts with: nope\nThe areas: a b/);
+    assert.equal((await check(root, "--everything")).status, 2);
     // a test file that starts more programs than its budget allows fails the check, by name, and is not remembered as passed
     write(root, { "test/b.test.js": `${unit("b")}import { spawnSync } from "node:child_process";\ntest("starts three programs", () => { for (let i = 0; i < 3; i++) spawnSync("true"); });\n` });
     assert.notEqual(treeOf(root), treeOf(other));
-    r = check(root, "tight");
+    r = await check(root, "tight");
     assert.equal(r.status, 1); assert.match(r.out, /✔ starts three programs/); assert.match(r.out, /· 3 programs started\n/); assert.match(r.out, /\n✖ over budget \(make the tests lighter or split the file, see docs\/testing\.md\):\n {2}test\/b\.test\.js: starts 3 programs \(budget 2\)\n/);
-    r = check(root, "tight"); assert.equal(r.status, 1); assert.match(r.out, /· 1 to run\n/);
-    r = check(root); assert.equal(r.status, 0, r.out); // within the real budget
-    // the whole suite over its time by the clock: a failed check, and nothing of that run is remembered as passed
-    write(root, { "test/slowsuite.js": `import { main, BUDGET } from "./check.js";\nprocess.exit(await main(process.argv.slice(2), { budget: { ...BUDGET, suiteWall: 0.000001 } }));\n`, "src/b.js": `export const b = "b"; // again\n` });
-    for (const n of [1, 2]) {
-      const again = spawnSync(process.execPath, [path.join(root, "test", "slowsuite.js"), "--all"], { cwd: root, env, encoding: "utf8" });
-      assert.equal(again.status, 1, `run ${n}`); assert.match(again.stdout, /2 to run\n/); assert.match(again.stdout, /\n {2}the whole suite: [\d.]+ s by the clock \(budget /);
-    }
-    assert.equal(check(root, "--all").status, 0); // within the real budget: run, and remembered from here on
-    assert.match(check(root, "--all").out, /nothing to run again/);
+    r = await check(root, "tight"); assert.equal(r.status, 1); assert.match(r.out, /· 1 to run\n/);
+    r = await check(root); assert.equal(r.status, 0, r.out); // within the real budget
+    // the whole suite's totals are printed and never fail a run; what passed stays passed, whatever budget it is asked under later
+    write(root, { "src/b.js": `export const b = "b"; // again\n` });
+    r = await check(root, "--all");
+    assert.equal(r.status, 0, r.out); assert.match(r.out, /\ncheck: the whole suite: 2 test files · [\d.]+ s of processor time · \d+ programs started \(printed, never a reason to fail\)\n/);
+    r = await check(root, "tight", "--all");
+    assert.equal(r.status, 0, r.out); assert.match(r.out, /2 already passed for this exact code: nothing to run again\. ✔\ncheck: the whole suite: 2 test files/);
+    // a small run takes no slot: it does not wait behind a whole run that holds the machine's one slot
+    const held = takeSlot(store, 1);
+    write(root, { "src/a.js": `export const a = "a"; // once more\n` });
+    r = await check(root); held();
+    assert.equal(r.status, 0, r.out); assert.match(r.out, /2 to run\n/); assert.doesNotMatch(r.out, /waiting for a turn/);
+    // what is installed is part of what passed: other packages in node_modules, and the same code runs again
+    assert.match((await check(root)).out, /nothing to run again/);
+    write(root, { "node_modules/.package-lock.json": `{"packages":{"node_modules/x":{"version":"1.0.0"}}}` });
+    r = await check(root); assert.equal(r.status, 0, r.out); assert.match(r.out, /2 to run\n/);
+    // a package the repo names and that is not there, a development one too: said before anything runs
+    write(root, { "package.json": `{ "type": "module", "devDependencies": { "not-here": "1.0.0" } }\n` });
+    r = await check(root); assert.equal(r.status, 2); assert.match(r.out, /check: not-here is not installed in this folder\. Run `npm ci` first\./);
+    write(root, { "package.json": `{ "type": "module" }\n` });
+    // a folder edited while its run was under way is not credited with that run
+    write(root, { "test/b.test.js": `${unit("b")}test("edits the folder", () => { fs.writeFileSync(new URL("../docs/x.md", import.meta.url), String(process.hrtime.bigint())); });\n` });
+    r = await check(root, "b"); assert.equal(r.status, 0, r.out); assert.match(r.out, /check: the folder changed while the tests ran, so this run is not remembered as passed/);
+    assert.match((await check(root, "b")).out, /1 to run\n/);
+    write(root, { "test/b.test.js": unit("b") });
     // a failed test fails the check and is run again the next time
     write(root, { "src/a.js": `export const a = "not a";\n` });
-    r = check(root);
+    r = await check(root);
     assert.equal(r.status, 1); assert.match(r.out, /\n✖ failed: test\/a\.test\.js\n/);
-    r = check(root); assert.equal(r.status, 1); assert.match(r.out, /✖ a is a/);
+    r = await check(root); assert.equal(r.status, 1); assert.match(r.out, /✖ a is a/);
   } finally { fs.rmSync(base, { recursive: true, force: true }); }
 });
 
-test("`npm test` and `npm run check` are this command, the repo's own check is the whole suite through it, and every test file named in where-things-live.md exists", () => {
+test("`npm test` and `npm run check` are this command, and the repo's own check is the whole suite through it", () => {
   const scripts = JSON.parse(fs.readFileSync(path.join(here, "..", "package.json"), "utf8")).scripts;
   assert.deepEqual([scripts.test, scripts.check], ["node test/check.js", "node test/check.js"]);
   assert.equal(JSON.parse(fs.readFileSync(path.join(here, "..", ".herdr-superwork.json"), "utf8")).check.command, "npm run check -- --all");
-  const page = fs.readFileSync(path.join(here, "..", "docs", "where-things-live.md"), "utf8");
-  for (const [, f] of page.matchAll(/`test\/([a-z-]+\.test\.js)`/g)) assert.ok(fs.existsSync(path.join(here, f)), f);
 });

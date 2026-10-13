@@ -11,7 +11,7 @@ import * as Popup from "../src/board/popup.js";
 import * as K from "../src/herdr-keys.js";
 import { say, heard } from "../src/board/say.js";
 import { main } from "../src/cli.js";
-import { open } from "./board-helpers.js";
+import { open, keyed } from "./board-helpers.js";
 
 test("enter on a task goes into its agent and the board stays as it was: from the row, from the chat", async () => {
   const w = await world({ settings: { "review.when": "never" } });
@@ -310,7 +310,7 @@ test("a board in a tab keeps running beside the popup: each has its own note, an
     // only shows how it closes.
     again.press("esc"); assert.equal(again.closed(), undefined); assert.equal(again.v.value(), "");
     again.press("esc"); assert.equal(again.closed(), null);
-    tab.press("esc", "esc"); assert.equal(tab.closed(), undefined); assert.match(tab.text(), /\n {2}ctrl\+c closes the board *$/);
+    tab.press("esc", "esc"); assert.equal(tab.closed(), undefined); assert.match(tab.text(), keyed(/\n {2}{close} closes the board *$/));
     // Closing the popup leaves the tab board's note alone.
     P.show(undefined, { here: { pane: "w9:p1", tab: "w9:t1" } }); assert.equal(up(w), null); assert.equal(note("pane").pane, "w9:p2");
     // "Approve the task in this pane" is asked by the board that was shown for it, not by whichever looks first.

@@ -33,3 +33,4 @@ export class Attempts {
       { keys: [["sayYes", `keep ${letter}`], ["sayNo", "not yet"]], detail: "Only this one is reviewed, pushed and merged. The other attempts' tabs close; their worktrees stay until the task is done." });
   }
 }
+export const part = Attempts; // what this file adds to the board: view.js loads every file here that names its part

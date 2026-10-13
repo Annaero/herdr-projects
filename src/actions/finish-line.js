@@ -16,6 +16,7 @@ import { awaitsPlan, approvePlan } from "./plan.js";
 import { readPlan } from "../plan.js";
 import { reviewFailed, reviewTally } from "../status-words.js";
 import { stoppedAtLimit, limitsDetail } from "../limits.js";
+import { tookAfterAll } from "../submit.js";
 import { carryOn, takeAsIs } from "./limits.js";
 
 // ---- the finish line's keys -------------------------------------------------------------------------------------------
@@ -138,6 +139,15 @@ export function retry(id) {
   // The agent never started on what was typed into its box: its program is started again and handed the same text.
   if (f.stage === "send" && cur.unsent) {
     F.assertLive(cur);
+    // Its program is alive and did take the text (it was typed while the agent worked, and read in the middle of that
+    // turn): nothing is started again. A session that is alive is never ended for words it already has; the task is
+    // at work again, and a turn that ended meanwhile goes to the finish line on the next look.
+    let alive = null;
+    try { alive = cur.link?.pane ? F.h(cur).agentGet(cur.link.pane) : null; } catch {}
+    if (alive && tookAfterAll(cur) === true) {
+      const t = S.update(cur.id, (t) => { if (t.stage !== "failed" || runnerAlive(t)) throw new Error(`${t.id} is busy. Try again in a moment.`); t.stage = "working"; t.msg = ""; t.failure = null; t.unsent = null; t.sent = null; t.since = Date.now(); });
+      return say(t, `${t.id}: its agent had taken the text and is alive: nothing was started again`);
+    }
     const t = S.update(cur.id, (t) => { if (t.stage !== "failed" || runnerAlive(t)) throw new Error(`${t.id} is busy. Try again in a moment.`); t.stage = "working"; t.msg = "Starting the agent again"; t.since = Date.now(); t.armedAt = Date.now(); });
     spawnRunner("restart", t.id);
     return say(t, `${t.id}: starting the agent again with the same text`);
@@ -167,7 +177,22 @@ export function takeApprove(socket = currentSocket(), me = "") {
 }
 export function details(id) {
   const t = S.find(id);
-  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), agent: t.on || t.agent || null, handovers: S.handovers(t).map((h) => ({ ...h, words: S.handoverLine(h) })), research: isResearch(t), report: t.report || null, plan: t.plan ? { ...t.plan, home: undefined, text: readPlan(t) } : null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null, limits: limitsDetail(t),
+  // One entry per line: a new one goes beside the entries it belongs with, never at the end.
+  return {
+    task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description },
+    failure: failureOf(t),
+    review: S.currentReview(t) || null,
+    reviews: S.reviewHistory(t),
+    agent: t.on || t.agent || null,
+    handovers: S.handovers(t).map((h) => ({ ...h, words: S.handoverLine(h) })),
+    research: isResearch(t),
+    report: t.report || null,
+    plan: t.plan ? { ...t.plan, home: undefined, text: readPlan(t) } : null,
+    pr: t.pr || null,
+    worktree: t.worktree || null,
+    branch: t.branch || null,
+    limits: limitsDetail(t),
     // Done several times at once (attempts.js): each attempt, where it stands, and what the reviewer said of them.
-    ...(t.attempts?.length ? { attempts: S.attemptsOf(t).map((c) => ({ letter: c.letter, id: c.id, agent: c.settings?.["worker.agent"] || c.agent, standing: standingOf(c), stage: c.stage, stat: c.stat || "", worktree: c.worktree || null, branch: c.branch || null, diff: c.diff?.link || null, report: c.report?.link || null })), comparison: t.comparison || null, picked: t.picked || null } : {}) };
+    ...(t.attempts?.length ? { attempts: S.attemptsOf(t).map((c) => ({ letter: c.letter, id: c.id, agent: c.settings?.["worker.agent"] || c.agent, standing: standingOf(c), stage: c.stage, stat: c.stat || "", worktree: c.worktree || null, branch: c.branch || null, diff: c.diff?.link || null, report: c.report?.link || null })), comparison: t.comparison || null, picked: t.picked || null } : {}),
+  };
 }

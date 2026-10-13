@@ -67,3 +67,4 @@ export class Setup {
     return this.pad(L, rowsN);
   }
 }
+export const part = Setup; // what this file adds to the board: view.js loads every file here that names its part

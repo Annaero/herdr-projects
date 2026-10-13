@@ -62,4 +62,3 @@ export function logKept(t, k) {
 }
 // "re-merged with main, tests pass, review 2 still stands"
 export const keptWords = (k, round) => `re-merged with main${k?.resolved?.length ? ` (conflicts resolved in ${k.resolved.length} file${k.resolved.length === 1 ? "" : "s"})` : ""}, ${k?.check ? "tests pass" : "no check is set"}, review${round ? ` ${round}` : ""} still stands`;
-export const reviewLabel = (t) => (reviewRound(t) ? `review ${reviewRound(t)}` : "");

@@ -12,15 +12,16 @@ import { herdr, HerdrError } from "../src/herdr.js";
 test("[real programs] the fake herdr answers the same called in the test's process as run as a program: output, exit status, saved state", async () => {
   const w = await world();
   try {
-    const dirs = ["called", "program"].map((n) => { const d = path.join(w.base, n); fs.mkdirSync(d); fs.writeFileSync(path.join(d, "script.json"), JSON.stringify({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did it.", screen: "the screen" }] })); return d; });
+    const dirs = ["called", "program", "whole"].map((n) => { const d = path.join(w.base, n); fs.mkdirSync(d); fs.writeFileSync(path.join(d, "script.json"), JSON.stringify({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did it.", screen: "the screen" }] })); return d; });
     const env = (dir) => ({ ...process.env, HERDR_FAKE_DIR: dir });
-    const called = (args) => { const r = fake(args, env(dirs[0])); return { status: r.status, stdout: r.stdout, stderr: r.stderr }; };
+    const calledIn = (dir) => (args) => { const r = fake(args, env(dir)); return { status: r.status, stdout: r.stdout, stderr: r.stderr }; };
+    const called = calledIn(dirs[0]);
     const program = (args) => { const r = spawnSync(process.env.HERDR_BIN_PATH, args, { encoding: "utf8", env: env(dirs[1]) }); return { status: r.status, stdout: r.stdout, stderr: r.stderr }; };
-    const steps = [["workspace", "create", "--cwd", w.root, "--label", "proj", "--env", "A=b=c"], ["workspace", "list"], ["pane", "split", "w1:p1", "--cwd", w.root], ["pane", "layout", "--pane", "w1:p2"],
+    // Run as a program, a few calls of every kind: one that makes something, one that starts an agent, a turn that
+    // changes the repo, a reading, an error with exit 1, a command it does not know. Each launch is a Node program.
+    const steps = [["workspace", "create", "--cwd", w.root, "--label", "proj", "--env", "A=b=c"],
       ["agent", "start", "sw-proj-1", "--pane", "w1:p1", "--kind", "claude", "--", "--session-id", "abc"], ["agent", "start", "again", "--pane", "w1:p1", "--kind", "claude"], // a busy pane: an error, exit 1
-      ["agent", "get", "sw-proj-1"], ["agent", "prompt", "sw-proj-1", "Do the work"], ["agent", "read", "sw-proj-1"], ["agent", "get", "sw-proj-1"], ["agent", "prompt", "sw-proj-1", "Once more"],
-      ["agent", "get", "nobody"], ["pane", "close", "w1:p2"],
-      ["tab", "rename", "w1:t1", "Agent"], ["tab", "create", "--workspace", "w1", "--cwd", w.root, "--label", "Reviewer #1", "--no-focus"], ["tab", "list"], ["tab", "close", "w1:t2"], ["tab", "close", "w1:t2"], ["notification", "show", "Hello", "--body", "there"], ["machine", "list"], ["workspace", "close", "w9"], ["frobnicate"]];
+      ["agent", "prompt", "sw-proj-1", "Do the work"], ["agent", "read", "sw-proj-1"], ["agent", "get", "nobody"], ["frobnicate"]];
     const tidy = (commit) => { S.gitOut(w.root, ["reset", "-q", "--hard", commit]); S.gitOut(w.root, ["clean", "-fdq"]); };
     const got = {};
     for (const args of steps) {
@@ -30,13 +31,20 @@ test("[real programs] the fake herdr answers the same called in the test's proce
       got[args.join(" ")] = a;
     }
     assert.equal(got["agent read sw-proj-1"].stdout, "the screen"); assert.equal(got["agent get nobody"].status, 1); assert.match(got.frobnicate.stderr, /unknown_command/);
-    const [a, b] = dirs.map((d) => fs.readFileSync(path.join(d, "state.json"), "utf8"));
+    const [a, b] = dirs.slice(0, 2).map((d) => fs.readFileSync(path.join(d, "state.json"), "utf8"));
     assert.equal(a, b); assert.equal(JSON.parse(a).calls.length, steps.length);
+    // Every other command, in this process only: it is the same code that answers, so what it says is the same.
+    tidy("HEAD~1");
+    const whole = calledIn(dirs[2]), more = [steps[0], ["workspace", "list"], ["pane", "split", "w1:p1", "--cwd", w.root], ["pane", "layout", "--pane", "w1:p2"], steps[1], ["agent", "get", "sw-proj-1"], steps[3], ["agent", "get", "sw-proj-1"], ["agent", "prompt", "sw-proj-1", "Once more"], ["pane", "close", "w1:p2"],
+      ["tab", "rename", "w1:t1", "Agent"], ["tab", "create", "--workspace", "w1", "--cwd", w.root, "--label", "Reviewer #1", "--no-focus"], ["tab", "list"], ["tab", "close", "w1:t2"], ["tab", "close", "w1:t2"], ["notification", "show", "Hello", "--body", "there"], ["machine", "list"], ["workspace", "close", "w9"]];
+    const answers = more.map((args) => [args.slice(0, 2).join(" "), whole(args).status]);
+    assert.deepEqual(answers.filter(([, status]) => status !== 0).map(([what]) => what), ["tab close", "workspace close"]); // a tab already closed, a space that is not there
+    assert.equal(JSON.parse(fs.readFileSync(path.join(dirs[2], "state.json"), "utf8")).calls.length, more.length);
     // an error of the fake's own (here: nothing to commit) ends it as a program that died: exit 1, the error on stderr, nothing saved
     for (const d of dirs) fs.writeFileSync(path.join(d, "script.json"), JSON.stringify({ worker: [{ commit: "nothing changed" }] }));
     const died = [called, program].map((run) => { tidy("HEAD"); return run(["agent", "prompt", "sw-proj-1", "Commit nothing"]); });
     assert.deepEqual(died.map((r) => [r.status, r.stdout]), [[1, ""], [1, ""]]); for (const r of died) assert.match(r.stderr, /Command failed: git .*commit/);
-    assert.deepEqual(dirs.map((d) => fs.readFileSync(path.join(d, "state.json"), "utf8")), [a, a]);
+    assert.deepEqual(dirs.slice(0, 2).map((d) => fs.readFileSync(path.join(d, "state.json"), "utf8")), [a, a]);
   } finally { w.cleanup(); }
 });
 

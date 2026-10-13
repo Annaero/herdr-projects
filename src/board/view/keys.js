@@ -154,3 +154,4 @@ export class Keys {
   toggleAllDone() { this.allDone = !this.allDone; return this.load(); }
   toggleByRepo() { this.byRepo = !this.byRepo; this.savePrefs(); return this.load(); }
 }
+export const part = Keys; // what this file adds to the board: view.js loads every file here that names its part

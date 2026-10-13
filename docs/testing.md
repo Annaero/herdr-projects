@@ -1,6 +1,7 @@
 # Tests
 
 A fake herdr and scripted fake agents: no model calls, no real board, no real herdr. Everything is in `test/`.
+What to run, and when, is in [AGENTS.md](../AGENTS.md); this page says how the command works and why.
 
 ## One command
 
@@ -14,108 +15,98 @@ Everything that runs tests uses the same command: you, an agent at work, the rev
 | One area, or several | `npm run check board-panel`, `npm run check sync gate` |
 | Again, although it passed | add `--fresh` |
 
-- **While you work: `npm run check`.** It compares the folder with where the branch left main (committed or not) and
-  runs the test files that reach a changed file through their imports, or that name it, themselves or in any file they
-  reach (a page a test reads, `package.json` that the code reads). A
-  changed page no test reads runs only the guard (`test/guard.test.js`, which reads the whole repo and runs on any change). A changed file that is neither (a program a test starts, a recording) runs
-  everything, and the first line says which file that was.
-- **Once, at the end: `npm run check -- --all`.** The board runs the same at the finish line.
-- **A reviewer runs `npm run check -- --all` as well**, and gets the worker's result (below). No second run of the suite.
-- An area name stands for every `test/<name>*.test.js`: `board` is all the board files, `sync` the three `sync-*`
-  files. A file's own path works too. A name no file starts with is an error that lists the areas. Which file tests
-  what: the tables in [where things live](where-things-live.md).
+An area name stands for every `test/<name>*.test.js`; a file's own path works too. A name no file starts with is an
+error that lists the areas (`ls test`: one file per area, named after it).
 
-Do not start tests another way (`node --test test/x.test.js`, a script of your own): that skips the things below.
+### Which tests a change touches
+
+`npm run check` compares the folder with where the branch left main (committed or not) and runs:
+
+- the test files that reach a changed file through their imports;
+- the test files that name a changed file in their own text (a page a test reads, `package.json`). Only the test's
+  own text counts. It used to be any file the test reaches, and then a one-letter change to `README.md` ran 78 of 81
+  test files, because one source file nearly every test reaches mentions it;
+- the guard (`test/guard.test.js`), on any change: it reads the whole repo.
+
+A changed page no test names runs only the guard. A changed file that is neither reached nor named nor a page (a
+program a test starts, a recording) runs everything, and the first line says which file that was. A source file in
+the middle of the code still selects nearly every test: most of `src/` imports most of `src/`.
 
 ### It remembers what passed
 
-A test file that passed is remembered for the exact code it passed on: the git tree of the folder as it stands,
-uncommitted changes and new files included. Asked again for the same code, the command answers at once
-(`already passed for this exact code`) and runs nothing. The results are kept outside the worktrees
+A test file that passed is remembered for the exact code it passed on, and for what was installed: the git tree of
+the folder as it stands (uncommitted changes and new files included), node's full version, and the packages in
+`node_modules` as npm wrote them down (`node_modules/.package-lock.json`). Asked again for the same, the command
+answers at once (`already passed for this exact code`) and runs nothing. The results are kept outside the worktrees
 (`~/.cache/herdr-superwork-check`), so every worktree shares them: the reviewer and the board's check, on the worker's
-commit, reuse the worker's passing run. Committing changes no file, so it changes nothing here; any edit does. A failed
-test is never remembered. `--fresh` runs regardless.
+commit, reuse the worker's passing run. Committing changes no file, so it changes nothing here; any edit does.
 
-### Runs take turns
+What is never remembered: a failed test; a file over its own budget; a run during which the folder was edited (the
+tests read some old files and some new ones, and the line says so). What passed stays passed: a remembered run is
+never judged again. `--fresh` runs regardless.
 
-One test run at a time on a machine (`HERDR_SUPERWORK_CHECK_SLOTS` for another number). The tests use every core, so
-two runs side by side only make both slower. A run that finds the slot taken says `waiting for a turn` and starts when
-it is free. If the code it was asked about passed in the meantime, it answers without running.
+A result must not depend on who started the run, so the command takes that out of each test's environment: herdr's
+own variables (a pane's id, its socket), `TMUX`, `NO_COLOR` and its kin (`test/check-probe.cjs`). A package named in
+`package.json`, a development one too, that is missing from `node_modules` is said before anything runs.
 
-Turns go in order. A run that has to wait puts a file in the line (`queue/` beside the slots) and touches it while
-it waits; it tries for a slot only when fewer runs came before it than there are slots. A run that went away stops
-touching its file, and after five seconds it holds nobody up.
+### Whole runs take turns, small runs do not
+
+One whole run at a time on a machine (`HERDR_SUPERWORK_CHECK_SLOTS` for another number). The tests use every core, so
+two whole runs side by side only make both slower: measured, nothing else is faster. A run that finds the slot taken
+says `waiting for a turn` and starts when it is free; if the code it was asked about passed in the meantime, it
+answers without running. Turns go in order: a run that waits puts a file in the line (`queue/` beside the slots) and
+touches it while it waits, and a run that went away holds nobody up after five seconds.
+
+**A run of 8 test files or fewer takes no slot and waits for nobody** (`SMALL` in `test/check.js`). Most runs are of
+that kind, they are over in a second or two, and a fifth of them used to wait behind a whole run.
 
 ### It tells the board where it is
 
 When the board runs the check it names a file in `HERDR_SUPERWORK_PROGRESS`, and the command writes its progress
-there: how many runs are ahead while it waits, test files finished out of all of them while it runs (files that
-passed before for this code count as finished), or that the answer was known at once. The board shows that on the
-task as a bar, a percent and the minutes left: [the check's progress](check-progress.md). The command takes the
-variable out of the environment before it starts the tests, so a test that runs a check of its own never writes
-to the board's file. Run by hand, with no such file, it writes nothing (`test/check-report.js`).
+there: how many runs are ahead while it waits, test files finished out of all of them while it runs, or that the
+answer was known at once. The board shows that on the task: [the check's progress](check-progress.md). The command
+takes the variable out of the environment before it starts the tests (`test/check-report.js`).
 
 ### A run steps aside
 
-A test run uses every core for ten to fifteen seconds. So that the board, the agents and what you type go first, the
-command lowers its own priority before it starts the tests, and every program the tests start inherits it: niceness 5
-(`NICE` in `test/check.js`; `HERDR_SUPERWORK_CHECK_NICE` for another level, `0` for none). Same tests, same results,
-for everyone who runs the command; only who goes first changes. A run that was started lower still stays there. Where
-the system cannot lower a priority, the run goes on as it was.
-
-Why 5 and not the lowest: at 5 a test still gets a third of what a program at normal priority gets when both want the
-same core, so a machine that is busy all the time slows the tests but never starves them. Measured on 8 cores, the
-whole suite, time by the clock:
+So that the board, the agents and what you type go first, the command lowers its own priority before it starts the
+tests, and every program the tests start inherits it: niceness 5 (`NICE` in `test/check.js`;
+`HERDR_SUPERWORK_CHECK_NICE` for another level, `0` for none). A run that was started lower stays there. Why 5 and
+not the lowest, measured on 8 cores, the whole suite, time by the clock:
 
 | Priority | Machine as it was (about eight agents at work) | And 8 more programs busy all the time |
 |---|---|---|
-| 0, as before | 13 to 15 s | 22 to 23 s |
+| 0 | 13 to 15 s | 22 to 23 s |
 | 5 | 12 to 15 s | 34 to 40 s |
 | 10 | 15 s | 75 s |
 | 19, the lowest | | not ended after 5 minutes |
 
-How late a stand-in for the board (5 ms of work every 20 ms, at normal priority) finished its work during the run, 95
-in 100 times: within 15 to 18 ms at 0, within 13 to 17 ms at 5; the worst case went from 40 to 56 ms to 30 to 36 ms. The gain is
-small because the kernel already gives a program that mostly waits its turn quickly; what changes most is that agents
-that work at the same time lose less to the tests.
-
-Leaving two cores free on top of that was measured and not kept: the stand-in gained a few milliseconds more (within
-10 to 14 ms), the run took about 2 s longer on the machine as it was and 41 to 47 s beside the 8 busy programs, and a
-longer run keeps the one slot longer, so the others wait longer for their turn.
-
-The budget stays fair: a run that steps aside gets less of a busy machine, and the clock's budget is stretched by
-exactly that, the share other programs took while it ran. Beside the 8 busy programs no run at 5 was over its budget
-by the clock. Processor time is not stretched, and a run that takes longer uses a little more of it (1 to 3 s on the
-whole suite).
-
 ### The budget
 
-The check fails, and names the file, when a test file costs more than:
+The check fails, and names the file, when one test file costs more than:
 
-| | One test file | The whole suite |
-|---|---|---|
-| Processor time (its own and that of the programs it starts) | 6 s | 90 s |
-| Time by the clock | 6 s | 15 s |
-| Programs started | 1000 | |
+| | One test file |
+|---|---|
+| Processor time (its own and that of the programs it starts) | 6 s |
+| Time by the clock | 6 s |
+| Programs started | 1000 |
 
-Processor time and the count of programs do not depend on how busy the machine is. Time by the clock does, so that
-budget is stretched by how much of the machine other programs used during the run (and by how few cores it has); the
-line says so when it was. A file
-over its budget is not remembered as passed, so the next run measures it again; when the whole suite is over, nothing
-of that run is remembered. The suite's time by the clock is measured when all of it runs in one go. The numbers are `BUDGET` in
-`test/check.js`; the last line of a run shows what it cost.
+Only the count of programs does not depend on how busy the machine is. Time by the clock does, so that budget is
+stretched by how much of the machine other programs used during the run (and by how few cores it has); the line says
+so when it was. Processor time depends on it too, less: the same suite cost 64 s on a quiet machine and 70 to 85 s
+on a busy one. The numbers are `BUDGET` in `test/check.js`.
 
-Every test file is a Node program of its own, and each loaded and compiled the same code again: about a twelfth of
-the suite's processor time. The check now turns on Node's compile cache for the run (`NODE_COMPILE_CACHE`, kept in
-the check's own folder beside what passed), so that work is done once. Measured on 2026-10-13, three runs each of
-the same code: 63.4, 61.0 and 63.6 s without it, 56.9, 56.5 and 57.6 s with it.
+**The whole suite has no budget.** Its totals are printed on the last line of a run of all of it (processor time,
+programs started) and never fail a check. There was a budget on the totals once; unchanged `main` sat within a few
+percent of it, and the measure moves a tenth with the machine's load, so finished work failed with every test
+passing. So: never wait for a quiet machine, and never cut a test to fit a total.
 
-Over budget: make the file's tests lighter (below), or split it by area into two files (files run side by side, the
-tests in one file one after another). Do not raise the budget to get a change through.
+Over a file's budget: make the file's tests lighter (below), or split it by area into two files (files run side by
+side, the tests in one file one after another). Do not raise a file's budget to get a change through.
 
-Where it stands (8 cores, a quiet machine): 40 files, 170 tests, about 8 s by the clock, 40 s of processor time, 7000
-programs started (nearly all of them git). Before the tests were made light, on the same machine: 19 s by the clock,
-69 s of processor time, 20 600 programs.
+Every test file is a Node program of its own; the check turns on Node's compile cache for the run
+(`NODE_COMPILE_CACHE`, kept beside what passed), so the same code is compiled once: about a twelfth of the suite's
+processor time.
 
 ## Names used and never defined
 

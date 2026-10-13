@@ -61,6 +61,8 @@ export const shown = (kind, src, mark, text) => saidTo(kind, src, text, mark.typ
 // Is something typed into this task's agent still waiting to be taken? The finish line holds back while it is: the
 // turn that just ended is not the one that answers it.
 // The same holds once the board has given up on it ("not started"): what ended then is still not its answer.
+// (A text the agent took in the middle of its turn is no longer waiting: `checkSent` finds it in the saved
+// conversation and drops the mark, and the turn's end goes to the finish line.)
 export const notStarted = (t) => t.stage === "failed" && t.failure?.stage === "send" && !!t.unsent;
 // An agent that is gone settles nothing: the pass that follows decides what became of the text (checkSent).
 export function pendingSent(t, a) { const m = t.sent; return notStarted(t) || (!!m && t.stage === "working" && (!a || m.busy || took(m, a) === false)); }
@@ -125,6 +127,7 @@ export function noteSent(id, mark, text, first = false) {
     }, { waitMs: 10000 });
   } catch {}
 }
+const looked = new Map(); // task id -> when its saved conversation was last read for a text typed into a running turn
 export const NOT_STARTED = "Not started: its instructions sit unsent in its box";
 // Called on every pass with the agent as herdr shows it now. Never waits: one look, at most one enter.
 export function checkSent(id, a, api) {
@@ -137,7 +140,7 @@ export function checkSent(id, a, api) {
   // The board says "not started" instead of showing work that is not going on; the text is kept for retry.
   const lost = (detail, next) => S.update(id, (c) => {
     if (!mine(c) || c.stage !== "working") return false;
-    c.sent = null; c.unsent = { text: m.text, first: !!m.first, at: m.at };
+    c.sent = null; c.unsent = { text: m.text, first: !!m.first, at: m.typedAt || m.at, typed: true }; // `at`: when it was typed, not when the agent came to rest
     c.stage = "failed"; c.msg = NOT_STARTED; c.turnOpen = false; c.watch = null;
     Object.assign(c, S.failurePatch({ stage: "send", title: "The agent has not started on its instructions", auth: false, agentCanFix: false, detail, next }));
   }, { waitMs: 10000 });
@@ -146,6 +149,10 @@ export function checkSent(id, a, api) {
   if (!a && S.markerAlive(t.runner)) return; // a job of the board's own is starting its program again
   if (!a) return said() === true ? clear() : void lost(`The board typed the text into the agent's box ${secs} seconds ago. The agent's program ended before it started on it: nothing was submitted.`, `Retry (${keyName("yes")}) starts the agent's program again and hands it the text once more.`);
   if (m.busy) { // typed into a running turn: looked at from the moment the agent is at rest
+    // Unless it takes the text while it still works (a program that reads what was typed between two steps of its
+    // turn): then the words stand in its saved conversation, and that is the delivery. Its turn's end, however much
+    // later, is the answer to them. Looked for every few seconds, not on every pass: the file is long.
+    if (Date.now() - (looked.get(id) || 0) >= waitMs()) { looked.set(id, Date.now()); if (said() === true) { looked.delete(id); return clear(); } }
     if (atRest(a)) { try { S.update(id, (c) => { if (!mine(c)) return false; c.sent = rest(c.sent, a); }, { waitMs: 10000 }); } catch {} }
     return;
   }
@@ -161,4 +168,15 @@ export function checkSent(id, a, api) {
   }
   lost(`The board typed the text into the agent's box ${secs} seconds ago and has pressed enter ${TRIES} more times since. The agent still sits at its prompt: nothing was submitted, and no work is going on.`,
     `Retry (${keyName("yes")}) starts the agent's program again and hands it the text once more. Or go into the agent and press enter yourself.`);
+}
+// "Not started", and the words do stand in the agent's saved conversation: it took them (in the middle of a turn, or
+// after the board gave up). True, false, or null when there is nothing to read.
+// A record an older board left (no `typed`) holds the moment the agent came to rest, which is after it took the
+// words: for such a one the whole conversation of this program is read, from its start. Words it was given twice
+// would be found for the earlier time; that leaves a live program alone, which is the safe side of the two.
+export function tookAfterAll(t) {
+  const u = t?.unsent;
+  if (!u) return null;
+  const since = u.typed ? u.at : Math.min(u.at || Infinity, t.startedAgentAt || 0);
+  try { return saidTo(t.agent, { file: t.transcript || null, session: t.session || null, cwd: S.cwdOf(t) }, u.text, since); } catch { return null; }
 }

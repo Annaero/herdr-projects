@@ -131,3 +131,4 @@ export class Chat {
     return lines.slice(top, top + this.chatFit.rows);
   }
 }
+export const part = Chat; // what this file adds to the board: view.js loads every file here that names its part

@@ -1,1 +1,3 @@
 node_modules/
+# The map of which file holds what: made in your own folder (node scripts/docs.js), never committed.
+docs/where-things-live.md

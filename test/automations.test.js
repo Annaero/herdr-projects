@@ -8,7 +8,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { stripVTControlCharacters } from "node:util";
 import { world, fastClock } from "./helpers.js";
-import { open } from "./board-helpers.js";
+import { open, ink, keyed } from "./board-helpers.js";
 import { theme } from "../src/board/theme.js";
 import { remoteList } from "../src/remote.js";
 import { automationDo } from "../src/remote/automations.js";
@@ -299,7 +299,7 @@ test("the automations are a group of the main list: a heading under the tasks, o
     delete process.env.NO_COLOR; const coloured = s.v.render(120);
     assert.match(coloured[8], /^(\x1b\[[0-9;]*m)* (\x1b\[[0-9;]*m)*⟳/);
     // a colour of its own: the heading and the mark of one that is on are the theme's mauve, which no status has; off is dimmed
-    { const mauve = "\x1b[38;2;203;166;247m"; assert.ok(coloured[5].includes(`${mauve}automations`)); assert.ok(coloured[6].includes(`${mauve}⟳`)); assert.ok(coloured[8].includes("⟳") && !coloured[8].includes(`${mauve}⟳`)); for (const c of ["red", "green", "yellow", "teal", "review", "todo", "text", "subtext0", "overlay0"]) assert.notEqual(theme.fg(c, "x"), theme.fg("auto", "x"), c); } assert.equal(stripVTControlCharacters(coloured[8]).trimEnd(), lines[8]);
+    { const mauve = ink("auto"); assert.ok(coloured[5].includes(`${mauve}automations`)); assert.ok(coloured[6].includes(`${mauve}⟳`)); assert.ok(coloured[8].includes("⟳") && !coloured[8].includes(`${mauve}⟳`)); for (const c of ["red", "green", "yellow", "teal", "review", "todo", "text", "subtext0", "overlay0"]) assert.notEqual(theme.fg(c, "x"), theme.fg("auto", "x"), c); } assert.equal(stripVTControlCharacters(coloured[8]).trimEnd(), lines[8]);
     process.env.NO_COLOR = "1"; const bare = s.v.render(120);
     assert.deepEqual(bare.map((l) => stripVTControlCharacters(l).replace(/\x1b_pi:c\x07/g, "").trimEnd()), lines); for (const l of bare) assert.doesNotMatch(l, /\x1b\[(?:3[0-9]|9[0-7]|38;)[0-9;]*m/);
     if (noColor === undefined) delete process.env.NO_COLOR; else process.env.NO_COLOR = noColor;
@@ -343,7 +343,7 @@ test("the automations are a group of the main list: a heading under the tasks, o
     // the ? menu says what the keys do on this row, and has no line for a key that acts on a task
     s.v.tui.terminal.rows = 70; s.press("?"); const menu = T(s);
     assert.match(menu, /^ Menu {2}for the automation "Nightly audit"/);
-    for (const line of [/enter +send what is typed; with nothing typed, open this automation/, /space +turn this automation on or off/, /tab +fire this automation now/, /ctrl\+x +remove this automation \(it asks first\)/, /ctrl\+e +this automation's settings: see and change each one/, /alt\+t +show the whole automation, full screen/, /⟳ +an automation \(dimmed while it is off; the word after it says on or off\)/]) assert.match(menu, line);
+    for (const line of [/enter +send what is typed; with nothing typed, open this automation/, /space +turn this automation on or off/, /tab +fire this automation now/, keyed(/{stop} +remove this automation \(it asks first\)/), keyed(/{settings} +this automation's settings: see and change each one/), keyed(/{panel} +show the whole automation, full screen/), /⟳ +an automation \(dimmed while it is off; the word after it says on or off\)/]) assert.match(menu, line);
     assert.doesNotMatch(menu, /archive this task|pin this task|yes: approve|alt\+o/);
     s.press("esc"); s.v.tui.terminal.rows = 44;
     // find finds them too, by name or trigger; the archive has none
@@ -365,7 +365,7 @@ test("one automation, whole: its prompt, trigger, own settings and firings, newe
     const text = T(s, 100);
     assert.match(text, /^ Automation {2}Look for old dependencies/);
     for (const line of [/\n State {8}✓ on\n/, /\n Trigger {6}every 2h\n/, /\n Next {9}in 2h · /, /\n Repo {9}proj · /, /\n Prompt ─+\n Check which dependencies are out of date\.\n Open one pull request per major bump\.\n/,
-      /\n Settings ─+\n reviewer\.agent {2}claude \*\n merge\.by {8}itself \*\n \* this automation's own, put on each task it makes\. ctrl\+e changes them: every setting, and the\n place each one comes from\n/]) assert.match(text, line);
+      keyed(/\n Settings ─+\n reviewer\.agent {2}claude \*\n merge\.by {8}itself \*\n \* this automation's own, put on each task it makes\. {settings} changes them: every setting, and the\n place each one comes from\n/)]) assert.match(text, line);
     assert.match(text, /\n Firings ─+\n[ ▌] {2}\d+s ago {3}every 2h {2}→ made proj\/2\n[ ▌] {2}\d+s ago {3}every 2h {2}skipped: its last task, proj\/1, is still being worked on\n[ ▌] {2}\d+s ago {3}run now {2}→ made proj\/1\n/);
     assert.equal(s.screen().at(-1).trimEnd(), "  ↑↓ pick a firing · space turn this automation off · tab fire it now · esc back to the list");
     // the arrows pick a firing; enter on a skipped one says so, on one that made a task goes to that task in the list
@@ -480,7 +480,7 @@ test("other machines' automations are in the list too, each with its machine nam
     // whole: drawn from what that machine sent, with the machine named; a firing goes to that machine's task
     s.press("enter"); text = T(s, 100);
     for (const line of [/^ Automation {2}Theirs nightly/, /\n Machine {6}vm-b\n/, /\n Repo {9}far · \/home\/x\/far\n/, /\n Last firing {2}2h ago · far\/7\n/, /\n merge\.by {2}itself \*\n/, /\n {3}2h ago {3}every 5m {2}→ made far\/7\n/]) assert.match(text, line);
-    assert.match(text.replace(/\s+/g, " "), /ctrl\+e changes them: every setting, and the place each one comes from/); assert.doesNotMatch(text, /Changed on vm-b/);
+    assert.match(text.replace(/\s+/g, " "), keyed(/{settings} changes them: every setting, and the place each one comes from/)); assert.doesNotMatch(text, /Changed on vm-b/);
     s.press("down", "enter"); assert.equal(s.v.sel, "vm-b:far/7"); assert.equal(s.v.autoOpen, false);
     // that machine's own board: only its automations, no machine on the row (the header names it)
     s.press("alt+m"); assert.equal(s.v.scope, "vm-b"); text = T(s, 140);
@@ -492,7 +492,7 @@ test("other machines' automations are in the list too, each with its machine nam
     theirs = []; s.press("y"); assert.deepEqual(asked.pop(), ["vm-b", "do", { action: "auto-remove", id: "0a1b2c3d" }]); assert.doesNotMatch(T(s, 140), /automations|⟳/);
     // a machine whose version sends no rows for the page: ctrl+e says the command, and is on no hint
     theirs = [farAuto({ shown: { firings: [], own: [] } })]; s.v.pollRemotes(true); s.v.sel = "vm-b:auto:0a1b2c3d"; s.v.load();
-    s.press("ctrl+e"); assert.match(T(s), /Its settings are changed on vm-b: herdr-superwork set <name> <value> --automation "Theirs nightly"/); assert.ok(!s.v.editing); assert.doesNotMatch(s.screen(140).at(-1), /ctrl\+e/);
+    s.press("ctrl+e"); assert.match(T(s), /Its settings are changed on vm-b: herdr-superwork set <name> <value> --automation "Theirs nightly"/); assert.ok(!s.v.editing); assert.doesNotMatch(s.screen(140).at(-1), keyed(/{settings}/));
     s.press("enter"); assert.match(T(s, 100).replace(/\s+/g, " "), /Changed on vm-b: herdr-superwork set <name> <value> --automation "Theirs nightly"/); s.press("esc");
     // a machine on an older version sends none: no group, and nothing breaks
     s.v.ssh = (m, what, arg, cb) => cb({ host: m.label, tasks: [] }); s.v.pollRemotes(true); assert.doesNotMatch(T(s), /automations/);

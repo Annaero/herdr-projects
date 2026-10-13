@@ -52,3 +52,4 @@ export class Coordinator {
   // With nothing of a task's open, your words go to a Coordinator: this machine's, or the one machine you look at.
   get talksToCoord() { return this.canDispatch || (!!this.scope && this.scope !== "*" && !!this.remotes[this.scope]); }
 }
+export const part = Coordinator; // what this file adds to the board: view.js loads every file here that names its part

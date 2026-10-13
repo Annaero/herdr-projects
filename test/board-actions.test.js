@@ -7,8 +7,8 @@ import { world, settle, git, until } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import { osc } from "../src/board/view.js";
-import { execFileSync } from "node:child_process";
-import { here, open } from "./board-helpers.js";
+import { main as cli } from "../src/cli.js";
+import { here, open, keyed } from "./board-helpers.js";
 
 test("the board: ready to approve, the merge asks first, the ? menu acts, remove asks, messages stay", async () => {
   const w = await world();
@@ -24,7 +24,7 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, remove
     assert.match(text, /│ {2}State {8}◆ ready to approve · \d+s ago *\n/);
     assert.match(text, /│ {2}Review ─+ *\n[^\n]*│ {2}Review 1 {5}✓ Pass · 1 minor · \d+s ago *\n[^\n]*│ {15}Good\./); assert.match(text, /│ {2}Change {7}1 file, \+1 −0/);
     assert.equal(S.get(id).reviews.length, 1); assert.deepEqual([S.get(id).reviews[0].round, S.get(id).reviews[0].pass, S.get(id).reviews[0].findings.length, S.get(id).reviews[0].text], [1, true, 1, "Good."]); // the task keeps every review it had assert.match(text, /│ {2}The agent said *\n[^\n]*│ {2}Made f\./);
-    assert.match(text, /\n[ ▌] {1}ctrl\+l approve and merge this task · ctrl\+r send the review to the agent · space talk to the agent · \? all keys/);
+    assert.match(text, keyed(/\n[ ▌] {1}{yes} approve and merge this task · {sendBack} send the review to the agent · space talk to the agent · \? all keys/));
     // ctrl+l asks once before the merge; esc says no and nothing happened
     s.press("ctrl+l");
     assert.match(s.text(), /\n[ ▌]\? Merge #1 "Make f" into \S+\? *\n {3}A merge cannot be undone\. *\n {3}y = merge · n = do not merge/); // what is merged, where it lands, and that it cannot be undone assert.equal(S.get(id).stage, "approval");
@@ -62,17 +62,17 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, remove
     assert.match(text, /^ Menu {2}for #2 "Other"/);
     assert.deepEqual(text.split(/\n on a row/)[0].split("\n").filter((l) => /^ (❯| ) \S/.test(l)).map((l) => l.slice(3, 11).trim()).filter(Boolean),
       ["↑ ↓", "pgup pgd", "enter", "space", "tab", "esc", "?", "y  n", "ctrl+l", "ctrl+r", "ctrl+x", "ctrl+a", "ctrl+p", "ctrl+e", "ctrl+z", "ctrl+f", "ctrl+c", "alt+c", "alt+u", "alt+j", "alt+p", "alt+t", "alt+a", "alt+s", "alt+d", "alt+m"]);
-    assert.match(text, /\n plain keys *\n[ ▌] {2}↑ ↓ +move between tasks/); assert.match(text, /\n ctrl: does something *\n[ ▌] {2}ctrl\+l +yes: approve the merge, say yes, retry, take it as it is/); assert.equal(s.v.menu.at, -1, "no line is picked when the menu opens: enter right after ? does nothing"); s.press("enter"); assert.ok(s.v.menu); assert.match(text, /\n alt: only shows or hides *\n[ ▌] {2}alt\+c +hide the chat's latest message/);
-    for (const line of [/ctrl\+r +send it back: tell the agent to fix it, or to continue/, /ctrl\+x +remove this task/, /ctrl\+a +archive this task/, /ctrl\+p +pin this task to the top/, /ctrl\+z +undo/, /ctrl\+f +find: show only the tasks that match/, /ctrl\+c +twice: close the board/, /alt\+p +hide the side panel/, /alt\+t +show the whole task, full screen/, /alt\+a +show the archive/, /alt\+s +group by repo/, /alt\+d +show all done/, /alt\+m +show every machine's tasks \(now: this machine\)/, /◆ +ready to approve/, /@ +needs a login/, /65% 2m left/]) assert.match(text, line);
+    assert.match(text, /\n plain keys *\n[ ▌] {2}↑ ↓ +move between tasks/); assert.match(text, keyed(/\n ctrl: does something *\n[ ▌] {2}{yes} +yes: approve the merge, say yes, retry, take it as it is/)); assert.equal(s.v.menu.at, -1, "no line is picked when the menu opens: enter right after ? does nothing"); s.press("enter"); assert.ok(s.v.menu); assert.match(text, keyed(/\n alt: only shows or hides *\n[ ▌] {2}{chatMessage} +hide the chat's latest message/));
+    for (const line of [keyed(/{sendBack} +send it back: tell the agent to fix it, or to continue/), keyed(/{stop} +remove this task/), keyed(/{archive} +archive this task/), keyed(/{pin} +pin this task to the top/), keyed(/{undo} +undo/), keyed(/{find} +find: show only the tasks that match/), keyed(/{close} +twice: close the board/), keyed(/{side} +hide the side panel/), keyed(/{panel} +show the whole task, full screen/), keyed(/{archiveView} +show the archive/), keyed(/{byRepo} +group by repo/), keyed(/{allDone} +show all done/), keyed(/{scope} +show every machine's tasks \(now: this machine\)/), /◆ +ready to approve/, /@ +needs a login/, /65% 2m left/]) assert.match(text, line);
     assert.match(text, /\n[ ▌] {2}y {2}n +answer a question: y yes, n or esc no \(enter never confirms\)/); // the menu says how a question is answered
     assert.doesNotMatch(text, /Coordinator's chat|restart|new Coordinator|ctrl\+[stdog]\b|alt\+[vhrn]\b|delete {2}/); assert.match(text, /↑↓ pick a key · enter press it · esc close the menu/);
     s.press("x", "ctrl+l"); assert.ok(s.v.menu, "a stray key neither acts nor closes the menu");
     // a ctrl or alt line is picked with ↑ ↓ and enter, and does what its key does
     s.press("down", "down", "down", "down", "enter"); assert.ok(S.get("proj/2").archivedAt); assert.equal(s.v.menu, null); assert.ok(!/Other/.test(s.screen().slice(0, 12).join("\n")));
-    assert.match(s.text(), /Archived #2 "Other"\. ctrl\+z undoes it; alt\+a shows the archive\. Now on #1 "Make f"\./);
+    assert.match(s.text(), keyed(/Archived #2 "Other"\. {undo} undoes it; {archiveView} shows the archive\. Now on #1 "Make f"\./));
     s.v.tui.terminal.rows = 34;
     // the keys themselves: alt+a shows and hides the archive, where ctrl+a restores; ctrl+z undoes; ctrl+p pins; ctrl+f finds
-    s.press("alt+a"); assert.match(s.text(), /^ herdr-superwork {2}archive · 1 archived/); assert.match(s.text(), /\n archived [^\n]*\n[ ▌]. #2 Other /); assert.doesNotMatch(s.text(), /\[archived\]/, "the archive does not say archived a third time"); assert.match(s.text(), /\n[ ▌] {1}ctrl\+a restore this task · ctrl\+x remove this task · esc back to the board/);
+    s.press("alt+a"); assert.match(s.text(), /^ herdr-superwork {2}archive · 1 archived/); assert.match(s.text(), /\n archived [^\n]*\n[ ▌]. #2 Other /); assert.doesNotMatch(s.text(), /\[archived\]/, "the archive does not say archived a third time"); assert.match(s.text(), keyed(/\n[ ▌] {1}{archive} restore this task · {stop} remove this task · esc back to the board/));
     s.press("ctrl+a"); assert.ok(!S.get("proj/2").archivedAt); A.archive("proj/2"); s.v.archiveUndo = S.get("proj/2");
     s.press("alt+a", "ctrl+z"); assert.equal(s.v.archiveView, false); assert.ok(!S.get("proj/2").archivedAt);
     s.v.sel = "proj/2"; s.v.load(); s.press("ctrl+p"); assert.equal(S.get("proj/2").pinned, true); assert.match(s.text(80), /\n pinned +\n/);
@@ -116,7 +116,7 @@ test("ctrl+l on something that went wrong retries it as it stands; the focused-p
     assert.equal(t.stage, "failed"); assert.match(t.failure.title, /Check failed after 3 tries/);
     const s = open(w);
     s.v.sel = id; s.v.load();
-    assert.match(s.text(), /\n[ ▌] {1}ctrl\+r tell this task's agent to fix it · ctrl\+l retry as it is · space talk to the agent · \? all keys/);
+    assert.match(s.text(), keyed(/\n[ ▌] {1}{sendBack} tell this task's agent to fix it · {yes} retry as it is · space talk to the agent · \? all keys/));
     // You fixed the cause yourself: yes runs the same step again, with nothing sent to the agent.
     const prompts = () => w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.length;
     const sent = prompts();
@@ -131,7 +131,7 @@ test("ctrl+l on something that went wrong retries it as it stands; the focused-p
       const lid = A.add(w.root, "Needs a login").id; A.delegate(lid); const lt = await settle(lid);
       S.update(lid, (x) => { x.stage = "asks"; x.kind = "auth"; x.msg = "Please log in to the registry."; });
       const l = open(w); l.v.sel = lid; l.v.load();
-      assert.match(l.text(), /│ {2}Needs a login/); assert.match(l.text(), /press ctrl\+l to tell the agent to try\s+[^\n]*│?\s*again|ctrl\+l/); assert.match(l.text(), /\n[ ▌] {1}ctrl\+l tell this task's agent to try again · space talk to the agent · enter open the agent · \? all keys/);
+      assert.match(l.text(), /│ {2}Needs a login/); assert.match(l.text(), keyed(/press {yes} to tell the agent to try\s+[^\n]*│?\s*again|{yes}/)); assert.match(l.text(), keyed(/\n[ ▌] {1}{yes} tell this task's agent to try again · space talk to the agent · enter open the agent · \? all keys/));
       const n = w.state().panes.find((p) => p.pane_id === lt.link.pane).agent.prompts.length;
       l.press("ctrl+l");
       assert.match(l.text(), /told the agent to continue/); assert.doesNotMatch(l.text(), /Nothing here waits for a yes/);
@@ -143,14 +143,16 @@ test("ctrl+l on something that went wrong retries it as it stands; the focused-p
     // which opens on that task with the question up. Nothing is merged until enter.
     A.add(w.root, "Something else");
     process.env.HERDR_PLUGIN_CONTEXT_JSON = JSON.stringify({ focused_pane_id: t.link.pane });
-    try { execFileSync(process.execPath, [S.BIN, "approve-current"], { encoding: "utf8", cwd: w.root }); } finally { delete process.env.HERDR_PLUGIN_CONTEXT_JSON; }
+    // (the command, in this process: test/cli.test.js starts the real program once)
+    try { await cli(["approve-current"]); } finally { delete process.env.HERDR_PLUGIN_CONTEXT_JSON; }
     assert.equal(S.get(id).stage, "approval", "the action alone merges nothing");
     assert.ok(w.state().calls.some((c) => /popup|open|plugin/.test(c)), "it opens the board");
     const b = open(w);
     assert.equal(b.v.sel, id); assert.match(b.text(), /\n[ ▌]\? Merge #1 "Never passes" into \S+\? *\n {3}A merge cannot be undone\. *\n {3}y = merge · n = do not merge/);
     b.press("esc"); assert.equal(S.get(id).stage, "approval");
     assert.equal(open(w).v.ask, null, "asked once, not every time the board opens");
-    execFileSync(process.execPath, [S.BIN, "approve-current"], { encoding: "utf8", cwd: w.root, env: { ...process.env, HERDR_PLUGIN_CONTEXT_JSON: JSON.stringify({ focused_pane_id: t.link.pane }) } });
+    process.env.HERDR_PLUGIN_CONTEXT_JSON = JSON.stringify({ focused_pane_id: t.link.pane });
+    try { await cli(["approve-current"]); } finally { delete process.env.HERDR_PLUGIN_CONTEXT_JSON; }
     const b2 = open(w); b2.press("enter"); assert.equal(S.get(id).stage, "approval"); b2.press("y");
     assert.equal(S.get(id).stage, "merging");
     assert.equal((await settle(id, { max: 30 })).stage, "done");

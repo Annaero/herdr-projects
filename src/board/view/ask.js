@@ -35,3 +35,4 @@ export class Ask {
     return [rule, ...q.map((l, n) => (n ? "   " : ` ${t.fg("yellow", "?")} `) + l + (oneLine ? "  " + keys[0] : "")), ...detail, ...(oneLine ? [] : keys.map((l) => "   " + l)), rule];
   }
 }
+export const part = Ask; // what this file adds to the board: view.js loads every file here that names its part

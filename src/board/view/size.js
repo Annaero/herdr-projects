@@ -183,3 +183,4 @@ export class Size {
     this.lookHeld();
   }
 }
+export const part = Size; // what this file adds to the board: view.js loads every file here that names its part

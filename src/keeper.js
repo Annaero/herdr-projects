@@ -24,7 +24,6 @@ const beatFile = () => path.join(S.dataDir(), "keeper.json");
 const log = (msg) => { try { fs.appendFileSync(path.join(S.dataDir(), "keeper.log"), `${new Date().toISOString()} ${process.pid} ${msg}\n`); } catch {} };
 // Alive means the heartbeat file is less than five seconds old. Readers never touch the keeper's lock.
 export function keeperAlive() { try { return Date.now() - fs.statSync(beatFile()).mtimeMs < 5000; } catch { return false; } }
-export const keeperInfo = () => S.readJson(beatFile());
 export function ensureKeeper() {
   if (process.env.HERDR_SUPERWORK_NO_KEEPER === "1" || inline() || keeperAlive()) return false;
   if (!S.due("keeper-start", 4000)) return false; // several hook events at once start one, not five

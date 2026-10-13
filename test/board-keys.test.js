@@ -8,7 +8,7 @@ import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import { View } from "../src/board/view.js";
 import { theme } from "../src/board/theme.js";
-import { open } from "./board-helpers.js";
+import { open, keyed } from "./board-helpers.js";
 
 test("the board's keys: typing adds a task, tab puts an agent on it, space replies to it, enter opens the agent", async (tt) => {
   const w = await world({ settings: { "review.when": "never" } });
@@ -26,7 +26,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     await settle("proj/1"); s.v.load();
     assert.match(s.text(), /\n working +│[^\n]*\n[ ▌]◐ #\d+ Add a greeting/);
     assert.doesNotMatch(s.text(), /On its screen|Editing greet|esc to interrupt/); // nothing of the program's screen is shown: the row says what the agent is doing
-    assert.match(s.text(), /\n[ ▌] {1}enter open this task's agent · space talk to the agent · ctrl\+x stop the agent · esc close · \? all keys/);
+    assert.match(s.text(), keyed(/\n[ ▌] {1}enter open this task's agent · space talk to the agent · {stop} stop the agent · esc close · \? all keys/));
     // space: the text box now belongs to this task's agent, and says so for as long as you type
     s.press("space");
     assert.match(s.text(), /\n *\n[ ▌]. #\d+ Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?│ ❯ Send message to Agent/);
@@ -43,7 +43,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     // about closing). alt+c is the one key for the message, space the one key for who.
     assert.match(s.text(), /esc close · space back to the Coordinator/); assert.doesNotMatch(s.text(), /esc hide|esc back/); // (the popup's "esc close" has the place of the chat's own key, which the ? menu has too) assert.match(s.text(), /space back to the Coordinator *$/);
     s.press("esc"); assert.equal(s.v.chatOpen, true); assert.equal(s.v.reply, true); assert.equal(s.v.ask, null); assert.equal(s.closed(), null); assert.ok(!s.v.closing);
-    s.press("\x1bc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.match(s.text(), /\n *\n[ ▌]. #\d+ Add a greeting {2}[^\n]*\n─[^\n]*\n❯ Send message to Agent *\n─+\n[^\n]*alt\+c show the latest message/);
+    s.press("\x1bc"); assert.equal(s.v.chatOpen, false); assert.equal(s.v.reply, true); assert.match(s.text(), keyed(/\n *\n[ ▌]. #\d+ Add a greeting {2}[^\n]*\n─[^\n]*\n❯ Send message to Agent *\n─+\n[^\n]*{chatMessage} show the latest message/));
     s.press("\x1bc"); assert.equal(s.v.chatOpen, true);
     s.press("space"); assert.equal(s.v.reply, false); assert.match(s.text(), /\n *\n \+ New task {2}[^\n]*\n─[^\n]*\n❯/);
     // enter: focus the agent's real pane by pane id; the popup closes for it, and selection and filter come back on reopen
@@ -60,7 +60,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     assert.equal(s2.v.sel, "proj/1");
     s2.press("ctrl+x");
     assert.equal(S.get("proj/1").stage, "stopped"); assert.match(s2.text(), /Stopped #1 "Add a greeting"\./); assert.equal(s2.v.sel, "proj/1"); assert.equal(s2.v.ask, null);
-    s2.press("?"); assert.match(s2.text(), /ctrl\+x +remove this task/); s2.press("esc");
+    s2.press("?"); assert.match(s2.text(), keyed(/{stop} +remove this task/)); s2.press("esc");
     s2.press("ctrl+x");
     assert.equal(s2.v.sel, "proj/1"); assert.match(s2.text(), /\n[ ▌]\? Remove #1 "Add a greeting"\?[^?]*\n {3}y = remove · n = keep/);
     s2.press("enter", "ctrl+x"); assert.ok(s2.v.ask); s2.press("n"); assert.equal(s2.v.ask, null); assert.ok(S.get("proj/1")); assert.ok(S.get("proj/2")); assert.ok(S.get("proj/3"));
@@ -156,12 +156,12 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     assert.equal(S.get(id).stage, "approval"); assert.equal(s.closed(), undefined);
     assert.match(s.v.value(), /half a thought/); assert.match(s.v.value(), /\?/); // "?" and space are typed, not acted on
     // esc puts the draft away, and it can be brought back; nothing is thrown away
-    s.press("esc"); assert.equal(s.v.value(), ""); assert.match(s.text(), /Put away\. ctrl\+z brings it back\./);
+    s.press("esc"); assert.equal(s.v.value(), ""); assert.match(s.text(), keyed(/Put away\. {undo} brings it back\./));
     s.press("ctrl+z"); assert.match(s.v.value(), /half a thought/);
     s.press("esc");
     // one esc too many does not close the board: it shows the hint, in place of the key hints, and asks nothing
     // (after esc the line names the key that closes, which you have not pressed yet; after ctrl+c it asks for it again)
-    const hint = /\n[ ▌] {1}Press ctrl\+c again to close the board *$/, escHint = /\n[ ▌] {1}ctrl\+c closes the board *$/;
+    const hint = keyed(/\n[ ▌] {1}Press {close} again to close the board *$/), escHint = keyed(/\n[ ▌] {1}{close} closes the board *$/);
     s.press("esc"); assert.equal(s.closed(), undefined); assert.equal(s.v.ask, null); assert.match(s.text(), escHint); assert.doesNotMatch(s.text(), /Close the board\?/);
     // closing is not a question: y and n are just typed, and enter no longer confirms: the hint goes, and enter does what it always does on an empty box (here: no agent to open)
     s.press("down", "esc"); assert.match(s.text(), escHint);
@@ -172,7 +172,7 @@ test("while the text box holds text it owns the keyboard: no shortcut fires in t
     // with text typed ctrl+c is a first press too: the hint shows and the draft stays as it was
     s.press("ctrl+c"); assert.equal(s.closed(), undefined); assert.equal(s.v.value(), "x"); assert.match(s.text(), hint);
     s.press("esc", "ctrl+c"); assert.equal(s.closed(), undefined); assert.match(s.text(), hint);
-    s.press("?"); assert.ok(s.v.menu); assert.match(s.text(), /ctrl\+c +twice: close the board/); s.press("ctrl+c"); assert.equal(s.v.menu, null); assert.equal(s.closed(), undefined);
+    s.press("?"); assert.ok(s.v.menu); assert.match(s.text(), keyed(/{close} +twice: close the board/)); s.press("ctrl+c"); assert.equal(s.v.menu, null); assert.equal(s.closed(), undefined);
     // a short wait takes it away too: ctrl+c after it only shows the hint again
     tt.mock.timers.enable({ apis: ["setTimeout"] }); // the clock is moved, not waited for
     s.press("ctrl+c"); assert.match(s.text(), hint);

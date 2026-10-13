@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { world, settle, git, stateOf } from "./helpers.js";
+import { world, settle, git, stateOf, toApproval } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
@@ -240,6 +240,19 @@ test("a failed check goes straight back to the agent, `review.rounds` times, the
     assert.equal(prompts.length, 3); // the task, then two repair rounds
     assert.match(prompts[1], /The check failed, so this is not done yet/); assert.match(prompts[1], /closing-note\.md/);
     assert.equal(stateOf(id).state, "error");
+  } finally { w.cleanup(); }
+});
+
+test("what a passing check writes into a file that is in git is committed with the work", async () => {
+  const w = await world({ settings: { "review.when": "never" }, repoSettings: { "check.command": "echo made > table.txt" } });
+  try {
+    fs.writeFileSync(path.join(w.root, "table.txt"), "old\n"); git(w.root, "add", "-A"); git(w.root, "commit", "-qm", "a made table");
+    const id = await toApproval(w);
+    const t = S.get(id);
+    assert.equal(git(t.worktree, "show", "HEAD:table.txt"), "made");
+    assert.match(git(t.worktree, "log", "-1", "--format=%s"), /^Written by the check$/);
+    assert.equal(t.reviewedHead, git(t.worktree, "rev-parse", "HEAD")); // what waits for approval is what was checked
+    assert.equal(git(t.worktree, "status", "--porcelain"), "");
   } finally { w.cleanup(); }
 });
 

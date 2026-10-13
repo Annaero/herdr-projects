@@ -19,13 +19,38 @@ export function tailLines(file, bytes = 768 * 1024) {
     return lines.filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
   } finally { fs.closeSync(fd); }
 }
-// Does a saved conversation hold these words, written since a moment? It does once a prompt was really submitted.
+// Does a saved conversation hold these words, written since a moment? It does once the program really took them.
 // The longest line of the text stands for it: one line, as the file keeps it, whatever was wrapped around it.
+// Read back as far as that moment, however much was written since: a message taken in the middle of a long turn
+// stands megabytes before the turn's end (3.5 MB on a real task, which then stood as "not started" with its work
+// done). A program's note that the words wait in its queue (Claude Code: `queue-operation`) is not the program
+// taking them: it writes them down again when it does (a prompt of the user's, or a `queued_command` attachment).
 export function holds(file, text, since = 0) {
   const line = String(text || "").split("\n").map((l) => l.trim()).sort((a, b) => b.length - a.length)[0]?.slice(0, 80);
   if (!line) return false;
   const kept = JSON.stringify(line).slice(1, -1);
-  return tailLines(file).some((e) => when(e.timestamp) >= since - 2000 && JSON.stringify(e).includes(kept));
+  // Letters every way of writing the line down keeps as they are: only the lines that have them are read as JSON.
+  const plain = (line.match(/[A-Za-z0-9 ]{8,}/g) || []).sort((a, b) => b.length - a.length)[0] || "";
+  const size = fs.statSync(file).size, fd = fs.openSync(file, "r");
+  try {
+    // `seen`: how many of the file's last bytes the looks before this one have read, whole lines only.
+    for (let bytes = 768 * 1024, seen = 0; ; bytes *= 4) {
+      const len = Math.min(size, bytes), buf = Buffer.alloc(len - seen);
+      fs.readSync(fd, buf, 0, len - seen, size - len);
+      const cut = len < size ? buf.indexOf(10) : -1; // a first line that starts before this look: the next one has it whole
+      if (len < size && cut < 0) continue;
+      let oldest = null;
+      for (const l of buf.toString("utf8", cut + 1).split("\n")) {
+        if (!l) continue;
+        if (oldest === null) { try { oldest = when(JSON.parse(l).timestamp) || null; } catch {} }
+        if (plain && !l.includes(plain)) continue;
+        let e; try { e = JSON.parse(l); } catch { continue; }
+        if (e.type !== "queue-operation" && when(e.timestamp) >= since - 2000 && JSON.stringify(e).includes(kept)) return true;
+      }
+      if (len >= size || (oldest !== null && oldest < since - 2000)) return false;
+      seen = len - cut;
+    }
+  } finally { fs.closeSync(fd); }
 }
 export const headOf = (file, bytes) => { const fd = fs.openSync(file, "r"); try { const buf = Buffer.alloc(bytes); return buf.toString("utf8", 0, fs.readSync(fd, buf, 0, bytes, 0)); } finally { fs.closeSync(fd); } };
 export const when = (ts) => { const n = Date.parse(ts); return Number.isFinite(n) ? n : 0; };

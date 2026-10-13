@@ -82,3 +82,4 @@ export class PanelStatus {
     return { title, top, told };
   }
 }
+export const part = PanelStatus; // what this file adds to the board: view.js loads every file here that names its part

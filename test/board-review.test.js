@@ -1,5 +1,6 @@
 // Reviews as the board shows them: on a row and in the task panel.
 import test from "node:test";
+import { ink, inkAt, keyed } from "./board-helpers.js";
 import assert from "node:assert/strict";
 import { groupOf, standing } from "../src/board/view/states.js";
 import { stripVTControlCharacters } from "node:util";
@@ -27,13 +28,13 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   const redPr = { ...pr, prState: "failing", prFailure: { stage: "pr", title: "Pull request checks failed", detail: "test: failure", agentCanFix: true, next: "Fix the checks." } };
   assert.match(row(redPr, 120), /^[ ▌]! #\d+ Build a flying game +R#1 PR#12 {2}0s ago\n[ ▌] {5}Pull request checks failed$/);
   assert.match(row({ ...pr, prState: "failing" }, 120), /^[ ▌]! #\d+ Build a flying game +R#1 PR#12 {2}0s ago\n[ ▌] {5}The pull request's checks fail$/);
-  assert.match(page(redPr), /\n State {8}! needs you · 0s ago\n On it {8}claude\n Change {7}PR#12\n\n Went wrong ─+\n Pull request checks failed\n The agent can fix this: ctrl\+r sends it\.\n Next step {4}Fix the checks\.\n Details {6}test: failure\n/); assert.doesNotMatch(page(redPr), /ready to approve/);
+  assert.match(page(redPr), keyed(/\n State {8}! needs you · 0s ago\n On it {8}claude\n Change {7}PR#12\n\n Went wrong ─+\n Pull request checks failed\n The agent can fix this: {sendBack} sends it\.\n Next step {4}Fix the checks\.\n Details {6}test: failure\n/)); assert.doesNotMatch(page(redPr), /ready to approve/);
   v.reply = false; v.full = false; v.menu = null; v.ask = null; v.mode = "new"; v.chatOpen = true; v.input = { getText: () => "" }; v.jobs = []; v.sel = "";
   assert.deepEqual(v.hints(redPr).map(([k]) => k), ["ctrl+r", "ctrl+l", "space", "?"]); assert.ok(!v.hints(redPr).some(([, d]) => /approve/.test(d)));
   // (This review says no: the work is not ready, and its yes is "merge anyway", after the key that sends the review back.)
   assert.deepEqual(v.hints(pr).slice(0, 2).map(([, d]) => d), ["send the review to this task's agent", "merge this task anyway"]);
   assert.equal(v.hints({ ...pr, review: { score: 5, recommend: true, text: "Fine." } })[0][1], "approve and merge this task");
-  if (!process.env.NO_COLOR) assert.ok(v.row(redPr, 120).includes("\x1b[38;2;243;139;168m\x1b[1m!") || /243;139;168m[^m]*!/.test(v.row(redPr, 120)), "its mark is the needs-you red, not the ready green");
+  if (!process.env.NO_COLOR) assert.equal(inkAt(v.row(redPr, 120), "!"), ink("red"), "its mark is the needs-you red, not the ready green");
   assert.match(row(plain, 120), /^[ ▌]! #\d+ Build a flying game +R#1 {2}0s ago\n[ ▌] {5}Review failed · 3\/5, reviewer says no$/);
   assert.match(row({ ...pr, review: { ...review, recommend: true, score: 5 } }, 120), / R#1 PR#12 {2}0s ago\n[ ▌] {5}5\/5 reviewer says yes$/);
   assert.match(row({ ...pr, review: { score: 3 } }, 120), /^[ ▌]◆ #\d+ Build a flying game +R#1 PR#12 {2}0s ago\n[ ▌] {5}3\/5$/); // no advice given: the score alone, and nothing says it failed
@@ -41,12 +42,12 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   const short = { ...pr, id: "proj/7", pr: 9, prState: "merged" }, list = [pr, short];
   assert.equal(row(pr, 120, list).indexOf("PR#12"), row(short, 120, list).indexOf("PR#9")); assert.match(row(short, 120, list), / PR#9 {3}0s ago\n/);
   if (!process.env.NO_COLOR) {
-    const red = "\x1b[38;2;243;139;168m", green = "\x1b[38;2;166;227;161m", yellow = "\x1b[38;2;249;226;175m", mauve = "\x1b[38;2;203;166;247m";
+    const red = ink("red"), green = ink("green"), yellow = ink("yellow"), mauve = ink("mauve");
     assert.ok(both(pr).includes(`${red}Review failed`)); assert.ok(both({ ...pr, review: { ...review, recommend: true } }).includes(`${green}3/5`));
     // the PR's colour says how its checks went, and nothing else does: green they pass, red they fail, plain while there
     // is no result (running, or none), and quiet once it is merged; the same in the task panel
-    const plainInk = "\x1b[38;2;166;173;200m", quietInk = "\x1b[38;2;126;131;155m", shown = (r) => [v.row(r, 120), v.panel({ owner: "me", ...r }, 80, false).join("\n")];
-    for (const [state, ink] of [["passing", green], ["failing", red], ["waiting", plainInk], ["", plainInk], ["closed", plainInk], ["merged", quietInk]]) for (const out of shown({ ...pr, prState: state })) assert.match(out.replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, ""), new RegExp(`${ink.replace("[", "\\[")}PR#12`), `PR tag when ${state || "unknown"}`);
+    const plainInk = ink("subtext0"), quietInk = ink("overlay0"), shown = (r) => [v.row(r, 120), v.panel({ owner: "me", ...r }, 80, false).join("\n")];
+    for (const [state, tagInk] of [["passing", green], ["failing", red], ["waiting", plainInk], ["", plainInk], ["closed", plainInk], ["merged", quietInk]]) for (const out of shown({ ...pr, prState: state })) assert.match(out.replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, ""), new RegExp(`${tagInk.replace("[", "\\[")}PR#12`), `PR tag when ${state || "unknown"}`);
     for (const out of shown({ ...pr, state: "done", stage: "done", kind: undefined, prState: "passing", prMerged: true })) assert.ok(out.replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, "").includes(`${quietInk}PR#12`), "merged and done: quiet, not green");
     // merged, the review tag goes quiet with the PR's: on the row, in the task panel and on the details page, in the
     // list and in the archive. One that failed and was merged anyway stays red. Not merged, nothing changes.
@@ -112,8 +113,8 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   // the panel, in the order you need it: where it stands and the change, each a fact of its own, the review, what the agent said, the settings
   const ready = page({ ...second, summary: "Did the work.", said: "Built Skylark.", stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" });
   // (Its review says no: it is not "ready", it says so under a headline of its own with what the two keys do, and its id is not a fact here.)
-  assert.match(ready, /^\n #\d+ Build a flying game\n\n Status ─+\n State {8}! review failed · 2nd review · 0s ago\n On it {8}claude\n Change {7}PR#12 · 4 files, \+120 −31\n\n Review failed ─+\n It found 3\/5, reviewer says no\. ctrl\+r sends the review to the agent to fix\.\n ctrl\+l merges it anyway, and asks first\.\n\n Review ─+\n Review 2 {5}✗ 3\/5, says don't merge\n[ ▌] {13}Crashes\.\n\n The agent said ─+\n Built Skylark\.\n\n Settings ─+\n Project /);
-  assert.match(ready, /\n the rest as usual · ctrl\+e shows every setting$/); assert.doesNotMatch(ready, /https:|shows the whole task|ready to approve|proj\/1/); // beside the list only the settings that are its own; the link is in the PR's number
+  assert.match(ready, keyed(/^\n #\d+ Build a flying game\n\n Status ─+\n State {8}! review failed · 2nd review · 0s ago\n On it {8}claude\n Change {7}PR#12 · 4 files, \+120 −31\n\n Review failed ─+\n It found 3\/5, reviewer says no\. {sendBack} sends the review to the agent to fix\.\n {yes} merges it anyway, and asks first\.\n\n Review ─+\n Review 2 {5}✗ 3\/5, says don't merge\n[ ▌] {13}Crashes\.\n\n The agent said ─+\n Built Skylark\.\n\n Settings ─+\n Project /));
+  assert.match(ready, keyed(/\n the rest as usual · {settings} shows every setting$/)); assert.doesNotMatch(ready, /https:|shows the whole task|ready to approve|proj\/1/); // beside the list only the settings that are its own; the link is in the PR's number
   assert.match(page({ ...second, stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" }, true), /\n Change {7}PR#12 · 4 files, \+120 −31\n[ ▌] {13}https:\/\/github\.com\/a\/b\/pull\/12\n/); // full screen it is printed too
   assert.doesNotMatch(ready, /Description|None\./);
   // Every review the task had: how many, how each went, and the latest under its own name, on both shapes of the panel.
@@ -122,7 +123,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     { round: 2, at: Date.now() - 3600000, error: "the reviewer finished without a verdict" },
     { round: 3, at: Date.now() - 60000, score: 4, recommend: true, text: "Fine now.", problems: [], checks: ["Ran the tests: all pass."], limitations: ["Not tried on a phone."], head: "abcdef12345" }] };
   assert.match(page(spiral), /\n Reviews · 3 ─+\n History {6}2\/5 no → no verdict → 4\/5 yes\n Review 3 {5}✓ 4\/5, says merge · 1m ago\n[ ▌] {13}Fine now\.\n/);
-  assert.doesNotMatch(page(spiral), /Crashes on start|the newest first|Review [12] /); assert.match(page(spiral), /\n\n alt\+t shows the whole task$/); // beside the list: only the latest, and where the rest is
+  assert.doesNotMatch(page(spiral), /Crashes on start|the newest first|Review [12] /); assert.match(page(spiral), keyed(/\n\n {panel} shows the whole task$/)); // beside the list: only the latest, and where the rest is
   const whole = page(spiral, true);
   assert.match(whole, /\n Reviews · 3 ─+\n History {6}2\/5 no → no verdict → 4\/5 yes\n\n Review 3 {5}✓ 4\/5, says merge · 1m ago · at abcdef1\n[ ▌] {13}Fine now\.\n Checked {6}• Ran the tests: all pass\.\n Unverified {3}• Not tried on a phone\.\n\n Review 2 {5}– No verdict · 1h ago\n[ ▌] {13}the reviewer finished without a verdict\n\n Review 1 {5}✗ 2\/5, says don't merge · 2h ago · at 1111111\n[ ▌] {13}Crashes on start\.\n Problems {5}• game\.js: null plane\.\n Checked {6}• Ran it\.\n/);
   assert.ok(whole.indexOf("◆ ready to approve") < whole.indexOf("Reviews · 3 ") && whole.indexOf("\n Review 3 ") < whole.indexOf("\n Review 1 ") && whole.indexOf("\n Review 1 ") < whole.indexOf("\n Settings ") && whole.indexOf("\n Settings ") < whole.indexOf("\n Merge ")); // where it stands, every review, then the settings
@@ -160,7 +161,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     assert.equal(lines.includes(" Status ────────────────────────────────────"), fit >= 12, `the headline with room for ${fit} lines`);
     assert.equal(lines.some((l) => l.startsWith(" #1 Build a flying game")), fit >= 6, `the title with room for ${fit} lines`);
     assert.ok(!lines.some((l) => /^[ ▌] {13}/.test(l) && l.endsWith("…")) && !lines.some((l) => SETTINGS.some((k) => l.startsWith(` ${k} `)) && l.endsWith("…")), "no fact is cut with an ellipsis");
-    assert.match(lines[lines.length - 1], /^ alt\+t shows the whole task$/);
+    assert.match(lines[lines.length - 1], keyed(/^ {panel} shows the whole task$/));
   }
   // shorter than the status and that text with the last line: the last line goes, not a word of the text; then the
   // progress, then the state; only a text longer than the panel is cut, and says so
@@ -184,10 +185,10 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   if (!process.env.NO_COLOR) {
     // what a row says is greyed out, never bold like its title: in the brighter of the two greys, since it has to be
     // read; what a task asks of you is in the plain text colour
-    const grey = "\x1b[38;2;166;173;200m", faint = "\x1b[38;2;126;131;155m", ink = "\x1b[38;2;205;214;244m";
+    const grey = ink("subtext0"), faint = ink("overlay0"), textInk = ink("text");
     assert.ok(v.rowLines(working, 120)[1].includes(`${grey}A long sentence about what the other agent`), "a working row's status line is the brighter grey");
     assert.ok(!v.rowLines(working, 120)[1].includes(faint), "not the faint one, which is for what may be missed");
-    assert.ok(v.rowLines({ ...working, state: "blocked", kind: "question", stage: "asks", msg: "Which colour?" }, 120)[1].includes(`${ink}Which colour?`), "a question to you is in the text colour");
+    assert.ok(v.rowLines({ ...working, state: "blocked", kind: "question", stage: "asks", msg: "Which colour?" }, 120)[1].includes(`${textInk}Which colour?`), "a question to you is in the text colour");
     assert.ok(!v.row(working, 120).includes(`${grey}Other`), "the title is not");
   }
   assert.match(row({ ...second, stage: "merging", state: "working", kind: undefined, msg: "merging" }, 120), /^[ ▌]◒ #\d+ Build a flying game +R#2 PR#12 {2}0s\n[ ▌] {5}merging$/);

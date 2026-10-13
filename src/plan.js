@@ -38,7 +38,6 @@ export const planMark = (t) => { const text = readPlan(t); return text ? createH
 export const planLink = (t, base = () => "") => { let root = ""; try { root = base() || ""; } catch {} return root ? `${root}/${PLAN}/plan.md` : planFile(t); };
 
 // ---- where the step stands -----------------------------------------------------------------------------------------------
-export const APPROVERS = { you: "you", reviewer: "the reviewer" };
 // Does this task start with a plan? The setting, read now.
 export const wanted = (t) => { const by = S.setting("plan.approve", t); return by === "none" ? "" : by; };
 // The step is open: a plan was asked for and nobody has said yes to it. Every turn that ends meanwhile is the plan's.

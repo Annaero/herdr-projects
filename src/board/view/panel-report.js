@@ -16,3 +16,4 @@ export class PanelReport {
     part(lines);
   }
 }
+export const part = PanelReport; // what this file adds to the board: view.js loads every file here that names its part

@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { world, git, stateOf } from "./helpers.js";
-import { open } from "./board-helpers.js";
+import { open, keyed } from "./board-helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
@@ -347,7 +347,7 @@ test("one row with ×3, pick one under needs you, the panel's attempts, the appr
     assert.ok(meta.some((m) => m.includes("summary=Pick one of 3 · the reviewer recommends B")), meta.join("\n"));
     assert.ok(meta.some((m) => /--display-agent pick one/.test(m)), meta.join("\n"));
     // the hint line names the keys; ctrl+n moves on, and the approve key keeps the selected one after a yes
-    assert.match(b.screen().at(-1), /ctrl\+l keep attempt B · ctrl\+n the next attempt · enter open attempt B's agent/);
+    assert.match(b.screen().at(-1), keyed(/{yes} keep attempt B · {nextAttempt} the next attempt · enter open attempt B's agent/));
     // the web board: the same row, the same part, and the keys as buttons. (Loaded here, in the file's last test:
     // from then on a key is named as its button is.)
     {

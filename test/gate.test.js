@@ -24,11 +24,21 @@ test("the board's rules: what counts as critical, what a gate lets through, and 
   assert.equal(G.result(reviewOf(true, mixed, "major")), "Pass · 2 minor, 1 trivial");
   assert.equal(G.result(reviewOf(true, [finding("critical", "Deletes the data"), finding("major", "Crashes on an empty file")], "major")), "Fail · 1 critical, 1 major");
   assert.equal(G.result(reviewOf(true, [], "major")), "Pass"); assert.equal(reviewOf(true, [], "off").gate, "major");
-  // `meets: false` always counts as a critical finding, even with an empty list, and at every gate
+  // `meets: false` with nothing listed is a critical finding of the board's own, at every gate
   const unmet = reviewOf(false, [], "critical");
   assert.equal(unmet.pass, false); assert.deepEqual(unmet.findings.map((f) => [f.severity, f.board, f.subject]), [["critical", true, "The change does not do what the task asked."]]);
   assert.equal(G.result(unmet), "Fail · 1 critical");
   assert.equal(reviewOf(false, [finding("critical", "Does nothing")], "major").findings.length, 1); // already said: not said twice
+  // where the reviewer gave findings, those and their severities decide: the board adds no line of its own beside them
+  const below = reviewOf(false, [finding("minor", "A name is unclear")], "major");
+  assert.deepEqual(below.findings.map((f) => [f.severity, !!f.board]), [["minor", false]]); assert.equal(below.pass, true); assert.equal(G.result(below), "Pass · 1 minor");
+  const real = reviewOf(false, [finding("major", "Crashes on an empty file")], "major");
+  assert.deepEqual(real.findings.map((f) => f.subject), ["Crashes on an empty file"]); assert.equal(G.result(real), "Fail · 1 major");
+  // a round whose findings are all faults from before the task never sends the work back, whatever `meets` says
+  const allOld = reviewOf(false, [finding("critical", "The old importer drops rows", { preexisting: true }), finding("major", "An old page is wrong", { preexisting: true })], "major");
+  assert.equal(allOld.pass, true); assert.equal(G.sendable(allOld), false); assert.equal(G.result(allOld), "Pass · 2 pre-existing"); assert.ok(!allOld.findings.some((f) => f.board));
+  const laterOld = reviewOf(false, [finding("major", "The old importer drops rows", { preexisting: true })], "major", [{ id: "F1", severity: "major", subject: "Fixed since", where: "f.txt", proof: "ran it" }]);
+  assert.equal(laterOld.pass, true); assert.equal(G.sendable(laterOld), false);
   // a critical finding with an empty proof is treated as major
   const claim = reviewOf(true, [finding("critical", "Might lose data", { proof: "" })], "critical");
   assert.equal(claim.findings[0].severity, "major"); assert.equal(claim.pass, true); assert.equal(reviewOf(true, [finding("critical", "Might lose data", { proof: " " })], "major").pass, false);
@@ -242,8 +252,8 @@ test("the pull request and the review page show every finding, those below the g
     const rv = reviewOf(false, [finding("major", "Crashes on <empty> files"), finding("minor", "A name is unclear"), finding("major", "The old importer drops rows", { preexisting: true })], "major");
     rv.findings.find((f) => f.preexisting).task = "proj/9"; rv.at = Date.now(); rv.left = 2;
     const page = renderReviewPage({ id, round: 2, title: "T", summary: "Did it.", review: rv, evidence: [], dir: w.base });
-    assert.match(page, /<div class="score warning">Fail<\/div><p class="decision">1 critical, 1 major, 1 minor, 1 pre-existing<\/p><p>Does the change do what the task asked\? <strong>No<\/strong>/);
-    assert.match(page, /<h4>Required<\/h4><ul class="findings"><li><span class="sev critical">critical<\/span> The change does not do what the task asked\.<\/li><li><span class="sev major">major<\/span> Crashes on &lt;empty&gt; files <code>f\.txt<\/code><div class="proof">Proof: ran it<\/div><\/li><\/ul>/);
+    assert.match(page, /<div class="score warning">Fail<\/div><p class="decision">1 major, 1 minor, 1 pre-existing<\/p><p>Does the change do what the task asked\? <strong>No<\/strong>/);
+    assert.match(page, /<h4>Required<\/h4><ul class="findings"><li><span class="sev major">major<\/span> Crashes on &lt;empty&gt; files <code>f\.txt<\/code><div class="proof">Proof: ran it<\/div><\/li><\/ul>/);
     assert.match(page, /<h4>Not required: below the gate<\/h4><ul class="findings"><li><span class="sev minor">minor<\/span> A name is unclear <code>f\.txt<\/code> <span class="tag">not required<\/span>/);
     assert.match(page, /<h4>Not required: there before this change<\/h4>[^\n]*<span class="tag">not required · task proj\/9<\/span>/); assert.match(page, /2 smaller findings noticed only in this later round were left out\./);
     assert.match(renderReviewPage({ id, title: "T", summary: "Did it.", review: { ...reviewOf(true, [], "major"), at: Date.now() }, evidence: [], dir: w.base }), /No findings reported by the reviewer\.[\s\S]*<div class="score success">Pass<\/div><p class="decision">Nothing found<\/p>/);

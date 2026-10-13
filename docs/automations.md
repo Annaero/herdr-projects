@@ -163,4 +163,4 @@ they are changed with the command. The popup is the same board, so it has all of
 
 `data/automations/` in [the home folder](home-folder.md): `automations.json` (the list), `firings/<id>.jsonl` (every
 firing of one automation) and `events.json` (which board events were counted already). Code: `src/automations/`
-and `src/store/automations.js` ([where things live](where-things-live.md)).
+and `src/store/automations.js`.

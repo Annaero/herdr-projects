@@ -1,1 +1,1 @@
-{ "workspace": { "setup": "npm ci --no-audit --no-fund" }, "check": { "command": "npm run check -- --all" } }
+{ "workspace": { "setup": "npm ci --no-audit --no-fund && node scripts/docs.js" }, "check": { "command": "npm run check -- --all" } }

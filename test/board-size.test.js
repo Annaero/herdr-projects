@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { world } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
-import { open } from "./board-helpers.js";
+import { open, keyed } from "./board-helpers.js";
 
 // herdr shows a pane at one size, the terminal behind it can be held at another: a second viewer attached to the
 // same terminal sets its size, and herdr then shows a cut-out of it from the top left. Seen live: a terminal held at
@@ -59,7 +59,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     assert.ok([49, 50, 51, 52].every((n) => lines[n].length === 411));
     const row = lines.find((l) => /Pin the chat/.test(l));
     assert.match(row, /Pin the chat to the bottom +█+░+ +55% 12m left {2}PR#3 {2}6m {4}$/); assert.equal(row.length, 411); // the columns are back in view
-    assert.equal(lines.find((l) => /^[ ▌]○ Coordinator/.test(l)).trimEnd(), " ○ Coordinator  idle"); assert.match(lines[55], /alt\+c hide the latest message · \? all keys *$/); // the chat's key is on the hint line, whole
+    assert.equal(lines.find((l) => /^[ ▌]○ Coordinator/.test(l)).trimEnd(), " ○ Coordinator  idle"); assert.match(lines[55], keyed(/{chatMessage} hide the latest message · \? all keys *$/)); // the chat's key is on the hint line, whole
     // Held at 435x58 while a taller, narrower window shows it: the width is cut down, the rows are all there are.
     s.v.shown = { cols: 184, rows: 78, split: false };
     lines = s.screen(435);
@@ -180,8 +180,8 @@ test("the board says so, top left, when another view holds its pane's size, and 
     // Named with its process when one holds this terminal.
     s.v.held = { ...s.v.held, by: [{ pid: 4242, seconds: 2400 }] };
     // The line names the key that ends that view, never a process number to kill; the key does it, and says so.
-    assert.match(s.screen(435)[0], /\. ctrl\+k ends that view \(open 40m\); closing it where it runs does the same\.\s*$/);
-    for (const width of [40, 90, 94]) { assert.match(s.screen(width).slice(0, 3).join(" ").replace(/\s+/g, " "), /Shown cut off: a remote view holds this pane at 120×58 [^.]*\. ctrl\+k ends that view/, `at ${width}`); assert.doesNotMatch(s.screen(width).join("\n"), /kill \d+/); }
+    assert.match(s.screen(435)[0], keyed(/\. {free} ends that view \(open 40m\); closing it where it runs does the same\.\s*$/));
+    for (const width of [40, 90, 94]) { assert.match(s.screen(width).slice(0, 3).join(" ").replace(/\s+/g, " "), keyed(/Shown cut off: a remote view holds this pane at 120×58 [^.]*\. {free} ends that view/), `at ${width}`); assert.doesNotMatch(s.screen(width).join("\n"), /kill \d+/); }
     { const killed = [], real = process.kill; process.kill = (pid, sig) => { killed.push([pid, sig]); return true; };
       try { s.press("\x0b"); } finally { process.kill = real; }
       assert.deepEqual(killed, [[4242, "SIGTERM"]]); assert.match(s.text(120), /Ended the remote view of this pane\./); }

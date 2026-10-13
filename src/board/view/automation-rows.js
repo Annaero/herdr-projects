@@ -78,3 +78,4 @@ export class AutomationRows {
     return { bar: "", percent: "", eta: "", review: "", pr: "", tag: made ? `${this.mark(made)} ${t.muted(this.numberTag(made, this.numbering(), false))}` : "", lead: ink(r.lead), elapsed: r.age, ago: r.ago, never: !r.age, when: r.when };
   }
 }
+export const part = AutomationRows; // what this file adds to the board: view.js loads every file here that names its part

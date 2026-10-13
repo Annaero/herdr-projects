@@ -63,3 +63,4 @@ export class RowTall {
     return truncateToWidth(lead + fill(drawn, Math.max(0, room), true) + right, width, "");
   }
 }
+export const part = RowTall; // what this file adds to the board: view.js loads every file here that names its part

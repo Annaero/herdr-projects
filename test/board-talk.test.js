@@ -14,7 +14,7 @@ import { talkOf, screenText } from "../src/agents.js";
 import { proseLines } from "../src/board/view/chat-text.js";
 import { sideOf } from "../src/webui/side-model.js";
 import { name as keyName } from "../src/board/keys.js";
-import { open } from "./board-helpers.js";
+import { open, keyed } from "./board-helpers.js";
 
 const jsonl = (file, rows) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, rows.map((r) => JSON.stringify(r)).join("\n") + "\n"); return file; };
 const ts = (n) => new Date(Date.UTC(2026, 9, 13, 12, 0, n)).toISOString();
@@ -124,7 +124,7 @@ test("a review under way: the chat, the panel, the web board and another machine
     const file = jsonl(path.join(process.env.CLAUDE_CONFIG_DIR, "projects", "x", `${t.reviewSession}.jsonl`), claudeRows("Work board task proj/1, role: reviewer, round 1.\n\nYou are an adversarial reviewer.", "I will check the earlier faults first.", "The full check passes. Now the browser."));
     s.v.load(); c = chat(s);
     assert.deepEqual(c.box, ["Reviewer:", "The full check passes. Now the browser.", "", "❯ Send message to Agent: it stops the review"]);
-    assert.match(c.edge, /alt\+u more ↑/); assert.doesNotMatch(s.text(), /Bash|npm run check|76 test files|OpenAI Codex/);
+    assert.match(c.edge, keyed(/{chatScrollUp} more ↑/)); assert.doesNotMatch(s.text(), /Bash|npm run check|76 test files|OpenAI Codex/);
     // alt+u goes back through the conversation's words: what it said before, and what it was sent.
     s.press("alt+u"); c = chat(s);
     assert.deepEqual(c.box.slice(0, -2), ["To the reviewer:", "Work board task proj/1, role: reviewer, round 1.", "You are an adversarial reviewer.", "", "Reviewer:", "I will check the earlier faults first.", "", "Reviewer:", "The full check passes. Now the browser."]);

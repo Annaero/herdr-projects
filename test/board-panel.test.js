@@ -5,7 +5,7 @@ import { stripVTControlCharacters } from "node:util";
 import { world } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
-import { open } from "./board-helpers.js";
+import { open, ink, keyed } from "./board-helpers.js";
 
 test("the task panel beside the list cuts a long description short and says where the rest is; the whole panel shows all of it", async () => {
   const w = await world();
@@ -18,11 +18,11 @@ test("the task panel beside the list cuts a long description short and says wher
     let text = s.text(120);
     assert.match(text, /│ {2}#2 Long one/); assert.match(text, /Line 1 of a very long/);
     // Beside the list the description is short: a few lines, then where the rest is.
-    assert.match(text, /Line 8 of a very long description\. … *\n/); assert.match(text, /│ {2}alt\+t shows the whole task/);
+    assert.match(text, /Line 8 of a very long description\. … *\n/); assert.match(text, keyed(/│ {2}{panel} shows the whole task/));
     assert.doesNotMatch(text, /Line 9 of/); assert.doesNotMatch(text, /Line 80 of/);
     // The title by itself, the status under its headline as facts (a label, then its value, every value in one column), then the description, then the settings: each part under its own headline, an empty line between.
     assert.match(text, /│ {2}#2 Long one *\n[^\n]*│ *\n[^\n]*│ {2}Status ─+ *\n[^\n]*│ {2}State {8}○ to do · \ds ago *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n/);
-    assert.match(text, /│ {2}Settings ─+ *\n[^\n]*│ {2}all as usual · ctrl\+e shows them *\n/); // beside the list only what is this task's own; the whole task has every row
+    assert.match(text, keyed(/│ {2}Settings ─+ *\n[^\n]*│ {2}all as usual · {settings} shows them *\n/)); // beside the list only what is this task's own; the whole task has every row
     assert.match(stripVTControlCharacters(s.v.panel(s.v.current(), 80, true).join("\n")), /\n Settings ─+\n Project {6}\S+\n Worktree {5}on\n Branch {7}main\n Agent /);
     // Every setting shows on the whole task, also one that is only your default; beside the list none of those does.
     const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Review when", "Send back", "Evidence", "Merge"], whole = stripVTControlCharacters(s.v.panel(s.v.current(), 80, true).join("\n"));
@@ -31,13 +31,13 @@ test("the task panel beside the list cuts a long description short and says wher
     // A short window keeps the parts apart: the long parts give way first, then the settings from the last, each one
     // whole. No line is cut in the middle, and the last line says where the rest is.
     { const low = open(w, { rows: 21 }); low.v.sel = big.id; low.v.load(); const t24 = low.text(120), side = low.screen(120).map((l) => (l.split("│")[1] || "").trimEnd());
-      assert.match(t24, /│ {2}all as usual · ctrl\+e shows them/, "beside the list the settings are one line: none of them is this task's own");
+      assert.match(t24, keyed(/│ {2}all as usual · {settings} shows them/), "beside the list the settings are one line: none of them is this task's own");
       assert.match(t24, /│ {2}Status ─+ *\n[^\n]*│ {2}State {8}○ to do · \ds ago *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n/); // the headlines and the empty line between the parts stay
       assert.ok(!side.some((l) => l.endsWith("…") && !l.endsWith(" …")), "nothing is cut in the middle of a line: only the description says, at its end, that there is more");
-      assert.match(t24, /│ {2}alt\+t shows the whole task/); assert.match(t24, /Line 1 of/); }
+      assert.match(t24, keyed(/│ {2}{panel} shows the whole task/)); assert.match(t24, /Line 1 of/); }
     S.setValue("worker.agent", "claude/opus", { task: S.get(big.id) }); s.v.load();
     text = s.text(120);
-    assert.match(text, /│ {2}Agent {8}\S+ · opus · default effort/); assert.doesNotMatch(text, /│ {2}Reviewer /); assert.match(text, /│ {2}the rest as usual · ctrl\+e shows every *\n[^\n]*│ {2}setting/); // this task's own setting shows beside the list; the usual ones do not
+    assert.match(text, /│ {2}Agent {8}\S+ · opus · default effort/); assert.doesNotMatch(text, /│ {2}Reviewer /); assert.match(text, keyed(/│ {2}the rest as usual · {settings} shows every *\n[^\n]*│ {2}setting/)); // this task's own setting shows beside the list; the usual ones do not
     // A long text with no line breaks is cut between words after a few hundred characters.
     const prose = A.add(w.root, "Prose", { description: "word ".repeat(400).trim() });
     s.v.sel = prose.id; s.v.load();
@@ -47,10 +47,10 @@ test("the task panel beside the list cuts a long description short and says wher
     if (!process.env.NO_COLOR) {
       // A headline is bold and a label is greyed out. A setting chosen for this task is in the text colour; one that
       // is only your default is quieter.
-      const raw = s.v.render(120).join("\n"), grey = "\x1b[38;2;126;131;155m", ink = "\x1b[38;2;205;214;244m", quiet = "\x1b[38;2;166;173;200m";
-      assert.ok(raw.includes("\x1b[1mDescription\x1b[22m") && raw.includes(`${grey}Agent        \x1b[39m${ink}`) && raw.includes(`${ink}  Line 1 of a very long`), "headlines are bold, labels grey, the text is neither");
+      const raw = s.v.render(120).join("\n"), grey = ink("overlay0"), textInk = ink("text"), quiet = ink("subtext0");
+      assert.ok(raw.includes("\x1b[1mDescription\x1b[22m") && raw.includes(`${grey}Agent        \x1b[39m${textInk}`) && raw.includes(`${textInk}  Line 1 of a very long`), "headlines are bold, labels grey, the text is neither");
       assert.ok(stripVTControlCharacters(raw).includes("the rest as usual"), "the usual settings are one quiet line beside the list");
-      { const whole = s.v.panel(s.v.current(), 100, true).map((l) => s.v.theme.line(l)).join("\n"); assert.ok(whole.includes(`${grey}Reviewer     \x1b[39m${ink}${quiet}codex`), "on the whole task a default setting is quieter"); }
+      { const whole = s.v.panel(s.v.current(), 100, true).map((l) => s.v.theme.line(l)).join("\n"); assert.ok(whole.includes(`${grey}Reviewer     \x1b[39m${textInk}${quiet}codex`), "on the whole task a default setting is quieter"); }
     }
     // The task details: the same parts full screen, scrolled, with every setting.
     s.press("alt+t");
@@ -86,11 +86,11 @@ test("the task panel never opens full screen by itself: something going wrong on
     assert.match(text, /\n needs you *\n[ ▌]✗ #1 Match the colors [^\n]*\n[ ▌] {5}Merge conflict with main/);
     assert.doesNotMatch(text, /Conflicting files/);
     // The hint line: what matters now, the main thing first, never more than four.
-    assert.match(s.text(120), /\n[ ▌] {1}ctrl\+r tell this task's agent to fix it · ctrl\+l retry as it is · space talk about this task · \? all keys *$/);
-    assert.match(text, /\n[ ▌] {1}ctrl\+r tell this task's agent to fix it · ctrl\+l retry as it is · \? all keys *$/); assert.match(s.text(60), /\n[ ▌] {1}ctrl\+r tell this task's agent to fix it · \? all keys *$/); assert.match(s.text(50), /\n[ ▌] {1}ctrl\+r tell this task's agent to fix it *$/); // and it never runs off a narrow screen: the main thing is the last to go
+    assert.match(s.text(120), keyed(/\n[ ▌] {1}{sendBack} tell this task's agent to fix it · {yes} retry as it is · space talk about this task · \? all keys *$/));
+    assert.match(text, keyed(/\n[ ▌] {1}{sendBack} tell this task's agent to fix it · {yes} retry as it is · \? all keys *$/)); assert.match(s.text(60), keyed(/\n[ ▌] {1}{sendBack} tell this task's agent to fix it · \? all keys *$/)); assert.match(s.text(50), keyed(/\n[ ▌] {1}{sendBack} tell this task's agent to fix it *$/)); // and it never runs off a narrow screen: the main thing is the last to go
     // Wide, the panel beside the list already says it, in order: where it stands, then what it needs from you.
     text = s.text(120);
-    assert.match(text, /│ {2}State {8}✗ needs you · \ds ago *\n(?:[^\n]*│ {2}On it[^\n]*\n)?[^\n]*│ *\n[^\n]*│ {2}Went wrong ─+ *\n[^\n]*│ {2}Merge conflict with main *\n[^\n]*│ {2}The agent can fix this: ctrl\+r sends it\. *\n[^\n]*│ {2}Next step {4}Resolve the conflict\. *\n[^\n]*│ {2}Details {6}Conflicting files: *\n[^\n]*│ {15}src\/board\/view\.js/);
+    assert.match(text, keyed(/│ {2}State {8}✗ needs you · \ds ago *\n(?:[^\n]*│ {2}On it[^\n]*\n)?[^\n]*│ *\n[^\n]*│ {2}Went wrong ─+ *\n[^\n]*│ {2}Merge conflict with main *\n[^\n]*│ {2}The agent can fix this: {sendBack} sends it\. *\n[^\n]*│ {2}Next step {4}Resolve the conflict\. *\n[^\n]*│ {2}Details {6}Conflicting files: *\n[^\n]*│ {15}src\/board\/view\.js/));
     // Narrow, space does what it does at every width: the chat names the task, and the list stays. alt+t opens the
     // same panel full screen; esc leaves it, and the chat stays the task's.
     s.screen(80); s.press("space");
@@ -154,7 +154,7 @@ test("the task panel has one form for every part, in every state and at every wi
     assert.match(side("waiting for approval").join("\n"), /\n State {8}◆ ready to approve · 3rd review · 1m ago\n On it {8}claude\n Change {7}PR#60 · 19 files, \+340 −27\n/);
     assert.match(side("done").join("\n"), /\n Change {7}PR#60 merged · 19 files, \+340 −27\n/);
     // What needs you is a part of its own right under Status, and the reviews read as a history: how each went, then the latest.
-    assert.match(side("failed").join("\n"), /\n\n Went wrong ─+\n Conflict with main\n The agent can fix this: ctrl\+r sends it\.\n Next step {4}Resolve the conflict\.\n Details {6}Conflicting files:\n[ ▌] {13}src\/board\/view\/row\.js\n\n Description ─/);
+    assert.match(side("failed").join("\n"), keyed(/\n\n Went wrong ─+\n Conflict with main\n The agent can fix this: {sendBack} sends it\.\n Next step {4}Resolve the conflict\.\n Details {6}Conflicting files:\n[ ▌] {13}src\/board\/view\/row\.js\n\n Description ─/));
     assert.match(side("done").join("\n"), /\n Reviews · 3 ─+\n History {6}fail → no verdict → pass\n Review 3 {5}✓ Pass · 1m ago\n[ ▌] {13}The change meets the task\. A title at the limit is kept\n[ ▌] {13}whole, and a longer one is cut between words with the\n[ ▌] {13}rest moved into the description\.\n Evidence {5}↗ Open review\n/);
     // Full screen every review is there, the newest first, with what it found by how bad it is.
     const whole = s.v.panel(STATES.done, 100, true).map((l) => stripVTControlCharacters(l)).join("\n");
@@ -185,9 +185,9 @@ test("the task panel has one form for every part, in every state and at every wi
     }
     if (!process.env.NO_COLOR) {
       // A result and a severity are said in words and marks; the colour only repeats them. A headline that needs you is in its state's colour.
-      const raw = s.v.panel(STATES.done, 100, true).join("\n"), red = "\x1b[38;2;243;139;168m", green = "\x1b[38;2;166;227;161m", yellow = "\x1b[38;2;249;226;175m";
+      const raw = s.v.panel(STATES.done, 100, true).join("\n"), red = ink("red"), green = ink("green"), yellow = ink("yellow");
       // Merged, how its reviews went is quiet like its pull request; not merged, they keep their colours.
-      const open = s.v.panel({ ...STATES.done, state: "blocked", kind: "permission", stage: "approval", prState: "passing", prMerged: false }, 100, true).join("\n"), quietInk = "\x1b[38;2;126;131;155m";
+      const open = s.v.panel({ ...STATES.done, state: "blocked", kind: "permission", stage: "approval", prState: "passing", prMerged: false }, 100, true).join("\n"), quietInk = ink("overlay0");
       assert.ok(open.includes(`${green}✓`) && open.includes(`${red}✗`) && raw.includes(`${red}critical  `) && raw.includes(`${yellow}minor     `), "marks and severities in their colours");
       assert.ok(raw.includes(`${quietInk}✓`) && raw.includes(`${quietInk}✗`) && !raw.includes(`${green}✓`) && !raw.includes(`${red}✗`), "merged: the marks of its reviews are quiet");
       assert.ok(s.v.panel(STATES.failed, 70, false).join("\n").includes(`${red}\x1b[1mWent wrong\x1b[22m`), "what went wrong has a red headline");

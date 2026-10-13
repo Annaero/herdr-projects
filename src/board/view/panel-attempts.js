@@ -49,3 +49,4 @@ export class PanelAttempts {
     return short_ && !!(cmp?.pick || tries.some((c) => c.diff?.link || c.report?.link)); // something is shorter here than on the full screen
   }
 }
+export const part = PanelAttempts; // what this file adds to the board: view.js loads every file here that names its part

@@ -79,3 +79,4 @@ export class Hints {
     return [...main.slice(0, 4 - tail.length - mid.length + (closes ? 1 : 0)), ...mid, ...key, ...tail];
   }
 }
+export const part = Hints; // what this file adds to the board: view.js loads every file here that names its part

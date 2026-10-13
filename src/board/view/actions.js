@@ -139,3 +139,4 @@ export class Actions {
     return this.try(() => { A.restore(r.id); this.flash(`Restored ${this.nameSay(r)}.`, "green"); });
   }
 }
+export const part = Actions; // what this file adds to the board: view.js loads every file here that names its part

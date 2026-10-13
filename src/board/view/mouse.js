@@ -40,3 +40,4 @@ export class Mouse {
     return true;
   }
 }
+export const part = Mouse; // what this file adds to the board: view.js loads every file here that names its part

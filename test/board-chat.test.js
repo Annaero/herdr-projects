@@ -7,7 +7,7 @@ import * as C from "../src/coordinator.js";
 import { theme } from "../src/board/theme.js";
 import { runJob } from "../src/jobs.js";
 import { drainJobs } from "../src/runner.js";
-import { open } from "./board-helpers.js";
+import { open, keyed } from "./board-helpers.js";
 import { coordWorld, open as openCoord } from "./coordinator-helpers.js";
 
 // The chat as the screen shows it: the line that says who, and what is inside the box (without its frame).
@@ -32,7 +32,7 @@ test("a task agent's chat: its message, then your just-sent words in its place, 
       assert.deepEqual(c.box, ["Agent:", "Made f, with one line in it.", "", "❯ Send message to Agent"]); // nothing else is in it
       assert.match(c.hints, /space back to the Coordinator$/); // whole at every width: the key is never the part that is cut
     }
-    assert.match(chat(s).hints, /alt\+c hide the latest message · space back to the Coordinator$/);
+    assert.match(chat(s).hints, keyed(/{chatMessage} hide the latest message · space back to the Coordinator$/));
     // While you type: your words on the line, and the hints say what the keys do now.
     s.type("yes, g too");
     assert.deepEqual(chat(s).box, ["Agent:", "Made f, with one line in it.", "", "❯ yes, g too"]); assert.equal(chat(s).hints, "enter send to this task's agent · shift+enter new line · esc put away");
@@ -46,14 +46,14 @@ test("a task agent's chat: its message, then your just-sent words in its place, 
     // Hidden: who you talk to and the line you type on, between two rules. alt+c is the key both ways.
     s.press("\x1bc");
     let c = chat(s);
-    assert.equal(c.framed, false); assert.match(c.who, /^ \S #\d+ Make f {2}\S/); assert.deepEqual(c.box, ["❯ Send message to Agent"]); assert.match(c.hints, /alt\+c show the latest message · space back to the Coordinator$/);
+    assert.equal(c.framed, false); assert.match(c.who, /^ \S #\d+ Make f {2}\S/); assert.deepEqual(c.box, ["❯ Send message to Agent"]); assert.match(c.hints, keyed(/{chatMessage} show the latest message · space back to the Coordinator$/));
     assert.doesNotMatch(s.text(), /│ Made g\./);
     // With the chat hidden nothing shows your words, so one line says they went.
     s.type("thanks"); s.press("enter"); assert.match(s.text(), /Sent to the agent/);
     s.press("\x1bc"); assert.deepEqual(chat(s).box, ["You:", "thanks", "", "❯ Send message to Agent"]);
     // space: back to the same box for everyone else. With no Coordinator there is no message to hold, so no frame.
     s.press("space"); c = chat(s);
-    assert.equal(c.framed, false); assert.match(c.who, /^ \+ New task {2}added word for word/); assert.doesNotMatch(c.hints, /alt\+c/);
+    assert.equal(c.framed, false); assert.match(c.who, /^ \+ New task {2}added word for word/); assert.doesNotMatch(c.hints, keyed(/{chatMessage}/));
   } finally { w.cleanup(); }
 });
 
@@ -90,7 +90,7 @@ test("a long message wraps inside the box and takes the rows it needs, never the
     for (const width of [44, 80, 200]) {
       for (mine of [false, true]) {
         const c = chat(s, width), body = c.box.slice(0, -2);
-        assert.match(c.box.at(-2), /^ +(alt\+j )?more ↓$/); assert.equal(c.box.at(-1), "❯ Send message to Coordinator");
+        assert.match(c.box.at(-2), keyed(/^ +({chatScrollDown} )?more ↓$/)); assert.equal(c.box.at(-1), "❯ Send message to Coordinator");
         // With its box it takes two thirds of the 30 rows: 16 lines of it. It starts at its beginning, whoever said it.
         assert.equal(body.length, 16, `sixteen lines of it at ${width} columns`); assert.match(body[0], /^Line 1 of what it said/);
         assert.doesNotMatch(body.join("\n"), /\*\*/);

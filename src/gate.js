@@ -39,8 +39,11 @@ export function settle(meets, found, earlier = null, used = []) {
     } else if (earlier && severity !== "critical" && !f.preexisting) left++;
     else out.push({ ...f, id: "", severity });
   }
-  // The fixed question answered "no" is a critical finding, whatever the list says.
-  if (meets === false && !out.some((f) => f.severity === "critical" && !f.preexisting)) out.unshift({ id: "meets", severity: "critical", subject: "The change does not do what the task asked.", where: "", proof: "", preexisting: false, board: true });
+  // The fixed question answered "no" with nothing listed: that answer is all there is, so it is the one finding, and
+  // critical. Where the reviewer gave findings, those and their severities decide, and nothing is added beside them:
+  // the board's own line was a quarter of all findings, and failed rounds whose real findings were all below the
+  // gate, or were all faults from before the task (those never send work back).
+  if (meets === false && !found.length) out.unshift({ id: "meets", severity: "critical", subject: "The change does not do what the task asked.", where: "", proof: "", preexisting: false, board: true });
   // A very long list of the task's own findings is cut only now, with the rules applied, and from the mildest up:
   // what can fail the gate is never what goes. What was there before the task is never cut: each is a note the human should see.
   const own = out.filter((f) => !f.preexisting);

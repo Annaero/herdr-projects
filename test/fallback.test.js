@@ -144,7 +144,8 @@ test("a fallback that cannot be started changes nothing: the agent, its failure 
 test("work that still fails its review after `review.rounds` rounds goes to the next agent, with the open findings and its own rounds", async () => {
   const w = await cutWorld("30", { "worker.fallback": "codex", "review.rounds": 1 });
   try {
-    w.script({ worker: [WORK, { note: "Tried." }, { status: "working" }], reviewer: [FAIL, FAIL] });
+    // the second round names the finding of the first by its id, as a reviewer does: it is still open
+    w.script({ worker: [WORK, { note: "Tried." }, { status: "working" }], reviewer: [FAIL, { verdict: { ...FAIL.verdict, findings: [{ ...FAIL.verdict.findings[0], id: "F1" }] } }] });
     const id = A.add(w.root, "Stuck").id;
     A.delegate(id);
     const t = await settle(id, { max: 40 });
@@ -152,7 +153,7 @@ test("work that still fails its review after `review.rounds` rounds goes to the 
     assert.deepEqual(starts(w), ["claude", "codex"]);
     assert.equal(S.handoverLine(S.handovers(t)[0]), "codex took over from claude: its work still failed review after 1 round");
     const told = paneOf(w, t).agent.prompts[0];
-    assert.match(told, /The last review of this work failed \(Fail · 1 critical\), and what it found is still open:\n\nNot what was asked\.\n\nRequired: fix each of these\.\n- \[critical\] The change does not do what the task asked\./);
+    assert.match(told, /The last review of this work failed \(Fail · 1 major\), and what it found is still open:\n\nNot what was asked\.\n\nRequired: fix each of these\.\n- \[major\] The file says v1, the task asked for v2 \(f\.txt:1\)/);
     assert.match(told, /Its last message was:\nTried\./);
     // every review is on the list, and the new agent's rounds were its own
     assert.deepEqual(S.reviewHistory(t).map((e) => [e.round, e.by, e.pass]), [[1, "codex", false], [2, "codex", false]]); assert.equal(t.reviewRounds, 0); assert.equal(t.review.stale, true);

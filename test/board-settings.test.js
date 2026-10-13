@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { world } from "./helpers.js";
-import { open } from "./board-helpers.js";
+import { open, keyed } from "./board-helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 
@@ -19,7 +19,7 @@ test("the settings page: every work setting, where each comes from, and a mark o
     s.press("ctrl+e");
     const text = s.text(120);
     // The page names the task as its row does, and its hints are its own: the keys that act here, nothing of the list's.
-    assert.match(text, /^ Settings {2}#1 "One"/); assert.match(text, /\n {2}↑ ↓ move · enter change · ctrl\+u put back · esc back to the task *$/);
+    assert.match(text, /^ Settings {2}#1 "One"/); assert.match(text, keyed(/\n {2}↑ ↓ move · enter change · {putBack} put back · esc back to the task *$/));
     assert.doesNotMatch(text, /Coordinator|put an agent|all keys/);
     // What cannot apply is not offered: fast mode, for a program that has none (both roles run claude here).
     const hidden = ["worker.fast", "reviewer.fast"];
@@ -38,7 +38,7 @@ test("the settings page: every work setting, where each comes from, and a mark o
     assert.match(text, /\* this task's own\. Every other row says the place its value comes from\./); assert.match(text, /Board settings are yours only: herdr-superwork show/);
     // esc goes back one step, to the whole task: it says how to get here, and stars the same choice
     s.press("esc"); assert.equal(s.v.editing, null); assert.equal(s.v.full, true); // back to the whole task, one step
-    s.v.panelTop = 1e9; assert.match(s.text(120), /\n Reviewer +claude · default model · default effort · no fast mode in claude \*/); assert.match(s.text(120), /ctrl\+e changes them: every setting, and the place each one comes from/);
+    s.v.panelTop = 1e9; assert.match(s.text(120), /\n Reviewer +claude · default model · default effort · no fast mode in claude \*/); assert.match(s.text(120), keyed(/{settings} changes them: every setting, and the place each one comes from/));
   } finally { w.cleanup(); }
 });
 

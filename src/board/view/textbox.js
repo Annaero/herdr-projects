@@ -70,3 +70,4 @@ export class TextBox {
     return [edge("╭") + top + edge("╮"), ...message.map(row), ...(message.length ? [row(under)] : []), ...body.map(row), edge("╰") + (below ? this.input.rule(width - 2, false) : line(width - 2)) + edge("╯")];
   }
 }
+export const part = TextBox; // what this file adds to the board: view.js loads every file here that names its part

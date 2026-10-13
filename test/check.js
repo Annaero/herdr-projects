@@ -9,13 +9,16 @@
 //
 // Three things make it cheap to run often, on a machine many agents share:
 // - It remembers which test files passed for this exact code (the git tree of the folder as it is now, uncommitted
-//   changes included), in one place for every worktree. Asked again for code that passed, it answers at once.
-// - Runs take turns, machine-wide: SLOTS at a time, the rest wait. A run steps aside for everything else (NICE).
-// - Each test file has a budget (processor time, time by the clock, programs started) and so has the whole suite.
-//   Over budget is a failed check that names the file.
+//   changes included) with what is installed (node, node_modules), in one place for every worktree. Asked again for
+//   code that passed, it answers at once.
+// - Whole runs take turns, machine-wide: SLOTS at a time, the rest wait. A run of SMALL test files or fewer takes no
+//   slot and never waits. A run steps aside for everything else (NICE).
+// - Each test file has a budget (processor time, time by the clock, programs started). Over budget is a failed check
+//   that names the file. The whole suite has none: its totals are printed, and never fail a run.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { run } from "node:test";
 import { spec } from "node:test/reporters";
@@ -27,11 +30,15 @@ const num = (name, d) => (Number(process.env[name]) > 0 ? Number(process.env[nam
 
 // ---- the budget -----------------------------------------------------------------------------------------------------
 // One test file: seconds of processor time (its own and its programs'), seconds by the clock, programs it starts.
-// The whole suite: processor time added up over its files, and seconds by the clock for a run of all of it.
-// Processor time and programs do not depend on how busy the machine is; time by the clock is stretched (see `stretch`).
-export const BUDGET = { fileCpu: 6, fileWall: 6, fileLaunches: 1000, suiteCpu: 90, suiteWall: 15 };
+// The whole suite has no budget: its totals move by a tenth and more with how busy the machine is (64 s of processor
+// time quiet, 70 to 85 s busy), so a budget on them failed finished work. They are printed, never judged.
+// The count of programs does not depend on how busy the machine is; time by the clock is stretched (see `stretch`).
+export const BUDGET = { fileCpu: 6, fileWall: 6, fileLaunches: 1000 };
 // How many runs at a time on this machine. The tests use every core, so more runs at once only make each slower.
 export const SLOTS = num("HERDR_SUPERWORK_CHECK_SLOTS", 1);
+// A run of this many test files or fewer takes no slot and waits for nobody: it is over in a second or two, and most
+// runs are of this kind (the tests of what one change touches).
+export const SMALL = 8;
 // Where passed results and the slots are kept: outside every worktree, so that they share it.
 export const storeDir = () => process.env.HERDR_SUPERWORK_CHECK_DIR || path.join(process.env.XDG_CACHE_HOME || path.join(os.homedir(), ".cache"), "herdr-superwork-check");
 
@@ -45,34 +52,40 @@ export function filesFor(areas, all) {
 // The files a source file imports, as written: `from "./x.js"`, `import "./x.js"`, `import("./x.js")`. Only its own
 // repo's files (a path that starts with a dot).
 export const importsOf = (text) => [...String(text).matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*)["'](\.{1,2}\/[^"']+)["']/g)].map((m) => m[1]);
-// Everything a file reaches through imports, itself included, as paths from the repo's root. `read(file)`: its text, or null.
-export function reach(file, read, seen = new Set()) {
+// The folders a source file loads whole, each file of them: `new URL("./view/", import.meta.url)` (src/board/view.js
+// loads its parts that way, with no list of them).
+export const foldersOf = (text) => [...String(text).matchAll(/new URL\(\s*["'](\.{1,2}\/[^"']*\/)["']\s*,\s*import\.meta\.url\s*\)/g)].map((m) => m[1]);
+// Everything a file reaches through imports, itself included, as paths from the repo's root. `read(file)`: its text,
+// or null. `list(folder)`: the names of the files in a folder, for a file that loads a folder whole.
+export function reach(file, read, seen = new Set(), list = () => []) {
   if (seen.has(file)) return seen;
   const text = read(file);
   if (text === null) return seen;
   seen.add(file);
-  for (const spec of importsOf(text)) reach(path.posix.normalize(path.posix.join(path.posix.dirname(file), spec)), read, seen);
+  const at = (spec) => path.posix.normalize(path.posix.join(path.posix.dirname(file), spec));
+  for (const spec of importsOf(text)) reach(at(spec), read, seen, list);
+  for (const dir of foldersOf(text)) for (const f of list(at(dir))) if (f.endsWith(".js")) reach(path.posix.join(at(dir), f), read, seen, list);
   return seen;
 }
 // The test files a change touches. `tests`: paths from the root (test/x.test.js). `changed`: the same for the files that
-// changed. A test is touched when a changed file is one it reaches through its imports, or one that it, or any file it
-// reaches, names in its text (a page or a file that is read: `where-things-live.md`, `package.json`). A changed file no test reaches or names: a page
-// (docs/, *.md) touches nothing more; anything else (a program a test starts, a recording it reads, the lock file)
-// could matter to any test, so then it is all of them.
+// changed. A test is touched when a changed file is one it reaches through its imports, or one the test file names in
+// its own text (a page or a file it reads: `keys.md`, `package.json`). Only the test's own text counts: a name that
+// any file it reaches merely contains made a one-letter change to README.md run nearly every test. A changed file no
+// test reaches or names: a page (docs/, *.md) touches nothing more; anything else (a program a test starts, a
+// recording it reads, the lock file) could matter to any test, so then it is all of them.
 // `always`: test files that read the whole repo rather than import it (the guard), touched by any change.
 export const ALWAYS = ["test/guard.test.js"];
-export function touched(changed, tests, read, always = ALWAYS) {
-  const reaches = new Map(tests.map((t) => [t, reach(t, read)]));
-  // Named anywhere in what the test reaches, source files included: `src/store/files.js` reads `package.json`.
-  const text = new Map();
-  const says = (r, word) => { if (!text.has(r)) text.set(r, read(r) || ""); return text.get(r).includes(word); };
-  const names = (t, f) => [...reaches.get(t)].some((r) => says(r, path.posix.basename(f)));
+export function touched(changed, tests, read, always = ALWAYS, list = () => []) {
+  const reaches = new Map(tests.map((t) => [t, reach(t, read, new Set(), list)]));
+  const text = new Map(tests.map((t) => [t, read(t) || ""]));
+  const names = (t, f) => text.get(t).includes(path.posix.basename(f));
   const hit = new Set(changed.length ? tests.filter((t) => always.includes(t)) : []);
   let all = null;
   for (const f of changed) {
     const mine = tests.filter((t) => reaches.get(t).has(f) || names(t, f));
     for (const t of mine) hit.add(t);
-    if (!mine.length && !/^docs\/|\.md$/.test(f)) all = all || f;
+    // A test file that is gone (deleted, renamed) is no test's business.
+    if (!mine.length && !/^docs\/|\.md$/.test(f) && !(/^test\/[^/]+\.test\.js$/.test(f) && !tests.includes(f))) all = all || f;
   }
   return all ? { files: tests, all } : { files: tests.filter((t) => hit.has(t)), all: null };
 }
@@ -102,8 +115,17 @@ export function changedSince(root) {
   }
   return null;
 }
-// What passed for one tree: { "x.test.js": { wall, cpu, launches, tests } }. A result also depends on the node that ran it.
-const passedFile = (store, tree) => path.join(store, "passed", `${tree}-node${process.versions.node.split(".")[0]}.json`);
+// What is installed, as a few letters: node's full version, and the packages in node_modules as npm wrote them down
+// (node_modules/.package-lock.json). A result depends on both: with a package missing, a run that passed elsewhere fails.
+export function installed(root, node = process.versions.node) {
+  let lock = "none";
+  try { lock = fs.readFileSync(path.join(root, "node_modules", ".package-lock.json"), "utf8"); } catch {}
+  return crypto.createHash("sha256").update(`${node}\n${lock}`).digest("hex").slice(0, 12);
+}
+// What passed for one tree, with what was installed: { "x.test.js": { wall, cpu, launches, tests } }. `tree` here is
+// the key: the git tree and `installed()`, joined (`keyOf`).
+export const keyOf = (root, tree = treeOf(root)) => (tree ? `${tree}-${installed(root)}` : "");
+const passedFile = (store, tree) => path.join(store, "passed", `${tree}.json`);
 export function remembered(store, tree) { try { return tree ? JSON.parse(fs.readFileSync(passedFile(store, tree), "utf8")) : {}; } catch { return {}; } }
 export function remember(store, tree, results) {
   if (!tree || !Object.keys(results).length) return;
@@ -163,35 +185,42 @@ export function stepAside(level = NICE, sys = os) {
 export const stretch = (load, cores, others = 0) => Math.max(1, load / cores, 1 / Math.max(0.1, 1 - others)) * Math.max(1, 8 / cores);
 // Seconds of processor time all programs on this machine have used so far, on all cores. null where it cannot be read.
 const machineCpu = () => { try { const n = fs.readFileSync("/proc/stat", "utf8").split("\n")[0].trim().split(/\s+/).slice(1).map(Number); return (n[0] + n[1] + n[2] + n[5] + n[6] + n[7]) / 100; } catch { return null; } };
-// What is over budget, as lines to print. `costs`: { "x.test.js": { wall, cpu, launches } } for the files of this
-// selection (those run now, and those that passed before). `whole`: this is the whole suite; `wall`: seconds by the
-// clock when all of it ran just now, else null.
-export function overBudget(costs, { whole = false, wall = null, by = 1, budget = BUDGET } = {}) {
+// What is over budget, as lines to print. `costs`: { "x.test.js": { wall, cpu, launches, ran } } for the files that
+// ran just now. Only a file has a budget.
+export function overBudget(costs, { by = 1, budget = BUDGET } = {}) {
   const out = [], s = (n) => `${n.toFixed(1)} s`;
   for (const [f, c] of Object.entries(costs)) {
     if (c.cpu > budget.fileCpu) out.push(`test/${f}: ${s(c.cpu)} of processor time (budget ${budget.fileCpu} s)`);
     if (c.ran && c.wall > budget.fileWall * by) out.push(`test/${f}: ${s(c.wall)} by the clock (budget ${s(budget.fileWall * by)}${by > 1 ? ", stretched: the machine is busy" : ""})`);
     if (c.launches > budget.fileLaunches) out.push(`test/${f}: starts ${c.launches} programs (budget ${budget.fileLaunches})`);
   }
-  if (whole) {
-    const cpu = Object.values(costs).reduce((a, c) => a + c.cpu, 0);
-    if (cpu > budget.suiteCpu) out.push(`the whole suite: ${s(cpu)} of processor time (budget ${budget.suiteCpu} s)`);
-    if (wall !== null && wall > budget.suiteWall * by) out.push(`the whole suite: ${s(wall)} by the clock (budget ${s(budget.suiteWall * by)}${by > 1 ? ", stretched: the machine is busy" : ""})`);
-  }
   return out;
+}
+// The whole suite's totals as one line to print: what its files cost, added up. Never judged.
+export function suiteTotals(costs) {
+  const sum = (k) => Object.values(costs).reduce((a, c) => a + (c?.[k] || 0), 0);
+  return `the whole suite: ${Object.keys(costs).length} test files · ${sum("cpu").toFixed(1)} s of processor time · ${sum("launches")} programs started (printed, never a reason to fail)`;
 }
 
 // ---- the command ----------------------------------------------------------------------------------------------------
-// `budget`: only a test of this command gives another one.
-export async function main(argv, { budget = BUDGET } = {}) {
+// `budget`: only a test of this command gives another one. `out`: where the tests' own report is written (a test of
+// this command, run in the test's process, gives its own: that process's output is the test runner's channel).
+export async function main(argv, { budget = BUDGET, out = process.stdout } = {}) {
   const root = path.dirname(here), store = storeDir();
   const report = reporter(); // to the board, when this is its check
   const flags = new Set(argv.filter((a) => a.startsWith("--"))), areas = argv.filter((a) => !a.startsWith("--"));
   const odd = [...flags].filter((f) => !["--all", "--fresh"].includes(f));
   if (odd.length) { console.error(`check: unknown ${odd.join(", ")}. Usage: npm run check [-- --all] [-- --fresh] [areas]`); return 2; }
   // A worktree that was never set up: every test would fail on its first import.
-  const missing = Object.keys(JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).dependencies || {}).filter((d) => !fs.existsSync(path.join(root, "node_modules", d)));
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  const missing = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).filter((d) => !fs.existsSync(path.join(root, "node_modules", d)));
   if (missing.length) { console.error(`check: ${missing.join(", ")} is not installed in this folder. Run \`npm ci\` first.`); return 2; }
+  // The tables made from the code (docs/keys.md, docs/settings.md) are written when they are out of date, and so is
+  // the map in this folder: said, never a reason to fail. A fault in the lists themselves is the guard's to name.
+  try {
+    const wrote = (await import(path.join(root, "scripts", "docs.js"))).write();
+    if (wrote.length) console.log(`check: wrote ${wrote.join(", ")}: made from the code and out of date. Commit ${wrote.length > 1 ? "them" : "it"} with your change.`);
+  } catch {}
   const all = fs.readdirSync(here).filter((f) => f.endsWith(".test.js")).sort();
   let files = all, what = "the whole suite";
   if (areas.length) {
@@ -202,25 +231,28 @@ export async function main(argv, { budget = BUDGET } = {}) {
     const changed = changedSince(root);
     if (changed) {
       const read = (f) => { try { return fs.readFileSync(path.join(root, f), "utf8"); } catch { return null; } };
-      const hit = touched(changed, all.map((f) => `test/${f}`), read);
+      const list = (dir) => { try { return fs.readdirSync(path.join(root, dir)); } catch { return []; } };
+      const hit = touched(changed, all.map((f) => `test/${f}`), read, ALWAYS, list);
       files = hit.files.map((f) => path.basename(f));
       what = hit.all ? `the whole suite: ${hit.all} changed, which any test may depend on` : `the tests your change touches: ${changed.length} file${changed.length === 1 ? "" : "s"} changed since main`;
       if (!files.length) { console.log(`check: nothing to run (${changed.length ? "no test file is touched by what changed since main" : "nothing changed since main"}). The whole suite: npm run check -- --all`); return 0; }
     }
   }
   const whole = files.length === all.length;
-  const tree = treeOf(root);
+  const tree = keyOf(root);
   const known = () => (flags.has("--fresh") ? {} : remembered(store, tree));
   const say = (need, before) => `check: ${files.length} test file${files.length === 1 ? "" : "s"} (${what})${before ? ` · ${before} already passed for this exact code` : ""}${need ? ` · ${need} to run` : ""}`;
   let before = known(), need = files.filter((f) => !before[f]);
+  // Passed stays passed: a remembered run is never judged by a budget again.
   const done = () => {
-    const over = overBudget(Object.fromEntries(files.map((f) => [f, before[f]])), { whole, budget });
-    if (over.length) { console.log(`${say(0, files.length)}\n\n✖ over budget (see docs/testing.md):\n${over.map((l) => `  ${l}`).join("\n")}`); return 1; }
-    console.log(`${say(0, files.length)}: nothing to run again. ✔`); return 0;
+    console.log(`${say(0, files.length)}: nothing to run again. ✔`);
+    if (whole) console.log(`check: ${suiteTotals(Object.fromEntries(files.map((f) => [f, before[f]])))}`);
+    return 0;
   };
   if (!need.length) { report({ state: "known" }); return done(); }
   let waited = false;
-  const free = takeSlot(store, SLOTS, (ahead) => { report({ state: "waiting", ahead }); if (!waited) console.log(`check: waiting for a turn (${SLOTS} test run${SLOTS === 1 ? "" : "s"} at a time on this machine)…`); waited = true; });
+  // A small run takes no slot and does not wait behind a whole one.
+  const free = need.length <= SMALL ? null : takeSlot(store, SLOTS, (ahead) => { report({ state: "waiting", ahead }); if (!waited) console.log(`check: waiting for a turn (${SLOTS} test run${SLOTS === 1 ? "" : "s"} at a time on this machine)…`); waited = true; });
   try {
     before = known(); need = files.filter((f) => !before[f]); // another run may have passed this code while this one waited
     if (!need.length) { report({ state: "known" }); return done(); }
@@ -248,7 +280,7 @@ export async function main(argv, { budget = BUDGET } = {}) {
     // A test file is finished when the runner says so of the file itself, passed or failed.
     const closed = new Set();
     for (const ev of ["test:complete", "test:summary"]) stream.on(ev, (d) => { if (d.file && (ev === "test:summary" || path.resolve(String(d.name)) === d.file)) { closed.add(d.file); ended = had + closed.size; count(); } });
-    stream.compose(spec).pipe(process.stdout);
+    stream.compose(spec).pipe(out, { end: false });
     await new Promise((r) => stream.on("end", r));
     const wall = (Date.now() - began) / 1000, used = machineCpu();
     const costs = {};
@@ -258,13 +290,16 @@ export async function main(argv, { budget = BUDGET } = {}) {
     const cpu = Object.values(costs).reduce((a, c) => a + c.cpu, 0), launches = Object.values(costs).reduce((a, c) => a + c.launches, 0);
     const others = used === null || usedBefore === null ? 0 : Math.max(0, used - usedBefore - cpu) / (cores * Math.max(wall, 0.1));
     const by = stretch(Math.max(loadBefore, os.loadavg()[0]), cores, others);
-    const over = overBudget({ ...Object.fromEntries(files.filter((f) => before[f]).map((f) => [f, before[f]])), ...costs }, { whole, wall: need.length === all.length ? wall : null, by, budget });
+    const over = overBudget(costs, { by, budget });
     // Remembered: what passed, within its own budget. A file over it runs again next time: the machine may have been busy.
-    // When the suite as a whole is over, nothing of this run is remembered: asked again, it is all run and measured again.
     const slow = new Set(over.map((l) => (/^test\/(\S+):/.exec(l) || [])[1]).filter(Boolean));
-    const suiteOver = over.some((l) => l.startsWith("the whole suite"));
-    if (!suiteOver) remember(store, tree, Object.fromEntries(need.filter((f) => !failed.has(f) && !slow.has(f)).map((f) => [f, { wall: costs[f].wall, cpu: costs[f].cpu, launches: costs[f].launches }])));
+    // A folder edited while its run was under way is not credited with that run: the tests read some of the old files
+    // and some of the new, and passed for neither.
+    const edited = keyOf(root) !== tree;
+    if (!edited) remember(store, tree, Object.fromEntries(need.filter((f) => !failed.has(f) && !slow.has(f)).map((f) => [f, { wall: costs[f].wall, cpu: costs[f].cpu, launches: costs[f].launches }])));
     console.log(`\ncheck: ${need.length} test file${need.length === 1 ? "" : "s"} run · ${tests} tests passed · ${wall.toFixed(1)} s by the clock, ${cpu.toFixed(1)} s of processor time · ${launches} programs started`);
+    if (whole) console.log(`check: ${suiteTotals({ ...Object.fromEntries(files.filter((f) => before[f]).map((f) => [f, before[f]])), ...costs })}`);
+    if (edited && !failed.size) console.log("check: the folder changed while the tests ran, so this run is not remembered as passed for the code as it is now.");
     if (failed.size) console.log(`\n✖ failed: ${[...failed].sort().map((f) => `test/${f}`).join(", ")}`);
     if (over.length) console.log(`\n✖ over budget (make the tests lighter or split the file, see docs/testing.md):\n${over.map((l) => `  ${l}`).join("\n")}`);
     return failed.size || over.length ? 1 : 0;

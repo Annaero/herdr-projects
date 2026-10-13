@@ -8,6 +8,7 @@ import * as S from "./store.js";
 import * as F from "./flow.js";
 import { outputOf } from "./runner.js";
 import { mergesItself } from "./finish/auto-merge.js";
+import { conflictFound } from "./sync/conflict-log.js";
 
 const git = S.gitOut;
 const lines = (text) => String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
@@ -174,7 +175,7 @@ export function conflictMessage(t, tree, r) {
 // repair), at most `review.rounds` times in a row; after that, or when it cannot be sent, the human is asked.
 // `held` puts the task where the human sees the blocker when nothing was sent.
 export function conflictBack(id, g, tree, r, held) {
-  const t = g.check();
+  const t = g.set((t) => { conflictFound(t, r); }); // kept for the record of conflicts (sync/conflict-log.js)
   const rounds = S.setting("review.rounds", t), repairs = t.syncRepairs || 0;
   const failure = conflictFailure(t, tree, r);
   const can = !!r.files && r.restored && F.isAgentTask(t);

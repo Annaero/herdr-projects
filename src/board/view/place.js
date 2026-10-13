@@ -73,3 +73,4 @@ export class Place {
     if (n) { this.flash(n.text, n.kind); this.tui.requestRender(); }
   }
 }
+export const part = Place; // what this file adds to the board: view.js loads every file here that names its part

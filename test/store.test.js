@@ -159,7 +159,7 @@ test("the one mapping function: stage and herdr status to board state", () => {
 });
 
 test("command line parsing and agent names", () => {
-  assert.deepEqual(parse(["add", "Fix", "it", "--desc", "more", "--delegate", "--no-research", "--worker.agent", "codex", "--worker.fast"]), { pos: ["add", "Fix", "it"], flags: { desc: "more", delegate: true, research: false, "worker.agent": "codex", "worker.fast": true } });
+  assert.deepEqual(parse(["add", "Fix", "it", "--desc", "more", "--delegate", "--no-research", "--worker.agent", "codex", "--worker.fast"]), { pos: ["add", "Fix", "it"], flags: { desc: "more", delegate: true, research: false, "worker.agent": "codex", "worker.fast": true }, typed: { desc: "--desc", delegate: "--delegate", research: "--no-research", "worker.agent": "--worker.agent", "worker.fast": "--worker.fast" } });
   const t = { repo: "My.Repo_With-A-Long-Name", n: 12, id: "x/12", root: "/r" };
   assert.equal(agentName(t), "sw-my-repo-with-a-l-12");
   assert.match(agentName(t, ["sw-my-repo-with-a-l-12"]), /^sw-my-repo-with-a-l-12-[0-9a-f]{4}$/);

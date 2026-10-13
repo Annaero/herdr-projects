@@ -7,16 +7,20 @@ saw) and whether it was there before the task (`preexisting`). The severity says
 
 | Severity | Means |
 | --- | --- |
-| `critical` | the work does not do what was asked, breaks something that worked, or risks security or data loss |
+| `critical` | only one of four: a fault a user would hit in ordinary use; data that is lost or wrong; something unsafe; a requirement the task states plainly that is not built. A missing picture, a line of a document, or proof that cannot be had on this machine is not critical |
 | `major` | a real fault in an unusual case; a claim that is not proven (a fix not shown to work, a test that cannot catch its bug); a document that states something false |
 | `minor` | correct but could be better: wording, naming, a small inaccuracy, a narrow gap |
 | `trivial` | a note; nothing to do |
 
 The board then applies fixed rules to what came back:
 
-- `meets: false` always counts as a critical finding, even with an empty list.
+- The reviewer's own findings and their severities decide. `meets: false` adds a critical finding of the board's
+  own ("The change does not do what the task asked") only when the reviewer listed nothing at all. Beside real
+  findings the board adds nothing: that line used to be 67 of 292 findings, and 28 of 76 failed rounds had no
+  critical finding of the task's own.
 - A critical finding with an empty proof is treated as major.
-- A pre-existing finding never sends the work back, and never becomes a task. It is a note: the review lists it
+- A pre-existing finding never sends the work back, and never becomes a task. A round whose findings are all of
+  that kind passes, whatever `meets` says. It is a note: the review lists it
   as `pre-existing`, the agent is told to leave it, and nothing else is done with it. Add a task yourself for one
   you want fixed.
 - The work **passes** when no finding of its own sits at or above `review.mustFix` (`major` by default). A pass
