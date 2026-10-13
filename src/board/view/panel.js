@@ -80,13 +80,14 @@ export class Panel {
     attempt("Report", () => this.panelReport(p));
     if (attempt("Reviews", () => this.panelReviews(p))) cut = true;
 
-    // What the agent said: its last message, or its screen while a dialog or a review is on it.
+    // What the agent said, or the reviewer while the task is under review: the newest words of its conversation
+    // (talk.js), under a headline that names whose they are. Never its screen, but for a program that cannot be read.
     if (agent && !(r.state === "error" && r.stage !== "nosummary") && !this.chatShows(r)) attempt("The agent said", () => {
-      const pv = this.previewOf(r), screen = pv.label === "on its screen now";
-      const whole = pv.text || (approval ? r.summary : "") || "";
+      const pv = this.previewOf(r), screen = pv.raw;
+      const whole = (pv.note === "empty" && pv.who === "agent" ? "" : pv.text) || (approval ? r.summary : "") || "";
       const shown = full || screen ? whole : brief(whole, 400);
       if (shown !== whole) cut = true;
-      if (whole && whole !== told) text(screen ? "On its screen now" : "The agent said", wrap(shown), 1, screen ? "end" : "start");
+      if (whole && whole !== told) text(screen ? `On the ${pv.who}'s screen now` : pv.who === "reviewer" ? "The reviewer says" : "The agent said", wrap(shown), 1, screen ? "end" : "start");
     });
 
     const { settings, rows, table, cut: shorter } = attempt("Settings", () => this.panelSettings(p), null) || { settings: { lines: [] }, rows: [], table: () => [] };

@@ -24,6 +24,7 @@ import { Coordinator } from "./view/coordinator.js";
 import { Chat } from "./view/chat.js";
 import { ChatScroll } from "./view/chat-scroll.js";
 import { AgentPane } from "./view/agent-pane.js";
+import { Talk } from "./view/talk.js";
 import { Place } from "./view/place.js";
 import { Remotes } from "./view/remotes.js";
 import { Actions } from "./view/actions.js";
@@ -164,6 +165,7 @@ const PARTS = [
   Chat,
   ChatScroll,
   AgentPane,
+  Talk,
   Place,
   Remotes,
   Actions,

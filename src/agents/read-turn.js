@@ -8,7 +8,7 @@ import { providerError } from "./provider-error.js";
 // Only the tail is read: these files grow to many megabytes. Every reader fails soft and returns null.
 // A reader asked for more (`bytes`: Infinity is the whole file) reads that much instead, for the one question the
 // tail may not hold the answer to: when a very long turn began.
-function tailLines(file, bytes = 768 * 1024) {
+export function tailLines(file, bytes = 768 * 1024) {
   const st = fs.statSync(file);
   const fd = fs.openSync(file, "r");
   try {

@@ -7,6 +7,8 @@ import * as S from "../../store.js";
 import { adapter } from "../../agents.js";
 import { clean } from "./words.js";
 import { isAgent, reviewing, underReview, checking, standing, reviewerWord } from "./states.js";
+import { partLines, partsText } from "./chat-text.js";
+import { withMine } from "./talk.js";
 
 // The fewest cells the status keeps when the progress stands beside it.
 const CHAT_STATUS_MIN = 20;
@@ -55,16 +57,17 @@ export class Chat {
       // With an agent on it: what the task's row says (the Watcher's "doing now" line), or where the task stands.
       const status = r.archivedAt ? "archived: read-only" : toAgent ? stripVTControlCharacters(this.sentence(r).text) || word : starts ? "no agent yet: your message starts one" : this.canDispatch || r.host ? "no agent on it: your message goes to the Coordinator, about this task" : "no agent on it: your message is added to its description";
       const said = toAgent && !r.archivedAt;
-      const pv = said ? this.previewOf(r) : null, raw = pv?.label === "on its screen now";
+      // The conversation's own words (talk.js): the agent's, or the reviewer's while the task is under review.
+      const k = said ? this.talk(r) : null;
       // A dialog on its screen, or a review of its work, outranks your own words: it is what there is to see now.
-      const mine = said && !(raw && (r.state === "blocked" || reviewing(r))) ? this.sentTo(r) : "";
-      const text = mine || pv?.text || "";
+      const mine = said && !k.dialog && !reviewing(r) ? this.sentTo(r) : "";
+      const parts = k ? withMine(k.parts, mine) : [], text = partsText(parts), raw = !!k?.raw;
       // A status line that only starts the message in the box under it says nothing: where the task stands instead.
-      const echo = toAgent && status !== word && this.chatOpen && clean(text).startsWith(status.replace(/…$/, ""));
+      const echo = toAgent && status !== word && this.chatOpen && clean(parts.at(-1)?.text || "").startsWith(status.replace(/…$/, ""));
       // While the board runs its check, the check's progress as the row has it, in the row's colour: the bar, the percent and the minutes left; without the bar where that is too wide.
       const f = toAgent && checking(r) ? this.rowFields(r, Date.now()) : {};
       const progress = [[f.bar, f.percent, f.eta], [f.percent, f.eta]].map((cells) => cells.filter(Boolean).join(" ")).filter((p, n, all) => p && all.indexOf(p) === n);
-      return { mark: this.mark(r), tag: this.numberTag(r), name: clean(r.title || r.id), status: t.muted(echo ? word : status), progress, text, mine: !!mine, raw: raw && !mine, said, turn: JSON.stringify(this.turnMark(r)) };
+      return { mark: this.mark(r), tag: this.numberTag(r), name: clean(r.title || r.id), status: t.muted(echo ? word : status), progress, text, parts, mine: !!mine, raw: raw && !mine, said, turn: JSON.stringify(this.turnMark(r)) };
     }
     const far = this.scope && this.scope !== "*" && this.remotes[this.scope] ? this.scope : "";
     if (far) return { mark: t.fg("overlay0", t.mark("unknown")), color: "overlay0", name: `Coordinator on ${far}`, status: t.muted(`what you type goes to ${far}`), text: "" };
@@ -81,13 +84,10 @@ export class Chat {
     // Rare, and too long for the status: a default that changed under a running Coordinator gets a line of its own.
     const note = v.stale ? `your default is now ${C.describe(v.def)}: herdr-superwork coordinator new starts a new one on it` : "";
     // Which program, model and effort it runs on is not said here: that is the Coordinator's own pane's to say.
-    let text = "", tone = "", raw = false, mine = false;
-    if (v.error) { text = `It could not be started: ${v.error}`; tone = "red"; }
-    else if (v.state === "blocked") { raw = true; text = C.screen(v) || "Something on its screen waits for you: open its pane in herdr."; }
-    else if (v.sent) { mine = true; text = v.sent; }
-    else if (v.said) text = v.said;
-    else if (v.status && (v.state === "working" || !v.readable)) { raw = true; text = C.screen(v); } // a program whose conversation cannot be read: its screen
-    return { mark, color: v.error ? "red" : color, name: "Coordinator", status: t.muted(status), text, tone, raw, mine, note, said: true, turn: String(v.turn?.id || ""), always: !!v.error && this.errHid !== v.error };
+    // Its conversation's own words, as a task's agent's (talk.js). A start that failed says why in their place.
+    const k = v.error ? { parts: [{ by: "", text: `It could not be started: ${v.error}`, tone: "red" }] } : this.coordTalk(v, C);
+    const text = partsText(k.parts), tone = v.error ? "red" : "", raw = !!k.raw, mine = !!k.mine;
+    return { mark, color: v.error ? "red" : color, name: "Coordinator", status: t.muted(status), text, parts: k.parts, tone, raw, mine, note, said: true, turn: String(v.turn?.id || ""), always: !!v.error && this.errHid !== v.error };
   }
   // The line that says who you talk to is what herdr's sidebar says about that agent, with the board's own mark: the
   // mark, the name in bold, and what it is doing now, greyed (a review's verdict keeps its colour on the row, not
@@ -117,16 +117,16 @@ export class Chat {
   }
   // Is the box open on the latest message? A start that failed says why, hidden or not.
   chatUp(c) { return !!c && (this.chatOpen || !!c.always); }
-  // The latest message, wrapped to `width`, on at most `max` lines: the agent's in grey, your own just-sent one in the
-  // bright colour. A longer one shows `max` of its lines, and scrolls (chat-scroll.js says from where, and how).
+  // The conversation, wrapped to `width`, on at most `max` lines: each thing said under the line that names who said
+  // it, their words in grey, your own in the bright colour. The box opens on the newest of them; what was said
+  // before it is above, and a longer one scrolls (chat-scroll.js says from where, and how).
   chatMessage(c, width, max) {
     const t = this.theme;
     if (c && !c.text) this.chatAt = null; // nothing said in between: the same words after it are a new message
     if (!c?.text || max < 1) return [];
-    const text = c.raw ? c.text : c.text.replace(/\*\*([^*\n]+)\*\*/g, "$1");
-    const lines = String(text).split("\n").flatMap((l) => { const w = wrapTextWithAnsi(clean(l), Math.max(1, width)); return w.length ? w : [""]; });
-    const paint = (l) => (c.tone ? t.fg(c.tone, l) : c.mine ? l : t.muted(l));
-    const top = this.chatWindow(c, lines.length, max);
-    return lines.slice(top, top + max).map(paint);
+    const paint = (kind, l, p) => (kind === "by" ? t.fg("subtext0", l) : p.tone ? t.fg(p.tone, l) : p.mine ? l : t.muted(l));
+    const { lines, latest } = partLines(c.parts || [{ by: "", text: c.text, raw: c.raw, mine: c.mine, tone: c.tone }], Math.max(1, width), paint);
+    const top = this.chatWindow(c, lines.length, max, latest);
+    return lines.slice(top, top + this.chatFit.rows);
   }
 }

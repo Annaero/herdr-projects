@@ -115,6 +115,7 @@ follows light and dark and every palette of the web UI by itself.
 | the hint line: what can be done to the selected task now | the buttons at the top of the open task, in the same words |
 | the `?` menu | **More…** (and `⋯` in the header): every other action, as it stands for the selected task |
 | the chat, and who it talks to | the box at the foot; tap its first line to switch between the Coordinator and the task's agent |
+| the chat's box: the newest thing said, under a line that names who said it (the reviewer, while the task is under review) | the same words under the same line (`Reviewer:`, `Agent:`, `You:`), never the program's screen; **Show all of it** has the rest of the conversation, which `alt+u` scrolls to on the terminal |
 | typing, then sending; sending and putting an agent on what is added | **Send**, and the second button beside it |
 | a question (approve a merge, remove a task, a suggested task) | a sheet with the same answers |
 | the board's message to you | a short notice above the chat; one that says something went wrong stays until dismissed |

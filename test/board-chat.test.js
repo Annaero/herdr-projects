@@ -12,7 +12,7 @@ import { coordWorld, open as openCoord } from "./coordinator-helpers.js";
 
 // The chat as the screen shows it: the line that says who, and what is inside the box (without its frame).
 function chat(s, width = 120) {
-  const lines = s.screen(width), top = lines.findLastIndex((l) => /^╭─+╮$/.test(l)), end = lines.findLastIndex((l) => /^╰─+╯$/.test(l));
+  const lines = s.screen(width), top = lines.findLastIndex((l) => /^╭─.*╮$/.test(l)), end = lines.findLastIndex((l) => /^╰─+╯$/.test(l));
   if (top < 0) { const at = lines.findLastIndex((l) => /^❯/.test(l)); return { framed: false, who: lines[at - 2].trimEnd(), box: [lines[at].trimEnd()], hints: lines.at(-1).trim(), lines }; }
   for (const l of lines.slice(top, end + 1)) assert.equal(l.length, width, "the box is as wide as the window");
   return { framed: true, who: lines[top - 1].trimEnd(), box: lines.slice(top + 1, end).map((l) => l.slice(2, -2).trimEnd()), hints: lines[end + 1].trim(), lines };
@@ -29,20 +29,20 @@ test("a task agent's chat: its message, then your just-sent words in its place, 
     for (const width of [120, 48]) {
       const c = chat(s, width);
       assert.ok(c.framed); assert.match(c.who, /^ \S #\d+ Make f {2}\S/); assert.doesNotMatch(c.who, /agent|claude|alt\+|last message/);
-      assert.deepEqual(c.box, ["Made f, with one line in it.", "", "❯ Send message to Agent"]); // nothing else is in it
+      assert.deepEqual(c.box, ["Agent:", "Made f, with one line in it.", "", "❯ Send message to Agent"]); // nothing else is in it
       assert.match(c.hints, /space back to the Coordinator$/); // whole at every width: the key is never the part that is cut
     }
     assert.match(chat(s).hints, /alt\+c hide the latest message · space back to the Coordinator$/);
     // While you type: your words on the line, and the hints say what the keys do now.
     s.type("yes, g too");
-    assert.deepEqual(chat(s).box, ["Made f, with one line in it.", "", "❯ yes, g too"]); assert.equal(chat(s).hints, "enter send to this task's agent · shift+enter new line · esc put away");
+    assert.deepEqual(chat(s).box, ["Agent:", "Made f, with one line in it.", "", "❯ yes, g too"]); assert.equal(chat(s).hints, "enter send to this task's agent · shift+enter new line · esc put away");
     // Sent: your words stand where the agent's message was. The old message is never under them.
     s.press("enter");
-    assert.deepEqual(chat(s).box, ["yes, g too", "", "❯ Send message to Agent"]); assert.doesNotMatch(s.text(), /Sent to the agent/);
+    assert.deepEqual(chat(s).box, ["You:", "yes, g too", "", "❯ Send message to Agent"]); assert.doesNotMatch(s.text(), /Sent to the agent/);
     assert.equal(s.v.chatShows(s.v.current()), false, "so the task panel has the agent's message meanwhile");
     // The agent answers: its new message takes that place.
     await settle(id); s.v.load();
-    assert.deepEqual(chat(s).box, ["Made g.", "", "❯ Send message to Agent"]); assert.equal(s.v.justSent.size, 0);
+    assert.deepEqual(chat(s).box, ["Agent:", "Made g.", "", "❯ Send message to Agent"]); assert.equal(s.v.justSent.size, 0);
     // Hidden: who you talk to and the line you type on, between two rules. alt+c is the key both ways.
     s.press("\x1bc");
     let c = chat(s);
@@ -50,7 +50,7 @@ test("a task agent's chat: its message, then your just-sent words in its place, 
     assert.doesNotMatch(s.text(), /│ Made g\./);
     // With the chat hidden nothing shows your words, so one line says they went.
     s.type("thanks"); s.press("enter"); assert.match(s.text(), /Sent to the agent/);
-    s.press("\x1bc"); assert.deepEqual(chat(s).box, ["thanks", "", "❯ Send message to Agent"]);
+    s.press("\x1bc"); assert.deepEqual(chat(s).box, ["You:", "thanks", "", "❯ Send message to Agent"]);
     // space: back to the same box for everyone else. With no Coordinator there is no message to hold, so no frame.
     s.press("space"); c = chat(s);
     assert.equal(c.framed, false); assert.match(c.who, /^ \+ New task {2}what you type is added as a task/); assert.doesNotMatch(c.hints, /alt\+c/);
@@ -63,17 +63,17 @@ test("the Coordinator's chat: what you sent stands in the box until it says some
     w.script({ coordinator: [{ said: "Six tasks are in progress." }, { status: "working" }] });
     const s = openCoord(w);
     s.type("where do things stand?"); s.press("enter"); s.beat();
-    assert.deepEqual(chat(s).box, ["where do things stand?", "", "❯ Send message to Coordinator"]); assert.match(chat(s).who, /^ . Coordinator {2}starting · 1 message waits to be sent$/);
+    assert.deepEqual(chat(s).box, ["You:", "where do things stand?", "", "❯ Send message to Coordinator"]); assert.match(chat(s).who, /^ . Coordinator {2}starting · 1 message waits to be sent$/);
     await drainJobs(runJob); s.beat();
-    assert.deepEqual(chat(s).box, ["Six tasks are in progress.", "", "❯ Send message to Coordinator"]); assert.equal(chat(s).who, " ○ Coordinator  idle");
+    assert.deepEqual(chat(s).box, ["Coordinator:", "Six tasks are in progress.", "", "❯ Send message to Coordinator"]); assert.equal(chat(s).who, " ○ Coordinator  idle");
     // The next words go in and it starts working: they stay in the box, the old reply is not shown under them.
     s.type("archive the last one"); s.press("enter"); await drainJobs(runJob); s.beat();
     assert.equal(C.get().queue.length, 0); assert.equal(C.look().said, "Six tasks are in progress."); assert.equal(C.look().sent, "archive the last one");
-    assert.deepEqual(chat(s).box, ["archive the last one", "", "❯ Send message to Coordinator"]); assert.doesNotMatch(s.text(), /Six tasks|›/);
-    assert.deepEqual(chat(openCoord(w)).box, ["archive the last one", "", "❯ Send message to Coordinator"], "a board opened now shows the same");
+    assert.deepEqual(chat(s).box, ["You:", "archive the last one", "", "❯ Send message to Coordinator"]); assert.doesNotMatch(s.text(), /Six tasks|›/);
+    assert.deepEqual(chat(openCoord(w)).box, ["You:", "archive the last one", "", "❯ Send message to Coordinator"], "a board opened now shows the same");
     // Typed in its own chat instead: the box's words no longer stand for the latest thing said.
     C.typedThere(); s.beat();
-    assert.deepEqual(chat(s).box, ["Six tasks are in progress.", "", "❯ Send message to Coordinator"]);
+    assert.deepEqual(chat(s).box, ["Coordinator:", "Six tasks are in progress.", "", "❯ Send message to Coordinator"]);
   } finally { w.cleanup(); }
 });
 
@@ -86,7 +86,7 @@ test("a long message wraps inside the box and takes the rows it needs, never the
     const said = Array.from({ length: 20 }, (_, i) => `Line ${i + 1} of **what** it said, long enough to wrap in a narrow window.`).join("\n");
     const base = s.v.chatOf.bind(s.v);
     let mine = false;
-    s.v.chatOf = (r) => ({ ...base(r), text: said, mine });
+    s.v.chatOf = (r) => ({ ...base(r), parts: undefined, text: said, mine });
     for (const width of [44, 80, 200]) {
       for (mine of [false, true]) {
         const c = chat(s, width), body = c.box.slice(0, -2);
@@ -115,28 +115,28 @@ test("an answer in the very same words still takes your words' place: the Coordi
     w.script({ coordinator: [{ said: "Done." }, { said: "Done." }], worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Done." }, { files: { "g.txt": "1\n" }, commit: "2", note: "Done." }] });
     const s = openCoord(w);
     s.type("first request"); s.press("enter"); await drainJobs(runJob); s.beat();
-    assert.deepEqual(chat(s).box, ["Done.", "", "❯ Send message to Coordinator"]);
+    assert.deepEqual(chat(s).box, ["Coordinator:", "Done.", "", "❯ Send message to Coordinator"]);
     s.type("second request"); s.press("enter"); s.beat();
-    assert.deepEqual(chat(s).box, ["second request", "", "❯ Send message to Coordinator"]);
+    assert.deepEqual(chat(s).box, ["You:", "second request", "", "❯ Send message to Coordinator"]);
     await drainJobs(runJob); s.beat();
     assert.equal(C.look().state, "idle"); assert.equal(C.look().sent, "");
-    assert.deepEqual(chat(s).box, ["Done.", "", "❯ Send message to Coordinator"]);
+    assert.deepEqual(chat(s).box, ["Coordinator:", "Done.", "", "❯ Send message to Coordinator"]);
     // A task's agent: the same words at the end of its next turn.
     const id = A.add(w.root, "Make f").id;
     A.delegate(id); await settle(id);
     s.v.sel = id; s.v.load(); s.press("space");
-    assert.deepEqual(chat(s).box, ["Done.", "", "❯ Send message to Agent"]);
+    assert.deepEqual(chat(s).box, ["Agent:", "Done.", "", "❯ Send message to Agent"]);
     s.type("make g too"); s.press("enter"); s.v.load();
-    assert.deepEqual(chat(s).box, ["make g too", "", "❯ Send message to Agent"]);
+    assert.deepEqual(chat(s).box, ["You:", "make g too", "", "❯ Send message to Agent"]);
     await settle(id); s.v.load();
-    assert.deepEqual(chat(s).box, ["Done.", "", "❯ Send message to Agent"]);
+    assert.deepEqual(chat(s).box, ["Agent:", "Done.", "", "❯ Send message to Agent"]);
     // The same, with the chat on someone else from the moment the words went until after the answer: nothing was
     // drawn of this task's chat in between, and the answer still takes the words' place.
     w.script({ worker: [{ files: { "h.txt": "1\n" }, commit: "3", note: "Done." }] });
     s.type("and h"); s.press("enter", "space"); assert.equal(s.v.reply, false); s.screen();
     await settle(id); s.v.load(); s.screen();
     s.press("space"); assert.equal(s.v.reply, true);
-    assert.deepEqual(chat(s).box, ["Done.", "", "❯ Send message to Agent"]);
+    assert.deepEqual(chat(s).box, ["Agent:", "Done.", "", "❯ Send message to Agent"]);
   } finally { w.cleanup(); }
 });
 

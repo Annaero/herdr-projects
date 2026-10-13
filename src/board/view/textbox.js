@@ -1,10 +1,12 @@
 // The text box you type in.
 import { CURSOR_MARKER, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { isAgent } from "./states.js";
+import { isAgent, reviewing } from "./states.js";
 import { AGENT_TAB } from "../../flow/tabs.js";
 import { COORDINATOR_TAB } from "../../coordinator/place.js";
 
-// The grey words of an empty box that sends a message: they name who gets it, by the name of its tab.
+// The grey words of an empty box that sends a message: they name who gets it, by the name of its tab. While a task is
+// under review the chat shows its reviewer, and a message still goes to its agent (a reviewer takes none: it judges
+// the work as it is), which ends the review: the words say both.
 const sendTo = (who) => `Send message to ${who}`;
 
 export class TextBox {
@@ -17,7 +19,7 @@ export class TextBox {
     const lines = this.input.renderWithin(width, maxRows, label);
     if (this.value()) return lines;
     const place = this.mode === "find" ? "type to filter, archived tasks too"
-      : replying ? (r.archivedAt ? "archived: read-only" : isAgent(r) ? sendTo(AGENT_TAB) : !r.host && ["todo", "progress"].includes(r.stage) ? "your message starts an agent on it" : this.canDispatch || r.host ? sendTo(COORDINATOR_TAB) : "what should change?")
+      : replying ? (r.archivedAt ? "archived: read-only" : isAgent(r) ? sendTo(AGENT_TAB) + (reviewing(r) ? ": it stops the review" : "") : !r.host && ["todo", "progress"].includes(r.stage) ? "your message starts an agent on it" : this.canDispatch || r.host ? sendTo(COORDINATOR_TAB) : "what should change?")
       : this.automationsView ? this.autoPlace() : this.talksToCoord ? sendTo(COORDINATOR_TAB) : "what's next?";
     // The placeholder never runs past the box: it is cut with … like any other greyed line.
     const shown = truncateToWidth(place, Math.max(1, width - visibleWidth(label) - 1), "…");

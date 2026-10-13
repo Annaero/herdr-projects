@@ -294,7 +294,8 @@ to a neighbour's agent.
 
 ```
  ○ Coordinator  idle
-╭────────────────────────────────────────────────────────────────────────────────────────────╮
+╭───────────────────────────────────────────────────────────────────────────── alt+u more ↑ ─╮
+│ Coordinator:                                                                               │
 │ Added proj/4: Add an undo. An agent is on it.                                              │
 │                                                                                            │
 │ ❯ Send message to Coordinator                                                              │
@@ -311,23 +312,53 @@ The chat is three things, and looks the same for the Coordinator and for a task'
   window takes a second line; in a window too short for that, the draft keeps the line). No program, model or effort
   is named there, and no keys. (One thing gets a greyed line of its own under it: a default that changed while a
   Coordinator runs, with the command that starts a new one on it.)
-- **One rounded box**: their latest message in grey, an empty line, and the line you type on (the prompt is only
+- **One rounded box**: the newest thing said in that conversation, in grey, under a line that names who said it
+  (`Coordinator:`, `Agent:`, `Reviewer:`, `You:`), then an empty line, and the line you type on (the prompt is only
   `❯`). While that line is empty it says in grey who gets your message, by the name of their tab: `Send message to
-  Coordinator`, or `Send message to Agent` for a task's agent. Nothing else is in it. A long message wraps, and the box grows with it: it takes the lines the message
-  needs, up to two thirds of the window, and shrinks back for a short one. The list above gives up those rows and
-  keeps the selected task in view. (Under the whole task, `Alt+T`, and the `?` menu, which are there to be read
-  themselves, the message keeps to a third of the window.) While a dialog is up on their screen, the box shows that
-  screen instead.
+  Coordinator`, or `Send message to Agent` for a task's agent. Nothing else is in it. A long message wraps, and the
+  box grows with it: it takes the lines the message needs, up to two thirds of the window, and shrinks back for a
+  short one. The list above gives up those rows and keeps the selected task in view. (Under the whole task, `Alt+T`,
+  and the `?` menu, which are there to be read themselves, the message keeps to a third of the window.)
+
+**Only the words of the conversation are in the box**: what the Coordinator, the agent or the reviewer said, and
+what was sent to it. Nothing of the program's own screen is: no tool call and none of its output, no spinner, timing
+or token count, no tip, no input box, rule or footer, no start screen or logo. The board reads them from the
+conversation the program itself saves (Claude Code, Codex and pi each keep one), not from its screen, so a new
+version of a program that draws its screen differently changes nothing here. Markdown reads as text: a list item's
+next lines stand under its words, code keeps its lines, and the marks of a headline, of bold and of a code block
+are left out.
+
+- **While it works and has said nothing new**, its last words stay, and the line above the box says what it is
+  doing now. One that has said nothing at all yet says so in words: `The agent has just started: nothing to show
+  yet.`
+- **A dialog that is only on its screen** (a permission prompt, a question with choices) is said in a line of its
+  own, with the way to it: `The agent shows a dialog on its screen that waits for your answer: enter opens it.` The
+  Coordinator's is in herdr's `Coordinator` tab, a reviewer's in its `Reviewer #2` tab in the task's space.
+- **A program whose conversation the board cannot read** (none of the three it starts today) is the one exception:
+  the words on its screen show, under `Agent, on its screen now:`, with what is drawn there (rules, boxes, a logo,
+  a bar) left out by its shape.
+- **Going into the agent** (`Enter`) is its real terminal, untouched.
+
+**While a task is under review, the chat is its reviewer's.** From the moment the review starts until it ends, the
+box shows what the reviewer says (`Reviewer:`), kept fresh as it goes, for every program a reviewer can be. Before
+it has said anything: `The reviewer has just started: nothing to show yet.` A reviewer takes no messages (it judges
+the work as it is), so what you type still goes to the task's agent, and that ends the review, as typing in the
+agent's own pane does. The empty line says both: `Send message to Agent: it stops the review`. When the review
+ends the chat is the agent's again, and the review's result is where it always is: on the row and in the task
+panel.
 - **One greyed hint line under the box**, with only the keys that do something right now. While you type, it says
   what the keys do with your words (`enter send to the Coordinator · tab send, and put an agent on what it adds ·
   shift+enter new line · esc put away`). What each hint says, and what gives way in a narrow window, is in
   [the hint line](keys.md#the-hint-line).
 
-**A message longer than its box scrolls.** `Alt+U` scrolls it up and `Alt+J` down, half a box at a time (U sits
-above J on the keyboard); the mouse wheel does the same with the pointer over the chat ([the mouse](mouse.md)). Both
-work while you type, and neither touches the draft. The box says where there is more and names the key: `alt+u more
-↑` on its top edge, `alt+j more ↓` at the right of the line under the message (in a narrow window only `more ↓`, then
-only the arrow).
+**The box scrolls through the conversation's words.** It opens on the newest thing said and holds only that. What
+was said and sent before is above it: `Alt+U` opens the box to the conversation and scrolls up through it, `Alt+J`
+down, half a box at a time (U sits above J on the keyboard), and down once more from its end closes it to the
+newest message again. The last dozen things said are there, each under the line that names who said it; what was
+sent to an agent or a reviewer (`To the agent:`, `To the reviewer:`) is a long brief, so only its beginning shows.
+The mouse wheel does the same with the pointer over the chat ([the mouse](mouse.md)). Both work while you type, and
+neither touches the draft. The box says where there is more and names the key: `alt+u more ↑` on its top edge,
+`alt+j more ↓` at the right of the line under the message (in a narrow window only `more ↓`, then only the arrow).
 
 ```
  ● Coordinator  idle
@@ -341,15 +372,15 @@ only the arrow).
 
 A new message starts at its beginning: an answer is read from its first line down, and one key goes on from there
 (started at its end, you would scroll up to find where it begins and then down again to read it). Only a screen, shown
-while a dialog is up or for a program whose conversation cannot be read, starts at its end, where a terminal has what
-is new. Where you scrolled to is kept while the same message of the same chat shows; a new message (also one in the
+for a program whose conversation cannot be read, starts at its end, where a terminal has what is new. Where you scrolled to is kept while the same message of the same chat shows; a new message (also one in the
 very same words as the last), your own words in its place, or another chat starts over.
 
 A tall draft never takes the message away: in a window too small for both, the draft gives rows back and scrolls
 inside what it keeps, so that three lines of the message stay (one, in a window of eight rows), and they still scroll.
 
 **What you just sent takes the message's place.** Send something and the box shows your words, in the bright text
-colour, where the agent's message was, over an empty line to type on. The old message is never shown under them. When
+colour under `You:`, where the agent's message was, over an empty line to type on. The old message is never shown
+under them (it is above, with the rest of the conversation). When
 the agent says something new, that takes their place, in grey (also when it answers in the very same words as before). For the Coordinator this holds when the board is
 closed and opened again; for a task's agent, for as long as the board stays open.
 

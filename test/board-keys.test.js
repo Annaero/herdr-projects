@@ -25,7 +25,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     s.press("tab");
     await settle("proj/1"); s.v.load();
     assert.match(s.text(), /\n working +│[^\n]*\n ◐ #\d+ Add a greeting/);
-    assert.match(s.text(), /│ {2}On its screen now ─+ *\n[^\n]*│ {2}● Editing greet\.sh/); // the panel shows what the agent is doing
+    assert.doesNotMatch(s.text(), /On its screen|Editing greet|esc to interrupt/); // nothing of the program's screen is shown: the row says what the agent is doing
     assert.match(s.text(), /\n {2}enter open this task's agent · space talk to the agent · ctrl\+x stop the agent · \? all keys/);
     // space: the text box now belongs to this task's agent, and says so for as long as you type
     s.press("space");
@@ -35,7 +35,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
     assert.match(s.text(), /\n *\n . #\d+ Add a greeting {2}[^\n]*\n(?:[^\n]*\n)*?│ ❯ also say goodbye/); assert.match(s.text(), /enter send to this task's agent · shift\+enter new line · esc put away/);
     s.press("enter");
     // What you just sent stands in the box, in place of what the agent had said, until it says something new.
-    assert.match(s.text(), /\n╭─+╮\n│ also say goodbye +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n/); assert.doesNotMatch(s.text(), /Sent to the agent/);
+    assert.match(s.text(), /\n╭─[^\n]*╮\n│ You: +│\n│ also say goodbye +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n/); assert.doesNotMatch(s.text(), /Sent to the agent/);
     const t = S.get("proj/1");
     assert.match(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.at(-1), /also say goodbye/);
     // esc has nothing to go back from here: it never hides the chat's message and never changes who you talk to.

@@ -46,7 +46,7 @@ export class PanelStatus {
     top.draw();
 
     // What it needs from you: a part of its own, its headline in the state's colour.
-    const said = agent ? this.lastSaid(r) : "";
+    const said = agent ? String(r.said || "") : "";
     let told = ""; // what this part already printed, so "the agent said" does not repeat it
     if (r.archivedAt) alert("overlay0", "Archived", `Read-only. ${keyName("archive")} restores it. Its state and all its data are kept.`);
     if (failure && waitOf(r)?.who === "agent") { // nothing to do: the board carries on by itself

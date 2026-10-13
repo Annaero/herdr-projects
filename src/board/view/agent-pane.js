@@ -1,10 +1,9 @@
-// A task's agent: what its pane shows, what it last said, and going into its real herdr pane.
+// A task's agent: what its pane shows, and going into its real herdr pane.
 import { spawnSync } from "node:child_process";
 import * as F from "../../flow.js";
 import * as R from "../../remote.js";
 import * as D from "../../delegate.js";
 import { herdr, inHerdr, readScreen } from "../../herdr.js";
-import { adapter } from "../../agents.js";
 import { reviewing } from "./states.js";
 import { name as keyName } from "../keys.js";
 import * as words from "./words.js";
@@ -13,33 +12,24 @@ import * as words from "./words.js";
 const attachHere = (pane, socket) => spawnSync(process.env.HERDR_BIN_PATH || "herdr", ["agent", "attach", pane], { stdio: "inherit", env: { ...process.env, HERDR_SOCKET_PATH: socket } });
 
 export class AgentPane {
-  // What the agent's pane shows, read through herdr. A deep read is done once per completed turn and cached; while
-  // the agent is busy only its visible screen is read, at most every two seconds.
+  // What the pane of a task's agent shows (its reviewer's while the task is under review), read through herdr: only
+  // for a program whose conversation cannot be read (talk.js). A deep read is done once per completed turn and
+  // cached; while it is busy only its visible screen is read, at most every two seconds. A reviewer is always busy:
+  // what is kept of its screen is never tied to the agent's turn, which does not move while the review runs.
   screen(r) {
     if (r.host) return String(r.snap?.screen || "");
     if (!F.isAgentTask(r) || !r.live || r.live.away || r.live.down || r.live.gone) return "";
-    const status = r.live.status;
+    const reviewer = reviewing(r) && r.link.reviewer?.pane;
+    const status = reviewer ? "working" : r.live.status;
     const settled = status === "idle" || status === "done";
-    const key = settled ? `deep:${r.live.agent?.completion_seq ?? r.live.agent?.state_change_seq ?? 0}` : "live";
+    const key = settled ? `deep:${r.live.agent?.completion_seq ?? r.live.agent?.state_change_seq ?? 0}` : `live:${reviewer || ""}`;
     const hit = this.screens.get(r.id);
     if (hit && hit.key === key && (settled || Date.now() - hit.at < 2000)) return hit.text;
     let text = "";
-    try { text = readScreen(herdr(r.link.socket), r.reviewer_pane || (reviewing(r) && r.link.reviewer?.pane) || r.link.pane, reviewing(r) && r.link.reviewer?.pane ? "working" : status); } catch {}
+    try { text = readScreen(herdr(r.link.socket), reviewer || r.link.pane, status); } catch {}
     text = text.split("\n").map((l) => l.trimEnd()).join("\n").replace(/\n{3,}/g, "\n\n").trim();
     this.screens.set(r.id, { key, at: Date.now(), text });
     return text;
-  }
-  lastSaid(r) { return String(r.said || ""); } // the agent's last message, read from its saved conversation (its closing note as the fallback)
-  // What the Space preview shows: the agent's last message. Its raw screen instead, under "on its screen now", when
-  // the agent kind has no reader, when herdr reports it blocked while its turn has not ended (a permission prompt or a
-  // menu exists only on its screen), and whenever there is no message yet. Never empty.
-  previewOf(r) {
-    const said = this.lastSaid(r);
-    const kind = r.agent || r.app;
-    const dialog = r.stage === "working" && (r.host ? r.state === "blocked" : r.live?.status === "blocked");
-    if (said && adapter(kind).readTurn && !dialog && !reviewing(r)) return { label: "last message", text: said };
-    const screen = this.screen(r) || r.screen || "";
-    return screen ? { label: "on its screen now", text: screen } : { label: said ? "last message" : "", text: said };
   }
   // Into the agent: its real herdr pane. The board keeps running in its own pane (the tab the board key opens, or a
   // pane you started it in) and is there, as you left it, when you come back. Outside a herdr client (plain SSH) the

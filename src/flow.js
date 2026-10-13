@@ -6,5 +6,6 @@ export * from "./flow/sidebar.js";
 export * from "./flow/spaces.js";
 export * from "./flow/tabs.js";
 export * from "./flow/send.js";
+export * from "./flow/talk.js";
 export * from "./flow/git.js";
 export * from "./flow/handled-turn.js";

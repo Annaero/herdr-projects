@@ -58,7 +58,9 @@ const snapshot = (t) => {
   const folder = S.folderOf(t.id);
   const tree = t.worktree || "";
   // Its settings as this machine reads them, each with the place it came from: the task panel on the asking side.
-  return { folder: S.tilde(folder), tree: S.tilde(tree), branch: S.branchOf(tree || folder), settings: S.settingRows({ task: t }), problems: S.settingProblems(t), canWorktree: S.canWorktree(folder), repo: S.inRepo(t) };
+  // What its agent (its reviewer, while it is under review) said: only for a task someone is on, and kept small.
+  const talk = F.isAgentTask(t) && !t.archivedAt && t.stage !== "done" ? (() => { try { return F.taskTalk(t, { keep: 8, most: 6000 }); } catch { return undefined; } })() : undefined;
+  return { talk, folder: S.tilde(folder), tree: S.tilde(tree), branch: S.branchOf(tree || folder), settings: S.settingRows({ task: t }), problems: S.settingProblems(t), canWorktree: S.canWorktree(folder), repo: S.inRepo(t) };
 };
 // `said`, `usage` and `agentVersion` ride along on each task; `version` is this side's plugin version (a machine on
 // an older plugin sends none, and the asking side then knows which requests it would not understand). Pending

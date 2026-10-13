@@ -14,7 +14,7 @@ async function board({ rows = 30, tasks = 30 } = {}) {
   const s = openCoord(w, { rows });
   s.v.side = false;
   const base = s.v.chatOf.bind(s.v), said = { text: answer(40), raw: false, turn: "turn-1" };
-  s.v.chatOf = (r) => { const c = base(r); return c && { ...c, text: said.text, raw: said.raw, turn: said.turn, mine: false, said: true }; };
+  s.v.chatOf = (r) => { const c = base(r); return c && { ...c, parts: undefined, text: said.text, raw: said.raw, turn: said.turn, mine: false, said: true }; };
   const key = (...keys) => s.press(...keys.map((k) => KEYS[k] ?? k));
   // The chat as drawn: its box's first and last row on the screen, the message's lines, and what the box says of more.
   const chat = (width = 120) => {

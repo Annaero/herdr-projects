@@ -19,6 +19,12 @@ restarted an exited agent in the same conversation; `ctrl+b q` returns to the bo
 told apart by its missing version: its new fields stay blank and the board says "update herdr-superwork on <machine>". Work never moves between
 machines.
 
+**Another machine's task has its chat too.** With each task someone is on, its machine sends the last few things
+said in its conversation: its agent's, or its reviewer's while it is under review, read there from the program's
+saved conversation. The chat and the task panel show them as they show this machine's own, under the same lines that
+name who said them ([the board](board.md)). A machine on an older plugin sends none: its agent's last message still
+shows, and for a reviewer the box says that the machine needs the update.
+
 **A task's work settings travel with it.** When you put an agent on another machine's task (or send that machine
 words that add one), the machine you are on works out what you say for it, you and your entry for its repo, and
 sends that along (kept on the task as what it carried, apart from anything else the task tracks): there it stands where that machine's own "you" would, under the task's own settings and above

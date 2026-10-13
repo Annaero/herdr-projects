@@ -1,8 +1,9 @@
-// The chat at the foot of the board: who it talks to (the Coordinator, or the selected task's agent), their latest
-// message, and the box you type in. Who that is, what the box says while empty and what its buttons do with your
+// The chat at the foot of the board: who it talks to (the Coordinator, or the selected task's agent), the newest
+// thing said in that conversation under a line that names who said it (the agent, the reviewer while the task is
+// under review, you), all of the conversation's words behind "Show all of it", and the box you type in. Who that is, what the box says while empty and what its buttons do with your
 // words come from the board (webui/side-model.js). What you type stays in this tab until it is sent.
 /* global sessionStorage, window, requestAnimationFrame */
-import { h, ink } from "./dom.js";
+import { h } from "./dom.js";
 
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const DRAFT = "sw-draft";
@@ -21,7 +22,14 @@ export function chatEl({ onSend, onPress }) {
   const said = h("div.sw-said", { hidden: true });
   const more = h("button.btn.btn-ghost.sw-said-more", { type: "button", hidden: true, onclick: () => { open = !open; fit(); } });
   const note = h("p.sw-chat-note", { hidden: true });
-  const fit = () => { said.classList.toggle("is-open", open); if (open) said.classList.remove("has-more"); more.textContent = open ? "Show less" : "Show all of it"; };
+  let parts = [];
+  // One thing said: who said it, in words, then the words. Closed, the box holds the newest; open, all of them.
+  const partEl = (p) => h(`div.sw-turn${p.mine ? ".is-mine" : ""}${p.raw ? ".is-raw" : ""}${p.tone ? `.sw-c-${p.tone}` : ""}`, p.by ? h("div.sw-by", `${p.by}:`) : null, h("div.sw-turn-text", p.text));
+  const fit = () => {
+    said.classList.toggle("is-open", open); if (open) said.classList.remove("has-more"); more.textContent = open ? "Show less" : "Show all of it";
+    said.replaceChildren(...(open ? parts : parts.slice(-1)).map(partEl));
+    if (open) said.scrollTop = said.scrollHeight;
+  };
   const go = async (delegate) => {
     const text = box.value;
     if (!text.trim()) return;
@@ -51,12 +59,13 @@ export function chatEl({ onSend, onPress }) {
         snap.list.selected && snap.panel?.task !== false ? h("span.sw-who-flip", c.toAgent ? "Talk to the Coordinator" : "Talk to this task's agent") : null].filter(Boolean));
       who.disabled = !snap.list.selected;
       note.hidden = !c.note; note.textContent = c.note;
-      if (c.text !== last) { last = c.text; open = false; said.replaceChildren(ink([{ t: c.text }])); said.scrollTop = 0; }
+      const fresh = c.text !== last;
+      if (fresh) { last = c.text; open = false; parts = c.parts && c.parts.length ? c.parts : c.text ? [{ by: "", text: c.text, mine: c.mine, raw: c.raw, tone: c.tone }] : []; }
       said.hidden = !c.text;
-      said.className = `sw-said${open ? " is-open" : ""}${c.mine ? " is-mine" : ""}${c.raw ? " is-raw" : ""}${c.tone ? ` sw-c-${c.tone}` : ""}`;
-      fit();
+      said.className = `sw-said${open ? " is-open" : ""}`;
+      if (fresh) { fit(); said.scrollTop = 0; }
       // Only where the message is longer than its few lines is there more to show (measured once it is laid out).
-      const measure = () => { const over = !!c.text && (open || said.scrollHeight > said.clientHeight + 2); more.hidden = !over; said.classList.toggle("has-more", over && !open); };
+      const measure = () => { const over = !!c.text && (open || parts.length > 1 || said.scrollHeight > said.clientHeight + 2); more.hidden = !over; said.classList.toggle("has-more", over && !open); };
       measure(); requestAnimationFrame(measure);
       box.placeholder = cap(snap.send.place || "");
       labels = snap.send;

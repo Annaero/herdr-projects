@@ -61,7 +61,11 @@ Both have the same parts, in the same order, and **one form for every part**:
   made a task or dismissed stay listed, greyed.
 - **The description**: whole on the full screen, cut after about 400 characters beside the list.
 - **The reviews**, as a history (below).
-- **What the agent said** (while you talk to its agent that is in the chat instead).
+- **What the agent said**: the newest words of its conversation, never its program's screen (while you talk to
+  its agent that is in the chat instead). While the task is under review the part is the reviewer's, and its
+  headline says so: `The reviewer says`. When the review ends it is the agent's again. A dialog that is only on a
+  program's screen is said there in a line, with the way to it; what the chat shows, and from where, is in
+  [the board](board.md).
 - **Settings**, what the task runs on, in a few rows: the project, the worktree, the agent, the reviewer, what
   gets reviewed, what sends a review back and how many rounds, the evidence, and how it merges. A row that holds a
   choice made for this task is in the text colour and one that comes from somewhere else is quieter. Full screen a

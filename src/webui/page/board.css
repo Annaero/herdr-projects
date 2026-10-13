@@ -84,8 +84,10 @@
 .sw-said { color: var(--sw-dim); font-size: var(--fs-sm, 13px); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 6.2em; overflow: hidden; }
 .sw-said.has-more { -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
 .sw-said.is-open { max-height: 40vh; overflow-y: auto; -webkit-mask-image: none; mask-image: none; }
-.sw-said.is-mine { color: var(--sw-text); }
-.sw-said.is-raw { font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-xs, 12px); white-space: pre; overflow-x: auto; }
+.sw-turn + .sw-turn { margin-top: var(--space-2, 8px); }
+.sw-by { color: var(--sw-text); font-weight: 600; }
+.sw-turn.is-mine { color: var(--sw-text); }
+.sw-turn.is-raw .sw-turn-text { font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-xs, 12px); white-space: pre; overflow-x: auto; }
 .sw-said-more { align-self: flex-start; font-size: var(--fs-xs, 12px); color: var(--sw-dim); min-height: 28px; height: 28px; margin-top: calc(-1 * var(--space-1, 4px)); }
 .sw-compose { display: flex; align-items: flex-end; gap: var(--space-2, 8px); }
 .sw-input { flex: 1; min-width: 0; min-height: var(--touch-target, 40px); max-height: 30vh; padding: 9px var(--space-3, 12px); resize: none; border: var(--hairline, 1px) solid var(--border-strong, #3e3830); border-radius: var(--radius-lg, 12px); background: var(--bg-input, #1c1916); color: var(--sw-text); font: inherit; font-size: var(--fs-input, 16px); line-height: 1.35; }

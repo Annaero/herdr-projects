@@ -67,7 +67,9 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `prompts.js` | What an agent was told: every prompt in its saved conversation, oldest first, where the program's file can be read |
 | `provider-error.js` | Provider errors: which ones pass by themselves, and which need the human |
 | `read-turn.js` | Reading the end of a saved conversation, one reader per agent program: last message, error, tokens |
+| `screen-text.js` | The words on a program's screen, for a program whose saved conversation the board cannot read (agents/talk.js reads the others, and those never need this) |
 | `start.js` | The arguments an agent of a kind is started with, and whether it has a fast mode |
+| `talk.js` | The text of a saved conversation, one reader per agent program: what was said to the program and what it said back, oldest first |
 
 ## `src/automations/`
 
@@ -105,11 +107,12 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | File | Holds |
 |---|---|
 | `actions.js` | What you do to the selected task: yes, send back, stop, remove, undo, archive |
-| `agent-pane.js` | A task's agent: what its pane shows, what it last said, and going into its real herdr pane |
+| `agent-pane.js` | A task's agent: what its pane shows, and going into its real herdr pane |
 | `ask.js` | The one question box: asking, what a merge question is about, and how it is drawn |
 | `automation-panel.js` | One automation, whole: beside the list and full screen |
 | `automations.js` | The automations, a list of their own behind its key, as the archive is: one row per automation (on or off, its name, its trigger in plain words, its repo, the last firing, the next one for a schedule), and what the… |
 | `chat-scroll.js` | Scrolling the chat's message: which of its lines show while it is longer than its box, and the words that say so |
+| `chat-text.js` | A conversation's text as the lines of a box: each thing said under a line that names who said it, wrapped to the box, with markdown read as text (a list item's next lines stand under its words, code keeps its lines,… |
 | `chat.js` | The chat at the bottom: who it talks to, the line that names them, and their latest message |
 | `coordinator.js` | The Coordinator from the board: sending it your words, and counting a reply you can see as seen |
 | `hints.js` | The hint line at the bottom of the board |
@@ -138,6 +141,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `size.js` | The board's size: the window, what herdr shows of it, and another viewer holding the terminal at its own size |
 | `states.js` | Where a task stands, as the board sorts it: its group, its colour, whether an agent is on it, whether it waits for you |
 | `suggestions.js` | Suggested tasks: work a reviewer or an agent came across outside its own task |
+| `talk.js` | What a chat shows of a conversation: only its words |
 | `textbox.js` | The text box you type in |
 | `web-ui.js` | The board inside the herdr web UI, asked about once: with that plugin installed and its link shared, the board asks whether the link may go through its front door, which is what puts the Board into the web UI… |
 | `words.js` | Small words and numbers the board's parts share: a time as "12m", a pull request as "PR#16", a long text cut short |
@@ -190,6 +194,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `sidebar.js` | Telling herdr's own sidebar where a task stands: the label on its pane |
 | `spaces.js` | herdr spaces the board opened and owes closing: a repo's own space, a done task's clean-up, spaces left over |
 | `tabs.js` | A task's tabs in its herdr space: the agent's tab is named `Agent`, and each reviewer has a tab of its own, named after its review round |
+| `talk.js` | A task's conversation as the board shows it: its agent's, or its reviewer's while the task is under review |
 | `task.js` | A task's own places and its herdr: the closing note, the review folder, whether an agent is on it |
 
 ## `src/store/`
@@ -260,7 +265,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | File | Holds |
 |---|---|
 | `board.js` | The board over the web UI's page: its frame (the header, the list, one task, the chat), asking the board for what to show, and sending it what you do |
-| `chat.js` | The chat at the foot of the board: who it talks to (the Coordinator, or the selected task's agent), their latest message, and the box you type in |
+| `chat.js` | The chat at the foot of the board: who it talks to (the Coordinator, or the selected task's agent), the newest thing said in that conversation under a line that names who said it (the agent, the reviewer while the task… |
 | `dom.js` | The page's few tools: making elements, drawing the board's coloured pieces of text, and calling the front door |
 | `list.js` | The task list as the page draws it: the groups under their headings and one row per task |
 | `panel.js` | One task, whole: its title, the buttons for what can be done to it now, and the task panel's parts (status, what it needs from you, suggested tasks, description, reviews, evidence, what the agent said, settings, session) |
@@ -348,6 +353,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `board-stay.test.js` | Going into an agent never ends the board: in a pane of its own it runs on, and opening the board goes back to it |
 | `board-still.test.js` | The board stands still: a size that changes for a moment, a second herdr window on the session, agents starting and ending, its own reload |
 | `board-tab.test.js` | The board's own tab: named herdr-superwork while the board is open in a pane, its old name back when it closes |
+| `board-talk.test.js` | What a chat shows of a conversation: only its words, whoever said them |
 | `board-textbox.test.js` | The text box: wrapping, growing, scrolling, editing keys |
 | `check-progress.test.js` | The board's own check as a task shows it: a true count from the command, the wait for a turn, the minutes left from earlier runs, an answer known at once, a check that stands still, and a colour of its own |
 | `check-report.js` | What the test command tells whoever started it, and the line of runs waiting for a turn |

@@ -4,3 +4,5 @@ export * from "./agents/provider-error.js";
 export * from "./agents/kinds.js";
 export * from "./agents/start.js";
 export * from "./agents/installed.js";
+export * from "./agents/talk.js";
+export * from "./agents/screen-text.js";

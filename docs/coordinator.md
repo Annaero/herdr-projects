@@ -55,7 +55,8 @@ plain words: added, updated (a title, a description, settings), removed, started
 restored. For example "Added proj/12 and started an agent on it". The commands answer in the same words (see
 [roles and commands](roles-and-commands.md)).
 
-On the board you talk to it through the chat and read its latest message there (`Alt+C` shows and hides it). For the
+On the board you talk to it through the chat and read its latest message there (`Alt+C` shows and hides it): only
+what it said and what you said to it, never its program's screen ([the board](board.md)). For the
 whole conversation, its dialogs, its slash commands and its menus you **go into it** in herdr, not from the board:
 it is an ordinary agent in the `Coordinator` tab of your home space, and the plugin action `herdr-superwork.coordinator` (bind a
 key to it) goes straight to its pane from anywhere in herdr, starting it first when it is not running. From there
