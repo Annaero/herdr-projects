@@ -77,3 +77,17 @@ function headFile(dir) {
 }
 export const headOf = (dir) => { const known = headFile(dir); if (known) return known; try { return S.gitOut(dir, ["rev-parse", "HEAD"]); } catch { return ""; } };
 export const dirty = (dir) => { try { return S.gitOut(dir, ["status", "--porcelain"]); } catch { return ""; } };
+// The board's own comments on a pull request are posted as the logged-in user, the same one whose comments wake the
+// agent: each ends with this mark (unseen on the page), and one from before the mark starts with its headline.
+export const BOARD_COMMENT = "\n\n<!-- herdr-superwork -->";
+export const boardComment = (body) => /<!-- herdr-superwork -->|^\s*\*\*Review( \d+)? · /.test(String(body || ""));
+// Who is logged in to GitHub here: the human. Asked once a day; "" when gh cannot say.
+export function ghUser(cwd) {
+  const file = path.join(S.dataDir(), "gh-user.json"), kept = S.readJson(file);
+  if (kept && Date.now() - kept.at < 24 * 3600 * 1000) return kept.login;
+  let login = "";
+  try { const r = gh(["api", "user", "--jq", ".login"], cwd, 20000); if (r.status === 0) login = String(r.stdout || "").trim().split("\n")[0]; } catch {}
+  if (!/^[A-Za-z0-9-]+(\[bot\])?$/.test(login)) login = "";
+  try { S.writeJson(file, { login, at: login ? Date.now() : Date.now() - 23 * 3600 * 1000 }); } catch {}
+  return login;
+}

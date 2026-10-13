@@ -49,7 +49,7 @@ test("stop: the stage is set before esc is sent, and a late working event cannot
 });
 
 test("an agent herdr cannot classify (unknown) finishes when its closing note appears", async () => {
-  const w = await world({ settings: { agent: "codex", reviewer: "off" } });
+  const w = await world({ settings: { "worker.agent": "codex", "review.when": "never" } });
   try {
     w.script({ worker: [{ files: { "u.txt": "u\n" }, commit: "u", note: "Codex is done.", status: "unknown" }] });
     const id = A.add(w.root, "Unknown status").id;
@@ -77,7 +77,7 @@ test("an agent that reports itself blocked gets the right kind, and stopping aft
 });
 
 test("review: a verdict for another commit is ignored, a missing verdict is a saved failure, reviewer edits are put back", async () => {
-  const w = await world({ settings: { gate: "off" } });
+  const w = await world({ settings: { "review.rounds": 0 } });
   try {
     process.env.HERDR_SUPERWORK_REVIEW_MS = "600";
     w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }], reviewer: [{ verdict: { meets: true, findings: [], text: "Fine.", commit: "deadbeefdeadbeef" } }] });
@@ -105,11 +105,11 @@ test("review: a verdict for another commit is ignored, a missing verdict is a sa
 });
 
 test("a review that fails the gate goes straight back, as the plugin's own turn, up to `rounds` times; an old reviewAuto: true is gate major", async () => {
-  const w = await world({ settings: { reviewAuto: true, rounds: 2 } });
+  const w = await world({ settings: { "review.rounds": 2 } });
   try {
     w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "v1" }, { files: { "f.txt": "2\n" }, commit: "2", note: "v2" }, { files: { "f.txt": "3\n" }, commit: "3", note: "v3" }],
       reviewer: [{ verdict: { meets: true, text: "Bad.", findings: [{ severity: "major", subject: "f.txt holds the wrong number", where: "f.txt", proof: "cat f.txt" }] } }, { verdict: { meets: true, text: "Better.", findings: [{ id: "F1", severity: "major", subject: "f.txt still holds the wrong number", where: "f.txt", proof: "cat f.txt" }] } }, { verdict: { meets: true, text: "Still not it.", findings: [{ id: "F1", severity: "major", subject: "f.txt still holds the wrong number", where: "f.txt", proof: "cat f.txt" }] } }] });
-    assert.equal(S.config().gate, "major"); assert.equal(S.config().reviewAuto, undefined);
+    assert.equal(S.setting("review.mustFix"), "major");
     const id = A.add(w.root, "Loop").id;
     A.delegate(id);
     const t = await settle(id, { max: 30 });

@@ -8,7 +8,7 @@ import { GROUPS } from "../src/board/view/states.js";
 import { open } from "./board-helpers.js";
 
 test("done comes last: below to do under each heading of the status view and inside each repo, with its fold line at the bottom", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     assert.deepEqual(GROUPS, ["needs you", "ready to approve", "working", "to do", "done"]);
     const now = Date.now(), add = (title) => A.add(w.root, title).id;

@@ -43,7 +43,7 @@ test("what tells a program that has not drawn yet from one that has, and an agen
 });
 
 test("a slow-starting agent: nothing is typed until it has drawn its screen, so the first enter is not swallowed", async (t) => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     waits(t, { ready: 60000, submit: 3000 });
     w.patchState((st) => { st.slowStart = 4; }); // herdr says "ready" four looks before anything is on its screen
@@ -60,7 +60,7 @@ test("a slow-starting agent: nothing is typed until it has drawn its screen, so 
 });
 
 test("a first enter swallowed by a starting agent is pressed again; the text is never typed twice", async (t) => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     waits(t, { ready: 0, submit: 3000 }); // the wait for its screen gave up: the text goes in while it still starts
     w.patchState((st) => { st.slowStart = 99; });
@@ -88,7 +88,7 @@ test("a first enter swallowed by a starting agent is pressed again; the text is 
 });
 
 test("an agent that never starts is shown as not started, not as working; retry starts its program again with the same text", async (t) => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     waits(t, { ready: 0, submit: 0 });
     w.patchState((st) => { st.slowStart = 99; st.deaf = 99; st.pids = true; }); // it keeps the text and takes no enter at all
@@ -117,7 +117,7 @@ test("an agent that never starts is shown as not started, not as working; retry 
 });
 
 test("a later message whose enter is lost gets it again too; told not started, pressing enter yourself clears it", async (t) => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     waits(t, { ready: 60000, submit: 0 });
     w.script({ worker: [{ status: "idle", note: null }, { status: "working" }, { status: "working" }] });
@@ -150,7 +150,7 @@ function herdrKeys(w, pane) { globalThis.__swHerdr.run(["agent", "send-keys", pa
 
 test("the reviewer's brief and the Coordinator's messages are held to the same: enter again, never the words again", async (t) => {
   waits(t, { ready: 0, submit: 0 });
-  const w = await world({ settings: { reviewer: "codex" } });
+  const w = await world({ settings: { "reviewer.agent": "codex" } });
   try {
     w.patchState((st) => { st.slowStart = 99; }); // every program started here swallows its first enter
     w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }] });
@@ -179,7 +179,7 @@ test("the reviewer's brief and the Coordinator's messages are held to the same: 
 });
 
 test("two messages left in the same box are both handed over again on retry", async (t) => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     waits(t, { ready: 60000, submit: 0 });
     w.script({ worker: [{ status: "idle", note: null }, { status: "working" }] });
@@ -207,7 +207,7 @@ test("two messages left in the same box are both handed over again on retry", as
 });
 
 test("a message typed into a running turn is not taken for sent because the agent works: once it rests with the text unsent, enter", async (t) => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     waits(t, { ready: 60000, submit: 0 });
     w.script({ worker: [{ status: "working" }, { status: "working" }, { status: "working" }] });
@@ -266,7 +266,7 @@ test("the Coordinator: words typed into a turn it was in the middle of get their
 });
 
 test("an agent herdr cannot classify (status unknown) is checked like any other: enter again, then not started with the text kept", async (t) => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     waits(t, { ready: 60000, submit: 0 });
     w.script({ worker: [{ status: "unknown", note: null }, { status: "working" }] });
@@ -290,7 +290,7 @@ test("an agent herdr cannot classify (status unknown) is checked like any other:
 });
 
 test("an agent that exits with typed text not taken: not started with the text kept, and a late report of its old turn finishes nothing", async (t) => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     waits(t, { ready: 60000, submit: 0 });
     w.script({ worker: [{ status: "working" }, { status: "working" }, { status: "working" }] });

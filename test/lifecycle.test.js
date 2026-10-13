@@ -14,7 +14,7 @@ import { runJob } from "../src/jobs.js";
 
 
 test("at most `max` agents work at once; tasks waiting for the human hold no slot; a freed slot is reused at once", async () => {
-  const w = await world({ settings: { max: 1, reviewer: "off" } });
+  const w = await world({ settings: { "board.agents": 1, "review.when": "never" } });
   try {
     w.script({ worker: [{ files: { "1.txt": "1\n" }, commit: "1", note: "One." }, { status: "working" }] });
     const a = A.add(w.root, "First").id, b = A.add(w.root, "Second").id;
@@ -30,7 +30,7 @@ test("at most `max` agents work at once; tasks waiting for the human hold no slo
 });
 
 test("archive closes the task's herdr space and keeps the rest; restore starts nothing; a reply restarts the agent; clear keeps unsaved work", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     const id = await toApproval(w);
     let t = S.get(id);
@@ -59,7 +59,7 @@ test("archive closes the task's herdr space and keeps the rest; restore starts n
 });
 
 test("reconcile: a pane that is gone, an agent that exited, and a finished turn missed while herdr restarted", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     w.script({ worker: [{ status: "working" }] });
     const id = A.add(w.root, "Reconcile").id;
@@ -118,7 +118,7 @@ test("a task outside git works in place in a plain herdr workspace and is simply
 });
 
 test("setup runs before the agent starts; a failed setup is a saved failure", async () => {
-  const w = await world({ repoSettings: { setup: "echo boom >&2; exit 3", include: [".env"] } });
+  const w = await world({ repoSettings: { "workspace.setup": "echo boom >&2; exit 3", "workspace.include": [".env"] } });
   try {
     fs.writeFileSync(path.join(w.root, ".gitignore"), ".env\n"); fs.writeFileSync(path.join(w.root, ".env"), "SECRET=1\n"); git(w.root, "add", ".gitignore"); git(w.root, "commit", "-qm", "ignore");
     const id = A.add(w.root, "Setup fails").id;
@@ -131,7 +131,7 @@ test("setup runs before the agent starts; a failed setup is a saved failure", as
 });
 
 test("delegating a landed task again starts a new round in a fresh worktree, never in your checkout", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     const id = await toApproval(w);
     A.approve(id);
@@ -153,7 +153,7 @@ test("no notifications: a task that needs you raises nothing, and the pop-up blo
     const { tickOnce } = await import("../src/keeper.js");
     tickOnce(w.socket);
     assert.equal(S.get(id).announced, undefined);
-    assert.ok(!("bell" in S.config()));
+    assert.equal(S.setting("board.notify"), "none"); // unless you ask for it: board.notify (notify.test.js)
     assert.deepEqual(w.state().notifications, []);
     assert.ok(!w.state().calls.some((c) => JSON.stringify(c).includes("notification")));
     const X = await import("../src/extras.js");

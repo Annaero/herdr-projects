@@ -16,7 +16,7 @@ import { KEYS } from "../src/board/keys.js";
 const FILED = /\b(filed|filing|refile)\b|(?<!\b(the|a|that|same|each|every|this) )\bfiles? (it|them|each|this|that|a task|a new|its tasks|tasks?|nothing|no task|no|none)\b|\b(you|to|never|not|it|Coordinator) files?\b/i;
 
 test("commands answer added, updated, removed, archived, restored; the instructions say add, never file", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   const write = process.stdout.write; let said = "";
   const board = async (...args) => { said = ""; process.stdout.write = (x, ...more) => { if (typeof x !== "string") return write.call(process.stdout, x, ...more); said += x; return true; }; try { await main(args); } finally { process.stdout.write = write; } return said; };
   try {

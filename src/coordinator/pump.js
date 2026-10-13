@@ -6,7 +6,7 @@ import { herdr, currentSocket, sessionName, socketExists } from "../herdr.js";
 import { adapter, installed, startArgs, preTrust, versionOf } from "../agents.js";
 import { dirOf, get, change, home, pumping } from "./state.js";
 import { openTab, moveOver, closePlace, nowhere } from "./place.js";
-import { choice } from "./who.js";
+import { choice, OFF_WORDS } from "./who.js";
 import { writeRules, introLine } from "./rules.js";
 import { restMs, trimmed, where, kick, send, stop, open, seen } from "./requests.js";
 import { turns, look as lookNow } from "./look.js";
@@ -63,7 +63,7 @@ function ensure(api, socket) {
   if (api.agentGet(pane.pane_id)) return { c, blocked: false };
   // Its program is not running: start it. The same conversation when there was one and the program can reopen it.
   const run = c.run || (c.pick ? { ...c.pick, oneOff: true } : choice());
-  if (!run) throw new Error("The Coordinator is off. `herdr-superwork config coordinator default` turns it on.");
+  if (!run) throw new Error(OFF_WORDS);
   if (!installed(run.kind)) throw new Error(`"${run.kind}" is not installed here, so it cannot be the Coordinator.`);
   const a = adapter(run.kind);
   const resume = c.run && c.session && a.resume && (() => { try { return !a.transcript || !!a.transcript(c.session, home(socket)); } catch { return false; } })() ? c.session : null;
@@ -73,14 +73,14 @@ function ensure(api, socket) {
   // bytes on one line). The file an older version pointed its flag at is gone with the flag.
   const { reads } = writeRules(home(socket), run.kind);
   try { fs.rmSync(path.join(dirOf(socket), "rules.md"), { force: true }); } catch {}
-  preTrust(run.kind, home(socket));
+  preTrust(run.kind, home(socket), run.access);
   const taken = api.agents().filter((x) => x.pane_id !== pane.pane_id).map((x) => x.name);
   let name = "sw-coordinator";
   for (let n = 2; taken.includes(name); n++) name = `sw-coordinator-${n}`;
   let blocked = false;
   const began = Date.now();
   change(socket, (c) => { c.starting = began; });
-  const args = startArgs(run.kind, { model: run.model, effort: run.effort, resume, session });
+  const args = startArgs(run.kind, { model: run.model, effort: run.effort, access: run.access || "full", ...(run.fast === true ? { fast: true } : {}), resume, session });
   try { api.agentStart(name, run.kind, pane.pane_id, args); settle(api, pane.pane_id, [run.kind, ...args].join(" ")); } // up before anything is typed (submit.js)
   catch (e) {
     // A dialog is in the way (folder trust, first run): what you said waits. Anything else: the pane may hold half a

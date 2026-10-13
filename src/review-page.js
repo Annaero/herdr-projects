@@ -1,6 +1,6 @@
 // The evidence page. A review publishes only the evidence its reviewer selected, behind one small, portable page.
 // One small detached web server (127.0.0.1 only, started on demand, restarted if gone) serves the pages; with
-// serve = "tailscale" the same server is also shared privately on the tailnet (tailscale serve, never funnel).
+// Where Tailscale is installed the same server is also shared privately on the tailnet (tailscale serve, never funnel).
 // It is the only long-lived process the plugin owns.
 import fs from "node:fs";
 import path from "node:path";
@@ -118,7 +118,10 @@ function ensureTailscale(info) {
   return `https://${host}:${port}`;
 }
 // Where a task's saved artifacts are served from. Falls back to local when Tailscale is absent or sharing fails.
-export function artifactBase(id, serve) {
+// How links are shared is fixed: privately on your tailnet when Tailscale is installed here, else 127.0.0.1.
+let links = null;
+export const linkMode = () => (links ??= process.env.HERDR_SUPERWORK_LINKS === "local" || spawnSync("sh", ["-c", "command -v tailscale"], { stdio: "ignore" }).status !== 0 ? "local" : "tailscale");
+export function artifactBase(id, serve = linkMode()) {
   if (process.env.HERDR_SUPERWORK_NO_SERVER === "1") return "";
   const info = ensureServer();
   if (!info.port) return "";
@@ -127,9 +130,9 @@ export function artifactBase(id, serve) {
   if (serve === "tailscale") { try { base = ensureTailscale(info); } catch { base = local; } }
   return `${base}/${id}`;
 }
-export async function publishReview({ enabled, dir, listed, context, review, task, serve, onFallback }) {
+export async function publishReview({ enabled, dir, listed, context, review, task }) {
+  const serve = linkMode();
   // Tailscale asked for but not installed here: a local link instead, said on the task.
-  if (serve === "tailscale" && spawnSync("sh", ["-c", "command -v tailscale"], { stdio: "ignore" }).status !== 0) { serve = "local"; try { onFallback?.("review link is local: tailscale is not installed here"); } catch {} }
   if (!enabled) return [];
   const evidence = selectEvidence(listed, dir);
   if (!evidence.length) return []; // Do not manufacture a page for tiny changes with no useful evidence.

@@ -51,9 +51,8 @@ export class Size {
   // back, and only by disconnecting the other viewer (an attach is exclusive: herdr itself says "retry with
   // --takeover"). So the board does that by itself, every time it has seen the two disagree twice in a row (a resize
   // under way is not a second viewer): the board has the size of the pane it runs in, always. A try that failed is
-  // made again at every look after it. With `ownTerminal` off the viewer stays, and the board
-  // only says what holds the terminal: no key disconnects anybody.
-  get ownsTerminal() { return (this.ctx.ownTerminal ?? S.config().ownTerminal) !== false; }
+  // made again at every look after it. This is fixed behaviour, not a setting.
+  get ownsTerminal() { return true; }
   // An answer that disagrees with the terminal may be a size change under way, or an answer from before one that is
   // over (herdr's layout and the terminal's own size do not move in the same instant, and the answer takes a moment):
   // the open board draws for it only once herdr has said the same again after `settleMs`.

@@ -12,24 +12,25 @@ every second, so they keep moving between looks. Under 5% there is too little to
 own tasks are different: they show the `--progress` and `--eta` you give `report`, as given. The
 **Coordinator** is the agent you talk to in the chat: one long-lived chat that turns what you type into board commands, and
 can do whatever else an agent chat can. Like the Agent, it is Claude Code on its default model and effort unless you
-say otherwise, whatever the Agent is set to: set `coordinator`, `coordinatorModel`, `coordinatorEffort` (any
-`herdr agent start --kind` value), or pick one for a single use with `coordinator new --agent …`. A changed
-default applies to the next new one; the chat says so. `coordinator off`, a program that is not installed, or no
+say otherwise, whatever the Agent is set to: set `coordinator.agent` (`claude`, `codex` or `pi`, with a model after
+a slash), `coordinator.effort`, `coordinator.fast`, `coordinator.access` and `coordinator.instructions`, or pick one
+for a single use with `coordinator new --agent …`. A changed default applies to the next new one; the chat says so.
+`coordinator.agent none`, a program that is not installed, or no
 running herdr: the chat says "New task", and what you type is added word for word.
 
-**Every chat knows the board.** With `skill` on (the default) the plugin keeps a small how-to, a folder named
+**Every chat knows the board.** The plugin keeps a small how-to, a folder named
 `herdr-superwork` holding `SKILL.md`, in each installed agent program's own skills folder (`~/.claude/skills`,
 `~/.codex/skills`, `~/.pi/agent/skills`), so an ordinary chat can "add this to the board" without being told how.
-It gives the command by its full path, so `npm link` is not needed. `herdr-superwork config skill off` removes
-exactly what was written; a folder of that name the plugin did not write is left alone.
+It gives the command by its full path, so `npm link` is not needed. `herdr-superwork remove-extras` removes
+exactly what was written, and it is not written back; a folder of that name the plugin did not write is left alone.
 
 Commands: `add`, `suggest`, `suggestions`, `accept`, `dismiss`, `list`, `report`, `describe`, `delegate`, `tell`, `stop`, `approve`, `review`, `retry`, `fix`,
-`finish`, `details`, `pin`, `archive`, `restore`, `clear`, `config`, `remove-extras`; `herdr-superwork help` lists
+`finish`, `details`, `pin`, `archive`, `restore`, `clear`, `set`, `unset`, `show`, `remove-extras`; `herdr-superwork help` lists
 them.
 
 **Agents the board started: able, not nudged.** An agent or a reviewer the board itself started on a task can run
 every one of these commands, as the Coordinator or an agent in your own shell can: `add` (also with `--delegate`),
-`delegate`, `tell`, `stop`, `accept`, `dismiss`, `approve`, `archive`, `restore`, `clear`, `config`, `describe` and
+`delegate`, `tell`, `stop`, `accept`, `dismiss`, `approve`, `archive`, `restore`, `clear`, `set`, `unset`, `describe` and
 the rest. Nothing is refused and nothing is turned into something else. But their rules name none of these and
 say plainly: do nothing to the board beyond your own task (reporting your own state, suggesting work you came
 across) unless a human explicitly told you to. An explicit instruction in the task's own description, or in a

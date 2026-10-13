@@ -1,7 +1,6 @@
 // Where each agent program keeps its own settings and files.
 import os from "node:os";
 import path from "node:path";
-import { config } from "../store.js";
 
 export const claudeFile = () => process.env.HERDR_SUPERWORK_CLAUDE_JSON || path.join(os.homedir(), ".claude.json");
 export const codexFile = () => process.env.HERDR_SUPERWORK_CODEX_TOML || path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "config.toml");

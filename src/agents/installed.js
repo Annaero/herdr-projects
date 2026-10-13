@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { config, dataDir, readJson, writeJson, mark } from "../store.js";
+import { dataDir, readJson, writeJson, mark } from "../store.js";
 import { adapter } from "./start.js";
 import { holds } from "./read-turn.js";
 
@@ -41,10 +41,11 @@ export function saidTo(kind, { file, session, cwd } = {}, text, since) {
   if (!a.readTurn) return null;
   try { const f = file && fs.existsSync(file) ? file : session && a.transcript ? a.transcript(session, cwd) : null; return f ? holds(f, text, since) : null; } catch { return null; }
 }
-export const fullAccess = (kind) => { const user = config().agentArgs?.[kind]; return (Array.isArray(user) ? user : adapter(kind).args || []).some((x) => /dangerously|bypass|yolo/i.test(x)) || kind === "pi"; };
+// A program that cannot ask has full access whatever was asked for.
+export const fullAccess = (kind, access = "full") => access !== "ask" || !adapter(kind).access?.ask;
 export const interruptKey = (kind) => adapter(kind).interrupt || "esc";
 // Best effort: a failure here only means the agent's own trust dialog shows, which the inbox handles.
-export function preTrust(kind, root) {
-  if (!config().trust || !adapter(kind).trust || !fullAccess(kind)) return false;
+export function preTrust(kind, root, access = "full") {
+  if (!adapter(kind).trust || !fullAccess(kind, access)) return false;
   try { return adapter(kind).trust(root); } catch { return false; }
 }

@@ -14,7 +14,7 @@ import { runJob } from "../src/jobs.js";
 
 
 test("a clean-up put off because the space was in use is tried again by itself once it is free", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   const { housekeeping } = await import("../src/housekeeping.js");
   const { cleanupJob } = await import("../src/land.js");
   const open = (t) => w.state().workspaces.some((x) => x.workspace_id === t.link?.workspace);
@@ -49,9 +49,9 @@ test("a clean-up put off because the space was in use is tried again by itself o
     assert.equal(await pass(t.id), 1);
     assert.ok(open(S.get(t.id)) && S.get(t.id).tidy);
     w.patchState((s) => { s.panes.find((p) => p.pane_id === mine).busy = false; });
-    S.setConfig("cleanup", false); // `cleanup` turned off meanwhile: nothing pending is carried out
+    S.setValue("workspace.cleanup", false); // `cleanup` turned off meanwhile: nothing pending is carried out
     assert.equal(await pass(t.id), 0); assert.equal(w.state().workspaces.length, 2);
-    S.setConfig("cleanup", true);
+    S.setValue("workspace.cleanup", true);
     assert.equal(await pass(t.id), 1);
     let c = S.get(t.id);
     assert.ok(c.cleaned && !c.tidy && !c.kept); assert.equal(c.msg, "Merged into main."); assert.ok(!fs.existsSync(t.worktree));

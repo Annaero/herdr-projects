@@ -4,6 +4,7 @@ import path from "node:path";
 import { STAGES, tasksDir, dirOf, me, readJson, writeJson, withLock, withTaskLock } from "./files.js";
 import { repoOf } from "./repos.js";
 import { titled } from "./titles.js";
+import { movedOnRead } from "./settings/migrate.js";
 
 // ---- tasks ----------------------------------------------------------------------------------------------------------
 const SEGMENT = /^[A-Za-z0-9_.+-]{1,32}$/;
@@ -13,7 +14,7 @@ export const oneLine = (text, max = 2048) => { let t = String(text ?? "").replac
 const taskFile = (id) => path.join(dirOf(id), "task.json");
 export function get(id) {
   const t = readJson(taskFile(id));
-  return t && t.id ? t : null;
+  return t && t.id ? movedOnRead(t) : null; // a task an older version saved reads in the new names (settings/migrate.js)
 }
 export function list({ includeArchived = false, archived = false } = {}) {
   const out = [];
@@ -69,7 +70,7 @@ export function create(folder, title, extra = {}) {
     writeJson(seq, n);
     const now = Date.now();
     const t = { id: `${name}/${n}`, repo: name, n, root, title: text, ...(subject && subject !== text ? { subject } : {}), description, owner: extra.owner || me(), app: null,
-      stage: "todo", msg: "", created: now, at: now, pinned: false, archivedAt: null, own: {} };
+      stage: "todo", msg: "", created: now, at: now, pinned: false, archivedAt: null, settings: {} };
     writeJson(taskFile(t.id), t);
     return t;
   });

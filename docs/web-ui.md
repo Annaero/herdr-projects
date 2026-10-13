@@ -21,7 +21,7 @@ That one change is the whole setup. By hand, any time:
     herdr-superwork web-ui unlink     point it back
 
 `herdr-superwork remove-extras` points the link back too and stops the front door ([installing](install.md)). To turn
-the whole thing off and keep the rest: `herdr-superwork config webUi off` ([settings](settings.md)); the front door
+the whole thing off and keep the rest: `herdr-superwork set board.webUi none` ([settings](settings.md)); the front door
 points the link back by itself and closes.
 
 On the machine itself the Board is also at the front door's own address, which `web-ui` prints

@@ -20,8 +20,9 @@ const HELP = `herdr-superwork: a work board for herdr
                          [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
   herdr-superwork describe <id> <text>          write or replace a task's description
   (a title is at most 60 characters: a longer one is shortened at a word, its full text kept in the description)
-  herdr-superwork delegate <id> [--agent KIND] [--model M] [--effort E] [--fast] [--reviewer KIND|off] [--no-reviewerFast] [--no-worktree] [--base head|fresh]
-                           [--gate critical|major|minor|trivial|off] [--rounds N] [--autoMerge true|false] [--research]
+  herdr-superwork delegate <id> [--<setting> VALUE ...] [--research|--no-research]
+                                      any work setting, for this task only: --reviewer.agent claude --merge.by itself
+                                      (a refused option changes nothing on the task)
   herdr-superwork tell <id> <text>              send a message to the task's agent
   herdr-superwork stop <id>                     stop its agent
   herdr-superwork approve <id>                  merge finished work that waits for approval
@@ -31,14 +32,18 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork finish <id>                   finish anyway, when the agent stopped without a summary
   herdr-superwork details <id>                  failure details, review and next steps
   herdr-superwork pin|archive|restore|clear <id>
-  herdr-superwork config [key [value]] [--id ID]   show or change settings; with --id, one task's own choice
+  herdr-superwork set <name> <value> [--repo NAME | --task ID]
+                                      change a setting: for you, for your entry for one repo, or for one task
+  herdr-superwork unset <name> [--repo NAME | --task ID]
+                                      back to what it would be without that answer
+  herdr-superwork show [<id>] [--repo NAME]     every setting and the place it came from; without an id, your own
   herdr-superwork coordinator                   the Coordinator (the agent behind the board's box): who it is, how it stands
   herdr-superwork coordinator tell <text> [--delegate]
                                                 say something to it (it is started when it is not running); --delegate is
                                                 the board's tab: what it adds from this message gets an agent at once
   herdr-superwork coordinator where             where the human was when they last wrote to it from the board (for the Coordinator itself)
   herdr-superwork coordinator restart           start its program again, in the same conversation
-  herdr-superwork coordinator new [--agent KIND] [--model M] [--effort E]
+  herdr-superwork coordinator new [--agent KIND[/MODEL]] [--effort E]
                                                 a fresh one; with options, that choice is for this one only
   herdr-superwork coordinator stop              close it; the next message starts it again where it left off (words still waiting go in then)
   herdr-superwork --skill                       instructions an agent can load
@@ -49,8 +54,7 @@ const HELP = `herdr-superwork: a work board for herdr
 // positional arguments, --flag value, --flag (true), --no-flag (false)
 export function parse(argv) {
   const pos = [], flags = {};
-  const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "worktree", "no-worktree", "fast", "reviewerFast", "research"]);
-  if (argv[0] === "config") BOOL.delete("skill");
+  const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "research"]);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--") { pos.push(...argv.slice(i + 1)); break; }
@@ -103,6 +107,8 @@ export async function main(argv) {
   const need = (n, what) => { if (!pos[n]) throw new Error(`${cmd} needs ${what}. Try: herdr-superwork help`); return pos[n]; };
   const rest = (n) => pos.slice(n).join(" ");
   S.homeAtStart(cmd); // an older version's folders move into the one home folder, once (store/move-home.js)
+  // …and its settings into the new names, once (store/settings/migrate.js). Asking for help changes nothing.
+  if (!["help", "--skill", "skill"].includes(cmd) && !flags.help) S.moveSettings();
 
   // ---- entries herdr itself calls: keep them light, they run on every agent status change -------------------------
   if (cmd === "turn-ended") { const { turnEnded } = await import("./turn.js"); try { turnEnded({ id: flags.id, role: flags.role, token: flags.token, round: flags.round }, pos.slice(1)); } catch {} return 0; } // run by an agent's own hook: silent, always 0
@@ -201,22 +207,7 @@ export async function main(argv) {
     case "archive": { const t = A.archive(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: archived`]; break; }
     case "restore": case "unarchive": { const t = A.restore(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: restored`]; break; }
     case "clear": { const r = await A.clear(need(1, "an id")); result = [r, r.kept.length ? `${r.id}: removed. Kept, so no work is lost: ${r.kept.join(", ")}` : `${r.id}: removed`]; break; }
-    case "config": {
-      const id = flags.id;
-      const value = pos.length > 2 ? rest(2) : undefined;
-      const c = id ? (pos[1] && value !== undefined ? S.setTaskConfig(S.find(id).id, pos[1], value) : S.choices(S.find(id)))
-        : pos[1] && value !== undefined ? S.setConfig(pos[1], value) : S.config();
-      result = [pos[1] && value === undefined ? { [pos[1]]: c[pos[1]] } : c];
-      // Fast mode turned on for a program that has none: the setting is kept and does nothing, so say it.
-      const who = { fast: "agent", reviewerFast: "reviewer" }[pos[1]];
-      if (who && value !== undefined && c[pos[1]] === true) {
-        const kind = who === "agent" ? (id && S.find(id).agent) || c.agent : c.reviewer;
-        const { hasFast } = await import("./agents.js");
-        if (kind && kind !== "off" && !hasFast(kind)) { result[0] = { ...result[0], note: `${kind} has no fast mode: ${pos[1]} does nothing while the ${who} is ${kind}` }; result[1] = `${JSON.stringify(c, null, 2)}\n${result[0].note}`; }
-      }
-      if (!id && pos[1] === "skill" && value !== undefined) { const X = await import("./extras.js"); X.syncSkill(F.shim()); } // on writes the how-to, off removes exactly what was written
-      break;
-    }
+    case "set": case "unset": case "show": { result = (await import("./actions/settings.js")).settingsCommand(cmd, pos, flags, rest); break; }
     case "coordinator": {
       const C = await import("./coordinator.js");
       const what = pos[1] || "status";
@@ -224,7 +215,7 @@ export async function main(argv) {
       if (what === "where") { result = [{ where: C.get()?.where || [] }, C.where()]; break; }
       if (what === "tell") C.send(here, need(2, "the text") && rest(2), { delegate: !!flags.delegate });
       else if (what === "restart") C.restart();
-      else if (what === "new" || what === "fresh") C.fresh(C.pickOf({ agent: flags.agent, model: flags.model, effort: flags.effort }));
+      else if (what === "new" || what === "fresh") C.fresh(C.pickOf({ agent: flags.agent, effort: flags.effort }));
       else if (what === "stop") C.stop();
       else if (what !== "status") throw new Error("coordinator takes: tell <text>, where, restart, new, stop. Try: herdr-superwork help");
       const s = C.summary();
@@ -232,7 +223,7 @@ export async function main(argv) {
       break;
     }
     case "web-ui": { const W = await import("./webui/command.js"); const r = await W.main(pos.slice(1), { json: !!flags.json }); if (!r.ok) throw new Error(r.msg); result = [r, r.msg]; break; }
-    case "remove-extras": { const X = await import("./extras.js"); const web = await X.removeWebUi(); const r = { ...X.removeExtras(), webUi: web.n }; result = [r, `Removed: the how-to files${r.blocks ? " and the plugin's blocks in herdr's config (a backup is beside it)" : ""}. The skill setting is off and the key question will not be asked again.${web.n || !web.ok ? ` ${web.msg}` : ""}`]; break; }
+    case "remove-extras": { const X = await import("./extras.js"); const web = await X.removeWebUi(); const r = { ...X.removeExtras(), webUi: web.n }; result = [r, `Removed: the how-to files${r.blocks ? " and the plugin's blocks in herdr's config (a backup is beside it)" : ""}. The how-to is not written again and the key question will not be asked again.${web.n || !web.ok ? ` ${web.msg}` : ""}`]; break; }
     case "reopen": { const D = await import("./delegate.js"); const r = D.reopen(need(1, "an id"), { restart: true }); result = [{ pane: r.pane.pane_id, hasAgent: r.hasAgent }, `${r.task.id}: its space is open${r.hasAgent ? "" : ", no agent in it"}`]; break; }
     case "housekeep": { housekeeping(undefined, { force: flags.pr ? "pr" : true }); result = [{ ok: true }, "ok"]; break; }
     default: throw new Error(`Unknown command "${cmd}". Try: herdr-superwork help`);
@@ -241,11 +232,11 @@ export async function main(argv) {
   try { housekeeping(); } catch {}
   return 0;
 }
+// A delegate's options: every --<setting> (a name with a dot), and --research. Any other option is refused there.
 function pickChoices(flags) {
   const o = {};
-  for (const k of [...S.PER_TASK, "reviewAuto"]) if (flags[k] !== undefined) o[k] = flags[k];
-  if (flags.worktree === false) o.worktree = false; else if (flags.worktree === true) o.worktree = true;
-  if (flags.base) o.base = flags.base;
+  for (const [k, v] of Object.entries(flags)) if (k.includes(".")) o[k] = v;
+  if (flags.research !== undefined) o.research = flags.research === true;
   return o;
 }
 export const pluginRoot = () => path.resolve(S.ROOT);

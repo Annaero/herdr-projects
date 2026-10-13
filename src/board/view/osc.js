@@ -16,7 +16,17 @@ export const oscClear = (id) => `\x1b]7501;state=clear:id=${id}\x1b\\`;
 
 export class Announce {
   // For a board run as a plain command: its tasks as OSC 7501 records on its own terminal. Output only: nothing
-  // reads OSC 7501. No bell, sound or message says that a task newly needs you.
+  // reads OSC 7501. (That a task newly needs you is `ring`, below.)
+  // `board.notify: bell`: the terminal bell, once for each task that newly needs you, is ready to approve or failed
+  // (notify.js notes those on the task). What was already so when the board opened rings nothing.
+  ring() {
+    const newest = Math.max(0, ...this.items.filter((r) => !r.host && !r.archivedAt).map((r) => r.notice?.at || 0));
+    if (this.rang === undefined) this.rang = Date.now();
+    if (newest <= this.rang) return;
+    this.rang = newest;
+    if (S.setting("board.notify") !== "bell") return;
+    if (this.ctx.bell) this.ctx.bell(); else if (process.stdout.isTTY) process.stdout.write("\x07");
+  }
   announce() {
     const local = this.items.filter((r) => !r.host && !r.archivedAt);
     if (process.env.HERDR_PLUGIN_ID || process.env.HERDR_SUPERWORK_PROGRAM_STATUS === "0") return;

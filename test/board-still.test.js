@@ -31,7 +31,7 @@ const sidePanel = (lines) => lines.filter((l) => /\S.* │ /.test(l)).length > 1
 // 47x44 when a phone-sized herdr window took the session. Each time the board laid itself out for the other size, and
 // again for its own: the side panel gone and back, every row moved twice.
 test("a size that changes for a moment and is back does not move the board", async (t) => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     for (let i = 1; i <= 30; i++) A.add(w.root, `Task number ${i}`);
     const s = still(w, t), wide = s.at(141, 46);
@@ -81,7 +81,7 @@ test("a size that changes for a moment and is back does not move the board", asy
 // herdr is asked what it shows of the pane, and answers a moment later: an answer about a size the terminal no longer
 // has was drawn for until the next one came, two seconds on. That was the board "in another shape for a moment".
 test("what herdr said about another size, or says once, is not drawn for", async (t) => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     for (let i = 1; i <= 30; i++) A.add(w.root, `Task number ${i}`);
     const s = still(w, t), took = [];
@@ -113,7 +113,7 @@ test("what herdr said about another size, or says once, is not drawn for", async
 // seconds, while a second herdr window (47x44, then 138x44) was on the session. Taking the terminal disconnects a
 // viewer attached to that one terminal; a second herdr window is not one, so nothing changed and it went on.
 test("a second herdr window on the session: the board takes its terminal twice, then says what frees the size", async (t) => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     A.add(w.root, "A task");
     const s = still(w, t, { cols: 54, rows: 24 }), took = [];
@@ -144,14 +144,6 @@ test("a second herdr window on the session: the board takes its terminal twice, 
     s.at(54, 24);
     for (let n = 0; n < 12; n++) look();
     assert.equal(took.length, 4);
-    // `ownTerminal` off: it never takes the terminal, and holds still the same way.
-    const off = still(w, t, { cols: 54, rows: 24 }), never = [];
-    off.v.ctx.ownTerminal = false; off.v.ctx.takeTerminal = (...x) => never.push(x);
-    for (let n = 0; n < 12; n++) { off.wait(2000); off.v.seeShown(big); }
-    assert.deepEqual(never, []);
-    assert.match(off.at(54, 24).join(" ").replace(/\s+/g, " "), /The ownTerminal setting, turned on, takes it back\./);
-    const before = off.at(54, 24);
-    assert.deepEqual(trimmed(off.at(50, 20)), cut(before, 50, 20)); assert.deepEqual(off.at(54, 24), before);
   } finally { t.mock.timers.reset(); w.cleanup(); }
 });
 
@@ -170,7 +162,7 @@ function outOfSight(calls, board) {
 test("an agent, its reviewer and the Coordinator start and end out of sight: nothing is focused, nothing is split off the board's pane", async () => {
   const board = "w0:p1";
   const boardPane = (w) => w.patchState((s) => { s.workspaces.push({ workspace_id: "w0", label: "board", cwd: w.root }); s.panes.push({ pane_id: board, workspace_id: "w0", tab_id: "w0:t1", terminal_id: "term_board", cwd: w.root, agent: null }); });
-  const w = await world({ settings: { reviewer: "codex", review: "all" } });
+  const w = await world({ settings: { "reviewer.agent": "codex", "review.when": "always" } });
   try {
     boardPane(w);
     // A task's whole life: its agent starts in a space of its own, the reviewer in a tab of that space, both end,

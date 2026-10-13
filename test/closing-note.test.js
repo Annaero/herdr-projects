@@ -32,7 +32,7 @@ test("the closing note and the review's files are in the task's own folder; the 
     assert.ok(F.noteFile(t).startsWith(path.resolve(S.dataDir()) + path.sep));
     assert.ok(!fs.existsSync(path.join(w.root, ".herdr-superwork")));
     // both are told the full path, and neither is told to write into the folder it is in
-    const said = [rules(t), F.noteRule(t), reviewBrief(t, { text: "Did it.", change: { head: "abc1234" }, toLand: true, ch: S.choices(t) }), ...w.state().panes.flatMap((p) => p.agent?.prompts || [])].join("\n");
+    const said = [rules(t), F.noteRule(t), reviewBrief(t, { text: "Did it.", change: { head: "abc1234" }, toLand: true, ch: S.work(t) }), ...w.state().panes.flatMap((p) => p.agent?.prompts || [])].join("\n");
     assert.ok(said.includes(F.noteFile(t))); assert.ok(said.includes(`${F.reviewDir(t)}/verdict.json`));
     assert.doesNotMatch(said, /(^|[\s"'`(])\.herdr-superwork\//m);
     // a task this version started is never looked for in the folder it works in

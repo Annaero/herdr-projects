@@ -12,7 +12,7 @@ import { details } from "./finish-line.js";
 // `research`: the task is research only from the start (research.js).
 export function add(folder, title, { description = "", repo, research = false } = {}) {
   const t = S.create(S.folderFor(repo, folder), title, { description });
-  if (research) S.setTaskConfig(t.id, "research", true);
+  if (research) S.update(t.id, { research: true });
   return research ? S.get(t.id) : t;
 }
 // A new title follows the same limit as a first one: too long, it is shortened and its full text opens the description.

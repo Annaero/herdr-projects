@@ -14,7 +14,7 @@ import { runJob } from "../src/jobs.js";
 
 
 test("a finished task leaves herdr's sidebar: the repo space herdr opened goes with the last task, yours stays, unsaved files stay on disk", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     // herdr opens the repo itself next to the first worktree; it is closed with the last task space, not before
     const a = await toApproval(w);
@@ -59,7 +59,7 @@ test("a finished task leaves herdr's sidebar: the repo space herdr opened goes w
 });
 
 test("the repo space is left alone while a command of yours runs in it; a reply to cleaned-up work starts a new round", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     // nothing to merge: done, cleaned up, and a reply starts a new round in a fresh worktree
     w.script({ worker: [{ note: "Looked. Nothing to change." }] });
@@ -82,7 +82,7 @@ test("the repo space is left alone while a command of yours runs in it; a reply 
 });
 
 test("clean-up closes no space with something of yours running in it, nor one herdr cannot answer for", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   const ready = async (n) => {
     w.script({ worker: [{ files: { [`g${n}.txt`]: "x\n" }, commit: `g${n}`, note: "Did it." }] });
     const id = A.add(w.root, `Task ${n}`).id;

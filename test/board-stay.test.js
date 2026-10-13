@@ -10,8 +10,8 @@ import * as P from "../src/board/place.js";
 import { main } from "../src/cli.js";
 import { open } from "./board-helpers.js";
 
-test("enter on a task goes into its agent and the board stays as it was: from the row, from the chat, with ownTerminal on and off", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off", reviewer: "off" } });
+test("enter on a task goes into its agent and the board stays as it was: from the row, from the chat", async () => {
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     process.env.HERDR_ENV = "1";
     w.script({ worker: [{ status: "working", screen: "● Editing greet.sh\n" }] });
@@ -19,9 +19,9 @@ test("enter on a task goes into its agent and the board stays as it was: from th
     A.delegate(id); await settle(id);
     const pane = S.get(id).link.pane;
     const ways = { "from its row": [], "from its row, the chat hidden": ["alt+c"], "from the chat with its agent": ["space"] };
-    for (const ownTerminal of [true, false]) for (const [way, keys] of Object.entries(ways)) {
-      const what = `${way}, ownTerminal ${ownTerminal ? "on" : "off"}`;
-      const s = open(w, { ctx: { ownTerminal, boardKey: "prefix+w" } });
+    for (const [way, keys] of Object.entries(ways)) {
+      const what = way;
+      const s = open(w, { ctx: { boardKey: "prefix+w" } });
       s.v.sel = id; s.v.filter = "greeting"; s.v.load();
       s.press(...keys);
       const before = w.state().focus.length;
@@ -113,7 +113,7 @@ test("enter on a task goes into its agent and the board stays as it was: from th
 });
 
 test("opening the board from anywhere in herdr goes back to the one that is running, and opens it in a tab of its own, never the popup, when there is none", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off" } });
+  const w = await world();
   try {
     w.patchState((s) => { s.workspaces.push({ workspace_id: "w9", label: "b", cwd: w.root }); s.panes.push({ pane_id: "w9:p1", workspace_id: "w9", tab_id: "w9:t1", terminal_id: "term_board", cwd: w.root, agent: null }); });
     assert.equal(P.ownPane({ HERDR_ENV: "1", HERDR_PANE_ID: "w9:p1" }), "w9:p1");

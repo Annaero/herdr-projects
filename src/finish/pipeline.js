@@ -8,7 +8,7 @@ import * as Y from "../sync.js";
 import { firstLine, approvalMessage, fail } from "./shared.js";
 import { closeReviewer, runReview } from "./review.js";
 import { runCheck } from "./check-run.js";
-import { mergesItself } from "./auto-merge.js";
+import { mergesItself, byItself } from "./auto-merge.js";
 import { researchOnly, keptReport } from "./research.js";
 
 // "Finish anyway" on a turn that left no closing note: the screen text is the summary.
@@ -27,15 +27,16 @@ export async function pipelineJob(id) {
 export async function pipeline(id, g, text, wake, synced = null) {
   let t = g.set((t) => { t.stage = "checking"; t.syncBlocked = null; t.msg = synced ? "Checking the branch updated with main" : "Checking the result"; t.watch = null; t.check = null; t.summary = String(text || "").trim(); });
   const folder = S.cwdOf(t), root = S.folderOf(t.id), tree = F.isAgentTask(t) && t.worktree && fs.existsSync(t.worktree) ? t.worktree : "";
-  const repo = t.repoCfg || {};
   const env = { HERDR_SUPERWORK_ID: t.id, HERDR_SUPERWORK_WORKTREE: folder, HERDR_SUPERWORK_REPO: root };
-  const ch = S.choices(t);
+  // The settings of this step, read now: where it is checked. The review reads its own when it starts, the merge its own.
+  let ch = S.work(t);
+  const repo = { check: S.commandOf(ch["check.command"]), setup: S.commandOf(ch["workspace.setup"]) };
   const alive = () => !!g.check();
   // A research-only task changes nothing in the repo: with a change it goes back, and nothing below is committed,
   // brought up to date, checked as a change, pushed or merged for it (research.js). Its report is what is reviewed.
   const research = researchOnly(id, g, tree);
   if (research === "back") return;
-  t = keptReport(g, ch);
+  t = keptReport(g);
   // 3. Commit leftovers. A plain folder has nothing to commit.
   if (tree && !research) {
     try { if (F.dirty(tree)) { S.gitOut(tree, ["add", "-A"]); S.gitOut(tree, ["commit", "-m", `${t.title || id}\n\nTask: ${id}`]); } }
@@ -60,11 +61,10 @@ export async function pipeline(id, g, text, wake, synced = null) {
   // on the merged result, the reviewer is not asked twice about the same change.
   // So does work that passed its review and has only taken main in since, also into its own files and with conflicts
   // resolved (Y.mergeOnly is the rule): the check is what proves the merged result, so there must be one. Anything
-  // the agent did beyond the merge, a review that did not pass, or `remerge: review`: reviewed again, as ever.
-  const stands = S.config().remerge !== "review";
-  let kept = stands && sync?.status === "merged" && sync.overlap && !sync.overlap.length && t.reviewedHead === sync.before ? S.currentReview(t) : null;
+  // the agent did beyond the merge, a review that did not pass: reviewed again, as ever.
+  let kept = sync?.status === "merged" && sync.overlap && !sync.overlap.length && t.reviewedHead === sync.before ? S.currentReview(t) : null;
   let keptHow = kept ? { from: sync.before, merges: 1, resolved: [] } : null;
-  const passedAt = !kept && stands && repo.check && tree && sync?.target && ch.review !== "none" ? S.passedReview(t) : null;
+  const passedAt = !kept && repo.check && tree && sync?.target && ch["review.when"] !== "never" ? S.passedReview(t) : null;
   if (passedAt) {
     const m = Y.mergeOnly(tree, passedAt.head, sync.target);
     // Where the task merges with nobody's yes, only the board's own clean merge of main stands in for a review: a
@@ -78,14 +78,14 @@ export async function pipeline(id, g, text, wake, synced = null) {
     g.set({ setupPending: false });
   }
   if (repo.check && !research) {
-    const r = await runCheck(g, t, { cmd: repo.check, folder, env, alive, root });
+    const r = await runCheck(g, t, { cmd: repo.check, folder, env, alive, root, timeoutMin: S.ms(ch["check.timeout"]) / 60000 });
     if (r.aborted) return;
     if (!r.ok) {
       const merged = kept ? " The branch was only re-merged with main since its review passed, so the tests ran instead of a new review." : "";
-      const fails = (S.get(id).checkFails || 0) + 1;
+      const fails = (S.get(id).checkFails || 0) + 1, last = fails > ch["review.rounds"]; // it goes back by itself `review.rounds` times
       const auth = S.isAuthFailure(r.out);
-      const failure = { stage: "check", auth, agentCanFix: true, title: `Check failed${fails >= 3 ? " after 3 tries" : ""}`, ...(fails >= 3 ? { msg: `The check still fails after 3 tries (${repo.check}): ${r.out.split("\n").filter(Boolean).slice(-1)[0] || ""}` } : {}), detail: `Command: ${repo.check}\nFolder: ${folder}\n\n${r.out}`, next: "Fix the failed check, run it again and finish for a fresh review." };
-      if (fails >= 3 || auth) return void fail(g, failure, { patch: { checkFails: fails } });
+      const failure = { stage: "check", auth, agentCanFix: true, title: `Check failed${last && fails > 1 ? ` after ${fails} tries` : ""}`, ...(last && fails > 1 ? { msg: `The check still fails after ${fails} tries (${repo.check}): ${r.out.split("\n").filter(Boolean).slice(-1)[0] || ""}` } : {}), detail: `Command: ${repo.check}\nFolder: ${folder}\n\n${r.out}`, next: "Fix the failed check, run it again and finish for a fresh review." };
+      if (last || auth) return void fail(g, failure, { patch: { checkFails: fails } });
       g.check();
       // Straight back to the agent. The turn it causes is the plugin's own: an approved merge survives it.
       F.sendOwn(id, `The check failed, so this is not done yet.${merged}\n\n${S.boundDetail(failure.detail)}\n\nFix it and finish again.`, { reason: "check", keepIntent: !!wake?.keepIntent || !!S.get(id).mergeIntent, patch: { checkFails: fails, ...S.failurePatch(failure), failure: { ...S.failurePatch(failure).failure, sentAt: Date.now() } } });
@@ -95,7 +95,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
   g.check();
   // Push and open a draft pull request, when an origin remote exists.
   let note = research && !t.report ? " No report was found." : "";
-  if (tree && S.config().pr && !research) {
+  if (tree && ch["merge.pr"] && !research) {
     try {
       const hasCommits = Number(S.gitOut(tree, ["rev-list", "--count", `${t.baseSha || t.from || "HEAD"}..HEAD`])) > 0;
       if (hasCommits && F.hasOrigin(root)) {
@@ -122,14 +122,15 @@ export async function pipeline(id, g, text, wake, synced = null) {
   const tidyDone = async (id) => { const { tidy } = await import("../land.js"); await tidy(id, { deleteBranch: "merged" }); };
   const done = (msg, patch = {}) => { const mark = F.tidyMark(t, "merged"); const d = g.set((t) => { t.stage = "done"; t.tidy = mark; t.msg = S.oneLine(msg); t.failure = null; t.mergeIntent = null; Object.assign(t, patch); }); F.labelPane(d, null); return d; };
   // Nothing to land: it is simply done, unless work outside a repo is reviewed too (review "all").
-  if (!toLand && ch.review !== "all" && !(research && ch.review !== "none")) {
+  if (!toLand && ch["review.when"] !== "always" && !(research && ch["review.when"] !== "never")) {
     if (holdPrFailure(g, t)) return;
     done(`${firstLine(text) || "Finished"}${note}`);
     return void (await tidyDone(id));
   }
-  // 4. An adversarial review before it reaches you.
+  // 4. An adversarial review before it reaches you. Its settings are read now, as the review starts.
+  ch = S.work(S.get(id));
   let review = null;
-  const reviewNeeded = ch.review !== "none";
+  const reviewNeeded = ch["review.when"] !== "never";
   if (reviewNeeded && kept && toLand) {
     review = { ...kept, head: change.head, keptAt: Date.now(), kept: { ...keptHow, head: change.head, check: repo.check || "" } };
     g.set((t) => { S.logKept(t, review.kept); }); // the task's history says what happened instead of a review
@@ -142,15 +143,15 @@ export async function pipeline(id, g, text, wake, synced = null) {
     if (!r.review) return void fail(g, { stage: "review", auth: r.auth ? true : undefined, title: r.auth ? "Needs a login" : "Review failed", msg: r.auth ? "The reviewer needs a login" : `Review failed: ${S.oneLine(r.error, 200)}. Retry the task to review again`, detail: `Review failed: ${r.error}`, next: "Investigate the reviewer failure, then finish again for a fresh review. Do not bypass review or merge approval." }, { patch: { review: null } });
     review = r.review;
     // The pull request says what the review found, the findings below the gate marked as not required.
-    if (t.pr && toLand) { try { F.gh(["pr", "comment", F.prNumber(t.pr), "--body", G.prComment(review, S.reviewRound(S.get(id)))], root, 60000); } catch {} }
+    if (t.pr && toLand) { try { F.gh(["pr", "comment", F.prNumber(t.pr), "--body", G.prComment(review, S.reviewRound(S.get(id))) + F.BOARD_COMMENT], root, 60000); } catch {} }
   }
-  // A merge the board itself was on its way to (autoMerge) is only kept while that setting is still on.
-  t = g.set((t) => { t.failure = null; if (t.mergeIntent?.auto && !S.choices(t).autoMerge) t.mergeIntent = null; });
-  // The loop, unless the gate is "off": a review that fails the gate goes straight back, at most `rounds` times.
+  // A merge the board itself was on its way to (`merge.by: itself`) is only kept while that setting still says so.
+  t = g.set((t) => { t.failure = null; if (t.mergeIntent?.auto && !byItself(t)) t.mergeIntent = null; });
+  // The loop: a review that fails the gate goes straight back, at most `review.rounds` times (0: never).
   // Then, still failing, it stops and waits for you.
   const rounds = t.reviewRounds || 0;
   const passed = !review || G.passes(review);
-  if (review && !review.keptAt && (ch.gate !== "off" || t.mergeIntent) && !passed && rounds < ch.rounds) {
+  if (review && !review.keptAt && !passed && rounds < ch["review.rounds"]) {
     F.sendOwn(id, G.reviewMessage(review), { reason: "review", keepIntent: !!t.mergeIntent, patch: { review: { ...review, stale: true }, reviewRounds: rounds + 1 } });
     return;
   }
@@ -166,9 +167,9 @@ export async function pipeline(id, g, text, wake, synced = null) {
   if (!toLand) { done(`${review ? `${G.sentence(review, "accept")} ` : ""}${firstLine(text) || "Finished"}${note}`, { review }); return void (await tidyDone(id)); }
   t = g.set((t) => { t.review = review; t.stat = change.stat; t.reviewedHead = head; t.mergeFailed = false; });
   if (holdPrFailure(g, t)) return;
-  // 5. A task that merges by itself (the autoMerge setting, read now: it may have changed while this ran) still
+  // 5. A task that merges by itself (`merge.by`, read now: it may have changed while this ran) still
   // wants a review that passed the gate: one that failed it, you are asked.
-  if (S.choices(t).autoMerge && !t.requireApproval && sync?.status !== "skip" && (!reviewNeeded || (review && passed))) {
+  if (byItself(t) && !t.requireApproval && sync?.status !== "skip" && (!reviewNeeded || (review && passed))) {
     t = g.set((t) => { t.stage = "merging"; t.msg = "Merging"; t.mergeIntent = { approvedAt: Date.now(), repairs: 0, verifiedHead: head, auto: true }; });
     return void (await landCore(id, g));
   }

@@ -53,8 +53,8 @@ Nothing the board starts opens on the board's own screen, takes its focus or tak
 | The Coordinator | a space of its own (`workspace create --no-focus`), closed when it is stopped |
 | The Watcher | a hidden model call: no pane at all |
 
-Measured on herdr 0.9.3 with a real board, a real agent, reviewer, Watcher and Coordinator, the setting `ownTerminal`
-on and off: through a task's whole life (start, review, approval, merge, its space closed) and a Coordinator started
+Measured on herdr 0.9.3 with a real board, a real agent, reviewer, Watcher and Coordinator:
+through a task's whole life (start, review, approval, merge, its space closed) and a Coordinator started
 and stopped, the board's terminal kept its size, herdr's layout for its pane did not change, and no row of the board
 moved. (The reviewer was then still a pane split off the agent's pane; it has since moved to a tab of its own, which the same test covers.) On herdr a space opened without focus, a pane split off a pane in another space, an agent starting there and a
 space closing do nothing to a pane in the space you look at. A test holds the plugin to it
@@ -74,8 +74,7 @@ task) is the one thing that moves herdr's window, as before.
   pane's size, whichever window was typed in last. (Once, on the real board, the 0.6-second change came in the same
   half second as a reviewer starting; herdr's log shows that reviewer's pane spawned at the other window's size, so that window had the session at that moment.)
 - **A viewer attached to the board's own terminal** (`herdr terminal attach`, which herdr's web UI starts for each
-  pane it shows): it holds that one terminal at its size. [The board](board.md) says so and, with `ownTerminal` on,
-  disconnects it.
+  pane it shows): it holds that one terminal at its size. [The board](board.md) says so and disconnects it.
 - **A pane split off the board's own pane, or your own window resized.** By you: the plugin never does the first.
 
 ## A size that lasts a moment is not drawn for
@@ -97,7 +96,7 @@ The cost: after you resize the window yourself, the board follows a second later
 
 ## A second herdr window is not a viewer the board can disconnect
 
-With `ownTerminal` on, the board takes its terminal back from a viewer attached to it. Against a second herdr window
+The board takes its terminal back from a viewer attached to it. Against a second herdr window
 on the whole session that changes nothing: herdr puts the terminal back at the size of the window that was last
 typed in. A real session's log showed the board taking its terminal 179 times in twelve minutes, every four seconds,
 while a second window was on the session. Now it takes the terminal twice; when the sizes are still apart it stops,
@@ -107,5 +106,5 @@ and says what gives the size back:
  ! Held at 54×24: a key typed in this window frees it. Another herdr window on this session (a second device, a browser tab) has it at its own size, so herdr's own window (142×47) shows the board cut off or half empty
 ```
 
-It tries again the next time the sizes come apart after having agreed. With `ownTerminal` off it never takes the
-terminal, and holds still in the same way.
+It tries again the next time the sizes come apart after having agreed. That the board keeps the size of
+its own pane is fixed behaviour: there is no setting that turns it off.

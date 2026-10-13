@@ -22,12 +22,12 @@ const prompts = (w, t) => paneOf(w, t).agent.prompts.join("\n---\n");
 // The command prints its answer: kept off the test's own output.
 const quietly = async (run) => { const write = process.stdout.write; process.stdout.write = () => true; try { return await run(); } finally { process.stdout.write = write; } };
 
-test("every agent is told that a report never goes into the repo; a research-only task's agent that it changes nothing; the Coordinator when to mark one: a flag on add, a setting on the task", async () => {
-  const w = await world({ repoSettings: { check: "npm test" } });
+test("every agent is told that a report never goes into the repo; a research-only task's agent that it changes nothing; the Coordinator when to mark one: a flag on add and on delegate", async () => {
+  const w = await world({ repoSettings: { "check.command": "npm test" } });
   try {
     const plain = A.add(w.root, "Fix the page"), research = A.add(w.root, "Look into the build", { research: true });
     assert.equal(R.isResearch(plain), false); assert.equal(R.isResearch(research), true);
-    const tree = { worktree: "/tmp/x", branch: "work/1-x", repoCfg: { check: "npm test" } };
+    const tree = { worktree: "/tmp/x", branch: "work/1-x", repoFile: { "check.command": "npm test" } };
     const told = rules({ ...plain, ...tree }), toldResearch = rules({ ...research, ...tree });
     // Any task, in any repo: where a report goes, and never a commit of one.
     for (const text of [told, toldResearch]) { assert.match(text, /never goes into the repo: do not commit one, in no folder/); assert.match(text, /private link/); }
@@ -39,29 +39,28 @@ test("every agent is told that a report never goes into the repo; a research-onl
     assert.match(toldResearch, /a suggestion on the task for each piece of work that should follow/);
     assert.match(toldResearch, /Commit nothing on this branch/); assert.ok(toldResearch.includes(path.join(w.base, "reports", "proj", "2") + "/"));
     assert.doesNotMatch(toldResearch, /Commit your work on this branch/); assert.doesNotMatch(toldResearch, /only counts as done when this passes/);
-    assert.match(coordinatorRules("board"), /add the task with --research/); assert.match(coordinatorRules("board"), /board config research true --id <id>/);
+    assert.match(coordinatorRules("board"), /add the task with --research/); assert.match(coordinatorRules("board"), /board delegate <id> --research \(--no-research turns it off again\)/);
     // The reviewer of one reviews the report, and a change to the repo is a finding.
-    const brief = (t) => reviewBrief(t, { text: "Done.", change: null, toLand: false, ch: S.choices(t) });
+    const brief = (t) => reviewBrief(t, { text: "Done.", change: null, toLand: false, ch: S.work(t) });
     assert.match(brief(S.get(research.id)), /research only: nothing in the repository may change/); assert.match(brief(S.get(research.id)), /any commit, as a critical finding/);
     assert.doesNotMatch(brief(S.get(plain.id)), /research only/);
-    // Research only is a flag on add and a setting on the task.
+    // Research only is a flag on add, and on delegate.
     await quietly(() => main(["add", "Compare", "the", "two", "parsers", "--research", "--repo", w.root]));
     const t = S.get("proj/3");
-    assert.equal(t.title, "Compare the two parsers"); assert.equal(S.choices(t).research, true); assert.ok(R.isResearch(t));
-    assert.equal(S.choices(plain).research, false);
-    await quietly(() => main(["config", "research", "true", "--id", plain.id]));
-    assert.ok(R.isResearch(S.get(plain.id)));
-    await quietly(() => main(["config", "research", "false", "--id", plain.id]));
-    assert.ok(!R.isResearch(S.get(plain.id)));
+    assert.equal(t.title, "Compare the two parsers"); assert.equal(t.research, true); assert.ok(R.isResearch(t));
+    assert.ok(!plain.research);
+    // It is a property of the task, not a setting: nothing to set, unset or show
+    assert.throws(() => S.setValue("research", true), /Unknown setting "research"/); assert.ok(!S.NAMES.some((n) => /research/.test(n)));
+    S.update(plain.id, { research: true }); assert.ok(R.isResearch(S.get(plain.id)));
+    S.update(plain.id, { research: false }); assert.ok(!R.isResearch(S.get(plain.id)));
     // It can never be merged by a yes.
     S.update(research.id, (t) => { t.stage = "approval"; });
     assert.throws(() => A.approve(research.id), /research only: nothing of it is merged/);
-    assert.throws(() => S.setConfig("research", true), /Unknown setting/); // one task's, never a default for all
   } finally { w.cleanup(); }
 });
 
 test("a research-only task that changed the repo is sent back, nothing is pushed or opened, and after the rounds it waits for you saying why; undone, it ends as done", async () => {
-  const w = await world({ origin: true, settings: { rounds: 1, reviewer: "off" }, repoSettings: { check: "exit 1" } });
+  const w = await world({ origin: true, settings: { "review.rounds": 1, "review.when": "never" }, repoSettings: { "check.command": "exit 1" } });
   try {
     // First a commit, then a file that is not committed as well: each is a change.
     w.script({ worker: [{ files: { "docs/report.md": "found\n" }, commit: "the report", note: "Wrote the report." }, { files: { "notes.txt": "more\n" }, note: "Looked again." }] });
@@ -82,8 +81,9 @@ test("a research-only task that changed the repo is sent back, nothing is pushed
     assert.equal(git(w.root, "ls-remote", "origin").split("\n").filter((l) => l.includes("work/")).length, 0);
     assert.ok(fs.existsSync(path.join(t.worktree, "notes.txt"))); // left as the agent left it
     // It cannot be merged, by you or by itself.
-    assert.equal(green({ ...t, stage: "approval", reviewedHead: "abc", failure: null }, { review: "none" }), false);
-    assert.equal(green({ ...t, own: {}, stage: "approval", reviewedHead: "abc", failure: null }, { review: "none" }), true);
+    const unreviewed = { ...t, settings: { ...t.settings, "review.when": "never" }, stage: "approval", reviewedHead: "abc", failure: null };
+    assert.equal(green(unreviewed), false);
+    assert.equal(green({ ...unreviewed, research: false }), true);
     // A commit that changes no file is a change as well.
     git(t.worktree, "reset", "-q", "--hard", t.baseSha); fs.rmSync(path.join(t.worktree, "notes.txt"));
     git(t.worktree, "commit", "-q", "--allow-empty", "-m", "nothing");
@@ -103,7 +103,7 @@ test("a research-only task that changed the repo is sent back, nothing is pushed
 
 test("a research-only task that changed nothing ends as done with nothing to merge and its report kept; the reviewer reviews the report; a change in your own checkout is found too", async () => {
   // The repo's check would fail: it is not run, there is no change to check.
-  const w = await world({ repoSettings: { check: "exit 1" } });
+  const w = await world({ repoSettings: { "check.command": "exit 1" } });
   try {
     const dir = writeReport("proj/1", "index.html", page); // what the agent leaves in the task's folder among the reports
     w.script({ worker: [{ note: "The build is slow because of X." }], reviewer: [{ verdict: { meets: true, text: "The report answers it.", findings: [] }, evidence: { "out.txt": "ran it\n" } }] });
@@ -121,13 +121,14 @@ test("a research-only task that changed nothing ends as done with nothing to mer
     // Reviewed as a report; nothing checked, pushed, opened or merged.
     assert.equal(S.reviewHistory(t).length, 1); assert.ok(t.review);
     assert.equal(ghLog(w), ""); assert.ok(!t.pr);
-    // In your own checkout (no worktree) a change is found too: what was changed there already is yours and is not
+    // In your own checkout (a task that worked there before every task got a worktree) a change is found too: what was changed there already is yours and is not
     // counted, what the agent changed is, and it is told never to reset your checkout.
     fs.writeFileSync(path.join(w.root, "mine.txt"), "yours\n");
     fs.writeFileSync(path.join(w.root, "my notes.txt"), "yours too\n"); // a name git would quote
     w.script({ worker: [{ files: { "a.txt": "edited\n" }, note: "Looked." }, { note: "Still looked." }] });
     const own = A.add(w.root, "Look at a.txt", { research: true }).id;
-    A.delegate(own, { worktree: false, reviewer: "off", rounds: 1 });
+    S.update(own, { startedOnce: true });
+    A.delegate(own, { "review.when": "never", "review.rounds": 1 });
     const o = await settle(own, { max: 30 });
     assert.equal(o.stage, "failed", o.msg); assert.ok(!o.worktree);
     assert.match(o.msg, /changed the repo again after 1 round \(1 change in the repo\)/);

@@ -58,7 +58,7 @@ test("where the board's measure cannot be loaded, the count used is never too lo
 });
 
 test("add, rename and report --title follow the limit, and the full text stays in the description", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   const write = process.stdout.write; let said = "";
   const board = async (...args) => { said = ""; process.stdout.write = (x, ...more) => { if (typeof x !== "string") return write.call(process.stdout, x, ...more); said += x; return true; }; try { await main(args); } finally { process.stdout.write = write; } return said; };
   try {
@@ -89,7 +89,7 @@ test("add, rename and report --title follow the limit, and the full text stays i
 });
 
 test("a suggestion's title follows the limit: the reviewer's own short one, or the finding's sentence shortened", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const one = A.add(w.root, "Add a column");
     // An agent's long title: shortened, whole in the description, and still known by all of its words.
@@ -156,7 +156,7 @@ test("a suggestion's title follows the limit: the reviewer's own short one, or t
 });
 
 test("the Coordinator, the agents and the reviewer are told the limit", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const one = A.add(w.root, "Add a column");
     const { rules: rulesText } = await import("../src/coordinator/rules.js");

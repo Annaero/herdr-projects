@@ -19,7 +19,7 @@ export class Panel {
     this.flash(this.side ? `Side panel on. ${keyName("side")} hides it.` : `Side panel off. ${keyName("side")} shows it.`);
   }
   // Only the whole panel goes: who the chat talks to is space's to change, never the panel's.
-  foldPanel() { this.full = false; this.panelTop = 0; this.load(); }
+  foldPanel() { this.full = false; this.editing = null; this.panelTop = 0; this.load(); }
   openPanel() { const r = this.current(); if (!r && !this.job()) return this.flash("Select a task first."); this.full = true; this.panelTop = 0; }
   desc(r) { return String(r.description || ""); }
   scrollPanel(data) { this.scrollPanelBy(isKey(data, "up") ? -1 : 1); }
@@ -31,12 +31,15 @@ export class Panel {
   // Text keeps to a width that reads well, however wide the window is.
   fullPanel(r, width, h) {
     const t = this.theme;
-    const lines = this.panel(r, Math.min(width, READ), true);
+    // The settings page takes the panel's place while it is open (panel-edit.js), its selected row always on screen.
+    const editing = this.editing?.id === r.id && r.title !== undefined;
+    const lines = editing ? this.settingsPage(r, Math.min(width, READ)) : this.panel(r, Math.min(width, READ), true);
     this.panelHeight = Math.max(1, h - 2);
     this.panelLength = lines.length;
+    if (editing) this.panelTop = Math.min(this.editLine, Math.max(this.panelTop, this.editLine - this.panelHeight + 1));
     this.panelTop = Math.max(0, Math.min(this.panelTop, Math.max(0, lines.length - this.panelHeight)));
     const end = Math.min(lines.length, this.panelTop + this.panelHeight);
-    const left = " " + t.bold("Task details") + t.muted(`  ${idLabel(r.id)}`), right = lines.length > this.panelHeight ? t.muted(`lines ${this.panelTop + 1}–${end} of ${lines.length} `) : "";
+    const left = " " + t.bold(editing ? "Settings" : "Task details") + t.muted(`  ${idLabel(r.id)}`), right = lines.length > this.panelHeight ? t.muted(`lines ${this.panelTop + 1}–${end} of ${lines.length} `) : "";
     return [left + " ".repeat(Math.max(2, width - visibleWidth(left) - visibleWidth(right))) + right, t.fg("surface1", "─".repeat(width)), ...lines.slice(this.panelTop, end)];
   }
   // The task panel. One shape, beside the list and full screen, and one form for every part: a bold headline on a

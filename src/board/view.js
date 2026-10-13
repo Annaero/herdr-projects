@@ -37,6 +37,7 @@ import { PanelStatus } from "./view/panel-status.js";
 import { PanelReviews } from "./view/panel-reviews.js";
 import { PanelReport } from "./view/panel-report.js";
 import { PanelSettings } from "./view/panel-settings.js";
+import { PanelEdit } from "./view/panel-edit.js";
 import { Suggestions } from "./view/suggestions.js";
 import { WebUi } from "./view/web-ui.js";
 
@@ -119,6 +120,7 @@ export class View {
     try { this.takeApprove(); } catch {}
     try { this.syncCoord(); } catch {}
     try { this.announce(); } catch {}
+    try { this.ring(); } catch {}
     this.tui.requestRender();
   }
   dispose() { this.disposed = true; clearInterval(this.timer); this.closeSoon(); this.savePrefs(); if (this.sent.size) { try { process.stdout.write([...this.sent.keys()].map(oscClear).join("")); } catch {} } }
@@ -164,6 +166,7 @@ const PARTS = [
   PanelReviews,
   PanelReport,
   PanelSettings,
+  PanelEdit,
   Suggestions,
   WebUi,
 ];

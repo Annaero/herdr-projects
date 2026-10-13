@@ -14,7 +14,7 @@ import { runJob } from "../src/jobs.js";
 
 
 test("pull requests: pushed as a draft, merged through gh on approval, remembered when checks are pending, watched", async () => {
-  const w = await world({ origin: true, settings: { reviewer: "off" } });
+  const w = await world({ origin: true, settings: { "review.when": "never" } });
   try {
     const id = await toApproval(w, "With a PR");
     let t = S.get(id);
@@ -48,7 +48,7 @@ test("pull requests: pushed as a draft, merged through gh on approval, remembere
 });
 
 test("pull requests: failed checks wake the agent (capped), and the blocker survives a passing local check", async () => {
-  const w = await world({ origin: true, settings: { reviewer: "off", rounds: 1 } });
+  const w = await world({ origin: true, settings: { "review.when": "never", "review.rounds": 1 } });
   try {
     const id = await toApproval(w, "CI fails");
     let t = S.get(id);
@@ -68,7 +68,7 @@ test("pull requests: failed checks wake the agent (capped), and the blocker surv
 });
 
 test("a pull request merged elsewhere does not take a newer local commit with it", async () => {
-  const w = await world({ origin: true, settings: { reviewer: "off" } });
+  const w = await world({ origin: true, settings: { "review.when": "never" } });
   try {
     const id = await toApproval(w, "With a PR");
     let t = S.get(id);
@@ -87,7 +87,7 @@ test("a pull request merged elsewhere does not take a newer local commit with it
 });
 
 test("a pull request only merges at the commit that was reviewed: a commit pushed from elsewhere stops it, also the auto-merge", async () => {
-  const w = await world({ origin: true, settings: { reviewer: "off" } });
+  const w = await world({ origin: true, settings: { "review.when": "never" } });
   try {
     const id = await toApproval(w, "With a PR");
     let t = S.get(id);
@@ -144,7 +144,7 @@ test("a pull request only merges at the commit that was reviewed: a commit pushe
 });
 
 test("a pull request that GitHub only queued is not taken for merged: nothing is cleaned up until GitHub says so", async () => {
-  const w = await world({ origin: true, settings: { reviewer: "off" } });
+  const w = await world({ origin: true, settings: { "review.when": "never" } });
   try {
     const id = await toApproval(w, "With a PR");
     let t = S.get(id);
@@ -170,7 +170,7 @@ test("a pull request that GitHub only queued is not taken for merged: nothing is
 });
 
 test("a queued pull request that is closed without merging stops waiting and says so", async () => {
-  const w = await world({ origin: true, settings: { reviewer: "off" } });
+  const w = await world({ origin: true, settings: { "review.when": "never" } });
   try {
     const id = await toApproval(w, "With a PR");
     let t = S.get(id);
@@ -188,5 +188,29 @@ test("a queued pull request that is closed without merging stops waiting and say
     assert.ok(fs.existsSync(t.worktree)); assert.ok(w.state().workspaces.some((x) => x.workspace_id === t.link.workspace)); // nothing was cleaned up
     await pollPrs();
     assert.equal(S.get(id).stage, "approval");
+  } finally { w.cleanup(); }
+});
+
+test("pull request comments: only the human's own (the logged-in GitHub user's) wake the agent; nobody else's do, nor the board's own review comment", async () => {
+  const w = await world({ origin: true, settings: { "review.when": "never" } });
+  try {
+    const id = await toApproval(w, "Commented on");
+    const t = S.get(id), prompts = () => paneOf(w, S.get(id)).agent.prompts.length, before = prompts();
+    const gh = (comments, extra = {}) => fs.writeFileSync(path.join(w.fake, "gh.json"), JSON.stringify({ user: "elias", ...extra, view: { state: "OPEN", headRefOid: t.prHead, statusCheckRollup: [], reviews: [], author: { login: "elias" }, comments } }));
+    const say = (login, body, n) => ({ id: `c${n}`, author: { login }, body, updatedAt: `2026-01-0${n}` });
+    // someone else and a review bot: read by nobody here
+    gh([say("a-colleague", "Could this be faster?", 1), say("review-bot[bot]", "3 issues found.", 2)]);
+    await pollPrs();
+    assert.equal(prompts(), before); assert.equal(S.get(id).stage, "approval"); assert.ok(!S.get(id).failure);
+    // the board's own comment about a review is posted as the same user: it is the board's, not the human's
+    gh([say("elias", `**Review 1 · Fail · 1 major**\n\nFix it.${F.BOARD_COMMENT}`, 3), say("elias", "**Review 1 · Pass**\n\nNo findings.", 4)]);
+    await pollPrs();
+    assert.equal(prompts(), before); assert.equal(F.boardComment("Looks **good** to me"), false);
+    // the human's own words do
+    w.script({ worker: [{ status: "working" }] });
+    gh([say("a-colleague", "Could this be faster?", 1), say("elias", "Please rename the flag.", 5)]);
+    await pollPrs();
+    assert.equal(prompts(), before + 1); assert.match(paneOf(w, S.get(id)).agent.prompts.at(-1), /New feedback on the pull request/);
+    assert.match(ghLog(w), /^api user --jq \.login$/m); assert.equal(ghLog(w).match(/^api user/gm).length, 1); // asked once, then remembered
   } finally { w.cleanup(); }
 });

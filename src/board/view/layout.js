@@ -15,7 +15,7 @@ export class Layout {
     if (at === now) {
       this.off = f.held;
       // The line at the top (lookHeld) says the same with more: while it shows, this one is not needed.
-      this.offNote = f.held && !this.held ? `Another viewer holds this terminal at ${width}×${rows}; herdr shows it at ${shown.cols - (shown.split ? 2 : 0)}×${shown.rows - (shown.split ? 2 : 0)}. ${this.takeFailed && this.ownsTerminal ? `Taking it back failed (${this.takeFailed}): trying again.` : this.gaveUp && this.ownsTerminal ? "A key typed in this window takes it back: another herdr window (a second device, a browser tab) has this session at its own size." : "The ownTerminal setting, turned on, takes it back."}` : "";
+      this.offNote = f.held && !this.held ? `Another viewer holds this terminal at ${width}×${rows}; herdr shows it at ${shown.cols - (shown.split ? 2 : 0)}×${shown.rows - (shown.split ? 2 : 0)}. ${this.takeFailed ? `Taking it back failed (${this.takeFailed}): trying again.` : this.gaveUp ? "A key typed in this window takes it back: another herdr window (a second device, a browser tab) has this session at its own size." : "The board takes it back."}` : "";
     }
     const lines = this.drawAt(at.cols, at.rows);
     return this.pad(at === now ? lines : lines.slice(Math.max(0, lines.length - now.rows)).map((l) => truncateToWidth(l, now.cols, "")), Math.max(8, rows));

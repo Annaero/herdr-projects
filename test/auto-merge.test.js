@@ -1,4 +1,4 @@
-// The autoMerge setting: a green task merges by itself, your choice wins over the repo's "land", and a change counts
+// The merge.by setting: a green task merges by itself, the repo's own file can never switch that on, and a change counts
 // for tasks already under way. Main moving under a task that may merge: a clean catch-up merges with nobody asked, a
 // conflict goes to the agent and is reviewed, and several such tasks go one at a time.
 import test from "node:test";
@@ -21,33 +21,35 @@ const pass = () => housekeeping(undefined, { force: true });
 const big = (first, last) => [first, ...Array.from({ length: 18 }, (_, i) => `line ${i + 2}`), last].join("\n") + "\n";
 const mainMoves = (w, files) => { for (const [f, text] of Object.entries(files)) fs.writeFileSync(path.join(w.root, f), text); git(w.root, "add", "-A"); git(w.root, "commit", "-qm", "main moves"); return git(w.root, "rev-parse", "HEAD"); };
 // Every run of the check leaves a line outside the repo, so a test can count them.
-const counted = { check: 'echo run >> "$HERDR_SUPERWORK_REPO/../checks.log"' };
+const counted = { "check.command": 'echo run >> "$HERDR_SUPERWORK_REPO/../checks.log"' };
 const checks = (w) => { try { return fs.readFileSync(path.join(w.root, "..", "checks.log"), "utf8").split("\n").filter(Boolean).length; } catch { return 0; } };
 const queued = (job) => globalThis.__swJobs.filter(([j]) => j === job).map(([, id]) => id);
 const quiet = async (argv) => { const out = process.stdout.write; process.stdout.write = () => true; try { return await main(argv); } finally { process.stdout.write = out; } };
 
-test("autoMerge: yours for all tasks, one task's own, and the repo's land only where you chose nothing", async () => {
-  const w = await world({ repoSettings: { land: "auto" } });
+test("merge.by: yours for all tasks, your entry for a repo, one task's own; the repo's own file can never switch it on", async () => {
+  const w = await world({ repoSettings: { merge: { by: "itself" }, land: "auto" } });
   try {
     const id = A.add(w.root, "One").id;
-    assert.equal(S.config().autoMerge, false); assert.ok(S.PER_TASK.includes("autoMerge"));
-    assert.equal(S.choices(S.get(id)).autoMerge, true); // nothing chosen: the repo's file says
-    assert.equal(S.setConfig("autoMerge", "false").autoMerge, false); assert.equal(S.choices(S.get(id)).autoMerge, false); // yours wins, also when it is "no"
-    assert.equal(await quiet(["config", "autoMerge", "true", "--id", id]), 0); assert.equal(S.get(id).own.autoMerge, true); assert.equal(S.choices(S.get(id)).autoMerge, true);
-    assert.equal(S.setTaskConfig(id, "autoMerge", "default").autoMerge, false); assert.deepEqual(S.get(id).own, {});
-    S.setConfig("autoMerge", "default"); assert.equal(S.choices(S.get(id)).autoMerge, true); // handed back to the repo
-    // a repo that says nothing asks, and the option to delegate sets it for that one task
-    fs.rmSync(path.join(w.root, ".herdr-superwork.json")); assert.equal(S.choices(S.get(id)).autoMerge, false);
+    const by = () => S.lookup("merge.by", { task: S.get(id) });
+    assert.equal(S.setting("merge.by"), "you"); assert.equal(by().value, "you"); assert.equal(by().from, "built in"); // the repo's file says "itself": refused
+    assert.equal(S.setValue("merge.by", "itself").value, "itself"); assert.deepEqual([by().value, by().from], ["itself", "you"]);
+    assert.equal(S.setValue("merge.by", "you", { repo: "proj" }).value, "you"); assert.deepEqual([by().value, by().from], ["you", "your entry for proj"]);
+    assert.equal(await quiet(["set", "merge.by", "itself", "--task", id]), 0); assert.deepEqual(S.get(id).settings, { "merge.by": "itself" }); assert.deepEqual([by().value, by().from], ["itself", "this task"]);
+    assert.equal(S.unsetValue("merge.by", { task: S.get(id) }).value, "you"); assert.deepEqual(S.get(id).settings, {});
+    S.unsetValue("merge.by", { repo: "proj" }); S.unsetValue("merge.by"); assert.equal(by().value, "you");
+    // the option to delegate sets it for that one task, and the task says what its repo's file was refused
+    S.setValue("merge.by", "itself");
     w.script({ worker: [work(1)], reviewer: [verdict()] });
-    assert.equal(await quiet(["delegate", id, "--autoMerge", "false"]), 0); assert.equal(S.get(id).own.autoMerge, false);
+    assert.equal(await quiet(["delegate", id, "--merge.by", "you"]), 0); assert.equal(S.get(id).settings["merge.by"], "you");
     const t = await settle(id, { max: 30 });
-    assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.ok(!merged(w)); // its own "no" beats the repo's "auto" it started with
-    assert.equal(t.repoCfg.land, "auto");
+    assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.ok(!merged(w)); // its own "you" beats your "itself"
+    assert.deepEqual(t.repoFile, {}); assert.equal(t.repoRefused.length, 2); assert.match(t.repoRefused.join("\n"), /merge\.by[^\n]*may only hold workspace\.setup, workspace\.include, workspace\.teardown, check\.command, check\.timeout/); assert.match(t.repoRefused.join("\n"), /unknown setting "land"/);
+    assert.match(t.fallbacks.repoFile, /merge\.by/);
   } finally { w.cleanup(); }
 });
 
 test("autoMerge on: a task whose review passes merges by itself; one whose review fails still asks", async () => {
-  const w = await world({ settings: { autoMerge: true, rounds: 1 } });
+  const w = await world({ settings: { "merge.by": "itself", "review.rounds": 1 } });
   try {
     w.script({ worker: [work(1)], reviewer: [verdict([{ severity: "minor", subject: "A name", where: "f.txt", proof: "read it" }])] });
     const id = A.add(w.root, "Passes").id;
@@ -72,7 +74,7 @@ test("autoMerge turned on under way: a task that waits green merges at the revie
     const held = await toApproval(w, "Stepped in", { worker: [work(1, "h.txt")], reviewer: [verdict()] });
     S.update(held, (t) => { t.requireApproval = true; });
     pass(); assert.equal((await settle(id)).stage, "approval"); // off: it waits, as before
-    S.setConfig("autoMerge", "true");
+    S.setValue("merge.by", "itself");
     assert.equal(green(S.get(id)), true); assert.equal(green(S.get(held)), false);
     const reviewed = S.get(id).reviewedHead;
     pass();
@@ -84,7 +86,7 @@ test("autoMerge turned on under way: a task that waits green merges at the revie
     pass(); let h = await settle(held, { max: 30 });
     assert.equal(h.stage, "approval"); assert.match(h.msg, /^Approve to merge\? Review: Pass\. Re-merged with main, tests pass, review 1 still stands\./); assert.ok(!merged(w, "h.txt"));
     // "auto-merge this one", said for that very task, is the yes it waited for
-    S.setTaskConfig(held, "autoMerge", "true"); assert.equal(S.get(held).requireApproval, false);
+    S.setValue("merge.by", "itself", { task: S.get(held) }); assert.equal(S.get(held).requireApproval, false);
     // Green, and main moves once more: it is not brought up to date with everything else that waits. It catches up
     // when it merges, is checked once on the result, and merges by itself: no new review, and nobody is asked.
     const main = mainMoves(w, { "other.txt": "main\n" }), ran = checks(w), seen = S.reviewHistory(h)[0].head;
@@ -123,7 +125,7 @@ test("autoMerge turned on under way: a task that waits green merges at the revie
 });
 
 test("autoMerge turned off while a task waits to merge by itself: it waits for your yes instead", async () => {
-  const w = await world({ origin: true, settings: { reviewer: "off", autoMerge: true } });
+  const w = await world({ origin: true, settings: { "review.when": "never", "merge.by": "itself" } });
   try {
     // GitHub's checks still run: the merge the board started by itself is remembered
     const pending = { state: "OPEN", statusCheckRollup: [{ name: "build", state: "PENDING" }], comments: [], reviews: [], author: { login: "me" } };
@@ -134,7 +136,7 @@ test("autoMerge turned off while a task waits to merge by itself: it waits for y
     let t = await settle(id, { max: 30 });
     assert.deepEqual([t.stage, t.autoMerge, t.mergeIntent?.auto], ["merging", true, true], JSON.stringify(t.failure));
     pass(); assert.equal(S.get(id).stage, "merging"); // still on: nothing changes
-    S.setTaskConfig(id, "autoMerge", "false");
+    S.setValue("merge.by", "you", { task: S.get(id) });
     pass();
     t = S.get(id);
     assert.deepEqual([t.stage, !!t.autoMerge, t.mergeIntent, !!t.requireApproval], ["approval", false, null, false]); assert.match(t.msg, /^Approve to merge\?/);
@@ -151,9 +153,9 @@ test("autoMerge turned off after the board started a merge, before its runner ra
   const w = await world();
   try {
     const id = await toApproval(w, "Queued", { reviewer: [verdict()] });
-    S.setConfig("autoMerge", "true"); pass();
+    S.setValue("merge.by", "itself"); pass();
     assert.deepEqual([S.get(id).stage, S.get(id).mergeIntent?.auto], ["merging", true]); // its land runner is queued, not run
-    S.setConfig("autoMerge", "false");
+    S.setValue("merge.by", "you");
     let t = await settle(id);
     assert.deepEqual([t.stage, t.mergeIntent, !!t.failure, !!t.mergeFailed], ["approval", null, false, false]); assert.match(t.msg, /^Approve to merge\?/); assert.ok(!merged(w));
     pass(); assert.equal((await settle(id)).stage, "approval");
@@ -164,13 +166,13 @@ test("autoMerge turned off after the board started a merge, before its runner ra
 });
 
 test("autoMerge on: a catch-up that conflicts goes to the agent, and what the agent made of it is reviewed before it merges", async () => {
-  const w = await world({ settings: { cleanup: false }, repoSettings: counted });
+  const w = await world({ settings: { "workspace.cleanup": false }, repoSettings: counted });
   try {
     fs.writeFileSync(path.join(w.root, "big.txt"), big("line 1", "line 20")); git(w.root, "add", "-A"); git(w.root, "commit", "-qm", "big");
     const id = await toApproval(w, "Conflicts", { worker: [{ files: { "big.txt": big("TASK", "line 20") }, commit: "task", note: "Changed the first line." }], reviewer: [verdict()] });
     const main = mainMoves(w, { "big.txt": big("MAIN", "line 20") });
     w.script({ worker: [{ merge: main, files: { "big.txt": big("TASK and MAIN", "line 20") }, commit: "resolve", note: "Resolved." }], reviewer: [verdict()] });
-    S.setConfig("autoMerge", "true");
+    S.setValue("merge.by", "itself");
     pass();
     const t = await settle(id, { max: 40 });
     assert.equal(t.stage, "done", JSON.stringify([t.stage, t.msg, t.failure?.title]));
@@ -183,14 +185,14 @@ test("autoMerge on: a catch-up that conflicts goes to the agent, and what the ag
 });
 
 test("several tasks may merge at once: they go one at a time, each catches up once, and none waits for you", async () => {
-  const w = await world({ settings: { reviewer: "off", cleanup: false }, repoSettings: counted });
+  const w = await world({ settings: { "review.when": "never", "workspace.cleanup": false }, repoSettings: counted });
   try {
     const [b, c] = [await toApproval(w, "B", { worker: [work(1, "b1.txt")] }), await toApproval(w, "C", { worker: [work(1, "c1.txt")] })];
     const ran = checks(w), heads = [b, c].map((id) => git(S.get(id).worktree, "rev-parse", "HEAD"));
     // A is on its way to merge: its runner is at work and the turn is its own
     const a = A.add(w.root, "A").id;
     S.update(a, (t) => { t.stage = "merging"; t.runner = S.marker({ job: "land" }); t.lineTurn = t.runner.started; });
-    S.setConfig("autoMerge", "true");
+    S.setValue("merge.by", "itself");
     mainMoves(w, { "other.txt": "main\n" });
     pass(); await settle(b); await settle(c);
     // B and C wait behind it: nothing was merged into them and no check ran, however often the board looks

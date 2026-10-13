@@ -86,10 +86,10 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     await drainJobs(runJob);
     assert.equal(C.look().state, "idle"); assert.deepEqual(C.get().where.map((x) => x.said), ["after", ...[1, 2, 3, 4, 5, 6].map((n) => `quick ${n}`)]);
     // A program that is not installed cannot be started: the reason shows, and the words wait.
-    S.writeJson(path.join(S.dataDir(), "versions.json"), { nope: { v: "", at: Date.now(), found: false } });
-    C.fresh(C.pickOf({ agent: "nope" })); C.send(w.root, "second"); await drainJobs(runJob);
-    assert.match(C.look().error, /"nope" is not installed here/); assert.equal(C.get().queue.length, 1);
-    s.beat(); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n╭─+╮\n│ It could not be started: "nope" is not installed here/); // also with its message hidden
+    S.writeJson(path.join(S.dataDir(), "versions.json"), { pi: { v: "", at: Date.now(), found: false } });
+    C.fresh(C.pickOf({ agent: "pi" })); C.send(w.root, "second"); await drainJobs(runJob);
+    assert.match(C.look().error, /"pi" is not installed here/); assert.equal(C.get().queue.length, 1);
+    s.beat(); assert.match(s.text(), /Coordinator {2}could not be started[^\n]*\n╭─+╮\n│ It could not be started: "pi" is not installed here/); // also with its message hidden
     // alt+c hides that too, as the chat's line says; esc does not.
     s.v.chatOpen = false; s.v.setValue(""); s.v.reply = false; s.v.full = false; s.v.filter = ""; s.v.msg = "";
     assert.match(s.text(), /alt\+c hide the latest message/);
@@ -101,35 +101,35 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     // alt+c shows it again and hides it again, shown by the setting or not.
     s.press("alt+c"); assert.match(s.text(), /It could not be started:/); s.press("alt+c"); assert.doesNotMatch(s.text(), /It could not be started:/); assert.equal(s.v.ask, null);
     s.v.errHid = ""; s.v.chatOpen = true; assert.match(s.text(), /It could not be started:/); s.press("alt+c"); assert.doesNotMatch(s.text(), /It could not be started:/);
-    assert.throws(() => C.pickOf({ agent: "not a kind" }), /must be an agent kind/);
+    assert.throws(() => C.pickOf({ agent: "not a kind" }), /coordinator\.agent: no agent program "not a kind"\. It must be claude, codex, pi or none\./);
   } finally { delete process.env.HERDR_SUPERWORK_HANDLED_MS; w.cleanup(); }
 });
 
 test("turning the Coordinator on while the board is open takes effect at once, and off again too", async () => {
-  const w = await coordWorld({ coordinator: "off" });
+  const w = await coordWorld({ "coordinator.agent": "none" });
   try {
     const s = open(w);
     assert.match(s.text(), /\n *\n \+ New task {2}what you type is added as a task, word for word *\n─+\n❯ what's next\? *\n/); assert.doesNotMatch(s.text(), /Coordinator/); // with it off, the chat says what the box does
     s.type("first thing"); s.press("enter");
     assert.equal(S.get("proj/1").title, "first thing"); assert.equal(C.get(), null);
-    S.setConfig("coordinator", "default"); // the board stays open
+    S.unsetValue("coordinator.agent"); // the board stays open
     s.type("second thing"); s.press("enter");
     assert.equal(S.get("proj/2"), null, "not added word for word any more"); assert.equal(C.get().queue.length, 1);
     await drainJobs(runJob);
     assert.equal(w.agents()[0].agent.prompts[0], "second thing"); assert.doesNotMatch(s.text(), /no Coordinator/);
     // Off again: the next beat that checks sees it, even with one still running.
-    S.setConfig("coordinator", "off");
+    S.setValue("coordinator.agent", "none");
     s.v.tick = 4; s.v.beat();
     s.type("third thing"); s.press("enter");
     assert.equal(S.get("proj/2").title, "third thing"); assert.equal(w.agents()[0].agent.prompts.length, 1);
     // And your next message turns up a Coordinator that was switched on after the board opened.
     const off = open(w); assert.equal(off.v.canDispatch, false); assert.match(off.text(), /\+ New task/);
-    S.setConfig("coordinator", "default"); off.type("fourth thing"); off.press("enter"); await drainJobs(runJob); off.v.load(); assert.equal(off.v.canDispatch, true); assert.match(off.text(), /\n . Coordinator {2}/);
+    S.unsetValue("coordinator.agent"); off.type("fourth thing"); off.press("enter"); await drainJobs(runJob); off.v.load(); assert.equal(off.v.canDispatch, true); assert.match(off.text(), /\n . Coordinator {2}/);
   } finally { w.cleanup(); }
 });
 
 test("a start that fails loses nothing: a restart asked for meanwhile still happens, and a long launch line never reaches the shell", async () => {
-  const w = await coordWorld({ coordinator: "codex" });
+  const w = await coordWorld({ "coordinator.agent": "codex" });
   try {
     // The whole launch line must stay well under what a terminal takes on one line (4096 bytes): the rules ride on
     // no flag (Codex's would carry the text itself), they are a file in its folder, and your words go in as they are.
@@ -161,8 +161,8 @@ test("a start that fails loses nothing: a restart asked for meanwhile still happ
     assert.equal(C.look().error, "", "the failure of the start it replaced is not shown over a Coordinator that is there");
     const s = open(w); assert.doesNotMatch(s.text(), /could not be started/); assert.match(s.text(), /Coordinator {2}idle/);
     // A start that failed is not tried again every few seconds by itself; your next message tries.
-    S.writeJson(path.join(S.dataDir(), "versions.json"), { nope: { v: "", at: Date.now(), found: false } });
-    C.fresh(C.pickOf({ agent: "nope" })); C.send(w.root, "x"); await drainJobs(runJob);
+    S.writeJson(path.join(S.dataDir(), "versions.json"), { pi: { v: "", at: Date.now(), found: false } });
+    C.fresh(C.pickOf({ agent: "pi" })); C.send(w.root, "x"); await drainJobs(runJob);
     assert.match(C.get().error, /not installed/);
     fs.rmSync(S.stampFile(`coordinator-default`), { force: true });
     C.tick(); assert.equal(globalThis.__swJobs.length, 0);

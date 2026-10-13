@@ -137,6 +137,11 @@ What makes a test slow here is starting programs and waiting. A new test does ne
   repo and a first commit. `toApproval(w)` is the scene most finish-line tests start from.
 - **git is the one program still started**, because the board's work is git work. Ask for each fact once.
 
+A test run never reads or writes your real board: the command gives the whole run an empty home folder of its own
+(`HERDR_SUPERWORK_HOME`), so a test with no board of its own, and any program a test starts, stays out of
+`~/.herdr-superwork`. When you run the program by hand while working on it, set `HERDR_SUPERWORK_HOME` to a scratch
+folder first: a new version may convert what it finds in the real one.
+
 A real program is started only where the program itself is what is tested. Those tests say so in their name
 (`[real programs]`): the command line (`test/cli.test.js`), the fake herdr as a program (`test/fake-herdr.test.js`),
 the check command and its slots (`test/check.test.js`), the kernel lock (`test/store.test.js`). A repo's own `setup`,

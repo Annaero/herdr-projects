@@ -12,7 +12,7 @@ export const KEY = {
   "ctrl+l": "\x0c", "ctrl+r": "\x12", "ctrl+x": "\x18", "ctrl+a": "\x01", "ctrl+p": "\x10", "ctrl+z": "\x1a", "ctrl+f": "\x06", "ctrl+c": "\x03",
   "alt+c": "\x1bc", "alt+u": "\x1bu", "alt+j": "\x1bj", "alt+p": "\x1bp", "alt+t": "\x1bt", "alt+a": "\x1ba", "alt+s": "\x1bs", "alt+d": "\x1bd", "alt+m": "\x1bm",
   // Keys the board had once, or never had: none of them does anything now.
-  "ctrl+y": "\x19", "ctrl+e": "\x05", "ctrl+t": "\x14", "ctrl+g": "\x07", "ctrl+s": "\x13", "ctrl+d": "\x04", "ctrl+o": "\x0f", "ctrl+b": "\x02",
+  "ctrl+y": "\x19", "ctrl+e": "\x05", "ctrl+u": "\x15", "ctrl+t": "\x14", "ctrl+g": "\x07", "ctrl+s": "\x13", "ctrl+d": "\x04", "ctrl+o": "\x0f", "ctrl+b": "\x02",
   "alt+v": "\x1bv", "alt+h": "\x1bh", "alt+r": "\x1br", "alt+n": "\x1bn", delete: "\x1b[3~",
 };
 // The side panel is closed until you ask for it; most of these tests read it, so they start with it open.

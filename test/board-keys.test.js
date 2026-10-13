@@ -11,7 +11,7 @@ import { theme } from "../src/board/theme.js";
 import { open } from "./board-helpers.js";
 
 test("the board's keys: typing adds a task, tab puts an agent on it, space replies to it, enter opens the agent", async (tt) => {
-  const w = await world({ settings: { helper: "off", reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     process.env.HERDR_ENV = "1";
     w.script({ worker: [{ status: "working", screen: "● Editing greet.sh\n  esc to interrupt\n" }] });
@@ -76,7 +76,7 @@ test("the board's keys: typing adds a task, tab puts an agent on it, space repli
 });
 
 test("ctrl does something, alt only shows or hides: every key of the set, as a terminal sends it, and no old key left", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off", reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     const id = A.add(w.root, "One").id; A.add(w.root, "Two");
     const s = open(w); s.v.sel = id; s.v.load();
@@ -96,7 +96,7 @@ test("ctrl does something, alt only shows or hides: every key of the set, as a t
     s.press("alt+m"); assert.equal(s.v.scope, ""); assert.match(s.text(), /No other machines\./); assert.equal(tasks(), first);
     assert.equal(shown(), start);
     // The keys that are gone do nothing at all: not their old action, not a new one, and nothing is typed.
-    for (const k of ["alt+v", "alt+h", "alt+r", "alt+n", "delete", "ctrl+e", "ctrl+s", "ctrl+d", "ctrl+o", "ctrl+t", "ctrl+g", "right", "\x1b[118;3u", "\x1b[101;5u", "\x1b[1;3A", "\x1b[1;3B", "\x1b[1;5A", "\x1b[1;5B", "\x1b[5~", "\x1b[6~", "\x1b[H", "\x1b[F", "\x1bw", "\x1b[1;2A", "\x1b[1;2B", "\x1b[1;2C", "\x1b[1;6A", "\x1b[1;6B", "\x1b[1;4A", "\x1b[1;4B"]) {
+    for (const k of ["alt+v", "alt+h", "alt+r", "alt+n", "delete", "ctrl+s", "ctrl+d", "ctrl+o", "ctrl+t", "ctrl+g", "right", "\x1b[118;3u", "\x1b[1;3A", "\x1b[1;3B", "\x1b[1;5A", "\x1b[1;5B", "\x1b[5~", "\x1b[6~", "\x1b[H", "\x1b[F", "\x1bw", "\x1b[1;2A", "\x1b[1;2B", "\x1b[1;2C", "\x1b[1;6A", "\x1b[1;6B", "\x1b[1;4A", "\x1b[1;4B"]) {
       s.press(k); assert.equal(tasks(), first, k); assert.equal(shown(), start, k); assert.equal(s.v.ask, null, k); assert.equal(s.v.menu, null, k); assert.equal(s.v.value(), "", k); assert.equal(s.v.sel, id, k); assert.equal(s.closed(), undefined, k);
     }
     // Ctrl: each does its one thing. ctrl+p pins (it is no longer the side panel), ctrl+a archives (no longer "yes").
@@ -105,12 +105,14 @@ test("ctrl does something, alt only shows or hides: every key of the set, as a t
     s.press("ctrl+a"); assert.ok(S.get(id).archivedAt); assert.equal(s.v.ask, null);
     s.press("ctrl+z"); assert.ok(!S.get(id).archivedAt);
     s.press("ctrl+f"); assert.equal(s.v.mode, "find"); s.press("esc"); assert.equal(s.v.mode, "new");
+    // ctrl+e opens the task's settings full screen and the key again (or esc) closes them; as a terminal sends it too
+    for (const seq of ["ctrl+e", "\x1b[101;5u"]) { s.press(seq); assert.deepEqual([s.v.full, s.v.editing?.id], [true, s.v.sel]); s.press(seq); assert.deepEqual([s.v.full, s.v.editing], [true, null]); s.press("esc"); assert.equal(shown(), start); }
     assert.equal(tasks(), first);
   } finally { w.cleanup(); }
 });
 
 test("ctrl+x stops whatever agent is alive, also one that waits for your answer; it asks to remove only where none runs", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off", reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     const id = A.add(w.root, "One").id;
     const s = open(w); s.v.sel = id; s.v.load();
@@ -135,7 +137,7 @@ test("ctrl+x stops whatever agent is alive, also one that waits for your answer;
 });
 
 test("while the text box holds text it owns the keyboard: no shortcut fires in the middle of a draft", async (tt) => {
-  const w = await world({ settings: { helper: "off", coordinator: "off" } });
+  const w = await world();
   try {
     w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f." }], reviewer: [{ verdict: { meets: true, text: "Good.", findings: [{ severity: "minor", subject: "f.txt has no title", where: "f.txt" }] } }] });
     const id = A.add(w.root, "Make f").id; A.add(w.root, "Other");

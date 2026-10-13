@@ -61,7 +61,7 @@ test("a conflict with main goes to the agent by itself, before any approval; the
 });
 
 test("conflict repairs are capped: after `rounds` tries in a row the human is asked, with the details kept", async () => {
-  const w = await world({ settings: { rounds: 1 } });
+  const w = await world({ settings: { "review.rounds": 1 } });
   try {
     // the "repair" changes the file again without bringing main in
     w.script({ worker: [{ note: "Which one?" }, { files: { "a.txt": "from the agent\n" }, commit: "agent", note: "Changed a.txt." }, { files: { "a.txt": "still mine\n" }, commit: "again", note: "Resolved." }] });
@@ -80,7 +80,7 @@ test("conflict repairs are capped: after `rounds` tries in a row the human is as
 });
 
 test("after an approval the sync is the last safety net: a conflict found there also goes to the agent, and the approved merge is retried", async () => {
-  const w = await world({ settings: { reviewer: "off", cleanup: false } });
+  const w = await world({ settings: { "review.when": "never", "workspace.cleanup": false } });
   try {
     w.script({ worker: [{ files: { "a.txt": "from the agent\n" }, commit: "agent", note: "Changed a.txt." }] });
     const id = A.add(w.root, "Late").id;
@@ -98,7 +98,7 @@ test("after an approval the sync is the last safety net: a conflict found there 
 });
 
 test("a task that could not be brought up to date is held as behind main: no approval until the sync really happened", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   const { housekeeping } = await import("../src/housekeeping.js");
   const { drainJobs } = await import("../src/runner.js");
   const { runJob } = await import("../src/jobs.js");
@@ -138,7 +138,7 @@ test("a task that could not be brought up to date is held as behind main: no app
 });
 
 test("your checkout on another branch: nothing is merged into a waiting task, and it cannot be approved until you are back", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   const { housekeeping } = await import("../src/housekeeping.js");
   const kick = async (id) => { S.update(id, { syncRetryAt: 0 }); globalThis.__swJobs = []; housekeeping(w.socket, { force: true }); return settle(id); };
   try {

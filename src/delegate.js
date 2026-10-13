@@ -3,11 +3,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash, randomBytes } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import * as S from "./store.js";
 import * as F from "./flow.js";
 import { claim, release, guardFor, sh, outputOf } from "./runner.js";
-import { startArgs, preTrust, adapter, hookUsable, versionOf } from "./agents.js";
+import { startArgs, preTrust, adapter, hookUsable, versionOf, roleOf, ownWords, effortFor } from "./agents.js";
 import { settle } from "./submit.js";
 import * as R from "./research.js";
 import { AGENT_BOARD_RULE } from "./board-rule.js";
@@ -21,66 +20,21 @@ export function agentName(t, taken = []) {
   if (!taken.includes(base)) return base;
   return `${base}-${createHash("sha1").update(`${t.id}:${t.root}:${Date.now()}`).digest("hex").slice(0, 4)}`;
 }
-export const slugOf = (title) => String(title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
 
-// ---- where a worktree starts -----------------------------------------------------------------------------------------
-// "fresh" (default): the remote's default branch, fetched first if the repo has not been fetched in a day (5 seconds
-// at most, never asking for a password). With no remote, or with "head": your checkout's current commit.
-export function baseRef(root, base) {
-  if (base !== "head") {
-    try {
-      if (F.hasOrigin(root)) {
-        let age = Infinity;
-        try { age = Date.now() - fs.statSync(path.join(root, ".git", "FETCH_HEAD")).mtimeMs; } catch {}
-        if (age > 24 * 3600 * 1000) { try { execFileSync("git", ["fetch", "origin"], { cwd: root, stdio: "ignore", timeout: 5000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: "ssh -oBatchMode=yes" } }); } catch {} }
-        for (const ref of ["origin/HEAD", "origin/main", "origin/master"]) { try { S.gitOut(root, ["rev-parse", "--verify", `refs/remotes/${ref}`]); return ref; } catch {} }
-      }
-    } catch {}
-  }
-  return "HEAD";
-}
-// herdr checks out an existing branch of that name and ignores --base, so the name must be free first.
-export function freeBranch(root, t) {
-  const slug = slugOf(t.title);
-  const stem = `work/${t.n}${slug ? `-${slug}` : ""}`;
-  let branch = stem;
-  for (let i = 2; ; i++) { try { S.gitOut(root, ["rev-parse", "--verify", `refs/heads/${branch}`]); branch = `${stem}-${i}`; } catch { break; } }
-  return branch;
-}
-// Keep the folder older versions had agents write notes into out of the repo's status, for agents still running with
-// that rule, without touching a committed file. The exclude file is shared by all of the repo's worktrees.
-export function excludeRuleDir(root) {
-  try {
-    const file = path.resolve(root, S.gitOut(root, ["rev-parse", "--git-path", "info/exclude"]));
-    const cur = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
-    if (cur.split("\n").some((l) => l.trim() === `${F.RULE_DIR}/`)) return;
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.appendFileSync(file, `${cur.endsWith("\n") || !cur ? "" : "\n"}${F.RULE_DIR}/\n`);
-  } catch {}
-}
-// Ignored files a fresh worktree lacks (.env and the like): copy those named by `include` and by .worktreeinclude.
-export function copyIncludes(root, dir, include) {
-  const patterns = [...(include || [])];
-  try { patterns.push(...fs.readFileSync(path.join(root, ".worktreeinclude"), "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"))); } catch {}
-  if (!patterns.length) return;
-  const res = patterns.map((g) => new RegExp("^" + g.replace(/^\//, "").replace(/\/$/, "").split("*").map((x) => x.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$"));
-  let ignored = [];
-  try { ignored = S.gitOut(root, ["ls-files", "--others", "--ignored", "--exclude-standard", "--directory"]).split("\n").filter(Boolean); } catch {}
-  for (const entry of ignored) {
-    const rel = entry.replace(/\/$/, "");
-    if (rel.startsWith(F.RULE_DIR) || !res.some((re) => re.test(rel) || re.test(path.basename(rel)))) continue;
-    try { fs.cpSync(path.join(root, rel), path.join(dir, rel), { recursive: true }); } catch {}
-  }
-}
+// ---- where a worktree starts: delegate/worktree.js -------------------------------------------------------------------
+export { baseRef, freeBranch, excludeRuleDir, copyIncludes, slugOf } from "./delegate/worktree.js";
+import { baseRef, freeBranch, excludeRuleDir, copyIncludes } from "./delegate/worktree.js";
 
 // ---- the first prompt ------------------------------------------------------------------------------------------------
+// The board's own rules are fixed. Your own words for the worker (`worker.instructions`) come after them.
 export function rules(t) {
   const cmd = F.shim(), research = R.isResearch(t);
+  const w = S.work(t), check = S.commandOf(w["check.command"]), words = roleOf("worker", (n) => w[n]).instructions;
   const lines = [
     "Do all of this task's own work yourself, in this folder. Never hand it to anyone else.",
     research ? R.researchRule(t) : "",
     t.worktree && research ? R.researchTree(t) : t.worktree ? `You are in your own git worktree on branch ${t.branch}; the human's checkout is elsewhere and untouched. Commit your work on this branch with clear messages. Do not push, merge into the human's branch or switch branches yourself (you may bring the base branch into your own branch to resolve a conflict). When you finish, the board runs the repo's check and opens the pull request.` : "",
-    t.repoCfg?.check && !research ? `Your work only counts as done when this passes: ${t.repoCfg.check}` : "",
+    check && !research ? `Your work only counts as done when this passes: ${check}` : "",
     "Do not stop until the work is finished and you have checked that it works. Stopping means it is finished and goes to review. End with a short summary of what you did.",
     `If you cannot continue without the human, run this and then stop: ${cmd} report ${t.id} --state blocked --kind <question|permission|auth> --msg "<why, in one line>"  (question: the human must type an answer; permission: you need approval to do something; auth: a login, token or credential is missing). Write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data". Do not end with a question otherwise.`,
     `If you come across unrelated work that should be done (a bug elsewhere, a follow-up), do not do it and do not add it as a task: suggest it to the human with ${cmd} suggest "<short title: a few words, ${S.TITLE_RULE}>" --desc "<what and why, and the file it is in>" --from ${t.id} and carry on. It becomes a task only if they accept it. Suggest a thing once: ${cmd} suggestions lists what is suggested already and ${cmd} list the tasks, and what the board knows already is not added again.`,
@@ -88,7 +42,7 @@ export function rules(t) {
     R.reportRule(t),
     `Before you stop, also write your closing summary (or your question to the human) to ${F.noteFile(t)} (the board's own folder for this task, not the folder you work in). It is the board's fallback when it cannot read your last message.`,
   ].filter(Boolean);
-  return `Rules for this task (its id on the work board is ${t.id}):\n${lines.map((l) => `- ${l}`).join("\n")}`;
+  return `Rules for this task (its id on the work board is ${t.id}):\n${lines.map((l) => `- ${l}`).join("\n")}${words ? `\n\n${ownWords(words)}` : ""}`;
 }
 // Every worker's first prompt starts with one line naming the task and the role: it is how a conversation file is
 // matched to its task for an agent kind that names its own sessions.
@@ -114,13 +68,16 @@ export function startAgent(id, g, { prompt, resume = null }) {
   let t = S.get(id);
   const api = F.h(t);
   const kind = t.agent;
-  const ch = S.choices(t);
-  preTrust(kind, t.root || S.folderOf(t.id));
+  // The worker's settings, read now, as it starts. Its program is the one the task was delegated with: a model set
+  // for another program is not handed to it.
+  const now = S.work(t), who = roleOf("worker", (n) => now[n]);
+  const model = who.kind === kind ? who.model : "", level = effortFor(kind, who.effort);
+  preTrust(kind, t.root || S.folderOf(t.id), who.access);
   const taken = api.agents().filter((a) => a.pane_id !== t.link.pane).map((a) => a.name).filter(Boolean);
   const name = agentName(t, taken);
   F.nameAgentTab(api, t.link.tab);
   const x = launchExtras(t, "agent", { kind, standing: rules(t), resume });
-  const args = (hooked) => startArgs(kind, { model: ch.model, effort: ch.effort, fast: ch.fast, resume, session: x.session, extra: [...(hooked ? x.hook : []), ...x.rules] });
+  const args = (hooked) => startArgs(kind, { model, effort: level, fast: who.fast, access: who.access, resume, session: x.session, extra: [...(hooked ? x.hook : []), ...x.rules] });
   let blocked = false, hooked = x.hooked;
   const start = (withHook) => {
     try { api.agentStart(name, kind, t.link.pane, args(withHook)); }
@@ -144,6 +101,15 @@ export function startAgent(id, g, { prompt, resume = null }) {
   if (!prompt) return "started";
   if (blocked) { S.queueText(id, prompt, { first: !resume }); return "queued"; }
   return F.deliver(t, prompt, null, { first: !resume });
+}
+
+// Which program works on the task is `worker.agent` as it reads when the agent starts, not when the task was queued:
+// a task that waited for a slot starts on what the setting says now. Only a conversation that is reopened keeps
+// its program, which is the one that holds it.
+function agentNow(g, t) {
+  if (t.startedAgentAt && resumable(t)) return t;
+  const kind = S.agentOf(S.setting("worker.agent", t)).kind;
+  return kind && kind !== t.agent ? g.set((t) => { t.agent = kind; t.app = kind; t.session = null; t.transcript = null; }) : t;
 }
 
 // The prompt for an agent that is started again on a task it worked on before.
@@ -186,44 +152,48 @@ export async function delegateJob(id) {
       return void F.deliver(t, F.withTail(t, "Continue this task."));
     }
     if (!livePane) {
-      const mode = t.worktreeMode || S.config().worktree;
       let res, patch = {};
       if (t.worktree && fs.existsSync(t.worktree)) res = F.openingWorktree(api, root, () => api.worktreeOpen({ cwd: root, path: t.worktree, label }));
-      else if (mode !== "none" && S.canWorktree(root) && !t.startedOnce) {
+      else if (S.canWorktree(root) && !t.startedOnce) { // a task in a repo always works in a worktree of its own
         // A repo with no commits yet has nothing to branch from: give it an empty first commit (files and index stay).
         try { if (!F.headOf(root)) S.gitOut(root, ["rev-parse", "--verify", "HEAD"]); } catch {
           const tree = S.gitOut(root, ["hash-object", "-w", "-t", "tree", "/dev/null"]);
           S.gitOut(root, ["update-ref", "HEAD", S.gitOut(root, ["commit-tree", tree, "-m", "Initial commit"])]);
         }
         const branch = freeBranch(root, t);
-        const from = baseRef(root, t.base || S.config().base);
+        const from = baseRef(root, S.setting("workspace.from", t));
         res = F.openingWorktree(api, root, () => api.worktreeCreate({ cwd: root, branch, base: from, label }));
         const dir = res.worktree?.path || res.workspace?.worktree?.checkout_path;
-        const repoCfg = S.repoConfig(root, from);
+        // The repo's own file, read from the commit the worktree starts from: its five facts, and what it was refused.
+        const file = S.repoFile(root, from);
         excludeRuleDir(root);
-        copyIncludes(root, dir, repoCfg.include || []);
-        patch = { worktree: dir, branch, from, baseSha: (from === "HEAD" && F.headOf(root)) || S.gitOut(root, ["rev-parse", from]), repoCfg, fresh: true, ownNote: true };
+        patch = { worktree: dir, branch, from, baseSha: (from === "HEAD" && F.headOf(root)) || S.gitOut(root, ["rev-parse", from]), repoFile: file.facts, repoRefused: file.refused, fresh: true, ownNote: true, copy: true };
       } else {
         res = api.workspaceCreate({ cwd: root, label, env: S.boardEnv() });
         if (S.isRepo(root)) excludeRuleDir(root);
-        patch = { repoCfg: t.repoCfg || S.repoConfig(root), fresh: !t.startedOnce, startMark: S.isRepo(root) ? R.startMark(root) : null, ...(t.startedOnce ? {} : { ownNote: true }) }; // your checkout as the agent finds it
+        const file = t.repoFile ? { facts: t.repoFile, refused: t.repoRefused || [] } : S.repoFile(root);
+        patch = { repoFile: file.facts, repoRefused: file.refused, fresh: !t.startedOnce, startMark: S.isRepo(root) ? R.startMark(root) : null, ...(t.startedOnce ? {} : { ownNote: true }) }; // your checkout as the agent finds it
       }
       const pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
-      t = g.set((t) => { Object.assign(t, patch); t.root = root; t.startedOnce = true; t.link = { ...t.link, workspace: res.workspace.workspace_id, tab: res.tab?.tab_id || pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true, reviewer: null }; });
+      const { copy, ...kept } = patch;
+      t = g.set((t) => { Object.assign(t, kept); t.fallbacks = { ...(t.fallbacks || {}), repoFile: kept.repoRefused?.length ? kept.repoRefused.join("\n") : undefined }; t.root = root; t.startedOnce = true; t.link = { ...t.link, workspace: res.workspace.workspace_id, tab: res.tab?.tab_id || pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true, reviewer: null }; });
+      if (copy) copyIncludes(root, t.worktree, S.listOf(S.setting("workspace.include", t)));
     }
     // 2. The repo prepares itself. setup runs as a plain subprocess, before the agent starts, so the pane is still at
     //    its shell prompt when `agent start` needs it.
     if (t.fresh) {
       t = g.set({ fresh: false });
-      if (t.repoCfg?.setup) {
-        t = g.set({ stage: "setup", msg: `Setting up: ${t.repoCfg.setup}` });
-        const r = await sh(t.repoCfg.setup, S.cwdOf(t), env(), { alive: () => !!g.check() });
+      const setup = S.commandOf(S.setting("workspace.setup", t));
+      if (setup) {
+        t = g.set({ stage: "setup", msg: `Setting up: ${setup}` });
+        const r = await sh(setup, S.cwdOf(t), env(), { alive: () => !!g.check() });
         if (r.aborted) return;
-        if (!r.ok) { g.set((t) => { t.stage = "failed"; t.setupPending = true; t.msg = "Setup failed"; Object.assign(t, S.failurePatch({ stage: "setup", title: "Setup failed", detail: `Command: ${t.repoCfg.setup}\nFolder: ${S.cwdOf(t)}\n\n${r.out || "No output"}`, next: "Fix the setup problem in the working folder, then finish again. The setup is retried before the check." })); }); return; }
+        if (!r.ok) { g.set((t) => { t.stage = "failed"; t.setupPending = true; t.msg = "Setup failed"; Object.assign(t, S.failurePatch({ stage: "setup", title: "Setup failed", detail: `Command: ${setup}\nFolder: ${S.cwdOf(t)}\n\n${r.out || "No output"}`, next: "Fix the setup problem in the working folder, then finish again. The setup is retried before the check." })); }); return; }
       }
     }
     // 3. The agent, in the workspace's root pane, then the task.
     //    A task whose agent ran before (delegated again after it exited) continues instead of starting over.
+    t = agentNow(g, t);
     const waiting = S.takeText(id).map((m) => m.text);
     try { startAgent(id, g, t.startedAgentAt ? againPrompt(t, waiting) : { prompt: [firstPrompt(t), ...waiting].join("\n\n") }); }
     catch (e) { if (waiting.length) S.untakeText(id, waiting.length); throw e; }
@@ -264,6 +234,7 @@ export async function restartJob(id) {
       }
       t = g.set((t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true, reviewer: null }; });
     }
+    t = agentNow(g, t);
     const waiting = S.takeText(id).map((m) => m.text);
     try { startAgent(id, g, t.unsent ? unsentPrompt(t, waiting) : againPrompt(t, waiting)); }
     catch (e) { if (waiting.length) S.untakeText(id, waiting.length); throw e; }

@@ -93,4 +93,4 @@ Restarting it (the same conversation) and starting a new one (a fresh conversati
 board: `coordinator restart` and `coordinator new`. For a different one this once, use `coordinator new --agent …`
 below: your default stays as it is. From a shell, or by asking it:
 `herdr-superwork coordinator` (how it stands), `coordinator tell <text>`, `coordinator restart`,
-`coordinator new [--agent KIND] [--model M] [--effort E]`, `coordinator stop`.
+`coordinator new [--agent KIND[/MODEL]] [--effort E]`, `coordinator stop`.

@@ -11,7 +11,7 @@ import { theme } from "../src/board/theme.js";
 import { here, open } from "./board-helpers.js";
 
 test("the board: one header line, the five groups, a symbol for each state, the task panel from 90 columns", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     A.add(w.root, "Write the docs", { description: "All of them." });
     const b = A.add(w.root, "My own task"); A.report(b.id, { state: "working", msg: "half way", progress: 50, eta: 12.4 });
@@ -98,7 +98,7 @@ test("the board: one header line, the five groups, a symbol for each state, the 
 });
 
 test("the done list is plain: newest first, and nothing marks a task as read or not", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const titles = ["oldest", "middle", "newest"], ids = titles.map((title) => A.add(w.root, title).id), now = Date.now();
     // `seen` is what an older version saved in a task: it changes neither the order nor the row

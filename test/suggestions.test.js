@@ -42,7 +42,7 @@ test("the same work in other words is recognised; different work is not", () => 
 });
 
 test("an agent's suggest is a suggestion on its own task; no board command is refused it, and its rules name none", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   const write = process.stdout.write; let said = "";
   const board = async (...args) => { said = ""; process.stdout.write = (x, ...more) => { if (typeof x !== "string") return write.call(process.stdout, x, ...more); said += x; return true; }; try { await main(args); } finally { process.stdout.write = write; } return said; };
   try {
@@ -52,7 +52,7 @@ test("an agent's suggest is a suggestion on its own task; no board command is re
     // The rules an agent starts with name the command, and say it is the human's to decide.
     assert.match(agentRules(S.get(one.id)), /do not do it and do not add it as a task: suggest it to the human with \S+ suggest "<short title: a few words, at most 60 characters>" --desc "[^"]*" --from proj\/1 and carry on\. It becomes a task only if they accept it\./);
     // Able, not nudged: the rules list no way to change the board, and say when an agent may.
-    for (const told of [agentRules(S.get(one.id)), reviewBrief(S.get(two.id), { text: "Did it.", change: { head: "abc1234" }, toLand: true, ch: S.choices(S.get(two.id)) })]) {
+    for (const told of [agentRules(S.get(one.id)), reviewBrief(S.get(two.id), { text: "Did it.", change: { head: "abc1234" }, toLand: true, ch: S.work(S.get(two.id)) })]) {
       assert.match(told, /Do nothing to the work board[^\n]*unless a human explicitly told you to\. An explicit instruction in this task's own description, or in a message from the human, counts as being told\./);
       assert.doesNotMatch(told, /only board commands|\b(add|delegate|tell|accept|dismiss|approve|archive|restore|clear|config|describe) </);
     }
@@ -98,7 +98,7 @@ test("an agent's suggest is a suggestion on its own task; no board command is re
       assert.match(await board("add", `Fix page ${n}`, "--desc", "As the task says.", "--repo", w.root), new RegExp(`^proj/${n}: added\\n$`));
       assert.deepEqual([S.get(`proj/${n}`).stage, S.get(`proj/${n}`).description], ["todo", "As the task says."]);
       assert.match(await board("describe", `proj/${n}`, "Every", "link", "on", "it."), /: updated \(description\)\n$/);
-      assert.match(await board("config", "gate", "minor", "--id", `proj/${n}`), /minor/);
+      assert.match(await board("set", "review.mustFix", "minor", "--task", `proj/${n}`), /minor/);
       assert.match(await board("archive", `proj/${n}`), /: archived\n$/); assert.match(await board("restore", `proj/${n}`), /: restored\n$/);
       assert.match(await board("accept", two.id, n === 4 ? "S1" : "S2"), /^proj\/\d+: added from the suggestion\n$/);
       assert.match(await board("dismiss", two.id, n === 4 ? "S3" : "S9").catch((e) => e.message), n === 4 ? /^S3 on proj\/2: dismissed\n$/ : /no suggestion S9/);
@@ -113,7 +113,7 @@ test("an agent's suggest is a suggestion on its own task; no board command is re
 });
 
 test("the board shows a task's suggestions in its panel and asks about them only on their key", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const plain = A.add(w.root, "Nothing to see"), one = A.add(w.root, "Add a column");
     const why = "The importer drops the last row\n\nWhere: import.js:12\nSeverity: major\nWhat the reviewer saw: a file of three rows came back with two.\n\nIt was there before proj/2 (Add a column), so it was not fixed there.";
@@ -161,7 +161,7 @@ test("the board shows a task's suggestions in its panel and asks about them only
 });
 
 test("a yes is one step under the repo's suggestion lock: two at the same moment make one task", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const one = A.add(w.root, "Add a column");
     S.suggest(one.id, { title: "The importer drops the last row", by: "reviewer" });
@@ -185,7 +185,7 @@ test("a yes is one step under the repo's suggestion lock: two at the same moment
 });
 
 test("a reviewer's old fault the board could not save is not lost: the review says so, and the board saves it by itself later", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const one = A.add(w.root, "Add a column");
     const review = { findings: [{ id: "F1", severity: "minor", subject: "Dates are parsed as text", where: "dates.js:4", proof: "ran it", preexisting: true }] };
@@ -219,7 +219,7 @@ test("a reviewer's old fault the board could not save is not lost: the review sa
 });
 
 test("one review's findings are each a suggestion; a reworded one from elsewhere is not; a yes never makes a task that is there", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const one = A.add(w.root, "Add a column"), two = A.add(w.root, "Speed up the export");
     // Two faults in one file, one word apart, each with its own proof: both are kept, with their own details.

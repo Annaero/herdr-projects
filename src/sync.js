@@ -23,7 +23,7 @@ export function mainBranch(root, t) {
 // Where a task lands decides what "main" is for it. Through its pull request: the remote's main. Otherwise it is
 // merged locally into the branch your checkout is on (also with a remote, when pull requests are off), and that
 // branch is its main: tasks landed there are not at the remote yet.
-export const viaRemote = (root, t) => !!t.pr || (!!S.config().pr && F.hasOrigin(root));
+export const viaRemote = (root, t) => !!t.pr || (S.setting("merge.pr", t) === true && F.hasOrigin(root));
 // The task's own worktree: the only place a sync ever merges. Empty for a task that works in the human's checkout.
 export function treeOf(t) {
   const root = S.folderOf(t.id);
@@ -164,21 +164,21 @@ export function conflictFailure(t, tree, r) {
     next: `In ${tree} on ${t.branch}, merge target commit ${r.target} (${r.base}), resolve and commit the conflicts, then finish. The board checks the result again (and reviews it again, unless a review already passed and the merge is all that changed)${t.mergeIntent ? " and retries the approved merge" : ""}. Never alter the human's checkout.` };
 }
 // What the agent is told: the facts, and nothing else.
-const passedBefore = (t) => !!S.passedReview(t) && S.config().remerge !== "review" && !!t.repoCfg?.check && !mergesItself(t);
+const passedBefore = (t) => !!S.passedReview(t) && !!S.commandOf(S.setting("check.command", t)) && !mergesItself(t);
 export function conflictMessage(t, tree, r) {
   return `Your branch ${t.branch} conflicts with ${r.base}, so this is not done yet.\n\nConflicting files:\n${lines(r.files).map((f) => `- ${f}`).join("\n")}\n\nTarget commit: ${r.target} (${r.base})\n\nIn your own worktree (${tree}), merge that commit into ${t.branch}, resolve the conflicts, commit, and finish again. The board's own merge attempt was rolled back, so your branch is as you left it. Do not touch the human's checkout.${passedBefore(t) ? " Your work already passed its review: change only the conflicting files, in that one merge commit, and the board reruns the tests instead of reviewing everything again. Anything more is reviewed again." : ""}${t.mergeIntent ? " The human already approved this merge: after your repair the board checks, reviews and merges it; do not push or merge it yourself." : ""}`;
 }
 // The conflict goes straight back to the task's agent, as the plugin's own turn (so an approved merge survives the
-// repair), at most `rounds` times in a row; after that, or when it cannot be sent, the human is asked.
+// repair), at most `review.rounds` times in a row; after that, or when it cannot be sent, the human is asked.
 // `held` puts the task where the human sees the blocker when nothing was sent.
 export function conflictBack(id, g, tree, r, held) {
   const t = g.check();
-  const ch = S.choices(t), repairs = t.syncRepairs || 0;
+  const rounds = S.setting("review.rounds", t), repairs = t.syncRepairs || 0;
   const failure = conflictFailure(t, tree, r);
-  const can = !!r.files && r.restored && ch.conflictAuto && F.isAgentTask(t);
+  const can = !!r.files && r.restored && F.isAgentTask(t);
   let live = false;
   try { F.assertLive(t); live = !!F.h(t).agentGet(t.link.pane); } catch {}
-  if (can && live && repairs < ch.rounds) {
+  if (can && live && repairs < rounds) {
     const saved = S.failurePatch(failure);
     try {
       F.sendOwn(id, conflictMessage(t, tree, r), { reason: "conflict", keepIntent: !!t.mergeIntent, patch: { ...saved, failure: { ...saved.failure, sentAt: Date.now() }, ...seenPatch(t, r), syncRepairs: repairs + 1, mergeFailed: false, review: t.review ? { ...t.review, stale: true } : t.review } });
@@ -191,7 +191,7 @@ export function conflictBack(id, g, tree, r, held) {
       return "held";
     }
   }
-  if (can && repairs >= ch.rounds) {
+  if (can && rounds > 0 && repairs >= rounds) {
     const a = g.set((t) => { Object.assign(t, S.failurePatch(failure), seenPatch(t, r)); t.stage = "asks"; t.kind = "question"; t.mergeFailed = false; t.msg = `The agent could not resolve the conflict with main after ${repairs} repairs. Full details are kept; you are needed`; });
     F.labelPane(a, "needs you");
     return "asked";

@@ -14,7 +14,7 @@ import { runJob } from "../src/jobs.js";
 
 
 test("clean-up touches nothing while the task's herdr session cannot be reached, and a close herdr did not do is tried again", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   const { housekeeping } = await import("../src/housekeeping.js");
   const { cleanupJob } = await import("../src/land.js");
   const open = (t) => w.state().workspaces.some((x) => x.workspace_id === t.link?.workspace);
@@ -90,10 +90,10 @@ test("clean-up touches nothing while the task's herdr session cannot be reached,
     await pass(t.id);
     assert.ok(w.state().workspaces.some((x) => x.workspace_id === oldSpace)); // idle, but something it started still runs
     w.patchState((s) => { s.panes.find((p) => p.workspace_id === oldSpace && p.agent).tool = false; });
-    S.setConfig("cleanup", false); // turned off meanwhile: what was pending is left alone
+    S.setValue("workspace.cleanup", false); // turned off meanwhile: what was pending is left alone
     await pass(t.id);
     assert.ok(w.state().workspaces.some((x) => x.workspace_id === oldSpace));
-    S.setConfig("cleanup", true);
+    S.setValue("workspace.cleanup", true);
     await pass(t.id);
     assert.ok(!w.state().workspaces.some((x) => x.workspace_id === oldSpace)); assert.ok(open(S.get(t.id)));
   } finally { w.cleanup(); }
@@ -101,7 +101,7 @@ test("clean-up touches nothing while the task's herdr session cannot be reached,
 
 test("a clean-up that was killed half-way, or never started, is owed from the moment the task is done and is carried out later", async () => {
   // the teardown copies the task as it stands while clean-up runs: the note that it is owed must already be there
-  const w = await world({ settings: { reviewer: "off" }, repoSettings: { teardown: 'cp "$HERDR_SUPERWORK_DATA_DIR/tasks/proj/1/task.json" "$HERDR_SUPERWORK_DATA_DIR/during.json"' } });
+  const w = await world({ settings: { "review.when": "never" }, repoSettings: { "workspace.teardown": 'cp "$HERDR_SUPERWORK_DATA_DIR/tasks/proj/1/task.json" "$HERDR_SUPERWORK_DATA_DIR/during.json"' } });
   const { housekeeping } = await import("../src/housekeeping.js");
   const { cleanupJob } = await import("../src/land.js");
   try {

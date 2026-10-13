@@ -27,7 +27,7 @@ function endTurn(w, t, text) {
 }
 
 test("main is merged into the task's branch before the check and the review; the agent is told nothing", async () => {
-  const w = await world({ repoSettings: { check: "test -f g.txt" } }); // the check passes only on the branch as it will land
+  const w = await world({ repoSettings: { "check.command": "test -f g.txt" } }); // the check passes only on the branch as it will land
   try {
     w.script({ worker: [{ note: "Which one?" }, { files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }] });
     const id = await asking(w, "Clean sync");
@@ -87,7 +87,7 @@ test("when another task merges, the waiting ones are brought up to date; a revie
 });
 
 test("main moving on while a sync runs is not marked as handled: only the commit that was merged counts as seen", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   const Y = await import("../src/sync.js");
   const { housekeeping } = await import("../src/housekeeping.js");
   try {

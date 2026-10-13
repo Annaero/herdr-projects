@@ -101,7 +101,8 @@ export async function cleanup(t, { deleteBranch = "merged", keepUnmerged = false
     if (F.dirty(t.worktree)) return keep(`${S.tilde(t.worktree)} (uncommitted changes)`);
     if (moved()) return keep(`${S.tilde(t.worktree)} (new work arrived during clean-up)`);
     if (keepUnmerged && t.branch && !spent) return keep(`${S.tilde(t.worktree)} (unmerged work on ${t.branch})`);
-    if (t.repoCfg?.teardown) await sh(t.repoCfg.teardown, t.worktree, { HERDR_SUPERWORK_ID: t.id, HERDR_SUPERWORK_WORKTREE: t.worktree, HERDR_SUPERWORK_REPO: root }, { timeoutMin: 5 });
+    const teardown = S.commandOf(S.setting("workspace.teardown", t));
+    if (teardown) await sh(teardown, t.worktree, { HERDR_SUPERWORK_ID: t.id, HERDR_SUPERWORK_WORKTREE: t.worktree, HERDR_SUPERWORK_REPO: root }, { timeoutMin: 5 });
     if (inUse()) return used();
     if (F.dirty(t.worktree)) return keep(`${S.tilde(t.worktree)} (uncommitted changes)`);
     if (moved()) return keep(`${S.tilde(t.worktree)} (new work arrived during clean-up)`);
@@ -134,7 +135,7 @@ export async function cleanup(t, { deleteBranch = "merged", keepUnmerged = false
 // with nothing to land is tidied the same way, only its branch is deleted just when git calls it merged.
 export async function tidy(id, { deleteBranch = "always" } = {}) {
   const t = S.get(id);
-  if (!t || !S.config().cleanup || t.archivedAt) return;
+  if (!t || S.setting("workspace.cleanup", t) !== true || t.archivedAt) return;
   // The task as it ended: a turn started since (typed in the agent's own terminal) means it is no longer over.
   const same = (c) => !!c && c.stage === "done" && !c.archivedAt && (c.armedAt ?? null) === (t.armedAt ?? null);
   // What an earlier attempt saw. A note no attempt has acted on yet (see F.tidyMark) only says which commit was done.
@@ -171,13 +172,13 @@ export async function landJob(id) {
 
 // Runs with the task in stage "merging" and this runner's guard standing on it.
 export async function landCore(id, g) {
-  if (calledOff(g)) return; // autoMerge was turned off before this merge of the board's own began
+  if (calledOff(g)) return; // `merge.by` went back to `you` before this merge of the board's own began
   // One merge at a time in a repo: behind another task this one waits, and catches up with main when its turn comes.
   if (!takeTurn(id, g)) return;
   let t = g.check();
   const root = S.folderOf(t.id);
   const tree = t.worktree && fs.existsSync(t.worktree) && path.resolve(t.worktree) !== path.resolve(root) ? t.worktree : "";
-  const how = S.config().merge; // squash by default: one commit per task
+  const how = S.setting("merge.method", t); // read right before the merge. squash by default: one commit per task
   // A failed merge waits for you again, as plain "permission": the row, panel and details show the blocker.
   const fail = (title, detail, next, { agentCanFix = true, auth = S.isAuthFailure(detail), extra = {}, keepIntent = false } = {}) => {
     const f = g.set((t) => { t.stage = auth ? "failed" : "approval"; t.mergeFailed = true; t.msg = title; if (!keepIntent) t.mergeIntent = null; Object.assign(t, S.failurePatch({ stage: "merge", title, detail, next, agentCanFix, auth, ...extra })); });

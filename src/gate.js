@@ -2,16 +2,13 @@
 // rules here what goes back to the agent and what may merge. The reviewer's own wish to merge decides nothing.
 // Pure: no files, no herdr. A review from before the gate (a 1-to-5 score and a merge advice) still reads correctly.
 export const SEVERITIES = ["trivial", "minor", "major", "critical"]; // mildest first: the place in the list is the rank
-export const GATES = ["critical", "major", "minor", "trivial", "off"];
 export const DEFAULT_GATE = "major";
 export const QUESTION = "Does the change do what the task asked?";
 const rank = (s) => SEVERITIES.indexOf(s);
 const MAX_FINDINGS = 100;
 const line = (v, max) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
-// "off" sends nothing back by itself, but the result shown and an automatic merge still need a bar: the default one.
+// The bar a review is judged at: `review.mustFix`, or the default for a value the board does not know.
 export const barOf = (gate) => (SEVERITIES.includes(gate) ? gate : DEFAULT_GATE);
-// The old reviewAuto setting, said as a gate: true was "send it back by itself", false "wait for me".
-export const gateOfAuto = (v) => (v === true || ["true", "on", "yes", "auto"].includes(String(v).toLowerCase()) ? DEFAULT_GATE : "off");
 
 // ---- what the reviewer wrote -----------------------------------------------------------------------------------------
 // A severity the board does not know is read as major: it goes back at the default gate rather than slipping through.

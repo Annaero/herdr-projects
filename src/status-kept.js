@@ -5,7 +5,7 @@
 // before it ("12m ago: Running the check"), so an old sentence is never read as a new one. A task that never had a
 // sentence says "Just started", and "No status yet" once that is no longer true. Never a bare "…".
 import { age } from "./board/view/words.js";
-import { choices } from "./store.js";
+import { setting } from "./store.js";
 
 // How long a run with no sentence yet counts as just started: three looks of the Watcher at its usual pace.
 export const JUST_MS = 3 * 60000;
@@ -15,7 +15,7 @@ export const JUST_MS = 3 * 60000;
 // the plain word then, which a row leaves out because its heading says it already.
 // Whether that line is the board's own plain word: the row is told so (`plain`) and leaves it out. It is never
 // worked out from the words, so a sentence the Watcher or an agent wrote is shown whatever it says.
-export const quietPlain = (t, role) => !(role === "agent" && t.lastLine?.msg) && choices(t).watcher === "off";
+export const quietPlain = (t, role) => !(role === "agent" && t.lastLine?.msg) && setting("watcher.agent") === "none";
 export function quietLine(t, role, from, now = Date.now()) {
   const kept = role === "agent" ? t.lastLine : null;
   if (kept?.msg) return `${kept.at ? `${age(now - kept.at)} ago` : "Earlier"}: ${kept.msg}`;

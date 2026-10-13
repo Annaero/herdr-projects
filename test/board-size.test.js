@@ -36,7 +36,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
   assert.deepEqual(fitShown({ cols: 386, rows: 28 }, { cols: 386, rows: 28, split: true }), { cols: 383, rows: 26, held: true });
   assert.deepEqual(fitShown({ cols: 124, rows: 59 }, { cols: 124, rows: 59, split: true }), { cols: 121, rows: 57, held: true });
 
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     for (let i = 1; i <= 150; i++) A.add(w.root, `Task number ${i}`);
     const s = open(w, { rows: 58, side: false });
@@ -53,7 +53,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     assert.deepEqual(lines.slice(56).map((l) => l.trim()), ["", ""]);
     for (const l of lines) assert.ok(l.trimEnd().length <= 411, "nothing is drawn right of what is shown");
     assert.match(lines[55], /^ {2}\S.* · /); // the hints: the last row that is seen
-    assert.match(lines[54], /^ {2}Another viewer holds this terminal at 435×58; herdr shows it at 412×56\. The ownTerminal setting, turned on, takes it back\. *$/);
+    assert.match(lines[54], /^ {2}Another viewer holds this terminal at 435×58; herdr shows it at 412×56\. The board takes it back\. *$/);
     // The one rounded box ends where what is shown ends: the message, an empty line, the line you type on.
     assert.equal(lines[53], "╰" + "─".repeat(409) + "╯"); assert.match(lines[52], /^│ ❯ .* │$/); assert.match(lines[51], /^│ +│$/); assert.match(lines[50], /^│ Tasks 31 and 32 are both waiting\. +│$/); assert.equal(lines[49], "╭" + "─".repeat(409) + "╮");
     assert.ok([49, 50, 51, 52].every((n) => lines[n].length === 411));
@@ -75,7 +75,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
       a.v.ctx.takeTerminal = (socket, pane, size) => { took.push([pane, size]); if (!comesBack) Object.assign(a.v.tui.terminal, { columns: 184, rows: 78 }); };
       const tall = { cols: 184, rows: 78, split: false };
       a.v.seeShown(tall); assert.deepEqual(took, []); // once is a resize under way
-      assert.match(a.screen(435).join("\n"), /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. The ownTerminal setting, turned on, takes it back\./);
+      assert.match(a.screen(435).join("\n"), /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. The board takes it back\./);
       a.v.seeShown(tall); assert.deepEqual(took, [["w1:p1", { cols: 183, rows: 58 }]]);
       a.v.seeShown(tall);
       let l = a.screen(184);
@@ -85,7 +85,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
       for (let round = 2; round <= 4; round++) {
         Object.assign(a.v.tui.terminal, { columns: 435, rows: 58 });
         a.v.seeShown(tall); assert.equal(took.length, round - 1);
-        assert.match(a.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. The ownTerminal setting, turned on, takes it back\./); // what is true now, not what was done before
+        assert.match(a.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. The board takes it back\./); // what is true now, not what was done before
         a.v.seeShown(tall); assert.equal(took.length, round);
         l = a.screen(184); assert.equal(l.length, 78); assert.match(l[77], /^ {2}\S.* · /); assert.doesNotMatch(l.join("\n"), /holds this terminal/);
       }
@@ -100,15 +100,6 @@ test("a terminal held at another size than herdr shows: the board draws inside w
       fails = false; c.v.seeShown(tall); c.v.seeShown(tall);
       assert.deepEqual(tries, [true, true, true, true, false]);
       l = c.screen(184); assert.equal(l.length, 78); assert.match(l[77], /^ {2}\S.* · /); assert.match(l[76], /it was disconnected, and your window has it again/);
-      // `ownTerminal` off: the other viewer stays. The board draws inside what both see, says so, and disconnects nobody.
-      const d = open(w, { rows: 58, side: false }), never = [];
-      Object.assign(d.v.tui.terminal, { columns: 435 }); d.v.ctx.pane = "w1:p1"; d.v.ctx.ownTerminal = false; d.v.ctx.takeTerminal = (...x) => never.push(x);
-      for (let n = 0; n < 5; n++) d.v.seeShown(tall);
-      assert.deepEqual(never, []); assert.match(d.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. The ownTerminal setting, turned on, takes it back\./);
-      delete d.v.ctx.ownTerminal; // the setting itself: on unless turned off
-      d.v.seeShown(tall); assert.equal(never.length, 1);
-      S.setConfig("ownTerminal", false); d.v.seeShown(tall); d.v.seeShown(tall); assert.equal(never.length, 1);
-      S.setConfig("ownTerminal", true);
       // Sizes that agree never take anything, and a transient disagreement that is gone at the next look does not either.
       const b = open(w, { rows: 78, side: false }), none = [];
       b.v.tui.terminal.columns = 184; b.v.ctx.pane = "w1:p1"; b.v.ctx.takeTerminal = (...x) => none.push(x);
@@ -167,7 +158,7 @@ test("a terminal held at another view's size is told from herdr's own window, a 
 });
 
 test("the board says so, top left, when another view holds its pane's size, and stops when the size is its own again", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   const tmux = process.env.TMUX;
   try {
     A.add(w.root, "A task");

@@ -18,11 +18,13 @@ const override = () => { try { const a = JSON.parse(process.env.HERDR_SUPERWORK_
 function helperCommand({ prompt, system, lean }) {
   const o = override();
   if (o) return { command: o[0], args: o.slice(1), stdin: `${system ? `${system}\n\n` : ""}${prompt}` };
-  const c = S.config();
-  const a = adapter(c.watcherAgent);
-  return a.oneShot ? a.oneShot({ model: c.watcherModel, prompt, system, lean }) : null;
+  const { kind, model } = S.agentOf(S.setting("watcher.agent"));
+  const a = adapter(kind);
+  return a.oneShot ? a.oneShot({ model, prompt, system, lean }) : null;
 }
-export const helpersReady = () => !!override() || !!adapter(S.config().watcherAgent).oneShot;
+// `watcher.agent: none`: no Watcher at all, whatever stands in for the model.
+export const watcherOff = () => S.setting("watcher.agent") === "none";
+export const helpersReady = () => !watcherOff() && (!!override() || !!adapter(S.agentOf(S.setting("watcher.agent")).kind).oneShot);
 // Helper calls are detached from the board's terminal (own session, no tty), so herdr does not mistake them for an
 // agent in the board's pane.
 function runHelper(cmd, { cwd, env = {}, timeoutMs = CALL_MS }, done) {
@@ -47,7 +49,7 @@ function helperEnv() {
 }
 
 // ---- the watcher --------------------------------------------------------------------------------------------------------
-// About once a minute per working task (the `watcherEvery` setting; less often on a busy machine: watcher/pace.js),
+// About once a minute per working task (the `watcher.every` setting; less often on a busy machine: watcher/pace.js),
 // the last screen lines (the reviewer's pane while reviewing, otherwise the worker's) go to the helper with the task,
 // the time spent so far and its previous guess, and it answers a line and a percent. One call covers every agent
 // whose look is due, and only one call runs at a time on the machine (watcher/one.js). A screen that says what it said at the last look costs no
@@ -88,7 +90,7 @@ export function watchTick(tasks, now = Date.now(), { load = P.loadNow(), run = r
   for (const t of tasks) {
     const role = roleIn(t);
     const working = !t.archivedAt && F.isAgentTask(t) && t.state === "working" && (t.stage === "reviewing" || (t.stage === "working" && t.live?.status === "working"));
-    if (!working || !paneOf(t, role) || S.choices(t).watcher === "off") continue;
+    if (!working || !paneOf(t, role)) continue;
     let w = looks.get(t.id);
     if (!w || w.role !== role) looks.set(t.id, w = { at: 0, role, words: null, toldAt: 0 }); // a review is a new assignment: its first look is due at once
     busy.push({ id: t.id, at: w.at, t, role, w });
@@ -100,7 +102,7 @@ export function watchTick(tasks, now = Date.now(), { load = P.loadNow(), run = r
   if (pace.running || !busy.length) return;
   const slow = P.slowdown(load) * P.afterFailures(pace.fails);
   if (now - pace.callAt < P.GAP_MS * slow) return;
-  const every = Math.max(5, Number(S.config().watcherEvery) || 60) * 1000 * slow;
+  const every = Math.max(5000, S.ms(S.setting("watcher.every")) || 60000) * slow;
   const batch = [], sessions = new Map();
   // A reviewer counts as working while herdr says so of its own pane, as the agent does of its: asked once per herdr
   // session, and only when a look is due.
@@ -138,7 +140,7 @@ export function watchTick(tasks, now = Date.now(), { load = P.loadNow(), run = r
       try {
         const watch = { ...got, at, role: b.role };
         // A late answer cannot overwrite a newer turn or its result.
-        const cur = S.update(b.id, (c) => { if (c.stage !== b.stage || turnOf(c) !== b.turn || S.choices(c).watcher === "off") return false; c.watch = watch; });
+        const cur = S.update(b.id, (c) => { if (c.stage !== b.stage || turnOf(c) !== b.turn || watcherOff()) return false; c.watch = watch; });
         if (cur.watch === watch || cur.watch?.at === watch.at) { b.w.toldAt = at; tell(cur, watch, b.role, at); }
       } catch {}
     });

@@ -131,7 +131,7 @@ test("the web UI is found from its own settings; the command says how things sta
     const linked = await W.linkNow({ run: ts.run }); assert.equal(linked.msg, `The Board is in the web UI at https://${HOST}. \`herdr-superwork web-ui unlink\` points it back.`);
     assert.equal(await W.offer({ run: ts.run }), null); // answered: not asked again
     // off by the setting: there is no web UI to stand in front of
-    S.setConfig("webUi", "off"); assert.equal(webUi({ fresh: true }), null); S.setConfig("webUi", "auto"); assert.equal(webUi({ fresh: true }).port, 7317);
+    S.setValue("board.webUi", "none"); assert.equal(webUi({ fresh: true }), null); S.unsetValue("board.webUi"); assert.equal(webUi({ fresh: true }).port, 7317);
     // remove-extras: the link goes back, and the front door stays away until it is asked for again
     const left = await W.leave({ run: ts.run }); assert.equal(left.n, 1); assert.equal(ts.at(443), "http://127.0.0.1:7317");
     assert.equal(X.extras().webUi, "removed"); assert.equal(webUi({ fresh: true }), null); assert.match((await W.main([])).msg, /taken out with remove-extras/);
@@ -182,10 +182,10 @@ test("the page server's front door: up while there is a web UI, on this machine 
     await ts.run(["serve", "--bg", "--https=443", `http://127.0.0.1:${up.address().port}`]); await L.link({ webUi: { port: up.address().port }, door: { port: at.port }, run: ts.run });
     assert.equal(ts.at(443), `http://127.0.0.1:${at.port}`);
     // the board in the web UI is turned off: the front door closes by itself, and says so in its bookkeeping
-    S.setConfig("webUi", "off"); await door.tick();
+    S.setValue("board.webUi", "none"); await door.tick();
     assert.equal(door.address(), null); assert.deepEqual(S.readJson(doorFile()), {}); assert.equal(doorInfo(), null); assert.equal(ts.at(443), `http://127.0.0.1:${up.address().port}`);
     // on again: it is back on the port it had, so a link that points at it still does
-    S.setConfig("webUi", "auto"); await door.tick(); assert.equal(door.address().port, at.port);
+    S.unsetValue("board.webUi"); await door.tick(); assert.equal(door.address().port, at.port);
     await door.stop(); assert.equal(door.address(), null); assert.deepEqual(S.readJson(doorFile()), {});
   } finally { try { await door?.stop(); } catch {} delete process.env.HERDR_SUPERWORK_WEBUI; Object.assign(process.env, env); up.close(); up.closeAllConnections(); }
 });

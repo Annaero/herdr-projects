@@ -24,7 +24,7 @@ export function openingWorktree(api, root, fn) {
 }
 // The housekeeping pass looks again at the ones that could not be closed when their last task ended.
 export function sweepRepoSpaces(socket) {
-  if (!S.config().cleanup) return; // `cleanup` off: nothing is closed behind your back
+  if (S.setting("workspace.cleanup") !== true) return; // off for you: nothing is closed behind your back
   const all = S.readJson(spacesFile(), {}) || {};
   const mine = Object.keys(all).filter((k) => k.startsWith(`${socket}|`));
   if (mine.length) { const api = herdr(socket); for (const k of mine) closeRepoSpace(api, k.slice(socket.length + 1)); }
@@ -54,7 +54,7 @@ export function closeRepoSpace(api, root) {
 // `tip` is the commit this is about, when the caller knows it (the one that was merged): a branch that has moved
 // past it holds work that landed nowhere, and clean-up keeps it.
 export function tidyMark(t, deleteBranch, tip = "") {
-  if (!S.config().cleanup || t.archivedAt) return null;
+  if (S.setting("workspace.cleanup", t) !== true || t.archivedAt) return null; // off: nothing is closed behind your back
   try { if (!tip && t.branch) tip = S.gitOut(S.folderOf(t.id), ["rev-parse", "--verify", `refs/heads/${t.branch}`]); } catch {}
   return { fresh: true, deleteBranch, tip, eventSeq: t.eventSeq || 0, quietFrom: 0 };
 }
@@ -69,7 +69,7 @@ export function closeLater(socket, workspace) {
   sweepClosing(socket);
 }
 export function sweepClosing(socket) {
-  if (!S.config().cleanup) return;
+  if (S.setting("workspace.cleanup") !== true) return;
   let all = [];
   try { all = S.readJson(closingFile(), []) || []; } catch {}
   if (!all.some((x) => x.socket === socket) || !socketExists(socket)) return;

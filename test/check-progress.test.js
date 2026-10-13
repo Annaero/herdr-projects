@@ -20,7 +20,7 @@ import { follow, runCheck, progressFile, PROGRESS_ENV } from "../src/finish/chec
 const MIN = 60000, T0 = 1_000_000_000_000;
 // One world for the tests that need a board's folders: each makes its own task in it.
 let w;
-before(async () => { w = await world({ settings: { helper: "off" } }); });
+before(async () => { w = await world(); });
 after(() => w.cleanup());
 // A check that has run for `spent`, with what it last reported.
 const running = (report, { spent = 0, usual = 0, idle = 0 } = {}) => { const c = stepCheck(startCheck(T0, usual), { state: "running", ...report }, T0); return checkShown({ ...c, movedAt: T0 + spent - idle }, T0 + spent); };

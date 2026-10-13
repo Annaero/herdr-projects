@@ -58,7 +58,7 @@ test("a freshly delegated task says starting, and finishing only once its agent 
 });
 
 test("a start-up dialog answered, the first prompt sent and not picked up yet: still starting, however often herdr is read", async () => {
-  const w = await world({ settings: { reviewer: "off", trust: false } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     w.patchState((s) => { s.dialogs.claude = 1; });
     w.script({ worker: [{ status: "working" }] });
@@ -89,7 +89,7 @@ test("a start-up dialog answered, the first prompt sent and not picked up yet: s
 });
 
 test("a start-up dialog's turn that herdr counts only after the first prompt went out: the finish line leaves the untouched task alone", async () => {
-  const w = await world({ settings: { reviewer: "off", trust: false } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     w.patchState((s) => { s.dialogs.claude = 1; });
     w.script({ worker: [{ status: "working" }] });
@@ -116,7 +116,7 @@ test("a start-up dialog's turn that herdr counts only after the first prompt wen
 });
 
 test("a board kept in its own folder: the agent's command and its herdr space both name that board", async () => {
-  const w = await world({ settings: { worktree: "none" } });
+  const w = await world({ repo: false }); // a plain folder: its space is herdr's to make, not a worktree
   try {
     w.script({ worker: [{ status: "working" }, { status: "working" }] });
     const t0 = A.add(w.root, "Plain folder"); A.delegate(t0.id);
@@ -151,7 +151,7 @@ test("a board kept in its own folder: the agent's command and its herdr space bo
 });
 
 test("the finish line: commit leftovers, check, review, then wait for approval; approve merges and cleans up", async () => {
-  const w = await world({ repoSettings: { check: "test -f hello.txt" } });
+  const w = await world({ repoSettings: { "check.command": "test -f hello.txt" } });
   try {
     w.script({ worker: [{ files: { "hello.txt": "hello\n", "left.txt": "uncommitted\n" }, note: "Added the greeting." }], reviewer: [{ verdict: { meets: true, text: "Works. One nit.", findings: [{ severity: "minor", subject: "hello.txt lacks a newline check", where: "hello.txt", proof: "" }] } }] });
     const id = A.add(w.root, "Add a greeting").id;
@@ -199,8 +199,8 @@ test("the finish line: commit leftovers, check, review, then wait for approval; 
   } finally { w.cleanup(); }
 });
 
-test("a failed check goes straight back to the agent, three tries, then a saved failure", async () => {
-  const w = await world({ repoSettings: { check: "test -f good.txt" } });
+test("a failed check goes straight back to the agent, `review.rounds` times, then a saved failure", async () => {
+  const w = await world({ settings: { "review.rounds": 2 }, repoSettings: { "check.command": "test -f good.txt" } });
   try {
     w.script({ worker: [{ note: "Done 1." }, { note: "Done 2." }, { note: "Done 3." }] });
     const id = A.add(w.root, "Never passes").id;
@@ -217,7 +217,7 @@ test("a failed check goes straight back to the agent, three tries, then a saved 
 });
 
 test("a human turn with no closing note is held as 'stopped without a summary'; finish anyway runs the pipeline", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     w.script({ worker: [{ files: { "x.txt": "x\n" }, note: null, screen: "I ran out of context\n> " }] });
     const id = A.add(w.root, "No note").id;
@@ -235,7 +235,7 @@ test("a human turn with no closing note is held as 'stopped without a summary'; 
 });
 
 test("a closing note that ends in a question blocks on the human; the reply re-arms the pipeline", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     w.script({ worker: [{ note: "I need a decision.\nRed or blue?" }, { files: { "c.txt": "blue\n" }, commit: "blue", note: "Went with blue." }] });
     const id = A.add(w.root, "Pick a colour").id;
@@ -251,7 +251,7 @@ test("a closing note that ends in a question blocks on the human; the reply re-a
 });
 
 test("undelivered text is never dropped: a trust dialog queues the first prompt until it is answered", async () => {
-  const w = await world({ settings: { reviewer: "off", trust: false } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     w.patchState((s) => { s.dialogs.claude = 1; });
     w.script({ worker: [{ files: { "d.txt": "d\n" }, commit: "d", note: "Did it after the dialog." }] });

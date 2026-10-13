@@ -18,7 +18,7 @@ const drive = { role: "drive" };
 // One board for the first two tests, which follow one task from its review to its merge: one agent run, not three.
 let w, id;
 test.before(async () => {
-  w = await world({ settings: { helper: "off" } });
+  w = await world();
   w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f." }], reviewer: [{ verdict: { meets: true, text: "Good.", findings: [{ severity: "minor", subject: "f.txt has no title", where: "f.txt" }] } }] });
   id = A.add(w.root, "Make f", { description: "A file called f." }).id;
   A.delegate(id); await settle(id);
@@ -121,7 +121,7 @@ test("a button presses the board's own key: a merge asks first, the answer is a 
 
 test("other machines on the web board: their tasks show with the machine's name, and an action goes to the machine that owns the task", async () => {
   {
-    S.setConfig("machines", "vm-a");
+    S.setValue("board.machines", "vm-a");
     const v = new WebView({ cwd: w.root });
     const asked = [];
     // the other machine, answering as its door does (src/remote.js)

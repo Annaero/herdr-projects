@@ -42,9 +42,10 @@ function keysTable() {
 
 // ---- the settings ----------------------------------------------------------------------------------------------------
 function settingsTable() {
-  for (const s of SETTINGS) if (!s.doc) throw new Error(`src/store/settings-list.js: the setting "${s.key}" has no \`doc\``);
-  const shown = (s) => (s.shown ? s.shown : "`" + (typeof s.default === "string" ? s.default : JSON.stringify(s.default)) + "`");
-  return table(["Setting", "Default", "Per task", "Means"], SETTINGS.map((s) => ["`" + s.key + "`", shown(s), s.taskOnly ? "only" : s.task ? "yes" : "", keyWords(s.doc)]));
+  for (const s of SETTINGS) if (!s.doc) throw new Error(`src/store/settings-list.js: the setting "${s.name}" has no \`doc\``);
+  const shown = (v) => "`" + (Array.isArray(v) ? v.join(", ") : String(v)) + "`";
+  const where = (s) => (s.kind === "board" ? "you only" : s.repo ? "task, repo entry, you, repo file" : "task, repo entry, you");
+  return table(["Setting", "Built in", "Can be said by", "Means"], SETTINGS.map((s) => ["`" + s.name + "`", shown(s.builtin), where(s), keyWords(s.doc)]));
 }
 
 // ---- where things live -----------------------------------------------------------------------------------------------

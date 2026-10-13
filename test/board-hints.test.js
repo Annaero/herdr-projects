@@ -10,7 +10,7 @@ import { open } from "./board-helpers.js";
 const hints = (s, width = 120) => s.screen(width).at(-1).trim();
 
 test("the hint line names the task once, says what esc goes back from, and repeats nothing the screen already says", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off", reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     const s = open(w, { side: false });
     // An empty board: the text box's own placeholder says what to type, so the line has only the menu's key.
@@ -46,7 +46,7 @@ test("the hint line names the task once, says what esc goes back from, and repea
 });
 
 test("with an agent on the task: whose agent is said once, and in a narrow window the hints give way in one order", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off", reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     w.script({ worker: [{ status: "working", screen: "● Editing greet.sh\n" }] });
     const id = A.add(w.root, "Add a greeting").id;

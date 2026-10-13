@@ -24,7 +24,7 @@ function reviewed(w) {
 }
 
 test("the task details of a task with reviews and evidence show every review and every piece of evidence", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const id = reviewed(w);
     const s = open(w, { rows: 80 });
@@ -46,7 +46,7 @@ test("the task details of a task with reviews and evidence show every review and
 });
 
 test("a part of the board that fails to draw says so in its place: the rest of the page, the list and the text box stay", async (tc) => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const id = reviewed(w);
     const s = open(w, { rows: 60 });
@@ -59,7 +59,7 @@ test("a part of the board that fails to draw says so in its place: the rest of t
       assert.doesNotMatch(text, /view error/);
       // (Beside the list the line wraps: read it without the panel's edge and its line breaks.)
       assert.match(text, /Reviews ─+/); assert.match(text.replace(/[\s│]+/g, " "), /✗ This part could not be shown: artifactLines is not defined/);
-      assert.match(text, /Build a flying game/); assert.match(text, /Description ─/); assert.match(text, /A small game\./); assert.match(text, /Settings ─/); assert.match(text, /Permissions /);
+      assert.match(text, /Build a flying game/); assert.match(text, /Description ─/); assert.match(text, /A small game\./); assert.match(text, /Settings ─/); assert.match(text, /Merge /);
       assert.doesNotMatch(text, /Review 3/);
     }
     s.press("esc"); assert.equal(s.v.full, false);

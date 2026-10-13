@@ -15,7 +15,7 @@ import { runJob } from "../src/jobs.js";
 
 test("clean-up never takes work that arrives while it runs: a reply waits, and a late commit keeps its worktree and branch", async () => {
   // the repo's teardown stands in for a turn typed in the agent's own terminal during clean-up: it commits a file
-  const w = await world({ settings: { reviewer: "off" }, repoSettings: { teardown: "sleep 0.5; echo late > late.txt; git add -A; git commit -qm late" } });
+  const w = await world({ settings: { "review.when": "never" }, repoSettings: { "workspace.teardown": "sleep 0.5; echo late > late.txt; git add -A; git commit -qm late" } });
   try {
     w.script({ worker: [{ note: "Looked. Nothing to change." }] });
     const id = A.add(w.root, "Look").id;
@@ -45,7 +45,7 @@ test("clean-up never takes work that arrives while it runs: a reply waits, and a
 test("a turn started in the agent's own terminal during clean-up keeps its terminal open and its worktree in place", async () => {
   // the teardown stands in for you typing in the agent's terminal while clean-up runs: herdr now says "working"
   const typed = `node -e 'const fs=require("fs"),f=process.env.HERDR_FAKE_DIR+"/state.json",s=JSON.parse(fs.readFileSync(f));for(const p of s.panes)if(p.agent){s.seq+=1;p.agent.status="working";p.agent.seq=s.seq}fs.writeFileSync(f,JSON.stringify(s))'`;
-  const w = await world({ settings: { reviewer: "off" }, repoSettings: { teardown: typed } });
+  const w = await world({ settings: { "review.when": "never" }, repoSettings: { "workspace.teardown": typed } });
   try {
     w.script({ worker: [{ note: "Looked. Nothing to change." }] });
     const id = A.add(w.root, "Look").id;
@@ -60,7 +60,7 @@ test("a turn started in the agent's own terminal during clean-up keeps its termi
 });
 
 test("a terminal turn that starts before clean-up and ends during its first wait still keeps the terminal; a trailing status does not", async (tt) => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   const clock = fastClock(tt); // clean-up waits up to three seconds for herdr's status, three times: none of it for real
   const flip = (t, after) => setTimeout(() => { w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = "done"; p.agent.seq = s.seq; p.agent.completion = s.seq; }); after?.(); }, 300);
   const run = async (n, { hooked, event }) => {

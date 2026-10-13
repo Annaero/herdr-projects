@@ -7,7 +7,7 @@ import { herdr, currentSocket, socketExists } from "../herdr.js";
 import { inline } from "../runner.js";
 import { spawnLoose } from "../housekeeping.js";
 import { get, change, home } from "./state.js";
-import { choice } from "./who.js";
+import { choice, OFF_WORDS } from "./who.js";
 import { turns } from "./look.js";
 import { name as keyName } from "../board/keys.js";
 
@@ -77,7 +77,7 @@ export function send(cwd, text, opts = {}, socket = currentSocket()) {
 // open: have it running, with nothing said (there must be a chat to go into).
 function want(what, pick, socket) {
   if (!socketExists(socket)) throw new Error("herdr is not running: the Coordinator lives in herdr.");
-  if (what !== "stop" && !pick && !get(socket)?.run && !choice()) throw new Error("The Coordinator is off. `herdr-superwork config coordinator default` turns it on.");
+  if (what !== "stop" && !pick && !get(socket)?.run && !choice()) throw new Error(OFF_WORDS);
   const c = change(socket, (c) => { if (what === "open" && c.want) return false; c.want = { what, pick: pick || null, at: Date.now() }; c.error = ""; if (what !== "stop") c.stopped = false; });
   kick(socket);
   return c;

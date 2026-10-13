@@ -1,4 +1,5 @@
 // The Coordinator from the board: sending it your words, and counting a reply you can see as seen.
+import os from "node:os";
 import * as S from "../../store.js";
 import * as A from "../../actions.js";
 import * as C from "../../coordinator.js";
@@ -14,7 +15,7 @@ export class Coordinator {
     if (there) {
       const words = (about && about.host) || !(named && this.remotes[named[1]] === there) ? text : named[2];
       const job = S.newDispatch(`@${there.label} ${words}`, { remote: there.label });
-      this.ssh(there, "dispatch", { text: words, delegate, about: about && about.host ? about.rid : undefined }, (j) => {
+      this.ssh(there, "dispatch", { text: words, delegate, settings: S.toSend(""), from: os.hostname(), about: about && about.host ? about.rid : undefined }, (j) => {
         try {
           if (!S.getDispatch(job.id)) return;
           if (j && j.ok) S.clearDispatch(job.id);

@@ -12,7 +12,7 @@ import { open } from "./board-helpers.js";
 // The chat block (who you talk to and their message, the text box, what just happened, the hints) ends on the
 // window's last line, and the list has every line above it: at any height, through a resize, whatever the block holds.
 test("the chat is pinned to the bottom of the window: tall, resized, and while the chat block grows or shrinks", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     for (let i = 1; i <= 230; i++) A.add(w.root, `Task number ${i}`);
     const s = open(w, { rows: 84, side: false });
@@ -66,7 +66,7 @@ test("the chat is pinned to the bottom of the window: tall, resized, and while t
 // The same promise through the real screen: the library draws the board on a terminal that is resized under it, the
 // way a window is. What reaches the terminal is checked, at narrow, normal, very wide and very tall sizes.
 test("resizing the real screen keeps the chat on the last line and the working rows' columns at the right edge", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   const { TuiAltScreen, visibleWidth } = await import("@earendil-works/pi-tui");
   let tui;
   try {

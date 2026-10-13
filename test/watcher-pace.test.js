@@ -15,7 +15,7 @@ import { AGENTS } from "../src/agents/kinds.js";
 const SEC = 1000;
 // A board with `n` agents at work, and a stand-in for the helper's program: every call is kept, and answered by hand.
 async function watched(n, settings = {}) {
-  const w = await world({ settings: { reviewer: "off", watcher: "on", max: 8, ...settings } });
+  const w = await world({ settings: { "review.when": "never", "watcher.agent": "claude", "board.agents": 8, ...settings } });
   H.watcherReset();
   w.script({ worker: Array.from({ length: n }, () => ({ status: "working", screen: "● Reading the code\n" })) }); // one step for each agent's first prompt
   for (let i = 1; i <= n; i++) { A.add(w.root, `task ${i}`); A.delegate(`proj/${i}`); await settle(`proj/${i}`); }
@@ -76,13 +76,13 @@ test("the watcher: a look only when something changed, and only at an agent that
 });
 
 test("the watcher: agents that start at different moments end up in one call", async () => {
-  const { w, calls, tick, answer, screen } = await watched(2);
+  const { w, calls, tick, answer, screen, status } = await watched(2);
   try {
-    S.setConfig("watcher", "off"); S.setTaskConfig("proj/1", "watcher", "on");
+    status("proj/2", "idle"); // not working yet: only the first one is looked at
     tick(0); assert.match(calls[0].text, /Task: task 1\n/); assert.doesNotMatch(calls[0].text, /task 2/);
     answer(calls[0], all(1));
     // The second agent starts being watched 25 seconds later: its first look is due at once.
-    S.setConfig("watcher", "on");
+    status("proj/2", "working");
     tick(25); assert.match(calls[1].text, /Task: task 2\n/); assert.doesNotMatch(calls[1].text, /task 1/);
     answer(calls[1], all(1));
     // The first one's minute is up, the second is more than half-way to its own: the call holds off for it.
@@ -107,7 +107,7 @@ test("the watcher: one call at a time on the whole machine, and a reviewer only 
     assert.equal(S.readJson(turn).pid, process.pid);
     answer(calls[0], all(2)); assert.equal(fs.existsSync(turn), false);
     // Task 1 goes under review; the reviewer sits in a pane of its own (here: the second agent's).
-    S.setTaskConfig("proj/2", "watcher", "off");
+    S.update("proj/2", { stage: "approval" }); // the second task is at rest: nobody looks at it
     S.update("proj/1", (t) => { t.stage = "reviewing"; t.reviewAt = Date.now(); t.link.reviewer = { pane: S.get("proj/2").link.pane }; });
     status("proj/2", "idle"); // a reviewer that is idle, waits for you or has finished is not looked at
     tick(60); tick(200); assert.equal(calls.length, 1);
@@ -142,7 +142,7 @@ test("the watcher: gives way on a busy machine, and after a call that failed", a
 });
 
 test("the watcher: the pace is a setting, and herdr's sidebar keeps the minutes left between looks", async () => {
-  const { w, calls, tick, answer, screen } = await watched(1, { watcherEvery: 120 });
+  const { w, calls, tick, answer, screen } = await watched(1, { "watcher.every": "120s" });
   try {
     S.update("proj/1", (t) => { t.since = Date.now() - 30 * 60000; t.workAt = 0; });
     tick(0); answer(calls[0], all(1, 50));
@@ -154,7 +154,8 @@ test("the watcher: the pace is a setting, and herdr's sidebar keeps the minutes 
     assert.deepEqual(told(), ["30", "31"]);
     assert.equal(F.board().find((t) => t.id === "proj/1").eta, 30); // the board's own row counts by itself
     tick(125); assert.equal(calls.length, 2);
-    assert.equal(S.config().watcherEvery, 120); assert.equal(S.DEFAULTS.watcherEvery, 60);
+    assert.equal(S.setting("watcher.every"), "120s"); assert.equal(S.entryOf("watcher.every").builtin, "60s");
+    assert.throws(() => S.setValue("watcher.every", "120"), /a time with a unit, such as 60s/);
   } finally { w.cleanup(); }
 });
 

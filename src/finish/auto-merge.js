@@ -1,5 +1,5 @@
-// Auto-merge, the setting: a task that may merge does so by itself while `autoMerge` is on, and waits for you while
-// it is off. The pipeline asks the setting when a task turns green; this is the housekeeping pass's part, for a
+// Auto-merge, the setting: a task that may merge does so by itself while `merge.by` is `itself`, and waits for you
+// while it is `you`. The pipeline asks the setting when a task turns green; this is the housekeeping pass's part, for a
 // setting changed while a task already waits.
 import * as S from "../store.js";
 import * as F from "../flow.js";
@@ -10,15 +10,19 @@ import { approvalMessage } from "./shared.js";
 
 // Green to merge: checked, reviewed past the gate (or not to be reviewed at all), up to date with main, and nothing
 // that is yours to decide: no failure, no pull-request blocker, no approval you are owed after stepping in.
-export function green(t, ch = S.choices(t)) {
-  if (t.stage !== "approval" || t.archivedAt || !F.isAgentTask(t) || !t.reviewedHead || t.own?.research === true) return false; // research only: never merged
+// Does this task merge by itself? Asked each time: the setting is read right before the merge.
+export const byItself = (t) => S.setting("merge.by", t) === "itself";
+// Is this task's work reviewed at all? `review.when`: never, always, or only work in a repo.
+export const reviewed = (t) => S.setting("review.when", t) !== "never";
+export function green(t) {
+  if (t.stage !== "approval" || t.archivedAt || !F.isAgentTask(t) || !t.reviewedHead || t.research === true) return false; // research only: never merged
   if (t.failure || t.prFailure || t.syncBlocked || t.mergeFailed || t.requireApproval || t.mergeIntent || t.autoMerge) return false;
-  return t.review ? G.passes(t.review) : ch.review === "none";
+  return t.review ? G.passes(t.review) : !reviewed(t);
 }
 // Will this task merge with nobody's yes? A merge already under way says it itself (the board's own, or one you
 // approved); otherwise the setting does, unless you are owed an approval. Such a task has only the review to answer
 // for what merges, so a merge of main its agent had to repair by hand is reviewed (the pipeline).
-export const mergesItself = (t) => (t.mergeIntent ? !!t.mergeIntent.auto : !!S.choices(t).autoMerge && !t.requireApproval);
+export const mergesItself = (t) => (t.mergeIntent ? !!t.mergeIntent.auto : byItself(t) && !t.requireApproval);
 // A merge the board itself started and that still waits (for GitHub's checks or its merge queue).
 const pending = (t) => t.stage === "merging" && !!t.autoMerge && !!t.mergeIntent?.auto;
 
@@ -29,7 +33,7 @@ export function autoMergePass(tasks, socket) {
   for (const seen of tasks) {
     if (seen.link?.socket !== socket || (seen.stage !== "approval" && !pending(seen)) || runnerAlive(seen)) continue;
     try {
-      if (S.choices(seen).autoMerge) { if (green(seen)) start(seen.id); }
+      if (byItself(seen)) { if (green(seen)) start(seen.id); }
       else if (pending(seen)) hold(seen);
     } catch {} // tried again on the next pass
   }
@@ -38,7 +42,7 @@ export function autoMergePass(tasks, socket) {
 // only carried out while the setting is still on. Turned off since: the task waits for your yes, and this says so.
 export function calledOff(g) {
   const cur = g.check();
-  if (!cur.mergeIntent?.auto || S.choices(cur).autoMerge) return false;
+  if (!cur.mergeIntent?.auto || byItself(cur)) return false;
   const t = g.set((t) => { t.stage = "approval"; t.autoMerge = false; t.autoMergeLocal = false; t.mergeIntent = null; t.requireApproval = false; t.since = Date.now(); t.msg = approvalMessage(t); });
   F.labelPane(t, F.labelOf(t));
   return true;
@@ -46,7 +50,7 @@ export function calledOff(g) {
 function start(id) {
   let go = false;
   const t = S.update(id, (t) => {
-    if (runnerAlive(t) || !S.choices(t).autoMerge || !green(t)) return false;
+    if (runnerAlive(t) || !byItself(t) || !green(t)) return false;
     t.stage = "merging"; t.msg = "Merging"; t.since = Date.now();
     t.mergeIntent = { approvedAt: Date.now(), repairs: 0, verifiedHead: t.reviewedHead, auto: true };
     go = true;
@@ -60,7 +64,7 @@ function hold(seen) {
   // task goes on waiting to merge and this is tried again.
   if (!seen.autoMergeLocal && F.gh(["pr", "merge", F.prNumber(seen.pr), "--disable-auto"], S.folderOf(seen.id), 60000).status !== 0) return;
   const t = S.update(seen.id, (t) => {
-    if (runnerAlive(t) || t.stage !== "merging" || !t.mergeIntent?.auto || S.choices(t).autoMerge) return false;
+    if (runnerAlive(t) || t.stage !== "merging" || !t.mergeIntent?.auto || byItself(t)) return false;
     t.stage = "approval"; t.autoMerge = false; t.autoMergeLocal = false; t.mergeIntent = null; t.requireApproval = false; t.since = Date.now();
     t.msg = approvalMessage(t);
   });

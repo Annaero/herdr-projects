@@ -10,15 +10,12 @@ import { spawn } from "node:child_process";
 import * as S from "./store.js";
 import * as F from "./flow.js";
 import { herdr } from "./herdr.js";
-import { fullAccess } from "./agents.js";
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 export function machines(done) {
-  const c = S.config();
-  const user = c.remoteUser || os.userInfo().username;
-  const named = String(c.machines || "").split(/[\s,]+/).filter((x) => x && !["auto", "off", "none"].includes(x.toLowerCase()));
-  if (named.length) return done(named.map((x) => ({ target: x.includes("@") ? x : `${user}@${x}`, label: x.split("@").pop().split(".")[0], session: "" })));
-  if (["off", "none"].includes(String(c.machines).toLowerCase())) return done([]);
+  const want = S.setting("board.machines"), user = os.userInfo().username;
+  if (want === "none") return done([]);
+  if (want !== "auto") return done(want.split(/[\s,]+/).filter(Boolean).map((x) => ({ target: x.includes("@") ? x : `${user}@${x}`, label: x.split("@").pop().split(".")[0], session: "" })));
   let list = [];
   try { list = herdr().machines(); } catch {}
   done(list.filter((m) => m && m.enabled !== false).map((m) => ({
@@ -58,8 +55,8 @@ export function attachCommand(m, pane) {
 const snapshot = (t) => {
   const folder = S.folderOf(t.id);
   const tree = t.worktree || "";
-  const c = S.config();
-  return { folder: S.tilde(folder), tree: S.tilde(tree), branch: S.branchOf(tree || folder), choices: S.choices(t), config: { watcherAgent: c.watcherAgent, watcherModel: c.watcherModel }, fullAccess: fullAccess(t.agent || S.choices(t).agent), canWorktree: S.canWorktree(folder), worktree: c.worktree };
+  // Its settings as this machine reads them, each with the place it came from: the task panel on the asking side.
+  return { folder: S.tilde(folder), tree: S.tilde(tree), branch: S.branchOf(tree || folder), settings: S.settingRows({ task: t }), problems: S.settingProblems(t), canWorktree: S.canWorktree(folder), repo: S.inRepo(t) };
 };
 // `said`, `usage` and `agentVersion` ride along on each task; `version` is this side's plugin version (a machine on
 // an older plugin sends none, and the asking side then knows which requests it would not understand). Pending
@@ -72,12 +69,16 @@ export async function remoteMain([what, payload]) {
     if (what === "list") return say(remoteList());
     if (what === "do") {
       const A = await import("./actions.js");
-      const t = S.find(a.id);
-      const acts = {
+      let t = S.find(a.id);
+      // The work settings of the machine that asked travel with the task it starts: they stand where this machine's
+      // own "you" and its entry for the repo would. Board settings stay with each machine.
+      const sent = () => { if (a.settings && typeof a.settings === "object") t = S.update(t.id, (t) => { t.carried = { from: String(a.from || "another machine").slice(0, 64), settings: S.checked(a.settings, {}) }; }); };
+      // A change to one of its own settings, from the asking side's task panel.
+      if (a.action === "set") { const r = a.value === undefined ? S.unsetValue(String(a.name), { task: t }) : S.setValue(String(a.name), a.value, { task: t }); return say({ ok: true, msg: `${r.name}: ${S.say(r.value)} (${r.from})` }); }      const acts = {
         archive: () => { A.archive(t.id); return `${t.id}: archived. ? has undo, and the archive.`; },
         restore: () => { A.restore(t.id); return `${t.id}: restored`; },
-        delegate: () => { A.delegate(t.id); return `${t.id}: an agent is on it`; },
-        tell: () => A.tell(t.id, String(a.text || "")).msg,
+        delegate: () => { sent(); A.delegate(t.id); return `${t.id}: an agent is on it`; },
+        tell: () => { if (!t.startedOnce) sent(); return A.tell(t.id, String(a.text || "")).msg; },
         approve: () => A.approve(t.id, a.seen || null).msg,
         fix: () => A.sendFailure(t.id).msg,
         retry: () => A.sendError(t.id).msg,
@@ -102,7 +103,8 @@ export async function remoteMain([what, payload]) {
       if (!C.ready()) {
         const A = await import("./actions.js");
         const [title, ...rest] = String(a.text || "").split("\n");
-        const t = A.add(cwd, title, { description: rest.join("\n") });
+        let t = A.add(cwd, title, { description: rest.join("\n") });
+        if (a.settings && typeof a.settings === "object") t = S.update(t.id, (t) => { t.carried = { from: String(a.from || "another machine").slice(0, 64), settings: S.checked(a.settings, {}) }; });
         if (a.delegate) A.delegate(t.id);
         return say({ ok: true, msg: `${t.id}: added${a.delegate ? ", an agent is on it" : ""}` });
       }

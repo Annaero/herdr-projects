@@ -1,30 +1,32 @@
 // Who the Coordinator is: the agent kind, model and effort chosen for it, and whether it can run here.
 import * as S from "../store.js";
 import { currentSocket, socketExists } from "../herdr.js";
-import { installed } from "../agents.js";
+import { installed, roleOf, effortFor } from "../agents.js";
 import { get } from "./state.js";
 
 // ---- who it is ---------------------------------------------------------------------------------------------------------
-// The default: `coordinator`, `coordinatorModel`, `coordinatorEffort`, set as the agent's own are; out of the box it
-// is Claude Code on its default model and effort, whatever the working agent is set to. Any `herdr agent start --kind`
-// value works. "off": no Coordinator.
+// The default: the five `coordinator.` settings, yours only; out of the box it is Claude Code on its own model and
+// effort, whatever the working agent is set to. `coordinator.agent: none`: no Coordinator.
 export function choice() {
-  const c = S.config();
-  if (c.coordinator === "off") return null;
-  return { kind: c.coordinator || S.DEFAULTS.coordinator, model: c.coordinatorModel, effort: c.coordinatorEffort };
+  const who = roleOf("coordinator", (n) => S.setting(n));
+  return who.kind ? { kind: who.kind, model: who.model, effort: effortFor(who.kind, who.effort), ...extra(who) } : null;
 }
+// Fast mode and asking first are part of who it is only where they are not the usual.
+const extra = (who) => ({ ...(who.fast === true ? { fast: true } : {}), ...(who.access && who.access !== "full" ? { access: who.access } : {}) });
+export const OFF_WORDS = "The Coordinator is off. `herdr-superwork unset coordinator.agent` turns it on.";
 // A choice for one Coordinator only ("new, on codex"): what is named wins, and a model or effort set for another
 // program is not passed on to it.
-export function pickOf({ agent, model, effort } = {}) {
-  const base = choice() || { kind: S.DEFAULTS.coordinator, model: "", effort: "" };
-  const kind = String(agent || "").trim().toLowerCase() || base.kind;
-  if (!/^[a-z][a-z0-9_-]*$/.test(kind)) throw new Error("The Coordinator's agent must be an agent kind such as claude or codex.");
-  if (!agent && !model && !effort) return null;
-  const same = kind === base.kind;
-  return { kind, model: String(model || "").trim() || (same ? base.model : ""), effort: String(effort || "").trim() || (same ? base.effort : "") };
+export function pickOf({ agent, effort } = {}) {
+  const base = choice() || { kind: S.agentOf(S.entryOf("coordinator.agent").builtin).kind, model: "", effort: "" };
+  if (!agent && !effort) return null;
+  const named = agent ? S.agentOf(S.check("coordinator.agent", agent)) : null;
+  if (named && !named.kind) throw new Error("A Coordinator for one use needs a program: claude, codex or pi.");
+  const kind = named ? named.kind : base.kind, same = kind === base.kind;
+  const level = effort ? S.check("coordinator.effort", effort, { agent: kind }) : same ? base.effort : "";
+  return { kind, model: named?.model || (same && !named ? base.model : ""), effort: effortFor(kind, level), ...extra(base) };
 }
 export const describe = (k) => (k ? `${k.kind} · ${k.model || "default model"} · ${k.effort || "default effort"}` : "off");
-export const sameChoice = (a, b) => !!a && !!b && a.kind === b.kind && (a.model || "") === (b.model || "") && (a.effort || "") === (b.effort || "");
+export const sameChoice = (a, b) => !!a && !!b && a.kind === b.kind && (a.model || "") === (b.model || "") && (a.effort || "") === (b.effort || "") && !!a.fast === !!b.fast && (a.access || "full") === (b.access || "full");
 // Can the box talk to a Coordinator here? It needs a running herdr to live in, and its program installed.
 export function ready(socket = currentSocket()) {
   const k = choice();

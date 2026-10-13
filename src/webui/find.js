@@ -67,7 +67,7 @@ export function webUi({ fresh = false, now = Date.now() } = {}) {
 }
 function look() {
   // Off by the setting, or taken out with `remove-extras` (until `web-ui link` asks for it again).
-  if (String(S.config().webUi).toLowerCase() === "off" || extras().webUi === "removed") return null;
+  if (S.setting("board.webUi") === "none" || extras().webUi === "removed") return null;
   const byHand = named(process.env.HERDR_SUPERWORK_WEBUI);
   if (byHand !== undefined) return byHand;
   const plugin = herdr().plugins().find((p) => p.plugin_id === WEB_UI && p.enabled !== false);

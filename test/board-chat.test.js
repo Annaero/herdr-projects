@@ -19,7 +19,7 @@ function chat(s, width = 120) {
 }
 
 test("a task agent's chat: its message, then your just-sent words in its place, then its next message; hidden, only who and the line you type on", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off", reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f, with one line in it." }, { files: { "g.txt": "1\n" }, commit: "2", note: "Made g." }] });
     const id = A.add(w.root, "Make f").id;

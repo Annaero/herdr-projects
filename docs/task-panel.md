@@ -62,10 +62,44 @@ Both have the same parts, in the same order, and **one form for every part**:
 - **The description**: whole on the full screen, cut after about 400 characters beside the list.
 - **The reviews**, as a history (below).
 - **What the agent said** (while you talk to its agent that is in the chat instead).
-- **Every setting**, also one that is only your default: the project, the worktree, the agent, the reviewer, what
-  gets reviewed, what sends a review back and how many rounds, the evidence, the watcher, conflict repair and
-  permissions. A setting chosen for this task is in the text colour and one that is only your default is quieter.
-  Full screen a task's own choice is starred as well, and the worktree's folder is printed.
+- **Settings**, what the task runs on, in a few rows: the project, the worktree, the agent, the reviewer, what
+  gets reviewed, what sends a review back and how many rounds, the evidence, and how it merges. A row that holds a
+  choice made for this task is in the text colour and one that comes from somewhere else is quieter. Full screen a
+  task's own choice is starred as well, and the worktree's folder is printed. A `Note` row says what the board
+  could not use: a program that is not installed, something the repo's own file was refused, a mistake in your
+  settings file.
+
+## The settings page
+
+`Ctrl+E` on a task opens its settings full screen: every work [setting](settings.md) by its name, its value, and the
+place the value comes from.
+
+```
+ Settings  proj/12
+ ────────────────────────────────────────────────────────────────────
+  ↑ ↓ move · enter change · ctrl+u put back · esc back
+
+ ›   worker.agent           claude          built in
+   * worker.effort          high            this task
+     worker.fast            false           built in
+     …
+     review.rounds          5               you
+     merge.by               itself          your entry for proj
+     check.command          npm test        the repo's file
+```
+
+- `↑` `↓` move to a row (here they do not move between tasks).
+- `Enter` changes the row, for this task only: a switch or a choice goes to its next value and is saved at once;
+  anything else is typed in the box at the bottom (it starts empty; the page says the value it has now) and saved
+  with `Enter` (`Esc` leaves it as it was). A value that
+  is refused says why, with the nearest right one, and changes nothing.
+- `*` marks the rows that are this task's own. Every other row names the place its value comes from: your entry
+  for the repo, you, the repo's file, or built in.
+- `Ctrl+U` puts the selected row back to what it would be without this task's own answer.
+- `Esc`, or `Ctrl+E` again, goes back to the task.
+
+Board settings are yours only and are not on this page (`herdr-superwork show`). A task on another machine is
+changed there; an archived task's settings can be read, not changed.
 
 Full screen the text keeps to 100 columns, and a last part, **Session**, has the agent's context, its tokens and
 where it runs in herdr. Beside the list, when anything is shorter than on the full screen, the last line says

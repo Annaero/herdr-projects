@@ -9,7 +9,10 @@ import { AGENT_STAGES } from "./shared.js";
 // Records the request (stage "queued") and lets the housekeeping pass start it when a slot is free.
 export function delegate(id, opts = {}) {
   const cur = S.find(id);
-  for (const k of [...S.PER_TASK, "reviewAuto"]) if (opts[k] !== undefined && opts[k] !== null && opts[k] !== "") S.setTaskConfig(cur.id, k, opts[k]);
+  // Its options are any work setting, for this task: all checked before anything is saved, so a refused delegate
+  // changes nothing on the task.
+  const { research, ...asked } = opts;
+  const values = S.checked(Object.fromEntries(Object.entries(asked).filter(([, v]) => v !== undefined && v !== null && v !== "")), { task: cur });
   const socket = currentSocket();
   let old = null; // the last round's space, when its clean-up had not managed to close it yet
   const t = S.update(cur.id, (t) => {
@@ -17,15 +20,16 @@ export function delegate(id, opts = {}) {
     if (AGENT_STAGES.includes(t.stage) || runnerAlive(t)) throw new Error(`${t.id} already has an agent working on it.`);
     if (t.autoMerge) throw new Error(`${t.id} is waiting for an automatic merge. Reply to its agent to cancel that first.`);
     if (t.link?.socket && t.link.socket !== socket) throw new Error(`${t.id} lives in another herdr session. Open the board there.`);
-    if (opts.worktree === true || opts.worktree === false) t.worktreeMode = opts.worktree ? "own" : "none";
-    if (opts.base === "fresh" || opts.base === "head") t.base = opts.base;
+    if (Object.keys(values).length) t.settings = { ...(t.settings || {}), ...values };
+    if (values["merge.by"] === "itself") t.requireApproval = false;
+    if (research !== undefined) t.research = research === true;
     // Work that already landed and was cleaned up starts a new round in a fresh worktree, never in your checkout.
     if (F.cleanedUp(t)) {
       if (t.link?.workspace && t.link.ownsWorkspace) old = { socket: t.link.socket, workspace: t.link.workspace };
-      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "syncedTo", "syncSeen", "syncBranch", "syncRepairs", "syncRetryAt", "syncBlocked", "handled", "session", "said", "summary", "stat", "kept", "tidy", "exitedAt", "repoCfg"]) delete t[k];
+      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "syncedTo", "syncSeen", "syncBranch", "syncRepairs", "syncRetryAt", "syncBlocked", "handled", "session", "said", "summary", "stat", "kept", "tidy", "exitedAt", "repoFile", "repoRefused"]) delete t[k];
       t.link = {};
     }
-    t.agent = S.choices(t).agent || "claude";
+    t.agent = S.agentOf(S.setting("worker.agent", t)).kind;
     t.app = t.agent;
     t.stage = "queued"; t.queuedAt = Date.now(); t.msg = ""; t.kind = undefined; t.since = Date.now(); t.watch = null;
     t.link = { ...(t.link || {}), socket };
@@ -47,7 +51,7 @@ export function startQueued(socket = currentSocket()) {
     let busy = all.filter((t) => S.SLOT_STAGES.includes(t.stage) && !t.autoMerge).length; // a remembered auto-merge runs nothing
     const waiting = all.filter((t) => t.stage === "queued" && t.link?.socket === socket).sort((a, b) => (a.queuedAt || 0) - (b.queuedAt || 0));
     for (const w of waiting) {
-      if (busy >= S.config().max) break;
+      if (busy >= S.setting("board.agents")) break;
       const t = S.update(w.id, (t) => { if (t.stage !== "queued") return false; t.stage = "starting"; t.msg = ""; });
       if (t.stage !== "starting") continue;
       busy++;

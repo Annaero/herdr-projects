@@ -6,8 +6,8 @@ built to start as few of them as it can.
 
 ## When it looks
 
-- **About once a minute per working agent**, at the most: the `watcherEvery` [setting](settings.md), in seconds
-  (`herdr-superwork config watcherEvery 120`; 5 at the least). It was every 15 seconds.
+- **About once a minute per working agent**, at the most: the `watcher.every` [setting](settings.md), a time with
+  its unit (`herdr-superwork set watcher.every 120s`; 5 seconds at the least). It was every 15 seconds.
 - **Only at an agent that works.** One that is idle, waits for you or has finished is not looked at.
 - **Only when its screen changed.** The words on the screen are compared with the last look's. A spinner, a timer or
   a token count that moved is not a change, so an agent that waits on a long command costs nothing.

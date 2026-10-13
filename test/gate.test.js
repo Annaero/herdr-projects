@@ -97,43 +97,34 @@ test("a later round checks the earlier findings: it cannot grow the list with ne
   assert.match(two, /"id": "<the earlier finding's id/); assert.doesNotMatch(two, /- meets /);
 });
 
-test("the gate setting: major by default, yours or one task's; an old reviewAuto still means what it did", async () => {
+test("review.mustFix: major by default, yours or one task's; `none` is not a value, and review.rounds 0 sends nothing back", async () => {
   const w = await world();
-  const file = path.join(process.env.HERDR_SUPERWORK_CONFIG_DIR, "config.json");
-  const write = (c) => fs.writeFileSync(file, JSON.stringify(c));
   try {
-    assert.equal(S.DEFAULTS.gate, "major"); assert.equal(S.DEFAULTS.rounds, 3); assert.equal("reviewAuto" in S.DEFAULTS, false);
-    assert.equal(S.config().gate, "major"); assert.ok(S.PER_TASK.includes("gate")); assert.ok(!S.PER_TASK.includes("reviewAuto"));
-    // a config from before the gate behaves as it did; a `gate` beside it wins
-    write({ reviewAuto: true }); assert.equal(S.config().gate, "major");
-    write({ reviewAuto: false }); assert.equal(S.config().gate, "off"); assert.equal("reviewAuto" in S.config(), false);
-    write({ reviewAuto: false, gate: "minor" }); assert.equal(S.config().gate, "minor");
-    write({ gate: "nonsense" }); assert.equal(S.config().gate, "major");
-    write({ reviewAuto: false });
-    for (const g of G.GATES) assert.equal(S.setConfig("gate", g).gate, g);
-    assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")), { gate: "off" }); // the old key goes once the gate is set
-    assert.equal(S.setConfig("gate", "Critical").gate, "critical"); assert.equal(S.setConfig("gate", "false").gate, "off"); assert.equal(S.setConfig("gate", "default").gate, "major");
-    assert.throws(() => S.setConfig("gate", "blocker"), /gate must be critical, major, minor, trivial or off/);
-    assert.equal(S.setConfig("reviewAuto", "false").gate, "off"); assert.equal(S.setConfig("reviewAuto", "true").gate, "major"); // the old name still works
-    // per task: its own gate wins over yours, by `config --id` and by `--gate` on delegate
+    assert.equal(S.entryOf("review.mustFix").builtin, "major"); assert.equal(S.entryOf("review.rounds").builtin, 3);
+    assert.equal(S.setting("review.mustFix"), "major");
+    for (const g of G.SEVERITIES) assert.equal(S.setValue("review.mustFix", g).value, g);
+    assert.equal(S.setValue("review.mustFix", "Critical").value, "critical"); assert.equal(S.unsetValue("review.mustFix").value, "major");
+    assert.throws(() => S.setValue("review.mustFix", "blocker"), /review\.mustFix must be critical, major, minor, trivial, not "blocker"/);
+    assert.throws(() => S.setValue("review.mustFix", "off"), /must be critical, major, minor, trivial/); // nothing by itself is review.rounds 0
+    assert.equal(S.setValue("review.rounds", "0").value, 0); assert.throws(() => S.setValue("review.rounds", "-1"), /whole number, 0 or more/); S.unsetValue("review.rounds");
+    // per task: its own wins over yours, by `set --task` and by an option to delegate
     const id = A.add(w.root, "One task").id;
-    assert.equal(S.choices(S.get(id)).gate, "major");
-    assert.equal(S.setTaskConfig(id, "gate", "trivial").gate, "trivial"); assert.equal(S.setConfig("gate", "critical").gate, "critical"); assert.equal(S.choices(S.get(id)).gate, "trivial");
-    assert.equal(S.setTaskConfig(id, "gate", "default").gate, "critical");
-    S.update(id, (t) => { t.own = { reviewAuto: false }; }); assert.equal(S.choices(S.get(id)).gate, "off"); // a task's own choice from before the gate
-    S.update(id, (t) => { t.own = { reviewAuto: true }; }); assert.equal(S.choices(S.get(id)).gate, "major");
-    assert.equal(S.setTaskConfig(id, "gate", "minor").gate, "minor"); assert.deepEqual(S.get(id).own, { gate: "minor" });
+    const mine = () => S.setting("review.mustFix", S.get(id));
+    assert.equal(mine(), "major");
+    assert.equal(S.setValue("review.mustFix", "trivial", { task: S.get(id) }).value, "trivial"); assert.equal(S.setValue("review.mustFix", "critical").value, "critical"); assert.equal(mine(), "trivial");
+    assert.equal(S.unsetValue("review.mustFix", { task: S.get(id) }).value, "critical");
+    assert.equal(S.setValue("review.mustFix", "minor", { task: S.get(id) }).value, "minor"); assert.deepEqual(S.get(id).settings, { "review.mustFix": "minor" });
     const out = process.stdout.write; process.stdout.write = () => true;
     try {
-      assert.equal(await main(["config", "gate", "off", "--id", id]), 0); assert.equal(S.choices(S.get(id)).gate, "off");
+      assert.equal(await main(["set", "review.rounds", "0", "--task", id]), 0); assert.equal(S.setting("review.rounds", S.get(id)), 0);
       const other = A.add(w.root, "Another").id;
-      assert.equal(await main(["delegate", other, "--gate", "critical"]), 0); assert.equal(S.get(other).own.gate, "critical");
+      assert.equal(await main(["delegate", other, "--review.mustFix", "critical"]), 0); assert.equal(S.get(other).settings["review.mustFix"], "critical");
     } finally { process.stdout.write = out; }
   } finally { w.cleanup(); }
 });
 
 test("a review with only minor findings merges at the default gate without another round", async () => {
-  const w = await world({ repoSettings: { land: "auto" } });
+  const w = await world({ settings: { "merge.by": "itself" } });
   try {
     w.script({ worker: [work(1)], reviewer: [verdict([finding("minor", "The name could be clearer"), finding("trivial", "A note")])] });
     const id = A.add(w.root, "Only nits").id;
@@ -230,26 +221,26 @@ test("round two cannot grow the list: new minor and major findings are left out,
   } finally { w.cleanup(); }
 });
 
-test("gate off behaves like the manual mode: nothing goes back by itself; one task's own gate sends even a minor finding back", async () => {
-  const w = await world({ settings: { gate: "off" }, repoSettings: { land: "auto" } });
+test("review.rounds 0 is the manual mode: nothing goes back by itself; one task's own bar and rounds send even a minor finding back", async () => {
+  const w = await world({ settings: { "review.rounds": 0, "merge.by": "itself" } });
   try {
     w.script({ worker: [work(1), work(2)], reviewer: [verdict([finding("critical", "Deletes the data")]), verdict([])] });
     const id = A.add(w.root, "Manual").id;
     A.delegate(id);
     let t = await settle(id, { max: 30 });
-    // it waits for you, a repo that lands by itself included: a failed review is never merged by itself
+    // it waits for you, with merging by itself on too: a failed review is never merged by itself
     assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.equal(S.reviewRound(t), 1); assert.equal(paneOf(w, t).agent.prompts.length, 1); assert.equal(t.review.pass, false);
     assert.match(t.msg, /^Approve to merge\? Review: Fail · 1 critical\./); assert.equal(F.labelOf(t), "approve? fail");
     assert.match(A.sendReview(id).msg, /review sent/); // by hand, as before
     assert.equal(S.get(id).requireApproval, false); // the board's own words sent back are not you stepping in
     t = await settle(id, { max: 30 });
     assert.equal(S.reviewRound(t), 2); assert.equal(t.review?.pass ?? S.reviewHistory(t).at(-1).pass, true);
-    assert.equal(t.stage, "done", JSON.stringify(t.failure)); // so the repair, once it passes, merges by itself in this repo
+    assert.equal(t.stage, "done", JSON.stringify(t.failure)); // so the repair, once it passes, merges by itself
 
     // one task with a stricter gate of its own: a minor finding goes back by itself
     w.script({ worker: [{ files: { "g.txt": "1\n" }, commit: "g1", note: "Did g1." }, { files: { "g.txt": "2\n" }, commit: "g2", note: "Did g2." }], reviewer: [verdict([finding("minor", "A name is unclear", { where: "g.txt" })]), verdict([])] });
     const strict = A.add(w.root, "Strict").id;
-    A.delegate(strict, { gate: "minor" });
+    A.delegate(strict, { "review.mustFix": "minor", "review.rounds": 3 });
     const s = await settle(strict, { max: 30 });
     assert.deepEqual(S.reviewHistory(s).map((e) => [e.gate, e.pass]), [["minor", false], ["minor", true]]); assert.equal(s.reviewRounds, 1);
   } finally { w.cleanup(); }

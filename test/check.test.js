@@ -228,7 +228,7 @@ test("[real programs] the command: runs what the change touches, answers at once
 test("`npm test` and `npm run check` are this command, the repo's own check is the whole suite through it, and every test file named in where-things-live.md exists", () => {
   const scripts = JSON.parse(fs.readFileSync(path.join(here, "..", "package.json"), "utf8")).scripts;
   assert.deepEqual([scripts.test, scripts.check], ["node test/check.js", "node test/check.js"]);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(here, "..", ".herdr-superwork.json"), "utf8")).check, "npm run check -- --all");
+  assert.equal(JSON.parse(fs.readFileSync(path.join(here, "..", ".herdr-superwork.json"), "utf8")).check.command, "npm run check -- --all");
   const page = fs.readFileSync(path.join(here, "..", "docs", "where-things-live.md"), "utf8");
   for (const [, f] of page.matchAll(/`test\/([a-z-]+\.test\.js)`/g)) assert.ok(fs.existsSync(path.join(here, f)), f);
 });

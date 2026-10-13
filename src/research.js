@@ -11,7 +11,7 @@ import * as S from "./store.js";
 
 // The setting exists per task only and is off unless chosen, so the task's own choice is all there is to read: this
 // also answers for a row that came from another machine.
-export const isResearch = (t) => t?.own?.research === true;
+export const isResearch = (t) => t?.research === true;
 // Where a task's report is: a folder of its own among the board's reports, where the agent writes it and where it
 // stays. And the name the board serves it under.
 export const REPORT = "report";

@@ -1,4 +1,5 @@
 // Other machines: ask each for its board, send each action to the machine that owns the task, and whose board you see.
+import os from "node:os";
 import * as S from "../../store.js";
 import * as R from "../../remote.js";
 import { herdr } from "../../herdr.js";
@@ -30,7 +31,10 @@ export class Remotes {
   // One of the few exact actions, on a task that lives on another machine.
   act(r, action, extra = {}, quiet = false, after) {
     if (!quiet) this.flash(`${r.host}: …`);
-    this.ssh(r.machine, "do", { action, id: r.rid, ...extra }, (j) => {
+    // A task's work settings travel with it: what this machine says for it (you, and your entry for its repo) is
+    // worked out here and sent along with whatever starts its agent. Board settings stay with each machine.
+    const travel = ["delegate", "tell"].includes(action) ? { settings: S.toSend(String(r.rid).split("/")[0]), from: os.hostname() } : {};
+    this.ssh(r.machine, "do", { action, id: r.rid, ...travel, ...extra }, (j) => {
       if (!quiet || !(j && j.ok)) this.flash(j ? j.msg : `${r.host} did not answer`, j && j.ok ? "green" : "red");
       if (j && j.ok && (action === "archive" || action === "restore")) {
         r.archivedAt = action === "archive" ? Date.now() : null;
@@ -46,7 +50,7 @@ export class Remotes {
     this.scope = to; this.savePrefs();
     if (this.all) { this.machinesAt = 0; this.pollRemotes(true); }
     // Machines are found through herdr only: with none saved, say how to add one.
-    if (this.all && !Object.keys(this.remotes).length) { let none = false; R.machines((list) => { none = !list.length; }); if (none) { this.scope = ""; this.savePrefs(); this.flash(S.config().machines === "off" ? "Other machines are off (config machines auto turns them on)." : "No other machines. Add one with: herdr machine add <name> <ssh target>  (or name them in the machines setting).", "yellow"); return this.load(); } }
+    if (this.all && !Object.keys(this.remotes).length) { let none = false; R.machines((list) => { none = !list.length; }); if (none) { this.scope = ""; this.savePrefs(); this.flash(S.setting("board.machines") === "none" ? "Other machines are off (unset board.machines turns them on)." : "No other machines. Add one with: herdr machine add <name> <ssh target>  (or name them in the board.machines setting).", "yellow"); return this.load(); } }
     this.flash(this.scope === "" ? "This machine only." : this.scope === "*" ? "Every machine you can reach." : `Only ${this.scope}. What you type goes to ${this.scope}.`);
     return this.load();
   }

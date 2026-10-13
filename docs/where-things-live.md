@@ -30,6 +30,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `jobs.js` | The detached runner's entry: `herdr-superwork run <job> <task id>` |
 | `keeper.js` | The keeper: a small always-on background process that does what the open board's tick does, with no screen, so the board's information stays fresh and you are alerted with the board closed |
 | `land.js` | Landing: bring the branch up to date with main in the task's own worktree, merge (through the pull request when there is one, else locally), then clean up |
+| `notify.js` | Telling you that a task needs you, is ready to approve, or failed: the `board.notify` setting |
 | `remote.js` | Other machines |
 | `research.js` | Reports and research-only tasks: a report never goes into the repo, and a task marked research only changes nothing in it |
 | `review-page.js` | The evidence page |
@@ -49,6 +50,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `archive.js` | Archive, restore, and clearing a task away for good |
 | `filing.js` | Adding and editing a task: add, rename, describe, pin, and a report of where it stands |
 | `finish-line.js` | The finish line's keys: approve, send the review or the failure back, finish anyway, retry |
+| `settings.js` | The settings' commands: set, unset and show, for you, for your entry for a repo, or for one task |
 | `shared.js` | What the actions share: the stages an agent holds a slot in, and an action's answer |
 | `start.js` | Putting an agent on a task: the request, and starting queued tasks while slots are free |
 | `suggestions.js` | Suggested tasks: work an agent or a reviewer came across that is not theirs to do |
@@ -98,10 +100,11 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `menu.js` | The ? menu: every key of the board in its three groups, plain, ctrl and alt, each line with its key |
 | `mouse.js` | The mouse wheel: it scrolls the chat's message under the pointer and the whole-task page, and moves between tasks over the list |
 | `osc.js` | The same tasks, told to the terminal (OSC 7501) |
+| `panel-edit.js` | The settings page: every work setting of the selected task by its name, its value and the place it comes from |
 | `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, label-and-value rows, and the list of parts |
 | `panel-report.js` | The report in the task panel: that a task is research only, and the link to the report its agent wrote |
 | `panel-reviews.js` | The reviews in the task panel: how each went, each one under its own label, and the evidence |
-| `panel-settings.js` | The settings in the task panel: every setting this task runs on, and its agent's session |
+| `panel-settings.js` | The settings in the task panel: what this task runs on, in a few rows, and its agent's session |
 | `panel-status.js` | The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you |
 | `panel.js` | The task panel: beside the list and full screen |
 | `remotes.js` | Other machines: ask each for its board, send each action to the machine that owns the task, and whose board you see |
@@ -130,11 +133,17 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `state.js` | The Coordinator's saved state (one file per herdr session) and the folder it chats in |
 | `who.js` | Who the Coordinator is: the agent kind, model and effort chosen for it, and whether it can run here |
 
+## `src/delegate/`
+
+| File | Holds |
+|---|---|
+| `worktree.js` | Where a task's worktree starts and what a fresh one is given: the commit it branches from, a free branch name, the files it gets a copy of |
+
 ## `src/finish/`
 
 | File | Holds |
 |---|---|
-| `auto-merge.js` | Auto-merge, the setting: a task that may merge does so by itself while `autoMerge` is on, and waits for you while it is off |
+| `auto-merge.js` | Auto-merge, the setting: a task that may merge does so by itself while `merge.by` is `itself`, and waits for you while it is `you` |
 | `check-run.js` | Running the repo's check with its progress shown: the file the command reports to, what is kept on the task while it runs, and telling herdr's sidebar |
 | `faults.js` | Faults a reviewer found that were there before the task: suggested to the human, never added as tasks, and what the next reviewer is told is known already |
 | `line.js` | The line: a repo's tasks merge one at a time |
@@ -174,11 +183,22 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `repos.js` | Git plumbing, and repos: the first part of a task's id |
 | `retries.js` | A turn cut off by a passing provider error: the board waits, then tries again by itself (docs/how-work-gets-done.md) |
 | `reviews.js` | A task's reviews: the current one, which round, and every one it had |
-| `settings-list.js` | The settings, each one defined once: its name, its default, whether one task can have its own, and what it means |
-| `settings.js` | Settings as saved and read: yours, one task's own, and the repo's file |
+| `settings-list.js` | The settings, each one defined once: its name, its built-in value, what it may be, whether it is a work or a board setting, and what it means |
+| `settings.js` | Settings as saved and read: yours, your entry for a repo, one task's own, and the repo's file |
 | `suggestions.js` | Suggested tasks |
 | `tasks.js` | Tasks on disk: reading, listing, changing, creating |
 | `titles.js` | A title's one length limit, and how a longer one is shortened without losing what it said |
+
+## `src/store/settings/`
+
+| File | Holds |
+|---|---|
+| `change.js` | Changing a setting: `set` and `unset`, for you, for your entry for a repo, or for one task |
+| `lookup.js` | The one lookup |
+| `migrate.js` | The one-time move from the old settings: a run of this code that finds your file in the old shape converts your config.json (a copy of the old file is kept beside it as config.old.json), each task's own settings and… |
+| `places.js` | The places a setting can be said in, as they are on disk: your file (with your entry for each repo in it), a task's own, and the repo's own committed file |
+| `show.js` | `show`: every setting, its value and the place it came from, for you or for one task; and what is wrong in a file somebody edited by hand |
+| `values.js` | What a setting's value may be: a typed or hand-written value is checked against its entry in settings-list.js and comes back as the board keeps it, or is refused with the nearest right one as a hint |
 
 ## `src/watcher/`
 
@@ -256,7 +276,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [provider-errors.md](provider-errors.md) | A turn cut off by the provider |
 | [research.md](research.md) | Reports, and research-only tasks |
 | [roles-and-commands.md](roles-and-commands.md) | Roles and commands |
-| [settings.md](settings.md) | Settings: two places |
+| [settings.md](settings.md) | Settings: one lookup |
 | [suggestions.md](suggestions.md) | Suggested tasks |
 | [tabs.md](tabs.md) | A task's tabs in herdr |
 | [task-panel.md](task-panel.md) | The task panel |
@@ -272,7 +292,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 
 | File | Tests |
 |---|---|
-| `auto-merge.test.js` | The autoMerge setting: a green task merges by itself, your choice wins over the repo's "land", and a change counts for tasks already under way |
+| `auto-merge.test.js` | The merge.by setting: a green task merges by itself, the repo's own file can never switch that on, and a change counts for tasks already under way |
 | `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, stop or remove, retry |
 | `board-chat-scroll.test.js` | The chat's message when it is long: the box grows with it, it scrolls with two keys and the mouse wheel, and the box says where there is more |
 | `board-chat.test.js` | The chat's box: the latest message, an empty line, the line you type on |
@@ -290,6 +310,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `board-row-tall.test.js` | A live task's row on a narrow screen: its third line (the bar, the percent, the minutes left, the review tag, the pull request, the time), the width where it switches, the highlight, scrolling, and the to-dos giving… |
 | `board-row-wrap.test.js` | Rows on a narrow screen wrap instead of being cut: a live task's name and what it says take up to two lines each, the selected task's name as many as it needs, one-line rows go without their time, and the highlight,… |
 | `board-rows.test.js` | One row of the list: its name, what it says, its columns |
+| `board-settings.test.js` | The settings page of a task: every work setting by its name with the place it comes from, moving to a row, changing it, the mark on the rows that are the task's own, and the one key that puts a row back |
 | `board-setup.test.js` | The first run, and the board loading its new version |
 | `board-size.test.js` | A terminal held at another size than herdr shows |
 | `board-stay.test.js` | Going into an agent never ends the board: in a pane of its own it runs on, and opening the board goes back to it |
@@ -325,6 +346,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `keys-list.test.js` | The keys list is the one place a key is defined: moving a key there moves it in the handler, the ? menu, the hints and the messages, with no other file changed |
 | `lifecycle.test.js` |  |
 | `merge.test.js` |  |
+| `notify.test.js` | The board.notify setting: a task that needs you, is ready to approve or failed rings the bell on an open board or runs your command, once per event; `none`, the built-in value, does neither |
 | `plain-words.test.js` | The board's plain words: a task is added, updated, removed, started, archived, restored |
 | `pull-requests.test.js` |  |
 | `rearm.test.js` |  |
@@ -332,6 +354,8 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `remote.test.js` | Other machines: the door, actions where the task lives, the SSH line |
 | `research.test.js` | Reports and research-only tasks: a report never goes into the repo, a research-only task that changed the repo is sent back and never pushed or merged, one that changed nothing ends as done with its report's link, and… |
 | `retry.test.js` | A turn cut off by the model's provider: recognised from the agent's own conversation file, retried by the board when the error is one that passes, and never taken for a finished turn or a review |
+| `settings-move.test.js` | The one-time move from the old settings: your config.json, each task's own settings and what it took from its repo's file become the new names, once; the old file is kept beside the new one; tasks under way keep their… |
+| `settings.test.js` | The settings' one rule: the order of the places, the repo file's five facts, board settings refused on a task, instructions adding up, `none` against unset, what a value may be, a mistake made by hand, and a refused… |
 | `status-kept.test.js` | A working task's line before the Watcher's first look of a run: the last sentence kept with its age, or "Just started", never a bare "…" |
 | `store.test.js` |  |
 | `submit.test.js` | Text handed to an agent is really submitted: nothing is typed before a slow-starting program has drawn its screen, an enter that was lost is pressed again (the text is never typed twice), and an agent that still does… |

@@ -1,55 +1,52 @@
-// The settings in the task panel: every setting this task runs on, and its agent's session. A new setting's row goes here.
+// The settings in the task panel: what this task runs on, in a few rows, and its agent's session. Every setting by
+// its name, each one changeable, is the settings page (panel-edit.js).
 import fs from "node:fs";
 import path from "node:path";
 import * as S from "../../store.js";
-import { herdr, sessionName } from "../../herdr.js";
-import { fullAccess, hasFast } from "../../agents.js";
+import { sessionName } from "../../herdr.js";
 import { short, tokens } from "./words.js";
+import { name as keyName } from "../keys.js";
+
+// A task's settings, each with the place it came from: this machine's own lookup, or what the task's machine sent.
+export const settingsOf = (r) => (r.host ? r.snap?.settings || [] : S.settingRows({ task: r }));
 
 export class PanelSettings {
   // Returns the settings' part, its rows, the table that draws them, and whether something is shorter here than on
   // the full screen.
   panelSettings(p) {
     const { r, full, t, room, agent, dim, quiet, wrap, head, fact, part } = p;
-    // Every setting, always: one that is only your default is still what this task runs on. Each row is
-    // [label, value, is it this task's own choice].
+    // Each row is [label, value, is it this task's own choice].
     const rows = [];
     const RX = r.host ? r.snap || {} : null;
     const folder = RX ? RX.folder : S.folderOf(r.id);
     const tree = RX ? RX.tree : r.worktree && fs.existsSync(r.worktree) ? r.worktree : "";
-    const ch = RX ? RX.choices || {} : S.choices(r);
+    const all = Object.fromEntries(settingsOf(r).map((x) => [x.name, x]));
+    const val = (name) => all[name]?.value;
+    const mine = (...names) => names.some((n) => all[n]?.own || (n.endsWith(".") && Object.values(all).some((x) => x.own && x.name.startsWith(n))));
     rows.push(["Project", short(folder || ""), !r.host && !!this.repo && path.resolve(String(folder || "")) !== path.resolve(this.repo.root)]);
     if (r.host) rows.push(["Machine", r.host, true]);
-    const wtMode = r.worktreeMode || (RX ? RX.worktree : S.config().worktree);
     // Where the worktree is, full screen only: beside the list its long path would take the lines of three settings.
-    rows.push(["Worktree", tree ? (full ? `on · ${short(tree)}` : "on") : !r.startedOnce && wtMode !== "none" && (RX ? RX.canWorktree : S.canWorktree(folder)) ? "on" : "off", !!r.worktreeMode]);
+    rows.push(["Worktree", tree ? (full ? `on · ${short(tree)}` : "on") : !r.startedOnce && (RX ? RX.canWorktree : S.canWorktree(folder)) ? "on" : "off", false]);
     const branch = RX ? RX.branch : S.branchOf(tree || folder);
     if (branch) rows.push(["Branch", branch + (tree && r.from ? `  (from ${r.from === "HEAD" ? "your checkout" : r.from})` : ""), false]);
-    const own = r.own || {};
-    const mine = (...keys) => keys.some((k) => own[k] !== undefined && own[k] !== null);
-    const kind = r.agent || ch.agent;
-    // Each role reads the same way: program and version, model, effort. The version is the one saved at launch.
-    // Two defaults share the word, so the row keeps to one line beside the list.
-    const role = (name, model, effort) => `${name} · ${model || effort ? `${model || "default model"} · ${effort || "default effort"}` : "default model, effort"}`;
-    // Fast mode is said only where it is on. On for a kind that has none, the row says that it does nothing.
-    const fast = (k, on) => (!on ? "" : hasFast(k) ? " · fast" : ` · no fast mode in ${k}`);
-    rows.push(["Agent", role(`${kind}${r.agentVersion ? ` ${r.agentVersion}` : ""}`, ch.model, ch.effort) + fast(kind, ch.fast), mine("agent", "model", "effort", "fast")]);
-    // No reviewer, or no review at all for this task, reads as "off".
-    const noReview = !ch.reviewer || ch.reviewer === "off" || ch.review === "none";
-    rows.push(["Reviewer", noReview ? "off" : role(ch.reviewer, ch.reviewerModel, ch.reviewerEffort) + fast(ch.reviewer, ch.reviewerFast), mine("reviewer", "reviewerModel", "reviewerEffort", "reviewerFast", "review")]);
-    // How this task is reviewed: what gets a review, who sends a review back, and the evidence the reviewer brings.
-    rows.push(["Reviewed", noReview ? "nothing" : ch.review === "all" ? "all work" : "work in a repo", mine("review", "reviewer")]);
-    rows.push(["Send back", `${!ch.gate || ch.gate === "off" ? "by hand" : ch.gate === "trivial" ? "any finding" : ch.gate === "critical" ? "critical only" : `${ch.gate} or worse`} · ${ch.rounds ?? "?"} round${ch.rounds === 1 ? "" : "s"} max`, mine("gate", "reviewAuto", "rounds")]);
-    rows.push(["Evidence", ch.artifacts === false ? "off" : `on · ${ch.serve === "local" ? "local links" : `${ch.serve || "tailscale"} links`}`, mine("artifacts", "serve")]);
-    const conf = RX ? RX.config || {} : S.config();
-    rows.push(["Watcher", ch.watcher === "off" ? "off" : `${conf.watcherAgent || conf.helper || "claude"} · ${conf.watcherModel || conf.helperModel || "default model"}`, mine("watcher")]);
+    // Each role reads the same way: program and version, model, effort; fast and "asks first" only where they are so.
+    const role = (name, kind, version = "") => {
+      const who = S.agentOf(val(`${name}.agent`)), k = kind || who.kind, model = k === who.kind ? who.model : "", effort = val(`${name}.effort`) === "default" ? "" : val(`${name}.effort`);
+      const fast = val(`${name}.fast`) !== true ? "" : all[`${name}.fast`]?.note ? ` · no fast mode in ${k}` : " · fast";
+      return `${k}${version ? ` ${version}` : ""} · ${model || effort ? `${model || "default model"} · ${effort || "default effort"}` : "default model, effort"}${fast}${val(`${name}.access`) === "ask" ? " · asks before acting" : ""}`;
+    };
+    rows.push(["Agent", role("worker", r.agent, r.agentVersion), mine("worker.")]);
+    const noReview = val("review.when") === "never";
+    rows.push(["Reviewer", noReview ? "off" : role("reviewer"), mine("reviewer.", "review.when")]);
+    rows.push(["Reviewed", noReview ? "nothing" : val("review.when") === "always" ? "all work" : "work in a repo", mine("review.when")]);
+    const bar = val("review.mustFix"), rounds = val("review.rounds");
+    rows.push(["Send back", `${bar === "trivial" ? "any finding" : bar === "critical" ? "critical only" : `${bar} or worse`} · ${rounds === 0 ? "by hand" : `${rounds ?? "?"} round${rounds === 1 ? "" : "s"} max`}`, mine("review.mustFix", "review.rounds")]);
+    rows.push(["Evidence", val("review.evidence") === false ? "off" : "on", mine("review.evidence")]);
     // A research-only task merges nothing: its row says so in place of how it would merge.
-    if (ch.research) rows.push(["Research", "only · no change to the repo", true]);
-    else rows.push(["Merge", ch.autoMerge ? "by itself, once it passes" : "after your yes", mine("autoMerge")]);
-    rows.push(["Conflicts", ch.conflictAuto ? "repaired automatically" : "repaired by hand", mine("conflictAuto")]);
-    rows.push(["Permissions", (RX ? RX.fullAccess : fullAccess(kind)) ? "full access" : "asks before acting", false]);
-    const fell = Object.values(r.fallbacks || {}).filter(Boolean);
-    if (fell.length) rows.push(["Note", fell.join("\n"), true]);
+    if (r.research === true) rows.push(["Research", "only · no change to the repo", true]);
+    else rows.push(["Merge", val("merge.by") === "itself" ? "by itself, once it passes" : "after your yes", mine("merge.by")]);
+    const notes = [...Object.values(r.fallbacks || {}).filter(Boolean), ...(RX ? RX.problems || [] : S.settingProblems(r)).map((x) => `Not counted: ${x}`)];
+    if (notes.length) rows.push(["Note", notes.join("\n"), true]);
     // The agent's session, full screen only. Context fullness and token use come from its saved conversation: blank
     // when that cannot be read, and the fullness only for a model whose window is known.
     const session = [];
@@ -66,7 +63,8 @@ export class PanelSettings {
       return [...rows, row].map((l) => l.replace(/\0/g, " "));
     });
     const table = (list) => list.flatMap(([k, v, differs]) => { const star = full && differs, x = fact(k, lines(star ? `${v} *` : v), (l) => (differs ? l : quiet(l))); if (star) x[x.length - 1] = x[x.length - 1].replace(/\*$/, t.fg("accent", "*")); return x; });
-    const settings = part([head("Settings"), ...table(rows), ...(full && rows.some(([, , differs]) => differs) ? wrap("* this task's own, not your default").map((l) => dim(l).replace("*", t.fg("accent", "*"))) : [])]);
+    const foot = full ? [...(rows.some(([, , differs]) => differs) ? wrap("* this task's own, not what it would be otherwise").map((l) => dim(l).replace("*", t.fg("accent", "*"))) : []), ...(r.archivedAt ? [] : wrap(`${keyName("settings")} changes them: every setting, and the place each one comes from`).map(dim))] : [];
+    const settings = part([head("Settings"), ...table(rows), ...foot]);
     if (full && session.length) part([head("Session"), ...table(session)]);
     return { settings, rows, table, cut: !full && !!tree };
   }

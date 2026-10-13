@@ -19,16 +19,16 @@ export function researchOnly(id, g, tree) {
   if (!list.length) return true;
   tree = dir;
   const rounds = t.reviewRounds || 0;
-  if (rounds >= S.choices(t).rounds) { fail(g, R.changedFailure(t, tree, list, rounds)); return "back"; }
+  if (rounds >= S.setting("review.rounds", t)) { fail(g, R.changedFailure(t, tree, list, rounds)); return "back"; }
   const failure = S.failurePatch(R.changedFailure(t, tree, list)).failure;
   F.sendOwn(id, `This task is research only, and you changed the repo (${R.changedWords(list)}), so it is not done yet.\n\n${S.boundDetail(failure.detail)}\n\n${failure.next}\n\nThen finish again.`, { reason: "research", patch: { reviewRounds: rounds + 1, failure: { ...failure, sentAt: Date.now() } } });
   return "back";
 }
 // The report the agent left in its folder among the reports, for any task: given its link (research.js).
-export function keptReport(g, ch) {
+export function keptReport(g) {
   const t = g.check();
   let report = t.report || null;
-  try { report = R.keepReport(t, () => artifactBase(t.id, ch.serve)); } catch {}
+  try { report = R.keepReport(t, () => artifactBase(t.id)); } catch {}
   if (!report && !t.report) return t;
   if (report && t.report && report.file === t.report.file && report.link === t.report.link) return t;
   return g.set({ report });

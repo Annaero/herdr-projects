@@ -17,7 +17,7 @@ const mainMoves = (w, files) => { for (const [f, text] of Object.entries(files))
 const resync = async (w, id, opts) => { const { housekeeping } = await import("../src/housekeeping.js"); housekeeping(w.socket, { force: true }); return settle(id, opts); };
 // A world whose main has big.txt and a check, and one task that edited big.txt's first line and passed review 1.
 async function passed(extra = {}) {
-  const w = await world({ repoSettings: { check: "! test -f broken.txt" }, ...extra });
+  const w = await world({ repoSettings: { "check.command": "! test -f broken.txt" }, ...extra });
   fs.writeFileSync(path.join(w.root, "big.txt"), big("line 1", "line 20")); git(w.root, "add", "-A"); git(w.root, "commit", "-qm", "big");
   w.script({ worker: [{ files: { "big.txt": big("TASK", "line 20") }, commit: "task", note: "Changed the first line." }] });
   const id = A.add(w.root, "Edit big").id;
@@ -102,17 +102,8 @@ test("tests that fail on the re-merged branch go back to the agent, as a failed 
   } finally { w.cleanup(); }
 });
 
-test("`remerge review` always reviews again; a review that did not pass is never the one that stands", async () => {
-  const a = await passed({ settings: { remerge: "review" } });
-  try {
-    mainMoves(a.w, { "big.txt": big("line 1", "MAIN") });
-    const t = await resync(a.w, a.id);
-    assert.equal(t.stage, "approval"); assert.equal(t.reviewRound, 2); assert.ok(!t.review.keptAt);
-    // and main moving in other files only: that review is repeated too
-    mainMoves(a.w, { "elsewhere.txt": "x\n" });
-    assert.equal((await resync(a.w, a.id)).reviewRound, 3);
-  } finally { a.w.cleanup(); }
-  const w = await world({ repoSettings: { check: "true" }, settings: { gate: "off" } });
+test("a review that did not pass is never the one that stands", async () => {
+  const w = await world({ repoSettings: { "check.command": "true" }, settings: { "review.rounds": 0 } });
   try {
     fs.writeFileSync(path.join(w.root, "big.txt"), big("line 1", "line 20")); git(w.root, "add", "-A"); git(w.root, "commit", "-qm", "big");
     w.script({ worker: [{ files: { "big.txt": big("TASK", "line 20") }, commit: "task", note: "Done." }], reviewer: [{ verdict: { meets: false, findings: [], text: "Not what was asked." } }] });
@@ -124,7 +115,6 @@ test("`remerge review` always reviews again; a review that did not pass is never
     t = await resync(w, id);
     assert.equal(t.stage, "approval"); assert.equal(t.reviewRound, 2); assert.ok(!t.review.keptAt);
   } finally { w.cleanup(); }
-  assert.equal(S.DEFAULTS.remerge, "tests");
 });
 
 test("with no check there are no tests to prove a merge into the task's own files: reviewed again; other files only, the review stands and says so", async () => {
@@ -144,13 +134,9 @@ test("with no check there are no tests to prove a merge into the task's own file
   } finally { w.cleanup(); }
 });
 
-test("the remerge setting reads plain words", async () => {
+test("what the task says when its review stood", async () => {
   const w = await world({ repo: false });
   try {
-    assert.equal(S.config().remerge, "tests");
-    assert.equal(S.setConfig("remerge", "always").remerge, "review"); assert.equal(S.setConfig("remerge", "off").remerge, "review");
-    assert.equal(S.setConfig("remerge", "tests").remerge, "tests"); assert.equal(S.setConfig("remerge", "default").remerge, "tests");
-    assert.throws(() => S.setConfig("remerge", "sometimes"), /remerge must be tests or review/);
     assert.equal(S.keptWords({ check: "npm test", resolved: [] }, 2), "re-merged with main, tests pass, review 2 still stands");
   } finally { w.cleanup(); }
 });

@@ -7,7 +7,7 @@ import * as A from "../src/actions.js";
 import { open } from "./board-helpers.js";
 
 test("only space flips between the Coordinator and a task's agent: the arrows only move, and while you talk to an agent the chat follows the selection", async () => {
-  const w = await world({ settings: { helper: "off", reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     const alpha = A.add(w.root, "Alpha"), beta = A.add(w.root, "Beta");
     const s = open(w); s.v.sel = alpha.id; s.v.load(); s.screen(120);
@@ -39,7 +39,7 @@ test("only space flips between the Coordinator and a task's agent: the arrows on
 });
 
 test("a reply that was put away comes back as a reply to the same task, never as a new task", async () => {
-  const w = await world({ settings: { helper: "off", reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     process.env.HERDR_ENV = "1";
     w.script({ worker: [{ status: "working", screen: "● Working\n" }] });
@@ -111,7 +111,7 @@ test("a reply that was put away comes back as a reply to the same task, never as
 });
 
 test("a reply typed on the board to work that was merged and cleaned up starts a new round, also with the Coordinator off", async () => {
-  const w = await world({ settings: { helper: "off", reviewer: "off", coordinator: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     process.env.HERDR_ENV = "1";
     w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }] });
@@ -135,7 +135,7 @@ test("a reply typed on the board to work that was merged and cleaned up starts a
 });
 
 test("a row with no task talks to the Coordinator: words typed or brought back there never become a reply to the task you were on", async () => {
-  const w = await world({ settings: { helper: "off", reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     const alpha = A.add(w.root, "Alpha");
     const job = S.newDispatch("@vm-a build it", { remote: "vm-a" });

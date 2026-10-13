@@ -9,7 +9,7 @@
 // This default is the owner's decision (task 14), taken knowing its cost: someone who runs an unconfigured herdr on
 // this very machine sees the terminal's colours on the board beside herdr's Catppuccin, until they set `theme herdr`.
 import fs from "node:fs";
-import { config } from "../store.js";
+import { setting } from "../store.js";
 import { herdrConfig } from "../extras.js";
 import { parseToml } from "../toml.js";
 
@@ -118,7 +118,7 @@ function reviewBlue(p) {
 // herdr config that asks for "dots" by name gets herdr's dots.
 let cfg = {}, P = resolve().palette, symbols = true;
 const marksOf = (r) => !r.dots;
-const want = () => String(config().theme || "auto");
+const want = () => String(setting("board.theme"));
 // Read herdr's theme. Answers whether the terminal has to be asked to finish it: for its appearance (herdr's auto_switch).
 export function loadTheme(light = null) {
   cfg = readHerdrConfig();

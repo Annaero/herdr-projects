@@ -8,7 +8,7 @@ import * as A from "../src/actions.js";
 import { open } from "./board-helpers.js";
 
 test("the task panel beside the list cuts a long description short and says where the rest is; the whole panel shows all of it", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const long = Array.from({ length: 80 }, (_, i) => `Line ${i + 1} of a very long description.`).join("\n");
     A.add(w.root, "Short one", { description: "Brief." });
@@ -24,18 +24,18 @@ test("the task panel beside the list cuts a long description short and says wher
     assert.match(text, /│ {2}Long one *\n[^\n]*│ *\n[^\n]*│ {2}Status ─+ *\n[^\n]*│ {2}State {8}○ to do · \ds ago *\n[^\n]*│ {2}Task {9}proj\/2 *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n/);
     assert.match(text, /│ {2}Settings ─+ *\n[^\n]*│ {2}Project {6}\S+ *\n[^\n]*│ {2}Worktree {5}on *\n[^\n]*│ {2}Branch {7}main *\n[^\n]*│ {2}Agent /);
     // Every setting shows beside the list, also one that is only your default.
-    const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Merge", "Conflicts", "Permissions"];
+    const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Merge"];
     for (const fact of SETTINGS) assert.match(text, new RegExp(`│  ${fact} `), fact);
-    assert.match(text, /│ {2}Reviewed {5}work in a repo *\n[^\n]*│ {2}Send back {4}major or worse · 3 rounds max *\n[^\n]*│ {2}Evidence {5}on · local links/);
+    assert.match(text, /│ {2}Reviewed {5}work in a repo *\n[^\n]*│ {2}Send back {4}major or worse · 3 rounds max *\n[^\n]*│ {2}Evidence {5}on *\n/);
     // A short window keeps the parts apart: the long parts give way first, then the settings from the last, each one
     // whole. No line is cut in the middle, and the last line says where the rest is.
-    { const low = open(w, { rows: 24 }); low.v.sel = big.id; low.v.load(); const t24 = low.text(120), side = low.screen(120).map((l) => (l.split("│")[1] || "").trimEnd());
+    { const low = open(w, { rows: 21 }); low.v.sel = big.id; low.v.load(); const t24 = low.text(120), side = low.screen(120).map((l) => (l.split("│")[1] || "").trimEnd());
       const kept = SETTINGS.filter((fact) => new RegExp(`│  ${fact} `).test(t24));
-      assert.ok(kept.length >= 3 && kept.length < SETTINGS.length, "some settings fit a 24-row window"); assert.deepEqual(kept, SETTINGS.slice(0, kept.length), "and they go from the last");
+      assert.ok(kept.length >= 3 && kept.length < SETTINGS.length, "some settings fit a 21-row window"); assert.deepEqual(kept, SETTINGS.slice(0, kept.length), "and they go from the last");
       assert.match(t24, /│ {2}Status ─+ *\n[^\n]*│ {2}State {8}○ to do · \ds ago *\n[^\n]*│ *\n[^\n]*│ {2}Settings ─+ *\n/); // the headlines and the empty line between the parts stay
       assert.ok(!side.some((l) => l.endsWith("…")), "nothing is cut with an ellipsis");
       assert.match(t24, /│ {2}alt\+t shows the whole task/); assert.doesNotMatch(t24, /Line 1 of/); }
-    S.setTaskConfig(big.id, "model", "opus"); s.v.load();
+    S.setValue("worker.agent", "claude/opus", { task: S.get(big.id) }); s.v.load();
     text = s.text(120);
     assert.match(text, /│ {2}Agent {8}\S+ · opus · default effort/); assert.match(text, /│ {2}Reviewer {5}codex · default model/);
     // A long text with no line breaks is cut between words after a few hundred characters.
@@ -59,10 +59,10 @@ test("the task panel beside the list cuts a long description short and says wher
     assert.match(text, /Line 80 of/);
     for (const fact of SETTINGS) assert.match(text, new RegExp(`\\n ${fact} `), fact);
     // A choice made for this task alone shows in both, and is starred on the full screen.
-    for (const [k, v] of [["review", "all"], ["gate", "minor"], ["rounds", "5"], ["artifacts", "false"]]) S.setTaskConfig(big.id, k, v);
+    for (const [k, v] of [["review.when", "always"], ["review.mustFix", "minor"], ["review.rounds", "5"], ["review.evidence", "false"]]) S.setValue(k, v, { task: S.get(big.id) });
     s.v.load(); s.v.panelTop = 1e9; text = s.text(120);
     assert.match(text, /\n Reviewed {5}all work \*/); assert.match(text, /\n Send back {4}minor or worse · 5 rounds max \*/); assert.match(text, /\n Evidence {5}off \*/);
-    assert.match(text, /opus · default effort \*/); assert.match(text, /\* this task's own, not your default/);
+    assert.match(text, /opus · default effort \*/); assert.match(text, /\* this task's own, not what it would be otherwise/);
     s.press("up"); assert.ok(s.v.panelTop < s.v.panelLength); assert.equal(s.v.sel, big.id); // the arrows scroll the panel, they do not move the selection
     s.press("esc"); assert.equal(s.v.full, false);
     s.v.sel = "proj/1"; s.v.load();
@@ -74,7 +74,7 @@ test("the task panel beside the list cuts a long description short and says wher
 });
 
 test("the task panel never opens full screen by itself: something going wrong only changes the hint line", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const id = A.add(w.root, "Match the colors").id;
     S.update(id, (t) => { t.stage = "failed"; t.failure = { stage: "merge", phase: "sync", title: "Merge conflict with main", detail: "Conflicting files:\nsrc/board/view.js", agentCanFix: true, next: "Resolve the conflict." }; });
@@ -113,7 +113,7 @@ test("the task panel never opens full screen by itself: something going wrong on
 });
 
 test("the task panel has one form for every part, in every state and at every width: a headline on its rule, facts in one column, nothing boxed and nothing cut", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const id = A.add(w.root, "Max length for task titles", { description: "A task title should have a maximum length. A longer one is cut between words." }).id;
     const s = open(w), now = Date.now();
@@ -131,7 +131,7 @@ test("the task panel has one form for every part, in every state and at every wi
       failed: { ...base, state: "error", stage: "failed", prState: "failing", failure: { stage: "merge", phase: "sync", title: "Conflict with main", detail: "Conflicting files:\nsrc/board/view/row.js", agentCanFix: true, next: "Resolve the conflict." } },
       done: { ...base, state: "done", stage: "done", prState: "merged", prMerged: true },
     };
-    const LABELS = ["State", "Progress", "Now", "On it", "Change", "Task", "Next step", "Details", "History", "Review 1", "Review 2", "Review 3", "Evidence", "Findings", "Checked", "Unverified", "Project", "Worktree", "Branch", "Agent", "Reviewer", "Reviewed", "Send back", "Watcher", "Merge", "Conflicts", "Permissions"];
+    const LABELS = ["State", "Progress", "Now", "On it", "Change", "Task", "Next step", "Details", "History", "Review 1", "Review 2", "Review 3", "Evidence", "Findings", "Checked", "Unverified", "Project", "Worktree", "Branch", "Agent", "Reviewer", "Reviewed", "Send back", "Merge"];
     for (const [name, r] of Object.entries(STATES)) for (const [width, full] of [[38, false], [46, false], [58, false], [70, false], [44, true], [80, true], [100, true]]) {
       const lines = s.v.panel(r, width, full).map((l) => stripVTControlCharacters(l)), at = `${name}, ${width} columns${full ? ", full screen" : ""}`;
       assert.ok(lines.every((l) => l.length <= width), `${at}: nothing runs over`);
@@ -144,7 +144,7 @@ test("the task panel has one form for every part, in every state and at every wi
       // Every fact: its label, then its value in the one column all values start in; what follows a value is under it.
       const facts = lines.filter((l) => !/ ─+$/.test(l) && LABELS.some((k) => l.startsWith(` ${k} `)));
       assert.ok(facts.length >= 8 && facts.every((l) => /^ .{12} \S/.test(l) && LABELS.some((k) => l.slice(1, 14).trimEnd() === k)), `${at}: every value starts in the same column`);
-      for (const k of ["State", "Task", "Project", "Agent", "Permissions"]) assert.ok(facts.some((l) => l.startsWith(` ${k} `)), `${at}: ${k}`);
+      for (const k of ["State", "Task", "Project", "Agent", "Merge"]) assert.ok(facts.some((l) => l.startsWith(` ${k} `)), `${at}: ${k}`);
     }
     // What each state needs you to see first is under Status, in the same order in every state.
     const side = (name) => s.v.panel(STATES[name], 70, false).map((l) => stripVTControlCharacters(l)), labels = (name) => { const l = side(name); return l.slice(l.findIndex((x) => x.startsWith(" Status ")) + 1, l.indexOf("", 3)).filter((x) => /^ \S/.test(x)).map((x) => x.slice(1, 14).trimEnd()); };
@@ -175,7 +175,7 @@ test("the task panel has one form for every part, in every state and at every wi
       assert.ok(lines.some((l) => l.endsWith(" …")), "the summary is shortened"); assert.equal(lines.at(-1), " alt+t shows the whole task");
       assert.doesNotMatch(s.v.panel({ ...wordy, review: { score: 4, recommend: true, text: "Fine." } }, 60, false).map((l) => stripVTControlCharacters(l)).join("\n"), /shows the whole task/); }
     // The star of a task's own setting is wrapped with its value: it never runs over the edge.
-    S.setTaskConfig(id, "reviewer", "claude"); S.setTaskConfig(id, "reviewerFast", "on");
+    S.setValue("reviewer.agent", "claude", { task: S.get(id) }); S.setValue("reviewer.fast", "on", { task: S.get(id) });
     for (const width of [40, 56, 70, 71, 72, 100]) {
       const page = s.v.panel({ owner: "me", ...S.get(id), state: "idle", at: now }, width, true).map((l) => stripVTControlCharacters(l)), from = page.findIndex((l) => l.startsWith(" Reviewer ")), row = page.slice(from, page.findIndex((l, n) => n > from && /^ \S/.test(l)));
       assert.ok(page.every((l) => l.length <= width), `${width} columns: no setting runs over`); assert.match(row.at(-1), /\*$/, `${width} columns: the star is there`);

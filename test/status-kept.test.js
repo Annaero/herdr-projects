@@ -15,24 +15,32 @@ import { View } from "../src/board/view.js";
 import { theme } from "../src/board/theme.js";
 import { stripVTControlCharacters } from "node:util";
 
+import fs from "node:fs";
+import os from "node:os";
+// Whether there is a Watcher is your setting (`watcher.agent`, or `none`): a test with no board of its own says which.
+const own = fs.mkdtempSync(path.join(os.tmpdir(), "sw-status-"));
+const watcher = (agent) => { process.env.HERDR_SUPERWORK_CONFIG_DIR = own; fs.writeFileSync(path.join(own, "config.json"), JSON.stringify({ "watcher.agent": agent })); };
+const off = (fn) => { watcher("none"); try { return fn(); } finally { watcher("claude"); } };
 const min = 60000, t0 = 1e12;
 const task = { id: "p/1", owner: "me", app: "claude", link: { pane: "w1:p1" }, stage: "working", since: t0, workAt: t0 };
 const said = (t, mins, live = { status: "working" }) => show(t, live, t0 + mins * min).msg;
 
 test("first run: a task whose agent has just started says so until the Watcher's first sentence, and then says that", () => {
+  watcher("claude");
   assert.equal(said(task, 0), "Just started"); assert.equal(said(task, 1), "Just started");
   assert.equal(said({ ...task, watch: { msg: "Reading the code", progress: 10, role: "agent", at: t0 + min } }, 2), "Reading the code");
   // Still no sentence long after it began (the Watcher's calls fail): no longer "just", and still words.
   assert.equal(said(task, JUST_MS / min), "No status yet");
   // With the Watcher off none will come: the plain word, which a row leaves out since its heading says it.
-  assert.equal(said({ ...task, own: { watcher: "off" } }, 0), "Working");
-  assert.equal(show({ ...task, own: { watcher: "off" } }, { status: "working" }, t0).plain, true);
+  assert.equal(off(() => said(task, 0)), "Working");
+  assert.equal(off(() => show(task, { status: "working" }, t0).plain), true);
   // The reviewer is a new agent every round: its round says it has just started, never the round before's words.
   const review = { ...task, stage: "reviewing", msg: "Under review", reviewAt: t0, lastLine: { msg: "Running the check", at: t0 - min } };
   assert.equal(said(review, 0), "Review just started"); assert.equal(said({ ...review, watch: { msg: "Reading the diff", progress: 5, role: "reviewer" } }, 0), "Reading the diff");
 });
 
 test("working again: the last sentence stays, said with its age, until a new one arrives", () => {
+  watcher("claude");
   const kept = { lastLine: { msg: "Running the check", at: t0 - 12 * min } };
   // A new turn, sent back after a review, a conflict, a retry: each drops the guess (`watch`), none the kept sentence.
   const again = { ...task, watch: null, lastLine: kept.lastLine };
@@ -49,7 +57,7 @@ test("working again: the last sentence stays, said with its age, until a new one
 });
 
 test("no bare … as a status line: the list, the panel, the whole-task page and herdr's sidebar say the words", async () => {
-  const w = await world({ settings: { reviewer: "off", watcher: "on" } });
+  const w = await world({ settings: { "review.when": "never", "watcher.agent": "claude" } });
   try {
     process.env.HERDR_SUPERWORK_HELPER_CMD = JSON.stringify(["node", path.join(here, "fake-helper.js")]);
     A.add(w.root, "build a login page");
@@ -91,6 +99,7 @@ test("no bare … as a status line: the list, the panel, the whole-task page and
 });
 
 test("what the Watcher or an agent wrote is on the row exactly as written, whatever it says; only the board's own plain word is left out", () => {
+  watcher("claude");
   const v = Object.create(View.prototype); v.theme = theme; v.scope = ""; v.screens = new Map(); v.repo = { root: "/nowhere", name: "proj" };
   const rowOf = (t, live) => { const sh = show(t, live, t0); return stripVTControlCharacters(v.rowLines({ ...t, state: sh.state, kind: sh.kind, msg: sh.msg, plain: sh.plain, at: t0 }, 120).join("\n")); };
   for (const msg of ["Working", "WORKING", "Under review", "Needs you", "Idle"]) {
@@ -99,7 +108,7 @@ test("what the Watcher or an agent wrote is on the row exactly as written, whate
   }
   assert.match(rowOf({ ...task, stage: "reviewing", reviewAt: t0, watch: { msg: "Under review", progress: 10, role: "reviewer", at: t0 } }, { status: "working" }), /\n {3}Under review *$/);
   // The board's own plain words: said by the heading already, so the row leaves them out.
-  assert.doesNotMatch(rowOf({ ...task, own: { watcher: "off" } }, { status: "working" }), /Working/);
-  assert.doesNotMatch(rowOf({ ...task, stage: "reviewing", msg: "Under review", reviewAt: t0, own: { watcher: "off" } }, { status: "working" }), /Under review/);
+  assert.doesNotMatch(off(() => rowOf(task, { status: "working" })), /Working/);
+  assert.doesNotMatch(off(() => rowOf({ ...task, stage: "reviewing", msg: "Under review", reviewAt: t0 }, { status: "working" })), /Under review/);
   assert.doesNotMatch(rowOf(task, { status: "blocked" }), /Needs you/);
 });

@@ -362,9 +362,8 @@ and reopens where you left it.)
 **A board that looks cut off or half empty.** (What changes the board's size at all, and why a size that lasts a
 moment is not drawn for: [the board's size](board-size.md).) The board takes its pane's size back by itself within a few seconds:
 the remote view described here is disconnected, and until then the board draws inside what herdr's window shows, so
-its text box and hints are never cut off. What follows is what you see with the setting `ownTerminal` off, where the
-view stays (the board has no key that disconnects it: closing that view, or turning the setting on, frees the
-size). A remote view of the pane the board runs in (a `herdr terminal attach`,
+its text box and hints are never cut off. What follows is what you see until then, and when the
+board could not take the size back. A remote view of the pane the board runs in (a `herdr terminal attach`,
 which herdr's web UI starts for each pane it shows) sets that pane's size to its own and holds it for as long as it
 runs, also after its browser tab is gone. herdr's own window then shows a cut-out of a board drawn for another size.
 The board notices within ten seconds and says so on its first line, top left where a cut-out still shows it, with what frees the size first so a narrow window keeps it:
@@ -382,7 +381,7 @@ one tab is renamed. When the board closes (also when it closes to take you into 
 it had before; a name you gave it yourself while the board was open is kept. A board that was killed leaves the
 name, and the next board that opens and closes in that tab puts the old one back. Nothing is renamed in the popup
 (it has no tab of its own), in the tab your board key opens (that one is named `board`, above), outside herdr, in a tmux inside the pane, or by a subcommand that opens no board (`add`,
-`list`, `config` and the rest). The code is `src/board/tab.js`.
+`list`, `show` and the rest). The code is `src/board/tab.js`.
 
 While the text box holds text it owns the keyboard: only `Enter`, `Tab`, `Esc` and `Ctrl+C` act on the board, so no shortcut
 fires in the middle of a draft. `Esc` puts a draft away; `Ctrl+Z` brings it back only to whoever it was for, so a reply

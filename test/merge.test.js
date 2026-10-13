@@ -14,11 +14,11 @@ import { runJob } from "../src/jobs.js";
 
 
 test("a merge conflict with your checkout is rolled back and saved; ctrl+r sends it to the agent; it lands after repair", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     w.script({ worker: [{ files: { "a.txt": "from the agent\n" }, commit: "agent", note: "Changed a.txt." }] });
     const id = A.add(w.root, "Conflict").id;
-    S.setTaskConfig(id, "conflictAuto", false); // by hand for this task; by itself is the default (sync-conflict.test.js)
+    S.setValue("review.rounds", 0, { task: S.get(id) }); // nothing goes back by itself for this task; by itself is the default (sync-conflict.test.js)
     A.delegate(id);
     let t = await settle(id);
     assert.equal(t.stage, "approval");
@@ -45,7 +45,7 @@ test("a merge conflict with your checkout is rolled back and saved; ctrl+r sends
 });
 
 test("unsaved files in your checkout stop the merge and nothing is forced", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     const id = await toApproval(w);
     fs.writeFileSync(path.join(w.root, "mine.txt"), "unsaved\n");
@@ -58,7 +58,7 @@ test("unsaved files in your checkout stop the merge and nothing is forced", asyn
 });
 
 test("a commit that reaches the branch while it is being merged is neither merged unseen nor deleted as merged", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     const id = await toApproval(w);
     let t = S.get(id);

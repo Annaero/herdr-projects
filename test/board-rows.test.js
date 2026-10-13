@@ -13,7 +13,7 @@ import { open } from "./board-helpers.js";
 import { GROUPS, groupOf, isLive } from "../src/board/view/states.js";
 
 test("a tight row keeps the task's name, then the columns on the right; what a live task says is on a line of its own", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const s = open(w);
     const at = Date.now() - 6 * 60000;

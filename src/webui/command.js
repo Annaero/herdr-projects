@@ -27,7 +27,7 @@ export const decline = () => X.note({ webUi: "no" });
 export async function linkNow({ run } = {}) {
   if (X.extras().webUi === "removed") X.note({ webUi: "" }); // asked for again
   const to = webUi({ fresh: true });
-  if (!to) return { ok: false, msg: "The herdr web UI plugin is not installed (or the webUi setting is off), so there is nothing to show the board in." };
+  if (!to) return { ok: false, msg: "The herdr web UI plugin is not installed (or `board.webUi` is `none`), so there is nothing to show the board in." };
   ensureDoor();
   const door = doorInfo();
   if (!door) return { ok: false, msg: "The front door is not up yet. Try again in a few seconds." };
@@ -57,7 +57,7 @@ export async function main([what], { json = false } = {}) {
   const st = await state();
   if (json) return { ok: true, ...st };
   const lines = [];
-  lines.push(st.webUi ? `Web UI: found at http://${st.webUi.host}:${st.webUi.port}${st.webUi.version ? ` (herdr-web-ui ${st.webUi.version})` : ""}` : `Web UI: not found${String(S.config().webUi).toLowerCase() === "off" ? " (the webUi setting is off)" : X.extras().webUi === "removed" ? " (taken out with remove-extras; `web-ui link` brings it back)" : ": the plugin devswha.herdr-web-ui is not installed in herdr"}`);
+  lines.push(st.webUi ? `Web UI: found at http://${st.webUi.host}:${st.webUi.port}${st.webUi.version ? ` (herdr-web-ui ${st.webUi.version})` : ""}` : `Web UI: not found${S.setting("board.webUi") === "none" ? " (board.webUi is none)" : X.extras().webUi === "removed" ? " (taken out with remove-extras; `web-ui link` brings it back)" : ": the plugin devswha.herdr-web-ui is not installed in herdr"}`);
   lines.push(st.door ? `Front door: up at ${L.addressOf(st.door)}/ (this machine only)` : "Front door: not running");
   for (const e of st.links.ours) lines.push(`Link: ${e.url} goes through the front door: the Board is in the web UI there`);
   for (const e of st.links.direct) lines.push(`Link: ${e.url} goes straight to the web UI: no Board there (\`herdr-superwork web-ui link\`)`);

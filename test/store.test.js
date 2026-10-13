@@ -51,23 +51,19 @@ test("a worktree's tasks belong to its primary repo", async () => {
   } finally { w.cleanup(); }
 });
 
-test("settings: defaults, your own, one task's own, and the repo file read from a commit", async () => {
-  const w = await world({ repoSettings: { setup: "true", check: "npm test", land: "auto", include: [".env"] } });
+test("settings: the built-in values, your own, one task's own (the rule itself: settings.test.js)", async () => {
+  const w = await world();
   try {
-    assert.equal(S.config().agent, "claude"); assert.equal(S.config().reviewer, "codex"); assert.equal(S.config().watcherModel, "claude-haiku-5-5");
-    assert.equal(S.DEFAULTS.serve, "tailscale"); assert.equal(S.config().max, 4);
-    S.setConfig("max", "2"); assert.equal(S.config().max, 2);
-    assert.throws(() => S.setConfig("merge", "yolo"), /squash, merge or rebase/);
-    assert.throws(() => S.setConfig("nope", 1), /Unknown setting/);
+    assert.equal(S.setting("worker.agent"), "claude"); assert.equal(S.setting("reviewer.agent"), "codex"); assert.equal(S.entryOf("watcher.agent").builtin, "claude/claude-haiku-5-5");
+    assert.equal(S.setting("board.agents"), 4);
+    S.setValue("board.agents", "2"); assert.equal(S.setting("board.agents"), 2);
+    assert.throws(() => S.setValue("merge.method", "yolo"), /squash, merge, rebase/);
+    assert.throws(() => S.setValue("nope", 1), /Unknown setting/);
     const t = S.create(w.root, "T");
-    assert.equal(S.setTaskConfig(t.id, "reviewer", "off").review, "none");
-    assert.equal(S.setTaskConfig(t.id, "agent", "codex").agent, "codex");
-    assert.equal(S.setTaskConfig(t.id, "agent", "default").agent, "claude");
-    assert.throws(() => S.setTaskConfig(t.id, "max", 3), /Per task/);
-    const rc = S.repoConfig(w.root, "HEAD");
-    assert.deepEqual(rc, { setup: "true", check: "npm test", land: "auto", teardown: "", include: [".env"] });
-    fs.writeFileSync(path.join(w.root, ".herdr-superwork.json"), "{\"check\":\"changed by a branch\"}");
-    assert.equal(S.repoConfig(w.root, "HEAD").check, "npm test"); // the commit, not the working copy
+    assert.deepEqual(t.settings, {});
+    assert.equal(S.setValue("worker.agent", "codex", { task: S.get(t.id) }).value, "codex");
+    assert.equal(S.unsetValue("worker.agent", { task: S.get(t.id) }).value, "claude");
+    for (const s of S.SETTINGS) assert.ok(s.name && s.doc && s.builtin !== undefined && ["work", "board"].includes(s.kind), s.name);
   } finally { w.cleanup(); }
 });
 
@@ -163,7 +159,7 @@ test("the one mapping function: stage and herdr status to board state", () => {
 });
 
 test("command line parsing and agent names", () => {
-  assert.deepEqual(parse(["add", "Fix", "it", "--desc", "more", "--delegate", "--no-worktree"]), { pos: ["add", "Fix", "it"], flags: { desc: "more", delegate: true, worktree: false } });
+  assert.deepEqual(parse(["add", "Fix", "it", "--desc", "more", "--delegate", "--no-research", "--worker.agent", "codex", "--worker.fast"]), { pos: ["add", "Fix", "it"], flags: { desc: "more", delegate: true, research: false, "worker.agent": "codex", "worker.fast": true } });
   const t = { repo: "My.Repo_With-A-Long-Name", n: 12, id: "x/12", root: "/r" };
   assert.equal(agentName(t), "sw-my-repo-with-a-l-12");
   assert.match(agentName(t, ["sw-my-repo-with-a-l-12"]), /^sw-my-repo-with-a-l-12-[0-9a-f]{4}$/);

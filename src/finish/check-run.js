@@ -60,9 +60,9 @@ export function follow(g, t, { cmd, root, file = progressFile(t.id), now = () =>
   };
 }
 // The check itself. Returns what `sh` does, plus `known` when the command answered at once for code that passed before.
-export async function runCheck(g, t, { cmd, folder, env, alive, root }) {
+export async function runCheck(g, t, { cmd, folder, env, alive, root, timeoutMin = 15 }) {
   const f = follow(g, t, { cmd, root });
-  const r = await sh(cmd, folder, { ...env, [PROGRESS_ENV]: f.file }, { alive, tick: () => f.look() });
+  const r = await sh(cmd, folder, { ...env, [PROGRESS_ENV]: f.file }, { alive, tick: () => f.look(), timeoutMin });
   const { known } = f.end(r.ok && !r.aborted);
   if (r.aborted) return r;
   // Off the task again; the row says an answer that took no run, and then moves on.

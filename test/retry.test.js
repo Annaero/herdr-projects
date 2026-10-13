@@ -185,7 +185,7 @@ test("a reviewer that really finished without a verdict is still a failed review
 
 test("without the reviewer's own turn-end report: its conversation file ending in the error is enough", async (tt) => {
   const clock = fastClock(tt); // the waits between tries pass at once
-  const w = await cutWorld("600", { reviewer: "claude" });
+  const w = await cutWorld("600", { "reviewer.agent": "claude" });
   try {
     w.script({ worker: [WORK], reviewer: [{ ends: "claude-overloaded-made" }, PASS] });
     const id = A.add(w.root, "Not reported").id;
@@ -199,7 +199,7 @@ test("without the reviewer's own turn-end report: its conversation file ending i
 });
 
 test("the working agent: a turn cut off by a passing provider error is told to carry on by itself, not held as failed", async () => {
-  const w = await cutWorld("120000,240000", { agent: "pi" });
+  const w = await cutWorld("120000,240000", { "worker.agent": "pi" });
   try {
     w.script({ worker: [{ ends: "pi-socket-closed" }, WORK], reviewer: [PASS] });
     const id = A.add(w.root, "Dropped").id;
@@ -237,7 +237,7 @@ test("the working agent: a turn cut off by a passing provider error is told to c
 });
 
 test("the working agent: after the last try the board gives up with the real error; other errors are held at once as before", async () => {
-  const w = await cutWorld("60000", { agent: "pi" });
+  const w = await cutWorld("60000", { "worker.agent": "pi" });
   try {
     w.script({ worker: [{ ends: "pi-overloaded" }, { ends: "pi-overloaded" }] });
     let id = A.add(w.root, "Overloaded").id;
@@ -274,7 +274,7 @@ test("the working agent: after the last try the board gives up with the real err
 });
 
 test("the working agent: a program that exited with the error is started again and told to carry on, and the tries still count", async () => {
-  const w = await cutWorld("60000", { agent: "pi" });
+  const w = await cutWorld("60000", { "worker.agent": "pi" });
   try {
     w.script({ worker: [{ ends: "pi-socket-closed", hook: true, exit: true }, { ends: "pi-socket-closed", hook: true, exit: true }] });
     const id = A.add(w.root, "Crashed").id;
@@ -298,7 +298,7 @@ test("the working agent: a program that exited with the error is started again a
 });
 
 test("the working agent: no report, no closing note, and herdr cannot tell if it stopped: the error at the end of its file is enough", async () => {
-  const w = await cutWorld("60000", { agent: "codex" });
+  const w = await cutWorld("60000", { "worker.agent": "codex" });
   try {
     w.script({ worker: [{ ends: "codex-at-capacity", status: "unknown" }, { ...WORK, status: "unknown" }], reviewer: [PASS] });
     const id = A.add(w.root, "Nobody says it stopped").id;

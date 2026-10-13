@@ -8,7 +8,7 @@ import { theme } from "../src/board/theme.js";
 import { KEY, open } from "./board-helpers.js";
 
 test("the first run is one screen: both choices, answered with single keys", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const added = [];
     const offers = () => ({ asked: false, file: "/home/u/.config/herdr/config.toml", key: { suggest: "prefix+a" }, sidebar: {} });
@@ -50,7 +50,7 @@ test("the first run is one screen: both choices, answered with single keys", asy
 });
 
 test("after a plugin update the board loads the new version by itself, once nothing is half typed", async () => {
-  const w = await world({ settings: { helper: "off" } });
+  const w = await world();
   try {
     const s = open(w);
     s.v.tick = 4; s.v.stamp = "old"; // the files on disk are newer than what this board runs

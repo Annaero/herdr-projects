@@ -109,7 +109,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   // the panel, in the order you need it: where it stands and the change, each a fact of its own, the review, what the agent said, the settings
   const ready = page({ ...second, summary: "Did the work.", said: "Built Skylark.", stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" });
   assert.match(ready, /^\n Build a flying game\n\n Status ─+\n State {8}✓ ready to approve · 2nd review · 0s ago\n On it {8}claude\n Change {7}PR#12 · 4 files, \+120 −31\n Task {9}proj\/1\n\n Review ─+\n Review 2 {5}✗ 3\/5, says don't merge\n {14}Crashes\.\n\n The agent said ─+\n Built Skylark\.\n\n Settings ─+\n Project /);
-  assert.match(ready, /\n Permissions {2}[^\n]+$/); assert.doesNotMatch(ready, /https:|shows the whole task/); // every setting, tightly, at the end; the link is in the PR's number
+  assert.match(ready, /\n Merge {8}[^\n]+$/); assert.doesNotMatch(ready, /https:|shows the whole task/); // every setting, tightly, at the end; the link is in the PR's number
   assert.match(page({ ...second, stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" }, true), /\n Change {7}PR#12 · 4 files, \+120 −31\n {14}https:\/\/github\.com\/a\/b\/pull\/12\n/); // full screen it is printed too
   assert.doesNotMatch(ready, /Description|None\./);
   // Every review the task had: how many, how each went, and the latest under its own name, on both shapes of the panel.
@@ -121,7 +121,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   assert.doesNotMatch(page(spiral), /Crashes on start|the newest first|Review [12] /); assert.match(page(spiral), /\n\n alt\+t shows the whole task$/); // beside the list: only the latest, and where the rest is
   const whole = page(spiral, true);
   assert.match(whole, /\n Reviews · 3 ─+\n History {6}2\/5 no → no verdict → 4\/5 yes\n\n Review 3 {5}✓ 4\/5, says merge · 1m ago · abcdef1\n {14}Fine now\.\n Checked {6}• Ran the tests: all pass\.\n Unverified {3}• Not tried on a phone\.\n\n Review 2 {5}– No verdict · 1h ago\n {14}the reviewer finished without a verdict\n\n Review 1 {5}✗ 2\/5, says don't merge · 2h ago · 1111111\n {14}Crashes on start\.\n Problems {5}• game\.js: null plane\.\n Checked {6}• Ran it\.\n/);
-  assert.ok(whole.indexOf("✓ ready to approve") < whole.indexOf("Reviews · 3 ") && whole.indexOf("\n Review 3 ") < whole.indexOf("\n Review 1 ") && whole.indexOf("\n Review 1 ") < whole.indexOf("\n Settings ") && whole.indexOf("\n Settings ") < whole.indexOf("\n Permissions")); // where it stands, every review, then the settings
+  assert.ok(whole.indexOf("✓ ready to approve") < whole.indexOf("Reviews · 3 ") && whole.indexOf("\n Review 3 ") < whole.indexOf("\n Review 1 ") && whole.indexOf("\n Review 1 ") < whole.indexOf("\n Settings ") && whole.indexOf("\n Settings ") < whole.indexOf("\n Merge ")); // where it stands, every review, then the settings
   // a narrow full screen drops nothing of a review: a label is a line of its own there, and its value is under it
   { const thin = stripVTControlCharacters(v.panel({ owner: "me", ...spiral }, 24, true).join("\n"));
     assert.match(thin, /\n Review 3\n {3}✓ 4\/5, says merge\n {3}1m ago · abcdef1\n {3}Fine now\.\n Checked\n {3}• Ran the tests: all\n {5}pass\.\n/); assert.match(thin, /\n Review 2\n {3}– No verdict\n {3}1h ago\n/); assert.match(thin, /\n Review 1\n {3}✗ 2\/5, says don't\n {3}merge\n {3}2h ago · 1111111\n/);
@@ -139,7 +139,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   // a short window: the long parts give way, then the settings go, from the last, each one whole, and only then is
   // the review down to its one row. Where the task stands and what it is doing now stay whole at every height,
   // wrapped and never cut
-  const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Watcher", "Merge", "Conflicts", "Permissions"];
+  const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Merge"];
   const STATE = " State        ◐ working · for 0s", PROGRESS = " Progress     ██████░░░░░░░░░ 40% · 12m left", NOW = [" Now          Running the whole test suite", "              again after the last fix"];
   for (const fit of [30, 20, 16, 12, 8, 6]) {
     const lines = v.panel({ owner: "me", ...busy }, 45, false, fit).map((l) => stripVTControlCharacters(l));

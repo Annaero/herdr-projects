@@ -16,6 +16,7 @@ import * as Y from "./sync.js";
 import { owedFaults, suggestOwed } from "./finish/faults.js";
 import { autoMergePass, green } from "./finish/auto-merge.js";
 import { linePass } from "./finish/line.js";
+import { notifyPass } from "./notify.js";
 
 const key = (socket) => createHash("sha1").update(String(socket)).digest("hex").slice(0, 8);
 
@@ -39,11 +40,12 @@ export function housekeeping(socket = currentSocket(), { force = false } = {}) {
     // the space is free; after a turn in the agent's own terminal only when that has been quiet for a while.
     const quiet = process.env.HERDR_SUPERWORK_QUIET_MS !== undefined ? Number(process.env.HERDR_SUPERWORK_QUIET_MS) : 600000;
     for (const t of tasks) {
-      if (!S.config().cleanup || t.stage !== "done" || !t.tidy || t.archivedAt || t.link?.socket !== socket || runnerAlive(t) || Date.now() - (t.tidy.quietFrom || 0) < quiet) continue;
+      if (t.stage !== "done" || S.setting("workspace.cleanup", t) !== true || !t.tidy || t.archivedAt || t.link?.socket !== socket || runnerAlive(t) || Date.now() - (t.tidy.quietFrom || 0) < quiet) continue;
       if (S.due(`tidy-${key(t.id)}`, 30000)) spawnRunner("cleanup", t.id, t.tidy.deleteBranch === "merged" ? ["--merged"] : []);
     }
+    try { notifyPass(S.list()); } catch {}
     try { resync(tasks, socket); } catch {}
-    // The autoMerge setting changed under a task that waits: it merges now, or waits for your yes after all.
+    // `merge.by` changed under a task that waits: it merges now, or waits for your yes after all.
     try { autoMergePass(tasks, socket); } catch {}
     // Tasks that wait their turn to merge: the next one starts when the one before it is through.
     try { linePass(tasks); } catch {}
@@ -64,7 +66,7 @@ function resync(tasks, socket) {
     if (!Y.resyncable(t) || t.link.socket !== socket || !Y.treeOf(t) || runnerAlive(t)) continue;
     // A task that merges by itself is not brought up to date here, with every other one at once: it catches up when
     // its turn to merge comes (finish/line.js), and so does that only once.
-    if (S.choices(t).autoMerge && green(t)) continue;
+    if (S.setting("merge.by", t) === "itself" && green(t)) continue;
     const now = Y.knownTarget(t, known);
     if (now && (now !== t.syncSeen || t.syncBlocked) && Date.now() >= (t.syncRetryAt || 0)) spawnRunner("sync", t.id);
   }
@@ -157,9 +159,10 @@ async function pollOne(id, pr, j) {
     }
     if (t.prHead && j.headRefOid !== t.prHead) return false; // stale or unknown-head CI cannot resolve a pushed repair
     const failed = (j.statusCheckRollup || []).filter((c) => BAD.includes(String(c.conclusion || c.state || "").toUpperCase())).map((c) => c.name || c.context).filter(Boolean);
-    // What others wrote on it (people or review bots), not the author: a new one is worth the agent's attention.
-    const author = j.author?.login || "";
-    const others = [...(j.comments || []), ...(j.reviews || []).filter((x) => String(x.body || "").trim() || x.state === "COMMENTED")].filter((x) => x.author?.login && x.author.login !== author);
+    // Only what the human wrote on it wakes the agent: the comments of the logged-in GitHub user, never anyone
+    // else's (other people, review bots) and never the board's own review comments, which that same user posts.
+    const human = F.ghUser(S.folderOf(id)) || j.author?.login || "";
+    const others = [...(j.comments || []), ...(j.reviews || []).filter((x) => String(x.body || "").trim() || x.state === "COMMENTED")].filter((x) => x.author?.login && x.author.login === human && !F.boardComment(x.body));
     const feedback = JSON.stringify(others.map((x) => JSON.stringify([x.id || x.url || "", x.author.login, x.body || "", x.updatedAt || x.submittedAt || "", x.state || ""])).sort());
     const newFeedback = others.length > 0 && feedback !== (t.prFeedbackSeen ?? "[]");
     t.prFeedbackSeen = feedback;
@@ -200,7 +203,7 @@ async function pollOne(id, pr, j) {
     if (why && then !== "land") {
       const went = t.prRounds || 0;
       if (!blocking) Object.assign(t, S.failurePatch({ stage: "pr", title: "Pull request feedback", detail: why, next: "Address this on your own branch, run the checks and finish again for review and approval.", agentCanFix: true, auth: false }));
-      if (!t.autoMerge && went < S.choices(t).rounds && ["approval", "failed", "asks", "nosummary"].includes(t.stage)) { t.prRounds = went + 1; then = "wake"; }
+      if (!t.autoMerge && went < S.setting("review.rounds", t) && ["approval", "failed", "asks", "nosummary"].includes(t.stage)) { t.prRounds = went + 1; then = "wake"; }
       else if (t.stage === "approval" || t.autoMerge) t.msg = `${why} ${t.autoMerge ? "Auto-merge is blocked; send details to cancel pending auto-merge and repair safely" : "Automatic retries are exhausted; send details to the agent to try again"}`;
     }
   }, { waitMs: 10000 });

@@ -1,9 +1,9 @@
 # How work gets done
 
 **Delegating.** In a git repo the plugin asks herdr for a worktree workspace (`herdr worktree create`), on its own
-branch `work/<n>-<title>`, started from the remote's default branch (or your commit with `--base head`). The repo's
-`setup` runs, then the agent starts in that workspace's root pane and gets the task and its rules. Outside git the
-agent works in place in a plain herdr workspace. At most `max` (4) agents work at once; more wait their turn, and
+branch `work/<n>-<title>`, started from the remote's default branch (or your commit with `--workspace.from here`). Always: a
+task in a repo never works in your checkout. `workspace.setup` runs, then the agent starts in that workspace's root pane and gets the task and its rules. Outside git the
+agent works in place in a plain herdr workspace. At most `board.agents` (4) agents work at once; more wait their turn, and
 tasks that wait for you hold no slot.
 
 **Finished = the agent says its turn ended.** The plugin starts every agent itself, and at launch it passes a
@@ -63,8 +63,8 @@ the files the task itself changed: the verdict you already have stands and the t
 again. A real conflict is rolled back at once (your branch and the task's are as they
 were) and goes straight to the task's agent as a plain message: the conflicting files, the target commit, and that
 it should resolve them in its own worktree and finish again. Until it has, the task is not waiting for approval: its
-row says "resolving a conflict with main". After `rounds` repairs in a row that
-still conflict, you are asked, with the details kept. `conflictAuto false` on a task keeps its conflicts for you to
+row says "resolving a conflict with main". After `review.rounds` repairs in a row that
+still conflict, you are asked, with the details kept. `review.rounds 0` on a task keeps its conflicts for you to
 send with `Ctrl+R`. Only a task at rest is ever updated: its worktree clean, on exactly the commit that was reviewed.
 A fetch that fails is never taken for a sync: a finished turn is saved as "Could not synchronize main" instead of
 going on to review (and as "Task is on the wrong branch" when its worktree has left the task's own branch). A waiting task whose main cannot be fetched, or that was not at rest when main moved, is held
@@ -94,8 +94,7 @@ a clean update touched none of the files the task changed (the narrower rule abo
 check is set` instead of `tests pass`. The task says plainly what happened: its message reads `Re-merged with main,
 tests pass, review 2 still stands`, the box of that review carries the same line (with when, and how often), the
 row keeps showing the review that passed (`Pass · 2nd review`), and `details` lists each time under that review as
-`kept`. `herdr-superwork config remerge review` turns this off: every update from main that changed the commit is
-then reviewed again, also one that touched other files only.
+`kept`. This is fixed behaviour, not a setting.
 
 **Approving** makes that last sync, re-checks (and re-reviews, by the same rules) if it changed anything, then merges
 through the pull request, only at the commit that was reviewed (when GitHub's checks are still running the board
@@ -118,10 +117,12 @@ finished turn and nothing runs under the agent program (an agent of unknown stat
 running is therefore never closed by itself: archive or remove its task). A reply to work that was cleaned up starts a new round in a fresh worktree. herdr also opens
 the repo itself as a space when it makes a repo's first worktree; that one is closed with the repo's last task
 space, unless it was open before or you use it (a second pane or tab, an agent, a running command, or you are
-looking at it). `cleanup` off keeps everything.
+looking at it). `workspace.cleanup false` keeps everything.
 
 **Agents run with full access by default**, as pi-work's did: `claude --dangerously-skip-permissions`,
 `codex --dangerously-bypass-approvals-and-sandbox --no-daemon`. They can run anything as you without asking; the
-rules and the review brief are guidance, not a sandbox. Change it per agent kind with `agentArgs`. So that a new
+rules and the review brief are guidance, not a sandbox. `worker.access ask` (and `reviewer.access`,
+`coordinator.access`) starts a program without those flags, so it asks before it acts; pi cannot ask, and the value
+is refused for it. So that a new
 task does not wait behind a "trust this folder?" dialog, the plugin marks the task's repo as trusted in the agent's
-own settings (`~/.claude.json`, `~/.codex/config.toml`) before starting it; `config trust off` stops that.
+own settings (`~/.claude.json`, `~/.codex/config.toml`) before starting it (only for a role with full access).

@@ -11,6 +11,7 @@ export function run(a, dir = process.env.HERDR_FAKE_DIR) {
   const fail = (m) => ({ status: 1, stdout: "", stderr: m + "\n" });
   // `late: { head, times }`: the first `times` looks at the pull request still name `head`, the commit before a push.
   const late = () => { const f = path.join(dir, "gh-late"); let n = 0; try { n = Number(fs.readFileSync(f, "utf8")); } catch {} fs.writeFileSync(f, String(n + 1)); return n < c.late.times; };
+  if (a[0] === "api" && a[1] === "user") return ok(c.user || "me"); // who is logged in: the human
   if (a[0] === "pr" && a[1] === "create") return c.createFail ? fail(c.createFail) : ok("https://github.com/o/r/pull/7");
   if (a[0] === "pr" && (a[1] === "ready" || a[1] === "comment")) return ok();
   if (a[0] === "pr" && a[1] === "merge") {

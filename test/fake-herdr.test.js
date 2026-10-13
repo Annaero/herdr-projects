@@ -42,7 +42,7 @@ test("[real programs] the fake herdr answers the same called in the test's proce
 
 test("[real programs] the board's own calls reach herdr either way: in the test's process by default, as a real program when the test asks", async () => {
   for (const program of [false, true]) {
-    const w = await world({ program, settings: { reviewer: "off" } });
+    const w = await world({ program, settings: { "review.when": "never" } });
     try {
       assert.equal(Boolean(globalThis.__swHerdr), !program);
       const h = herdr(w.socket);

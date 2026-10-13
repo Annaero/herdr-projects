@@ -31,8 +31,8 @@ Mark a task as research only:
 - when it is added: `herdr-superwork add "<title>" --research`. The Coordinator does this by itself when you plainly
   ask for research, a review or a report with nothing to be changed ("look into why the build is slow and tell me",
   "write me a report on …"). It does not when a change is wanted, and not when it cannot tell;
-- later: `herdr-superwork config research true --id <id>` (`false` turns it off again). It is the task's `research`
-  setting ([settings](settings.md)).
+- later: `herdr-superwork delegate <id> --research` (`--no-research` turns it off again). It is a property of the
+  task, not a [setting](settings.md): there is nothing to set as a default.
 
 The row says `[research]` after the task's name. The task panel has a part **Research only** with the report's link
 (or `No report yet`), and its settings say `Research  only · no change to the repo` where an ordinary task says how
@@ -58,11 +58,10 @@ merge. A worktree on another branch than its own counts as a change.
 - Nothing is committed, pushed, opened as a pull request or merged.
 - The task goes back to its agent with the list of what changed, to move the result out of the repo and undo every
   change, the commits too.
-- That is one round of the review loop. After `rounds` of them (3 by default) the task stops and waits for you. Its
+- That is one round of the review loop. After `review.rounds` of them (3 by default) the task stops and waits for you. Its
   row says why: `Research only, but its agent changed the repo again after 3 rounds (2 changes in the repo): nothing
   was pushed, opened or merged`. From there you send it back once more (`ctrl+r`), or, if you want the change after
-  all, turn the setting off (`config research false --id <id>`) and retry (`herdr-superwork retry <id>`): it is then
-  an ordinary task.
+  all, delegate it again as an ordinary task (`herdr-superwork delegate <id> --no-research`).
 
 **Nothing changed:**
 
@@ -76,17 +75,18 @@ merge. A worktree on another branch than its own counts as a change.
 - The task ends as **done**, with nothing to merge and its report's link on the task. With no report in the folder
   its line ends with `No report was found.`
 
-A research-only task can never be merged: approving one is refused, and `autoMerge` passes it by.
+A research-only task can never be merged: approving one is refused, and `merge.by: itself` passes it by.
 
 ### A task that works in your own checkout
 
-A task started with `--no-worktree` has no worktree of its own, and what is changed in your checkout may be yours. So
+A task in a repo always has a worktree of its own now. One that an older version started in your checkout (it had
+`--no-worktree`), or one in a folder git cannot make a worktree of, has none, and what is changed in your checkout may be yours. So
 the board writes down how the checkout stands when the agent starts: its commit, and every changed file with what it
 holds, its mode and what is staged of it (the staged mode too). A file git was told not to look at (`assume-unchanged`,
 `skip-worktree`) is read as well. When the task finishes, every file that reads differently from then, and every commit since, is a change, and
 the task goes back as above. Its agent is told to undo only what it changed itself, file by file, and never to reset
 or clean your checkout. A file you changed yourself while it worked is listed too: the board cannot tell whose it
-was, so the agent says so and you retry or turn the setting off.
+was, so the agent says so and you retry, or delegate it again with `--no-research`.
 
 Only a folder that is no repo at all, or a repo with no commit yet, is not looked at: there is nothing to compare, so there the agent's rules and
 the reviewer are what hold.

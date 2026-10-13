@@ -48,7 +48,7 @@ export function neverSteppedInto(t) {
 export function liftOldHolds(tasks, socket) {
   let since = null;
   for (const seen of tasks) {
-    const held = (t) => t.stage === "approval" && !!t.requireApproval && t.holdLooked !== (t.armedAt ?? 0) && !t.archivedAt && t.link?.socket === socket && F.isAgentTask(t) && !!S.choices(t).autoMerge;
+    const held = (t) => t.stage === "approval" && !!t.requireApproval && t.holdLooked !== (t.armedAt ?? 0) && !t.archivedAt && t.link?.socket === socket && F.isAgentTask(t) && S.setting("merge.by", t) === "itself";
     if (!held(seen)) continue;
     since ??= ruleSince();
     const free = (seen.armedAt || 0) < since && neverSteppedInto(seen);

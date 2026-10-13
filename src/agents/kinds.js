@@ -1,6 +1,7 @@
-// Everything agent-specific lives in this one table. Every entry is optional and has a stated fallback, so any
-// `herdr agent start --kind` value works as a worker or reviewer:
-//   args        default arguments after `--` (full access, as pi-work's agents had)  none: the agent keeps its prompts
+// Everything agent-specific lives in this one table. Every entry is optional and has a stated fallback, so a
+// new program is one more entry here:
+//   access      the arguments for each `<role>.access` value: `full` and `ask`      no `ask`: the value is refused for it
+//   efforts     the effort levels it accepts (`<role>.effort` is checked against them) none: any word is passed on
 //   resume      arguments that reopen a conversation by id                          none: starts fresh
 //   model       arguments that choose a model                                       none: the agent's default
 //   effort      arguments that choose an effort level                               none: the agent's default
@@ -67,7 +68,8 @@ export const AGENTS = {
     },
     readTurn: readClaude,
     skillDir: () => skillAt(claudeHome()),
-    args: ["--dangerously-skip-permissions"],
+    access: { full: ["--dangerously-skip-permissions"], ask: [] },
+    efforts: ["low", "medium", "high", "xhigh", "max"],
     resume: (id) => ["--resume", id],
     model: (m) => ["--model", m],
     effort: (e) => ["--effort", e],
@@ -131,7 +133,8 @@ export const AGENTS = {
     skillDir: () => skillAt(codexHome()),
     // --no-daemon: a shared Codex background server of another version shows a restart dialog that herdr reads as
     // idle, so a prompt would be typed into it. Each agent runs on its own instead.
-    args: ["--dangerously-bypass-approvals-and-sandbox", "--no-daemon"],
+    access: { full: ["--dangerously-bypass-approvals-and-sandbox", "--no-daemon"], ask: ["--no-daemon"] },
+    efforts: ["minimal", "low", "medium", "high", "xhigh"],
     resume: (id) => ["resume", id],
     model: (m) => ["-m", m],
     effort: (e) => ["-c", `model_reasoning_effort="${e}"`],
@@ -139,8 +142,8 @@ export const AGENTS = {
     // (none without it), for `codex`, `codex resume` and `codex exec` alike. A model that has no such tier drops it
     // with a warning and runs at normal speed.
     fast: () => ["-c", 'service_tier="fast"'],
-    // The setting is the one switch. Off names the default tier, last on the line, so it wins over a tier in your own
-    // `agentArgs` (in any spelling), in ~/.codex/config.toml or in a profile. Verified on 0.160.0: after a fast
+    // The setting is the one switch. Off names the default tier, last on the line, so it wins over a tier
+    // in ~/.codex/config.toml or in a profile. Verified on 0.160.0: after a fast
     // override, `-c service_tier="default"` sends no tier and prints no warning.
     slow: () => ["-c", 'service_tier="default"'],
     oneShot: ({ model, prompt }) => ({ command: "codex", args: ["exec", "--skip-git-repo-check", "--ephemeral", "--color", "never", ...(model ? ["-m", model] : []), prompt] }),
@@ -197,7 +200,8 @@ export default function (pi: any) {
     },
     readTurn: readPi,
     skillDir: () => skillAt(piHome()),
-    args: [], // pi never asks before running something
+    access: { full: [] }, // pi never asks before running something: it has no `ask`
+    efforts: ["off", "minimal", "low", "medium", "high", "xhigh"],
     resume: (id) => ["--session-id", id],
     model: (m) => (m.includes("/") ? ["--provider", m.slice(0, m.indexOf("/")), "--model", m.slice(m.indexOf("/") + 1)] : ["--model", m]),
     effort: (e) => ["--thinking", e],

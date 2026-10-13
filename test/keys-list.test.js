@@ -10,7 +10,7 @@ import { pages } from "../scripts/docs.js";
 import { open } from "./board-helpers.js";
 
 test("the keys list: a key moved in its entry is moved everywhere, and its old chord does nothing", async () => {
-  const w = await world({ settings: { helper: "off", reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   const was = {};
   const move = (id, keys) => { was[id] = { keys: KEY[id].keys, show: KEY[id].show }; KEY[id].keys = keys; delete KEY[id].show; };
   try {

@@ -27,7 +27,7 @@ function endTurn(w, t, text) {
 }
 
 test("with a remote: main moving there (not through the board) is noticed by the periodic fetch, and the updated branch is pushed", async () => {
-  const w = await world({ origin: true, settings: { reviewer: "off" } });
+  const w = await world({ origin: true, settings: { "review.when": "never" } });
   try {
     w.script({ worker: [{ files: { "f.txt": "v1\n" }, commit: "v1", note: "Did v1." }] });
     const id = A.add(w.root, "Remote").id;
@@ -57,7 +57,7 @@ test("with a remote: main moving there (not through the board) is noticed by the
 });
 
 test("a fetch that fails is not a sync: a finished turn is held with the error, and a waiting task is tried again once the remote answers", async () => {
-  const w = await world({ origin: true, settings: { reviewer: "off" } });
+  const w = await world({ origin: true, settings: { "review.when": "never" } });
   const { housekeeping, pollPrs } = await import("../src/housekeeping.js");
   const syncJobs = () => globalThis.__swJobs.filter(([job]) => job === "sync").length;
   const bare = path.join(w.base, "origin.git");
@@ -107,7 +107,7 @@ test("a fetch that fails is not a sync: a finished turn is held with the error, 
 });
 
 test("with a remote but pull requests off, tasks land in your local branch: that branch is the main they are kept up to date with", async () => {
-  const w = await world({ origin: true, settings: { reviewer: "off", pr: false } });
+  const w = await world({ origin: true, settings: { "review.when": "never", "merge.pr": false } });
   const { housekeeping } = await import("../src/housekeeping.js");
   try {
     const start = async (title, files) => { w.script({ worker: [{ files, commit: title, note: `Did ${title}.` }] }); const id = A.add(w.root, title).id; A.delegate(id); assert.equal((await settle(id)).stage, "approval"); return id; };
@@ -128,7 +128,7 @@ test("with a remote but pull requests off, tasks land in your local branch: that
 });
 
 test("when the periodic fetch fails, nothing is known about main: waiting tasks are held as behind main until a fetch works", async () => {
-  const w = await world({ origin: true, settings: { reviewer: "off" } });
+  const w = await world({ origin: true, settings: { "review.when": "never" } });
   const { housekeeping, pollPrs } = await import("../src/housekeeping.js");
   const bare = path.join(w.base, "origin.git");
   try {

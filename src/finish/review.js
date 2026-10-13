@@ -4,7 +4,7 @@ import path from "node:path";
 import * as S from "../store.js";
 import * as F from "../flow.js";
 import { sleep } from "../runner.js";
-import { startArgs, preTrust, adapter, readTurnOf, installed } from "../agents.js";
+import { startArgs, preTrust, adapter, readTurnOf, installed, roleOf, ownWords } from "../agents.js";
 import { whyStopped } from "../turn.js";
 import { launchExtras, taskLine } from "../delegate.js";
 import { publishReview } from "../review-page.js";
@@ -56,15 +56,16 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
   // The configured reviewer program may not be installed here: review with the working agent's kind instead, on that
   // kind's own default model and effort, and say so on the task.
-  let rkind = ch.reviewer, rmodel = ch.reviewerModel, reffort = ch.reviewerEffort;
+  const who = roleOf("reviewer", (n) => ch[n]);
+  let rkind = who.kind, rmodel = who.model, reffort = who.effort;
   if (!installed(rkind) && installed(t.agent)) { rkind = t.agent; rmodel = ""; reffort = ""; }
   const round = (t.reviewRound || 0) + 1;
-  t = g.set((t) => { S.keepSavedReview(t); t.reviewRound = round; t.reviewSession = null; t.fallbacks = { ...(t.fallbacks || {}), reviewer: rkind !== ch.reviewer ? `reviewed by ${rkind}: ${ch.reviewer} is not installed here` : undefined }; });
+  t = g.set((t) => { S.keepSavedReview(t); t.reviewRound = round; t.reviewSession = null; t.fallbacks = { ...(t.fallbacks || {}), reviewer: rkind !== who.kind ? `reviewed by ${rkind}: ${who.kind} is not installed here` : undefined }; });
   // From the second round of a send-back on, the reviewer checks the earlier findings instead of starting over.
   const before = S.reviewHistory(t).filter((e) => G.isTagged(e));
   const earlier = (t.reviewRounds || 0) > 0 && before.length ? before.at(-1).findings : null;
   const used = before.flatMap((e) => e.findings.map((f) => f.id));
-  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, filed: knownFaults(t), check })}`;
+  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, filed: knownFaults(t), check })}${who.instructions ? `\n\n${ownWords(who.instructions)}` : ""}`;
   let pane = null, tab = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0, cut = null, mark = null;
   // The reviewer ended its turn with no verdict. Its saved conversation says why: a turn that ended in the provider's
   // error was cut off (`cut`), and only one that really finished is "finished without a verdict", with its last message.
@@ -77,7 +78,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
     return or || `the reviewer finished without a verdict${w.turn?.finished && w.turn.said ? `. Its last message: ${w.turn.said.slice(0, 1500)}` : ""}`;
   };
   try {
-    preTrust(rkind, t.root || S.folderOf(t.id));
+    preTrust(rkind, t.root || S.folderOf(t.id), who.access);
     await closeReviewer(id); // a tab left over from an interrupted round
     // Its own tab, never focused: the human stays where they are, and the agent's tab and the board keep their size.
     const made = F.openReviewerTab(api, t, round, { cwd: folder, env: S.boardEnv() });
@@ -89,7 +90,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
     const x = launchExtras(t, "reviewer", { kind: rkind, round });
     t = g.set((t) => { t.link = { ...t.link, reviewer: { pane: pane.pane_id, tab, agent: name, kind: rkind } }; t.reviewSession = x.session; });
     const start = (hook) => {
-      const args = startArgs(rkind, { model: rmodel, effort: reffort, fast: ch.reviewerFast, session: x.session, extra: hook });
+      const args = startArgs(rkind, { model: rmodel, effort: reffort, fast: who.fast, access: who.access, session: x.session, extra: hook });
       try { api.agentStart(name, rkind, pane.pane_id, args); settle(api, pane.pane_id, [rkind, ...args].join(" ")); } // up before its brief is typed (submit.js)
       catch (e) { if (e.code === "agent_not_ready") return; if (!hook.length) throw e; start([]); } // once more without the hook arguments
     };
@@ -153,14 +154,14 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
     return { cut, error, auth };
   }
   if (!review) return { error: error || "no valid verdict", auth };
-  G.stamp(review, ch.gate);
+  G.stamp(review, ch["review.mustFix"]);
   try { suggestFaults(id, review); } catch (e) { if (e.aborted) return { aborted: true }; }
   // Move the folder to the task's artifacts and publish the evidence page.
   const art = S.artifactsDir(id);
   try { for (const f of fs.existsSync(art) ? fs.readdirSync(art) : []) if (f !== REPORT) fs.rmSync(path.join(art, f), { recursive: true, force: true }); /* the task's report is kept there too (research.js) */ fs.mkdirSync(art, { recursive: true }); fs.cpSync(dir, art, { recursive: true }); fs.rmSync(dir, { recursive: true, force: true }); } catch {}
   try {
     t = S.get(id);
-    review.artifacts = await publishReview({ enabled: ch.artifacts, dir: art, listed: review.listed, review, task: t, serve: ch.serve, onFallback: (why) => { try { S.update(id, (t) => { t.fallbacks = { ...(t.fallbacks || {}), serve: why }; }, { waitMs: 10000 }); } catch {} },
+    review.artifacts = await publishReview({ enabled: ch["review.evidence"], dir: art, listed: review.listed, review, task: t,
       context: { id, round: S.reviewRound(t), title: t.title, description: t.description, summary: text, stat: change?.stat, head: change?.head, pr: t.pr } });
   } catch { review.artifacts = []; } // a publish failure must not bypass the requested-review gate, nor fail the review
   delete review.listed;

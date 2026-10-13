@@ -19,7 +19,7 @@ function draft(s, width) {
 }
 
 test("a draft longer than the text box wraps onto further lines, between words, and the box grows with it", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off" } });
+  const w = await world();
   try {
     A.add(w.root, "Some task");
     const s = open(w, { rows: 30 });
@@ -43,7 +43,7 @@ test("a draft longer than the text box wraps onto further lines, between words, 
 });
 
 test("the text box stops growing at half the window: a longer draft scrolls inside it and the cursor stays in view", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off" } });
+  const w = await world();
   try {
     A.add(w.root, "Some task");
     const words = Array.from({ length: 200 }, (_, i) => `word${i + 1}`).join(" ");
@@ -68,7 +68,7 @@ test("the text box stops growing at half the window: a longer draft scrolls insi
 });
 
 test("the arrows and the editing keys work across the lines of a wrapped draft", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off" } });
+  const w = await world();
   try {
     A.add(w.root, "Some task");
     const s = open(w, { rows: 30 });
@@ -101,7 +101,7 @@ test("the arrows and the editing keys work across the lines of a wrapped draft",
 });
 
 test("a word longer than the text box is cut at its edge, and a long paste wraps like typed text", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off" } });
+  const w = await world();
   try {
     A.add(w.root, "Some task");
     const s = open(w, { rows: 30 });
@@ -129,7 +129,7 @@ test("a word longer than the text box is cut at its edge, and a long paste wraps
 });
 
 test("a reply to a task's agent wraps in the same box, under the agent's latest message", async () => {
-  const w = await world({ settings: { helper: "off", coordinator: "off" } });
+  const w = await world();
   try {
     w.script({ worker: [{ files: { "f.txt": "1\n" }, commit: "1", note: "Made f." }], reviewer: [{ verdict: { meets: true, text: "Good.", findings: [{ severity: "minor", subject: "f.txt has no title", where: "f.txt" }] } }] });
     const id = A.add(w.root, "Make f").id;

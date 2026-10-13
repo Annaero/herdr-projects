@@ -18,7 +18,7 @@ test("the Watcher is shown how a status text is written, and what it writes is k
 });
 
 test("the hidden helper: the watcher writes a line and a guess", async () => {
-  const w = await world({ settings: { reviewer: "off", watcher: "on" } });
+  const w = await world({ settings: { "review.when": "never", "watcher.agent": "claude" } });
   try {
     process.env.HERDR_SUPERWORK_HELPER_CMD = JSON.stringify(["node", path.join(here, "fake-helper.js")]);
     const seen = path.join(w.root, "..", "watcher-prompt.txt"); process.env.FAKE_HELPER_PROMPT = seen;

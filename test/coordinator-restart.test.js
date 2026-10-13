@@ -13,7 +13,7 @@ import { coordWorld, open } from "./coordinator-helpers.js";
 import { AGENTS } from "../src/agents.js";
 
 test("restart keeps the conversation, new starts a fresh one, and one Coordinator can be picked for a single use", async () => {
-  const w = await coordWorld({ coordinatorModel: "claude-haiku-5-5" });
+  const w = await coordWorld({ "coordinator.agent": "claude/claude-haiku-5-5" });
   try {
     const out = [];
     const write = process.stdout.write.bind(process.stdout);
@@ -34,22 +34,22 @@ test("restart keeps the conversation, new starts a fresh one, and one Coordinato
     C.send(w.root, "still there?"); await drainJobs(runJob);
     assert.equal(arg("--resume"), first.session); assert.deepEqual(w.agents()[0].agent.prompts.map((p) => p.split("\n").pop()), ["still there?"]);
     // New, for one use: codex, its own model and effort. The default is untouched.
-    assert.match(await cli("coordinator", "new", "--agent", "codex", "--model", "gpt-x", "--effort", "high"), /a new Coordinator is starting/);
+    assert.match(await cli("coordinator", "new", "--agent", "codex/gpt-x", "--effort", "high"), /a new Coordinator is starting/);
     let agent = w.agents()[0].agent;
     assert.equal(agent.kind, "codex"); assert.deepEqual(agent.args.slice(-4), ["-m", "gpt-x", "-c", 'model_reasoning_effort="high"']);
     assert.match(fs.readFileSync(path.join(C.home(), "AGENTS.md"), "utf8"), /You are the Coordinator/); // the other program finds the rules in the same folder
     assert.deepEqual(C.get().run, { kind: "codex", model: "gpt-x", effort: "high", oneOff: true }); assert.equal(C.get().session, null);
-    assert.equal(S.config().coordinator, "claude"); assert.equal(C.look().stale, false);
+    assert.equal(S.setting("coordinator.agent"), "claude/claude-haiku-5-5"); assert.equal(C.look().stale, false);
     assert.match(await cli("coordinator"), /codex · gpt-x · high \(for this one only\) · default: claude · claude-haiku-5-5/);
     // Restarting a one-off keeps it; a plain new one is the default again.
     await cli("coordinator", "restart"); assert.equal(w.agents()[0].agent.kind, "codex");
     await cli("coordinator", "new");
     assert.equal(w.agents()[0].agent.kind, "claude"); assert.notEqual(C.get().session, first.session); assert.equal(C.get().run.oneOff, undefined);
     // The default is a setting like the agent's, the watcher's and the reviewer's; a running one says when it changed.
-    await cli("config", "coordinator", "codex");
-    assert.deepEqual(C.choice(), { kind: "codex", model: "claude-haiku-5-5", effort: "" });
+    await cli("set", "coordinator.agent", "codex"); // the model travels with the program: Claude's is not handed to Codex
+    assert.deepEqual(C.choice(), { kind: "codex", model: "", effort: "" });
     const s = open(w);
-    assert.equal(C.look().stale, true); assert.match(s.text(), /your default is now codex · claude-haiku-5-5 · default effort: herdr-superwork coordinator new starts a new one on it/);
+    assert.equal(C.look().stale, true); assert.match(s.text(), /your default is now codex · default model · default effort: herdr-superwork coordinator new starts a new one on it/);
     // The board itself neither restarts it nor starts a new one: that is the command line's. The old keys do nothing,
     // on an empty text box or in a draft, and the menu has no line for either.
     s.press("alt+r", "alt+n"); assert.equal(s.v.ask, null); assert.ok(!C.get().want);
@@ -61,13 +61,13 @@ test("restart keeps the conversation, new starts a fresh one, and one Coordinato
     assert.equal(w.agents()[0].agent.kind, "codex"); assert.equal(C.look().stale, false);
     // Stop closes it; off turns the box back into adding tasks word for word.
     await cli("coordinator", "stop"); assert.equal(w.agents().length, 0); assert.deepEqual(w.state().tabs.map((x) => x.label), ["1"]); assert.equal(C.look().state, "exited"); // its tab is gone, the home space stays
-    await cli("config", "coordinator", "off");
+    await cli("set", "coordinator.agent", "none");
     assert.equal(C.choice(), null);
   } finally { w.cleanup(); }
 });
 
 test("a program that names its own conversations (Codex) is restarted in the same one, without the board having looked first", async () => {
-  const w = await coordWorld({ coordinator: "codex" });
+  const w = await coordWorld({ "coordinator.agent": "codex" });
   const before = process.env.CODEX_HOME;
   process.env.CODEX_HOME = path.join(w.base, "codex");
   try {
@@ -141,7 +141,7 @@ test("the agent's own new-chat command is followed: the chat shows the new conve
 });
 
 test("pi's own /new is followed too: the newest session saved for its folder is the Coordinator's", async () => {
-  const w = await coordWorld({ coordinator: "pi" });
+  const w = await coordWorld({ "coordinator.agent": "pi" });
   const before = process.env.PI_CODING_AGENT_DIR;
   process.env.PI_CODING_AGENT_DIR = path.join(w.base, "pi");
   S.writeJson(path.join(S.dataDir(), "versions.json"), { pi: { v: "9.9.9", at: Date.now(), found: true } });
@@ -166,18 +166,18 @@ test("pi's own /new is followed too: the newest session saved for its folder is 
 });
 
 test("out of the box the Coordinator is Claude Code on its defaults, whatever the working agent is set to", async () => {
-  const w = await coordWorld({ agent: "codex", model: "gpt-5.5", effort: "high" });
+  const w = await coordWorld({ "worker.agent": "codex/gpt-5.5", "worker.effort": "high" });
   try {
-    assert.equal(S.DEFAULTS.coordinator, "claude");
+    assert.equal(S.entryOf("coordinator.agent").builtin, "claude");
     assert.deepEqual(C.choice(), { kind: "claude", model: "", effort: "" });
-    S.setConfig("coordinator", ""); // nothing set is the default too, not the working agent
+    S.unsetValue("coordinator.agent"); // nothing set is the default too, not the working agent
     assert.deepEqual(C.choice(), { kind: "claude", model: "", effort: "" });
     C.send(w.root, "hello"); await drainJobs(runJob);
     assert.deepEqual(C.get().run, { kind: "claude", model: "", effort: "" });
     const [a] = w.agents();
     assert.equal(a.agent.kind, "claude");
     assert.ok(!/--model|--effort|gpt-5\.5/.test(JSON.stringify(a.agent.args)), "the agent's model and effort are not passed on");
-    S.setConfig("coordinatorModel", "claude-haiku-5-5");
+    S.setValue("coordinator.agent", "claude/claude-haiku-5-5");
     assert.deepEqual(C.choice(), { kind: "claude", model: "claude-haiku-5-5", effort: "" });
   } finally { w.cleanup(); }
 });
@@ -226,7 +226,8 @@ test("the rules are AGENTS.md in the folder it starts in, on no launch flag, and
 });
 
 test("a program the board does not know gets AGENTS.md and one line that points at it; your own notes in the file are kept; changed rules reach a running one", async () => {
-  const w = await coordWorld({ coordinator: "amp" });
+  AGENTS.amp = {}; // a program the table says nothing about
+  const w = await coordWorld({ "coordinator.agent": "amp" });
   try {
     S.writeJson(path.join(S.dataDir(), "versions.json"), { amp: { v: "1.0.0", at: Date.now(), found: true } });
     fs.writeFileSync(path.join(C.home(), "AGENTS.md"), "# Mine\nAlways answer in Swedish.\n");
@@ -246,5 +247,5 @@ test("a program the board does not know gets AGENTS.md and one line that points 
     assert.match(read("AGENTS.md"), /^# Mine, edited\n/); assert.match(read("AGENTS.md"), /<!-- \/herdr-superwork -->\nA note below\.\n$/);
     // Written the same way twice: nothing is added.
     const before = read("AGENTS.md"); C.writeRules(C.home(), "amp"); assert.equal(read("AGENTS.md"), before);
-  } finally { w.cleanup(); }
+  } finally { delete AGENTS.amp; w.cleanup(); }
 });

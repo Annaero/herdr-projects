@@ -56,7 +56,7 @@ test("a review under way: the reviewer sits in its own tab, the agent's tab keep
 });
 
 test("a reviewer left over from before a restart is closed: its tab, or, from before reviewers had tabs, only its pane", async () => {
-  const w = await world({ settings: { reviewer: "off" } });
+  const w = await world({ settings: { "review.when": "never" } });
   try {
     w.script({ worker: [work(1)] });
     const id = A.add(w.root, "Left over").id;

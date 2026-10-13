@@ -11,7 +11,7 @@ export const KEY = { enter: "\r", tab: "\t", esc: "\x1b", space: " ", "alt+c": "
 // A world with a Coordinator: the default one is Claude Code on its defaults. Its folder and Claude's own files are the
 // test's, and both programs count as installed without being run.
 export async function coordWorld(settings = {}) {
-  const w = await world({ settings: { coordinator: "claude", reviewer: "off", ...settings } });
+  const w = await world({ settings: { "coordinator.agent": "claude", "review.when": "never", ...settings } });
   process.env.HERDR_SUPERWORK_COORDINATOR_DIR = path.join(w.base, "home"); fs.mkdirSync(process.env.HERDR_SUPERWORK_COORDINATOR_DIR);
   process.env.CLAUDE_CONFIG_DIR = path.join(w.base, "claude");
   S.writeJson(path.join(S.dataDir(), "versions.json"), Object.fromEntries(["claude", "codex"].map((k) => [k, { v: "9.9.9", at: Date.now(), found: true }])));

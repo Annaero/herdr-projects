@@ -25,7 +25,7 @@ export async function world({ repo = true, settings = {}, repoSettings = null, o
   Object.assign(process.env, {
     HERDR_SUPERWORK_DATA_DIR: path.join(base, "data"), HERDR_SUPERWORK_CONFIG_DIR: path.join(base, "config"), HERDR_FAKE_DIR: fake,
     HERDR_BIN_PATH: path.join(here, "bin", "herdr"), HERDR_SOCKET_PATH: socket, HERDR_SUPERWORK_INLINE: "1", HERDR_SUPERWORK_SETTLE_MS: "0", HERDR_SUPERWORK_PR_LAG_MS: "0", HERDR_SUPERWORK_READY_STEP_MS: "0",
-    HERDR_SUPERWORK_POLL_MS: "20", HERDR_SUPERWORK_NO_KEEPER: "1", HERDR_SUPERWORK_NO_HOOK: "1", HERDR_SUPERWORK_READ_MS: "0", HERDR_SUPERWORK_REVIEW_MS: "120000", HERDR_SUPERWORK_NO_SERVER: "1",
+    HERDR_SUPERWORK_POLL_MS: "20", HERDR_SUPERWORK_NO_KEEPER: "1", HERDR_SUPERWORK_NO_HOOK: "1", HERDR_SUPERWORK_READ_MS: "0", HERDR_SUPERWORK_REVIEW_MS: "120000", HERDR_SUPERWORK_NO_SERVER: "1", HERDR_SUPERWORK_LINKS: "local",
     HERDR_SUPERWORK_CLAUDE_JSON: path.join(base, "claude.json"), HERDR_SUPERWORK_CODEX_TOML: path.join(base, "codex.toml"),
     PATH: `${path.join(here, "bin")}:${process.env.PATH}`,
     GIT_AUTHOR_NAME: "tester", GIT_AUTHOR_EMAIL: "t@test", GIT_COMMITTER_NAME: "tester", GIT_COMMITTER_EMAIL: "t@test",
@@ -48,7 +48,7 @@ export async function world({ repo = true, settings = {}, repoSettings = null, o
   // The agent programs count as installed, without being run for their version. A test about a missing or old program writes its own.
   fs.mkdirSync(process.env.HERDR_SUPERWORK_DATA_DIR, { recursive: true });
   fs.writeFileSync(path.join(process.env.HERDR_SUPERWORK_DATA_DIR, "versions.json"), JSON.stringify(Object.fromEntries(["claude", "codex", "pi"].map((k) => [k, { v: "9.9.9", at: Date.now(), found: true }]))));
-  fs.writeFileSync(path.join(process.env.HERDR_SUPERWORK_CONFIG_DIR, "config.json"), JSON.stringify({ watcher: "off", coordinator: "off", serve: "local", ...settings }));
+  fs.writeFileSync(path.join(process.env.HERDR_SUPERWORK_CONFIG_DIR, "config.json"), JSON.stringify({ "watcher.agent": "none", "coordinator.agent": "none", ...settings }));
   let root = path.join(base, "proj");
   fs.mkdirSync(root);
   if (repo) {

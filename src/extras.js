@@ -1,5 +1,5 @@
 // The things the plugin writes outside its own folders, each consented and removable. They are:
-//   1. a small how-to in each installed agent program's own skills folder (setting `skill`, default on), so any chat
+//   1. a small how-to in each installed agent program's own skills folder (always written; `remove-extras` takes it out for good), so any chat
 //      knows the board without being told;
 //   2. on a yes at the board's first run, marked blocks in herdr's config.toml: a key to open the board and the sidebar
 //      rows that show the plugin's labels;
@@ -41,32 +41,34 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
   (a title is a few words, ${S.TITLE_RULE}: a longer one is cut short and its full text kept in the description;
   \`--repo <name or path>\` for another). Adding starts nothing. Add \`--delegate\` only if the human asked for an agent.
   Add \`--research\` when the human plainly asked for research, a review or a report with nothing changed: the task's agent
-  then changes nothing in the repo and its result is a report (later: \`config research true --id <id>\`).
+  then changes nothing in the repo and its result is a report (later: \`delegate <id> --research\`).
   Add a task only when the human asked for it: nothing adds tasks by itself.
 - \`herdr-superwork suggestions [<id>]\`: work that agents and reviewers came across outside their own task. Each is a
   suggestion on the task that raised it, waiting for the human. \`accept <id> [S1]\` makes one a task, \`dismiss <id> [S1]\`
   drops it: both only when the human plainly says so.
 - \`herdr-superwork delegate <id>\`: put an agent on a task. It works in its own git worktree, as an ordinary herdr
-  agent in its own herdr space. Options for this one task: \`--agent claude|codex|pi\`, \`--model\`, \`--effort\`,
-  \`--reviewer <kind>|off\`, \`--gate critical|major|minor|trivial|off\`, \`--autoMerge true|false\`, \`--no-worktree\` (work in the human's checkout),
-  \`--base head\` (start from their current commit).
+  agent in its own herdr space. Any work setting can be chosen for this one task as \`--<name> <value>\`:
+  \`--worker.agent claude|codex|pi\` (a model after a slash: \`codex/gpt-5.5\`), \`--worker.effort\`, \`--reviewer.agent\`,
+  \`--review.when always|repos|never\`, \`--review.mustFix critical|major|minor|trivial\`, \`--merge.by you|itself\`,
+  \`--workspace.from here\` (start from their current commit). A refused option changes nothing on the task.
+- \`herdr-superwork show [<id>]\`: every setting, its value and the place it came from (for one task, or the human's own).
+  \`herdr-superwork set <name> <value>\` changes one for the human, \`--repo <name>\` for one repo, \`--task <id>\` for one
+  task; \`herdr-superwork unset <name>\` (same options) puts it back. Only when the human asks.
 - \`herdr-superwork tell <id> "<text>"\`: send a message to a task's agent (on a task with no agent yet: starts one with it).
 - \`herdr-superwork stop <id>\`: interrupt a task's agent.
 - \`herdr-superwork report <id> --state <idle|working|done> [--msg "<one line>"] [--progress <0-100>] [--eta <minutes left>]\`: say where one of
   the human's own tasks stands. Write it like these: "Updating file locations and running checks", "Waiting for the PR review on GitHub", "Fixing the two failing tests".
   \`--title\` renames it. \`herdr-superwork describe <id> "<text>"\` replaces its description.
 - \`herdr-superwork approve <id>\`: merge finished work that waits for approval. Only when the human plainly says so.
-  With the \`autoMerge\` setting on (\`config autoMerge true\`, or \`--id <id>\` for one task) work that passed its review
-  merges by itself; off, the default, it waits for that approval. Only the human turns it on.
+  With \`merge.by\` set to \`itself\` (\`set merge.by itself\`, or \`--task <id>\` for one task) work that passed its review
+  merges by itself; \`you\`, the default, waits for that approval. Only the human changes it.
 - Finished work is reviewed by a second agent. It lists findings tagged critical, major, minor or trivial; the board
-  decides from them. A finding at or above the \`gate\` setting (major by default) fails the review and goes back to
-  the agent by itself; anything milder passes (\`Pass · 2 minor\`). \`gate off\`: nothing goes back by itself.
+  decides from them. A finding at or above \`review.mustFix\` (major by default) fails the review and goes back to
+  the agent by itself; anything milder passes (\`Pass · 2 minor\`). \`review.rounds 0\`: nothing goes back by itself.
 - \`herdr-superwork review <id>\` sends the reviewer's findings back to the agent; \`retry <id>\` sends a saved error back;
   \`fix <id>\` sends failure details; \`details <id>\` reads them.
 - \`herdr-superwork archive <id>\` hides a task and keeps everything; \`restore <id>\` brings it back; \`clear <id>\` removes it
   (only when the human plainly asks).
-- \`herdr-superwork config\` shows the settings; \`config <key> <value>\` changes one; \`config <key> <value> --id <id>\` sets it
-  for one task.
 
 If you are an agent or a reviewer the board itself started on a task, your rules were given to you at the start, and
 they come first: do nothing to the board beyond your own task unless a human explicitly told you to. An explicit
@@ -87,7 +89,7 @@ function skillTargets() {
 export function syncSkill(shim) { return S.withLock("extras", () => syncSkill0(shim), { waitMs: 15000 }); }
 function syncSkill0(shim = path.join(S.dataDir(), "bin", NAME)) {
   if (process.env.HERDR_SUPERWORK_INLINE === "1" && process.env.HERDR_SUPERWORK_SKILL_DIRS === undefined) return []; // tests never write into real agent folders
-  if (!S.config().skill) return removeSkill0();
+  if (extras().skillOff) return removeSkill0(); // taken out with remove-extras: not written back
   const wrote = new Set(extras().skillPaths || []);
   const text = skillText(shim);
   for (const { dir } of skillTargets()) {
@@ -210,7 +212,6 @@ export const removeWebUi = async () => { try { return await (await import("./web
 export function removeExtras() {
   const blocks = removeBlocks();
   removeSkill();
-  S.setConfig("skill", "false");
-  save({ asked: true, key: "no", sidebarAnswer: "no", sidebar: false });
+  save({ asked: true, key: "no", sidebarAnswer: "no", sidebar: false, skillOff: true });
   return { blocks, skill: "off" };
 }
