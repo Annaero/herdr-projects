@@ -45,7 +45,6 @@ One page per topic, in [docs/](docs/):
 - [Handing text to an agent: typed is not sent](docs/handing-over.md)
 - [A turn cut off by the provider](docs/provider-errors.md)
 - [The gate](docs/gate.md)
-- [Suggested tasks](docs/suggestions.md)
 - [Reports, and research-only tasks](docs/research.md)
 - [Automations: tasks made on a schedule, or when something happens on the board](docs/automations.md)
 - [Titles and their length limit](docs/titles.md)

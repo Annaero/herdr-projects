@@ -15,7 +15,7 @@ Different by choice, or because herdr or an agent program cannot do it:
 - The sidebar shows only tasks with a live agent pane.
 - The task panel shows the raw screen while an agent sits at a dialog that is not in its messages.
 - A question does not pop open by itself: the row says so and the task panel reads it. Agents are told to report only `blocked`, never their own progress.
-- Agents the board starts are told to leave the board alone beyond their own task (suggesting tasks, reporting themselves blocked) unless you tell them otherwise; no command is refused them.
+- Agents the board starts are told to leave the board alone beyond their own task (reporting themselves blocked) unless you tell them otherwise; no command is refused them.
 - One Watcher model for everything; per task it is on or off.
 - Hooks were verified on Claude Code 2.1.296, Codex 0.160.0 and pi 1.1.0, and those are the adapters' minimum
   versions: older programs run without the hook. Codex and pi were verified piece by piece (hook, file, resume), not

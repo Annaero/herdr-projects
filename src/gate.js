@@ -15,13 +15,13 @@ export const barOf = (gate) => (SEVERITIES.includes(gate) ? gate : DEFAULT_GATE)
 export function readFindings(list) {
   return (Array.isArray(list) ? list : []).filter((f) => f && typeof f === "object" && line(f.subject, 1)).map((f) => {
     const severity = String(f.severity ?? "").trim().toLowerCase();
-    return { id: line(f.id, 16), severity: SEVERITIES.includes(severity) ? severity : "major", subject: line(f.subject, 400), ...(line(f.title, 1) ? { title: line(f.title, 200) } : {}), where: line(f.where, 200), proof: line(f.proof, 600), preexisting: f.preexisting === true };
+    return { id: line(f.id, 16), severity: SEVERITIES.includes(severity) ? severity : "major", subject: line(f.subject, 400), where: line(f.where, 200), proof: line(f.proof, 600), preexisting: f.preexisting === true };
   });
 }
 // The board's rules, applied to what came back.
 // `earlier`: the findings of the round before, when this is a later round (null on a first review). Then an earlier
 // finding still open comes back under its id, and anything new stays only if it is critical with proof, or was
-// there before the task: that one holds nothing back, it is only suggested to the human as a task of its own.
+// there before the task: that one holds nothing back, it is a note for the human in the review.
 // `used`: every finding id this task has had, so a new one never takes an old number.
 export function settle(meets, found, earlier = null, used = []) {
   const prior = new Map((earlier || []).filter((f) => !f.board).map((f) => [f.id, f]));
@@ -35,14 +35,14 @@ export function settle(meets, found, earlier = null, used = []) {
       if (out.some((o) => o.id === was.id)) continue;
       // An earlier finding may not grow on the way, except into a proven critical one. What it was tagged as stays.
       if (severity !== "critical" && rank(severity) > rank(was.severity)) severity = was.severity;
-      out.push({ ...f, id: was.id, severity, preexisting: was.preexisting, ...(was.task ? { task: was.task } : {}), ...(was.suggested ? { suggested: was.suggested } : {}), ...(was.unsuggested ? { unsuggested: was.unsuggested } : {}) });
+      out.push({ ...f, id: was.id, severity, preexisting: was.preexisting, ...(was.task ? { task: was.task } : {}) });
     } else if (earlier && severity !== "critical" && !f.preexisting) left++;
     else out.push({ ...f, id: "", severity });
   }
   // The fixed question answered "no" is a critical finding, whatever the list says.
   if (meets === false && !out.some((f) => f.severity === "critical" && !f.preexisting)) out.unshift({ id: "meets", severity: "critical", subject: "The change does not do what the task asked.", where: "", proof: "", preexisting: false, board: true });
   // A very long list of the task's own findings is cut only now, with the rules applied, and from the mildest up:
-  // what can fail the gate is never what goes. What was there before the task is never cut: each is to be suggested.
+  // what can fail the gate is never what goes. What was there before the task is never cut: each is a note the human should see.
   const own = out.filter((f) => !f.preexisting);
   if (own.length > MAX_FINDINGS) {
     const gone = new Set([...own].sort((a, b) => rank(b.severity) - rank(a.severity)).slice(MAX_FINDINGS));
@@ -92,10 +92,9 @@ export const SENTENCE = /^(Approve to merge\?\s*)?(?:Reviewed [1-5]\/5(?:, says 
 // ---- words for the agent, the pull request and the board ----------------------------------------------------------------
 export const findingLine = (f) => `[${f.severity}] ${f.subject}${f.where ? ` (${f.where})` : ""}`;
 const withProof = (f) => `- ${findingLine(f)}${f.proof ? `\n  Proof: ${f.proof}` : ""}`;
-// Where a fault from before the task went: never a task by itself. It is suggested to the human, unless the board
-// knew it already: as a task (`task`), or as a suggestion raised before (`suggested`: { on, id }).
-// `unsuggested`: the board could not save the suggestion (it was busy); the human sees that instead of nothing.
-export const wentTo = (f) => (f.task ? `task ${f.task}` : f.suggested ? "suggested as a task" : f.unsuggested ? "not suggested: the board could not save it" : "");
+// A fault from before the task is a note in the review and nothing else: it never sends the work back, and nothing
+// adds a task for it. A review an older version saved may name the task that version added for one (`task`).
+export const wentTo = (f) => (f.task ? `task ${f.task}` : "");
 const filedAs = (f) => `- ${findingLine(f)}${wentTo(f) ? ` → ${wentTo(f)}` : ""}`;
 // The review as plain text: its summary and what it found. `all`: the human sends it by hand, so nothing is optional.
 export function findingsText(rv, { all = false } = {}) {
@@ -105,7 +104,7 @@ export function findingsText(rv, { all = false } = {}) {
   return [rv.text,
     required.length ? `Required: fix each of these.\n${required.map(withProof).join("\n")}` : "",
     optional.length ? `Optional: these do not hold the work back. Fix one only if it is quick and safe; otherwise leave it.\n${optional.map(withProof).join("\n")}` : "",
-    s.preexisting.length ? `Not yours to fix: these were there before your work. The human is asked whether each becomes a task of its own. Leave them.\n${s.preexisting.map(filedAs).join("\n")}` : "",
+    s.preexisting.length ? `Not yours to fix: these were there before your work. They are notes for the human. Leave them.\n${s.preexisting.map(filedAs).join("\n")}` : "",
   ].filter(Boolean).join("\n\n");
 }
 export function reviewMessage(rv, opts = {}) {
@@ -123,7 +122,6 @@ export function prComment(rv, round) {
     rv.findings.length ? "" : "No findings."].filter(Boolean).join("\n\n");
 }
 // Is this the same finding, word for word? The same thing said about the same place. Used to list a finding once.
-// Whether two findings are the same work in other words is the suggestions' question (store/suggestions.js).
 const plain = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 export function sameFault(a, b) {
   // A place is compared as written: import-csv.js and import_csv.js, or a.js and A.js, are different files.

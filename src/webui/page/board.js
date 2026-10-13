@@ -42,7 +42,6 @@ function chips() {
   if (head.machines) out.push(chip(`All machines: ${head.machines}`, "Change whose board you see", () => press("scope")));
   if (head.only) out.push(chip(`Only ${head.only}`, "Change whose board you see", () => press("scope")));
   if (f.byRepo) out.push(chip("By repo", "Group by status", () => press("byRepo")));
-  if (head.suggested) out.push(h("button.sw-chip.sw-chip-go", { type: "button", onclick: () => press("suggested") }, `${head.suggested} suggested task${head.suggested === 1 ? "" : "s"}`));
   return out;
 }
 // Draw what changed. Each part is compared as text, so a tick that changed nothing touches nothing on the page.

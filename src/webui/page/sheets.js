@@ -1,4 +1,4 @@
-// What comes up over the board: the question it asks (approve a merge, remove a task, make a suggestion a task), the
+// What comes up over the board: the question it asks (approve a merge, remove a task), the
 // More menu with every other action, and the board's short message to you. The question's words and answers and the
 // menu's entries come from the board (webui/side-model.js): each button presses the key it stands for.
 /* global document */

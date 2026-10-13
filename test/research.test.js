@@ -36,7 +36,7 @@ test("every agent is told that a report never goes into the repo; a research-onl
     assert.doesNotMatch(told, /research only/);
     // A research-only task: nothing changes, nothing is committed, there is no check to pass.
     assert.match(toldResearch, /This task is research only: change nothing in the repo\. Add, edit and delete no file, and commit nothing/);
-    assert.match(toldResearch, /a suggestion on the task for each piece of work that should follow/);
+    assert.match(toldResearch, /the work that should follow from it is a short list in that report \("Also noticed"\): nothing else is done with it, and you add no task for it/);
     assert.match(toldResearch, /Commit nothing on this branch/); assert.ok(toldResearch.includes(path.join(w.base, "reports", "proj", "2") + "/"));
     assert.doesNotMatch(toldResearch, /Commit your work on this branch/); assert.doesNotMatch(toldResearch, /only counts as done when this passes/);
     assert.match(coordinatorRules("board"), /add the task with --research/); assert.match(coordinatorRules("board"), /board delegate <id> --research \(--no-research turns it off again\)/);

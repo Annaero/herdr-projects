@@ -18,7 +18,7 @@ export function autoListOf(v) {
       says: pieces(v.theme.muted([...c.rest, c.why].filter(Boolean).join(" · "))), progress: null, percent: "", eta: "", review: [], pr: [], prUrl: "", time: "", quiet: !x.on, pinned: false, archived: false, app: "" };
   });
   return {
-    head: { where: "automations", session: session === "default" ? "" : session, machines: "", only: "", filter: "", suggested: 0, host: os.hostname(), version: S.VERSION },
+    head: { where: "automations", session: session === "default" ? "" : session, machines: "", only: "", filter: "", host: os.hostname(), version: S.VERSION },
     groups: rows.length ? [{ name: "automations", color: "subtext0", repo: false, rows, more: 0 }] : [], selected: a ? a.id : "", jobs: [],
     empty: v.talksToCoord ? "No automations yet. Tell the Coordinator what to automate, and when." : "No automations yet. Make one: herdr-superwork automations add",
   };

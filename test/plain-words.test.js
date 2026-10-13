@@ -42,6 +42,6 @@ test("commands answer added, updated, removed, archived, restored; the instructi
     assert.match(C.rules("board"), /if it only says "added", run "board delegate <id>"/);
     assert.match(C.TAB_NOTE, /if "board add" answers only "added", run "board delegate <id>"/);
     assert.match(skillText("board"), /add a new task to the current repo[^]*Adding starts nothing\./);
-    assert.match(agentRules(S.get(t.id)), /do not do it and do not add it as a task: suggest it to the human/);
+    assert.match(agentRules(S.get(t.id)), /do not do it and do not add it as a task: mention it in a short "Also noticed" list at the end of your closing note/);
   } finally { w.cleanup(); }
 });

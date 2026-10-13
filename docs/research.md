@@ -4,8 +4,8 @@
 to read. It is not part of the product, so it is never committed, in no folder. It is kept with the task and you get
 a private link to it.
 
-**A research-only task changes nothing in the repo.** Its whole result is a report, plus suggestions for the work
-that should follow from it.
+**A research-only task changes nothing in the repo.** Its whole result is a report. Work that should follow from it is a short
+**Also noticed** list in that report: nothing adds a task for it.
 
 ## Where a report goes
 
@@ -41,8 +41,8 @@ it merges.
 ### What its agent is told
 
 Change nothing in the repo: add, edit and delete no file, commit nothing. The result is a report, saved as above,
-plus a suggestion on the task for each piece of work that should follow from it
-([suggested tasks](suggestions.md)). The repo's check is not named to it: there is no change to check.
+and the work that should follow from it is a short "Also noticed" list in that report: nothing else is done with
+it, and the agent adds no task for it. The repo's check is not named to it: there is no change to check.
 
 Saving the report finishes nothing: the agent may save it early and add to it while it still waits for your
 answers, and you can open it meanwhile. The task is finished when its agent stops without saying that it waits

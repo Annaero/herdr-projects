@@ -12,6 +12,7 @@ Everything the board keeps for you is in one folder, the same on every machine: 
     bin/herdr-superwork      the command agents are handed, by its full path
     locks/ stamps/ *.json *.log   the board's own bookkeeping
   reports/      pages and reports an agent made for you that belong in no repo, one folder per task
+    old-suggestions.md       the suggested tasks that still waited for an answer when they were removed from the board
   moved.json    written by the one-time move below: what was moved, from where
   set-aside/    only after a move that found a file in both places: the copy that was not kept in use
 ```

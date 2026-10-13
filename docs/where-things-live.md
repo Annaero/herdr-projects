@@ -54,7 +54,6 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `settings.js` | The settings' commands: set, unset and show, for you, for your entry for a repo, or for one task |
 | `shared.js` | What the actions share: the stages an agent holds a slot in, and an action's answer |
 | `start.js` | Putting an agent on a task: the request, and starting queued tasks while slots are free |
-| `suggestions.js` | Suggested tasks: work an agent or a reviewer came across that is not theirs to do |
 | `talk.js` | Talking to a task's agent: a reply, what every human-started turn does to a task, stop |
 
 ## `src/agents/`
@@ -140,7 +139,6 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `setup.js` | The first run: one screen asks what the plugin may add to herdr's settings |
 | `size.js` | The board's size: the window, what herdr shows of it, and another viewer holding the terminal at its own size |
 | `states.js` | Where a task stands, as the board sorts it: its group, its colour, whether an agent is on it, whether it waits for you |
-| `suggestions.js` | Suggested tasks: work a reviewer or an agent came across outside its own task |
 | `talk.js` | What a chat shows of a conversation: only its words |
 | `textbox.js` | The text box you type in |
 | `web-ui.js` | The board inside the herdr web UI, asked about once: with that plugin installed and its link shared, the board asks whether the link may go through its front door, which is what puts the Board into the web UI… |
@@ -170,7 +168,6 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 |---|---|
 | `auto-merge.js` | Auto-merge, the setting: a task that may merge does so by itself while `merge.by` is `itself`, and waits for you while it is `you` |
 | `check-run.js` | Running the repo's check with its progress shown: the file the command reports to, what is kept on the task while it runs, and telling herdr's sidebar |
-| `faults.js` | Faults a reviewer found that were there before the task: suggested to the human, never added as tasks, and what the next reviewer is told is known already |
 | `line.js` | The line: a repo's tasks merge one at a time |
 | `old-holds.js` | Approval holds an older version left behind: tasks owing you a yes although you never stepped into them |
 | `pipeline.js` | The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval |
@@ -216,12 +213,12 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `keys.js` | A repo's short key (`repo.key`: `HSW` for herdr-superwork) and what it does to a task's name: its tag reads `HSW-134` instead of `#134`, and `HSW-134` names the task wherever its id does |
 | `marks.js` | Small shared files: stamps, hook tokens, turn-ended events, marks |
 | `move-home.js` | The one-time move into the one home folder: what an older version kept in ~/.local/state, ~/.config and ~/.local/share is moved into ~/.herdr-superwork by the first run of this code, by itself, and each old place… |
+| `old-suggestions.js` | Suggested tasks were taken out of the board |
 | `repos.js` | Git plumbing, and repos: the first part of a task's id |
 | `retries.js` | A turn cut off by a passing provider error: the board waits, then tries again by itself (docs/how-work-gets-done.md) |
 | `reviews.js` | A task's reviews: the current one, which round, and every one it had |
 | `settings-list.js` | The settings, each one defined once: its name, its built-in value, what it may be, whether it is a work or a board setting, and what it means |
 | `settings.js` | Settings as saved and read: yours, your entry for a repo, one task's own, and the repo's file |
-| `suggestions.js` | Suggested tasks |
 | `tasks.js` | Tasks on disk: reading, listing, changing, creating, and finding one by what it is called (its id, its number, its repo's key) |
 | `titles.js` | A title's one length limit, and how a longer one is shortened without losing what it said |
 
@@ -275,8 +272,8 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `chat.js` | The chat at the foot of the board: who it talks to (the Coordinator, or the selected task's agent), the newest thing said in that conversation under a line that names who said it (the agent, the reviewer while the task… |
 | `dom.js` | The page's few tools: making elements, drawing the board's coloured pieces of text, and calling the front door |
 | `list.js` | The task list as the page draws it: the groups under their headings and one row per task |
-| `panel.js` | One task, whole: its title, the buttons for what can be done to it now, and the task panel's parts (status, what it needs from you, suggested tasks, description, reviews, evidence, what the agent said, settings, session) |
-| `sheets.js` | What comes up over the board: the question it asks (approve a merge, remove a task, make a suggestion a task), the More menu with every other action, and the board's short message to you |
+| `panel.js` | One task, whole: its title, the buttons for what can be done to it now, and the task panel's parts (status, what it needs from you, description, reviews, evidence, what the agent said, settings, session) |
+| `sheets.js` | What comes up over the board: the question it asks (approve a merge, remove a task), the More menu with every other action, and the board's short message to you |
 | `start.js` | The script the front door adds to the herdr web UI's page |
 
 ## `bin/`
@@ -317,7 +314,6 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [research.md](research.md) | Reports, and research-only tasks |
 | [roles-and-commands.md](roles-and-commands.md) | Roles and commands |
 | [settings.md](settings.md) | Settings: one lookup |
-| [suggestions.md](suggestions.md) | Suggested tasks |
 | [tabs.md](tabs.md) | A task's tabs in herdr |
 | [task-numbers.md](task-numbers.md) | Task numbers and repo keys |
 | [task-panel.md](task-panel.md) | The task panel |
@@ -392,6 +388,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `lifecycle.test.js` |  |
 | `merge.test.js` |  |
 | `notify.test.js` | The board.notify setting: a task that needs you, is ready to approve or failed rings the bell on an open board or runs your command, once per event; `none`, the built-in value, does neither |
+| `old-suggestions.test.js` | Suggested tasks are gone: what old tasks still carry of them is saved once and taken off, the old commands say so in a plain sentence, and a task that still carries some reads as any other |
 | `plain-words.test.js` | The board's plain words: a task is added, updated, removed, started, archived, restored |
 | `pull-requests.test.js` |  |
 | `rearm.test.js` |  |
@@ -405,14 +402,13 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `status-kept.test.js` | A working task's line before the Watcher's first look of a run: the last sentence kept with its age, or "Just started", never a bare "…" |
 | `store.test.js` |  |
 | `submit.test.js` | Text handed to an agent is really submitted: nothing is typed before a slow-starting program has drawn its screen, an enter that was lost is pressed again (the text is never typed twice), and an agent that still does… |
-| `suggestions.test.js` | Suggested tasks: nothing adds a task by itself |
 | `sync-conflict.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `sync-merge.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `sync-remote.test.js` | Conflicts with main are caught before review, not after approval: the board brings every task's branch up to date by itself, and the agent hears about it only when there is a real conflict |
 | `tabs.test.js` | A task's tabs in its herdr space: the agent's tab is named Agent, each reviewer has a tab of its own |
 | `task-numbers.test.js` | A task's number on its row (`#134`), a repo's short key (`repo.key`: `HSW-134`), and naming a task by it: the tag's one column, what it gives way to, the three tags side by side, several repos in one list, find, and… |
 | `theme.test.js` | The board takes its colours and status marks from herdr's own config, resolved the way herdr resolves them |
-| `titles.test.js` | A title's length limit: one number, the same for a task typed, renamed, suggested, or made from a reviewer's finding |
+| `titles.test.js` | A title's length limit: one number, the same for a task typed, added or renamed |
 | `turns.test.js` |  |
 | `waiting.test.js` | An agent that stopped to wait for the human is waiting, not finished: no check, no review, no merge follow |
 | `watcher-pace.test.js` | The Watcher's pace: how often it looks, what it skips, one call at a time, and giving way on a busy machine |

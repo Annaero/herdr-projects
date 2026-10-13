@@ -12,7 +12,6 @@ import { settle, hand, look, shown } from "../submit.js";
 import * as G from "../gate.js";
 import { ms, fail } from "./shared.js";
 import { reviewBrief, parseVerdict } from "./review-brief.js";
-import { suggestFaults, knownFaults } from "./faults.js";
 import { REPORT } from "../research.js";
 
 // ---- the reviewer: a visible herdr agent in a tab of its own in the task's space (flow/tabs.js) -------------------------
@@ -65,7 +64,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   const before = S.reviewHistory(t).filter((e) => G.isTagged(e));
   const earlier = (t.reviewRounds || 0) > 0 && before.length ? before.at(-1).findings : null;
   const used = before.flatMap((e) => e.findings.map((f) => f.id));
-  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, filed: knownFaults(t), check })}${who.instructions ? `\n\n${ownWords(who.instructions)}` : ""}`;
+  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, check })}${who.instructions ? `\n\n${ownWords(who.instructions)}` : ""}`;
   let pane = null, tab = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0, cut = null, mark = null;
   // The reviewer ended its turn with no verdict. Its saved conversation says why: a turn that ended in the provider's
   // error was cut off (`cut`), and only one that really finished is "finished without a verdict", with its last message.
@@ -156,7 +155,6 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   }
   if (!review) return { error: error || "no valid verdict", auth };
   G.stamp(review, ch["review.mustFix"]);
-  try { suggestFaults(id, review); } catch (e) { if (e.aborted) return { aborted: true }; }
   // Move the folder to the task's artifacts and publish the evidence page.
   const art = S.artifactsDir(id);
   try { for (const f of fs.existsSync(art) ? fs.readdirSync(art) : []) if (f !== REPORT) fs.rmSync(path.join(art, f), { recursive: true, force: true }); /* the task's report is kept there too (research.js) */ fs.mkdirSync(art, { recursive: true }); fs.cpSync(dir, art, { recursive: true }); fs.rmSync(dir, { recursive: true, force: true }); } catch {}

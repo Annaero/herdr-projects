@@ -16,9 +16,9 @@ The board then applies fixed rules to what came back:
 
 - `meets: false` always counts as a critical finding, even with an empty list.
 - A critical finding with an empty proof is treated as major.
-- A pre-existing finding never sends the work back, and never becomes a task by itself. Each is a
-  [suggestion](suggestions.md) on the task, once, however many rounds or other tasks' reviews name it: you make it
-  a task or dismiss it.
+- A pre-existing finding never sends the work back, and never becomes a task. It is a note: the review lists it
+  as `pre-existing`, the agent is told to leave it, and nothing else is done with it. Add a task yourself for one
+  you want fixed.
 - The work **passes** when no finding of its own sits at or above `review.mustFix` (`major` by default). A pass
   is what "may merge" means everywhere: a task with `merge.by: itself` merges it ([merging by itself](#merging-by-itself)),
   an approved merge that was repaired goes through, and the board says `Pass`.
@@ -26,7 +26,7 @@ The board then applies fixed rules to what came back:
   required, the rest as optional. When the cap is reached and it still fails, it stops and waits for you.
 - From the second round on the reviewer gets the earlier findings and only checks that each is fixed and that the
   fixes broke nothing. It may add a new finding only if it is critical, with proof; anything smaller it notices
-  late is left out (a pre-existing fault is still suggested). A reply from you starts a full review again.
+  late is left out (a pre-existing fault is still noted). A reply from you starts a full review again.
 - `review.rounds 0` sends nothing back by itself: findings wait for you (`Ctrl+R` sends them). The review is
   still judged at `review.mustFix`, and a failed one never merges by itself.
 

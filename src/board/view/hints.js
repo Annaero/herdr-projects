@@ -3,7 +3,6 @@ import * as G from "../../gate.js";
 import { isAgent, failureFor, canSendError, inReview } from "./states.js";
 import { currentReview } from "./review-words.js";
 import { hint, name } from "../keys.js";
-import { openSuggestions } from "../../store.js";
 
 export class Hints {
   // What esc goes back from right now, with nothing typed: the whole task, then the filter, then the archive.
@@ -66,9 +65,6 @@ export class Hints {
     // The first hint that names it says whose agent, "this task's"; after that it is "the agent".
     let named = false;
     main = main.map(([k, d, ...rest]) => { const words = named ? d.replace("this task's agent", "the agent") : d; named ||= d.includes("this task"); return [k, words, ...rest]; });
-    // A suggested task waits on this one: its key, when there is room. It never takes a hint's place.
-    const shown = main.slice(0, 4 - tail.length - mid.length);
-    const asked = !this.reply && r.title !== undefined && openSuggestions(r).length && shown.length + mid.length + tail.length < 4 ? [hint("suggested")] : [];
-    return [...shown, ...asked, ...mid, ...key, ...tail];
+    return [...main.slice(0, 4 - tail.length - mid.length), ...mid, ...key, ...tail];
   }
 }

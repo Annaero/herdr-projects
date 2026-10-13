@@ -11,10 +11,6 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork                     open the board here (in herdr: bind a key to the plugin action "open")
   herdr-superwork add <title> [--desc TEXT] [--repo NAME|PATH] [--delegate] [--research]
                                       (--research: research only. Its agent changes nothing in the repo; the result is a report)
-  herdr-superwork suggest <title> [--desc TEXT] --from <id>   (an agent: work you came across that is not yours; the human decides)
-  herdr-superwork suggestions [<id>]            the suggested tasks still open (of one task, or all)
-  herdr-superwork accept <id> [S1]              make a suggestion a task (only when the human says so)
-  herdr-superwork dismiss <id> [S1]             drop a suggestion (only when the human says so)
   herdr-superwork list [--archived] [--all] [--query TEXT] [--json]
   herdr-superwork report <id> --state idle|working|blocked|done|error [--kind question|permission|auth] [--msg TEXT] [--title TEXT]
                          [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
@@ -157,15 +153,7 @@ export async function main(argv) {
   const shownOf = (id) => F.board({ includeArchived: true }).find((t) => t.id === id);
   let result;
   switch (cmd) {
-    case "add": case "new": case "suggest": {
-      // "suggest" is a suggestion on the task it came from, for the human to decide; "add" is a task, whoever asks.
-      if (cmd === "suggest") {
-        const from = flags.from ? S.find(flags.from) : callerTask();
-        if (!from) throw new Error("suggest needs --from <the id of the task you are on>. Try: herdr-superwork help");
-        const r = A.suggest(from.id, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "" });
-        result = [{ suggestion: r.suggestion || null, on: r.on || null, known: r.known || null }, `${r.msg}${r.suggestion ? S.titleNote(rest(1)) : ""} Carry on with your own task.`];
-        break;
-      }
+    case "add": case "new": {
       const t = A.add(here, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "", repo: flags.repo, research: flags.research === true, from: caller()?.task });
       // Added by the Coordinator from a message the human sent with tab: delegated here, flag or no flag.
       let tab = false;
@@ -181,13 +169,10 @@ export async function main(argv) {
       result = [all.map(brief), all.length ? all.map(line).join("\n") : "No tasks."];
       break;
     }
-    case "suggestions": {
-      const open = (pos[1] ? [S.find(pos[1])] : S.list()).flatMap((t) => S.openSuggestions(t).map((s) => ({ ...s, on: t.id })));
-      result = [open, open.length ? open.map((s) => `${s.on} ${s.id}  ${s.title}  · from ${S.suggestedBy(s)}`).join("\n") : "No open suggestions."];
-      break;
-    }
-    case "accept": { const r = A.acceptSuggestion(need(1, "an id"), pos[2]); result = [brief(shownOf(r.task.id)), r.msg]; break; }
-    case "dismiss": { const r = A.dismissSuggestion(need(1, "an id"), pos[2]); result = [brief(shownOf(r.task.id)), r.msg]; break; }
+    // Suggested tasks were taken out of the board. An agent that was started before that, or whose task still asks
+    // for "suggestions on this task", is told so in a plain sentence, with what to do instead.
+    case "suggest": case "suggestions": case "accept": case "dismiss":
+      throw new Error(`There is no "${cmd}" command any more: suggested tasks were removed from the board. Mention work you came across outside your task in a short "Also noticed" list in your closing note or your report, and carry on with your own task.`);
     case "report": {
       const me = callerTask();
       if (!pos[1] && flags.title && !me) { const t = A.add(here, flags.title, { description: flags.msg || flags.desc || "", repo: flags.repo }); result = [brief(shownOf(t.id)), `${t.id}: added${S.titleNote(flags.title)}`]; break; }

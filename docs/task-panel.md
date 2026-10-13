@@ -56,9 +56,6 @@ Both have the same parts, in the same order, and **one form for every part**:
   your OK`, `Needs a login`, or `Went wrong` with what failed, who can fix it, the `Next step` and the `Details`.
   `Behind main` and `Cut off` (the board tries again by itself) are the same part in their own colour, and an
   archived task says so there.
-- **Suggested tasks**, when the task's agent or reviewer came across work outside it: each open
-  [suggestion](suggestions.md) with who raised it, and the key that decides (`Ctrl+N`). Full screen, the ones you
-  made a task or dismissed stay listed, greyed.
 - **The description**: whole on the full screen, cut after about 400 characters beside the list.
 - **The reviews**, as a history (below).
 - **What the agent said**: the newest words of its conversation, never its program's screen (while you talk to
@@ -115,7 +112,7 @@ its value is under it, indented. Nothing is cut there either.
 **In a short window whole lines give way, the least needed first.** The state and the `Now` text stay whole, and
 what the task needs from you outlasts every setting:
 
-1. The empty line on top. Then the long parts give up lines: what the agent said first, then suggested tasks and
+1. The empty line on top. Then the long parts give up lines: what the agent said first, then
    the description, then the review (its summary, then `History` and `Evidence`), each down to a few lines. A text
    that lost lines ends in ` …`.
 2. Those parts go, all but the review, which keeps its row and one line of its summary.

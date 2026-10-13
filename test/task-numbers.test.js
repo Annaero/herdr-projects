@@ -137,14 +137,12 @@ test("the key names the task wherever an id does, in any letter case; the id sta
   assert.match(await run("show", "hsw-2"), /^HSW-2: every setting/); assert.equal(JSON.parse(await run("describe", "hsw-2", "New words.", "--json")).id, "proj/2"); assert.match(await run("show", "hsw-2"), /\n {2}repo\.key +HSW +your entry for proj\n/);
   assert.equal(await run("report", "Hsw-1", "--state", "working", "--msg", "On it"), "HSW-1: updated (working)\n");
   assert.equal(await run("archive", "hsw-1"), "HSW-1: archived\n"); assert.equal(await run("restore", "HSW-1"), "HSW-1: restored\n");
-  await run("suggest", "Fix the flaky test", "--from", "hsw-1"); assert.equal(S.openSuggestions(S.get("proj/1")).length, 1);
-  assert.match(await run("suggestions", "hsw-1"), /^HSW-1 S1 {2}Fix the flaky test/);
   assert.equal(A.pin("hsw-2").pinned, true); assert.equal(A.rename("HSW-2", "Second, renamed").title, "Second, renamed");
   // `list --query` finds a task by its number and its tag.
   for (const q of ["hsw-2", "HSW-2", "#2"]) assert.match(await run("list", "--query", q), /^HSW-2 [^\n]*Second, renamed\n$/, q);
-  // What a task's agent is told names both, a suggestion made a task says the short name, and a path is left alone.
+  // What a task's agent is told names both, a message says the short name, and a path is left alone.
   assert.match(rules(S.get("proj/1")), /^Rules for this task \(its id on the work board is proj\/1; the human also calls it HSW-1, and every command takes that name too\):/);
-  assert.equal(A.acceptSuggestion("hsw-1", "S1").msg.startsWith("proj/3: added"), true); assert.equal(S.sayIds("proj/3: added from the suggestion"), "HSW-3: added from the suggestion");
+  assert.equal(A.add(w.root, "Third").id, "proj/3"); assert.equal(S.sayIds("proj/3: added"), "HSW-3: added");
   assert.equal(S.sayIds("Kept: /data/tasks/proj/3/note.md, proj/3x and other/3. See proj/3."), "Kept: /data/tasks/proj/3/note.md, proj/3x and other/3. See HSW-3."); assert.equal(S.taskRef("proj/3"), "HSW-3 (proj/3)"); assert.equal(S.taskRef("other/3"), "other/3");
   // Nothing is stored under the key: changed, the new one works, the old one is no longer understood, the id always is.
   S.setValue("repo.key", "NEW", { repo: "proj" });
@@ -177,10 +175,6 @@ test("on the board: a keyed repo's rows read HSW-134, the panel, the chat and th
   s.v.sel = nine; s.press("ctrl+f"); s.type("hsw-134"); assert.equal(s.v.sel, big); assert.equal(row("Number nine"), undefined); s.press("esc", "esc");
   s.v.sel = nine; s.press("ctrl+f"); s.type("HSW-9"); assert.equal(s.v.sel, nine); assert.ok(row("Number nine")); s.press("esc", "esc");
   s.v.sel = big; s.v.load(); s.press("ctrl+a"); assert.match(s.v.msg, /^HSW-134: archived\./); s.press("ctrl+z");
-  // A suggestion made a task, and an automation's firing, name the task the same way.
-  A.suggest(big, "Speed up the slowest page", {}); s.v.sel = big; s.v.load(); s.press("\x0e"); s.press("y"); const made = S.suggestionsOf(S.get(big))[0].task;
-  assert.match(s.v.msg, new RegExp(`^HSW-${made.split("/")[1]}: added from the suggestion`));
-  s.v.sel = big; s.v.load(); s.press("alt+t"); assert.match(s.text(100), new RegExp(`made a task: HSW-${made.split("/")[1]} *\\n`)); s.press("esc");
   // What another machine is sent: each task with its repo's key, so its rows there read the same.
   assert.equal(remoteList().tasks.find((t) => t.id === big).key, "HSW");
   // Without the key again: the number, and the id in the board's messages.

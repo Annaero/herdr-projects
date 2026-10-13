@@ -73,7 +73,7 @@ An edit to an automation applies from its next firing. Tasks already made keep w
   a reviewer on it (or waits for a free slot) is skipped, and the skip is written down. The same skip again and
   again is one line with a count. A task that only waits for you (your approval, your answer) holds nothing back.
 - **No loops.** A task made by an automation remembers which one made it, and so does every task that task adds
-  (with `add`, or from one of its suggestions). Events of such tasks never fire that same automation. A task fired by
+  (with `add`). Events of such tasks never fire that same automation. A task fired by
   another automation's task carries both, so two automations cannot fire each other for ever.
 - **A runaway stops itself.** An automation makes at most 10 tasks in an hour. The next firing turns it off instead,
   and its row says so: `Turned itself off: more than 10 firings in an hour`. Turning it on again starts the count over.

@@ -150,5 +150,5 @@ export function takeApprove(socket = currentSocket(), me = "") {
 }
 export function details(id) {
   const t = S.find(id);
-  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), suggestions: S.suggestionsOf(t), research: isResearch(t), report: t.report || null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null };
+  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), research: isResearch(t), report: t.report || null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null };
 }

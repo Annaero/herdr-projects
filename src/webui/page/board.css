@@ -33,7 +33,6 @@
 .sw-chips:not(:empty) { padding-top: var(--space-2, 8px); padding-bottom: var(--space-2, 8px); border-bottom: var(--hairline, 1px) solid var(--sw-line); }
 .sw-chip { display: inline-flex; align-items: center; gap: var(--space-1, 4px); min-height: 28px; padding: 0 var(--space-3, 12px); border: var(--hairline, 1px) solid var(--sw-line); border-radius: var(--radius-pill, 999px); background: var(--sw-lift); color: var(--sw-text); font: inherit; font-size: var(--fs-xs, 12px); cursor: pointer; }
 .sw-chip-x { color: var(--sw-dim); }
-.sw-chip-go { color: var(--sw-yellow); }
 /* The list and one task: side by side on a wide screen, one at a time on a phone. */
 .sw-body { flex: 1; min-height: 0; display: flex; }
 .sw-list-host, .sw-task-host { flex: 1; min-width: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: var(--space-2, 8px) var(--space-2, 8px) var(--space-6, 24px); }

@@ -18,7 +18,7 @@ export function add(folder, title, { description = "", repo, research = false, f
   return research || automation ? S.get(t.id) : t;
 }
 // A new title follows the same limit as a first one: too long, it is shortened and its full text opens the description.
-const retitle = (t, title) => { const now = S.titled(title, t.description); if (now.title) { t.title = now.title; t.description = now.description; if (now.subject) t.subject = now.subject; else delete t.subject; } };
+const retitle = (t, title) => { const now = S.titled(title, t.description); if (now.title) { t.title = now.title; t.description = now.description; delete t.subject; /* what an older version kept beside a shortened title */ } };
 export function rename(id, title) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); retitle(t, title); }); }
 export function describe(id, text) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.description = String(text || "").replace(/\r/g, "").trim(); }); }
 export function pin(id) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.pinned = !t.pinned; }); }

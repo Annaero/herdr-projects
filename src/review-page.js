@@ -70,7 +70,7 @@ export function renderReviewPage({ id, round, title, description, summary, stat,
   const findingHTML = (f, note) => `<li><span class="sev ${escape(f.severity)}">${escape(f.severity)}</span> ${escape(f.subject)}${f.where ? ` <code>${escape(f.where)}</code>` : ""}${note ? ` <span class="tag">${escape(note)}</span>` : ""}${f.proof ? `<div class="proof">Proof: ${escape(f.proof)}</div>` : ""}</li>`;
   const group = (title, items, note) => (items.length ? `<h4>${title}</h4><ul class="findings">${items.map((f) => findingHTML(f, typeof note === "function" ? note(f) : note)).join("")}</ul>` : "");
   const findings = group("Required", found.required, "") + group("Not required: below the gate", found.optional, "not required")
-    + group("Not required: there before this change", found.preexisting, (f) => (G.wentTo(f) ? `not required · ${G.wentTo(f)}` : "not required · pre-existing"))
+    + group("Not required: there before this change", found.preexisting, (f) => (G.wentTo(f) ? `not required · ${G.wentTo(f)}` : "not required · a note"))
     + (review.left ? `<p class="hint">${escape(review.left)} smaller finding${review.left === 1 ? "" : "s"} noticed only in this later round ${review.left === 1 ? "was" : "were"} left out.</p>` : "");
   const checks = Array.isArray(review.checks) ? review.checks : [];
   const limitations = Array.isArray(review.limitations) ? review.limitations : [];

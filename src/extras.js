@@ -45,9 +45,6 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
   Add \`--research\` when the human plainly asked for research, a review or a report with nothing changed: the task's agent
   then changes nothing in the repo and its result is a report (later: \`delegate <id> --research\`).
   Add a task only when the human asked for it: nothing adds tasks by itself.
-- \`herdr-superwork suggestions [<id>]\`: work that agents and reviewers came across outside their own task. Each is a
-  suggestion on the task that raised it, waiting for the human. \`accept <id> [S1]\` makes one a task, \`dismiss <id> [S1]\`
-  drops it: both only when the human plainly says so.
 - \`herdr-superwork delegate <id>\`: put an agent on a task. It works in its own git worktree, as an ordinary herdr
   agent in its own herdr space. Any work setting can be chosen for this one task as \`--<name> <value>\`:
   \`--worker.agent claude|codex|pi\` (a model after a slash: \`codex/gpt-5.5\`), \`--worker.effort\`, \`--reviewer.agent\`,
@@ -82,9 +79,9 @@ If you are an agent or a reviewer the board itself started on a task, your rules
 they come first: do nothing to the board beyond your own task unless a human explicitly told you to. An explicit
 instruction in your task's own description, or in a message from the human, counts as being told. Your own task is:
 reporting yourself blocked (\`report <your id> --state blocked --kind question|permission|auth --msg "<why>"\`;
-write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data")
-and suggesting work you came across that is not yours (\`suggest "<title>" --desc "<what and why>" --from <your id>\`:
-the human decides whether it becomes a task). Work you merely come across is a suggestion, never a task.
+write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data").
+Work you merely come across that is not yours is never a task: mention it in a short "Also noticed" list in your
+closing note or your report, and do nothing else with it.
 `;
 }
 // Each installed agent program's own user-level skills folder (confirmed for Claude Code, Codex and pi: a folder per

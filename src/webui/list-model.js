@@ -36,14 +36,13 @@ export function listOf(v) {
   const column = v.numbering().cells;
   for (const g of groups) for (const r of g.rows) r.tagWidth = tagCells(r.tag.length, column) || r.tag.length;
   const session = sessionName(currentSocket());
-  const asked = v.archiveView ? 0 : v.suggestionCount();
   const unread = v.unread();
   return {
     head: {
       where: v.archiveView ? "archive" : v.repo.root === os.homedir() ? "~" : `${v.repo.name} · ${short(v.repo.root)}`,
       session: session === "default" ? "" : session,
       machines: v.scope === "*" ? (Object.values(v.remotes).map((m) => (m.ok ? m.label : `${m.label} (no answer)`)).join(", ") || "no others found") : "",
-      only: v.all && v.scope !== "*" ? v.scope : "", filter: v.filter || "", suggested: asked, host: os.hostname(), version: S.VERSION,
+      only: v.all && v.scope !== "*" ? v.scope : "", filter: v.filter || "", host: os.hostname(), version: S.VERSION,
     },
     groups, selected: v.sel || "",
     // Words on their way to another machine: rows of their own under the list, until that machine has taken them.

@@ -9,7 +9,7 @@ import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
 import * as G from "../src/gate.js";
 import { main } from "../src/cli.js";
-import { parseVerdict, reviewBrief, knownFaults } from "../src/finish.js";
+import { parseVerdict, reviewBrief } from "../src/finish.js";
 import { renderReviewPage } from "../src/review-page.js";
 
 const finding = (severity, subject, extra = {}) => ({ severity, subject, where: "f.txt", proof: "ran it", ...extra });
@@ -41,7 +41,7 @@ test("the board's rules: what counts as critical, what a gate lets through, and 
   // the cut comes after the rules: critical claims nobody showed and old faults go before a proven critical one does
   const buried = reviewOf(true, [...Array.from({ length: 80 }, (_, n) => finding("critical", `A claim ${n}`, { proof: "" })), ...Array.from({ length: 80 }, (_, n) => finding("critical", `An old fault ${n}`, { preexisting: true })), finding("critical", "Deletes the data"), finding("minor", "A nit")], "critical");
   assert.equal(buried.findings.length, 162); assert.equal(buried.pass, false); assert.ok(buried.findings.some((f) => f.subject === "Deletes the data")); assert.equal(buried.findings.filter((f) => f.severity === "major").length, 80);
-  // what was there before the task is never cut, however long the list: each one is to be suggested
+  // what was there before the task is never cut, however long the list: each one is a note the human should see
   const olds = reviewOf(true, [...Array.from({ length: 130 }, (_, n) => finding("minor", `An old fault ${n}`, { preexisting: true })), ...Array.from({ length: 120 }, (_, n) => finding("trivial", `Note ${n}`)), finding("critical", "Deletes the data")], "major");
   assert.equal(olds.findings.filter((f) => f.preexisting).length, 130); assert.equal(olds.findings.filter((f) => !f.preexisting).length, 100); assert.equal(olds.left, 21); assert.equal(olds.pass, false); assert.equal(reviewOf(true, [...Array.from({ length: 20 }, (_, n) => finding("minor", `Nit ${n}`)), finding("critical", "Deletes the data")], "major").pass, false);
   // a severity the board does not know is read as major, a finding without a subject is no finding
@@ -70,7 +70,7 @@ test("a later round checks the earlier findings: it cannot grow the list with ne
     finding("critical", "The fix deletes the file", { proof: "ran it: the file is gone" }), finding("major", "The old exporter was always slow", { preexisting: true })] });
   const rv = parseVerdict(raw, "abcdef1234567", { earlier: first.findings, used: ["F1", "F2"] });
   assert.deepEqual(rv.findings.map((f) => [f.id, f.severity, f.subject]), [["F2", "minor", "The name is still unclear"], ["F3", "critical", "The fix deletes the file"], ["F4", "major", "The old exporter was always slow"]]);
-  assert.equal(rv.left, 3); assert.equal(rv.findings[2].preexisting, true); // a fault that was there before is kept to be suggested: it holds nothing back
+  assert.equal(rv.left, 3); assert.equal(rv.findings[2].preexisting, true); // a fault that was there before is kept as a note: it holds nothing back
   // the same answer on a first review keeps everything (the unproven critical one as major)
   assert.deepEqual(parseVerdict(raw, "abcdef1234567").findings.map((f) => f.severity), ["major", "minor", "major", "major", "critical", "major"]);
   // with only smaller things noticed late, the round passes: nothing was added
@@ -152,7 +152,7 @@ test("a review where `meets` is false goes back even if the reviewer listed noth
   } finally { w.cleanup(); }
 });
 
-test("a pre-existing fault is suggested, never added as a task: no new task, no extra round, and one suggestion across rounds", async () => {
+test("a pre-existing fault is a note in the review: no task, no extra round, nothing kept on the task beside the review", async () => {
   const w = await world();
   try {
     const old = finding("critical", "The importer drops the last row", { where: "import.js", proof: "ran it on main too", preexisting: true });
@@ -162,38 +162,22 @@ test("a pre-existing fault is suggested, never added as a task: no new task, no 
     let t = await settle(id, { max: 30 });
     assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.equal(S.reviewRound(t), 1); assert.equal(paneOf(w, t).agent.prompts.length, 1); // no extra round
     assert.deepEqual([t.review.pass, G.result(t.review)], [true, "Pass · 1 pre-existing"]);
-    assert.deepEqual(S.list().map((x) => x.id), [id]); // nothing was added
-    assert.deepEqual(t.suggestions.map((s) => [s.id, s.title, s.where, s.by, s.severity, s.round, s.state]), [["S1", "The importer drops the last row", "import.js", "reviewer", "critical", 1, "open"]]);
-    assert.match(t.suggestions[0].description, /Where: import\.js\nSeverity: critical\nWhat the reviewer saw: ran it on main too\n\nIt was there before proj\/1 \(Add a column\)/);
-    assert.deepEqual(t.review.findings[0].suggested, { on: id, id: "S1" });
+    assert.deepEqual(S.list().map((x) => x.id), [id]); assert.equal(t.suggestions, undefined); // nothing was added, on the board or on the task
+    assert.deepEqual(Object.keys(t.review.findings[0]).sort(), ["id", "preexisting", "proof", "severity", "subject", "where"]);
     assert.throws(() => A.sendReview(id), /nothing for the agent to fix/);
-    // later rounds name it again, under its id, in the same words and in other words about the same place: still one
-    w.script({ worker: [work(2), work(3)], reviewer: [verdict([finding("major", "f.txt holds the wrong number"), { ...old, subject: "The importer drops the last row." }]), verdict([{ ...old, id: "F1" }, { ...old, proof: "ran it again" }, { ...old, subject: "The last row is dropped by the importer", severity: "major" }, finding("minor", "The old exporter is slow", { where: "export.js", preexisting: true })])] });
+    // a later round that fails names it again: the agent is told it is a note and not theirs, the next reviewer that it is known
+    w.script({ worker: [work(2), work(3)], reviewer: [verdict([finding("major", "f.txt holds the wrong number"), old]), verdict([{ ...old, id: "F1" }, finding("minor", "The old exporter is slow", { where: "export.js", preexisting: true })])] });
     A.tell(id, "Change the number.");
     t = await settle(id, { max: 30 });
     assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.equal(S.reviewRound(t), 3); assert.equal(t.review.pass, true);
-    // a fault from before the task that is first seen in a later round is suggested too, and still holds nothing back
-    assert.deepEqual(S.list().map((x) => x.id), [id]);
-    assert.deepEqual(t.suggestions.map((s) => [s.id, s.title, s.round]), [["S1", "The importer drops the last row", 1], ["S2", "The old exporter is slow", 3]]);
-    assert.deepEqual(t.review.findings.map((f) => f.suggested.id), ["S1", "S1", "S1", "S2"]);
+    assert.deepEqual(S.list().map((x) => x.id), [id]); assert.equal(t.suggestions, undefined);
+    assert.match(paneOf(w, t).agent.prompts.at(-1), /Required: fix each of these\.\n- \[major\] f\.txt holds the wrong number[\s\S]*Not yours to fix:[^\n]*They are notes for the human\. Leave them\.\n- \[critical\] The importer drops the last row \(import\.js\)$/m);
+    assert.match(reviewBrief(t, { text: "", change: { head: "abc", range: "a..b" }, toLand: true, ch: {}, earlier: t.review.findings }), /\nAlready known to the human \(they were there before this change\): do not report these again, in these words or in others\.\n- \[critical\] The importer drops the last row \(import\.js\)\n- \[minor\] The old exporter is slow \(export\.js\)\n/);
     // word for word the same finding is one that says the same thing about the same place, whatever its proof
     assert.ok(!G.sameFault(old, { ...old, subject: "The importer drops the first row" })); assert.ok(G.sameFault(old, { ...old, subject: "the importer drops the last row!", proof: "other" }));
     assert.ok(!G.sameFault(old, { ...old, where: "import-json.js" })); assert.ok(!G.sameFault(old, { ...old, where: "" })); assert.ok(!G.sameFault(old, { ...old, where: "Import.js" })); assert.ok(G.sameFault(old, { ...old, where: " import.js " })); assert.ok(G.sameFault(old, { ...old, proof: "" }));
-    // the agent is told it is not theirs, and where it went; the next reviewer is told what is known already
-    assert.match(paneOf(w, t).agent.prompts.at(-1), /Required: fix each of these\.\n- \[major\] f\.txt holds the wrong number[\s\S]*Not yours to fix:[^\n]*The human is asked[^\n]*\n- \[critical\] The importer drops the last row\. \(import\.js\) → suggested as a task/);
-    assert.match(reviewBrief(t, { text: "", change: { head: "abc", range: "a..b" }, toLand: true, ch: {}, filed: knownFaults(t) }), /\nAlready known to the human \(they were there before this change\): do not report these again, in these words or in others\.\n- \[minor\] The old exporter is slow \(export\.js\)\n- \[critical\] The importer drops the last row \(import\.js\)\n/);
-    // the human says no to one and yes to the other: a dismissed one is never raised again, an accepted one is a task
-    A.dismissSuggestion(id, "S2");
-    const made = A.acceptSuggestion(id, "S1").task;
-    assert.deepEqual([made.id, made.title, made.stage, !!made.link], ["proj/2", "The importer drops the last row", "todo", false]); // started by nobody
-    assert.match(made.description, /Where: import\.js\n[\s\S]*Suggested by the reviewer of proj\/1 \(Add a column\)\.$/);
-    w.script({ worker: [work(4)], reviewer: [verdict([{ ...old, subject: "The importer still drops the last row" }, finding("minor", "The exporter is slow, as of old", { where: "export.js:12", preexisting: true })])] });
-    A.tell(id, "And once more.");
-    t = await settle(id, { max: 30 });
-    assert.equal(t.stage, "approval", JSON.stringify(t.failure));
-    assert.deepEqual(S.list().map((x) => x.id).sort(), [id, made.id]); assert.equal(t.suggestions.length, 2);
-    assert.deepEqual(t.review.findings.map((f) => [f.task || "", f.suggested?.id || ""]), [[made.id, ""], ["", "S2"]]);
-    assert.match(G.findingsText(t.review), /→ task proj\/2\n- [^\n]* → suggested as a task$/);
+    // a review an older version saved still says where its fault went; a suggestion it named says nothing any more
+    assert.equal(G.wentTo({ ...old, task: "proj/2" }), "task proj/2"); assert.equal(G.wentTo({ ...old, suggested: { on: id, id: "S1" } }), "");
   } finally { w.cleanup(); }
 });
 

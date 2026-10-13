@@ -64,7 +64,6 @@ shows the number on every row, and a repo can have a short key of its own so tha
 | the list, the archive, find: one-, two- and three-line rows, of every group | the tag, as above |
 | the task panel and the details page | the tag before the title, greyed; the heading and the `Task` row say `HSW-134 · herdr-superwork/134` (without a key: the id) |
 | the chat's line that names who you talk to | the tag between the mark and the task's name; a window too narrow to leave the status 20 cells goes without it |
-| a suggestion that was made a task | `made a task: HSW-140` |
 | an automation's firings | `made HSW-140`, on the board and on the command line |
 | the board's own messages (`archived`, `restored`, `stopped`, `removed`) | `HSW-134: archived` |
 | the web board | the same tag on each row, in the same column and with the same limit on the space before a title; what a task says and its bar start under the title, not under the tag; a list too narrow to leave the widest tag's title 16 letters shows no tags, on every row at once; before the task's title when one is open, and in the chat's line |
@@ -74,7 +73,7 @@ shows the number on every row, and a repo can have a short key of its own so tha
 | Where | With the key `HSW` |
 |---|---|
 | a command's answer and its error (`describe`, `delegate`, `archive`, …) | `HSW-134: updated (description)` |
-| the board's messages, also what a command answered through the board (a suggestion made a task) | `HSW-135: added from the suggestion` |
+| the board's messages, also what a command answered through the board | `HSW-135: restored` |
 | what a task's agent is told about its own task | `its id on the work board is herdr-superwork/134; the human also calls it HSW-134, and every command takes that name too` |
 | a pull request's body, and the commit the board makes | `Task: HSW-134 (herdr-superwork/134)` |
 
@@ -114,7 +113,7 @@ or, to let it travel with the repo, in the repo's own `.herdr-superwork.json`:
 
 `HSW-134`, in any letter case, is accepted wherever an id is: every command (`details`, `delegate`, `tell`, `stop`,
 `approve`, `review`, `retry`, `fix`, `finish`, `report`, `describe`, `pin`, `archive`, `restore`, `clear`,
-`suggest --from`, `suggestions`, `accept`, `dismiss`, `show`, `set … --task`), so "start HSW-134" is
+`show`, `set … --task`), so "start HSW-134" is
 `herdr-superwork delegate HSW-134`. The Coordinator's rules and the skill say so too.
 
 The id keeps working and stays the task's real id: nothing is stored under a key. Changing or removing a key breaks

@@ -102,8 +102,6 @@ export async function remoteMain([what, payload]) {
         review: () => A.sendReview(t.id).msg,
         finish: () => A.finishAnyway(t.id).msg,
         pin: () => { A.pin(t.id); return ""; },
-        accept: () => A.acceptSuggestion(t.id, a.sid).msg,
-        dismiss: () => A.dismissSuggestion(t.id, a.sid).msg,
         stop: () => { A.stop(t.id); return `${t.id}: stopped.`; },
       };
       // Going into a task from another machine: reopen its space and restart its exited agent here first, with the

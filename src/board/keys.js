@@ -81,10 +81,6 @@ export const KEYS = [
     menu: (v) => (v.editing ? "back from this task's settings" : "this task's settings: see and change each one"),
     run: (v, r) => v.editSettings(r) },
   { id: "putBack", keys: ["ctrl+u"], with: "settings" }, // on the settings page only, which takes it itself (view/panel-edit.js)
-  { id: "suggested", web: "Suggested tasks", keys: ["ctrl+n"], group: "ctrl", hint: "see this task's suggestion",
-    doc: "suggested tasks: asks about the selected task's first open suggestion, or goes to the first task that has one. In that question {sayYes} makes it a task, {sayNo} dismisses it and {back} leaves it for later ([suggestions.md](suggestions.md))",
-    menu: (v) => (v.suggestionCount() ? `suggested tasks (${v.suggestionCount()}): make one a task, or dismiss it` : "suggested tasks: none wait"),
-    run: (v) => v.suggestKey() },
   { id: "undo", web: "Undo", keys: ["ctrl+z"], group: "ctrl",
     doc: "undo: bring back a draft that was put away, or take the last archiving back",
     menu: (v) => (v.draftAway ? "undo: bring back what you typed" : v.archiveUndo ? "undo the archive" : "undo"),

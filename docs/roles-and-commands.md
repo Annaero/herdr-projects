@@ -24,19 +24,20 @@ running herdr: the chat says "New task", and what you type is added word for wor
 It gives the command by its full path, so `npm link` is not needed. `herdr-superwork remove-extras` removes
 exactly what was written, and it is not written back; a folder of that name the plugin did not write is left alone.
 
-Commands: `add`, `suggest`, `suggestions`, `accept`, `dismiss`, `list`, `report`, `describe`, `delegate`, `tell`, `stop`, `approve`, `review`, `retry`, `fix`,
+Commands: `add`, `list`, `report`, `describe`, `delegate`, `tell`, `stop`, `approve`, `review`, `retry`, `fix`,
 `finish`, `details`, `pin`, `archive`, `restore`, `clear`, `set`, `unset`, `show`, `automations` ([automations](automations.md)), `machines` ([other machines](other-machines.md)), `remove-extras`; `herdr-superwork help` lists
 them.
 
 **Agents the board started: able, not nudged.** An agent or a reviewer the board itself started on a task can run
 every one of these commands, as the Coordinator or an agent in your own shell can: `add` (also with `--delegate`),
-`delegate`, `tell`, `stop`, `accept`, `dismiss`, `approve`, `archive`, `restore`, `clear`, `set`, `unset`, `describe` and
+`delegate`, `tell`, `stop`, `approve`, `archive`, `restore`, `clear`, `set`, `unset`, `describe` and
 the rest. Nothing is refused and nothing is turned into something else. But their rules name none of these and
-say plainly: do nothing to the board beyond your own task (reporting your own state, suggesting work you came
-across) unless a human explicitly told you to. An explicit instruction in the task's own description, or in a
+say plainly: do nothing to the board beyond your own task (reporting your own state) unless a human explicitly told
+you to. An explicit instruction in the task's own description, or in a
 message from you, counts as being told, so a task that says "add a task for each failing page and delegate it" has
-its agent do that. Work it merely comes across is still a [suggestion](suggestions.md) you accept or dismiss, never a
-task, and a reviewer's `preexisting` finding still becomes one. That holds for its own task as well: its rules
+its agent do that. Work it merely comes across is never a task and it does not do it: it mentions it in a short
+**Also noticed** list at the end of its closing note or its report, and nothing else is done with it. A reviewer's
+`preexisting` finding is the same thing in a review: a note ([the gate](gate.md)). That holds for its own task as well: its rules
 tell it to report itself `blocked` and nothing else (the finish line marks its work done), but a `report` of
 `done`, `idle` or `error` from it is taken like anyone's.
 

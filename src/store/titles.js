@@ -1,5 +1,5 @@
 // A title's one length limit, and how a longer one is shortened without losing what it said. Every title the board
-// saves (a task's, a suggestion's; typed, renamed, or made from a reviewer's finding) goes through here.
+// saves (typed, renamed, or given by an agent) goes through here.
 import { createRequire } from "node:module";
 
 // 60 cells of the screen (60 letters; a wide character, as in Chinese or an emoji, takes two): what a row of the
@@ -47,15 +47,13 @@ export function shortTitle(text, max = TITLE_MAX, width = titleWidth) {
 
 const flat = (text) => String(text || "").replace(/\s+/g, " ").trim().toLowerCase();
 // A title and a description as they are saved. When the title had to be cut, its full text is the description's
-// first paragraph (unless the description says it already): nothing that was written is lost. `cut` says it was,
-// and `subject` is then that full text: what the task or suggestion is known by when the board asks whether two
-// things are the same work, since two different sentences can start with the same 60 characters.
+// first paragraph (unless the description says it already): nothing that was written is lost. `cut` says it was.
 export function titled(title, description = "") {
   const full = clean(title), short = shortTitle(full), text = String(description || "").trim();
   const cut = short.endsWith("…") && short !== full;
-  return { title: short, full, cut, ...(cut ? { subject: full } : {}), description: cut && !flat(text).includes(flat(full)) ? [full, text].filter(Boolean).join("\n\n") : text };
+  return { title: short, full, cut, description: cut && !flat(text).includes(flat(full)) ? [full, text].filter(Boolean).join("\n\n") : text };
 }
 // What whoever gave a too long title is told, so that they can give a better one. "" when it fitted.
 export const titleNote = (given) => { const t = titled(given); return t.cut ? ` The title was over ${TITLE_MAX} characters, so it was shortened to "${t.title}" and the full text was kept in the description. Rename it if a better short title exists.` : ""; };
-// What the instructions say of a title, in one place: the Coordinator's rules, the agents' rules, the reviewer's brief.
+// What the instructions say of a title, in one place: the Coordinator's rules and the board's how-to.
 export const TITLE_RULE = `at most ${TITLE_MAX} characters`;

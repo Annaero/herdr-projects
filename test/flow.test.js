@@ -126,7 +126,7 @@ test("a board kept in its own folder: the agent's command and its herdr space bo
     // A worktree's space gets none from herdr, so the command itself carries the board. Run as the agent would: by
     // the path in its rules, from its folder, with nothing in the environment pointing at this board.
     const cmd = F.shim();
-    assert.ok(rules(S.get(t.id)).includes(`${cmd} suggest `));
+    assert.ok(rules(S.get(t.id)).includes(`${cmd} report `));
     const env = { ...process.env, HERDR_SUPERWORK_HOME: path.join(w.base, "default-home") };
     delete env.HERDR_SUPERWORK_DATA_DIR; delete env.HERDR_SUPERWORK_CONFIG_DIR;
     execFileSync(cmd, ["add", "Found on the way", "--desc", "A follow-up."], { cwd: w.root, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });

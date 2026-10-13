@@ -46,7 +46,7 @@ export class Panel {
   // thin rule, then either facts (a greyed-out label on the left, its value on the right, every value starting in the
   // same column and wrapped under itself) or a text. An empty line stands between two parts and nowhere else. The
   // parts: the title, where it stands (`Status`), what it needs from you (its headline in the state's colour),
-  // suggested tasks, the description, the report, the reviews, what the agent said, and every setting. Beside the list (`fit` is
+  // the description, the report, the reviews, what the agent said, and every setting. Beside the list (`fit` is
   // the height there) the description is short and only the latest review shows; full screen everything is whole,
   // with every review, the newest first.
   panel(r, width, full = false, fit = 0) {
@@ -69,7 +69,6 @@ export class Panel {
 
     // Each part is drawn on its own (`attempt`): one that fails says so in its place and takes nothing else with it.
     const { title, top, told } = attempt("Status", () => this.panelStatus(p), null) || { title: part([t.bold(clean(r.title || "(no title)"))]), top: { lines: [], rows: {}, drop() {} }, told: "" };
-    if (attempt("Suggestions", () => this.panelSuggestions(p))) cut = true;
 
     // The description: whole on the full screen, its first few hundred characters beside the list.
     const desc = this.desc(r).trim();
@@ -100,7 +99,7 @@ export class Panel {
     if (!fit || render().length + (cut ? 2 : 0) <= fit) return out([...render(), ...(cut ? ["", more] : [])]);
     // Too tall for its place beside the list. Nothing is cut in the middle of a line: whole lines and whole facts give
     // way, the least needed first, and the last line says where the rest is. First the empty line on top. Then the
-    // long parts give up lines (what the agent said, suggested tasks, the description, the review), each down to a
+    // long parts give up lines (what the agent said, the description, the review), each down to a
     // few lines; then all of them but the review go. Then the facts that are said elsewhere: the task's id and who is
     // on it, and the rows among the settings that are not settings. Then the settings, from the last, each one whole,
     // and their headline with the last of them. Only then is the review down to its one row.

@@ -1,5 +1,5 @@
 // One task, whole: its title, the buttons for what can be done to it now, and the task panel's parts (status, what
-// it needs from you, suggested tasks, description, reviews, evidence, what the agent said, settings, session). The
+// it needs from you, description, reviews, evidence, what the agent said, settings, session). The
 // parts and the buttons come from the board (webui/panel-model.js, webui/side-model.js); this file lays them out.
 import { h, icon, ink } from "./dom.js";
 
@@ -11,7 +11,7 @@ function item(x, onGo) {
   if (x.k === "gap") return h("div.sw-gap");
   // A firing of an automation that made a task: the line goes to that task.
   if (x.k === "text" && x.go) return h("button.sw-text.sw-go", { type: "button", title: `Open ${x.go}`, onclick: () => onGo?.(x.go) }, ink(x.value));
-  // A line the board set in under another (a suggestion's words under its title) stays set in when it wraps.
+  // A line the board set in under another (a finding's further lines under its first) stays set in when it wraps.
   if (x.k === "text") { const lead = /^ */.exec(x.value[0]?.t || "")[0].length; return h("p.sw-text", lead ? { style: `padding-left:${lead * 0.5}em` } : null, ink(lead ? [{ ...x.value[0], t: x.value[0].t.slice(lead) }, ...x.value.slice(1)] : x.value)); }
   return h("div.sw-fact", h("dt.sw-label", x.label), h("dd.sw-value",
     x.bar === undefined ? null : h("span.sw-bar.sw-bar-wide", { role: "progressbar", "aria-valuenow": x.bar, "aria-valuemin": 0, "aria-valuemax": 100 }, h("span.sw-bar-fill", { style: `width:${x.bar}%` })),

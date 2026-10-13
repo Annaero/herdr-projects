@@ -80,8 +80,8 @@ following. Each is something to raise with herdr; none can be stood in for by a 
 - **herdr's own keys while a popup has the keyboard**, or at least the key that opened it: today every key goes to
   the popup's program, so a plugin has to read herdr's config to know its own key, and no other key of herdr's
   works. The same gap is why the board key does nothing while another plugin's popup shows; an event to plugins that
-  a key was held back would at least let the board say so. (The suggestion from task 135, "keys swallowed by
-  floating windows", is this one: this work meets it again and works around it for the board's own key only.)
+  a key was held back would at least let the board say so. (Task 135 noted it as "keys swallowed by
+  floating windows": this work meets it again and works around it for the board's own key only.)
 - **A way to close the popup from the command line** (`herdr popup close`): the socket has `popup.close`, the
   command line has not.
 - **Whose popup is open**: `ui_busy` does not say, and `popup.close` closes anybody's. The board therefore closes
@@ -89,5 +89,5 @@ following. Each is something to raise with herdr; none can be stood in for by a 
 - **A popup over the whole window, sidebar and tab bar included, with what is behind it dimmed**, if herdr's menus
   ever get that: a plugin's popup is centred on the panes' area and nothing is dimmed.
 
-Settled by this work: a zoomed pane losing its zoom when the board's popup closes (task 135's other suggestion).
+Settled by this work: a zoomed pane losing its zoom when the board's popup closes (the other thing task 135 noted).
 That was the overlay's doing; herdr's popup leaves the layout alone.

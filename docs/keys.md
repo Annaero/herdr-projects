@@ -2,9 +2,7 @@
 
 **The board asks before what cannot be undone**, always the same way, in a small box: `Merge PR#18?  y = yes ·
 n = no`. `y` says yes, `n` or `Esc` says no, in upper or lower case; `Enter` never confirms, and no other key answers.
-Merging and deleting a task ask; nothing else does by itself. (A [suggested task](suggestions.md) is asked about
-only when you press its key, and its box has three answers: `y` makes it a task, `n` dismisses it, `Esc` leaves it
-for later.) A result stays on screen until
+Merging and deleting a task ask; nothing else does by itself. A result stays on screen until
 your next key press, an error until `Esc` dismisses it.
 
 **Closing the board takes `Ctrl+C` twice**, as leaving Claude Code does. The first one shows `Press ctrl+c
@@ -112,7 +110,6 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 | `Ctrl+A` | archive the selected task, or restore it from the archive |
 | `Ctrl+P` | pin the selected task to the top, or unpin it |
 | `Ctrl+E` `Ctrl+U` | the selected task's settings, full screen: every work setting by its name, its value, and the place it comes from (this task, your entry for its repo, you, the repo's file, built in). `↑` `↓` move to a row; `Enter` changes it (a switch or a choice goes to its next value, anything else is typed and saved with `Enter`); rows that are this task's own are marked `*`. `Ctrl+U` puts the selected row back to what it would be without this task's own answer. `Esc` or `Ctrl+E` again goes back ([settings.md](settings.md)) |
-| `Ctrl+N` | suggested tasks: asks about the selected task's first open suggestion, or goes to the first task that has one. In that question `y` makes it a task, `n` dismisses it and `Esc` leaves it for later ([suggestions.md](suggestions.md)) |
 | `Ctrl+Z` | undo: bring back a draft that was put away, or take the last archiving back |
 | `Ctrl+F` | find: type, and the list shows only the tasks that match, archived ones too. `Enter` keeps the filter, `Esc` leaves find; `Esc` on the list clears a filter that is kept |
 | `Ctrl+C` | twice: close the board, with text typed too: the draft is kept and is back when the board reopens |

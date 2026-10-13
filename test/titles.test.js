@@ -1,5 +1,4 @@
-// A title's length limit: one number, the same for a task typed, renamed, suggested, or made from a reviewer's
-// finding. A longer title is shortened at a word and its full text is kept in the description.
+// A title's length limit: one number, the same for a task typed, added or renamed. A longer title is shortened at a word and its full text is kept in the description.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { visibleWidth } from "@earendil-works/pi-tui";
@@ -7,10 +6,6 @@ import { world } from "./helpers.js";
 import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import { main } from "../src/cli.js";
-import { rules as agentRules } from "../src/delegate.js";
-import { suggestFaults, reviewBrief } from "../src/finish.js";
-import { knownFaults } from "../src/finish/faults.js";
-import * as G from "../src/gate.js";
 
 const LONG = "After the startup dialog handoff, finish jobs wrongly mark the untouched task as stopped without a summary.";
 const SHORT = "After the startup dialog handoff, finish jobs wrongly mark…";
@@ -81,89 +76,17 @@ test("add, rename and report --title follow the limit, and the full text stays i
     assert.match(await board("report", plain.id, "--title", LONG), /updated \(title\) The title was over 60 characters/);
     assert.match(await board("report", "--title", LONG, "--repo", w.root), /added The title was over 60 characters/);
     assert.ok(S.list().every((t) => len(t.title) <= 60));
-    // A cut title keeps its whole sentence as the task's subject; a new title that fits takes it away again.
-    assert.equal(one.subject, LONG); assert.equal(S.get(plain.id).subject.length > 60, true);
-    assert.equal(A.rename(plain.id, "Short again").subject, undefined);
     assert.match(await board("help"), /a title is at most 60 characters/);
   } finally { w.cleanup(); }
 });
 
-test("a suggestion's title follows the limit: the reviewer's own short one, or the finding's sentence shortened", async () => {
+test("the Coordinator and the board's how-to give the limit", async () => {
   const w = await world();
   try {
-    const one = A.add(w.root, "Add a column");
-    // An agent's long title: shortened, whole in the description, and still known by all of its words.
-    const out = A.suggest(one.id, LONG, { description: "Seen in src/finish/recover-job.js." });
-    assert.deepEqual([out.suggestion.title, out.suggestion.subject, out.suggestion.description], [SHORT, LONG, `${LONG}\n\nSeen in src/finish/recover-job.js.`]);
-    assert.ok(A.suggest(one.id, LONG, { description: "src/finish/recover-job.js again" }).known);
-    assert.equal(A.suggest(one.id, "Dates are parsed as text").suggestion.subject, undefined);
-    // Two sentences that only differ after the cut are two things, as a task and a suggestion and as two suggestions:
-    // the board knows each by its whole sentence. The very same sentence again is still known.
-    const runner = "The background task runner incorrectly changes the status of untouched tasks";
-    const filed = A.add(w.root, `${runner} before the user responds.`);
-    assert.equal(filed.title, S.shortTitle(`${runner} after the user responds.`));
-    const other = A.suggest(one.id, `${runner} after the user responds.`);
-    assert.equal(other.known, undefined); assert.equal(other.suggestion.title, filed.title);
-    assert.equal(A.suggest(one.id, `${runner} before the user responds.`).known.task, filed.id);
-    assert.deepEqual(A.suggest(one.id, `${runner} after the user responds.`).known, { on: one.id, id: other.suggestion.id, state: "open" });
-    // However long the sentences are: ones that only part ways after 200 or after 3000 bytes are still two.
-    for (const n of [8, 120]) {
-      const lead = `The nightly report builder ${"keeps reading stale cached totals and ".repeat(n)}prints them`;
-      const first = A.suggest(one.id, `${lead} before the export.`), second = A.suggest(one.id, `${lead} after the export.`);
-      assert.ok(Buffer.byteLength(lead) > (n === 8 ? 192 : 2048)); assert.ok(first.suggestion && second.suggestion, String(n)); assert.equal(second.suggestion.subject, `${lead} after the export.`);
-      const t1 = A.acceptSuggestion(one.id, first.suggestion.id).task;
-      assert.equal(A.suggest(one.id, `${lead} before the export.`).known.task, t1.id);
-      S.update(one.id, (t) => { t.suggestions = t.suggestions.filter((s) => ![first.suggestion.id, second.suggestion.id].includes(s.id)); });
-      const third = A.suggest(one.id, `${lead} after the export.`); assert.ok(third.suggestion, `after accepting, ${n}`);
-      S.update(one.id, (t) => { t.suggestions = t.suggestions.filter((s) => s.id !== third.suggestion.id); }); S.update(t1.id, (t) => { t.stage = "done"; });
-    }
-    // The same for a reviewer's findings: a sentence is kept whole (it is 400 characters at most), not cut at 120.
-    const tail = "x".repeat(150), pair = { findings: G.readFindings(["first", "last"].map((w) => ({ severity: "minor", subject: `The table view ${tail} sorts the ${w} column wrongly`, title: `Table sorts the ${w} column wrongly`, where: "table.js", preexisting: true }))) };
-    suggestFaults(one.id, pair);
-    assert.deepEqual(S.suggestionsOf(S.get(one.id)).filter((s) => /^Table sorts/.test(s.title)).map((s) => s.subject.length), [196, 195]);
-    S.update(one.id, (t) => { t.suggestions = t.suggestions.filter((s) => !/^Table sorts/.test(s.title)); });
-    // Accepted, the task carries the sentence on: the same suggestion raised again is that task, the other one is not.
-    const taken = A.acceptSuggestion(one.id, other.suggestion.id);
-    assert.deepEqual([taken.existing, taken.task.subject], [false, `${runner} after the user responds.`]);
-    S.update(one.id, (t) => { t.suggestions = t.suggestions.filter((s) => s.id !== other.suggestion.id); });
-    assert.equal(A.suggest(one.id, `${runner} after the user responds.`).known.task, taken.task.id);
-    S.update(filed.id, (t) => { t.stage = "done"; }); S.update(taken.task.id, (t) => { t.stage = "done"; });
-    // A reviewer's finding: its `title` is the suggestion's title, its sentence the first thing the suggestion says.
-    const sentence = "The importer silently drops the last row of every file that does not end in a newline character.";
-    const review = { findings: G.readFindings([
-      { severity: "major", subject: sentence, title: "Importer drops the last row", where: "import.js:12", proof: "ran it", preexisting: true },
-      { severity: "minor", subject: "The nightly export job writes its header line twice whenever the target file already exists on disk.", where: "export.js:4", preexisting: true },
-      { severity: "minor", subject: "Typo in the help text", title: "t".repeat(90), where: "cli.js:3", preexisting: true }]) };
-    suggestFaults(one.id, review);
-    const made = S.suggestionsOf(S.get(one.id)).filter((s) => s.by === "reviewer");
-    assert.deepEqual(made.map((s) => s.title), ["Importer drops the last row", "The nightly export job writes its header line twice…", "t".repeat(59) + "…"]);
-    assert.equal(made[0].subject, sentence); assert.ok(made[0].description.startsWith(`${sentence}\n\nWhere: import.js:12`));
-    assert.equal(S.detailOf(made[0]).split("\n")[0], sentence);
-    // The next round names the same fault under another short title: it is the same sentence, so nothing is added.
-    const next = { findings: G.readFindings([{ severity: "major", subject: sentence, title: "Last row is lost on import", where: "import.js:12", preexisting: true }]) };
-    suggestFaults(one.id, next);
-    assert.equal(S.suggestionsOf(S.get(one.id)).filter((s) => s.by === "reviewer").length, 3); assert.deepEqual(next.findings[0].suggested, { on: one.id, id: made[0].id });
-    // The next reviewer is told what is known by the whole sentence, not by the short title.
-    assert.match(reviewBrief(S.get(one.id), { text: "done", change: { head: "abc" }, toLand: true, ch: { serve: "local" }, filed: knownFaults(S.get(one.id)) }), new RegExp(`do not report these again[^]*${sentence.slice(0, 40)}`));
-    // Accepted: the task has the short title and the whole sentence in its description.
-    const task = A.acceptSuggestion(one.id, made[0].id).task;
-    assert.equal(task.title, "Importer drops the last row"); assert.ok(task.description.startsWith(sentence));
-    // A suggestion saved before the limit, with its long sentence as its title, becomes a task that follows it.
-    S.update(one.id, (t) => { t.suggestions.push({ id: "S9", title: LONG, description: `${LONG}\n\nWhere: a.js`, by: "reviewer", state: "open", at: 1 }); });
-    const old = A.acceptSuggestion(one.id, "S9").task;
-    assert.equal(old.title, SHORT); assert.ok(old.description.startsWith(`${LONG}\n\nWhere: a.js`)); assert.equal(old.description.split(LONG).length, 2);
-  } finally { w.cleanup(); }
-});
-
-test("the Coordinator, the agents and the reviewer are told the limit", async () => {
-  const w = await world();
-  try {
-    const one = A.add(w.root, "Add a column");
     const { rules: rulesText } = await import("../src/coordinator/rules.js");
     assert.match(rulesText(), /board add "<short title: a few words, at most 60 characters, no trailing period>"/);
     assert.match(rulesText(), /--title "<new title>" \(at most 60 characters too/);
-    assert.match(agentRules(S.get(one.id)), /suggest "<short title: a few words, at most 60 characters>"/);
-    const brief = reviewBrief(S.get(one.id), { text: "done", change: { head: "abc" }, toLand: true, ch: { serve: "local" } });
-    assert.match(brief, /a `title` \(the same in a few words, at most 60 characters/); assert.match(brief, /"title": "<a few words, at most 60 characters>"/);
+    const { skillText } = await import("../src/extras.js");
+    assert.match(skillText("herdr-superwork"), /a title is a few words, at most 60 characters/);
   } finally { w.cleanup(); }
 });
