@@ -76,6 +76,7 @@ export class Panel {
     if (start !== desc) cut = true;
     if (desc) text("Description", wrap(start), 2);
 
+    if (attempt("Attempts", () => this.panelAttempts(p))) cut = true; // a task done several times at once (panel-attempts.js)
     attempt("Report", () => this.panelReport(p));
     if (attempt("Reviews", () => this.panelReviews(p))) cut = true;
 

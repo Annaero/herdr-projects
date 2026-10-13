@@ -8,7 +8,8 @@ import { userEnv } from "./runner.js";
 // What happened, from where the task stands; "" for a task nobody needs to hear about.
 export function eventOf(t) {
   if (!t || t.archivedAt) return "";
-  if (["asks", "reviewneeds"].includes(t.stage)) return "needs you";
+  if (["asks", "reviewneeds", "pick"].includes(t.stage)) return "needs you"; // "pick": choose one of its attempts (attempts.js)
+  if (t.stage === "attempts") return S.attemptsOf(t).some((c) => ["asks", "reviewneeds"].includes(c.stage)) ? "needs you" : ""; // one of its attempts asks you
   if (["failed", "nosummary"].includes(t.stage)) return "failed";
   if (t.stage === "approval") return t.failure || t.prFailure || t.syncBlocked ? "needs you" : "ready to approve";
   return "";

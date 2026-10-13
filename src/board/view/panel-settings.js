@@ -37,6 +37,8 @@ export class PanelSettings {
       return `${k}${version ? ` ${version}` : ""} · ${model || "default model"} · ${effort || "default effort"}${fast}${val(`${name}.access`) === "ask" ? " · asks before acting" : ""}`;
     };
     rows.push(["Agent", role("worker", r.agent, r.agentVersion), mine("worker.")]);
+    // Done several times at once: how many and by whom, and who picks (attempts.js).
+    if (r.attempts?.length > 1 || S.attemptCount(val("attempts.by")) > 1) rows.push(["Attempts", `${r.attempts?.length > 1 ? r.attempts.map((a) => `${a.letter} ${a.agent}`).join(", ") : S.say(val("attempts.by"))} · ${r.picked ? `${r.picked.letter} was chosen` : val("attempts.pick") === "reviewer" ? "the reviewer picks" : "you pick"}`, mine("attempts.")]);
     const noReview = val("review.when") === "never";
     rows.push(["Reviewer", noReview ? "off" : role("reviewer"), mine("reviewer.", "review.when")]);
     rows.push(["Review when", noReview ? "never" : val("review.when") === "always" ? "always" : "the task is in a repo", mine("review.when")]);

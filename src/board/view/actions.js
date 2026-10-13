@@ -53,6 +53,7 @@ export class Actions {
   // "Yes": whatever the selected task waits for. A merge cannot be undone, so that one asks first.
   yes(r) {
     if (r.archivedAt) return this.flash(`Archived tasks are read-only. ${keyName("archive")} restores.`, "yellow");
+    if (r.stage === "pick") return this.pickSelected(r); // one of several attempts: the selected one (attempts.js)
     if (r.stage === "approval" && r.state === "blocked") {
       if (r.syncBlocked) return this.flash(`Behind main, so it cannot be approved yet: ${r.syncBlocked.why}. The board keeps trying to bring it up to date.`, "yellow");
       // The question names what is merged, where it lands and that it cannot be undone. After a failed review the

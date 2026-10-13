@@ -26,12 +26,15 @@ export function liveOf(t, session, here = currentSocket()) {
   return a ? { status: a.agent_status, agent: a, pane } : { status: null, pane };
 }
 // A task as the board and `list` show it: the task plus its derived state.
+// A task done several times at once carries its attempts as `tries`, each as the board shows it (attempts.js): they
+// are no rows of their own, the task's row and panel show them.
 export function shown(t, session, here, seen = new Map()) {
   const live = liveOf(t, session, here);
   const pending = isAgentTask(t) && S.pendingText(t.id).length > 0;
+  const tries = t.attempts?.length && !t.attemptOf ? S.attemptsOf(t).map((c) => shown(c, session, here, seen)) : undefined;
   // Research only or not is worked out here, by the machine that owns the task: a row says it, and nothing that draws
   // a row looks it up again (research.js).
-  return { ...t, live, research: isResearchAmong(t, seen), ...pick(show({ ...t, pendingText: pending }, live)) };
+  return { ...t, live, ...(tries ? { tries } : {}), research: isResearchAmong(t, seen), ...pick(show({ ...t, pendingText: pending, tries }, live)) };
 }
 // The same from what was saved alone, with no look at herdr: for whoever just changed a task and says so at once.
 export const saved = (t) => ({ ...t, ...pick(show({ ...t, pendingText: false }, undefined)) });
@@ -40,14 +43,14 @@ const pick = (s) => ({ state: s.state, kind: s.kind, note: s.msg, plain: s.plain
 // This machine's tasks as one herdr session sees them (the keeper serves several sessions from one data folder).
 export function boardFor(socket) {
   const tasks = S.list();
-  const session = tasks.some((t) => isAgentTask(t) && t.link.socket === socket) ? readSession(socket) : null;
+  const session = tasks.some((t) => (isAgentTask(t) || t.attempts?.length) && t.link?.socket === socket) ? readSession(socket) : null;
   const seen = new Map();
   return tasks.map((t) => shown(t, session, socket, seen));
 }
 export function board({ includeArchived = false } = {}) {
   const here = currentSocket();
   const tasks = S.list({ includeArchived });
-  const session = tasks.some((t) => isAgentTask(t) && t.link.socket === here) ? readSession(here) : null;
+  const session = tasks.some((t) => (isAgentTask(t) || t.attempts?.length) && t.link?.socket === here) ? readSession(here) : null;
   const seen = new Map();
   return tasks.map((t) => shown(t, session, here, seen));
 }

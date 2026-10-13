@@ -6,7 +6,9 @@ import { herdr } from "../herdr.js";
 
 // What an agent writes for the board goes in the task's own folder inside the board's data folder, never into the
 // folder it works in: a task that works in the home folder would write into the board's own home (docs/home-folder.md).
-export const noteFile = (t) => path.resolve(S.dirOf(t.id), "closing-note.md");
+// `as`: the chosen attempt of several is the task from then on, and its agent still writes where it was told to
+// when it started as that attempt (attempts/adopt.js).
+export const noteFile = (t) => path.resolve(S.dirOf(t.as || t.id), "closing-note.md");
 export const reviewDir = (t) => path.resolve(S.dirOf(t.id), "review");
 // Where older versions told agents to write: `<working folder>/.herdr-superwork/closing-<n>.md`. An agent started
 // with that rule still writes there, so a note there is read until its task is done; a task first started by this

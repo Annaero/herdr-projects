@@ -16,6 +16,7 @@ import * as Y from "./sync.js";
 import { autoMergePass, green } from "./finish/auto-merge.js";
 import { linePass } from "./finish/line.js";
 import { notifyPass } from "./notify.js";
+import { settlePass } from "./attempts/settle.js";
 
 const key = (socket) => createHash("sha1").update(String(socket)).digest("hex").slice(0, 8);
 
@@ -24,16 +25,19 @@ export function housekeeping(socket = currentSocket(), { force = false } = {}) {
   if (!force && !S.due(`housekeep-${key(socket)}`, 2000)) return;
   // What an older version kept of suggested tasks is written down and taken off the tasks, once (store/old-suggestions.js).
   try { S.saveOldSuggestions(); } catch {}
-  const tasks = S.list();
+  // With the attempts of tasks done several times at once: each has an agent of its own to look after (attempts.js).
+  const every = S.list({ attempts: true }), tasks = every.filter((t) => !t.attemptOf);
   if (socketExists(socket)) {
-    const linked = tasks.filter((t) => F.isAgentTask(t) && t.link.socket === socket && !["done", "todo", "progress", "queued"].includes(t.stage));
+    const linked = every.filter((t) => F.isAgentTask(t) && t.link.socket === socket && !["done", "todo", "progress", "queued"].includes(t.stage));
     if (linked.length) {
       const api = herdr(socket);
       let ok = true;
       try { api.workspaces(); } catch { ok = false; }
       if (ok) for (const t of linked) { try { reconcile(S.get(t.id) || t, api); } catch {} }
     }
-    if (tasks.some((t) => t.stage === "queued")) { try { startQueued(socket); } catch {} }
+    if (every.some((t) => t.stage === "queued")) { try { startQueued(socket); } catch {} }
+    // Attempts that are all through: the task fails, goes on with the one that passed, or waits for a pick.
+    try { settlePass(tasks, socket); } catch {}
     if (S.due(`spaces-${key(socket)}`, 30000)) { try { F.sweepRepoSpaces(socket); } catch {} try { F.sweepClosing(socket); } catch {} }
     // A clean-up that found the task's space in use is tried again, so a done task leaves the sidebar by itself once
     // the space is free; after a turn in the agent's own terminal only when that has been quiet for a while.
@@ -49,7 +53,7 @@ export function housekeeping(socket = currentSocket(), { force = false } = {}) {
     // Tasks that wait their turn to merge: the next one starts when the one before it is through.
     try { linePass(tasks); } catch {}
     // An agent whose turn a passing provider error cut off is told to carry on once its wait is over.
-    for (const t of tasks) { const w = S.waitingOf(t); if (w?.who === "agent" && t.link?.socket === socket && Date.now() >= w.until && !runnerAlive(t)) { try { F.resumeCut(t.id); } catch {} } }
+    for (const t of every) { const w = S.waitingOf(t); if (w?.who === "agent" && t.link?.socket === socket && Date.now() >= w.until && !runnerAlive(t)) { try { F.resumeCut(t.id); } catch {} } }
   }
   if (tasks.some((t) => (t.pr && !t.prMerged) || (Y.resyncable(t) && t.worktree)) && (force === "pr" || S.due("prpoll", 120000))) {
     if (inline()) (globalThis.__swJobs ||= []).push(["prpoll", "-", []]);

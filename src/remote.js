@@ -102,6 +102,7 @@ export async function remoteMain([what, payload]) {
         delegate: () => { sent(); A.delegate(t.id); return `${t.id}: an agent is on it`; },
         tell: () => { if (!t.startedOnce) sent(); return A.tell(t.id, String(a.text || "")).msg; },
         approve: () => A.approve(t.id, a.seen || null, { anyway: a.anyway === true }).msg,
+        pick: () => A.pick(t.id, String(a.letter || "")).msg,
         fix: () => A.sendFailure(t.id).msg,
         retry: () => A.sendError(t.id).msg,
         again: () => A.retry(t.id).msg,

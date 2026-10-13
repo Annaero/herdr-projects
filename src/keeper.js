@@ -83,12 +83,12 @@ export function tickOnce(socket, { watch } = {}) {
       try { housekeeping(socket); } catch {}
       rows = F.boardFor(socket);
       try { F.syncSidebar(rows, { socket }); } catch {}
-      try { refreshSaid(rows); } catch {}
+      try { refreshSaid(rows.flatMap((t) => [t, ...(t.tries || [])])); } catch {}
       try { coordinatorTick(socket); } catch {}
       try { coordinatorSidebar(socket); } catch {}
     }, { waitMs: 0 });
   } catch (e) { if (e.code !== "BUSY") throw e; }
-  if (rows && watch) { try { watch(rows); } catch {} }
+  if (rows && watch) { try { watch(rows.flatMap((t) => [t, ...(t.tries || [])])); } catch {} } // each attempt of a task has an agent of its own to follow (attempts.js)
   return rows;
 }
 // While an agent works, its last message is refreshed from the saved conversation, at most once every five seconds.

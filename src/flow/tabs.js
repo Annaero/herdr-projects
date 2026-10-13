@@ -1,5 +1,5 @@
 // A task's tabs in its herdr space: the agent's tab is named `Agent`, and each reviewer has a tab of its own, named
-// after its review round.
+// after its review round. A task done several times at once has a tab per attempt: `Agent A`, `Agent B`.
 //
 // Checked on herdr 0.9.3: `tab create --no-focus` leaves the focus where it is and the other tabs' panes at their size
 // (a split halved the agent's pane); closing a tab's last pane closes the tab; a tab's id is not given out again.
@@ -12,7 +12,11 @@ export function nameTab(api, tab, label) {
   if (!tab) return;
   try { api.tabRename(tab, label); } catch {}
 }
-export const nameAgentTab = (api, tab) => nameTab(api, tab, AGENT_TAB);
+// An attempt's tab says which attempt it is (`Agent B`), and keeps saying so once that attempt is the task (attempts.js).
+export const agentTab = (t) => { const letter = t?.letter || t?.picked?.letter; return letter ? `${AGENT_TAB} ${letter}` : AGENT_TAB; };
+export const nameAgentTab = (api, tab, t = null) => nameTab(api, tab, agentTab(t));
+// The tab of the reviewer that compares a task's attempts.
+export const PICKER_TAB = "Picker";
 // The reviewer's own tab in the task's space, with one pane at its shell. Returns { tab, pane }: ids.
 export function openReviewerTab(api, t, round, { cwd, env } = {}) {
   const workspace = t.link.workspace || api.paneGet(t.link.pane)?.workspace_id;

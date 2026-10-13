@@ -77,7 +77,11 @@ export function tellSidebar(t, now = Date.now()) {
 export function syncSidebar(tasks, { socket = tasks.find((t) => t.live && !t.live.away)?.link?.socket || currentSocket(), now = Date.now() } = {}) {
   const seen = read(), list = [];
   let down = false, lost = false;
-  for (const t of tasks) {
+  // A task's attempts have panes of their own (attempts.js): each has an entry like a task's. A task that waits for
+  // your pick has no pane yet: its space says so.
+  const all = tasks.flatMap((t) => [t, ...(t.tries || []).filter((c) => !c.chosen).map((c) => ({ ...c, parentStage: t.stage }))]);
+  for (const t of tasks) if (t.stage === "pick" && !isAgentTask(t) && t.link?.workspace && t.link.socket === socket && !t.archivedAt) list.push([`w|${socket}|${t.link.workspace}`, [t.note, ""], () => herdr(socket).call(["workspace", "report-metadata", t.link.workspace, "--source", SOURCE, ...token("summary", t.note), ...token("progress", "")]) || true]);
+  for (const t of all) {
     if (!isAgentTask(t) || t.link.socket !== socket) continue;
     if (t.live?.down) down = true;
     if (!told(t) || !t.live || t.live.gone || t.live.down || t.live.away) continue;

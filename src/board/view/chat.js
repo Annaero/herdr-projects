@@ -28,7 +28,7 @@ export class Chat {
     this.savePrefs(); this.syncCoord();
   }
   // A reply to this task goes to an agent of its own (not, with its task named, to the Coordinator).
-  hasAgent(r) { return isAgent(r) && (!!r.host || F.isAgentTask(r) || F.cleanedUp(r)); }
+  hasAgent(r) { return isAgent(r) && (!!r.host || F.isAgentTask(r) || F.cleanedUp(r) || r.stage === "attempts"); } // "attempts": every attempt of it gets your words
   // The task panel leaves "The agent said" to the chat while the chat shows that same message.
   chatShows(r) { return !!r && this.reply && this.chatOpen && !this.chatFolded && this.mode !== "find" && r.id === this.sel && !r.archivedAt && this.hasAgent(r) && !this.sentTo(r); }
   // What you just sent to a task's agent stands in the box until that agent says something new. It is remembered,

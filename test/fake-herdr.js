@@ -123,10 +123,12 @@ function answer(argv, env) {
       if (status !== "working") bump(p, status, status === "done" || status === "idle");
       return;
     }
-    const role = /-r(-\d+)?$/.test(p.agent.name) ? "reviewer" : "worker";
-    const n = (p.agent.name.match(/-(\d+)(?:-[0-9a-f]{4})?(?:-r(?:-\d+)?)?$/) || [])[1];
+    // `-pick`: the reviewer that compares a task's attempts (src/attempts/compare.js). An attempt's agent is named
+    // after its own number, with its letter: `sw-proj-1b`.
+    const role = /-pick(-\d+)?$/.test(p.agent.name) ? "picker" : /-r(-\d+)?$/.test(p.agent.name) ? "reviewer" : "worker";
+    const n = (p.agent.name.match(/-(\d+[a-e]?)(?:-[0-9a-f]{4})?(?:-r(?:-\d+)?|-pick(?:-\d+)?)?$/) || [])[1];
     const queue = script[role] || [];
-    const step = queue.shift() || (role === "reviewer" ? { verdict: { meets: true, findings: [], text: "Looks right. Nothing found." } } : { note: "Done." });
+    const step = queue.shift() || (role === "picker" ? { comparison: { pick: "A", why: "A does all of it with the smallest change." } } : role === "reviewer" ? { verdict: { meets: true, findings: [], text: "Looks right. Nothing found." } } : { note: "Done." });
     fs.writeFileSync(path.join(dir, "script.json"), JSON.stringify({ ...script, [role]: queue }));
     (p.agent.prompts ||= []).push(prompt);
     bump(p, "working", false);
@@ -135,9 +137,15 @@ function answer(argv, env) {
     if (step.commit) { git(p.cwd, ["add", "-A"]); git(p.cwd, ["-c", "user.email=agent@test", "-c", "user.name=agent", "commit", "-qm", String(step.commit)]); }
     // The task's own folder on the board, where its agent is told to write: the task numbered `n` that this pane is on.
     const tasks = path.join(env.HERDR_SUPERWORK_DATA_DIR || "", "tasks");
-    const mine = (() => { try { const all = fs.readdirSync(tasks).map((r) => path.join(tasks, r, String(n))).filter((d) => fs.existsSync(path.join(d, "task.json"))); return all.find((d) => fs.readFileSync(path.join(d, "task.json"), "utf8").includes(`"${p.pane_id}"`)) || all[0]; } catch { return null; } })();
+    // Told which task it is on (its first prompt's task line): that task's folder. The chosen attempt of several is
+    // the task from then on, and its reviewer is named after the attempt's agent but writes for the task.
+    const told = (/^Work board task (\S+),/.exec((p.agent.prompts || [])[0] || "") || [])[1];
+    const mine = told && fs.existsSync(path.join(tasks, ...told.split("/"), "task.json")) ? path.join(tasks, ...told.split("/")) : (() => { try { const all = fs.readdirSync(tasks).map((r) => path.join(tasks, r, String(n))).filter((d) => fs.existsSync(path.join(d, "task.json"))); return all.find((d) => fs.readFileSync(path.join(d, "task.json"), "utf8").includes(`"${p.pane_id}"`)) || all[0]; } catch { return null; } })();
     // `oldNote`: the note where an older version's rule put it, in the folder the agent works in.
     if (step.note !== undefined && step.note !== null) { const f = step.oldNote || !mine ? path.join(p.cwd, ".herdr-superwork", `closing-${n}.md`) : path.join(mine, "closing-note.md"); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, step.note); const t = new Date(Date.now() + 5); fs.utimesSync(f, t, t); }
+    // The picker's answer, in the task's own compare folder; `report`: the one report it writes from all of them.
+    if (step.comparison) { const out = path.join(tasks, ...String((/^Work board task (\S+),/.exec(prompt) || [])[1] || "x/0").split("/"), "compare"); fs.mkdirSync(out, { recursive: true }); fs.writeFileSync(path.join(out, "comparison.json"), typeof step.comparison === "string" ? step.comparison : JSON.stringify(step.comparison)); }
+    if (step.report && told && env.HERDR_SUPERWORK_REPORTS_DIR) { const out = path.join(env.HERDR_SUPERWORK_REPORTS_DIR, ...told.split("/")); fs.mkdirSync(out, { recursive: true }); fs.writeFileSync(path.join(out, "report.md"), step.report); }
     if (step.verdict) {
       const out = path.join(mine, "review");
       for (const [name, text] of Object.entries(step.evidence || {})) fs.writeFileSync(path.join(out, name), text);

@@ -11,7 +11,10 @@ export const PLUGIN_ID = "herdr-superwork";
 
 // Every stage a task can be in. The board's five states are derived from these in state.js.
 export const STAGES = ["todo", "progress", "queued", "starting", "setup", "working", "stopped", "nosummary", "asks", "checking",
-  "pushing", "reviewing", "reviewneeds", "approval", "merging", "failed", "done"];
+  "pushing", "reviewing", "reviewneeds", "approval", "merging", "failed", "done",
+  // Several attempts (src/attempts.js). `attempts`: the task's attempts are under way, each a small task of its own.
+  // `pick`: more than one passed the check, and the task waits for you to choose. `tried`: an attempt that passed.
+  "attempts", "pick", "tried"];
 // A slot is held only while something is actually running; tasks waiting for the human never block the queue.
 export const SLOT_STAGES = ["starting", "setup", "working", "checking", "pushing", "reviewing", "merging"];
 // Stages owned by a runner (a long job of ours), as opposed to the agent's own turn.

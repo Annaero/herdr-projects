@@ -27,6 +27,7 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork tell <id> <text>              send a message to the task's agent
   herdr-superwork stop <id>                     stop its agent
   herdr-superwork approve <id> [--anyway]       merge finished work that waits for approval (--anyway: also when its review failed)
+  herdr-superwork pick <id> <letter>            keep one of a task's several attempts (attempts.by); the others' tabs close
   herdr-superwork review <id>                   send the reviewer's findings back to the agent
   herdr-superwork retry <id>                    send the saved error back to the agent
   herdr-superwork fix <id>                      send failure details to the agent (never approves a merge)
@@ -95,7 +96,7 @@ export function contextFolder() {
 function caller() {
   const pane = process.env.HERDR_PANE_ID, socket = process.env.HERDR_SOCKET_PATH;
   if (!pane || !socket || process.env.HERDR_PLUGIN_ID) return null;
-  for (const t of S.list({ includeArchived: true })) {
+  for (const t of S.list({ includeArchived: true, attempts: true })) { // an attempt of several is its own agent's task
     if (t.link?.socket !== socket) continue;
     if (t.link.pane === pane) return { task: t, role: "agent" };
     if (t.link.reviewer?.pane === pane) return { task: t, role: "reviewer" };
@@ -190,10 +191,11 @@ export async function main(argv) {
     }
     case "describe": { const t = A.describe(need(1, "an id"), rest(2)); result = [brief(shownOf(t.id)), `${t.id}: updated (description)`]; break; }
     case "rename": { const t = A.rename(need(1, "an id"), rest(2)); result = [brief(shownOf(t.id)), `${t.id}: updated (title)`]; break; }
-    case "delegate": { const t = A.delegate(need(1, "an id"), pickChoices(flags)); result = [brief(shownOf(t.id)), `${t.id}: ${t.stage === "queued" ? "started, waiting for a free slot" : "started, an agent is on it"}`]; break; }
+    case "delegate": { const t = A.delegate(need(1, "an id"), pickChoices(flags)); result = [brief(shownOf(t.id)), `${t.id}: ${t.stage === "attempts" ? `started, ${t.attempts.length} attempts at once (${t.attempts.map((a) => `${a.letter} ${a.agent}`).join(", ")})` : t.stage === "queued" ? "started, waiting for a free slot" : "started, an agent is on it"}`]; break; }
     case "tell": { const r = A.tell(need(1, "an id"), need(2, "the text") && rest(2)); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "stop": { const t = A.stop(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: stopped`]; break; }
     case "start": { const t = A.startHuman(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: in progress`]; break; }
+    case "pick": { const r = A.pick(need(1, "an id"), pos[2] || ""); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "approve": { const r = A.approve(need(1, "an id"), null, { anyway: flags.anyway === true }); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "review": { const r = A.sendReview(need(1, "an id")); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "retry": { const r = A.sendError(need(1, "an id")); result = [brief(shownOf(r.task.id)), r.msg]; break; }

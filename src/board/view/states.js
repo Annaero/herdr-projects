@@ -42,7 +42,7 @@ export const groupOf = (r) => (inReview(r) ? "ready to approve" : needsYou(r) ? 
 // kind (OSC 7501), as the State line and the chat say it beside the mark (? ! @, theme.js); "review failed" for
 // finished work whose review failed. A task that went wrong, a merge that did not go through, or one whose kind is
 // not known, "needs you".
-export const standing = (r) => (!r.archivedAt && failedReview(r) ? WORDS.reviewFailed : (r.state === "blocked" && r.stage !== "approval" && !r.archivedAt && (!failureFor(r) || r.kind === "auth") && NEEDS[r.kind]) || groupOf(r));
+export const standing = (r) => (!r.archivedAt && r.stage === "pick" ? WORDS.pick : !r.archivedAt && failedReview(r) ? WORDS.reviewFailed : (r.state === "blocked" && r.stage !== "approval" && !r.archivedAt && (!failureFor(r) || r.kind === "auth") && NEEDS[r.kind]) || groupOf(r));
 // Who is on a task and where it stands, for herdr's sidebar: { who, stand }, both from the one list. `who` only
 // while somebody is on it: the agent, the reviewer, the board at one of its own steps (also while that step waits
 // its turn), or you on a task of your own. A task that waits says only what it waits for. The words are the State
@@ -51,6 +51,8 @@ export const standing = (r) => (!r.archivedAt && failedReview(r) ? WORDS.reviewF
 export function whoStands(r) {
   const say = (stand, who = "") => ({ who, stand });
   if (r.archivedAt) return say("archived");
+  // One of a task's several attempts that passed its check (attempts.js): it waits to be chosen.
+  if (r.stage === "tried") return say(r.parentStage === "pick" ? WORDS.pick : WORDS.passed);
   if (r.state === "working") return underReview(r) ? say(WORDS.underReview, WHO.reviewer) : BOARD_STEPS.includes(r.stage) ? say(STEPS[r.stage], WHO.board) : r.stage === "queued" ? say(QUEUED) : say(WORDS.working, r.stage === "progress" ? WHO.you : WHO.agent);
   if (r.stage === "approval" && (r.mergeFailed || r.prFailure || r.prState === "failing")) return say(WORDS.wrong);
   if (r.stage === "approval" && r.syncBlocked) return say(WORDS.behind);

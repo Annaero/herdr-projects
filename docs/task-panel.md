@@ -57,6 +57,9 @@ Both have the same parts, in the same order, and **one form for every part**:
   `Behind main` and `Cut off` (the board tries again by itself) are the same part in their own colour, and an
   archived task says so there.
 - **The description**: whole on the full screen, cut after about 400 characters beside the list.
+- **Attempts**, for a task done several times at once: the reviewer's comparison, then each attempt
+  ([several attempts](attempts.md)). While the task waits for your pick it is headed `Pick one of 3`, in red, and is
+  what it needs from you.
 - **The reviews**, as a history (below).
 - **What the agent said**: the newest words of its conversation, never its program's screen (while you talk to
   its agent that is in the chat instead). While the task is under review the part is the reviewer's, and its

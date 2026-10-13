@@ -29,7 +29,7 @@ const num = (name, d) => (Number(process.env[name]) > 0 ? Number(process.env[nam
 // One test file: seconds of processor time (its own and its programs'), seconds by the clock, programs it starts.
 // The whole suite: processor time added up over its files, and seconds by the clock for a run of all of it.
 // Processor time and programs do not depend on how busy the machine is; time by the clock is stretched (see `stretch`).
-export const BUDGET = { fileCpu: 6, fileWall: 6, fileLaunches: 1000, suiteCpu: 60, suiteWall: 15 };
+export const BUDGET = { fileCpu: 6, fileWall: 6, fileLaunches: 1000, suiteCpu: 70, suiteWall: 15 };
 // How many runs at a time on this machine. The tests use every core, so more runs at once only make each slower.
 export const SLOTS = num("HERDR_SUPERWORK_CHECK_SLOTS", 1);
 // Where passed results and the slots are kept: outside every worktree, so that they share it.

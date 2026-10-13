@@ -21,6 +21,7 @@ export function rows(scope = {}) {
     let note = "";
     if (noRepo && needsRepo(s.name)) note = "does not apply: this task is in no repo";
     else if (s.name === "repo.key" && r.value !== "none" && (task || scope.repo)) { const repo = scope.repo || String(task.id).split("/")[0]; if (repoKeys()[repo] !== r.value) note = "not used: another repo says the same key"; }
+    else if (s.name === "attempts.by" && task?.startedOnce) note = "its work has begun: counts when it is started afresh";
     else if (s.name.endsWith(".fast") && r.value === true) {
       const { kind } = agentOf(lookup(`${s.name.split(".")[0]}.agent`, scope, mine, at).value);
       if (kind && typeof AGENTS[kind]?.fast !== "function") note = `does nothing: ${kind} has no fast mode`;
@@ -44,5 +45,7 @@ export function showText(scope = {}) {
   const head = task ? `${task.id}: every setting, and the place it came from (* = this task's own)` : scope.repo ? `Your entry for ${scope.repo} (* = said there)` : "Your settings (* = changed by you)";
   const lines = list.map((r) => `${r.own ? "*" : " "} ${r.name.padEnd(wide)}  ${say(r.value).replace(/\s*\n\s*/g, " / ").padEnd(val)}  ${r.note || r.from}${r.later ? ` · ${r.later}` : ""}`);
   const bad = problems(task);
+  // A task done several times at once names each attempt's agent, and the one that was chosen.
+  if (task?.attempts?.length) lines.push("", `Attempts: ${task.attempts.map((a) => `${a.letter} ${a.agent}${task.picked?.letter === a.letter ? " (chosen)" : ""}`).join(" · ")}`);
   return [head, ...lines, ...(bad.length ? ["", "Not counted (the next place down is used for each):", ...bad.map((b) => `  ${b}`)] : [])].join("\n");
 }

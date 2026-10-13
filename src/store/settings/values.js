@@ -2,6 +2,7 @@
 // comes back as the board keeps it, or is refused with the nearest right one as a hint.
 import { AGENTS } from "../../agents/kinds.js";
 import { NAMES, entryOf } from "../settings-list.js";
+import { MAX_ATTEMPTS, TOO_MANY } from "../attempts.js";
 
 export const NONE = "none";
 const refuse = (msg) => { throw Object.assign(new Error(msg), { refused: true }); };
@@ -110,6 +111,18 @@ const CHECKS = {
     const bad = names.find((x) => !/^([A-Za-z0-9_.-]+@)?[A-Za-z0-9_.-]+$/.test(x) || ["auto", NONE].includes(x.toLowerCase()));
     if (bad) refuse(`${e.name}: "${bad}" is not a machine name (host or user@host). Other values: auto, none.`);
     return names.join(", ");
+  },
+  // How many attempts, and by whom: a count as a number, a list of agents as "claude, codex/gpt-5.5" (a name may repeat).
+  attempts(e, v) {
+    const w = typeof v === "number" ? String(v) : Array.isArray(v) ? v.join(", ") : word(v);
+    const many = (n) => refuse(`${e.name} takes ${TOO_MANY}. Not ${n}: did you mean ${MAX_ATTEMPTS}?`);
+    if (/^\d+$/.test(w)) { const n = Number(w); if (n < 1) refuse(`${e.name} must be 1 or more, not ${w}. Did you mean 1? That is the task done once.`); if (n > MAX_ATTEMPTS) many(n); return n; }
+    const names = w.split(/[\s,]+/).filter(Boolean);
+    if (!names.length || /^-?\d/.test(w)) refuse(`${e.name} is a count (3) or a list of agents (${AGENT_KINDS().join(", ")}), not "${w}".`);
+    const list = names.map((x) => CHECKS.agent(e, x));
+    if (list.length === 1) refuse(`${e.name}: one agent is one attempt. For that, set worker.agent ${list[0]}; for several attempts name each one (${list[0]}, ${list[0]}) or give a count (2).`);
+    if (list.length > MAX_ATTEMPTS) many(list.length);
+    return list.join(", ");
   },
   // A repo's short key: kept in capitals. `PR` would read as a pull request on a row.
   key(e, v) {

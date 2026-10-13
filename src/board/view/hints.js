@@ -50,7 +50,10 @@ export class Hints {
     const retry = hint("yes", r.stage === "failed" ? undefined : "tell this task's agent to try again");
     const asIs = hint("yes", "retry as it is"); // beside the key that has the agent fix it
     let main;
+    const at = this.choosing(r) ? this.attemptNow(r) : null; // one of several attempts is selected (attempts.js)
     if (r.archivedAt) main = [hint("archive"), hint("stop", "remove this task")];
+    else if (at && r.stage === "pick") main = [[...hint("yes", `keep attempt ${at.letter}`), false, `keep ${at.letter}`], hint("nextAttempt"), hint("enter", `open attempt ${at.letter}'s agent`)];
+    else if (at) main = [hint("enter", `open attempt ${at.letter}'s agent`), hint("nextAttempt"), reply, stop];
     else if (inReview(r)) main = [[...hint("yes", "approve and merge this task"), false, "merge this task"], rv && G.sendable(rv) && hint("sendBack", "send the review to this task's agent"), reply];
     else if (failedReview(r)) main = [rv && G.sendable(rv) && hint("sendBack", "send the review to this task's agent"), [...hint("yes", "merge this task anyway"), false, "merge anyway"], reply];
     else if (r.stage === "approval" && r.syncBlocked) main = [reply, open];

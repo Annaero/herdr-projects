@@ -25,6 +25,8 @@ export function setToken(id, role, token, round = 0) {
   fs.mkdirSync(dirOf(id), { recursive: true });
   fs.writeFileSync(tokensFile(id), JSON.stringify(j), { mode: 0o600 });
 }
+// The chosen attempt's agent goes on as its task's (attempts/adopt.js): its hook's token is the task's from then on.
+export function copyToken(from, to) { const j = readJson(tokensFile(from), {}) || {}; if (j.agent) setToken(to, "agent", j.agent); }
 export function tokenOk(id, role, token, round = 0) {
   const j = readJson(tokensFile(id), {}) || {};
   const want = role === "reviewer" ? j.reviewer?.[round] : j.agent;

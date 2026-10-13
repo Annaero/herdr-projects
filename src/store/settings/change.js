@@ -36,6 +36,8 @@ export function checked(pairs, scope = {}) {
     const e = known(name);
     if (e.type === "effort" || e.type === "access") { const why = fits(name, value, agentFor(roleOf(name))); if (why) refuse(`${name}: ${why}`); }
     // A program that cannot ask is refused while the role's access says ask.
+    // Every agent of a list of attempts works with the working agent's access.
+    if (e.type === "attempts" && typeof value === "string") { const access = out["worker.access"] ?? lookup("worker.access", scope).value; for (const a of value.split(", ")) { const why = fits("worker.access", access, a); if (why) refuse(`${name}: ${why}`); } }
     if (e.type === "agent" && entryOf(`${roleOf(name)}.access`)) { const access = out[`${roleOf(name)}.access`] ?? lookup(`${roleOf(name)}.access`, scope).value; const why = fits(`${roleOf(name)}.access`, access, value); if (why) refuse(`${name}: ${why}`); }
   }
   return out;

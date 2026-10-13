@@ -11,6 +11,7 @@ import { settle } from "./submit.js";
 import * as R from "./research.js";
 import { AGENT_BOARD_RULE } from "./board-rule.js";
 import { automationRule } from "./automations/told.js";
+import { openPlace, reopenPlace } from "./attempts/place.js";
 
 // ---- names -----------------------------------------------------------------------------------------------------------
 // `sw-` + the repo name (lower-case, anything outside [a-z0-9] as `-`, 16 characters) + `-<n>`. Always matches herdr's
@@ -56,7 +57,7 @@ export function rules(t) {
 export const turnedWords = (t) => (t.researchTurned ? `${R.isResearch(t) ? "This task is research only from now on" : "This task is no longer research only: its result is a change to the repo, as for any task"}. These rules replace the ones you were given.\n\n${rules(t)}` : "");
 // Every worker's first prompt starts with one line naming the task and the role: it is how a conversation file is
 // matched to its task for an agent kind that names its own sessions.
-export const taskLine = (t, role = "agent", round = 0) => `Work board task ${t.id}, role: ${role}${round ? `, round ${round}` : ""}.`;
+export const taskLine = (t, role = "agent", round = 0) => `Work board task ${(role === "agent" && t.as) || t.id}, role: ${role}${round ? `, round ${round}` : ""}.`;
 // With a launch flag for standing rules the rules stay in force for the whole session and are not repeated here.
 export const firstPrompt = (t, standing = !!adapter(t.agent).standing) => [taskLine(t), t.title, t.description, standing ? "" : rules(t)].filter(Boolean).join("\n\n");
 
@@ -85,7 +86,7 @@ export function startAgent(id, g, { prompt, resume = null }) {
   preTrust(kind, t.root || S.folderOf(t.id), who.access);
   const taken = api.agents().filter((a) => a.pane_id !== t.link.pane).map((a) => a.name).filter(Boolean);
   const name = agentName(t, taken);
-  F.nameAgentTab(api, t.link.tab);
+  F.nameAgentTab(api, t.link.tab, t);
   const x = launchExtras(t, "agent", { kind, standing: rules(t), resume });
   const args = (hooked) => startArgs(kind, { model, effort: level, fast: who.fast, access: who.access, resume, session: x.session, extra: [...(hooked ? x.hook : []), ...x.rules] });
   let blocked = false, hooked = x.hooked;
@@ -174,7 +175,8 @@ export async function delegateJob(id) {
         }
         const branch = freeBranch(root, t);
         const from = baseRef(root, S.setting("workspace.from", t));
-        res = F.openingWorktree(api, root, () => api.worktreeCreate({ cwd: root, branch, base: from, label }));
+        // An attempt works in a tab of its task's one space (attempts/place.js); any other task in a space of its own.
+        res = t.attemptOf ? openPlace(api, root, t, { branch, from }) : F.openingWorktree(api, root, () => api.worktreeCreate({ cwd: root, branch, base: from, label }));
         const dir = res.worktree?.path || res.workspace?.worktree?.checkout_path;
         // The repo's own file, read from the commit the worktree starts from: its seven facts, and what it was refused.
         const file = S.repoFile(root, from);
@@ -188,7 +190,7 @@ export async function delegateJob(id) {
       }
       const pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
       const { copy, ...kept } = patch;
-      t = g.set((t) => { Object.assign(t, kept); t.fallbacks = { ...(t.fallbacks || {}), repoFile: kept.repoRefused?.length ? kept.repoRefused.join("\n") : undefined }; t.root = root; t.startedOnce = true; t.link = { ...t.link, workspace: res.workspace.workspace_id, tab: res.tab?.tab_id || pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true, reviewer: null }; });
+      t = g.set((t) => { Object.assign(t, kept); t.fallbacks = { ...(t.fallbacks || {}), repoFile: kept.repoRefused?.length ? kept.repoRefused.join("\n") : undefined }; t.root = root; t.startedOnce = true; t.link = { ...t.link, workspace: res.workspace.workspace_id, tab: res.tab?.tab_id || pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: !t.attemptOf, reviewer: null }; });
       if (copy) copyIncludes(root, t.worktree, S.listOf(S.setting("workspace.include", t)));
     }
     // 2. The repo prepares itself. setup runs as a plain subprocess, before the agent starts, so the pane is still at
@@ -244,12 +246,13 @@ export async function restartJob(id) {
     if (!pane) {
       const ws = t.link?.workspace ? api.workspaceGet(t.link.workspace) : null;
       let res;
-      if (ws) { const first = api.panes(ws.workspace_id)[0]; pane = first ? api.paneSplit(first.pane_id, { cwd: S.cwdOf(t), env: S.boardEnv() }) : null; }
+      if (ws && t.attemptOf) pane = reopenPlace(api, t); // an attempt: a tab of its own again, never a split of another attempt's
+      else if (ws) { const first = api.panes(ws.workspace_id)[0]; pane = first ? api.paneSplit(first.pane_id, { cwd: S.cwdOf(t), env: S.boardEnv() }) : null; }
       if (!pane) {
         res = t.worktree && fs.existsSync(t.worktree) ? F.openingWorktree(api, root, () => api.worktreeOpen({ cwd: root, path: t.worktree, label: F.spaceLabel(t) })) : api.workspaceCreate({ cwd: S.cwdOf(t), label: F.spaceLabel(t), env: S.boardEnv() });
         pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
       }
-      t = g.set((t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true, reviewer: null }; });
+      t = g.set((t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: !t.attemptOf, reviewer: null }; });
     }
     t = agentNow(g, t);
     // A start that was asked for and never got as far as its agent (its setup failed): this is that start.
@@ -275,7 +278,7 @@ export function reopen(id, { restart = false } = {}) {
     const res = F.openingWorktree(api, S.folderOf(t.id), () => api.worktreeOpen({ cwd: S.folderOf(t.id), path: t.worktree, label: F.spaceLabel(t) }));
     pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
     t = S.update(t.id, (t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true }; });
-    F.nameAgentTab(api, pane.tab_id);
+    F.nameAgentTab(api, pane.tab_id, t);
   }
   let hasAgent = !!api.agentGet(pane.pane_id);
   if (!hasAgent && restart && resumable(t) && !S.markerAlive(t.runner)) {

@@ -14,7 +14,7 @@ export function archive(id) {
   const t = S.update(cur.id, (t) => {
     if (t.archivedAt) return false;
     if (runnerAlive(t) && t.runner.job === "cleanup") throw Object.assign(new Error(`${t.id} is busy cleaning up after its merge. Try again in a moment.`), { code: "BUSY" });
-    if (S.SLOT_STAGES.includes(t.stage) || t.stage === "queued" || runnerAlive(t) || t.autoMerge || t.mergeIntent) throw new Error(`${t.id} is still active. Stop its agent first; an automatic merge must finish first.`);
+    if (S.SLOT_STAGES.includes(t.stage) || t.stage === "queued" || t.stage === "attempts" || runnerAlive(t) || t.autoMerge || t.mergeIntent) throw new Error(`${t.id} is still active. Stop its agent first; an automatic merge must finish first.`);
     t.archivedAt = Date.now();
     if (t.link?.workspace && t.link.ownsWorkspace) { workspace = t.link.workspace; socket = t.link.socket; }
   });
@@ -27,7 +27,7 @@ export function restore(id) { return S.update(S.find(id).id, (t) => { t.archived
 // A checkout with unsaved or unmerged work is kept and the caller is told where.
 export async function clear(id) {
   const cur = S.find(id);
-  if (S.SLOT_STAGES.includes(cur.stage) && F.isAgentTask(cur) && !cur.archivedAt) { try { stop(cur.id); } catch {} }
+  if ((S.SLOT_STAGES.includes(cur.stage) && F.isAgentTask(cur) && !cur.archivedAt) || cur.stage === "attempts") { try { stop(cur.id); } catch {} }
   const { cleanup } = await import("../land.js");
   const t = S.get(cur.id);
   if (!t) return { id: cur.id, kept: [] };
@@ -35,6 +35,7 @@ export async function clear(id) {
   // Removing the worktree is a clean-up like the one after a merge: it holds a runner marker while it runs.
   try { S.update(cur.id, (t) => { t.runner = S.marker({ job: "cleanup" }); }, { waitMs: 5000 }); } catch {}
   const kept = await cleanup(t, { deleteBranch: "merged" }); // herdr and git calls: never under the task lock
+  if (t.attempts?.length) { try { kept.push(...(await import("../attempts/adopt.js")).discardAll(t.id)); } catch {} } // its attempts go with it, but for unsaved work (attempts.js)
   if (!kept.length) F.clearNotes(t); // the old place too: the task's folder goes whole below
   S.withTaskLock(cur.id, () => S.remove(cur.id), { waitMs: 5000 });
   return { id: cur.id, kept };

@@ -40,6 +40,8 @@ import { Panel } from "./view/panel.js";
 import { PanelStatus } from "./view/panel-status.js";
 import { PanelReviews } from "./view/panel-reviews.js";
 import { PanelReport } from "./view/panel-report.js";
+import { PanelAttempts } from "./view/panel-attempts.js";
+import { Attempts } from "./view/attempts.js";
 import { PanelSettings } from "./view/panel-settings.js";
 import { PanelEdit } from "./view/panel-edit.js";
 import { WebUi } from "./view/web-ui.js";
@@ -183,6 +185,8 @@ const PARTS = [
   PanelStatus,
   PanelReviews,
   PanelReport,
+  PanelAttempts,
+  Attempts,
   PanelSettings,
   PanelEdit,
   AutomationRows,

@@ -8,7 +8,7 @@
 //            "board": yours only (everything under board., coordinator. and watcher.)
 //            "repo": a fact about one repo, said for that repo only: your entry for the repo -> the repo's file -> built in
 //   type     what a value is (store/settings/values.js): switch, choice, time, count, agent, effort, access, text,
-//            list, machines, notify, key
+//            list, machines, notify, key, attempts
 //   builtin  what it is until somebody says otherwise
 //   values   a choice's words
 //   none     true: an agent setting that may be `none`
@@ -46,6 +46,9 @@ export const SETTINGS = [
   { name: "workspace.include", label: "Files copied in", kind: "work", type: "list", builtin: "none", repo: true, doc: "ignored files a fresh worktree lacks and gets a copy of (`.env`); `.worktreeinclude` in the repo names more" },
   { name: "workspace.teardown", label: "Teardown command", kind: "work", type: "text", builtin: "none", repo: true, doc: "a command run in the worktree before it is removed" },
   { name: "workspace.cleanup", label: "Clean up when done", kind: "work", type: "switch", builtin: true, doc: "remove a done task's space, worktree and branch" },
+  // how many try it, and who picks
+  { name: "attempts.by", label: "Attempts by", kind: "work", type: "attempts", builtin: 1, doc: "how many attempts are made at once, and by whom: a count (`3`), or a list of agents (`claude, codex, pi`; a model after a slash; a name may repeat). A count means that many of `worker.agent`. Each attempt has its own worktree, branch and tab, runs the check, and holds one of `board.agents`' slots; one that finds no free slot waits its turn. At most 5. `1`: the task is done once, as ever. More: [several attempts](attempts.md)" },
+  { name: "attempts.pick", label: "Attempt picked by", kind: "work", type: "choice", values: ["you", "reviewer"], builtin: "you", doc: "who chooses among the attempts that passed the check. `you`: the task waits as \"pick one\", the attempts side by side, with the reviewer's comparison when there is a reviewer. `reviewer`: the reviewer compares them, names one and says why, and that one goes on by itself. Only the chosen attempt is reviewed in full, pushed and merged. More: [several attempts](attempts.md)" },
   // how it is checked
   { name: "check.command", label: "Check command", kind: "work", type: "text", builtin: "none", repo: true, doc: "the test command: the work only counts as done when it passes" },
   { name: "check.timeout", label: "Check may run for", kind: "work", type: "time", builtin: "15m", repo: true, doc: "how long the check may run before it is stopped and counts as failed" },
@@ -75,4 +78,4 @@ export const BOARD = SETTINGS.filter((s) => s.kind === "board").map((s) => s.nam
 // The seven facts a repo's own committed file may hold, and no more.
 export const REPO_FACTS = SETTINGS.filter((s) => s.repo).map((s) => s.name);
 // These mean nothing for a task in no repo.
-export const needsRepo = (name) => /^(workspace|check|merge)\./.test(name);
+export const needsRepo = (name) => /^(workspace|check|merge|attempts)\./.test(name);

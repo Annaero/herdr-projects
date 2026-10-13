@@ -6,6 +6,7 @@ import { interruptKey } from "../agents.js";
 import { AGENT_STAGES, say } from "./shared.js";
 import { delegate } from "./start.js";
 import { retry } from "./finish-line.js";
+import { standingOf } from "../attempts/words.js";
 
 // ---- talking to the agent --------------------------------------------------------------------------------------------
 // A reply from the board is a human turn: it re-arms the pipeline, revokes an approval, cancels a pending
@@ -21,6 +22,17 @@ export function tell(id, text, { keepIntent = false } = {}) {
     S.queueText(cur.id, words);
     return say(delegate(cur.id), `${cur.id}: an agent is starting on it with your message`);
   }
+  // Its attempts are under way: your words go to every one that is still in it. While it waits for your pick, nobody
+  // is the task's agent yet.
+  if (cur.stage === "attempts") {
+    const live = S.attemptsOf(cur).filter((c) => ["works", "needs"].includes(standingOf(c)) && F.isAgentTask(c));
+    if (!live.length) throw new Error(`${cur.id}: none of its attempts can take a message right now.`);
+    const asking = live.filter((c) => standingOf(c) === "needs"); // an answer is for the ones that asked
+    if (asking.length) live.splice(0, live.length, ...asking);
+    for (const c of live) tell(c.id, words, { keepIntent });
+    return say(S.get(cur.id), `Sent to ${live.length === 1 ? `attempt ${live[0].letter}` : `${live.length} attempts (${live.map((c) => c.letter).join(", ")})`}`);
+  }
+  if (cur.stage === "pick") throw new Error(`${cur.id} waits for you to pick one of its attempts. Pick first: your words then go to that one's agent.`);
   // A reply to work that ended and was cleaned up starts a new round with that message, in a fresh worktree.
   cleaningUp(cur);
   if (cur.stage === "done" && F.cleanedUp(cur)) {
@@ -62,6 +74,14 @@ export function stop(id) {
   const cur = S.find(id);
   S.assertUnarchived(cur);
   if (cur.stage === "progress") return S.update(cur.id, { stage: "todo", app: null, msg: "" });
+  // Every attempt stops with its task; one that waits for a pick, or is being compared, simply stops there.
+  if (cur.attempts?.length && !cur.picked && ["attempts", "pick", "reviewing"].includes(cur.stage)) {
+    for (const c of S.attemptsOf(cur)) if (["works", "needs", "waits"].includes(standingOf(c))) { try { stop(c.id); } catch {} }
+    const t = S.update(cur.id, (t) => { t.stage = "stopped"; t.stoppedAt = Date.now(); t.msg = ""; t.comparing = null; t.watch = null; });
+    if (t.runner && t.runner.pid !== process.pid && S.markerAlive(t.runner)) { try { process.kill(-t.runner.pid, "SIGTERM"); } catch { try { process.kill(t.runner.pid, "SIGTERM"); } catch {} } }
+    if (t.link?.reviewer?.pane) { try { F.closeReviewerTab(F.h(t), t.link.reviewer); } catch {} }
+    return S.get(t.id);
+  }
   if (!F.isAgentTask(cur) || cur.stage === "queued") return S.update(cur.id, (t) => { if (!AGENT_STAGES.includes(t.stage)) throw new Error(`${t.id} is not working.`); t.stage = F.isAgentTask(t) ? "stopped" : "todo"; if (!F.isAgentTask(t)) t.app = null; t.msg = ""; });
   let a = null;
   try { F.assertLive(cur); a = F.h(cur).agentGet(cur.link.pane); } catch {}

@@ -5,6 +5,7 @@
 import { RUNNER_STAGES, waitingOf, waitLine } from "./store.js";
 import { checkShown } from "./check-progress.js";
 import { quietLine, quietPlain } from "./status-kept.js";
+import { attemptsShown, pickLine } from "./attempts/words.js";
 
 export const STATES = ["idle", "working", "blocked", "done", "error"];
 const STAGE_LINE = { starting: "Starting", queued: "Waiting for a free slot", setup: "Setting up", checking: "Running the check", pushing: "Pushing the branch", reviewing: "Under review", merging: "Merging" };
@@ -36,11 +37,16 @@ export function show(t, live, now = Date.now()) {
     case "nosummary": return out("error", { msg: t.msg || "Stopped without a summary" });
     case "reviewneeds": return out("blocked", { msg: t.msg || "The reviewer needs you" });
     case "stopped": return out("idle", { msg: "Stopped" });
+    // Done several times at once (attempts.js): its attempts' marks while they run, then your pick.
+    case "attempts": { const a = attemptsShown(t.tries || [], now); return out(a.state, { kind: a.kind, msg: a.msg, progress: a.progress, eta: a.eta }); }
+    case "pick": return out("blocked", { kind: "permission", msg: pickLine(t, t.tries) });
+    case "tried": return out("done", { msg: t.msg || "Passed" });
     case "queued": case "starting": return out("working", { msg: t.msg || STAGE_LINE[t.stage] });
   }
   // Under review the Watcher follows the reviewer: its line, its own progress and the minutes left worked out from it, started afresh for every round.
   // No line of this round's yet: "Review just started", never the bare stage (status-kept.js).
-  const ownLine = t.msg && ![STAGE_LINE.reviewing, "under review"].includes(t.msg); // "under review": saved by an older version
+  const ownLine = t.msg && ![STAGE_LINE.reviewing, "under review"].includes(t.msg) && !t.comparing; // (comparing attempts: the stage's own words are the line)
+  if (t.stage === "reviewing" && t.comparing) return out("working", { msg: watch?.msg || "The reviewer compares the attempts", progress: watch?.progress ?? 0, eta, reviewing: true }); // "under review": saved by an older version
   if (t.stage === "reviewing") return out("working", { msg: watch?.msg || (ownLine ? t.msg : quietLine(t, "reviewer", t.reviewAt, now)), plain: !watch?.msg && !ownLine && quietPlain(t, "reviewer"), progress: watch?.progress ?? 0, eta, reviewing: true });
   // The board's own check: the count its command reports and the minutes left, never the Watcher's guess (check-progress.js).
   if (t.stage === "checking" && t.check) return out("working", { ...checkShown(t.check, now), reviewing: false });

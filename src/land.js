@@ -141,6 +141,7 @@ export async function tidy(id, { deleteBranch = "always" } = {}) {
   // What an earlier attempt saw. A note no attempt has acted on yet (see F.tidyMark) only says which commit was done.
   const prev = t.tidy && !t.tidy.fresh ? t.tidy : null;
   if (!t.tidy) { try { S.update(id, (c) => { if (!same(c) || c.tidy) return false; c.tidy = F.tidyMark(c, deleteBranch); }, { waitMs: 10000 }); } catch {} }
+  let left = false; // nothing of the task is left: the attempts that were not chosen go as well (attempts.js)
   const kept = await cleanup(t, { deleteBranch, keepUnmerged: deleteBranch !== "always", still: () => same(S.get(id)), since: prev, first: t.tidy?.fresh ? t.tidy.tip : null });
   try {
     S.update(id, (t) => {
@@ -148,10 +149,11 @@ export async function tidy(id, { deleteBranch = "always" } = {}) {
       const msg = prev?.msg ?? t.msg;
       // In use: tried again by the housekeeping pass, and after a turn of the agent only once it has been quiet a while.
       t.tidy = kept.retry ? { deleteBranch, tip: kept.tip, comp: kept.comp, still: kept.still || undefined, eventSeq: kept.eventSeq, quietFrom: kept.turn ? Date.now() : prev?.quietFrom || 0, msg } : null;
-      if (kept.length) t.kept = [...kept]; else { F.clearNotes(t); delete t.kept; t.worktree = null; t.cleaned = Date.now(); t.link = { socket: t.link?.socket }; }
+      if (kept.length) t.kept = [...kept]; else { F.clearNotes(t); left = true; delete t.kept; t.worktree = null; t.cleaned = Date.now(); t.link = { socket: t.link?.socket }; }
       t.msg = kept.length ? `${msg}${String(msg).endsWith(".") ? "" : "."} Kept: ${kept.join(", ")}` : msg;
     }, { waitMs: 10000 });
   } catch {}
+  if (left && t.attempts?.length) { try { const more = (await import("./attempts/adopt.js")).discardAll(id); if (more.length) S.update(id, (t) => { t.kept = [...(t.kept || []), ...more]; t.msg = `${t.msg}${String(t.msg).endsWith(".") ? "" : "."} Kept: ${more.join(", ")}`; }, { waitMs: 10000 }); } catch {} }
 }
 // Clean-up holds a runner marker like every other long step, so archive answers "busy" until it has ended.
 export async function cleanupJob(id, { deleteBranch = "always" } = {}) {

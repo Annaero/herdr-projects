@@ -37,7 +37,7 @@ export function hookMain() {
   try { housekeeping(socket); } catch (e) { log(e); }
 }
 const log = (e) => { try { fs.appendFileSync(`${S.dataDir()}/hook.log`, `${new Date().toISOString()} ${e.stack || e}\n`); } catch {} };
-const mine = (socket) => S.list().filter((t) => F.isAgentTask(t) && t.link.socket === socket);
+const mine = (socket) => S.list({ attempts: true }).filter((t) => F.isAgentTask(t) && t.link.socket === socket);
 function onGone(socket, match) { for (const t of mine(socket)) if (match(t)) reconcile(t, herdr(socket)); }
 
 // The hook looks the pane up by herdr socket path plus pane id (pane ids repeat across herdr sessions) and does

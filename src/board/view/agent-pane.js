@@ -38,6 +38,8 @@ export class AgentPane {
   chat(r) {
     if (r.archivedAt) return this.openPanel();
     if (r.host) return this.remoteChat(r);
+    // Done several times at once and not chosen yet: the selected attempt's agent, in its own tab (attempts.js).
+    if (!F.isAgentTask(r) && this.attemptNow(r)) { const c = this.attemptNow(r); if (!F.isAgentTask(c)) return this.flash(`Attempt ${c.letter} has no terminal ${c.stage === "queued" ? "yet: it waits for a free slot" : "any more"}.`, "yellow"); r = c; }
     if (!F.isAgentTask(r)) return this.flash(`No agent has been on this yet. ${keyName("delegate")} puts one on it.`, "yellow");
     F.assertLive(r);
     const api = herdr(r.link.socket);

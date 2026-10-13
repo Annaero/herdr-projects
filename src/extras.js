@@ -63,6 +63,7 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
   the human's own tasks stands. Write it like these: "Updating file locations and running checks", "Waiting for the PR review on GitHub", "Fixing the two failing tests".
   \`--title\` renames it. \`herdr-superwork describe <id> "<text>"\` replaces its description.
 - \`herdr-superwork approve <id>\`: merge finished work that waits for approval. Only when the human plainly says so.
+- \`herdr-superwork pick <id> <letter>\`: keep one of a task's several attempts (\`--attempts.by 3\` on \`delegate\`), when it waits as "pick one". Only when the human names the one.
   With \`merge.by\` set to \`itself\` (\`set merge.by itself\`, or \`--task <id>\` for one task) work that passed its review
   merges by itself; \`you\`, the default, waits for that approval. Only the human changes it.
 - Finished work is reviewed by a second agent. It lists findings tagged critical, major, minor or trivial; the board

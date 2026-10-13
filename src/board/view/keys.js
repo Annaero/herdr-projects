@@ -115,7 +115,7 @@ export class Keys {
       const fresh = this.reply && r && !r.host && !r.archivedAt && !F.isAgentTask(r) && ["todo", "progress"].includes(r.stage);
       if (fresh) { if (!this.try(() => { const out = A.tell(r.id, text); this.noteSent(r, text); this.flash(out.msg, "green"); })) return; }
       // (Work that ended and was cleaned up has no terminal left: the reply starts a new round.)
-      else if (this.reply && r && isAgent(r) && (r.host || F.isAgentTask(r) || F.cleanedUp(r))) {
+      else if (this.reply && r && this.hasAgent(r)) { // (chat.js: an agent of its own, or its attempts)
         // Busy/refused replies keep the draft; only a successful send clears it.
         if (r.host) { this.act(r, "tell", { text }, false, (ok) => { if (ok) this.noteSent(r, text); if (ok && this.sel === r.id && this.value().trim() === text) this.setValue(""); }); return; }
         if (!this.try(() => { const out = A.tell(r.id, text); this.noteSent(r, text); if (out.msg !== "Sent to the agent" || !this.chatOpen) this.flash(out.msg, out.msg.startsWith("queued") ? "yellow" : "green"); })) return; // plainly sent: the box shows your words
@@ -126,7 +126,7 @@ export class Keys {
       if (text) { if ((this.reply && r) || this.mode !== "new") return; this.dispatch(text, true); return this.setValue(""); }
       if (r?.archivedAt) return this.flash(READ_ONLY(), "yellow");
       if (r) this.stick = r.id;
-      if (r && r.host) this.act(r, "delegate"); else if (r) this.try(() => { const t = A.delegate(r.id); this.flash(t.stage === "queued" ? `${this.nameSay(r)} waits for a free slot.` : `An agent is on ${this.nameSay(r)}.`, "green"); });
+      if (r && r.host) this.act(r, "delegate"); else if (r) this.try(() => { const t = A.delegate(r.id); this.flash(t.stage === "attempts" ? `${t.attempts.length} attempts are on ${this.nameSay(r)}.` : t.stage === "queued" ? `${this.nameSay(r)} waits for a free slot.` : `An agent is on ${this.nameSay(r)}.`, "green"); });
       return;
     }
     // From here on the text box is empty.

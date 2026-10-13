@@ -1,4 +1,5 @@
 // The finish line's keys: approve, send the review or the failure back, finish anyway, retry.
+import { standingOf } from "../attempts/words.js";
 import fs from "node:fs";
 import * as S from "../store.js";
 import { currentSocket } from "../herdr.js";
@@ -26,6 +27,7 @@ export function approve(id, seen = null, { anyway = false } = {}) {
   const moved = (t) => { if (seen && t.stage === "approval" && ((seen.pr ?? null) !== (t.pr ?? null) || (seen.head ?? null) !== (t.reviewedHead ?? null))) throw new Error(`${t.id} changed while you were asked. Nothing was merged: look at it again, then approve.`); };
   moved(cur);
   if (cur.stage === "asks" && cur.kind === "permission") return tell(cur.id, "Yes, go ahead.");
+  if (cur.stage === "pick") throw new Error(`${cur.id} waits for you to pick one of its attempts, not for a merge: herdr-superwork pick ${cur.id} <letter>`);
   if (isResearch(cur)) throw new Error(`${cur.id} is research only: nothing of it is merged. To merge its change after all, turn that off (herdr-superwork set research.only false --task ${cur.id}) and delegate it again.`);
   const t = S.update(cur.id, (t) => {
     if (t.stage !== "approval") throw new Error(`${t.id} is not waiting for an approval to merge.`);
@@ -122,6 +124,8 @@ export function retry(id) {
   // The agent said it needs a login: you have signed in, and it is told to carry on.
   if (cur.stage === "asks" && cur.kind === "auth") return carryOn();
   if (cur.stage !== "failed") throw new Error(`${cur.id} has nothing to retry.`);
+  // None of its attempts passed: trying again is starting over, with fresh attempts (attempts.js).
+  if (cur.failure?.stage === "attempts") return say(delegate(cur.id), `${cur.id}: starting over with fresh attempts`);
   const f = cur.failure || {};
   // The agent never started on what was typed into its box: its program is started again and handed the same text.
   if (f.stage === "send" && cur.unsent) {
@@ -155,5 +159,7 @@ export function takeApprove(socket = currentSocket(), me = "") {
 }
 export function details(id) {
   const t = S.find(id);
-  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), research: isResearch(t), report: t.report || null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null };
+  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), research: isResearch(t), report: t.report || null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null,
+    // Done several times at once (attempts.js): each attempt, where it stands, and what the reviewer said of them.
+    ...(t.attempts?.length ? { attempts: S.attemptsOf(t).map((c) => ({ letter: c.letter, id: c.id, agent: c.settings?.["worker.agent"] || c.agent, standing: standingOf(c), stage: c.stage, stat: c.stat || "", worktree: c.worktree || null, branch: c.branch || null, diff: c.diff?.link || null, report: c.report?.link || null })), comparison: t.comparison || null, picked: t.picked || null } : {}) };
 }

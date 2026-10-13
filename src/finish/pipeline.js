@@ -10,6 +10,7 @@ import { closeReviewer, runReview } from "./review.js";
 import { runCheck } from "./check-run.js";
 import { mergesItself, byItself } from "./auto-merge.js";
 import { researchOnly, keptReport } from "./research.js";
+import { keepDiff } from "../attempts/diff.js";
 
 // "Finish anyway" on a turn that left no closing note: the screen text is the summary.
 export async function pipelineJob(id) {
@@ -77,7 +78,10 @@ export async function pipeline(id, g, text, wake, synced = null) {
     if (!setup.ok) return void fail(g, { stage: "setup", title: "Setup still fails", detail: `Command: ${repo.setup}\nFolder: ${folder}\n\n${setup.out}`, next: "Fix the setup problem and finish again. Setup must pass before the check." });
     g.set({ setupPending: false });
   }
-  if (repo.check && !research) {
+  // The chosen attempt of several: its check passed on this very commit, as that attempt (attempts.js). Not run twice.
+  // Only for the very command that passed then: a check changed since (while the task waited for a pick) runs.
+  const proven = !!t.checkedHead && !!tree && t.checkedWith === repo.check && F.headOf(tree) === t.checkedHead;
+  if (repo.check && !research && !proven) {
     const r = await runCheck(g, t, { cmd: repo.check, folder, env, alive, root, timeoutMin: S.ms(ch["check.timeout"]) / 60000 });
     if (r.aborted) return;
     if (!r.ok) {
@@ -92,7 +96,15 @@ export async function pipeline(id, g, text, wake, synced = null) {
       return;
     }
   }
-  g.check();
+  t = g.check();
+  // One of several attempts stops here: it passed, and waits to be chosen. Only the chosen one is pushed, reviewed
+  // and merged, as the task itself (attempts.js).
+  if (t.attemptOf) {
+    const made = tree && !research ? F.changeOf(t) : null;
+    const d = g.set((t) => { t.stage = "tried"; t.triedAt = Date.now(); t.msg = S.oneLine(firstLine(text) || "Finished"); t.failure = null; t.stat = made?.stat || ""; t.checkedHead = repo.check && made ? made.head : null; t.checkedWith = repo.check || ""; t.checked = !!repo.check && !research; t.diff = made ? keepDiff(t, made.range) : null; });
+    F.tellSidebar(d);
+    return;
+  }
   // Push and open a draft pull request, when an origin remote exists.
   let note = research && !t.report ? " No report was found." : "";
   if (tree && ch["merge.pr"] && !research) {

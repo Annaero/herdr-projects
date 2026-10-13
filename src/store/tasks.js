@@ -7,6 +7,7 @@ import { titled } from "./titles.js";
 import { movedOnRead } from "./settings/migrate.js";
 import { researchMoved } from "./old-research.js";
 import { idOfKey } from "./keys.js";
+import { allAttempts, isAttemptId } from "./attempts.js";
 
 // ---- tasks ----------------------------------------------------------------------------------------------------------
 const SEGMENT = /^[A-Za-z0-9_.+-]{1,32}$/;
@@ -18,8 +19,10 @@ export function get(id) {
   const t = readJson(taskFile(id));
   return t && t.id ? researchMoved(movedOnRead(t)) : null; // a task an older version saved reads in the new names (settings/migrate.js, old-research.js)
 }
-export function list({ includeArchived = false, archived = false } = {}) {
-  const out = [];
+// `attempts`: with the attempts of every task as well (store/attempts.js): they are no rows of the board, so only
+// what starts, watches and tidies agents asks for them.
+export function list({ includeArchived = false, archived = false, attempts = false } = {}) {
+  const out = attempts ? allAttempts().map(movedOnRead) : [];
   let repos = [];
   try { repos = fs.readdirSync(tasksDir()); } catch {}
   for (const repo of repos) {
@@ -37,6 +40,9 @@ export function list({ includeArchived = false, archived = false } = {}) {
 }
 export function find(ref) {
   const s = String(ref || "").trim(), byKey = idOfKey(s); // `HSW-134`: the repo's short key and the number (store/keys.js)
+  // An attempt by its own id (`repo/12b`): the attempt, or, once it was chosen and is the task, the task.
+  const low = s.replace(/[A-Ea-e]$/, (c) => c.toLowerCase());
+  if (isAttemptId(low)) { const a = get(low); if (a) return (a.chosen && get(a.attemptOf)) || a; }
   const hit = (/^[^/]+\/\d+$/.test(s) && get(s)) || (byKey && get(byKey)) || list({ includeArchived: true }).find((t) => t.id.toLowerCase() === s.toLowerCase() || String(t.n) === s.replace(/^#/, ""));
   if (!hit) throw new Error(`No task ${ref}`);
   return hit;

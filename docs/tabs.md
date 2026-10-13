@@ -8,6 +8,10 @@ Every task an agent takes on has a herdr space of its own. Its helpers are laid 
   whatever its result (also when you stop the task, and when a review is cut off and tried again). The number is the
   review round, the same one as the row's `R#2` tag. A reviewer is never a pane inside the agent's tab.
 
+- **`Agent A`, `Agent B`, …** and **`Picker`**: a task done several times at once has one tab per attempt, each in
+  its own worktree, and a tab for the reviewer while it compares them. When one attempt is chosen the others' tabs
+  close and its own keeps its name ([several attempts](attempts.md)).
+
 Opening a reviewer's tab changes nothing you look at: herdr is told not to focus it, so you stay where you are, and
 as it is a tab of its own the agent's pane and the board keep their size. Go to the tab to watch the reviewer work;
 the task panel and the chat show what it says meanwhile ([the board](board.md)).

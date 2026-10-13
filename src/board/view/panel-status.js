@@ -61,6 +61,7 @@ export class PanelStatus {
     } else if (approval && r.syncBlocked) alert("peach", "Behind main", `Cannot be approved yet: ${r.syncBlocked.why}. The board keeps trying to bring it up to date.`);
     else if (failedReview(r)) alert("red", "Review failed", `${reviewTally(r) ? `It found ${reviewTally(r)}. ` : ""}${this.ctx?.web ? "Send the review to the agent to fix it, or merge it anyway: that asks first." : `${keyName("sendBack")} sends the review to the agent to fix. ${keyName("yes")} merges it anyway, and asks first.`}`);
     else if (approval) { /* the state says it: ready to approve */ }
+    else if (r.stage === "pick") told = note || ""; // what it needs is the Attempts part's own headline (panel-attempts.js)
     else if (r.state === "blocked") { told = note || said || ""; alert("red", asks(r.kind), same(told, asks(r.kind)) ? "" : told); }
     else if (r.state === "error") { told = (r.stage === "nosummary" ? r.screen : "") || note || said || "It failed"; const heading = r.stage === "nosummary" ? "Stopped without a summary" : "Went wrong"; alert("red", heading, same(told, heading) ? "" : told); }
     return { title, top, told };

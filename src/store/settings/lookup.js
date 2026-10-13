@@ -8,6 +8,8 @@ import { folderOf, isRepo, knownRepos } from "../repos.js";
 import { SETTINGS, WORK, entryOf, needsRepo } from "../settings-list.js";
 import { known, fits, NONE } from "./values.js";
 import { yours, repoFile, read } from "./places.js";
+import path from "node:path";
+import { dirOf, readJson } from "../files.js";
 
 const repoNameOf = (task) => String(task?.repo || String(task?.id || "").split("/")[0] || "");
 // A task in no repo skips the repo places, and where it works, how it is checked and how it lands mean nothing to it.
@@ -28,7 +30,9 @@ export function placesOf({ task = null, repo = "" } = {}, mine = yours()) {
   // name, and that one setting is not said there.
   const problems = [];
   const held = (obj, where) => { const r = read(obj, where, WORK, "is a board setting, yours only: it cannot be said here"); problems.push(...r.problems); return r.values; };
-  if (task) work.push({ place: "task", from: "this task", values: held(task.settings, "this task") });
+  // An attempt has its task's settings, as they read now, and its own program (store/attempts.js).
+  const said = task?.attemptOf ? { ...(readJson(path.join(dirOf(task.attemptOf), "task.json"))?.settings || {}), ...(task.settings || {}) } : task?.settings;
+  if (task) work.push({ place: "task", from: "this task", values: held(said, "this task") });
   // Carried with the task from another machine: that machine's "you" and its entry for the repo, already worked out.
   if (task?.carried) work.push({ place: "carried", from: `sent from ${task.carried.from || "another machine"}`, values: held(task.carried.settings, "sent with this task") });
   else {

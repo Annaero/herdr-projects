@@ -13,6 +13,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 |---|---|
 | `actions.js` | The exact actions of the board, also the subcommands any agent can run from its shell |
 | `agents.js` | Everything agent-specific: the table of agent programs (agents/kinds.js), reading what they saved, starting them, and what is installed |
+| `attempts.js` | Several attempts at one task, and one result kept: "best of three" with one agent, a "council" of different agents with a judge |
 | `board-rule.js` | What an agent or a reviewer the board started is told about the board itself: able, not nudged |
 | `check-progress.js` | The board's own check as a task shows it: the count its command reports, the wait for a turn, the minutes left, and saying so when it stands still |
 | `cli.js` | The one program |
@@ -71,6 +72,18 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `start.js` | The arguments an agent of a kind is started with, and whether it has a fast mode |
 | `talk.js` | The text of a saved conversation, one reader per agent program: what was said to the program and what it said back, oldest first |
 
+## `src/attempts/`
+
+| File | Holds |
+|---|---|
+| `adopt.js` | The chosen attempt becomes the task: its worktree, branch, tab, agent and conversation are the task's from then on, and the task goes on like any other (one review loop, one push, one pull request, one merge) |
+| `compare.js` | The reviewer's comparison of the attempts that passed the check: it reads each one's change, says what is good and bad about each, names one and says why |
+| `diff.js` | An attempt's change as a page of its own: the whole diff as text, kept in the attempt's folder on the board and served like a review's evidence, so each attempt in the task panel has a link to what it changed |
+| `fan-out.js` | Starting several attempts: a queued task whose `attempts.by` says more than one gets one small task per attempt, each queued for a slot of its own, and stands as "attempts" until they are through |
+| `place.js` | Where an attempt works: a worktree and a branch of its own (`work/12a-…`), and a tab of its own (`Agent A`) in the task's one herdr space |
+| `settle.js` | The attempts are through: the check filtered, now the picker chooses |
+| `words.js` | An attempt in a few words: where it stands (passed, out, needs you, waits for a slot, at work), its mark on the task's row (`A claude ✓ · B codex working 60% · C pi ✗ check`), and what the task says while its attempts… |
+
 ## `src/automations/`
 
 | File | Holds |
@@ -111,6 +124,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `actions.js` | What you do to the selected task: yes, send back, stop, remove, undo, archive |
 | `agent-pane.js` | A task's agent: what its pane shows, and going into its real herdr pane |
 | `ask.js` | The one question box: asking, what a merge question is about, and how it is drawn |
+| `attempts.js` | A task done several times at once, on the board: which of its attempts is selected, moving to the next one, and choosing it |
 | `automation-panel.js` | One automation, whole: beside the list and full screen |
 | `automation-rows.js` | The automations in the main list: a group of their own below the task groups, under the heading `automations`, one row per automation: its name, its trigger in plain words, the word on or off, and when it fires next or… |
 | `automations.js` | What the keys do on an automation's row in the main list (automation-rows.js), and the hints and the ? menu's lines there: enter opens it (and, on a firing in an open one, goes to the task it made), space turns it on… |
@@ -125,6 +139,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `menu.js` | The ? menu: every key of the board in its three groups, plain, ctrl and alt, each line with its key |
 | `mouse.js` | The mouse wheel and the click: the wheel scrolls the chat's message under the pointer and the whole-task page, and moves between tasks over the list; a click on a row (a task's, an automation's) selects it |
 | `osc.js` | The same tasks, told to the terminal (OSC 7501) |
+| `panel-attempts.js` | The attempts in the task panel, for a task done several times at once: the reviewer's comparison with its recommendation on top, then each attempt with its agent, where it stands, its time, its tokens, the size of its… |
 | `panel-edit.js` | The settings page: every work setting of the selected task by its name, its value and the place it comes from |
 | `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, label-and-value rows, and the list of parts |
 | `panel-report.js` | The report in the task panel: that a task is research only, and the link to the report its agent wrote |
@@ -213,6 +228,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | File | Holds |
 |---|---|
+| `attempts.js` | Several attempts at one task, as kept on disk: what `attempts.by` says (who makes each attempt), an attempt's letter and id, and the attempts of a task |
 | `automations.js` | Automations on disk: the list (a saved task plus a trigger, each), every firing written down, and which board events were seen already |
 | `check-runs.js` | How long a repo's check took the last few times it ran in full on this machine: what its minutes left are worked out from |
 | `failures.js` | Failures: workflow diagnostics that live beside the task |
@@ -307,6 +323,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | Page | About |
 |---|---|
+| [attempts.md](attempts.md) | Several attempts, and one kept |
 | [automations.md](automations.md) | Automations: tasks made on a schedule, or when something happens on the board |
 | [board-size.md](board-size.md) | The board's size: what changes it, and how the board stands still |
 | [board.md](board.md) | The board: the list and the chat |
@@ -345,6 +362,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 
 | File | Tests |
 |---|---|
+| `attempts.test.js` | Several attempts at one task and one kept (`attempts.by`, `attempts.pick`; docs/attempts.md): the two settings as settings like every other; each attempt in its own worktree, branch and tab; the check filters and the… |
 | `auto-merge.test.js` | The merge.by setting: a green task merges by itself, the repo's own file can never switch that on, and a change counts for tasks already under way |
 | `automations.test.js` | Automations: a schedule read from plain words or cron, a board event, a firing that makes a task and starts it with the automation's own settings, and the guards: one at a time, no loops, a runaway turned off, a missed… |
 | `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, stop or remove, retry |

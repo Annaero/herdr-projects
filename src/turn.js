@@ -17,7 +17,9 @@ function input(extra) {
 }
 export function turnEnded({ id, role = "agent", token, round = 0 }, extra = []) {
   try {
-    const t = id && S.get(id);
+    let t = id && S.get(id);
+    // Started as one of several attempts and chosen since: its turns are the task's now (attempts/adopt.js).
+    if (t?.chosen && t.attemptOf) t = S.get(t.attemptOf);
     if (!t) return void log(`no task ${id}`);
     round = Number(round) || 0;
     if (!["agent", "reviewer"].includes(role) || !S.tokenOk(t.id, role, token, round)) return void log(`refused for ${id} (${role}): wrong token`);
@@ -26,7 +28,7 @@ export function turnEnded({ id, role = "agent", token, round = 0 }, extra = []) 
     // real first prompt starts with the task line, so `side` marks every other report for the runner to judge. A
     // later prompt of the real conversation is known by its session id.
     const first = String((j["input-messages"] || [])[0] || "").trimStart();
-    const ev = { at: Date.now(), role, round, session: String(j.session_id || j["thread-id"] || ""), file: String(j.transcript_path || ""), error: String(j.error || ""), side: !!j["thread-id"] && !first.startsWith(`Work board task ${t.id},`) };
+    const ev = { at: Date.now(), role, round, session: String(j.session_id || j["thread-id"] || ""), file: String(j.transcript_path || ""), error: String(j.error || ""), side: !!j["thread-id"] && !first.startsWith(`Work board task ${t.as || t.id},`) };
     let start = false;
     S.update(t.id, (t) => {
       t.eventSeq = (t.eventSeq || 0) + 1;
