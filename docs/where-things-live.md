@@ -129,7 +129,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `ask.js` | The one question box: asking, what a merge question is about, and how it is drawn |
 | `attempts.js` | A task done several times at once, on the board: which of its attempts is selected, moving to the next one, and choosing it |
 | `automation-panel.js` | One automation, whole: beside the list and full screen |
-| `automation-rows.js` | The automations in the main list: a group of their own below the task groups, under the heading `automations`, one row per automation: its name, its trigger in plain words, the word on or off, and when it fires next or… |
+| `automation-rows.js` | The automations in the main list: a group of their own below the task groups, under the heading `automations` in a colour of its own (theme.js: auto) |
 | `automations.js` | What the keys do on an automation's row in the main list (automation-rows.js), and the hints and the ? menu's lines there: enter opens it (and, on a firing in an open one, goes to the task it made), space turns it on… |
 | `chat-scroll.js` | Scrolling the chat's message: which of its lines show while it is longer than its box, and the words that say so |
 | `chat-text.js` | A conversation's text as the lines of a box: each thing said under a line that names who said it, wrapped to the box, with markdown read as text (a list item's next lines stand under its words, code keeps its lines,… |

@@ -16,7 +16,9 @@ export const PERCENT_STEADY = 4;
 // The percent's column is drawn this wide at least ("45%"), so that it does not move when "9%" turns "10%".
 export const PERCENT_MIN = 3;
 // Columns given up in one step, never one without the other.
-const TOGETHER = [["percent", "eta"], ["review", "pr"]];
+// (An automation's row has its own two before the time: the task its last firing made, and the word that goes with
+// its time, "fired" or "next in": that word and the time are one thing.)
+const TOGETHER = [["percent", "eta"], ["review", "pr"], ["lead", "time"]];
 
 // The columns from `from` to the right edge: a cell between each, two before them.
 export const wide = (cells, from) => cells.slice(from).reduce((n, c) => n + c.w + 1, 1);

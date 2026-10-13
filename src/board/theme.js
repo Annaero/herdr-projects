@@ -54,6 +54,7 @@ export function resolve(cfg = {}, light = null, want = "herdr", seen = null) {
   // than the greyed words beside it and with no hue of its own.
   palette.check = palette.subtext0;
   palette.todo = todoGrey(palette, seen);
+  palette.auto = autoPurple(palette);
   return { name: canonical(name) || name, palette, ground: groundOf(palette, seen), symbols: ui.status_indicators === "symbols", dots: ui.status_indicators === "dots" };
 }
 
@@ -82,6 +83,30 @@ function reviewBlue(p) {
   const fits = (c) => isBlue(c) && least(c) >= REVIEW_APART;
   const any = () => { const all = []; for (const r of [0, 64, 128, 192]) for (const g of [0, 64, 128, 192]) for (const b of [160, 208, 255]) all.push((r << 16) | (g << 8) | b); return all.filter(isBlue); };
   return [p.blue, ...REVIEW_BLUES].find(fits) ?? any().reduce((best, c) => (least(c) > least(best) ? c : best));
+}
+
+// "auto" is the colour of an automation: its heading in the list, the mark of its rows, the `[auto]` tag of a task it
+// made. No task's state has it, so nothing of an automation is taken for "needs you", "ready", "working", "under
+// review", "to do" or "done", nor for plain or greyed words. It is the theme's own `mauve`, which no status uses,
+// where that one is a purple (from violet to pink) and told apart from all of those and from the background. Some
+// themes' is not (Vesper's is its amber, Nord's, Kanagawa's and Rosé Pine's sit on their greys): then it is the
+// first of the board's own purples that is, the darker ones first on a light background. Among the terminal's own
+// 16 colours it is the terminal's magenta, so it follows the terminal as the rest of that theme does.
+export const AUTO_APART = 40, AUTO_BESIDE = ["red", "green", "yellow", "teal", "review", "todo", "text", "subtext0", "overlay0", "panel_bg"];
+const PURPLES = [0xa855f7, 0xc084fc, 0x7c3aed, 0x6d28d9, 0xd946ef];
+export function isPurple(c) {
+  if (typeof c !== "number") return false;
+  const [r, g, b] = rgb(drawn(c)), max = Math.max(r, g, b), spread = max - Math.min(r, g, b);
+  const hue = (60 * (max === r ? ((g - b) / (spread || 1)) % 6 : max === g ? (b - r) / (spread || 1) + 2 : (r - g) / (spread || 1) + 4) + 360) % 360;
+  return g < r && g < b && spread >= 30 && hue >= 250 && hue <= 345;
+}
+function autoPurple(p) {
+  const least = (c) => Math.min(...AUTO_BESIDE.map((k) => apart(c, p[k])));
+  const fits = (c) => isPurple(c) && least(c) >= AUTO_APART;
+  if (fits(p.mauve)) return p.mauve;
+  if ([p.mauve, p.text].some((c) => typeof c !== "number" || c < 0) && fits(A + 5)) return A + 5;
+  const own = typeof p.panel_bg === "number" && p.panel_bg >= 0 && isLight(p.panel_bg) ? [...PURPLES.slice(2), ...PURPLES] : PURPLES;
+  return own.find(fits) ?? own.reduce((best, c) => (least(c) > least(best) ? c : best));
 }
 
 // The board marks each state with its own symbol (◐ ✗ ✓ ○, ◑ while the reviewer works, ◒ for the board's own steps; a task that waits for you says what it needs: ? ! @, and finished work that is ready for your yes is ◆), so no two states are told apart by colour alone. Only a

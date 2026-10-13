@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parseToml } from "../src/toml.js";
-import { readHerdrConfig, resolve, parseColor, loadTheme, setTerminal, readAnswers, theme, pageTheme, apart, REVIEW_BLUE, REVIEW_APART, REVIEW_BESIDE, TODO_APART, TODO_BESIDE, isBlue } from "../src/board/theme.js";
+import { readHerdrConfig, resolve, parseColor, loadTheme, setTerminal, readAnswers, theme, pageTheme, apart, REVIEW_BLUE, REVIEW_APART, REVIEW_BESIDE, TODO_APART, TODO_BESIDE, isBlue, AUTO_APART, AUTO_BESIDE, isPurple } from "../src/board/theme.js";
 import { contrast, floorOn, readable, quieter, FLOOR, LEAST, TODO_DIMMER } from "../src/board/greys.js";
 import { THEME_NAMES } from "../src/board/palettes.js";
 import { webTheme, pieces } from "../src/webui/ink.js";
@@ -125,6 +125,24 @@ test("herdr's theme name, aliases, custom colours, old accent setting and symbol
   const used = new Set(["view.js", "editor.js", "artifact-lines.js", ...fs.readdirSync(new URL("../src/board/view/", import.meta.url)).map((f) => `view/${f}`)].flatMap((f) => [...fs.readFileSync(new URL(`../src/board/${f}`, import.meta.url), "utf8").matchAll(/\b(?:fg|bg|under)\(([^,()]+),/g)].flatMap((m) => m[1].replace(/[!=]== "[^"]*"/g, "").match(/"[a-z0-9_]+"/g) || [])));
   const known = Object.keys(resolve().palette);
   assert.ok(used.size > 6); for (const name of used) assert.ok(known.includes(JSON.parse(name)), `${name} is not a herdr colour`);
+});
+
+test("an automation has a purple of its own in every theme: the theme's mauve where that is one and told apart, else the board's, and the terminal's magenta among its own colours", () => {
+  const own = [];
+  for (const name of THEME_NAMES) {
+    const p = resolve({ theme: { name } }, null, "herdr").palette;
+    assert.ok(isPurple(p.auto), `${name}: it is a purple`); if (p.auto === p.mauve) own.push(name);
+    // never taken for a status (needs you, ready, working, done, under review, to do), for plain or greyed words, or lost on the background
+    for (const k of AUTO_BESIDE) assert.ok(apart(p.auto, p[k]) >= AUTO_APART, `${name}: an automation and ${k} are ${Math.round(apart(p.auto, p[k]))} apart`);
+  }
+  for (const k of ["red", "green", "yellow", "teal", "review", "todo", "text", "subtext0", "overlay0", "panel_bg"]) assert.ok(AUTO_BESIDE.includes(k), k);
+  // herdr's own mauve in most themes; not where it is no purple (Vesper's amber) or sits on the theme's greyed words
+  assert.deepEqual(THEME_NAMES.filter((n) => !own.includes(n)), ["terminal", "nord", "kanagawa", "kanagawa-lotus", "rose-pine", "vesper"]);
+  assert.equal(resolve({}, null, "herdr").palette.auto, 0xcba6f7); assert.equal(resolve({}, null, "terminal").palette.auto, -16 + 5);
+  assert.equal(resolve({ theme: { name: "kanagawa-lotus" } }, null, "herdr").palette.auto, 0x7c3aed); assert.equal(resolve({ theme: { name: "nord" } }, null, "herdr").palette.auto, 0xa855f7); // the darker one on a light background
+  // a mauve of your own is followed when it is a purple, and not when it is the theme's red or its text colour
+  assert.equal(resolve({ theme: { custom: { mauve: "#9333ea" } } }, null, "herdr").palette.auto, 0x9333ea);
+  for (const mauve of ["#f38ba8", "#cdd6f4", "#a6e3a1", "red"]) { const p = resolve({ theme: { custom: { mauve } } }, null, "herdr").palette; assert.ok(isPurple(p.auto), mauve); for (const k of AUTO_BESIDE) assert.ok(apart(p.auto, p[k]) >= AUTO_APART, `${mauve}: ${k}`); }
 });
 
 test("green, red and plain are told apart in every theme, light and dark: a tag's colour alone says pass, fail or no result yet", () => {

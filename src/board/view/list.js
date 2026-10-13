@@ -215,12 +215,13 @@ export class List {
     // One layout for the displayed list, across groups and outside the scroll viewport: the columns line up down the
     // whole list. What is shown of them is decided one group at a time, under each heading.
     const sections = [];
-    for (const row of this.rows) { if ((row.header && !row.autos) || !sections.length) sections.push([]); if (row.rec) sections.at(-1).push(row.rec); }
-    const layout = this.rowLayout(sections.flat(), width, sections, screen), autoLay = this.autos?.length ? this.autoLayout(width) : null;
+    // An automation's row is drawn by the tasks' own row code, from its record (automation-rows.js: autoRec).
+    for (const row of this.rows) { if (row.header || !sections.length) sections.push([]); if (row.rec || row.auto) sections.at(-1).push(row.rec || this.autoRec(row.auto)); }
+    const layout = this.rowLayout(sections.flat(), width, sections, screen);
     this.rows.forEach((row) => {
-      if (row.header) lines.push({ text: "", sel: false, head: true }, { text: " " + (row.autos ? t.fg("subtext0", row.header) : this.byRepo ? t.bold(t.fg("subtext0", repoLabel(row.header))) : t.fg(GROUP_COLOR[row.header] || "subtext0", row.header)), sel: false, head: true });
+      if (row.header) lines.push({ text: "", sel: false, head: true }, { text: " " + (row.autos ? t.fg("auto", row.header) : this.byRepo ? t.bold(t.fg("subtext0", repoLabel(row.header))) : t.fg(GROUP_COLOR[row.header] || "subtext0", row.header)), sel: false, head: true });
       else if (row.note) lines.push({ text: "   " + t.fg("overlay0", row.note), sel: false });
-      else if (row.auto) this.autoRowLines(row.auto, width, autoLay).forEach((text, n, all) => lines.push({ text, sel: row.auto.row === this.sel, n, rest: all.length - n, id: row.auto.row, auto: true }));
+      else if (row.auto) this.rowLines(this.autoRec(row.auto), width, layout).forEach((text, n, all) => lines.push({ text, sel: row.auto.row === this.sel, n, rest: all.length - n, id: row.auto.row, auto: true }));
       // A row of more than one line (a live task's, a wrapped name) is the selected row's in all of them: the highlight covers them.
       else this.rowLines(row.rec, width, layout).forEach((text, n, all) => lines.push({ text, sel: row.rec.id === this.sel, n, rest: all.length - n, id: row.rec.id }));
     });

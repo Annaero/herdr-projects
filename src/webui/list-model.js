@@ -21,15 +21,15 @@ export function rowOf(v, r, now = Date.now()) {
     percent: plain(f.percent).trim(), eta: plain(f.eta),
     review: pieces(f.review), pr: pieces(f.pr), prUrl: webURL(r.pr),
     time: f.elapsed + (f.ago ? " ago" : ""), quiet: r.state === "done",
-    pinned: !!r.pinned, archived: !!r.archivedAt, app: r.app || "",
+    pinned: !!r.pinned, archived: !!r.archivedAt, app: r.app || "", made: !!r.automation?.id, // `made`: by an automation, whose colour its [auto] tag takes
   };
 }
 
 export function listOf(v) {
-  const now = Date.now(), groups = [], repos = v.autos.length ? v.autoLayout(4000).repos : false;
+  const now = Date.now(), groups = [];
   for (const row of v.rows) {
-    if (row.autos) groups.push({ name: row.header, color: "subtext0", repo: false, automations: true, rows: [], more: 0 }); // the last group (automations-model.js)
-    else if (row.auto) groups.at(-1)?.rows.push(autoRowOf(v, row.auto, now, repos));
+    if (row.autos) groups.push({ name: row.header, color: "auto", repo: false, automations: true, rows: [], more: 0 }); // the last group (automations-model.js)
+    else if (row.auto) groups.at(-1)?.rows.push(autoRowOf(v, row.auto, now));
     else if (row.header) groups.push({ name: v.byRepo ? repoLabel(row.header) : row.header, color: v.byRepo ? "subtext0" : GROUP_COLOR[row.header] || "subtext0", repo: !!v.byRepo, rows: [], more: 0 });
     else if (row.rec) groups.at(-1)?.rows.push(rowOf(v, row.rec, now));
     else if (row.note && groups.length) groups.at(-1).more = Number((/(\d+) more/.exec(row.note) || [])[1]) || 0;
@@ -37,7 +37,7 @@ export function listOf(v) {
   // The characters each task's tag (`#134`, `HSW-134`) fills: the terminal board's column and its limit on the space
   // before a title (row-number.js), so the page lines the titles up the same way.
   const column = v.numbering().cells;
-  for (const g of groups) for (const r of g.rows) r.tagWidth = tagCells(r.tag.length, column) || r.tag.length;
+  for (const g of groups) for (const r of g.rows) r.tagWidth = r.automation ? Math.max(column, r.tag.length) : tagCells(r.tag.length, column) || r.tag.length; // an automation's word fills the column: its name starts where the titles do
   const session = sessionName(currentSocket());
   const unread = v.unread();
   return {

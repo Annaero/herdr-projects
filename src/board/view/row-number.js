@@ -1,4 +1,5 @@
 // A task's number on its row: the quiet tag between the mark and the title, `#134`, or `HSW-134` where its repo has a short key (store/keys.js).
+// On an automation's row the word on or off stands there instead (automation-rows.js).
 // Never a repo's name: which repo a task is in is what the list grouped by repo, the task panel and the details page say.
 // The tags share one column, so titles start in the same place, but never at the price of more than GAP empty cells
 // between a tag and its title. Also the tag as the task panel, the chat and the board's messages say it.
@@ -38,6 +39,8 @@ export class RowNumber {
     try { keys = S.repoKeys(); } catch {}
     const n = { keys, cells: 0, widest: 0 }, widths = recs.map((r) => visibleWidth(this.numberTag(r, n))).filter(Boolean);
     n.cells = tagColumn(widths); n.widest = Math.max(0, ...widths);
+    // An automation's row has the word on or off where a task has its number: the column is there for it too.
+    if (this.autos?.length) { n.cells = Math.max(n.cells, 3); n.widest = Math.max(n.widest, 3); }
     if (whole) { this.numbered = n; this.numberedFor = src; }
     return n;
   }
@@ -46,6 +49,7 @@ export class RowNumber {
   // counts its own tasks, so with more than one machine shown the tag names the machine too: `otherbox#1`
   // (`otherbox:HSW-1` with a key). Only then, and never in find (`machine` false), which takes the number alone.
   numberTag(r, n = this.numbering([r]), machine = true) {
+    if (r.auto) return r.auto.on ? "on" : "off";
     const num = idOf(r).split("/").pop(), repo = repoOf(r);
     if (r.title === undefined || !/^\d+$/.test(num)) return "";
     const key = r.host ? r.key : n.keys[repo], far = machine && r.host && this.scope === "*" ? clean(r.host) : "";
@@ -57,7 +61,10 @@ export class RowNumber {
   // would leave its row's name too few cells.
   numberCells(width, n = this.numbering()) { return n.cells && width - 3 - n.widest - 1 >= NAME_LEFT ? n.cells : 0; }
   // The cells a row's tag takes left of its name, with the one that parts them: none where the tags gave way.
-  numberWide(r, cells, n = this.numbering([r])) { const w = cells ? tagCells(visibleWidth(this.numberTag(r, n)), cells) : 0; return w ? w + 1 : cells ? cells + 1 : 0; }
+  // An automation's word fills the column whatever its width, so its name starts where the titles start. Where the
+  // tags gave way the word goes with them, and stands first in what the row says instead (automation-rows.js:
+  // autoSaid): on or off is a word at every width, and every name still starts at one left edge.
+  numberWide(r, cells, n = this.numbering([r])) { if (r.auto) return cells ? cells + 1 : 0; const w = cells ? tagCells(visibleWidth(this.numberTag(r, n)), cells) : 0; return w ? w + 1 : cells ? cells + 1 : 0; }
   // The tag as a row starts with it: greyed, filled out to the column where that is within the limit, one cell before the name.
   numberLead(r, cells, n = this.numbering([r])) {
     if (!cells) return "";

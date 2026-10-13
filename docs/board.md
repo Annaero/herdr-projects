@@ -26,25 +26,54 @@ and `↓` follow the order shown (`PgUp` and `PgDn` go ten tasks at a time), and
 selected task selected. The archive (`Alt+A`) is a list of its own, newest first, and no part of this order.
 
 **The automations are the last group**, under the heading `automations`, below every task group (also when the
-list is grouped by repo); with none there is no heading. One row per automation: its mark (`↻`, no task's mark),
-its name, its trigger in plain words, the word `on` or `off`, and when it fires next or fired last:
+list is grouped by repo); with none there is no heading. The heading and the mark of each row are in a colour of
+their own, a purple no status has ([colours](colours.md)). One row per automation, **in the list's own columns**,
+drawn by the code that draws a task's row:
 
 ```
+ to do
+ ○ #2  Write the changelog                                                                    1d ago
+ ○ #1  Fix the footer on the pricing page                                                     3h ago
+
  automations
- ↻ Look for old dependencies    every 2h                               on    next in 2h
- ↻ Release note after a merge   when a task is merged, in every repo   on    fired 2h ago
- ↻ Nightly audit                daily 03:00                            off   never fired
+ ■ on  Look for old dependencies  every 2h                                      ✓ #4 next in  4m
+ ■ on  Release note after a merge  when a task is merged, in every repo              skipped  5h ago
+ □ off Nightly audit  daily 03:00                                                        never fired
+       it fired 30 times in an hour
 ```
 
-`↑` and `↓` go from the last task on to them, and a click selects one. On such a row no task is selected, so the
-keys that act on a task do nothing and the row has keys of its own (open it, turn it on or off, fire it now, remove
-it, its settings), which the hint line shows: [automations](automations.md). One that is off is drawn as quietly
-as a done task, and says `off` in a word. Their columns stand under each other; in a window too narrow for one line
-each, every row of the group has two (the name, and under it the rest), as a narrow task row wraps instead of being
-cut. The repo is named on each row when the automations are not all in the repo the board is in, and the machine
-(`on otherbox`) on the board of every machine. Find (`Ctrl+F`) matches them too, by name, trigger or repo; the
-archive has none. No task gives way for them: where the list is longer than its room, the tasks fold as they
-always do and the automations are what is below.
+| Where a task's row has | An automation's row has |
+|---|---|
+| its mark | `■` while it is on, `□` while it is off: a square, where every task's mark is round, a diamond or a sign |
+| its number (`#12`) | the word `on` or `off`, in the same grey. It fills the numbers' column, so every name starts where the titles start |
+| its title | its name, plain as a to-do's title; greyed while it is off |
+| what it says, after the title | its trigger in plain words (`every 2h`, `when a task is merged, in every repo`), in the same grey; then its repo when that is not the one the board shows, and its machine (`on otherbox`) on the board of every machine |
+| its review tag and pull request | the task its last firing made, by that task's own mark and number (`✓ #4`: done; `◐ #7`: an agent is on it), and the word that goes with the time (`next in`, `fired`, `skipped`) |
+| its time | how long until it fires (`4m`), or how long ago it last did (`2h ago`), in the list's time column, under the tasks' times. `never fired` stands there for one that never did |
+| a second line, for a live task | a second line only when it has something to say: why the board turned it off. Where the trigger has no room beside the names it stands there too, on every row of the group at once |
+
+What gives way when room is short does so as on a task's row and by the same code (the order is below, under
+"When the window is narrow"):
+what the row says (to the line under the name, never cut: half a trigger is no trigger), then the part of a
+long name past 40 cells, the last task, the firing, the numbers' column, and then the rest of the name.
+Where the numbers' column goes, the word `on` or `off` goes with it, so every name still starts where the titles
+start, and it is then the first word of what the row says (`on · every 2h`): on or off is a word at every width,
+never colour alone. Under 80 columns a row is its name, and under it the trigger with the
+firing at the end of that line, as a live task's row has its time there; a long name wraps on the selected row and
+is cut with `…` on the others. The selected row has the same bar and tint, a click selects it, and `↓ 3
+automations` says how many do not fit.
+
+**Not on the row**, so that it stays as calm as a task's: the prompt, the settings, the folder, the list of firings
+and why one was skipped, the hour a schedule is next due, and how many times it fired (only the last 200 firings are
+kept, and 20 are sent from another machine, so a count would not be true). All of that is the automation, whole
+(`Enter`).
+
+`↑` and `↓` go from the last task on to them. On such a row no task is selected, so the keys that act on a task do
+nothing and the row has keys of its own (open it, turn it on or off, fire it now, remove it, its settings), which
+the hint line shows: [automations](automations.md). One that is off is drawn as quietly as a done task: its mark
+dimmed and empty, its words greyed. Find (`Ctrl+F`) matches them too, by name, trigger or repo; the archive has
+none. No task gives way for them: where the list is longer than its room, the tasks fold as they always do and the
+automations are what is below.
 
 **The list says what it hides.** A list longer than its room keeps its last line to say how many tasks are not on
 the screen, folded ones included: `↓ 11 more`, and `↑ 4 more` once you have scrolled. Automations that do not

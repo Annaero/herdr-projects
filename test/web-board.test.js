@@ -162,9 +162,12 @@ test("the web board has the automations: the last group of its list, one of them
     let s = CALLS.board.run(v, {});
     assert.deepEqual(s.list.groups.map((g) => [g.name, g.rows.length, !!g.automations]), [["to do", 1, false], ["automations", 2, true]]); assert.equal(s.list.selected, "proj/1"); assert.equal(s.flags.automations, undefined); assert.equal(s.flags.onTask, true);
     const [one, two] = s.list.groups[1].rows;
-    assert.deepEqual([one.id, one.title, one.mark, one.color, one.quiet, one.tag, said(one)], [`auto:${a.id}`, "Look for old dependencies", "↻", "green", false, "", "every 2h · on · next in 2h"]);
-    assert.deepEqual([two.title, two.mark, two.quiet, said(two)], ["Release note", "↻", true, "when a task is merged · off · never fired"]); // off: quiet, and the word
-    // on the page its row shows all of what it says, on any width: on or off and the firing are never in a clamped part
+    // a task row's places: on or off where a task has its number, the trigger where it says something, the firing where it has its time
+    assert.deepEqual([one.id, one.title, one.mark, one.color, one.quiet, one.tag, said(one), one.time], [`auto:${a.id}`, "Look for old dependencies", "■", "auto", false, "on", "every 2h", "next in 2h"]);
+    assert.deepEqual([two.title, two.mark, two.markDim, two.quiet, two.tag, said(two), two.time], ["Release note", "□", true, true, "off", "when a task is merged", "never fired"]); // off: quiet, an empty mark, and the word
+    assert.equal(s.list.groups[1].color, "auto"); // the heading has the automations' own colour
+    assert.deepEqual([one.tagWidth, two.tagWidth, s.list.groups[0].rows[0].tagWidth], [3, 3, 3]); // one column: the names start where the task's title does
+    // on the page its row shows all of what it says, on any width, and its word (on, off) stays when the tasks' numbers give way
     assert.deepEqual([one.automation, two.automation, s.list.groups[0].rows[0].automation], [true, true, undefined]);
     assert.match(fs.readFileSync(new URL("../src/webui/page/board.css", import.meta.url), "utf8"), /\.sw-row\.is-automation \.sw-says \{ display: block; overflow: visible; -webkit-line-clamp: none; \}/);
     // tap one: it opens, whole, with its buttons; a watching device may look
@@ -199,7 +202,8 @@ test("the web board has the automations: the last group of its list, one of them
     // the firing's link: to that task, in the same list, open
     s = CALLS.pick.run(v, { id: "proj/2", open: true });
     assert.deepEqual([s.list.selected, s.panel.title, s.panel.task, s.panel.automation], ["proj/2", "Look for old dependencies", true, undefined]);
-    assert.ok(s.list.groups.flatMap((g) => g.rows).find((r) => r.id === "proj/2").title.endsWith("[auto]"));
+    { const made = s.list.groups.flatMap((g) => g.rows).find((r) => r.id === "proj/2"); assert.ok(made.title.endsWith("[auto]")); assert.equal(made.made, true); // its tag is drawn in the automations' colour
+      const auto = s.list.groups.at(-1).rows[0]; assert.deepEqual(auto.review.map((p) => p.t).join(""), "◒ #2"); } // and the automation's row has the task its last firing made
     assert.ok(s.panel.parts[0].items.some((x) => x.k === "fact" && x.label === "Made by"));
     // remove: the same question, the same answers
     CALLS.pick.run(v, { id: "proj/2", open: false }); CALLS.pick.run(v, { id: `auto:${b.id}`, open: true });
@@ -254,8 +258,13 @@ test("the web page's rows: the tag has a column of its own, so what a task says 
     assert.deepEqual(names(rowEl({ ...r, tag: "" }, { selected: false, onPick() {} }).kids[1]), ["sw-line", "sw-says"]);
     // an automation's row is marked as one, so the styles show all of what it says; a task's row is not
     assert.match(rowEl({ ...r, tag: "", automation: true }, { selected: false, onPick() {} }).className, /\bis-automation\b/); assert.doesNotMatch(rowEl(r, { selected: false, onPick() {} }).className, /is-automation/);
+    // a task an automation made: its [auto] tag is in the automations' colour; an automation's mark is a square drawn at the round marks' size
+    { const title = rowEl({ ...r, title: "Fix it [auto]", made: true }, { selected: false, onPick() {} }).kids[1].kids[1].kids[0]; assert.deepEqual(title.kids.map((k) => (typeof k === "string" ? k : [k.className, k.textContent])), ["Fix it ", ["sw-c-auto", "[auto]"], ""]);
+      const { markEl } = await import("../src/webui/page/dom.js"); assert.deepEqual([markEl("■", "auto").kids[0].className, markEl("□", "auto", true).kids[0].className, markEl("□", "auto", true).className], ["sw-sq sw-sq-on", "sw-sq sw-sq-off", "sw-mark sw-c-auto sw-d"]); }
     const css = fs.readFileSync(new URL("../src/webui/page/board.css", import.meta.url), "utf8");
-    assert.match(css, /\.sw-main \{ display: grid; grid-template-columns: auto minmax\(0, 1fr\)/); assert.match(css, /\.sw-main > \* \{ grid-column: 2; \}/); assert.match(css, /\.sw-no-tags \.sw-main > \.sw-id \{ display: none; \}/);
+    assert.match(css, /\.sw-main \{ display: grid; grid-template-columns: auto minmax\(0, 1fr\)/); assert.match(css, /\.sw-main > \* \{ grid-column: 2; \}/); assert.match(css, /\.sw-no-tags \.sw-main > \.sw-id \{ display: none; \}/); assert.match(css, /\.sw-word \{ display: none; \} \.sw-no-tags \.sw-word \{ display: inline; \}/);
+    // a narrow list: an automation's word goes with the tags (every title at one left edge) and is the first word of what its row says
+    { const auto = rowEl({ ...r, tag: "off", automation: true, says: [{ t: "every 2h" }] }, { selected: false, onPick() {} }).kids[1].kids.find((k) => k.className === "sw-says"); assert.deepEqual([auto.kids[0].className, auto.kids[0].textContent, auto.textContent], ["sw-word", "off · ", "off · every 2h"]); assert.ok(!rowEl(r, { selected: false, onPick() {} }).kids[1].kids.some((k) => (k.kids || []).some((x) => x.className === "sw-word"))); } assert.match(css, /\.sw-c-auto \{ color: var\(--sw-auto\); \}/); assert.match(css, /--sw-auto: color-mix\(in srgb, #a855f7 78%/);
     // The tags give way together where the widest would leave a title fewer than 16 letters; a wider tag goes sooner.
     assert.equal(tagsFit(400, 4, 6), true); assert.equal(tagsFit(200, 4, 6), false); assert.equal(tagsFit(270, 4, 6), true); assert.equal(tagsFit(270, 9, 6), false); assert.equal(tagsFit(100, 0), true); assert.equal(tagsFit(0, 4), true);
     const list = { groups: [{ name: "working", color: "blue", rows: [r, { ...r, id: "p/140", tag: "HSW-140", tagWidth: 7 }], more: 0 }], jobs: [], selected: "", empty: "" };

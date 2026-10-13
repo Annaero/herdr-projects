@@ -3,6 +3,9 @@
 /* global ResizeObserver */
 import { h, ink, said, markEl } from "./dom.js";
 
+// A task an automation made has its `[auto]` tag in the automations' colour.
+const titleOf = (r) => { const at = r.made ? r.title.lastIndexOf("[auto]") : -1; return at < 0 ? r.title : [r.title.slice(0, at), h("span.sw-c-auto", "[auto]"), r.title.slice(at + 6)]; };
+
 export function rowEl(r, { selected, onPick }) {
   const tags = h("span.sw-tags", r.review?.length ? ink(r.review, "sw-tag") : null,
     r.pr?.length ? (r.prUrl ? h("a.sw-tag", { href: r.prUrl, target: "_blank", rel: "noopener noreferrer", onclick: (e) => e.stopPropagation() }, ink(r.pr)) : ink(r.pr, "sw-tag")) : null);
@@ -16,8 +19,9 @@ export function rowEl(r, { selected, onPick }) {
     h("span.sw-main",
       // The tag has a column of its own, so what the task says and its bar start under the title, not under the tag.
       r.tag ? h("span.sw-id", { style: `min-width:${r.tagWidth || r.tag.length}ch` }, r.tag) : null,
-      h("span.sw-line", h(`span.sw-title${r.strong ? ".sw-b" : ""}`, r.title), h("span.sw-time", r.time)),
-      says ? h("span.sw-says", ink(r.says)) : null,
+      h("span.sw-line", h(`span.sw-title${r.strong ? ".sw-b" : ""}`, titleOf(r)), h("span.sw-time", r.time)),
+      // An automation's word (on, off) stands first in what it says where the list is too narrow for the tags' column.
+      says || r.automation ? h("span.sw-says", r.automation && r.tag ? h("span.sw-word", `${r.tag} · `) : null, ink(r.says)) : null,
       meter || tags.childNodes.length ? h("span.sw-under", meter, tags) : null));
 }
 

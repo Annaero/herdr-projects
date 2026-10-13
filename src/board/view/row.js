@@ -1,4 +1,4 @@
-// One row of the list: its mark, its number (row-number.js), its name, its columns on the right and, for a live task, a second line that says what it does (a third on a narrow screen: row-tall.js, where long ones wrap: row-wrap.js).
+// One row of the list: its mark, its number (row-number.js), its name, its columns on the right and, for a live task, a second line that says what it does (a third on a narrow screen: row-tall.js, where long ones wrap: row-wrap.js). An automation's row is drawn here too, from what automation-rows.js says it has for each of those.
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import * as G from "../../gate.js";
 import { herdr } from "../../herdr.js";
@@ -18,6 +18,7 @@ const PROGRESS = ["bar", "percent", "eta"];
 export class Row {
   mark(r) {
     const t = this.theme;
+    if (r.auto) return this.autoMark(r.auto); // an automation's row: every dispatch on `auto` in this file is automation-rows.js
     // herdr's own marks, a different one for each state, in the colour of the task's group.
     const c = statusColor(r);
     if (r.archivedAt) return t.fg(c, t.mark("unknown"));
@@ -29,10 +30,13 @@ export class Row {
     return t.fg(c, t.mark(MARK_STATES.includes(r.state) ? r.state : "idle"));
   }
   // What a row says on its first line, after its name: nothing on a live task's row, which says it on its second.
-  saysBeside(r) { return isLive(r) ? { text: "" } : this.sentence(r); }
-  rowTitle(r) { return clean(r.title || r.id) + (r.attempts?.length > 1 ? ` ×${r.attempts.length}` : "") + (isResearch(r) ? " [research]" : "") + (r.automation?.id ? " [auto]" : "") + (r.archivedAt && !this.archiveView ? " [archived]" : ""); }
+  // An automation says its trigger there, as a to-do says nothing and a done task how it went; on a narrow screen
+  // (`tall`) under its name instead.
+  saysBeside(r, tall) { return (r.auto ? tall : isLive(r)) ? { text: "" } : this.sentence(r); }
+  rowTitle(r) { return r.auto ? clean(r.auto.name) : clean(r.title || r.id) + (r.attempts?.length > 1 ? ` ×${r.attempts.length}` : "") + (isResearch(r) ? " [research]" : "") + (r.automation?.id ? " [auto]" : "") + (r.archivedAt && !this.archiveView ? " [archived]" : ""); }
   // The fewest cells a row needs to say something: a sentence cut to a few letters says nothing.
-  sayNeed(said) { return Math.min(visibleWidth(said.text || ""), SENTENCE_MIN); }
+  // An automation's trigger shows whole or under its name: half a trigger is no trigger.
+  sayNeed(said, r) { return r?.auto ? visibleWidth(said.text || "") : Math.min(visibleWidth(said.text || ""), SENTENCE_MIN); }
   // The columns on the right are laid out first, once for the whole list: which there are and how wide each is. Every
   // row draws them at those widths, so each column starts at the same place on every row. What is shown of them is
   // decided one section at a time (row-fit.js): a section's rows give the same things up together, from the left.
@@ -51,30 +55,35 @@ export class Row {
     const max = (key) => Math.max(0, ...[...fields.values()].map((f) => visibleWidth(f[key])));
     const elapsed = Math.max(3, max("elapsed"));
     const numbering = this.numbering(records), num = this.numberCells(width, numbering);
+    this.tagsGone = !num; // an automation's row then says on or off in its words (automation-rows.js)
     // Extremely long PR identifiers may shorten, but must never push time off-screen.
     const pr = Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), review = max("review");
     const cols = [["bar", max("bar")], ["percent", max("percent") && Math.max(PERCENT_MIN, max("percent"))], ["eta", max("eta")], ["review", review], ["pr", pr], ["time", tall ? 0 : elapsed]].filter(([, w]) => w);
     // The wider gap is a column with nothing in it, right of the progress: the cell on each side of it makes two.
     const group = cols.findIndex(([key]) => !PROGRESS.includes(key));
     if (group > 0) cols.splice(group, 0, ["gap", 0]);
-    const layout = { now, review, pr, elapsed, cols, num, numbering, ago: !tall && [...fields.values()].some((f) => f.ago), show: new Map(), tall };
+    // The automations' rows have two columns of their own left of the time, which is the list's: the tasks' rows
+    // keep theirs as they are, with no room held for a word no task has (automation-rows.js: autoFields).
+    const own = (key) => Math.max(0, ...records.filter((r) => r.auto).map((r) => visibleWidth(fields.get(r)?.[key] || "")));
+    const autoCols = [["tag", own("tag")], ["lead", own("lead")], ["time", tall ? 0 : elapsed]].filter(([, w]) => w), colsOf = (recs) => (recs[0]?.auto ? autoCols : cols);
+    const layout = { now, review, pr, elapsed, cols, autoCols, num, numbering, ago: !tall && [...fields.values()].some((f) => f.ago), show: new Map(), tall };
     if (tall) layout.third = this.tallLayout(records.filter(below).map((r) => this.rowFields(r, now)), width, 3 + (num ? num + 1 : 0));
     // Decided at widths that do not move as the numbers tick: the percent and the minutes left count as their widest
     // ("100%", and words.js: left).
     const steady = { percent: PERCENT_STEADY, eta: ETA_STEADY };
-    const cells = (ago) => cols.map(([key, w]) => ({ key, w: steady[key] ? Math.max(w, steady[key]) : w + (key === "time" && ago ? 4 : 0) }));
-    const fit = (r) => { const f = fields.get(r) || {}; return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2 - this.numberWide(r, num, numbering)), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, time: !tall } }; };
+    const cells = (ago, cols) => cols.map(([key, w]) => ({ key, w: steady[key] ? Math.max(w, steady[key]) : w + (key === "time" && ago ? 4 : 0) }));
+    const fit = (r) => { const f = fields.get(r) || {}; return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2 - this.numberWide(r, num, numbering)), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, tag: f.tag, lead: f.lead, time: !tall } }; };
     const parts = sections.map((recs) => recs.map(fit));
     // The word "ago" sits right of everything, so one section cannot give it up without moving its columns: the
     // whole list gives it up, as soon as that lets some section show a column other than its bar, or cut a name less.
     const cheaper = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
-    if (layout.ago) layout.ago = !parts.some((rows) => cheaper(shownFrom(rows, cells(false)).cost, shownFrom(rows, cells(true)).cost));
+    if (layout.ago) layout.ago = !parts.some((rows, n) => cheaper(shownFrom(rows, cells(false, colsOf(sections[n]))).cost, shownFrom(rows, cells(true, colsOf(sections[n]))).cost));
     sections.forEach((recs, n) => {
-      const steady = cells(layout.ago), { from } = shownFrom(parts[n], steady);
+      const steady = cells(layout.ago, colsOf(recs)), { from } = shownFrom(parts[n], steady);
       // What the rows say goes the same way: every row of the section that says something has room for it, or none says it.
       // A row's name and what it says are drawn in the room decided here, so neither moves as the numbers tick.
       const rooms = recs.map((r, m) => Math.max(0, labelRoom(parts[n][m], steady, from)));
-      const says = recs.every((r, m) => { const said = this.saysBeside(r); return !visibleWidth(said.text || "") || rooms[m] - visibleWidth(this.rowName(r, rooms[m])) - 2 >= this.sayNeed(said); });
+      const says = recs.every((r, m) => { const said = this.saysBeside(r, tall); return !visibleWidth(said.text || "") || rooms[m] - visibleWidth(this.rowName(r, rooms[m])) - 2 >= this.sayNeed(said, r); });
       recs.forEach((r, m) => layout.show.set(r, { from, says, room: rooms[m] }));
     });
     return layout;
@@ -84,18 +93,21 @@ export class Row {
     const t = this.theme;
     if (this.wraps(r, layout.tall)) return { metadata: "" };
     const fill = (s, n, left) => { const gap = " ".repeat(Math.max(0, n - visibleWidth(s))); return left ? s + gap : gap + s; }; // by terminal cells, not string length
-    const text = {
+    const quiet = r.state === "done" || r.auto?.on === false ? (s) => t.muted(s) : (s) => t.fg("overlay0", s), text = {
       bar: f.bar, percent: f.percent, eta: f.eta,
       // R#2 ends where the pull request starts: the review belongs to the pull request, not to the progress. Its
       // colour says how the review went: it has no mark.
       review: f.review,
       // PR#16 the same way, so the "PR#" parts line up. Its colour says how its checks went: it has no mark.
       pr: f.pr ? fill(truncateToWidth(f.pr, layout.pr, "…"), layout.pr, true) : "",
-      gap: "",
-      // A finished row's time is quiet like its merged tags (the theme's muted): nothing on its right is live.
-      time: (r.state === "done" ? (s) => t.muted(s) : (s) => t.fg("overlay0", s))(f.elapsed.padStart(layout.elapsed) + (layout.ago ? (f.ago ? " ago" : "    ") : "")),
+      gap: "", tag: f.tag, lead: f.lead,
+      // A finished row's time is quiet like its merged tags (the theme's muted): nothing on its right is live. So is
+      // that of an automation that is off.
+      time: quiet(f.elapsed.padStart(layout.elapsed) + (layout.ago ? (f.ago ? " ago" : "    ") : "")),
     };
-    const cells = layout.cols.map(([key, w]) => ({ key, text: text[key], w: w + (key === "time" && layout.ago ? 4 : 0) }));
+    const cells = (r.auto ? layout.autoCols : layout.cols).map(([key, w]) => ({ key, text: text[key], w: w + (key === "time" && layout.ago ? 4 : 0) }));
+    // An automation that never fired has no time: "never fired" stands where the others have their word and their time.
+    if (f.never && cells.at(-2)?.key === "lead") { const w = cells.at(-2).w + 1 + cells.at(-1).w; cells.splice(-2, 2, { key: "time", text: quiet(w >= 11 ? "never fired" : "never"), w }); }
     // Blank cells left of a row's first own column are not columns to that row: its words run into them.
     let from = layout.show.get(r)?.from ?? 0;
     while (from < cells.length && !cells[from].text) from++;
@@ -106,7 +118,14 @@ export class Row {
   rowNameParts(r, w) { return { host: "", shown: truncateToWidth(this.nameInk(r, this.rowTitle(r)), w, "…") }; }
   // The title is plain text whatever the task's state: the mark and the group's heading carry the state's colour.
   // A live task's is bold: one weight for every title under "needs you", one that went wrong included.
-  nameInk(r, s) { return ["working", "blocked", "error"].includes(r.state) ? this.theme.bold(s) : s; }
+  // An automation's name is plain as a to-do's, and greyed while it is off. The `[auto]` tag of a task one made is in
+  // the automations' colour, quieter on a done task.
+  nameInk(r, s) {
+    const t = this.theme;
+    if (r.auto) return r.auto.on ? s : t.muted(s);
+    if (r.automation?.id) s = s.replace(/\[auto\](?=( \[archived\])?$)/, (m) => (r.state === "done" ? t.quiet("auto", m) : t.fg("auto", m)));
+    return ["working", "blocked", "error"].includes(r.state) ? t.bold(s) : s;
+  }
   rowName(r, w) { const { host, shown } = this.rowNameParts(r, w); return host + shown; }
   // A row's first line, measured: its mark and its number, the columns it keeps, and the room they leave its name.
   rowRoom(r, width, layout) {
@@ -118,11 +137,11 @@ export class Row {
     // One rule for every row. The columns first, at the list's widths, as many as the row's section shows; the name
     // in what they leave; what the row says in what is then left, when its section's rows say anything.
     const { prefix, room, metadata, show, labelRoom } = this.rowRoom(r, width, layout);
-    const said = (show?.says ?? true) ? this.saysBeside(r) : { text: "" }, sayW = visibleWidth(said.text || "");
+    const said = (show?.says ?? true) ? this.saysBeside(r, layout.tall) : { text: "" }, sayW = visibleWidth(said.text || "");
     const renderedTitle = this.rowName(r, labelRoom);
     const sayRoom = labelRoom - visibleWidth(renderedTitle) - 2;
     // A sentence cut to a few letters says nothing: it shows whole, or with at least SENTENCE_MIN cells.
-    const tail = !sayW || sayRoom < this.sayNeed(said) ? "" : truncateToWidth(said.text, sayRoom, "…");
+    const tail = !sayW || sayRoom < this.sayNeed(said, r) ? "" : truncateToWidth(said.text, sayRoom, "…");
     const label = renderedTitle + (tail ? "  " + tail : "");
     return prefix + label + " ".repeat(Math.max(0, room - visibleWidth(label) - visibleWidth(metadata))) + metadata;
   }
@@ -132,11 +151,12 @@ export class Row {
   // task always has words (status-kept.js), and a task that waits with nothing to say an empty line. Never a bare "…".
   statusLine(r, width, layout = this.rowLayout([r], width)) {
     const lead = this.rowLead(r, width, layout);
-    return truncateToWidth(lead + this.saysUnder(r), width, "…");
+    return truncateToWidth(lead + this.saysUnder(r, layout), width, "…");
   }
   // What stands on a live task's second line: what it says, or, where it has no words, something true and quiet
   // instead of a gap: that it is your own task, that nobody reviewed it, or the plain word for where it stands.
-  saysUnder(r) {
+  saysUnder(r, layout) {
+    if (r.auto) return this.autoSaid(r.auto, layout?.show.get(r)?.says ? "why" : "all"); // its trigger too, where that has no room beside its name
     const said = this.sentence(r).text;
     if (said) return said;
     const t = this.theme;
@@ -148,6 +168,6 @@ export class Row {
   // names and words wrap (row-wrap.js).
   rowLines(r, width, layout = this.rowLayout([r], width)) {
     if (this.wraps(r, layout.tall)) return this.wrappedLines(r, width, layout);
-    return isLive(r) ? [this.row(r, width, layout), this.statusLine(r, width, layout)] : [this.row(r, width, layout)];
+    return (r.auto ? this.saysUnder(r, layout) : isLive(r)) ? [this.row(r, width, layout), this.statusLine(r, width, layout)] : [this.row(r, width, layout)];
   }
 }

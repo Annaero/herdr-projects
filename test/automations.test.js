@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { stripVTControlCharacters } from "node:util";
 import { world, fastClock } from "./helpers.js";
 import { open } from "./board-helpers.js";
+import { theme } from "../src/board/theme.js";
 import { remoteList } from "../src/remote.js";
 import { automationDo } from "../src/remote/automations.js";
 import * as S from "../src/store.js";
@@ -285,41 +286,51 @@ test("the automations are a group of the main list: a heading under the tasks, o
     L.turn(c.id, false); s.v.load();
     let lines = s.screen(120).map((l) => l.trimEnd());
     // under the task groups, a group of its own; the first task stays selected
-    assert.deepEqual(lines.slice(2, 9), [" to do", "▌○ #1 Mine                                                                                                        0s ago", "", " automations",
-      " ↻ Look for old dependencies    every 2h                               on    next in 2h",
-      " ↻ Release note after a merge   when a task is merged, in every repo   on    never fired",
-      " ↻ Nightly audit                daily 03:00                            off   never fired"]); // off: the word, never colour alone
+    assert.deepEqual(lines.slice(2, 9), [" to do", "▌○ #1  Mine                                                                                                       0s ago", "", " automations",
+      // the task rows' own columns: the mark, on or off where a task has its number, the name where the titles start, the time under the tasks' times
+      " ■ on  Look for old dependencies  every 2h                                                               next in  2h",
+      " ■ on  Release note after a merge  when a task is merged, in every repo                                      never fired",
+      " □ off Nightly audit  daily 03:00                                                                            never fired"]); // off: the word and an empty mark, never colour alone
+    // every name starts where the task's title starts; "2h" ends where the task's "0s" does, and "never fired" at the right edge
+    for (const [l, name] of [[lines[6], "Look"], [lines[7], "Release"], [lines[8], "Nightly"]]) assert.equal(l.indexOf(name), lines[3].indexOf("Mine"));
+    assert.equal(lines[6].length, lines[3].lastIndexOf(" ago")); assert.equal(lines[7].length, lines[3].length);
     assert.equal(lines[0], " herdr-superwork  proj · 1 to do"); // the header counts tasks
     // colour is never the only clue: without it the same words stand there, and off is drawn as quietly as a done task
     delete process.env.NO_COLOR; const coloured = s.v.render(120);
-    assert.match(coloured[8], /^(\x1b\[[0-9;]*m)* (\x1b\[[0-9;]*m)*↻/); assert.equal(stripVTControlCharacters(coloured[8]).trimEnd(), lines[8]);
+    assert.match(coloured[8], /^(\x1b\[[0-9;]*m)* (\x1b\[[0-9;]*m)*□/);
+    // a colour of its own: the heading and the mark of one that is on are the theme's mauve, which no status has; off is dimmed
+    { const mauve = "\x1b[38;2;203;166;247m"; assert.ok(coloured[5].includes(`${mauve}automations`)); assert.ok(coloured[6].includes(`${mauve}■`)); assert.ok(coloured[8].includes("□") && !coloured[8].includes(`${mauve}□`)); for (const c of ["red", "green", "yellow", "teal", "review", "todo", "text", "subtext0", "overlay0"]) assert.notEqual(theme.fg(c, "x"), theme.fg("auto", "x"), c); } assert.equal(stripVTControlCharacters(coloured[8]).trimEnd(), lines[8]);
     process.env.NO_COLOR = "1"; const bare = s.v.render(120);
     assert.deepEqual(bare.map((l) => stripVTControlCharacters(l).replace(/\x1b_pi:c\x07/g, "").trimEnd()), lines); for (const l of bare) assert.doesNotMatch(l, /\x1b\[(?:3[0-9]|9[0-7]|38;)[0-9;]*m/);
     if (noColor === undefined) delete process.env.NO_COLOR; else process.env.NO_COLOR = noColor;
     // the arrows go from the tasks on to the automations; the hint line shows the keys that act there
     s.press("down"); assert.equal(s.v.sel, row(a)); assert.equal(s.v.current(), undefined);
-    assert.match(s.screen(120)[6], /^▌↻ Look for old dependencies /);
+    assert.match(s.screen(120)[6], /^▌■ on  Look for old dependencies /);
     assert.equal(s.screen(140).at(-1).trimEnd(), "  enter open this automation · space turn this automation off · tab fire it now · ctrl+x remove it · ctrl+e its settings · ? all keys");
     // a narrow screen: two lines each, nothing cut, the selected row marked on both, and the hints that give way are whole ones
     lines = s.screen(60).map((l) => l.trimEnd());
-    assert.deepEqual(lines.slice(5, 12), [" automations", "▌↻ Look for old dependencies", "▌  every 2h · on · next in 2h", " ↻ Release note after a merge", "   when a task is merged, in every repo · on · never fired", " ↻ Nightly audit", "   daily 03:00 · off · never fired"]);
+    assert.deepEqual(lines.slice(5, 12), [" automations", "▌■ on  Look for old dependencies", "▌      every 2h                                   next in 2h", " ■ on  Release note after a merge", "       when a task is merged, in every repo      never fired", " □ off Nightly audit", "       daily 03:00                               never fired"]);
     assert.equal(lines.at(-1), "  enter open this automation · ? all keys");
     for (const l of s.screen(30)) assert.ok(l.length <= 30, l);
-    // narrower still: what a row says goes on to a next line between two of its things, and nothing is cut with …
-    const tight = s.screen(34).map((l) => l.trimEnd()), from = tight.indexOf(" ↻ Release note after a merge");
-    assert.deepEqual(tight.slice(from, from + 4), [" ↻ Release note after a merge", "   when a task is merged, in", "   every repo", "   on · never fired"]); assert.ok(!tight.slice(5, from + 8).some((l) => l.includes("…")));
-    assert.match(s.screen(30)[7].trimEnd(), /^▌ {2}every 2h · on · next in 2h$/);
+    // narrower still: what a row says wraps under its name as a live task's does, and nothing is cut with …
+    const tight = s.screen(34).map((l) => l.trimEnd()), from = tight.indexOf(" ■ on  Release note after a merge");
+    assert.deepEqual(tight.slice(from, from + 3), [" ■ on  Release note after a merge", "       when a task is merged, in", "       every repo      never fired"]); assert.ok(!tight.slice(5, from + 8).some((l) => l.includes("…")));
+    assert.deepEqual(s.screen(30).slice(6, 9).map((l) => l.trimEnd()), ["▌■ on  Look for old", "▌      dependencies", "▌      every 2h     next in 2h"]);
+    // too narrow for the tasks' numbers: they go, the names still start where the task's title does, and on or off is the first word under each
+    { const tiny = s.screen(22).map((l) => l.trimEnd()), at = (re) => tiny.findIndex((l) => re.test(l)); assert.ok(at(/^ ○ Mine/) > 0);
+      assert.match(tiny[at(/^▌■ Look for old/) + 2], /^▌ {2}on · every 2h/); assert.match(tiny[at(/^ ■ Release note/) + 2], /^ {3}on · when a task is/); assert.match(tiny[at(/^ □ Nightly audit/) + 1], /^ {3}off · daily 03:00/); }
     // space: off and on. Off, tab would only say so: its hint goes
-    s.press("space"); assert.equal(S.automation(a.id).on, false); assert.match(T(s), /"Look for old dependencies" is off: it never fires, and keeps everything\./); assert.match(s.screen()[6], /^▌↻ Look for old dependencies +every 2h +off +never fired/);
+    s.press("space"); assert.equal(S.automation(a.id).on, false); assert.match(T(s), /"Look for old dependencies" is off: it never fires, and keeps everything\./); assert.match(s.screen()[6], /^▌□ off Look for old dependencies {2}every 2h +never fired/);
     assert.equal(s.screen(140).at(-1).trimEnd(), "  enter open this automation · space turn this automation on · ctrl+x remove it · ctrl+e its settings · ? all keys");
     s.press("tab"); assert.match(T(s), /"Look for old dependencies" is off, and off it never fires\. space turns it on\./); assert.equal(S.list().length, 1);
     s.press("space"); assert.equal(S.automation(a.id).on, true);
     // tab: fire it now. A task is added and an agent put on it; the selection stays on the automation
     s.press("tab");
     assert.match(T(s), /"Look for old dependencies" fired: #2 was added and an agent is on it\./); assert.equal(S.get("proj/2").stage, "starting"); assert.deepEqual(S.get("proj/2").settings, { "reviewer.agent": "claude", "merge.by": "itself" });
-    assert.equal(s.v.sel, row(a)); assert.match(T(s), /\n[ ▌]. #2 Look for old dependencies \[auto\]/);
+    assert.equal(s.v.sel, row(a)); assert.match(T(s), /\n[ ▌]. #2 {2}Look for old dependencies \[auto\]/);
+    assert.match(T(s), /\n▌■ on {2}Look for old dependencies {2}every 2h +◒ #2 next in {2}2h\n/); // the task its last firing made, by that task's own mark and number
     s.press("tab"); assert.match(T(s), /did not fire: its last task, #2, is still being worked on\./);
-    L.turn(a.id, false); s.v.load(); assert.match(T(s), /↻ Look for old dependencies +every 2h +off +skipped \d+s ago/); L.turn(a.id, true); s.v.load();
+    L.turn(a.id, false); s.v.load(); assert.match(T(s), /□ off Look for old dependencies {2}every 2h +◒ #2 skipped +\d+s ago/); L.turn(a.id, true); s.v.load();
     // a key that acts on a task does nothing here, and the key the old list had is no key
     s.press("down", "down", "down"); assert.equal(s.v.sel, row(c)); s.press("up"); assert.equal(s.v.sel, row(b));
     s.press("ctrl+a", "ctrl+p", "ctrl+l", "ctrl+r", "alt+o"); assert.equal(s.v.msg, ""); assert.equal(s.v.value(), ""); assert.equal(s.v.sel, row(b)); assert.equal(S.list().filter((t) => t.archivedAt || t.pinned).length, 0);
@@ -332,15 +343,15 @@ test("the automations are a group of the main list: a heading under the tasks, o
     // the ? menu says what the keys do on this row, and has no line for a key that acts on a task
     s.v.tui.terminal.rows = 70; s.press("?"); const menu = T(s);
     assert.match(menu, /^ Menu {2}for the automation "Nightly audit"/);
-    for (const line of [/enter +send what is typed; with nothing typed, open this automation/, /space +turn this automation on or off/, /tab +fire this automation now/, /ctrl\+x +remove this automation \(it asks first\)/, /ctrl\+e +this automation's settings: see and change each one/, /alt\+t +show the whole automation, full screen/, /↻ +an automation \(the word after it: on or off\)/]) assert.match(menu, line);
+    for (const line of [/enter +send what is typed; with nothing typed, open this automation/, /space +turn this automation on or off/, /tab +fire this automation now/, /ctrl\+x +remove this automation \(it asks first\)/, /ctrl\+e +this automation's settings: see and change each one/, /alt\+t +show the whole automation, full screen/, /■ +an automation \(□ while it is off; the word after it says on or off\)/]) assert.match(menu, line);
     assert.doesNotMatch(menu, /archive this task|pin this task|yes: approve|alt\+o/);
     s.press("esc"); s.v.tui.terminal.rows = 44;
     // find finds them too, by name or trigger; the archive has none
-    s.press("ctrl+f"); s.type("nightly"); s.press("enter"); assert.match(T(s), /\n automations\n▌↻ Nightly audit/); assert.doesNotMatch(T(s), /Mine|Look for old/); s.press("esc");
+    s.press("ctrl+f"); s.type("nightly"); s.press("enter"); assert.match(T(s), /\n automations\n▌□ off Nightly audit/); assert.doesNotMatch(T(s), /Mine|Look for old/); s.press("esc");
     s.press("alt+a"); assert.doesNotMatch(T(s), /automations|Nightly/); s.press("alt+a"); assert.match(T(s), /\n automations\n/);
     // with no task at all the group is still there
     for (const t of S.list()) S.update(t.id, { archivedAt: Date.now() }); s.v.load();
-    assert.match(T(s), /^ herdr-superwork {2}proj\n\n automations\n[ ▌]↻ Look for old dependencies/);
+    assert.match(T(s), /^ herdr-superwork {2}proj\n\n automations\n[ ▌]■ on {2}Look for old dependencies/);
   } finally { if (noColor === undefined) delete process.env.NO_COLOR; else process.env.NO_COLOR = noColor; w.cleanup(); }
 });
 
@@ -363,12 +374,12 @@ test("one automation, whole: its prompt, trigger, own settings and firings, newe
     s.press("down", "enter"); assert.match(T(s), /That firing was skipped: it made no task\./); assert.equal(s.v.autoOpen, true); assert.doesNotMatch(s.screen().at(-1), /go to its task/);
     s.press("ctrl+f", "alt+a"); assert.equal(s.v.mode, "new"); assert.equal(s.v.archiveView, false); // a key of the list does nothing while one is open
     s.press("down", "down", "enter"); // the last one, and no further
-    assert.equal(s.v.autoOpen, false); assert.equal(s.v.sel, first.task); assert.equal(s.v.current().id, "proj/1"); assert.match(T(s), /\n▌. #1 Look for old dependencies \[auto\]/);
+    assert.equal(s.v.autoOpen, false); assert.equal(s.v.sel, first.task); assert.equal(s.v.current().id, "proj/1"); assert.match(T(s), /\n▌. #1 {2}Look for old dependencies \[auto\]/);
     // a task that was archived since is found in the archive
     s.v.sel = row(a); s.v.load(); S.update(second.task, { archivedAt: Date.now() }); s.press("enter", "down", "enter"); assert.equal(s.v.archiveView, true); assert.equal(s.v.sel, second.task); s.press("alt+a");
     // on its row in the list, the side panel shows the selected automation beside it on a wide screen
     s.v.sel = row(a); s.v.load(); s.v.side = true; const wide = s.screen(150);
-    assert.ok(wide.some((l) => /^▌↻ Look for old dependencies .*│ {2}Look for old dependencies/.test(l)) || (wide.some((l) => /^▌↻ Look for old dependencies /.test(l)) && /│ {2}Look for old dependencies/.test(wide[1]))); assert.ok(wide.some((l) => /│ {2}Firings ─/.test(l)));
+    assert.ok(wide.some((l) => /^▌■ on {2}Look for old dependencies .*│ {2}Look for old dependencies/.test(l)) || (wide.some((l) => /^▌■ on {2}Look for old dependencies /.test(l)) && /│ {2}Look for old dependencies/.test(wide[1]))); assert.ok(wide.some((l) => /│ {2}Firings ─/.test(l)));
     // alt+t opens and folds it as it does a task; esc goes from the whole automation back to the list, and no further
     s.press("alt+t"); assert.equal(s.v.autoOpen, true); s.press("alt+t"); assert.equal(s.v.autoOpen, false);
     s.press("enter"); assert.equal(s.v.autoOpen, true); s.press("esc"); assert.equal(s.v.autoOpen, false); assert.equal(s.v.sel, row(a));
@@ -412,8 +423,8 @@ test("more automations than fit: the list says how many it does not show, by the
     const s = open(w, { side: false, rows: 20 });
     let lines = s.screen(100).map((l) => l.trimEnd());
     const list = () => lines.slice(1, lines.findIndex((l) => /New task/.test(l)));
-    assert.match(lines[3], /^▌○ #\d Task \d/); assert.ok(list().includes(" automations")); assert.ok(list().some((l) => /^ ↻ Automation 01 +every 1h +on +next in 1h$/.test(l)));
-    const shown = () => list().filter((l) => /↻ Automation/.test(l)).length;
+    assert.match(lines[3], /^▌○ #\d {2}Task \d/); assert.ok(list().includes(" automations")); assert.ok(list().some((l) => /^ ■ on {2}Automation 01 {2}every 1h +next in {2}1h$/.test(l)));
+    const shown = () => list().filter((l) => /■ on {2}Automation/.test(l)).length;
     const note = () => list().find((l) => /^ [↓↑] /.test(l)) || "";
     assert.equal(note(), ` ↓ ${16 - shown()} automations`); assert.ok(shown() >= 2 && shown() < 16);
     // no task gives way for them: every task shows
@@ -421,12 +432,12 @@ test("more automations than fit: the list says how many it does not show, by the
     // down to the last one: it is in view, and the line says what is above now, tasks and automations apart
     for (let n = 0; n < 30; n++) s.press("down");
     assert.equal(s.v.sel, row(S.automations().at(-1))); lines = s.screen(100).map((l) => l.trimEnd());
-    assert.ok(list().some((l) => /^▌↻ Automation 16 /.test(l))); assert.equal(note(), ` ↑ 3 more, ${16 - shown()} automations`);
+    assert.ok(list().some((l) => /^▌■ on {2}Automation 16 /.test(l))); assert.equal(note(), ` ↑ 3 more, ${16 - shown()} automations`);
     // one step up from the first automation is the last task
     for (let n = 0; n < 15; n++) s.press("up"); assert.equal(s.v.sel, row(S.automations()[0])); s.press("up"); assert.equal(s.v.sel, s.v.steps.at(-1)); assert.match(s.v.sel, /^proj\/\d$/);
     // a short narrow window, two lines a row: still whole rows, the selected one among them
     s.v.tui.terminal.rows = 16; s.press("down", "down", "down"); lines = s.screen(40).map((l) => l.trimEnd());
-    const at = lines.findIndex((l) => /^▌↻ Automation 03$/.test(l)); assert.ok(at > 0); assert.equal(lines[at + 1], "▌  every 3h · on · next in 3h"); for (const l of s.screen(40)) assert.ok(l.length <= 40, l);
+    const at = lines.findIndex((l) => /^▌■ on {2}Automation 03$/.test(l)); assert.ok(at > 0); assert.equal(lines[at + 1], "▌      every 3h               next in 3h"); for (const l of s.screen(40)) assert.ok(l.length <= 40, l);
     // one of them only: said in the singular
     for (const x of S.automations().slice(1)) L.remove(x.id); for (let n = 4; n <= 14; n++) A.add(w.root, `Task ${n}`);
     s.v.sel = "proj/1"; s.v.load(); assert.match(s.screen(100).map((l) => l.trimEnd()).find((l) => /^ ↓/.test(l)), /^ ↓ (\d+ more, )?1 automation( · ↑ \d+ more)?$/);
@@ -449,8 +460,8 @@ test("other machines' automations are in the list too, each with its machine nam
     assert.doesNotMatch(T(s), /Theirs nightly/); // this machine only: its own
     s.press("alt+m"); assert.equal(s.v.scope, "*");
     let text = T(s, 140);
-    assert.match(text, /\n ↻ Look for old dependencies +every 2h +proj +on +next in 2h\n/); // more than one repo now: each row names its own
-    assert.match(text, /\n ↻ Theirs nightly +every 5m +far +on vm-b +on +next in 4m\n/);
+    assert.match(text, /\n ■ on {2}Look for old dependencies {2}every 2h +next in {2}2h\n/); // its repo is the one the board shows: not said
+    assert.match(text, /\n ■ on {2}Theirs nightly {2}every 5m · far · on vm-b +○ #7 next in {2}4m\n/); // another repo and another machine: said; and the task it made there
     s.v.sel = "vm-b:auto:0a1b2c3d"; s.v.load(); assert.equal(s.v.auto().host, "vm-b");
     assert.equal(s.screen(140).at(-1).trimEnd(), "  enter open this automation · space turn this automation off · tab fire it now · ctrl+x remove it · ctrl+e its settings · ? all keys");
     // each key is sent to that machine, and its answer is what the board says
@@ -473,12 +484,12 @@ test("other machines' automations are in the list too, each with its machine nam
     s.press("down", "enter"); assert.equal(s.v.sel, "vm-b:far/7"); assert.equal(s.v.autoOpen, false);
     // that machine's own board: only its automations, no machine on the row (the header names it)
     s.press("alt+m"); assert.equal(s.v.scope, "vm-b"); text = T(s, 140);
-    assert.match(text, /\n[ ▌]↻ Theirs nightly +every 5m +far +on +next in 4m\n/); assert.doesNotMatch(text, /Look for old dependencies/);
+    assert.match(text, /\n[ ▌]■ on {2}Theirs nightly {2}every 5m · far +○ #7 next in {2}4m\n/); assert.doesNotMatch(text, /Look for old dependencies/);
     // off there, with why; and removing asks first, naming the machine
     theirs = [farAuto({ on: false, nextAt: 0, offWhy: "it fired 30 times in an hour" })]; s.v.pollRemotes(true);
-    assert.match(T(s, 140), /\n[ ▌]↻ Theirs nightly +every 5m +far +off +fired 2h ago\n[ ▌] {2}it fired 30 times in an hour\n/);
+    assert.match(T(s, 140), /\n[ ▌]□ off Theirs nightly {2}every 5m · far +○ #7 +fired {2}2h ago\n[ ▌] {6}it fired 30 times in an hour\n/);
     s.v.sel = "vm-b:auto:0a1b2c3d"; s.v.load(); s.press("ctrl+x"); assert.match(T(s), /\? Remove the automation "Theirs nightly" on vm-b\? The tasks it made stay\./);
-    theirs = []; s.press("y"); assert.deepEqual(asked.pop(), ["vm-b", "do", { action: "auto-remove", id: "0a1b2c3d" }]); assert.doesNotMatch(T(s, 140), /automations|↻/);
+    theirs = []; s.press("y"); assert.deepEqual(asked.pop(), ["vm-b", "do", { action: "auto-remove", id: "0a1b2c3d" }]); assert.doesNotMatch(T(s, 140), /automations|■|□/);
     // a machine whose version sends no rows for the page: ctrl+e says the command, and is on no hint
     theirs = [farAuto({ shown: { firings: [], own: [] } })]; s.v.pollRemotes(true); s.v.sel = "vm-b:auto:0a1b2c3d"; s.v.load();
     s.press("ctrl+e"); assert.match(T(s), /Its settings are changed on vm-b: herdr-superwork set <name> <value> --automation "Theirs nightly"/); assert.ok(!s.v.editing); assert.doesNotMatch(s.screen(140).at(-1), /ctrl\+e/);
@@ -521,7 +532,7 @@ test("a task an automation made says so on its row and in its panel; with the bo
     s.v.beat(); assert.deepEqual(S.list(), []);
     clock.tick(2 * HOUR + 1000); s.v.beat(); // no keeper runs: the open board fires what is due
     assert.deepEqual(S.list().map((t) => [t.id, t.title, t.stage]), [["proj/1", "Look for old dependencies", "starting"]]); assert.equal(S.firingsOf(a.id)[0].cause, "schedule");
-    assert.match(T(s), /\n[ ▌]. #1 Look for old dependencies \[auto\] /); assert.match(T(s), /\n[ ▌]↻ Look for old dependencies +every 2h +on +next in \d/);
+    assert.match(T(s), /\n[ ▌]. #1 {2}Look for old dependencies \[auto\] /); assert.match(T(s), /\n[ ▌]■ on {2}Look for old dependencies {2}every 2h +◒ #1 next in +\d/);
     assert.equal(s.v.sel, row(a)); // the selection stayed on the automation: a task it makes does not take it
     s.press("up"); assert.equal(s.v.sel, "proj/1"); s.press("alt+t"); assert.match(T(s), /\n Made by {6}the automation "Look for old dependencies"\n/); s.press("esc");
     // on an automation's row with no Coordinator on, what is typed is a new task, as anywhere with no task selected

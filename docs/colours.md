@@ -52,6 +52,32 @@ the list (the heading, the `○` mark, the task's number) and in the box alike: 
 readable. While the board runs its own check the
 mark is a plain light grey, the theme's `subtext0` ([the check's progress](check-progress.md)).
 
+## An automation is purple
+
+The automations are no tasks, so nothing of theirs may be taken for a status. They have one colour of their own,
+used for the heading `automations` in the list, the mark of each of their rows (`■`, and `□` dimmed while it is
+off), the `[auto]` tag of a task one made, and the automation's line in the `?` menu.
+
+It is **herdr's own `mauve`**, the one colour of herdr's theme that no status uses (red needs you, green is ready,
+amber works, teal is done, blue is under review, grey is to do), so it changes with the theme as everything else
+does. It is used where it is a purple (from violet to pink) and told apart from all six of those, from plain text,
+from both greys of greyed words and from the background; the tests measure that in every built-in theme.
+
+| Theme | The automations' colour |
+|---|---|
+| Catppuccin (herdr's default), Latte, Tokyo Night and Day, Dracula, Gruvbox dark and light, One Dark and Light, Solarized dark and light, Rosé Pine Dawn | the theme's `mauve` |
+| Nord, Kanagawa, Rosé Pine, Vesper | the board's `#a855f7`: Vesper's `mauve` is its amber, the colour of "working", and the other three's are dusty ones that sit on the theme's greys |
+| Kanagawa Lotus (light) | the board's darker `#7c3aed`: its `mauve` sits on its text colour |
+| `terminal` | the terminal's own magenta, so it follows the terminal as the rest of that theme does |
+
+A `mauve` of your own (`[theme.custom]`) is held to the same rule. **Colour is not the only clue**: the heading is
+a heading by its place and its word, the mark is a square where every task's mark is another shape, and `on` or
+`off` is a word on every row. With `NO_COLOR` all of that still stands. One that is off is quiet as a done task is:
+its mark dimmed and empty, its words greyed.
+
+On the web Board it is a purple of the board's own (`#a855f7`, pulled towards the page's text colour so it reads on
+light and dark), as the web UI has no purple among its status colours.
+
 ## The greys are quiet but always readable
 
 The board has three greys: the one for greyed-out words (a task's number, a time, a count in the header, "… more

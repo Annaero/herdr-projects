@@ -15,14 +15,17 @@ export const firings = (a) => S.firingsOf(a.id).reverse();
 
 // What its row says. `state` is a word, never colour alone: "on" or "off". `when` is the one thing its row on the
 // board's list says of its firings: the next one while a schedule is on, else the last ("fired 2h ago", "skipped 2h
-// ago"), else "never fired". `all`: its firings, oldest first, where they were read already (another machine's).
+// ago"), else "never fired". The same in parts, for the list's columns: `lead` ("next in", "fired", "skipped",
+// "never"), `age` ("4m") and `ago`. `made`: the task of its latest firing that made one.
+// `all`: its firings, oldest first, where they were read already (another machine's).
 export function rowOf(a, now = Date.now(), all = S.firingsOf(a.id)) {
   const last = all.at(-1), next = a.on && a.trigger?.kind === "schedule" && a.nextAt ? (a.nextAt <= now ? "now" : `in ${span(a.nextAt - now)}`) : "";
   return {
     when: next ? `next ${next}` : last ? `${last.task ? "fired" : "skipped"} ${ago(last.at, now)}` : "never fired",
     id: a.id, name: a.name, on: !!a.on, state: a.on ? "on" : "off", trigger: sayTrigger(a.trigger), repo: a.repo,
     last: last ? `${ago(last.at, now)} · ${last.task ? S.sayId(last.task) : "skipped"}` : "never fired", lastTask: last?.task || "",
-    next,
+    next, lead: next ? (next === "now" ? "next" : "next in") : last ? (last.task ? "fired" : "skipped") : "never", age: next ? next.replace(/^in /, "") : last ? span(now - last.at) : "", ago: !next && !!last,
+    made: all.findLast((f) => f.task)?.task || "",
     why: a.offWhy || "",
   };
 }

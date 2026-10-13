@@ -119,11 +119,15 @@ The automations are in the main list: a group of their own under the heading `au
 ([the board](board.md)). There is no list of their own behind a key any more (`Alt+O` is no key of the board), and
 no heading while there is no automation.
 
-- **One row per automation**: its mark (`↻`), its name, its trigger in plain words (`every 2h`, `when a task is
-  merged, in every repo`), the word `on` or `off` (never colour alone), and when it fires next or fired last:
-  `next in 4m` for a schedule that is on, else `fired 2h ago` (`skipped 2h ago` when the last firing made no task),
-  else `never fired`. One that turned itself off says why on a line under its row. One that is off is drawn as
-  quietly as a done task. In a window too narrow for one line each, every row has two.
+- **One row per automation, in a task row's places** ([the board](board.md) has the table): its mark (`■` on,
+  `□` off), the word `on` or `off` where a task has its number (never colour alone), its name where the titles
+  start, its trigger in plain words after it (`every 2h`, `when a task is merged, in every repo`), the task its last
+  firing made by that task's own mark and number (`✓ #4`), and in the list's time column when it fires next or fired
+  last: `next in 4m` for a schedule that is on, else `fired 2h ago` (`skipped 2h ago` when the last firing made no
+  task), else `never fired`. One that turned itself off says why on a line under its row. One that is off is drawn
+  as quietly as a done task. In a window too narrow for the trigger beside the name, it is on a line under it.
+- **A colour of its own**: the heading, the marks and the `[auto]` tag of a task one made are a purple that no
+  status has ([colours](colours.md)).
 - **Selected and acted on as a task's row is**: `↑` `↓` reach it from the tasks, a click selects it. Then `Enter`
   opens it, `Space` turns it on or off, `Tab` fires it now, `Ctrl+X` removes it (it asks first, as removing a task
   does; the tasks it made stay) and `Ctrl+E` opens its settings. The hint line shows these keys while such a row
@@ -139,7 +143,7 @@ no heading while there is no automation.
 - **Making and rewording one** is done through the Coordinator's text box, which stays where it is: on an
   automation's row no task is selected, so what you type goes where it goes with no task selected (to the
   Coordinator; with none on, it is added as a task, word for word, and an automation is made with the command).
-- **A task an automation made says so**: `[auto]` after its name on its row, and `Made by` in its panel's Status,
+- **A task an automation made says so**: `[auto]` after its name on its row, in the automations' colour, and `Made by` in its panel's Status,
   which names the automation.
 - **Other machines' automations** show with their tasks ([other machines](other-machines.md)): on the board of
   every machine each row names its machine (`on otherbox`), and one machine's own board shows only its own. They

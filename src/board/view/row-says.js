@@ -16,6 +16,7 @@ export class RowSays {
   // colour of how the review went, the pull request in the colour of its checks, the time. A cell the row does not have is the empty string, with no colour codes around nothing:
   // an empty cell must not count as a column. The bar, the percent and the minutes left share one colour.
   rowFields(r, now) {
+    if (r.auto) return this.autoFields(r.auto, now); // an automation's row: automation-rows.js
     const t = this.theme, color = statusColor(r);
     const paint = (c, s) => (s ? t.fg(c, s) : "");
     const live = r.state !== "done", has = live && r.progress !== undefined;
@@ -27,6 +28,7 @@ export class RowSays {
   // already says ("to do", "approve?").
   sentence(r) {
     const t = this.theme;
+    if (r.auto) return { text: this.autoSaid(r.auto) };
     const words = (s) => clean(s || "").replace(/\*\*|`/g, "");
     // What a row says is greyed out, never the title's colour: the two are told apart at a glance. It has to be read,
     // so it is the brighter of the two greys (theme.js: soft). What a task asks of you is in the plain text colour.

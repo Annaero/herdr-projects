@@ -3,7 +3,7 @@
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import * as K from "../keys.js";
 import { AUTO_HELP } from "./automations.js";
-import { AUTO_MARK } from "./automation-rows.js";
+import { AUTO_MARK, AUTO_OFF } from "./automation-rows.js";
 
 export class Menu {
   // The lines that can be picked: every ctrl and alt key, as it stands for the selected task right now.
@@ -65,7 +65,7 @@ export class Menu {
     const legend = [];
     L.push("", " " + t.fg("subtext0", "on a row"));
     for (const [c, mark, words] of marks) L.push(`   ${t.fg(c, mark.padEnd(col))}${t.fg("overlay0", words)}`);
-    L.push(`   ${t.fg("green", AUTO_MARK.padEnd(col))}${t.fg("overlay0", "an automation (the word after it: on or off)")}`);
+    L.push(`   ${t.fg("auto", AUTO_MARK.padEnd(col))}${t.fg("overlay0", `an automation (${AUTO_OFF} while it is off; the word after it says on or off)`)}`);
     L.push(...entry("65% 2m left", "how far it is, and the time left; the time after it is how long it has worked, or how long ago it stopped"));
     // What a row's review tag says: each state is named in its colour, the tag's own.
     const words = [["overlay0", "the review it is on or last had, coloured by where it stands:"], ["green", "passed,"], ["red", "failed,"], ["review", "the reviewer working"]].flatMap(([c, x]) => x.split(" ").map((w) => [c, w]));

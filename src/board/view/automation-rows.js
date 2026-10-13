@@ -1,17 +1,22 @@
-// The automations in the main list: a group of their own below the task groups, under the heading `automations`, one
-// row per automation: its name, its trigger in plain words, the word on or off, and when it fires next or fired
-// last. Which automations show (this machine's, and other machines' with the machine named, as whose board you see
-// decides), what each one's row is called in the selection, and the rows as drawn. No heading when there is none.
+// The automations in the main list: a group of their own below the task groups, under the heading `automations` in a
+// colour of its own (theme.js: auto). One row per automation, drawn by the tasks' own row code (row.js, row-fit.js,
+// row-wrap.js) in the list's own columns: its mark in the mark column, the word on or off where a task has its
+// number, its name where the titles start, its trigger in plain words where a row says something, the task of its
+// last firing where the review tag stands, and when it fires next or fired last in the time column. This file says
+// what an automation has for each of those, which automations show (this machine's, and other machines' as whose
+// board you see decides) and what each one's row is called in the selection. No heading when there is none.
 // What the keys do on such a row: automations.js. One automation, whole: automation-panel.js.
-import { visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import * as S from "../../store.js";
 import * as L from "../../automations/list.js";
 import { rowOf, firings } from "../../automations/show.js";
 import { clean, repoLabel } from "./words.js";
 
-// The group's heading, and the mark every one of its rows starts with: no task's mark, so the two are told apart.
+// The group's heading, and the mark its rows start with: a square, where every task's mark is round, a diamond or a
+// sign, so the two are told apart by shape. Filled while it is on, empty while it is off, as ● and ○ are. Both are
+// among the few shapes every common font has (WGL4: Consolas, Menlo, DejaVu, Liberation, Courier New), one cell
+// wide, as tall as the tasks' marks, and neither is ever drawn as an emoji.
 export const AUTOMATIONS = "automations";
-export const AUTO_MARK = "↻";
+export const AUTO_MARK = "■", AUTO_OFF = "□";
 // An automation's row in the selection: never a task's id (`repo/12`, or `machine:repo/12`).
 const rowId = (a, host = "") => `${host ? `${host}:` : ""}auto:${a.id}`;
 
@@ -48,33 +53,28 @@ export class AutomationRows {
   // A task one of its firings made, as the list calls it: on another machine, with that machine's name.
   autoTask(a, id) { return a.host ? `${a.host}:${id}` : id; }
 
-  // What a row shows right of its name, left to right. The repo only where it is not plainly the board's own; the
-  // machine only on the board of every machine (one machine's own board names it in its header).
-  autoCells(a, now, repos) {
-    const r = this.autoRow(a, now), t = this.theme;
-    return { a, r, mark: a.on ? t.fg("green", AUTO_MARK) : t.muted(AUTO_MARK), name: clean(a.name), why: r.why,
-      rest: [r.trigger, repos ? repoLabel(r.repo) : "", a.host && this.scope === "*" ? `on ${clean(a.host)}` : "", r.state, r.when] };
+  // An automation as the row code takes it: a record of its own kind (`auto`), one for each automation.
+  autoRec(a) { let r = this.autoRecs.get(a); if (!r) this.autoRecs.set(a, (r = { id: a.row, auto: a })); return r; }
+  // Its mark: in the automations' colour, and quiet while it is off, as a done task's is.
+  autoMark(a) { const t = this.theme; return a.on ? t.fg("auto", AUTO_MARK) : t.quiet("auto", AUTO_OFF); }
+  // What its row says: its trigger, then its repo where that is not the one the board shows, and its machine on the
+  // board of every machine (one machine's own board names it in its header); and why the board turned it off. `part`:
+  // "beside" its name (the first three), "why" (the last, under its name), or "all" of it under its name, where the
+  // row has no room beside it. In the ink of what a task says; greyed while it is off.
+  // `tagsGone`: the list is too narrow for the numbers' column, where the word on or off stands: it is then the
+  // first thing said here.
+  autoSaid(a, part = "beside") {
+    const t = this.theme, r = this.autoRow(a);
+    const first = [this.tagsGone ? r.state : "", r.trigger, r.repo !== this.repo.name ? repoLabel(r.repo) : "", a.host && this.scope === "*" ? `on ${clean(a.host)}` : ""], said = [...(part === "why" ? [] : first), ...(part === "beside" ? [] : [r.why])].filter(Boolean).map(clean).join(" · ");
+    return !said ? "" : a.on ? t.soft(said) : t.muted(said);
   }
-  // One layout for the whole group, as the task rows have one: every row on one line with its columns under each
-  // other where each has the room, else every row with its name on a line and under it the rest (wrapped, not cut,
-  // as a narrow task row is: row-wrap.js). One that is off is drawn as quietly as a done task, and says "off" in a
-  // word: never by colour alone.
-  autoLayout(width) {
-    const list = this.autos || [], now = Date.now();
-    const repos = new Set(list.map((a) => a.repo)).size > 1 || list.some((a) => a.repo !== this.repo.name);
-    const cells = new Map(list.map((a) => [a.row, this.autoCells(a, now, repos)])), all = [...cells.values()];
-    const nameW = Math.max(0, ...all.map((c) => visibleWidth(c.name))), colW = [0, 1, 2, 3, 4].map((n) => Math.max(0, ...all.map((c) => visibleWidth(c.rest[n]))));
-    return { cells, nameW, colW, repos, one: 3 + nameW + colW.filter(Boolean).reduce((n, w) => n + w + 3, 0) <= width };
-  }
-  autoRowLines(a, width, lay) {
-    const t = this.theme, c = lay.cells.get(a.row), name = (s) => (a.on ? s : t.muted(s)), room = Math.max(8, width - 4);
-    const under = (s) => wrapTextWithAnsi(s, room).map((l) => "   " + t.muted(l));
-    const paint = (n, s) => (!a.on ? t.muted(s) : t.fg(n === 3 ? "green" : n ? "overlay0" : "subtext0", s));
-    if (lay.one) return [` ${c.mark} ${name(c.name)}${" ".repeat(lay.nameW - visibleWidth(c.name))}` + lay.colW.map((w, n) => (w ? "   " + paint(n, c.rest[n].padEnd(w)) : "")).join(""), ...(c.why ? under(c.why) : [])];
-    // Narrow: nothing is cut. The name wraps under itself, and what the row says goes on to a next line between two
-    // of its things, never inside one ("next in 4m" stays whole).
-    const said = [];
-    for (const x of c.rest.filter(Boolean)) { const on = said.length ? `${said.at(-1)} · ${x}` : x; if (said.length && visibleWidth(on) <= room) said[said.length - 1] = on; else said.push(x); }
-    return [...wrapTextWithAnsi(c.name, Math.max(8, width - 3)).map((l, n) => ` ${n ? " " : c.mark} ${name(l)}`), ...said.flatMap(under), ...(c.why ? under(c.why) : [])];
+  // What it has for the columns on the right (row.js: rowFields). Where a task has its review tag and its pull
+  // request: the task its last firing made, by that task's own mark and number (`tag`), and the word that goes with
+  // the time (`lead`: "fired", "skipped", "next in"; "never fired" takes both places). The time, in the list's own time column: how long ago,
+  // or how long until. `when`: the last two in one, as a narrow row says them.
+  autoFields(a, now) {
+    const t = this.theme, r = this.autoRow(a, now), ink = (s) => (a.on ? t.fg("overlay0", s) : t.muted(s));
+    const made = r.made && this.items.find((x) => x.id === this.autoTask(a, r.made));
+    return { bar: "", percent: "", eta: "", review: "", pr: "", tag: made ? `${this.mark(made)} ${t.muted(this.numberTag(made, this.numbering(), false))}` : "", lead: ink(r.lead), elapsed: r.age, ago: r.ago, never: !r.age, when: r.when };
   }
 }

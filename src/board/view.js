@@ -65,7 +65,7 @@ export class View {
   mode = "new"; menu = null; ask = null; byRepo = false; draftAway = null;
   // The automations, a group of the list (view/automation-rows.js): `autos` are the ones that show. On one's row no
   // task is selected. `autoOpen`: the selected one, whole; `autoAt`: the firing picked there (-1: none).
-  autos = []; autoOpen = false; autoAt = -1;
+  autos = []; autoOpen = false; autoAt = -1; autoRecs = new WeakMap();
   scope = ""; // whose board you see: "" this machine, "*" every machine, or one other machine by name
   remotes = {}; machinesAt = 0;
   filter = ""; msg = ""; msgKind = "overlay0";
