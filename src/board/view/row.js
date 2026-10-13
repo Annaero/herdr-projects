@@ -55,19 +55,19 @@ export class Row {
         return { text: tally };
       }
       // A review from before the gate: its score, and the reviewer's advice in words.
-      if (!rv || !Number.isInteger(rv.score)) return { text: r.review?.stale ? quiet("the work changed since its review") : "" };
+      if (!rv || !Number.isInteger(rv.score)) return { text: r.review?.stale ? quiet("The work changed since its review") : "" };
       const score = t.fg(resultColor(rv), `${rv.score}/5`);
       const advice = score + quiet(rv.recommend === true ? " reviewer says yes" : rv.recommend === false ? " reviewer says no" : "");
       return { text: advice };
     }
     // Checks that fail with nothing saved about them yet: the row still says why it is not ready.
-    if (r.stage === "approval" && r.prState === "failing" && !r.mergeFailed && !r.syncBlocked) return { text: quiet("the pull request's checks fail") };
+    if (r.stage === "approval" && r.prState === "failing" && !r.mergeFailed && !r.syncBlocked) return { text: quiet("The pull request's checks fail") };
     const raw = words((r.review?.stale ? reviewNote(r) : r.msg) || "");
-    const msg = ["working", "needs you", "under review", "idle"].includes(raw) ? "" : raw;
+    const msg = r.plain || ["working", "needs you", "under review", "idle"].includes(raw) ? "" : raw; // `plain`: the board's own plain word (state.js)
     // While the reviewer works the row says only what the reviewer is doing: the colour of its mark, its bar, its
     // percent and its minutes left says a review is running, and its R# tag which one.
     if (r.state === "done") return { text: "" };
-    if (needsYou(r)) return { text: quiet(msg || { question: "has a question", permission: "asks for your OK", auth: "needs a login" }[r.kind] || (r.state === "error" ? "failed" : "")) };
+    if (needsYou(r)) return { text: quiet(msg || { question: "Has a question", permission: "Asks for your OK", auth: "Needs a login" }[r.kind] || (r.state === "error" ? "Failed" : "")) };
     return { text: quiet(msg) };
   }
   // What a row says on its first line, after its name: nothing on a live task's row, which says it on its second.

@@ -37,7 +37,7 @@ test("stop: the stage is set before esc is sent, and a late working event cannot
     A.stop(id);
     t = S.get(id);
     assert.equal(t.stage, "stopped"); assert.deepEqual(paneOf(w, t).agent.keys, ["esc"]);
-    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["idle", "stopped"]);
+    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["idle", "Stopped"]);
     await settle(id);
     assert.equal(S.get(id).stage, "stopped"); // the idle that follows esc starts nothing
     // replying re-arms it

@@ -24,7 +24,7 @@ export async function recoverJob(id) {
     if (!F.reopened(t, a.completion_seq ?? null) || S.pendingText(id).length) return;
     const screen = lastLines(readScreen(api, t.link.pane, a.agent_status, 60));
     g.expect(t);
-    g.set((t) => { t.stage = "nosummary"; t.msg = "stopped without a summary"; t.screen = screen; t.turnOpen = false; t.since = Date.now(); });
+    g.set((t) => { t.stage = "nosummary"; t.msg = "Stopped without a summary"; t.screen = screen; t.turnOpen = false; t.since = Date.now(); });
   } catch (e) { if (!e.aborted) process.stderr.write(`${new Date().toISOString()} recover ${id}: ${e.stack || e}\n`); }
   finally { release(id); }
 }

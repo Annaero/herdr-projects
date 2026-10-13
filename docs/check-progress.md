@@ -9,11 +9,11 @@ sidebar. Nothing shown is a guess. The Watcher is not asked.
 
 | The check | The line | Bar and percent | Minutes left |
 |---|---|---|---|
-| runs, and reports a count | `running the check · tests 31 of 47` | the count: 31 of 47 is 65% | how long full runs took here, less the time spent |
-| waits for its turn | `waiting for its turn · 2 ahead` | none | the runs ahead, then its own |
-| answers at once: this code passed before | `the check already passed for this exact code` | none | none |
-| runs, and reports nothing | `running the check · 2m of about 5m` | none | what it took before, less the time spent |
-| reports nothing, and never ran here before | `running the check · 2m` | none | none |
+| runs, and reports a count | `Running the check · tests 31 of 47` | the count: 31 of 47 is 65% | how long full runs took here, less the time spent |
+| waits for its turn | `Waiting for its turn · 2 ahead` | none | the runs ahead, then its own |
+| answers at once: this code passed before | `The check already passed for this exact code` | none | none |
+| runs, and reports nothing | `Running the check · 2m of about 5m` | none | what it took before, less the time spent |
+| reports nothing, and never ran here before | `Running the check · 2m` | none | none |
 
 - **The percent** is only ever the count: finished out of total. It is 100% only when all are finished.
 - **The minutes left** come from the last runs of the same command in the same repo on this machine that ran in
@@ -25,11 +25,11 @@ sidebar. Nothing shown is a guess. The Watcher is not asked.
   the check's own run. Without a timed run there are none.
 - **Standing still.** When nothing has moved for three times as long as a full run takes (never under three
   minutes; ten minutes where no run was timed), the row says so instead of looking frozen:
-  `the check stands still · nothing finished for 13m · tests 31 of 47` (the bar stays, the minutes go), or
-  `waiting for its turn unusually long · nothing moved for 13m · 2 ahead`. A check whose count is complete and
-  which still does not end says `the check has not ended · all finished 16m ago · tests 47 of 47`. A check that reports nothing cannot be
+  `The check stands still · nothing finished for 13m · tests 31 of 47` (the bar stays, the minutes go), or
+  `Waiting for its turn unusually long · nothing moved for 13m · 2 ahead`. A check whose count is complete and
+  which still does not end says `The check has not ended · all finished 16m ago · tests 47 of 47`. A check that reports nothing cannot be
   seen standing still, only running long: past three times its usual time (and at least ten minutes past it) the
-  row says `the check runs far longer than usual · 16m, usually 2m`.
+  row says `The check runs far longer than usual · 16m, usually 2m`.
 - **The colour.** The mark, the bar, the percent and the minutes left are a plain light grey while the board
   checks: the theme's `subtext0`, under the name `check`. Amber is the agent's, blue is the reviewer's,
   and grey is the board's own step. It is brighter than the greyed words beside it and it has no hue.

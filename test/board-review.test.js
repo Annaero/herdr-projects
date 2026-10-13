@@ -25,7 +25,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   // failed checks are not ready to approve: the row needs you, says why, and offers no "approve and merge"
   const redPr = { ...pr, prState: "failing", prFailure: { stage: "pr", title: "Pull request checks failed", detail: "test: failure", agentCanFix: true, next: "Fix the checks." } };
   assert.match(row(redPr, 120), /^ × Build a flying game +R#1 PR#12 {2}0s ago\n {3}Pull request checks failed$/);
-  assert.match(row({ ...pr, prState: "failing" }, 120), /^ × Build a flying game +R#1 PR#12 {2}0s ago\n {3}the pull request's checks fail$/);
+  assert.match(row({ ...pr, prState: "failing" }, 120), /^ × Build a flying game +R#1 PR#12 {2}0s ago\n {3}The pull request's checks fail$/);
   assert.match(page(redPr), /\n State {8}× needs you · 0s ago\n On it {8}claude\n Change {7}PR#12\n Task {9}proj\/1\n\n Went wrong ─+\n Pull request checks failed\n The agent can fix this: ctrl\+r sends it\.\n Next step {4}Fix the checks\.\n Details {6}test: failure\n/); assert.doesNotMatch(page(redPr), /ready to approve/);
   v.reply = false; v.full = false; v.menu = null; v.ask = null; v.mode = "new"; v.chatOpen = true; v.input = { getText: () => "" }; v.jobs = []; v.sel = "";
   assert.deepEqual(v.hints(redPr).map(([k]) => k), ["ctrl+r", "ctrl+l", "space", "?"]); assert.ok(!v.hints(redPr).some(([, d]) => /approve/.test(d)));
@@ -86,7 +86,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     assert.ok(plainWork.includes(`${yellow}◐`) && !plainWork.includes(green) && !plainWork.includes(mauve));
   }
   assert.match(row(base, 120), /^ ✓ Build a flying game +0s ago\n {3}$/); // no reviewer: the heading says the rest, and the second line is there, empty
-  assert.match(row({ ...pr, review: { ...review, stale: true } }, 120), /^ ✓ Build a flying game +R#1 PR#12 {2}0s ago\n {3}the work changed since its review$/);
+  assert.match(row({ ...pr, review: { ...review, stale: true } }, 120), /^ ✓ Build a flying game +R#1 PR#12 {2}0s ago\n {3}The work changed since its review$/);
   // which review it is on: the R# tag, never in words
   const second = { ...pr, reviewRound: 2 };
   assert.doesNotMatch(row({ ...pr, reviewRound: 1 }, 120), /review\b.*review|r1|1st/); assert.match(row({ ...pr, reviewRound: 1 }, 120), / R#1 PR#12 /);
@@ -189,9 +189,9 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   const under = { ...working, stage: "reviewing", reviewRound: 3, msg: "Running the tests." };
   assert.match(row(under, 120), /^ ◐ Other +█+░+ +50% {2}R#3 +0s\n {3}Running the tests\.$/); // no word "review", whichever review it is: the colour says it
   assert.match(row({ ...under, reviewRound: 1 }, 120), /^ ◐ Other [^\n]*\n {3}Running the tests\.$/);
-  assert.match(row({ ...under, reviewRound: 1, msg: "under review" }, 120), /^ ◐ Other +█[^\n]*\n {3}$/); // only the heading's own word to say: an empty line, never a bare "…"
+  assert.match(row({ ...under, reviewRound: 1, msg: "Under review", plain: true }, 120), /^ ◐ Other +█[^\n]*\n {3}$/); // only the heading's own word to say: an empty line, never a bare "…"
   assert.match(row(under, 30), /^ ◐ Other +50% {2}R#3 +0s\n {3}Running the tests\.$/);
-  assert.match(row({ ...under, stage: "reviewneeds", state: "blocked", progress: undefined, msg: "the reviewer shows a dialog" }, 120), /^ × Other +R#3 {2}0s ago\n {3}the reviewer shows a dialog$/);
+  assert.match(row({ ...under, stage: "reviewneeds", state: "blocked", progress: undefined, msg: "The reviewer shows a dialog" }, 120), /^ × Other +R#3 {2}0s ago\n {3}The reviewer shows a dialog$/);
   assert.doesNotMatch(row({ ...working, reviewRound: 3 }, 120), /review/); // back with the agent: no review is running
   assert.match(page(under), /\n State {8}◐ reviewer is working · 3rd review · for 0s\n Progress {5}█+░+ 50%\n Now {10}Running the tests\.\n Task {9}proj\/2\n/);
   // the same blue everywhere the reviewer's work is drawn: the panel beside the list, the details page, the chat line
@@ -265,6 +265,6 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   const ask = "Which colour should the plane be, and should the **islands** have `palm` trees?";
   for (const r of [{ ...base, stage: "", kind: "question", msg: ask }, { ...base, mergeFailed: true, msg: ask }, { ...base, state: "error", kind: "", stage: "failed", msg: ask }])
     assert.match(row(r, 120), /^ \S Build a flying game +0s ago\n {3}Which colour should the plane be, and should the islands have palm trees\?$/);
-  assert.match(row({ ...base, stage: "asks", kind: "question", msg: "" }, 120), / +0s ago\n {3}has a question$/);
+  assert.match(row({ ...base, stage: "asks", kind: "question", msg: "" }, 120), / +0s ago\n {3}Has a question$/);
   assert.match(row({ ...base, stage: "asks", kind: undefined, msg: "needs you" }, 120), /^ × Build a flying game +0s ago\n *$/); // not the heading's own words again: its second line is empty
 });

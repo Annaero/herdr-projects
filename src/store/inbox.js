@@ -43,6 +43,6 @@ export function dispatches() {
   try { names = fs.readdirSync(dispatchDir()).filter((f) => /^\d+\.json$/.test(f)); } catch {}
   const out = names.map((f) => readJson(path.join(dispatchDir(), f))).filter(Boolean).sort((a, b) => a.n - b.n);
   // A working one whose helper process is gone did not finish: say so instead of spinning forever.
-  for (const d of out) if (d.state === "working" && d.pid && !markerAlive({ pid: d.pid, start: d.pidStart }) && Date.now() - d.created > 3000) Object.assign(d, setDispatch(d.id, { state: "error", msg: d.msg || "stopped before it finished" }));
+  for (const d of out) if (d.state === "working" && d.pid && !markerAlive({ pid: d.pid, start: d.pidStart }) && Date.now() - d.created > 3000) Object.assign(d, setDispatch(d.id, { state: "error", msg: d.msg || "Stopped before it finished" }));
   return out;
 }

@@ -172,7 +172,7 @@ async function pollOne(id, pr, j) {
     if (t.autoMerge && !blocking && !t.prFailure) {
       // The checks have passed (and a required review is there): the remembered merge is carried out now.
       const ready = t.autoMergeLocal && checks.every((c) => GOOD.includes(String(c.conclusion || c.state || "").toUpperCase())) && j.reviewDecision !== "REVIEW_REQUIRED";
-      if (ready) { t.autoMerge = false; t.autoMergeLocal = false; t.msg = "merging"; then = "land"; }
+      if (ready) { t.autoMerge = false; t.autoMergeLocal = false; t.msg = "Merging"; then = "land"; }
       return;
     }
     const passed = checks.length > 0 && checks.every((c) => GOOD.includes(String(c.conclusion || c.state || "").toUpperCase()));
@@ -185,12 +185,12 @@ async function pollOne(id, pr, j) {
         t.prFailure = { stage: "pr", remote: true, remoteKind, head: j.headRefOid, title: failed.length ? "Pull request checks failed" : "Pull request changes requested", detail: why,
           next: "Address this on your own branch and finish again. Local checks do not prove remote CI passed; wait for a fresh remote result.", agentCanFix: true, at: Date.now(), sentAt: null };
       }
-      if (t.stage === "approval" && !t.failure) { t.msg = `${t.prFailure.title}: ${why} Send details to the agent, or wait for remote confirmation.`; }
+      if (t.stage === "approval" && !t.failure) { t.msg = `${t.prFailure.title}: ${why} Send details to the agent, or wait for remote confirmation`; }
     } else if (t.prFailure) {
       const confirmed = t.prFailure.remoteKind === "review" ? j.reviewDecision === "APPROVED" : t.prState === "passing";
       if (confirmed) {
         t.prFailure = null;
-        if (t.stage === "approval" && !t.failure) { if (t.mergeIntent?.verifiedHead) { t.stage = "merging"; t.msg = "merging"; then = "land"; } else t.msg = approvalMessage(t); }
+        if (t.stage === "approval" && !t.failure) { if (t.mergeIntent?.verifiedHead) { t.stage = "merging"; t.msg = "Merging"; then = "land"; } else t.msg = approvalMessage(t); }
       }
     }
     const seen = blocking ? `${failed.join(",")}|${j.reviewDecision}` : "";
@@ -201,7 +201,7 @@ async function pollOne(id, pr, j) {
       const went = t.prRounds || 0;
       if (!blocking) Object.assign(t, S.failurePatch({ stage: "pr", title: "Pull request feedback", detail: why, next: "Address this on your own branch, run the checks and finish again for review and approval.", agentCanFix: true, auth: false }));
       if (!t.autoMerge && went < S.choices(t).rounds && ["approval", "failed", "asks", "nosummary"].includes(t.stage)) { t.prRounds = went + 1; then = "wake"; }
-      else if (t.stage === "approval" || t.autoMerge) t.msg = `${why} ${t.autoMerge ? "Auto-merge is blocked; send details to cancel pending auto-merge and repair safely." : "Automatic retries are exhausted; send details to the agent to try again."}`;
+      else if (t.stage === "approval" || t.autoMerge) t.msg = `${why} ${t.autoMerge ? "Auto-merge is blocked; send details to cancel pending auto-merge and repair safely" : "Automatic retries are exhausted; send details to the agent to try again"}`;
     }
   }, { waitMs: 10000 });
   if (then === "merged") { const t = S.get(id); F.labelPane(t, null); const { cleanupJob } = await import("./land.js"); await cleanupJob(id, { deleteBranch: mode }); }

@@ -44,7 +44,7 @@ test("a conflict with main goes to the agent by itself, before any approval; the
     assert.match(said, /conflicts with main/); assert.match(said, /Conflicting files:\n- a\.txt/); assert.ok(said.includes(`Target commit: ${target}`));
     assert.match(said, /resolve the conflicts, commit, and finish again/); assert.doesNotMatch(said, /already approved/);
     assert.ok(!t.review && !t.mergeIntent);
-    assert.deepEqual([stateOf(id).state, stateOf(id).note, F.labelOf(t)], ["working", "resolving a conflict with main", ""]); // what the board shows; herdr's sidebar keeps to its own "working"
+    assert.deepEqual([stateOf(id).state, stateOf(id).note, F.labelOf(t)], ["working", "Resolving a conflict with main", ""]); // what the board shows; herdr's sidebar keeps to its own "working"
     assert.throws(() => A.approve(id), /not waiting for an approval/);
     // the agent resolves it in its own worktree and finishes again
     try { git(t.worktree, "merge", "-q", target); } catch {}

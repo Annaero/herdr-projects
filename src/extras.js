@@ -51,7 +51,8 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
 - \`herdr-superwork tell <id> "<text>"\`: send a message to a task's agent (on a task with no agent yet: starts one with it).
 - \`herdr-superwork stop <id>\`: interrupt a task's agent.
 - \`herdr-superwork report <id> --state <idle|working|done> [--msg "<one line>"] [--progress <0-100>] [--eta <minutes left>]\`: say where one of
-  the human's own tasks stands. \`--title\` renames it. \`herdr-superwork describe <id> "<text>"\` replaces its description.
+  the human's own tasks stands. Write it like these: "Updating file locations and running checks", "Waiting for the PR review on GitHub", "Fixing the two failing tests".
+  \`--title\` renames it. \`herdr-superwork describe <id> "<text>"\` replaces its description.
 - \`herdr-superwork approve <id>\`: merge finished work that waits for approval. Only when the human plainly says so.
   With the \`autoMerge\` setting on (\`config autoMerge true\`, or \`--id <id>\` for one task) work that passed its review
   merges by itself; off, the default, it waits for that approval. Only the human turns it on.
@@ -68,6 +69,7 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
 If you are an agent the board itself started on a task, your rules were given to you at the start: you may only suggest
 work that is not yours (\`suggest "<title>" --desc "<what and why>" --from <your id>\`: the human decides whether it
 becomes a task) and report yourself blocked (\`report <your id> --state blocked --kind question|permission|auth --msg "<why>"\`).
+Write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data".
 The board refuses your other commands: the human does those.
 `;
 }

@@ -31,7 +31,7 @@ export function shown(t, session, here) {
   return { ...t, live, ...pick(show({ ...t, pendingText: pending }, live)) };
 }
 // Names that cannot collide with a task's own fields (a task has its own `review` and `msg`).
-const pick = (s) => ({ state: s.state, kind: s.kind, note: s.msg, shownApp: s.app, progress: s.progress, eta: s.eta, asReview: !!s.review, stale: s.stale, exited: s.exited });
+const pick = (s) => ({ state: s.state, kind: s.kind, note: s.msg, plain: s.plain || undefined, shownApp: s.app, progress: s.progress, eta: s.eta, asReview: !!s.review, stale: s.stale, exited: s.exited });
 // This machine's tasks as one herdr session sees them (the keeper serves several sessions from one data folder).
 export function boardFor(socket) {
   const tasks = S.list();

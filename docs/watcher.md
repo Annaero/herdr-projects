@@ -47,6 +47,9 @@ guess, and the first look takes about a minute. The task's line is never a bare 
 - **Its first run:** `Just started`, and `Review just started` for a reviewer, who is a new agent every round.
   After three minutes with still no sentence (the Watcher's calls fail) it says `No status yet`.
 - **With the Watcher off** no sentence comes, and the line stays empty.
+- **How a sentence is written:** the Watcher's prompt shows it a few examples (`Fixing the two failing tests`,
+  `Waiting for the PR review on GitHub`), and so do the agents' instructions for reporting. What they write is shown
+  exactly as written: the board changes nothing in it.
 
 The list, the task panel, the whole-task page and herdr's own sidebar all say the same words.
 

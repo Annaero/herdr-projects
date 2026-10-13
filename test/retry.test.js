@@ -78,9 +78,9 @@ test("recorded endings: a provider error is read from the conversation file, and
 test("the wait: growing, a few times; the row says why and when; only while the task stands where the wait was set", () => {
   assert.deepEqual(S.retryWaits(), [60000, 120000, 240000, 480000]);
   const now = 1000000;
-  assert.equal(S.waitLine({ who: "reviewer", reason: "model is at capacity", until: now + 120000 }, now), "reviewer's model is at capacity, trying again in 2m");
-  assert.equal(S.waitLine({ who: "agent", reason: "connection dropped", until: now + 20000 }, now), "agent's connection dropped, trying again in 20s");
-  assert.equal(S.waitLine({ who: "agent", reason: "connection dropped", until: now - 5 }, now), "agent's connection dropped, trying again now");
+  assert.equal(S.waitLine({ who: "reviewer", reason: "model is at capacity", until: now + 120000 }, now), "Reviewer's model is at capacity, trying again in 2m");
+  assert.equal(S.waitLine({ who: "agent", reason: "connection dropped", until: now + 20000 }, now), "Agent's connection dropped, trying again in 20s");
+  assert.equal(S.waitLine({ who: "agent", reason: "connection dropped", until: now - 5 }, now), "Agent's connection dropped, trying again now");
   assert.equal(S.gaveUp("reviewer", "model is at capacity", 5), "the reviewer's model is at capacity, still after 5 tries over 15m");
   const rv = { who: "reviewer", reason: "model is at capacity", until: Date.now() + 120000 };
   // a review waiting to start again is still the review the task is on: its row keeps the R# tag (the counter is put back for the wait)
@@ -104,7 +104,7 @@ test("a review cut off by a passing provider error is started again by itself, a
     const [t, said] = await watching(id, () => clock(settle(id)));
     assert.equal(t.stage, "approval", JSON.stringify(t.failure));
     assert.equal(reviewerStarts(w), 3);
-    assert.ok(said.some((s) => /^working: reviewer's model is at capacity, trying again (in \d+[sm]|now)$/.test(s)), said.join(" | "));
+    assert.ok(said.some((s) => /^working: Reviewer's model is at capacity, trying again (in \d+[sm]|now)$/.test(s)), said.join(" | "));
     assert.ok(!said.some((s) => /without a verdict|^error/.test(s)), said.join(" | "));
     // one review happened: the two that were cut off used up no number and are not on the list
     assert.equal(t.review.pass, true); assert.equal(S.reviewRound(t), 1); assert.equal(t.reviewRounds || 0, 0);
@@ -123,7 +123,7 @@ test("a review cut off again and again: the board gives up and names the real er
     A.delegate(id);
     let t = await clock(settle(id));
     assert.equal(t.stage, "failed"); assert.equal(reviewerStarts(w), 3);
-    assert.equal(t.msg, "Review failed: the reviewer's model is at capacity, still after 3 tries over 1s. Its error: Selected model is at capacity. Please try a different model. Retry the task to review again.");
+    assert.equal(t.msg, "Review failed: the reviewer's model is at capacity, still after 3 tries over 1s. Its error: Selected model is at capacity. Please try a different model. Retry the task to review again");
     assert.doesNotMatch(`${t.msg}\n${t.failure.detail}`, /without a verdict|last message/);
     assert.equal(stateOf(id).state, "error"); assert.equal(S.waitingOf(t), null);
     assert.deepEqual(S.reviewHistory(t), []); assert.equal(S.reviewRound(t), 0);
@@ -193,7 +193,7 @@ test("without the reviewer's own turn-end report: its conversation file ending i
     const [t, said] = await watching(id, () => clock(settle(id)));
     assert.equal(t.stage, "approval", JSON.stringify(t.failure));
     assert.equal(reviewerStarts(w), 2);
-    assert.ok(said.some((s) => /reviewer's provider is overloaded, trying again/.test(s)), said.join(" | "));
+    assert.ok(said.some((s) => /Reviewer's provider is overloaded, trying again/.test(s)), said.join(" | "));
     assert.deepEqual(S.reviewHistory(t).map((e) => e.round), [1]);
   } finally { w.cleanup(); }
 });
@@ -209,13 +209,13 @@ test("the working agent: a turn cut off by a passing provider error is told to c
     assert.equal(t.stage, "failed"); assert.equal(t.failure.title, "Agent cut off"); assert.match(t.failure.detail, /socket connection was closed/);
     assert.equal(S.waitingOf(t).tries, 1);
     let row = stateOf(id);
-    assert.equal(row.state, "working"); assert.match(row.note, /^agent's connection dropped, trying again in 2m$/);
+    assert.equal(row.state, "working"); assert.match(row.note, /^Agent's connection dropped, trying again in 2m$/);
     assert.equal(F.labelOf(t), "");
     // on the board: under "working", the row and the task panel say why and when, and nothing asks for you
     const v = new View({ terminal: { rows: 40, columns: 130 }, requestRender() {}, stop() {}, start() {} }, theme, () => {}, { cwd: w.root, canReload: true });
     clearInterval(v.timer); v.side = true;
     const screen = v.render(130).map((l) => stripVTControlCharacters(l)).join("\n");
-    assert.match(screen, /\n working\s[^\n]*\n . Dropped [^\n]*\n {3}agent's connection dropped, trying again in 2m /); assert.doesNotMatch(screen, /needs you|Agent cut off/);
+    assert.match(screen, /\n working\s[^\n]*\n . Dropped [^\n]*\n {3}Agent's connection dropped, trying again in 2m /); assert.doesNotMatch(screen, /needs you|Agent cut off/);
     assert.match(screen, /Cut off ─+[\s\S]*Trying again by itself[\s\S]*Cut off by[\s\S]*The socket connection was closed/);
     housekeeping(w.socket, { force: true }); // too early: nothing is sent
     assert.equal(paneOf(w, t).agent.prompts.length, 1);
@@ -305,7 +305,7 @@ test("the working agent: no report, no closing note, and herdr cannot tell if it
     A.delegate(id);
     let t = await settle(id);
     assert.equal(t.stage, "failed", t.stage); assert.equal(S.waitingOf(t).reason, "model is at capacity");
-    assert.match(stateOf(id).note, /^agent's model is at capacity, trying again in (1m|\d+s)$/);
+    assert.match(stateOf(id).note, /^Agent's model is at capacity, trying again in (1m|\d+s)$/);
     elapse(id);
     housekeeping(w.socket, { force: true });
     assert.equal(paneOf(w, S.get(id)).agent.prompts.length, 2);

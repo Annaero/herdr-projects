@@ -5,7 +5,7 @@
 // read on the task as `check`; this file turns that into the line, the percent and the minutes left. Nothing here is
 // a guess: with no count there is no percent, and with no earlier run there are no minutes.
 const MIN = 60000;
-export const KNOWN_LINE = "the check already passed for this exact code";
+export const KNOWN_LINE = "The check already passed for this exact code";
 // How long nothing may move before the row says so: three times what a whole run usually takes, never under three
 // minutes; ten minutes where no run was ever timed.
 export const stillAfter = (usual) => (usual > 0 ? Math.max(3 * MIN, 3 * usual) : 10 * MIN);
@@ -62,9 +62,9 @@ export function checkShown(c, now = Date.now()) {
   if (c.state === "known") return { msg: KNOWN_LINE };
   if (c.state === "waiting") {
     const ahead = c.ahead > 0 ? c.ahead : 0;
-    if (still) return { msg: `waiting for its turn unusually long · nothing moved for ${mins(idle)}${ahead ? ` · ${ahead} ahead` : ""}` };
+    if (still) return { msg: `Waiting for its turn unusually long · nothing moved for ${mins(idle)}${ahead ? ` · ${ahead} ahead` : ""}` };
     // The runs ahead, less the time since the queue last moved, then its own run.
-    return { msg: `waiting for its turn${ahead ? ` · ${ahead} ahead` : ""}`, eta: usual ? leftOf(Math.max(0, Math.max(1, ahead) * usual - idle) + usual) : undefined };
+    return { msg: `Waiting for its turn${ahead ? ` · ${ahead} ahead` : ""}`, eta: usual ? leftOf(Math.max(0, Math.max(1, ahead) * usual - idle) + usual) : undefined };
   }
   const spent = Math.max(0, now - (c.runAt || c.at));
   if (c.total > 0) {
@@ -72,17 +72,17 @@ export function checkShown(c, now = Date.now()) {
     const where = `${c.unit ? `${c.unit} ` : ""}${done} of ${c.total}`;
     const progress = done >= c.total ? 100 : Math.min(99, Math.floor((done / c.total) * 100));
     // All finished, and yet the command does not end: that too is standing still.
-    if (done >= c.total) return still ? { msg: `the check has not ended · all finished ${mins(idle)} ago · ${where}`, progress } : { msg: `running the check · ${where}`, progress, eta: 0 };
-    if (still) return { msg: `the check stands still · nothing finished for ${mins(idle)} · ${where}`, progress };
+    if (done >= c.total) return still ? { msg: `The check has not ended · all finished ${mins(idle)} ago · ${where}`, progress } : { msg: `Running the check · ${where}`, progress, eta: 0 };
+    if (still) return { msg: `The check stands still · nothing finished for ${mins(idle)} · ${where}`, progress };
     // How long a full run takes here, for the part this run has to do, less the time spent. Past that, or with no
     // run timed yet: at the pace of this run so far.
     const whole = usual * ((c.total - from) / c.total);
     const eta = whole > spent ? leftOf(whole - spent) : (done - from) / (c.total - from) >= MIN_SHARE ? leftOf(spent * (c.total - done) / (done - from)) : undefined;
-    return { msg: `running the check · ${where}`, progress, eta };
+    return { msg: `Running the check · ${where}`, progress, eta };
   }
   // No count the board can read: the time it has run, against what it took before when that is known. Never a percent.
-  if (!usual) return { msg: `running the check · ${spentWords(spent)}` };
-  if (spent > Math.max(3 * usual, usual + 10 * MIN)) return { msg: `the check runs far longer than usual · ${spentWords(spent)}, usually ${mins(usual)}` };
-  if (spent >= usual) return { msg: `running the check · ${spentWords(spent)}, usually ${mins(usual)}` };
-  return { msg: `running the check · ${spentWords(spent)} of about ${mins(usual)}`, eta: leftOf(usual - spent) };
+  if (!usual) return { msg: `Running the check · ${spentWords(spent)}` };
+  if (spent > Math.max(3 * usual, usual + 10 * MIN)) return { msg: `The check runs far longer than usual · ${spentWords(spent)}, usually ${mins(usual)}` };
+  if (spent >= usual) return { msg: `Running the check · ${spentWords(spent)}, usually ${mins(usual)}` };
+  return { msg: `Running the check · ${spentWords(spent)} of about ${mins(usual)}`, eta: leftOf(usual - spent) };
 }

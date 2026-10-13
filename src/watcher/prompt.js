@@ -33,6 +33,7 @@ export function watcherPrompt(looks, now = Date.now()) {
     "The percent is the share of the whole job's time that is already spent: the dashboard works out the minutes left from it and the time spent so far, so do not guess high while much is left to do.",
     ...looks.map((look, i) => part(look, i + 1, now)),
     "--- end ---",
+    'Each status line is written like these examples: "Updating file locations and running checks", "Waiting for the PR review on GitHub", "Fixing the two failing tests".',
     `Reply with only this JSON and nothing else${many ? ", one entry for each number above" : ""}: [{"n": <the number above>, "msg": "<what it is doing right now: at most 8 plain words, present tense, no tool or command names>", "progress": <whole number 0 to 99: your best guess of how far through its current assignment it is>}]`,
   ].join("\n");
 }

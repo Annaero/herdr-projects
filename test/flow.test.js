@@ -48,12 +48,12 @@ test("a freshly delegated task says starting, and finishing only once its agent 
     const set = (status) => { w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = status; p.agent.seq = s.seq; }); onPane(w.socket, t.link.pane); return stateOf(id); };
     // the agent program is up and its first turn is not under way: herdr calls that idle, as it does a turn's end
     S.update(id, (t) => { delete t.workedAt; });
-    assert.deepEqual([set("idle").state, stateOf(id).note, S.get(id).stage], ["working", "starting", "working"]);
-    assert.equal(set("working").note, "working");
-    assert.equal(set("idle").note, "finishing"); // it worked, and its turn's end has not been handled yet
+    assert.deepEqual([set("idle").state, stateOf(id).note, S.get(id).stage], ["working", "Starting", "working"]);
+    assert.equal(set("working").note, "Working");
+    assert.equal(set("idle").note, "Finishing"); // it worked, and its turn's end has not been handled yet
     // a reply to an agent that worked before: idle until it picks the reply up is not the end of a turn either
     S.update(id, (t) => { t.armedAt = Date.now() + 5; t.turnBy = "reply"; });
-    assert.equal(stateOf(id).note, "about to continue");
+    assert.equal(stateOf(id).note, "About to continue");
   } finally { w.cleanup(); }
 });
 
@@ -74,17 +74,17 @@ test("a start-up dialog answered, the first prompt sent and not picked up yet: s
     // the agent program has taken the prompt and its model has not begun: herdr reads exactly as before
     w.patchState((s) => { Object.assign(s.panes.find((p) => p.pane_id === t.link.pane).agent, before); });
     S.update(id, (t) => { delete t.workedAt; });
-    for (let i = 0; i < 3; i++) { onPane(w.socket, t.link.pane); assert.deepEqual([stateOf(id).state, stateOf(id).note, S.get(id).stage], ["working", "starting", "working"]); }
+    for (let i = 0; i < 3; i++) { onPane(w.socket, t.link.pane); assert.deepEqual([stateOf(id).state, stateOf(id).note, S.get(id).stage], ["working", "Starting", "working"]); }
     assert.ok(S.get(id).last.comp != null && S.get(id).workedAt === undefined);
     // and the finish line does not take the answered dialog for the end of the agent's work
     const after = await settle(id);
-    assert.deepEqual([after.stage, after.msg, stateOf(id).note], ["working", "", "starting"]);
+    assert.deepEqual([after.stage, after.msg, stateOf(id).note], ["working", "", "Starting"]);
     // herdr's state moves on with no work done: the prompt counts as taken, and the dialog's count is still not a turn's end
     w.patchState((s) => { const a = s.panes.find((p) => p.pane_id === t.link.pane).agent; s.seq += 1; a.seq = s.seq; });
     for (let i = 0; i < 3; i++) onPane(w.socket, t.link.pane);
     assert.equal(S.get(id).sent, null); assert.deepEqual(globalThis.__swJobs, []); // no finish line was started
     const later = await settle(id);
-    assert.deepEqual([later.stage, later.msg, stateOf(id).state, stateOf(id).note], ["working", "", "working", "starting"]);
+    assert.deepEqual([later.stage, later.msg, stateOf(id).state, stateOf(id).note], ["working", "", "working", "Starting"]);
   } finally { w.cleanup(); }
 });
 
@@ -103,13 +103,13 @@ test("a start-up dialog's turn that herdr counts only after the first prompt wen
     for (let i = 0; i < 3; i++) {
       read((a, s) => { a.completion = a.completion ?? s.seq; });
       const after = await settle(id);
-      assert.deepEqual([after.stage, after.msg, stateOf(id).state, stateOf(id).note], ["working", "", "working", "starting"]);
+      assert.deepEqual([after.stage, after.msg, stateOf(id).state, stateOf(id).note], ["working", "", "working", "Starting"]);
     }
     assert.equal(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.length, 1);
     // the agent then works and ends its turn as any other: that end is still seen
     w.patchState((s) => { const a = s.panes.find((p) => p.pane_id === t.link.pane).agent; s.seq += 1; a.status = "working"; a.seq = s.seq; });
     onPane(w.socket, t.link.pane);
-    assert.equal(stateOf(id).note, "working");
+    assert.equal(stateOf(id).note, "Working");
     read((a, s) => { a.completion = s.seq; });
     assert.equal((await settle(id)).stage, "nosummary"); // it worked and said nothing: that is for the human
   } finally { w.cleanup(); }
@@ -170,7 +170,7 @@ test("the finish line: commit leftovers, check, review, then wait for approval; 
     assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=approve? pass") && m.args.join(" ").includes("--display-agent approve? pass · claude")));
     // While the board ran the check, the sidebar had its line (no percent: this check reports no count), taken off again when it ended.
     const told = st.metadata.filter((m) => m.pane === t.link.pane).map((m) => m.args.join(" "));
-    const began = told.findIndex((x) => x.includes("--token summary=running the check") && x.includes("--clear-token progress")), ended = told.findIndex((x) => x.includes("--clear-token summary --clear-token progress --clear-token eta"));
+    const began = told.findIndex((x) => x.includes("--token summary=Running the check") && x.includes("--clear-token progress")), ended = told.findIndex((x) => x.includes("--clear-token summary --clear-token progress --clear-token eta"));
     assert.ok(began >= 0 && ended > began, told.join("\n")); assert.equal(t.check, null);
     // Once the plugin's sidebar rows are installed, the state text shows beside the agent's name: renaming the agent
     // as well would say the label twice on one line, so the name is left alone.
@@ -270,7 +270,7 @@ test("undelivered text is never dropped: a trust dialog queues the first prompt 
     // the dialog is gone, the first prompt has not been sent yet: herdr counts the answer as a finished turn, and the
     // agent has still done nothing
     assert.equal(w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts?.length || 0, 0);
-    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["working", "starting"]);
+    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["working", "Starting"]);
     t = await settle(id);
     assert.equal(S.pendingText(id).length, 0);
     assert.equal(t.stage, "approval");

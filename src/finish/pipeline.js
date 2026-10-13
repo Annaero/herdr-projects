@@ -25,7 +25,7 @@ export async function pipelineJob(id) {
 // `synced`: the caller already brought the branch up to date with main (a re-sync, or the sync after an approval)
 // and this is its result.
 export async function pipeline(id, g, text, wake, synced = null) {
-  let t = g.set((t) => { t.stage = "checking"; t.syncBlocked = null; t.msg = synced ? "checking the branch updated with main" : "checking the result"; t.watch = null; t.check = null; t.summary = String(text || "").trim(); });
+  let t = g.set((t) => { t.stage = "checking"; t.syncBlocked = null; t.msg = synced ? "Checking the branch updated with main" : "Checking the result"; t.watch = null; t.check = null; t.summary = String(text || "").trim(); });
   const folder = S.cwdOf(t), root = S.folderOf(t.id), tree = F.isAgentTask(t) && t.worktree && fs.existsSync(t.worktree) ? t.worktree : "";
   const repo = t.repoCfg || {};
   const env = { HERDR_SUPERWORK_ID: t.id, HERDR_SUPERWORK_WORKTREE: folder, HERDR_SUPERWORK_REPO: root };
@@ -84,7 +84,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
       const merged = kept ? " The branch was only re-merged with main since its review passed, so the tests ran instead of a new review." : "";
       const fails = (S.get(id).checkFails || 0) + 1;
       const auth = S.isAuthFailure(r.out);
-      const failure = { stage: "check", auth, agentCanFix: true, title: `Check failed${fails >= 3 ? " after 3 tries" : ""}`, ...(fails >= 3 ? { msg: `the check still fails after 3 tries (${repo.check}): ${r.out.split("\n").filter(Boolean).slice(-1)[0] || ""}` } : {}), detail: `Command: ${repo.check}\nFolder: ${folder}\n\n${r.out}`, next: "Fix the failed check, run it again and finish for a fresh review." };
+      const failure = { stage: "check", auth, agentCanFix: true, title: `Check failed${fails >= 3 ? " after 3 tries" : ""}`, ...(fails >= 3 ? { msg: `The check still fails after 3 tries (${repo.check}): ${r.out.split("\n").filter(Boolean).slice(-1)[0] || ""}` } : {}), detail: `Command: ${repo.check}\nFolder: ${folder}\n\n${r.out}`, next: "Fix the failed check, run it again and finish for a fresh review." };
       if (fails >= 3 || auth) return void fail(g, failure, { patch: { checkFails: fails } });
       g.check();
       // Straight back to the agent. The turn it causes is the plugin's own: an approved merge survives it.
@@ -99,7 +99,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
     try {
       const hasCommits = Number(S.gitOut(tree, ["rev-list", "--count", `${t.baseSha || t.from || "HEAD"}..HEAD`])) > 0;
       if (hasCommits && F.hasOrigin(root)) {
-        t = g.set({ stage: "pushing", msg: "pushing the branch" });
+        t = g.set({ stage: "pushing", msg: "Pushing the branch" });
         // The branch is the board's own and an agent may have rebuilt it on a newer base: overwrite what was pushed
         // before, but only while the remote still holds what was last seen here.
         S.gitOut(tree, ["push", "-u", "--force-with-lease", "origin", t.branch], { timeout: 120000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } });
@@ -124,7 +124,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
   // Nothing to land: it is simply done, unless work outside a repo is reviewed too (review "all").
   if (!toLand && ch.review !== "all" && !(research && ch.review !== "none")) {
     if (holdPrFailure(g, t)) return;
-    done(`${firstLine(text) || "finished"}${note}`);
+    done(`${firstLine(text) || "Finished"}${note}`);
     return void (await tidyDone(id));
   }
   // 4. An adversarial review before it reaches you.
@@ -139,7 +139,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
     if (r.aborted) return;
     // The task keeps every review it had. A review the provider cut off is not one: it is not on the list.
     if (!r.cut) g.set((t) => { S.logReview(t, r.review || { error: r.error }); });
-    if (!r.review) return void fail(g, { stage: "review", auth: r.auth ? true : undefined, title: r.auth ? "Needs a login" : "Review failed", msg: r.auth ? "The reviewer needs a login" : `Review failed: ${S.oneLine(r.error, 200)}. Retry the task to review again.`, detail: `Review failed: ${r.error}`, next: "Investigate the reviewer failure, then finish again for a fresh review. Do not bypass review or merge approval." }, { patch: { review: null } });
+    if (!r.review) return void fail(g, { stage: "review", auth: r.auth ? true : undefined, title: r.auth ? "Needs a login" : "Review failed", msg: r.auth ? "The reviewer needs a login" : `Review failed: ${S.oneLine(r.error, 200)}. Retry the task to review again`, detail: `Review failed: ${r.error}`, next: "Investigate the reviewer failure, then finish again for a fresh review. Do not bypass review or merge approval." }, { patch: { review: null } });
     review = r.review;
     // The pull request says what the review found, the findings below the gate marked as not required.
     if (t.pr && toLand) { try { F.gh(["pr", "comment", F.prNumber(t.pr), "--body", G.prComment(review, S.reviewRound(S.get(id)))], root, 60000); } catch {} }
@@ -160,16 +160,16 @@ export async function pipeline(id, g, text, wake, synced = null) {
     if (review && !review.keptAt && !passed) return void fail(g, { stage: "review", title: "Approved merge repair is not ready", detail: `A reviewer went through the repair and found it not ready: ${G.result(review)}.\n\n${G.findingsText(review)}`, next: "The agent could not make this repair pass review. Address the findings before retrying.", agentCanFix: true });
     t = g.set((t) => { t.review = review; t.stat = change?.stat; t.reviewedHead = head; t.mergeIntent = { ...t.mergeIntent, verifiedHead: head }; });
     if (holdPrFailure(g, t)) return;
-    t = g.set({ stage: "merging", msg: "merging" });
+    t = g.set({ stage: "merging", msg: "Merging" });
     return void (await landCore(id, g));
   }
-  if (!toLand) { done(`${review ? `${G.sentence(review, "accept")} ` : ""}${firstLine(text) || "finished"}${note}`, { review }); return void (await tidyDone(id)); }
+  if (!toLand) { done(`${review ? `${G.sentence(review, "accept")} ` : ""}${firstLine(text) || "Finished"}${note}`, { review }); return void (await tidyDone(id)); }
   t = g.set((t) => { t.review = review; t.stat = change.stat; t.reviewedHead = head; t.mergeFailed = false; });
   if (holdPrFailure(g, t)) return;
   // 5. A task that merges by itself (the autoMerge setting, read now: it may have changed while this ran) still
   // wants a review that passed the gate: one that failed it, you are asked.
   if (S.choices(t).autoMerge && !t.requireApproval && sync?.status !== "skip" && (!reviewNeeded || (review && passed))) {
-    t = g.set((t) => { t.stage = "merging"; t.msg = "merging"; t.mergeIntent = { approvedAt: Date.now(), repairs: 0, verifiedHead: head, auto: true }; });
+    t = g.set((t) => { t.stage = "merging"; t.msg = "Merging"; t.mergeIntent = { approvedAt: Date.now(), repairs: 0, verifiedHead: head, auto: true }; });
     return void (await landCore(id, g));
   }
   // Finished work that waits for your yes is not done: it is blocked on you.
@@ -181,7 +181,7 @@ export async function pipeline(id, g, text, wake, synced = null) {
 // A pull-request blocker found by polling survives a passing local check: remote CI must confirm.
 function holdPrFailure(g, t) {
   if (!t.prFailure) return false;
-  const h = g.set((t) => { t.stage = "approval"; t.failure = null; t.msg = `Local checks passed; pull request still blocked: ${t.prFailure.title}. Wait for remote confirmation or send the details to the agent.`; });
+  const h = g.set((t) => { t.stage = "approval"; t.failure = null; t.msg = `Local checks passed; pull request still blocked: ${t.prFailure.title}. Wait for remote confirmation or send the details to the agent`; });
   F.labelPane(h, "failed");
   return true;
 }

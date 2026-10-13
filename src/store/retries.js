@@ -14,7 +14,7 @@ export function waitingOf(t) {
   return w.who === "agent" && t.stage === "failed" && !!t.failure && t.failure.at === w.for ? w : null;
 }
 const span = (ms) => (ms >= 60000 ? `${Math.round(ms / 60000)}m` : `${Math.max(1, Math.round(ms / 1000))}s`);
-// What the row says meanwhile: "reviewer's model is at capacity, trying again in 2m".
-export const waitLine = (w, now = Date.now()) => `${w.who}'s ${w.reason}, trying again ${w.until - now > 0 ? `in ${span(w.until - now)}` : "now"}`;
+// What the row says meanwhile: "Reviewer's model is at capacity, trying again in 2m".
+export const waitLine = (w, now = Date.now()) => `${w.who === "reviewer" ? "Reviewer" : "Agent"}'s ${w.reason}, trying again ${w.until - now > 0 ? `in ${span(w.until - now)}` : "now"}`;
 // What the failure says when the tries are used up, before the provider's own words.
 export const gaveUp = (who, reason, tries) => `the ${who}'s ${reason}${tries > 1 ? `, still after ${tries} tries over ${span(retryWaits().slice(0, tries - 1).reduce((a, b) => a + b, 0))}` : ""}`;

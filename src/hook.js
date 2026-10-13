@@ -248,7 +248,7 @@ export function reconcile(t, api) {
       if (job === "pipeline") S.update(t.id, { stage: "checking" }, { waitMs: 10000 });
       if (!(cur.stage === "merging" && cur.autoMerge)) spawnRunner(job, t.id);
     } else if (!cur.runner && S.RUNNER_STAGES.includes(cur.stage) && !(cur.stage === "merging" && cur.autoMerge)) {
-      S.update(t.id, (t) => { t.stage = "failed"; t.msg = "a workflow step stopped unexpectedly"; Object.assign(t, S.failurePatch({ stage: "workflow", title: "A workflow step stopped unexpectedly", detail: `The ${dead.job} step ended without finishing, twice.`, next: "Reply to the agent or delegate again to retry.", auth: false })); }, { waitMs: 10000 });
+      S.update(t.id, (t) => { t.stage = "failed"; t.msg = "A workflow step stopped unexpectedly"; Object.assign(t, S.failurePatch({ stage: "workflow", title: "A workflow step stopped unexpectedly", detail: `The ${dead.job} step ended without finishing, twice.`, next: "Reply to the agent or delegate again to retry.", auth: false })); }, { waitMs: 10000 });
     }
     return;
   }

@@ -31,7 +31,7 @@ export function takeTurn(id, g) {
     return false;
   }, { waitMs: 10000 });
 }
-export const waitingMsg = (first) => `waiting to merge: ${first} goes first`;
+export const waitingMsg = (first) => `Waiting to merge: ${first} goes first`;
 // The line moves: where nobody is at the head, the task that waited longest is started. Called by the housekeeping
 // pass, so the line moves with the board closed too.
 export function linePass(tasks) {

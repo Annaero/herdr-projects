@@ -13,10 +13,13 @@ export const JUST_MS = 3 * 60000;
 // agent's. A reviewer is a new agent every round: nothing of its last round is kept.
 // The line for `role` ("agent" or "reviewer") whose run began at `from`. With the Watcher off no sentence will come:
 // the plain word then, which a row leaves out because its heading says it already.
+// Whether that line is the board's own plain word: the row is told so (`plain`) and leaves it out. It is never
+// worked out from the words, so a sentence the Watcher or an agent wrote is shown whatever it says.
+export const quietPlain = (t, role) => !(role === "agent" && t.lastLine?.msg) && choices(t).watcher === "off";
 export function quietLine(t, role, from, now = Date.now()) {
   const kept = role === "agent" ? t.lastLine : null;
   if (kept?.msg) return `${kept.at ? `${age(now - kept.at)} ago` : "Earlier"}: ${kept.msg}`;
-  if (choices(t).watcher === "off") return role === "reviewer" ? "under review" : "working";
+  if (quietPlain(t, role)) return role === "reviewer" ? "Under review" : "Working";
   if (from && now - from >= JUST_MS) return "No status yet";
   return role === "reviewer" ? "Review just started" : "Just started";
 }

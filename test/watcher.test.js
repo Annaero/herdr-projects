@@ -9,6 +9,13 @@ import * as A from "../src/actions.js";
 import * as F from "../src/flow.js";
 import * as H from "../src/helpers.js";
 import { here } from "./board-helpers.js";
+import { watcherPrompt, readAnswer } from "../src/watcher/prompt.js";
+
+test("the Watcher is shown how a status text is written, and what it writes is kept exactly as written", () => {
+  const prompt = watcherPrompt([{ t: { title: "Add a greeting" }, role: "agent", lines: "● Editing greet.sh" }]);
+  for (const example of ["Updating file locations and running checks", "Waiting for the PR review on GitHub", "Fixing the two failing tests"]) assert.ok(prompt.includes(`"${example}"`), example);
+  assert.equal(readAnswer('[{"n": 1, "msg": "fixing the PR on github.", "progress": 40}]', 1).get(1).msg, "fixing the PR on github.");
+});
 
 test("the hidden helper: the watcher writes a line and a guess", async () => {
   const w = await world({ settings: { reviewer: "off", watcher: "on" } });

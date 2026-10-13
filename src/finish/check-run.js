@@ -27,7 +27,7 @@ export function tellCheck(t, shown) {
 export function follow(g, t, { cmd, root, file = progressFile(t.id), now = () => Date.now() } = {}) {
   let check = startCheck(now(), S.usualCheck(root, cmd)), seen = "", told = { at: 0, key: "", state: undefined };
   try { fs.rmSync(file, { force: true }); } catch {}
-  t = g.set({ msg: "running the check", check });
+  t = g.set({ msg: "Running the check", check });
   // At once when the check goes from one state to another (its turn came); a count that moves, a little later.
   const tell = () => {
     const at = now(), shown = checkShown(check, at), key = JSON.stringify(shown);

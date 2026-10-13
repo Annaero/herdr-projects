@@ -144,7 +144,7 @@ async function finishOnce(id, { force = false } = {}) {
       // hold, with what is on the screen as the message. A login screen is recognised from its text.
       const screen = lastLines(readScreen(api, t.link.pane, a?.agent_status ?? null, 60));
       if (S.isAuthFailure(screen)) { g.set(keep); fail(g, { stage: "agent", auth: true, title: "Needs a login", msg: "Needs a login", detail: screen }); return true; }
-      t = g.set((t) => { keep(t); t.stage = "nosummary"; t.msg = S.oneLine(lastLines(screen, 2)) || "stopped without a summary"; t.screen = screen; });
+      t = g.set((t) => { keep(t); t.stage = "nosummary"; t.msg = S.oneLine(lastLines(screen, 2)) || "Stopped without a summary"; t.screen = screen; });
       return true;
     }
     if (t.cutRetry) g.set({ cutRetry: null }); // the turn ended by itself: a later cut-off starts counting again

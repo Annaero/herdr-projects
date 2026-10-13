@@ -47,7 +47,7 @@ function start(id) {
   let go = false;
   const t = S.update(id, (t) => {
     if (runnerAlive(t) || !S.choices(t).autoMerge || !green(t)) return false;
-    t.stage = "merging"; t.msg = "merging"; t.since = Date.now();
+    t.stage = "merging"; t.msg = "Merging"; t.since = Date.now();
     t.mergeIntent = { approvedAt: Date.now(), repairs: 0, verifiedHead: t.reviewedHead, auto: true };
     go = true;
   });

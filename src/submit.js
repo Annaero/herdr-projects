@@ -125,7 +125,7 @@ export function noteSent(id, mark, text, first = false) {
     }, { waitMs: 10000 });
   } catch {}
 }
-export const NOT_STARTED = "not started: its instructions sit unsent in its box";
+export const NOT_STARTED = "Not started: its instructions sit unsent in its box";
 // Called on every pass with the agent as herdr shows it now. Never waits: one look, at most one enter.
 export function checkSent(id, a, api) {
   const t = S.get(id), m = t?.sent;

@@ -36,7 +36,7 @@ export function report(id, { state, kind, msg, title, progress, eta, asAgent = f
     S.assertUnarchived(t);
     if (title) retitle(t, title);
     if (state === "blocked") {
-      t.stage = "asks"; t.kind = S.KINDS.includes(kind) ? kind : "question"; t.msg = S.oneLine(msg) || "needs you"; t.turnOpen = false;
+      t.stage = "asks"; t.kind = S.KINDS.includes(kind) ? kind : "question"; t.msg = S.oneLine(msg) || "Needs you"; t.turnOpen = false;
       if (asAgent) t.selfBlocked = Date.now(); // the turn that follows this report is not a finish
       return;
     }

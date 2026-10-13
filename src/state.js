@@ -4,10 +4,10 @@
 // no `error` state and no blocked `kind` today. When it exposes them (OSC 7501), this is the only place to change.
 import { RUNNER_STAGES, waitingOf, waitLine } from "./store.js";
 import { checkShown } from "./check-progress.js";
-import { quietLine } from "./status-kept.js";
+import { quietLine, quietPlain } from "./status-kept.js";
 
 export const STATES = ["idle", "working", "blocked", "done", "error"];
-const STAGE_LINE = { starting: "starting", queued: "waiting for a free slot", setup: "setting up", checking: "running the check", pushing: "pushing the branch", reviewing: "under review", merging: "merging" };
+const STAGE_LINE = { starting: "Starting", queued: "Waiting for a free slot", setup: "Setting up", checking: "Running the check", pushing: "Pushing the branch", reviewing: "Under review", merging: "Merging" };
 
 // `live` describes the task's worker pane right now:
 //   { status }                 herdr's agent status: idle | working | blocked | done | unknown
@@ -33,32 +33,33 @@ export function show(t, live, now = Date.now()) {
     case "failed": return t.failure?.auth ? out("blocked", { kind: "auth" }) : out("error");
     case "approval": return out("blocked", { kind: "permission", review: !t.mergeFailed && !t.syncBlocked });
     case "asks": return out("blocked", { kind: t.kind || "question" });
-    case "nosummary": return out("error", { msg: t.msg || "stopped without a summary" });
-    case "reviewneeds": return out("blocked", { msg: t.msg || "the reviewer needs you" });
-    case "stopped": return out("idle", { msg: "stopped" });
+    case "nosummary": return out("error", { msg: t.msg || "Stopped without a summary" });
+    case "reviewneeds": return out("blocked", { msg: t.msg || "The reviewer needs you" });
+    case "stopped": return out("idle", { msg: "Stopped" });
     case "queued": case "starting": return out("working", { msg: t.msg || STAGE_LINE[t.stage] });
   }
   // Under review the Watcher follows the reviewer: its line, its own progress and the minutes left worked out from it, started afresh for every round.
   // No line of this round's yet: "Review just started", never the bare stage (status-kept.js).
-  if (t.stage === "reviewing") return out("working", { msg: watch?.msg || (t.msg && t.msg !== STAGE_LINE.reviewing ? t.msg : quietLine(t, "reviewer", t.reviewAt, now)), progress: watch?.progress ?? 0, eta, reviewing: true });
+  const ownLine = t.msg && ![STAGE_LINE.reviewing, "under review"].includes(t.msg); // "under review": saved by an older version
+  if (t.stage === "reviewing") return out("working", { msg: watch?.msg || (ownLine ? t.msg : quietLine(t, "reviewer", t.reviewAt, now)), plain: !watch?.msg && !ownLine && quietPlain(t, "reviewer"), progress: watch?.progress ?? 0, eta, reviewing: true });
   // The board's own check: the count its command reports and the minutes left, never the Watcher's guess (check-progress.js).
   if (t.stage === "checking" && t.check) return out("working", { ...checkShown(t.check, now), reviewing: false });
   if (RUNNER_STAGES.includes(t.stage)) return out("working", { msg: t.msg || STAGE_LINE[t.stage], progress: t.watch?.progress, eta, reviewing: false });
   // stage "working": the agent's own turn. herdr decides.
   if (!agent || !live) return out("working", { progress: watch?.progress, eta });
-  if (live.down) return out(lastKnown(t), { msg: "herdr is not running", stale: true });
-  if (live.away) return out(lastKnown(t), { msg: `in session ${live.away}`, stale: true });
-  if (live.gone) return out("error", { msg: "the agent's terminal is gone" });
-  if (live.status == null) return out("error", { msg: "the agent has exited", exited: true });
-  if (live.status === "blocked") return out("blocked", { kind: t.pendingText ? "permission" : undefined, msg: t.pendingText ? "queued: open the agent and answer its dialog first" : "needs you" });
+  if (live.down) return out(lastKnown(t), { msg: "The herdr server is not running", stale: true });
+  if (live.away) return out(lastKnown(t), { msg: `In session ${live.away}`, stale: true });
+  if (live.gone) return out("error", { msg: "The agent's terminal is gone" });
+  if (live.status == null) return out("error", { msg: "The agent has exited", exited: true });
+  if (live.status === "blocked") return out("blocked", { kind: t.pendingText ? "permission" : undefined, msg: t.pendingText ? "Queued: open the agent and answer its dialog first" : "Needs you", plain: !t.pendingText });
   // Working, and the Watcher has not looked since this run began: its last sentence with its age, or "Just started".
-  if (live.status === "working") return out("working", { msg: watch?.msg || t.msg || quietLine(t, "agent", began(t), now), progress: watch?.progress ?? 0, eta });
-  if (live.status === "unknown") return out("working", { msg: "herdr can't tell if it stopped" });
+  if (live.status === "working") return out("working", { msg: watch?.msg || t.msg || quietLine(t, "agent", began(t), now), plain: !watch?.msg && !t.msg && quietPlain(t, "agent"), progress: watch?.progress ?? 0, eta });
+  if (live.status === "unknown") return out("working", { msg: "Cannot tell from herdr if it stopped" });
   // Idle or done. Text typed in a while ago that it has still not started on (submit.js): say that, not work that is not going on.
-  if (t.sent?.tries) return out("working", { msg: "has not started yet: pressing enter again" });
+  if (t.sent?.tries) return out("working", { msg: "Has not started yet: pressing enter again" });
   // idle or done. Only an agent that has worked is wrapping up; one that has not begun yet is idle too.
-  if (worked(t, live)) return out("working", { msg: "finishing" }); // the runner has not finished the turn yet
-  return out("working", { msg: (t.workedAt || 0) >= (t.startedAgentAt || 1) ? "about to continue" : "starting" });
+  if (worked(t, live)) return out("working", { msg: "Finishing" }); // the runner has not finished the turn yet
+  return out("working", { msg: (t.workedAt || 0) >= (t.startedAgentAt || 1) ? "About to continue" : "Starting" });
 }
 // Has the agent worked on what it was last asked? herdr saw it work since the turn was armed (hook.js keeps when), or
 // a turn herdr counts as finished, and the finish line has not handled, ended after the turn was armed. An agent that

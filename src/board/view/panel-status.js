@@ -54,7 +54,7 @@ export class PanelStatus {
     } else if (approval && r.syncBlocked) alert("peach", "Behind main", `Cannot be approved yet: ${r.syncBlocked.why}. The board keeps trying to bring it up to date.`);
     else if (approval) { /* the state says it: ready to approve */ }
     else if (r.state === "blocked") { told = note || said || ""; alert("red", ASKS[r.kind] || "Needs you", told); }
-    else if (r.state === "error") { told = (r.stage === "nosummary" ? r.screen : "") || note || said || "It failed."; alert("red", r.stage === "nosummary" ? "Stopped without a summary" : "Went wrong", told); }
+    else if (r.state === "error") { told = (r.stage === "nosummary" ? r.screen : "") || note || said || "It failed"; alert("red", r.stage === "nosummary" ? "Stopped without a summary" : "Went wrong", told); }
     return { title, top, told };
   }
 }

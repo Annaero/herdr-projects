@@ -35,7 +35,7 @@ export async function runReview(id, g, o) {
     if (tries >= waits.length) return { error: `${S.gaveUp("reviewer", r.cut.reason, tries + 1)}. Its error: ${r.cut.error.replace(/[.\s]+$/, "")}`, auth: false, cut: true };
     try {
       const until = Date.now() + waits[tries];
-      g.set((t) => { t.msg = "under review"; t.watch = null; t.waiting = { who: "reviewer", reason: r.cut.reason, error: S.oneLine(r.cut.error, 400), until, tries: tries + 1 }; });
+      g.set((t) => { t.msg = "Under review"; t.watch = null; t.waiting = { who: "reviewer", reason: r.cut.reason, error: S.oneLine(r.cut.error, 400), until, tries: tries + 1 }; });
       while (Date.now() < until) { await sleep(Math.max(1, Math.min(1000, until - Date.now()))); g.check(); }
     } catch (e) {
       if (!e.aborted) throw e;
@@ -45,7 +45,7 @@ export async function runReview(id, g, o) {
   }
 }
 async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
-  let t = g.set({ stage: "reviewing", msg: "under review", watch: null, waiting: null, reviewAt: Date.now() });
+  let t = g.set({ stage: "reviewing", msg: "Under review", watch: null, waiting: null, reviewAt: Date.now() });
   g.allow("reviewneeds");
   const api = F.h(t);
   const folder = S.cwdOf(t);
@@ -119,8 +119,8 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
       // herdr status is used only to notice a reviewer that is blocked: "review needs you".
       const blocked = a?.agent_status === "blocked";
       const cur = S.get(id);
-      if (blocked && cur.stage === "reviewing") { g.set({ stage: "reviewneeds", msg: "the reviewer shows a dialog: open it and answer" }); g.allow("reviewing"); }
-      else if (!blocked && cur.stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "under review" }); g.allow("reviewneeds"); }
+      if (blocked && cur.stage === "reviewing") { g.set({ stage: "reviewneeds", msg: "The reviewer shows a dialog: open it and answer" }); g.allow("reviewing"); }
+      else if (!blocked && cur.stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "Under review" }); g.allow("reviewneeds"); }
       if (!sent && a && (a.agent_status === "idle" || a.agent_status === "done")) { try { mark = hand(api, pane.pane_id, brief); sent = true; sentAt = Date.now(); } catch (e) { if (e.code !== "agent_blocked" && e.code !== "agent_not_ready") { sent = true; sentAt = Date.now(); } } }
       // The brief was typed: did the reviewer start on it? If not, enter is pressed again; the brief is never typed twice.
       else if (mark && a) {
@@ -146,7 +146,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   // Put back anything the reviewer changed: what you approve is exactly what the agent committed.
   if (toLand) { try { S.gitOut(folder, ["reset", "--hard", change.head]); S.gitOut(folder, ["clean", "-fd"]); } catch {} }
   await closeReviewer(id);
-  try { if (S.get(id).stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "review complete" }); } } catch (e) { if (e.aborted) return { aborted: true }; }
+  try { if (S.get(id).stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "Review complete" }); } } catch (e) { if (e.aborted) return { aborted: true }; }
   if (!review && cut) {
     // Not a review: the task's count of reviews is put back, so the next try (or the next real review) has this number.
     try { g.set((t) => { if (t.reviewRound === round) t.reviewRound = round - 1; }); } catch (e) { if (e.aborted) return { aborted: true }; }

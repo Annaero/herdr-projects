@@ -146,7 +146,7 @@ export function mergeOnly(tree, reviewed, target) {
 // (`syncBlocked`): it does not look ready, and an approval is refused.
 const RETRY_MS = () => (process.env.HERDR_SUPERWORK_SYNC_RETRY_MS !== undefined ? Number(process.env.HERDR_SUPERWORK_SYNC_RETRY_MS) : 60000);
 export const skipWhy = (r) => `your checkout is on ${r.onto || "no branch"}, not on ${r.want}, the branch this task lands on`;
-export const behindMsg = (why) => `Behind main, and not up to date yet: ${why}. The board keeps trying; it cannot be approved until then.`;
+export const behindMsg = (why) => `Behind main, and not up to date yet: ${why}. The board keeps trying; it cannot be approved until then`;
 export function seenPatch(t, r) {
   if (!r || r.status === "error" || r.status === "skip") return { syncRetryAt: Date.now() + RETRY_MS() };
   const p = { syncSeen: r.seen, syncRetryAt: 0, syncBlocked: null };
@@ -183,7 +183,7 @@ export function conflictBack(id, g, tree, r, held) {
     try {
       F.sendOwn(id, conflictMessage(t, tree, r), { reason: "conflict", keepIntent: !!t.mergeIntent, patch: { ...saved, failure: { ...saved.failure, sentAt: Date.now() }, ...seenPatch(t, r), syncRepairs: repairs + 1, mergeFailed: false, review: t.review ? { ...t.review, stale: true } : t.review } });
       // No approval to give while this is open: the row and herdr's sidebar say what the agent is doing instead.
-      try { S.update(id, (t) => { if (t.stage !== "working" || t.expectedWake?.reason !== "conflict") return false; t.msg = "resolving a conflict with main"; }, { waitMs: 10000 }); } catch {}
+      try { S.update(id, (t) => { if (t.stage !== "working" || t.expectedWake?.reason !== "conflict") return false; t.msg = "Resolving a conflict with main"; }, { waitMs: 10000 }); } catch {}
       return "sent";
     } catch {
       // The stage already says "working" but nothing went out: show the blocker instead of a turn that never comes.
@@ -192,7 +192,7 @@ export function conflictBack(id, g, tree, r, held) {
     }
   }
   if (can && repairs >= ch.rounds) {
-    const a = g.set((t) => { Object.assign(t, S.failurePatch(failure), seenPatch(t, r)); t.stage = "asks"; t.kind = "question"; t.mergeFailed = false; t.msg = `The agent could not resolve the conflict with main after ${repairs} repairs. Full details are kept; you are needed.`; });
+    const a = g.set((t) => { Object.assign(t, S.failurePatch(failure), seenPatch(t, r)); t.stage = "asks"; t.kind = "question"; t.mergeFailed = false; t.msg = `The agent could not resolve the conflict with main after ${repairs} repairs. Full details are kept; you are needed`; });
     F.labelPane(a, "needs you");
     return "asked";
   }

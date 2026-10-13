@@ -7,14 +7,14 @@ with `isApiErrorMessage`; pi: a message with `stopReason` `error`), and the boar
 neither finished nor failed:
 
 - *The reviewer.* The board closes it, waits, and starts the review again: after 1, 2, 4 and 8 minutes, so five
-  tries over fifteen minutes. Meanwhile the row says why and when (`reviewer's model is at capacity, trying again in
+  tries over fifteen minutes. Meanwhile the row says why and when (`Reviewer's model is at capacity, trying again in
   2m`). A review that was cut off is not a review: it uses up none of the task's `rounds`, has no number (the next
   one that runs is still the "1st") and is not in the list of reviews. If the last try is cut off too, the task
   fails with the real reason and the provider's own words (`Review failed: the reviewer's model is at capacity,
   still after 5 tries over 15m. Its error: Selected model is at capacity…`), and `Ctrl+L` reviews again.
 - *The working agent.* The same waits, and then the board tells the agent to carry on where it left off, as a turn
   of the plugin's own: counters and an approved merge survive it. The row stays under `working` and says
-  `agent's connection dropped, trying again in 2m`. The cut-off is saved under the wait, so a reply, `Ctrl+R` or
+  `Agent's connection dropped, trying again in 2m`. The cut-off is saved under the wait, so a reply, `Ctrl+R` or
   `Ctrl+L` does it right away, and stopping the task ends the wait. After the last try the task is "Agent stopped"
   with the real reason, as before. A reply starts the count again. An agent whose program exited with the error is started again in
   the same conversation and told the same.

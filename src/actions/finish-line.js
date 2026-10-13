@@ -29,7 +29,7 @@ export function approve(id, seen = null) {
     // Main moved and the board could not bring this branch up to date yet: what was reviewed is not what would land.
     if (t.syncBlocked) throw new Error(`${t.id} is behind main and cannot be approved yet: ${t.syncBlocked.why}. The board keeps trying to bring it up to date.`);
     if (runnerAlive(t)) throw new Error(`${t.id} is busy. Try again in a moment.`);
-    t.stage = "merging"; t.msg = "merging"; t.requireApproval = false; t.since = Date.now(); t.mergeFailed = false;
+    t.stage = "merging"; t.msg = "Merging"; t.requireApproval = false; t.since = Date.now(); t.mergeFailed = false;
     t.mergeIntent = { approvedAt: Date.now(), repairs: t.mergeIntent?.repairs || 0, verifiedHead: t.reviewedHead || null };
   });
   F.labelPane(t, null);
@@ -121,7 +121,7 @@ export function retry(id) {
   // The agent never started on what was typed into its box: its program is started again and handed the same text.
   if (f.stage === "send" && cur.unsent) {
     F.assertLive(cur);
-    const t = S.update(cur.id, (t) => { if (t.stage !== "failed" || runnerAlive(t)) throw new Error(`${t.id} is busy. Try again in a moment.`); t.stage = "working"; t.msg = "starting the agent again"; t.since = Date.now(); t.armedAt = Date.now(); });
+    const t = S.update(cur.id, (t) => { if (t.stage !== "failed" || runnerAlive(t)) throw new Error(`${t.id} is busy. Try again in a moment.`); t.stage = "working"; t.msg = "Starting the agent again"; t.since = Date.now(); t.armedAt = Date.now(); });
     spawnRunner("restart", t.id);
     return say(t, `${t.id}: starting the agent again with the same text`);
   }

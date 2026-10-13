@@ -20,7 +20,7 @@ test("at most `max` agents work at once; tasks waiting for the human hold no slo
     const a = A.add(w.root, "First").id, b = A.add(w.root, "Second").id;
     A.delegate(a); A.delegate(b);
     assert.deepEqual([S.get(a).stage, S.get(b).stage], ["starting", "queued"]);
-    assert.equal(stateOf(b).note, "waiting for a free slot");
+    assert.equal(stateOf(b).note, "Waiting for a free slot");
     await settle(a); // first reaches "waiting for approval": it holds no slot any more
     assert.equal(S.get(a).stage, "approval");
     housekeeping(w.socket, { force: true });
@@ -68,11 +68,11 @@ test("reconcile: a pane that is gone, an agent that exited, and a finished turn 
     // the agent exits to its shell
     w.patchState((s) => { s.panes.find((p) => p.pane_id === t.link.pane).agent = null; });
     reconcile(S.get(id), herdr());
-    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["error", "the agent has exited"]);
+    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["error", "The agent has exited"]);
     // the pane is closed
     w.patchState((s) => { s.panes = s.panes.filter((p) => p.pane_id !== t.link.pane); });
     reconcile(S.get(id), herdr());
-    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["error", "the agent's terminal is gone"]);
+    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["error", "The agent's terminal is gone"]);
     // a pane move gave it a new id: relinked by agent name in the task's folder
     w.patchState((s) => { s.panes.push({ pane_id: "w9:p1", workspace_id: "w9", tab_id: "w9:t1", terminal_id: "term_new", cwd: t.worktree, agent: { kind: "claude", name: "sw-proj-1", status: "working", seq: ++s.seq } }); });
     reconcile(S.get(id), herdr());
@@ -96,7 +96,7 @@ test("tasks of another herdr session show their last known state and refuse live
     A.delegate(id);
     await settle(id);
     S.update(id, (t) => { t.link = { ...t.link, socket: "/x/sessions/other/herdr.sock" }; });
-    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["working", "in session other"]);
+    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["working", "In session other"]);
     assert.throws(() => A.tell(id, "hi"), /lives in herdr session other/);
   } finally { w.cleanup(); }
 });

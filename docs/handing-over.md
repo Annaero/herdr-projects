@@ -32,9 +32,9 @@ noticed.
 
    An agent herdr cannot classify (status `unknown`) is checked too: its counters and its saved conversation still
    say whether it moved.
-3. **It says so.** While it waits, the task's row reads `starting` (or `about to continue`), then `has not started yet:
+3. **It says so.** While it waits, the task's row reads `Starting` (or `About to continue`), then `Has not started yet:
    pressing enter again`, never `working` or `finishing`. If the agent still sits there 40 seconds after the last
-   enter, the task is shown as an error: **not started: its instructions sit unsent in its box**.
+   enter, the task is shown as an error: **Not started: its instructions sit unsent in its box**.
 
 ## A task shown as not started
 

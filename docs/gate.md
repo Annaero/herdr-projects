@@ -48,7 +48,7 @@ Finished work waits for your yes. The `autoMerge` setting makes it merge by itse
   conflicts it resolved included.
 - **One at a time.** Every merge moves main under the tasks behind it, so a repo's tasks merge in a line: one
   catches up, is checked and merges, then the next, in the order they became ready. A task that waits says
-  `waiting to merge: <id> goes first`; it is not brought up to date before its turn, so it catches up once, not
+  `Waiting to merge: <id> goes first`; it is not brought up to date before its turn, so it catches up once, not
   once for every merge ahead of it. A task that must be reviewed again leaves the line for that and joins it again.
   The line moves with the board closed too.
 - **What needs you still stops and asks**: a review that fails the gate after its rounds, a merge that failed, a

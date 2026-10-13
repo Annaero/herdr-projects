@@ -72,7 +72,7 @@ test("a first enter swallowed by a starting agent is pressed again; the text is 
     // Moments after: too early to say, and the board does not call it work.
     pass(w);
     assert.equal(calls(w, /^agent send-keys/).length, 0);
-    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["working", "starting"]);
+    assert.deepEqual([stateOf(id).state, stateOf(id).note], ["working", "Starting"]);
     // A while later it still sits at its prompt: enter, and only enter.
     S.update(id, (c) => { c.sent.at -= 5000; });
     pass(w);
@@ -96,7 +96,7 @@ test("an agent that never starts is shown as not started, not as working; retry 
     A.delegate(id);
     await drainJobs(runJob);
     const typed = paneOf(w, S.get(id)).agent.box;
-    assert.deepEqual([S.get(id).stage, stateOf(id).note], ["working", "has not started yet: pressing enter again"]); // the job's own pass pressed once
+    assert.deepEqual([S.get(id).stage, stateOf(id).note], ["working", "Has not started yet: pressing enter again"]); // the job's own pass pressed once
     for (let i = 0; i < TRIES + 2; i++) pass(w);
     let c = S.get(id), row = stateOf(id);
     assert.equal(calls(w, /^agent send-keys .* enter$/).length, TRIES); // a few tries, then no more

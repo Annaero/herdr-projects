@@ -81,7 +81,7 @@ export function rules(t) {
     t.worktree && research ? R.researchTree(t) : t.worktree ? `You are in your own git worktree on branch ${t.branch}; the human's checkout is elsewhere and untouched. Commit your work on this branch with clear messages. Do not push, merge into the human's branch or switch branches yourself (you may bring the base branch into your own branch to resolve a conflict). When you finish, the board runs the repo's check and opens the pull request.` : "",
     t.repoCfg?.check && !research ? `Your work only counts as done when this passes: ${t.repoCfg.check}` : "",
     "Do not stop until the work is finished and you have checked that it works. Stopping means it is finished and goes to review. End with a short summary of what you did.",
-    `If you cannot continue without the human, run this and then stop: ${cmd} report ${t.id} --state blocked --kind <question|permission|auth> --msg "<why, in one line>"  (question: the human must type an answer; permission: you need approval to do something; auth: a login, token or credential is missing). Do not end with a question otherwise.`,
+    `If you cannot continue without the human, run this and then stop: ${cmd} report ${t.id} --state blocked --kind <question|permission|auth> --msg "<why, in one line>"  (question: the human must type an answer; permission: you need approval to do something; auth: a login, token or credential is missing). Write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data". Do not end with a question otherwise.`,
     `If you come across unrelated work that should be done (a bug elsewhere, a follow-up), do not do it and do not add it as a task: suggest it to the human with ${cmd} suggest "<short title: a few words, ${S.TITLE_RULE}>" --desc "<what and why, and the file it is in>" --from ${t.id} and carry on. It becomes a task only if they accept it. Suggest a thing once: ${cmd} suggestions lists what is suggested already and ${cmd} list the tasks, and what the board knows already is not added again. These are the only board commands you may run.`,
     R.reportRule(t),
     `Before you stop, also write your closing summary (or your question to the human) to ${F.noteFile(t)} (the board's own folder for this task, not the folder you work in). It is the board's fallback when it cannot read your last message.`,
@@ -214,10 +214,10 @@ export async function delegateJob(id) {
     if (t.fresh) {
       t = g.set({ fresh: false });
       if (t.repoCfg?.setup) {
-        t = g.set({ stage: "setup", msg: `setting up: ${t.repoCfg.setup}` });
+        t = g.set({ stage: "setup", msg: `Setting up: ${t.repoCfg.setup}` });
         const r = await sh(t.repoCfg.setup, S.cwdOf(t), env(), { alive: () => !!g.check() });
         if (r.aborted) return;
-        if (!r.ok) { g.set((t) => { t.stage = "failed"; t.setupPending = true; t.msg = "setup failed"; Object.assign(t, S.failurePatch({ stage: "setup", title: "Setup failed", detail: `Command: ${t.repoCfg.setup}\nFolder: ${S.cwdOf(t)}\n\n${r.out || "No output"}`, next: "Fix the setup problem in the working folder, then finish again. The setup is retried before the check." })); }); return; }
+        if (!r.ok) { g.set((t) => { t.stage = "failed"; t.setupPending = true; t.msg = "Setup failed"; Object.assign(t, S.failurePatch({ stage: "setup", title: "Setup failed", detail: `Command: ${t.repoCfg.setup}\nFolder: ${S.cwdOf(t)}\n\n${r.out || "No output"}`, next: "Fix the setup problem in the working folder, then finish again. The setup is retried before the check." })); }); return; }
       }
     }
     // 3. The agent, in the workspace's root pane, then the task.
@@ -227,7 +227,7 @@ export async function delegateJob(id) {
     catch (e) { if (waiting.length) S.untakeText(id, waiting.length); throw e; }
   } catch (e) {
     if (e.aborted) return;
-    try { S.update(id, (t) => { if (t.runner?.pid !== process.pid) return false; t.stage = "failed"; t.msg = "could not start"; Object.assign(t, S.failurePatch({ stage: "start", title: "Could not start the agent", detail: `${e.message}${e.args ? `\n\nherdr ${e.args.join(" ")}` : ""}`.trim() || outputOf(e), agentCanFix: false, next: "Fix what herdr reports, then delegate again." })); }, { waitMs: 10000 }); } catch {}
+    try { S.update(id, (t) => { if (t.runner?.pid !== process.pid) return false; t.stage = "failed"; t.msg = "Could not start"; Object.assign(t, S.failurePatch({ stage: "start", title: "Could not start the agent", detail: `${e.message}${e.args ? `\n\nherdr ${e.args.join(" ")}` : ""}`.trim() || outputOf(e), agentCanFix: false, next: "Fix what herdr reports, then delegate again." })); }, { waitMs: 10000 }); } catch {}
   } finally { release(id); }
 }
 
@@ -267,7 +267,7 @@ export async function restartJob(id) {
     catch (e) { if (waiting.length) S.untakeText(id, waiting.length); throw e; }
   } catch (e) {
     if (e.aborted) return;
-    try { S.update(id, (t) => { if (t.runner?.pid !== process.pid) return false; t.stage = "failed"; t.msg = "could not restart the agent"; Object.assign(t, S.failurePatch({ stage: "start", title: "Could not restart the agent", detail: e.message, agentCanFix: false, next: "Fix what herdr reports, then reply or delegate again." })); }, { waitMs: 10000 }); } catch {}
+    try { S.update(id, (t) => { if (t.runner?.pid !== process.pid) return false; t.stage = "failed"; t.msg = "Could not restart the agent"; Object.assign(t, S.failurePatch({ stage: "start", title: "Could not restart the agent", detail: e.message, agentCanFix: false, next: "Fix what herdr reports, then reply or delegate again." })); }, { waitMs: 10000 }); } catch {}
   } finally { release(id); }
 }
 

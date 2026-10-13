@@ -148,7 +148,7 @@ export async function tidy(id, { deleteBranch = "always" } = {}) {
       // In use: tried again by the housekeeping pass, and after a turn of the agent only once it has been quiet a while.
       t.tidy = kept.retry ? { deleteBranch, tip: kept.tip, comp: kept.comp, still: kept.still || undefined, eventSeq: kept.eventSeq, quietFrom: kept.turn ? Date.now() : prev?.quietFrom || 0, msg } : null;
       if (kept.length) t.kept = [...kept]; else { F.clearNotes(t); delete t.kept; t.worktree = null; t.cleaned = Date.now(); t.link = { socket: t.link?.socket }; }
-      t.msg = kept.length ? `${msg} Kept: ${kept.join(", ")}` : msg;
+      t.msg = kept.length ? `${msg}${String(msg).endsWith(".") ? "" : "."} Kept: ${kept.join(", ")}` : msg;
     }, { waitMs: 10000 });
   } catch {}
 }
@@ -202,7 +202,7 @@ export async function landCore(id, g) {
       if (git(tree, ["symbolic-ref", "--short", "HEAD"]) !== t.branch) return void fail("Task is on the wrong branch", tree, "Restore the task's own branch before retrying.", { agentCanFix: false, auth: false });
       // Approve refuses unless the worktree is clean and its HEAD is exactly the commit that was checked and reviewed;
       // otherwise the finish line runs again first, under the approval already given.
-      if (F.dirty(tree) || (t.mergeIntent?.verifiedHead && F.headOf(tree) !== t.mergeIntent.verifiedHead)) return void (await reverify("checking work that changed after its review"));
+      if (F.dirty(tree) || (t.mergeIntent?.verifiedHead && F.headOf(tree) !== t.mergeIntent.verifiedHead)) return void (await reverify("Checking work that changed after its review"));
       if (!t.mergeIntent) t = g.set({ mergeIntent: { approvedAt: Date.now(), repairs: 0, verifiedHead: F.headOf(tree) } });
     } catch (e) { return void fail("Could not synchronize main", outputOf(e), "Investigate the fetch/Git error, then retry after fixing it."); }
     // The last safety net: the branch was brought up to date before its review and whenever main moved since, so
@@ -219,7 +219,7 @@ export async function landCore(id, g) {
     }
     // A clean update changed the commit: it is checked again (and reviewed again only when its review does not stand:
     // see the pipeline), then merged under the approval given.
-    if (r.status === "merged") return void (await reverify("checking branch updated with main", r));
+    if (r.status === "merged") return void (await reverify("Checking the branch updated with main", r));
     g.set((t) => Y.seenPatch(t, r));
   }
   t = g.check();
@@ -248,20 +248,20 @@ export async function landCore(id, g) {
       let v = {}; try { v = JSON.parse(F.gh(["pr", "view", pr, "--json", "statusCheckRollup,reviewDecision"], root, 60000).stdout); } catch {}
       const states = (v.statusCheckRollup || []).map((c) => String(c.conclusion || c.state || "").toUpperCase());
       const waiting = !states.some((s) => F.CHECK_BAD.includes(s)) && v.reviewDecision !== "CHANGES_REQUESTED" && (states.some((s) => !F.CHECK_GOOD.includes(s)) || v.reviewDecision === "REVIEW_REQUIRED");
-      if (waiting) { g.set((t) => { t.failure = null; t.autoMerge = true; t.autoMergeLocal = true; t.msg = `approved: merges when GitHub's checks pass (${t.pr})`; }); return; }
+      if (waiting) { g.set((t) => { t.failure = null; t.autoMerge = true; t.autoMergeLocal = true; t.msg = `Approved: merges when GitHub's checks pass (${t.pr})`; }); return; }
       return void fail("Pull request could not merge", `Pull request: ${t.pr}\nBranch: ${t.branch || "unknown"}\n\ngh pr merge:\n${outputOf(m)}\n\nNo check is still running and no review is awaited, so there is nothing to wait for.`, "Inspect the pull request's base branch, conflicts and checks. Resolve branch conflicts in your own worktree, or fix failed checks, then finish again. Approval is required before retrying the merge.");
     }
     try { git(root, ["fetch", "origin"], { timeout: 60000 }); if (!git(root, ["status", "--porcelain", "--untracked-files=no"])) git(root, ["merge", "--ff-only", "@{upstream}"]); } catch {} // bring your checkout along when that is safe
     // gh answering "fine" is not "merged": on a repo with a merge queue (or required checks) it only lines the pull
     // request up. Until GitHub itself says MERGED nothing is cleaned up or deleted, and the poll keeps watching it.
     let state = ""; try { state = JSON.parse(F.gh(["pr", "view", pr, "--json", "state"], root, 60000).stdout).state || ""; } catch {}
-    if (state !== "MERGED") { g.set((t) => { t.failure = null; t.autoMerge = true; t.autoMergeLocal = false; t.msg = `approved: GitHub merges it when its checks and merge queue are through (${t.pr})`; }); return; }
+    if (state !== "MERGED") { g.set((t) => { t.failure = null; t.autoMerge = true; t.autoMergeLocal = false; t.msg = `Approved: GitHub merges it when its checks and merge queue are through (${t.pr})`; }); return; }
     F.dropRemoteBranch(root, t.branch, reviewed);
     return void (await landed(`Merged: ${t.pr}`, reviewed || t.prHead || ""));
   }
   // No pull request: merge into the branch your checkout is on.
   try {
-    if (!tree) return void (await landed(t.msg && !/^merging/.test(t.msg) ? t.msg : "Done."));
+    if (!tree) return void (await landed(t.msg && !/^merging/i.test(t.msg) ? t.msg : "Done"));
     const mess = F.dirty(root);
     if (mess) return void fail("Merge needs a clean checkout", `Checkout: ${root}\n\nUncommitted or untracked files:\n${mess}`, "Commit, stash or move your own unsaved files, then approve again. The agent must not alter your checkout.", { agentCanFix: false, auth: false });
     const onto = git(root, ["symbolic-ref", "--short", "HEAD"]);
