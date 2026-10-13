@@ -114,7 +114,7 @@ function reviewBlue(p) {
   return [p.blue, ...REVIEW_BLUES].find(fits) ?? any().reduce((best, c) => (least(c) > least(best) ? c : best));
 }
 
-// The board marks each state with its own symbol (◐ × ✓ ○), so no two states are told apart by colour alone. Only a
+// The board marks each state with its own symbol (◐ × ✓ ○, ◑ while the reviewer works, ◒ for the board's own steps), so no two states are told apart by colour alone. Only a
 // herdr config that asks for "dots" by name gets herdr's dots.
 let cfg = {}, P = resolve().palette, symbols = true;
 const marksOf = (r) => !r.dots;
@@ -151,7 +151,9 @@ const plain = () => process.env.NO_COLOR !== undefined && process.env.NO_COLOR !
 const sgr = (c, bg) => (c < 0 ? String((c - A < 8 ? (bg ? 40 : 30) : (bg ? 92 : 82)) + (c - A)) : `${bg ? 48 : 38};2;${c >> 16};${(c >> 8) & 255};${c & 255}`);
 // herdr's mark for each state (src/client/shell.rs, status_icon): its distinct symbols, or its dots when herdr's
 // `ui.status_indicators` says "dots". A failure has no herdr state; it takes the cross herdr's own CLI prints.
-const MARKS = table({ working: ["●", "◐"], blocked: ["●", "×"], done: ["●", "✓"], idle: ["○", "○"], unknown: ["·", "·"], error: ["✗", "✗"] });
+// The reviewer at work and the board's own steps have none either: they take the working mark turned another way
+// (◑ the reviewer, ◒ the board), and the agent's keeps herdr's.
+const MARKS = table({ working: ["●", "◐"], review: ["●", "◑"], board: ["●", "◒"], blocked: ["●", "×"], done: ["●", "✓"], idle: ["○", "○"], unknown: ["·", "·"], error: ["✗", "✗"] });
 export const theme = {
   fg(token, s) { const c = P[token]; return plain() || typeof c !== "number" ? String(s) : `\x1b[${sgr(c, false)}m${s}\x1b[39m`; },
   bg(token, s) { const c = P[token]; return plain() || typeof c !== "number" ? String(s) : `\x1b[${sgr(c, true)}m${s}\x1b[49m`; },

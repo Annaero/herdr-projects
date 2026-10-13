@@ -6,7 +6,7 @@ import * as C from "../../coordinator.js";
 import * as S from "../../store.js";
 import { adapter } from "../../agents.js";
 import { clean } from "./words.js";
-import { isAgent, reviewing, checking, groupOf, reviewerWord } from "./states.js";
+import { isAgent, reviewing, underReview, checking, groupOf, reviewerWord } from "./states.js";
 
 // The fewest cells the status keeps when the progress stands beside it.
 const CHAT_STATUS_MIN = 20;
@@ -50,7 +50,7 @@ export class Chat {
     if (this.mode === "find") return null;
     if (this.reply && r) {
       const toAgent = this.hasAgent(r);
-      const word = r.archivedAt ? "archived" : reviewing(r) && r.state === "working" ? reviewerWord(r) : groupOf(r);
+      const word = r.archivedAt ? "archived" : underReview(r) ? reviewerWord(r) : groupOf(r);
       const starts = !r.host && !isAgent(r) && ["todo", "progress"].includes(r.stage);
       // With an agent on it: what the task's row says (the Watcher's "doing now" line), or where the task stands.
       const status = r.archivedAt ? "archived: read-only" : toAgent ? stripVTControlCharacters(this.sentence(r).text) || word : starts ? "no agent yet: your message starts one" : this.canDispatch || r.host ? "no agent on it: your message goes to the Coordinator, about this task" : "no agent on it: your message is added to its description";

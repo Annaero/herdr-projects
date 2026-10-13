@@ -3,7 +3,7 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import * as G from "../../gate.js";
 import { herdr } from "../../herdr.js";
 import { short, clean, age, prTag, bar, left } from "./words.js";
-import { MARK_STATES, failureFor, inReview, isLive, needsYou, statusColor, waitOf } from "./states.js";
+import { MARK_STATES, failureFor, inReview, isLive, needsYou, statusColor, reviewerMark, boardStep, waitOf } from "./states.js";
 import { ETA_STEADY, labelRoom, shownFrom } from "./row-fit.js";
 import { tallAt } from "./row-tall.js";
 import { isResearch } from "../../research.js";
@@ -21,6 +21,8 @@ export class Row {
     const c = statusColor(r);
     if (r.archivedAt) return t.fg(c, t.mark("unknown"));
     if (inReview(r)) return t.fg(c, t.bold(t.mark("done")));
+    if (reviewerMark(r)) return t.fg(c, t.mark("review")); // the reviewer at work: the working mark, facing the other way
+    if (boardStep(r)) return t.fg(c, t.mark("board")); // a step of the board's own: one mark for all of them
     if (r.state === "blocked") return t.fg(c, t.bold(t.mark("blocked")));
     if (r.state === "done") return t.dim(t.fg(c, t.mark("done"))); // finished: the same mark, only quieter
     return t.fg(c, t.mark(MARK_STATES.includes(r.state) ? r.state : "idle"));

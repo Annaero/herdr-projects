@@ -1,7 +1,7 @@
 // The task panel: beside the list and full screen. Its parts are in panel-status.js, panel-reviews.js and panel-settings.js.
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { clean, age, idLabel, brief } from "./words.js";
-import { isAgent, failureFor, reviewing, statusColor } from "./states.js";
+import { isAgent, failureFor, reviewing, statusColor, underReview as reviewerAtWork } from "./states.js";
 import { WIDE } from "./size.js";
 import { panelKit } from "./panel-kit.js";
 import { name as keyName, is as isKey } from "../keys.js";
@@ -59,7 +59,7 @@ export class Panel {
       return out(["", ...parts.flatMap((s, n) => (n ? ["", ...s.lines] : s.lines))]);
     }
     const agent = isAgent(r), failure = failureFor(r), c = statusColor(r);
-    const underReview = reviewing(r) && r.state === "working";
+    const underReview = reviewerAtWork(r);
     const approval = r.state === "blocked" && r.stage === "approval";
     let cut = false; // beside the list: something is shorter here than on the full screen
     Object.assign(p, { r, width, full, agent, failure, c, underReview, approval });

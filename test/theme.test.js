@@ -168,15 +168,15 @@ test("the board paints with what it read: true colour, the terminal's 16 colours
     assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.line("a"), "a");
     assert.equal(theme.muted("x"), "\x1b[2m\x1b[37mx\x1b[39m\x1b[22m"); // this theme's grey is most terminals' text colour: greyed-out words are faint too
     assert.equal(theme.selected("x"), "\x1b[100mx\x1b[49m"); // no selection colour in this theme: herdr's active row colour
-    assert.deepEqual(["working", "blocked", "done", "idle", "error"].map(theme.mark), ["◐", "×", "✓", "○", "✗"]);
+    assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map(theme.mark), ["◐", "◑", "◒", "×", "✓", "○", "✗"]);
     setTerminal(true);
     assert.equal(theme.fg("red", "x"), "\x1b[38;2;210;15;57mx\x1b[39m"); assert.equal(theme.selected("x"), "\x1b[48;2;189;208;245mx\x1b[49m");
     process.env.HERDR_CONFIG_PATH = cfg("");
     assert.equal(loadTheme(), false); // the terminal's own colours, whatever they are: nothing to ask
     // A symbol of its own for each state is the board's default: no two states are told apart by colour alone.
-    assert.deepEqual(["working", "blocked", "done", "idle", "error"].map(theme.mark), ["◐", "×", "✓", "○", "✗"]);
+    assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map(theme.mark), ["◐", "◑", "◒", "×", "✓", "○", "✗"]);
     process.env.HERDR_CONFIG_PATH = cfg(`[ui]\nstatus_indicators = "dots"\n`); loadTheme(); // herdr's dots only when its config asks for them by name
-    assert.deepEqual(["working", "blocked", "done", "idle", "error"].map(theme.mark), ["●", "●", "●", "○", "✗"]);
+    assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map(theme.mark), ["●", "●", "●", "●", "●", "○", "✗"]);
     process.env.HERDR_CONFIG_PATH = cfg(""); loadTheme();
     // No theme set here: the terminal's colours and its own text colour.
     assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.fg("teal", "x"), "\x1b[36mx\x1b[39m"); assert.equal(theme.line("a b"), "a b");

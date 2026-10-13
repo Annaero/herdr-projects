@@ -134,10 +134,10 @@ test("the task shows it everywhere a task's progress shows, in a colour of its o
     const head = (x, width) => s.v.chatHead({ mark: s.v.mark(x), name: x.title, status: theme.muted(x.msg), progress: chatProgress(x) }, width)[0];
     const chatProgress = (x) => { s.v.reply = true; s.v.hasAgent = () => true; s.v.previewOf = () => null; s.v.sentTo = () => ""; s.v.turnMark = () => ""; return s.v.chatOf(x).progress; };
     assert.deepEqual(chatProgress(r), [`${grey("█████░░░")} ${grey(" 65%")} ${grey("3m")}`, `${grey(" 65%")} ${grey("3m")}`]);
-    assert.match(stripVTControlCharacters(head(r, 120)), /^ ◐ Add a greeting {2}Running the check · tests 31 of 47 {2}█████░░░ {2}65% 3m$/);
-    assert.match(stripVTControlCharacters(head(r, 60)), /^ ◐ Add a greeting {2}Running the check · te… {2}█████░░░ {2}65% 3m$/); // the words are cut, the numbers never
-    assert.match(stripVTControlCharacters(head(r, 52)), /^ ◐ Add a greeting {2}Running the check · tes… {3}65% 3m$/); // too narrow for the bar
-    assert.match(stripVTControlCharacters(head(r, 30)), /^ ◐ Add a greeting {2}Running th…$/);
+    assert.match(stripVTControlCharacters(head(r, 120)), /^ ◒ Add a greeting {2}Running the check · tests 31 of 47 {2}█████░░░ {2}65% 3m$/);
+    assert.match(stripVTControlCharacters(head(r, 60)), /^ ◒ Add a greeting {2}Running the check · te… {2}█████░░░ {2}65% 3m$/); // the words are cut, the numbers never
+    assert.match(stripVTControlCharacters(head(r, 52)), /^ ◒ Add a greeting {2}Running the check · tes… {3}65% 3m$/); // too narrow for the bar
+    assert.match(stripVTControlCharacters(head(r, 30)), /^ ◒ Add a greeting {2}Running th…$/);
     assert.deepEqual(chatProgress(waiting), [grey("6m")]); assert.deepEqual(chatProgress(known), []);
     assert.match(stripVTControlCharacters(head(waiting, 120)), /^ ◐ Add a greeting {2}Waiting for its turn · 2 ahead {2}6m$/);
     assert.match(osc(r), /:progress=65:eta=3:/);

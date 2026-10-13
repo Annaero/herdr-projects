@@ -41,6 +41,11 @@ test("the web board shows the terminal board's list: the same groups, order, mar
     assert.equal(ready.says.map((p) => p.t).join(""), "Pass · 1 minor"); assert.equal(ready.says[0].c, "green"); assert.deepEqual(ready.review, [{ t: "R#1", c: "green" }]); assert.match(ready.time, /^\d+s ago$/);
     assert.deepEqual([working.progress, working.percent, working.says.map((p) => p.t).join(""), working.strong, working.live], [40, "40%", "Drafting", true, true]);
     assert.deepEqual([todo.progress, todo.says, todo.live, todo.mark], [null, [], false, "○"]);
+    // who is on a task shows without colour here too: the agent's dot, the reviewer's half moon, the board's own; a task that only waits keeps the dot
+    { const wv = Object.assign(Object.create(View.prototype), { theme: webTheme }), at = (r) => pieces(wv.mark({ state: "working", ...r }))[0];
+      assert.deepEqual(at({ stage: "working" }), { t: "●", c: "yellow" }); assert.deepEqual(at({ stage: "reviewing" }), { t: "◑", c: "review" }); assert.deepEqual(at({ stage: "queued" }), { t: "●", c: "yellow" });
+      for (const stage of ["starting", "setup", "checking", "pushing", "merging"]) assert.equal(at({ stage }).t, "◒", stage);
+      for (const kind of ["working", "review", "board", "blocked", "done", "idle", "error"]) assert.notEqual(webTheme.mark(kind), webTheme.mark("unknown"), kind); }
     // a page that already has this is told only that
     assert.deepEqual(snapshot(v, s.mark), { same: true, mark: s.mark });
     // one task, whole: the panel's parts under their headlines, each a list of facts and lines of text

@@ -209,7 +209,7 @@ test("the highlight covers both lines of the selected row, and the arrow keys go
     assert.ok(lit().every((l) => l.length === 80)); // each to the window's edge
   }
   v.move(1); assert.equal(v.sel, "p/2"); // one press, one task: never onto a row's second line
-  if (!process.env.NO_COLOR) assert.deepEqual(lit().map((l) => l.slice(0, 20).trimEnd()), [" ◐ Under review", "   Running the tests"]);
+  if (!process.env.NO_COLOR) assert.deepEqual(lit().map((l) => l.slice(0, 20).trimEnd()), [" ◑ Under review", "   Running the tests"]);
   v.move(1); assert.equal(v.sel, "p/8");
   if (!process.env.NO_COLOR) assert.equal(lit().length, 1); // a done row is one line
   v.move(-1); v.move(-1); v.move(-1); assert.equal(v.sel, "p/1");

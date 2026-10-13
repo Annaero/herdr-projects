@@ -5,7 +5,9 @@
 // A colour name travels as a 256-colour code, which the layout code already measures as no width at all.
 const names = [];
 const code = (token) => { let n = names.indexOf(token); if (n < 0) n = names.push(token) - 1; return n; };
-const MARKS = { idle: "○", working: "●", blocked: "◆", done: "✓", error: "✕", unknown: "·" };
+// The reviewer at work and the board's own steps: the terminal board's half moons (theme.js), so the page tells them
+// from the agent's dot without colour too.
+const MARKS = { idle: "○", working: "●", review: "◑", board: "◒", blocked: "◆", done: "✓", error: "✕", unknown: "·" };
 
 export const webTheme = {
   fg: (token, s) => (s === "" || s == null ? "" : `\x1b[38;5;${code(token)}m${s}\x1b[39m`),

@@ -78,10 +78,10 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     // green of "ready to approve" and of a review that passed, never the agent's amber
     const blue = theme.fg("review", "\0").split("\0")[0], reviewed = v.row({ ...working, stage: "reviewing", reviewRound: 1, eta: 12 }, 120);
     assert.notEqual(blue, green); assert.notEqual(blue, yellow); assert.notEqual(blue, theme.fg("teal", "\0").split("\0")[0]); assert.notEqual(blue, theme.fg("subtext0", "\0").split("\0")[0]);
-    assert.ok(reviewed.includes(`${blue}◐`) && reviewed.includes(`${blue} 50%`) && reviewed.includes(`${blue}12m`) && reviewed.includes(`${blue}█`) && reviewed.includes(`${blue}R#1`) && !reviewed.includes(green) && !reviewed.includes(yellow) && !reviewed.includes(mauve));
+    assert.ok(reviewed.includes(`${blue}◑`) && !reviewed.includes("◐") && reviewed.includes(`${blue} 50%`) && reviewed.includes(`${blue}12m`) && reviewed.includes(`${blue}█`) && reviewed.includes(`${blue}R#1`) && !reviewed.includes(green) && !reviewed.includes(yellow) && !reviewed.includes(mauve));
     // the review over: its tag is green when it passed and red when it failed, and stays red while the agent fixes it
     assert.ok(v.row({ ...pr, review: { ...review, recommend: true } }, 120).includes(`${green}R#1`) && v.row(pr, 120).includes(`${red}R#1`) && !v.row(pr, 120).includes(blue));
-    { const fixing = v.row({ ...working, reviewRound: 1, review: { ...review, stale: true } }, 120); assert.ok(fixing.includes(`${red}R#1`) && fixing.includes(`${yellow}◐`) && !fixing.includes(blue)); }
+    { const fixing = v.row({ ...working, reviewRound: 1, review: { ...review, stale: true } }, 120); assert.ok(fixing.includes(`${red}R#1`) && fixing.includes(`${yellow}◐`) && !fixing.includes("◑") && !fixing.includes(blue)); }
     const plainWork = v.row(working, 120);
     assert.ok(plainWork.includes(`${yellow}◐`) && !plainWork.includes(green) && !plainWork.includes(mauve));
   }
@@ -183,23 +183,30 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     assert.ok(v.rowLines({ ...working, state: "blocked", kind: "question", stage: "asks", msg: "Which colour?" }, 120)[1].includes(`${grey}Which colour?`), "and so is a row that needs you");
     assert.ok(!v.row(working, 120).includes(`${grey}Other`), "the title is not");
   }
-  assert.match(row({ ...second, stage: "merging", state: "working", kind: undefined, msg: "merging" }, 120), /^ ◐ Build a flying game +R#2 PR#12 {2}0s\n {3}merging$/);
+  assert.match(row({ ...second, stage: "merging", state: "working", kind: undefined, msg: "merging" }, 120), /^ ◒ Build a flying game +R#2 PR#12 {2}0s\n {3}merging$/);
+  // the board's own steps share one mark of their own, in the row and on the State line: neither the agent's nor the reviewer's
+  for (const stage of ["starting", "setup", "checking", "pushing", "merging"]) { assert.match(row({ ...working, stage, msg: "x" }, 120), /^ ◒ Other /, stage); assert.match(page({ ...working, stage, msg: "x" }), /\n State {8}◒ working /, stage); }
+  // a task that only waits keeps the plain working mark: for a free slot, or the reviewer cut off and waiting to try again
+  assert.match(row({ ...working, stage: "queued", msg: "x" }, 120), /^ ◐ Other /); assert.match(page({ ...working, stage: "queued", msg: "x" }), /\n State {8}◐ working /);
+  assert.match(row({ ...working, stage: "merging", lineAt: 1, msg: "Waiting to merge: proj/1 goes first" }, 120), /^ ◐ Other /); // in the line to merge
+  { const cut = { ...working, stage: "reviewing", reviewRound: 1, waiting: { who: "reviewer", reason: "model is at capacity", until: Date.now() + 120000, tries: 1 } }; assert.match(row(cut, 120), /^ ◐ Other /); assert.match(page(cut), /\n State {8}◐ reviewer was cut off/); }
+  assert.match(row({ ...working, stage: "merging", state: "error" }, 120), /^ ✗ Other /); // a step that failed is no step at work
   assert.doesNotMatch(row({ ...second, state: "done", stage: "done" }, 120), /review|3\/5/);
   // while the reviewer works the row's sentence is only what the reviewer is doing
   const under = { ...working, stage: "reviewing", reviewRound: 3, msg: "Running the tests." };
-  assert.match(row(under, 120), /^ ◐ Other +█+░+ +50% {2}R#3 +0s\n {3}Running the tests\.$/); // no word "review", whichever review it is: the colour says it
-  assert.match(row({ ...under, reviewRound: 1 }, 120), /^ ◐ Other [^\n]*\n {3}Running the tests\.$/);
-  assert.match(row({ ...under, reviewRound: 1, msg: "Under review", plain: true }, 120), /^ ◐ Other +█[^\n]*\n {3}$/); // only the heading's own word to say: an empty line, never a bare "…"
-  assert.match(row(under, 30), /^ ◐ Other +50% {2}R#3 +0s\n {3}Running the tests\.$/);
+  assert.match(row(under, 120), /^ ◑ Other +█+░+ +50% {2}R#3 +0s\n {3}Running the tests\.$/); // no word "review", whichever review it is: the mark and the colour say it
+  assert.match(row({ ...under, reviewRound: 1 }, 120), /^ ◑ Other [^\n]*\n {3}Running the tests\.$/);
+  assert.match(row({ ...under, reviewRound: 1, msg: "Under review", plain: true }, 120), /^ ◑ Other +█[^\n]*\n {3}$/); // only the heading's own word to say: an empty line, never a bare "…"
+  assert.match(row(under, 30), /^ ◑ Other +50% {2}R#3 +0s\n {3}Running the tests\.$/);
   assert.match(row({ ...under, stage: "reviewneeds", state: "blocked", progress: undefined, msg: "The reviewer shows a dialog" }, 120), /^ × Other +R#3 {2}0s ago\n {3}The reviewer shows a dialog$/);
-  assert.doesNotMatch(row({ ...working, reviewRound: 3 }, 120), /review/); // back with the agent: no review is running
-  assert.match(page(under), /\n State {8}◐ reviewer is working · 3rd review · for 0s\n Progress {5}█+░+ 50%\n Now {10}Running the tests\.\n Task {9}proj\/2\n/);
+  assert.doesNotMatch(row({ ...working, reviewRound: 3 }, 120), /review|◑/); assert.match(row({ ...working, reviewRound: 3 }, 120), /^ ◐ Other /); // back with the agent: no review is running
+  assert.match(page(under), /\n State {8}◑ reviewer is working · 3rd review · for 0s\n Progress {5}█+░+ 50%\n Now {10}Running the tests\.\n Task {9}proj\/2\n/);
   // the same blue everywhere the reviewer's work is drawn: the panel beside the list, the details page, the chat line
   {
     const paint = { ...theme, fg: (c, s) => `<${c}>${s}</>` }, cv = Object.create(View.prototype); Object.assign(cv, v, { theme: paint });
-    for (const full of [false, true]) { const p = cv.panel({ owner: "me", ...under, progress: 50, eta: 12 }, 80, full).join("\n"); assert.match(p, /<review>◐<\/>/); assert.match(p, /<review>[^<]*reviewer is working/); assert.match(p, /<review>[^<]*3rd review/); assert.match(p, /<review>[█░]/); assert.doesNotMatch(p, /<(green|yellow)>/, "neither the green of passed nor the agent's amber"); }
+    for (const full of [false, true]) { const p = cv.panel({ owner: "me", ...under, progress: 50, eta: 12 }, 80, full).join("\n"); assert.match(p, /<review>◑<\/>/); assert.doesNotMatch(p, /◐/); assert.match(p, /<review>[^<]*reviewer is working/); assert.match(p, /<review>[^<]*3rd review/); assert.match(p, /<review>[█░]/); assert.doesNotMatch(p, /<(green|yellow)>/, "neither the green of passed nor the agent's amber"); }
     assert.match(cv.panel({ owner: "me", ...working }, 80, false).join("\n"), /<yellow>◐<\/>/); // the agent at work stays amber
-    cv.reply = true; cv.replyId = under.id; assert.match(cv.chatLines(80, under).join("\n"), /<review>◐<\/>/); assert.doesNotMatch(cv.chatLines(80, under).join("\n"), /<(green|yellow)>/);
+    cv.reply = true; cv.replyId = under.id; assert.match(cv.chatLines(80, under).join("\n"), /<review>◑<\/>/); assert.doesNotMatch(cv.chatLines(80, under).join("\n"), /<(green|yellow)>/);
   }
   // another row's long sentence or progress does not take the verdict away
   assert.match(row(pr, 80, [pr, working]), /^ ✓ Build a flying game +R#1 PR#12 {2}0s ago\n {3}3\/5 reviewer says no$/);

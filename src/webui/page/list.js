@@ -2,7 +2,7 @@
 // from the board (webui/list-model.js): this file only lays it out.
 import { h, ink, said } from "./dom.js";
 
-const MARK = { "●": "working", "◆": "blocked", "✓": "done", "✕": "error", "○": "idle", "·": "idle" };
+const MARK = { "●": "working", "◑": "working", "◒": "working", "◆": "blocked", "✓": "done", "✕": "error", "○": "idle", "·": "idle" };
 
 export function rowEl(r, { selected, onPick }) {
   const tags = h("span.sw-tags", r.review?.length ? ink(r.review, "sw-tag") : null,

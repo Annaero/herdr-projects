@@ -37,7 +37,7 @@ test("narrow screen: a live row's third line has the bar, the percent, the minut
     rows.forEach((lines, n) => { assert.equal(lines.length, n === 1 ? 3 + long : 3, note); assert.ok(lines.every((l) => l.length <= width), note); assert.equal(lines.at(-1).length, width, note); });
     // Line 1 is the mark and the name with the whole width: nothing beside it.
     assert.equal(rows[0][0].trimEnd(), " ◐ Agent at work"); assert.equal(rows[2][0].trimEnd(), " ✓ Good work"); assert.equal(rows[3][0].trimEnd(), " ◐ Brand new");
-    assert.equal(rows[1].slice(0, 1 + long).map((l) => l.trim().replace(/^◐ /, "")).join(" "), review.title, note);
+    assert.equal(rows[1].slice(0, 1 + long).map((l) => l.trim().replace(/^◑ /, "")).join(" "), review.title, note);
     // Then what the task says, as on a wide screen.
     assert.deepEqual(rows.map((lines) => lines.at(-2).trimEnd()), ["   Reading the panel and its tests.", "   Running the tests", "   Pass · 1 minor", "   Just started"]);
     for (const lines of rows) lines[2] = lines.at(-1);
@@ -77,7 +77,7 @@ test("the third line is there under 80 columns of screen and gone from 80 on, fo
   assert.match(wide.find((l) => /Finished/.test(l)), /^ ✓ Finished +R#1 PR#3 +2h$/); assert.match(wide.find((l) => /Not begun/.test(l)), /^ ○ Not begun +2h$/);
   // At 80 the columns sit beside a name of 40 cells: the widest of each kind, bar and all.
   const full = [{ ...agent, title: "A".repeat(40), eta: 120, reviewRound: 12, stage: "reviewing", pr: 123 }];
-  assert.match(plain(v.rowLines(full[0], 80, v.rowLayout(full, 80)))[0], /^ ◐ A{40} {2}[█░]{8} {2}40% 120m {2}R#12 PR#123 {2}2h$/);
+  assert.match(plain(v.rowLines(full[0], 80, v.rowLayout(full, 80)))[0], /^ ◑ A{40} {2}[█░]{8} {2}40% 120m {2}R#12 PR#123 {2}2h$/);
 });
 
 test("in a width too small for all of the third line the time stays and nothing runs off the edge", () => {

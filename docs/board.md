@@ -18,7 +18,8 @@ counts the rest (`… 73 more (? shows all done)`) is under them, at the bottom,
 `↓` follow the order shown, and changing the grouping keeps the selected task selected. The archive (`Alt+A`) is a
 list of its own, newest first, and no part of this order.
 
-Each state has a mark of its own (`◐` working, `×` needs you, `✗` went wrong, `✓` done or ready, `○` to do), so no
+Each state has a mark of its own (`◐` the agent is working, `◑` the reviewer is working, `◒` the board
+itself is on it, `×` needs you, `✗` went wrong, `✓` done or ready, `○` to do), so no
 two are told apart by colour alone (herdr's `status_indicators = "dots"` brings its dots back). A row reads: the
 name, then on the right two groups with a wider gap between them: the progress (the bar, the percent and the minutes
 left), and then the review, the pull request and the time:
@@ -144,9 +145,12 @@ empty. (In a list squeezed to a single line, the selected task shows its name.)
 **Each colour has one meaning.** Amber: the agent is working. Blue: the reviewer is working. Green: it passed and is
 ready for you. Red: it failed, or it needs you. For as long as the reviewer works, the row's mark, its bar, the
 percent, the minutes left and the `R#` tag are blue, and so are the same things in the task panel, on the details
-screen and on the chat line. So a blue `◐` with a bar says a review is running, an amber one that the agent is at
-work, and a green `✓` that the task is ready for you. A group's heading keeps the colour of its group: a task under
-review is filed under `working`.
+screen and on the chat line. The mark says it without colour too: the half moon faces the other way, `◑`, while the
+reviewer works, and is the agent's `◐` again once the task goes back to its agent. The board's own steps (starting,
+setting up, running the check, pushing, merging) share a third one, `◒`. A task that only waits keeps the plain
+`◐`: for a free slot, to try again after a turn was cut off, for its check's turn or for its turn to merge. So a
+blue `◑` with a bar says a review is running, an amber `◐` that the agent is at work, and a green `✓` that the task
+is ready for you. A group's heading keeps the colour of its group: a task under review is filed under `working`.
 
 The blue is the theme's own `blue` where that one is told apart from everything it sits beside: the theme's green,
 its red, its amber, the light blue of herdr's own dot for done and idle (its `teal`), muted text, plain text and the
@@ -223,7 +227,7 @@ come from how long its last full runs took on this machine. How a check reports,
 do: [the check's progress](check-progress.md).
 
 ```
- ◐ Add a greeting                                    █████░░░  65%  3m       9m
+ ◒ Add a greeting                                    █████░░░  65%  3m       9m
    running the check · tests 31 of 47
  ◐ Fix the footer                                                     6m       2m
    waiting for its turn · 2 ahead

@@ -109,7 +109,7 @@ follows light and dark and every palette of the web UI by itself.
 
 | On the terminal board | On the web board |
 |---|---|
-| the list, its groups, marks, progress, review and pull request tags | the same list; a pull request's tag is a link |
+| the list, its groups, marks, progress, review and pull request tags | the same list; a pull request's tag is a link. The agent at work is the web UI's dot `●`; the reviewer at work `◑` and the board's own steps `◒` are the terminal board's marks |
 | moving between tasks | tap a task: it opens, whole |
 | the task panel: status, what it needs from you, suggested tasks, description, reviews, evidence, what the agent said, settings, session | the open task, every part, evidence as links |
 | the hint line: what can be done to the selected task now | the buttons at the top of the open task, in the same words |
