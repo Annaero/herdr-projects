@@ -322,6 +322,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `board-keys.test.js` | The board's keys, and the text box owning the keyboard |
 | `board-layout.test.js` | The whole screen: the chat pinned to the bottom, through a resize |
 | `board-list.test.js` | The task list: the header, the groups, the done list |
+| `board-needs.test.js` | A task that waits for you says what it needs: its mark (? an answer, ! a yes or no, ⚷ a sign-in) and the words beside it, on a row, in the task panel, in the chat and on the web board; never the look of one that went… |
 | `board-order.test.js` | The order of the list: what waits for you, then what is being worked on, then to do, and done last |
 | `board-panel.test.js` | The task panel: beside the list and full screen |
 | `board-reply.test.js` | Replying to a task's agent: who gets your words, and words put away |

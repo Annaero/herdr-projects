@@ -41,7 +41,7 @@ test("the web board shows the terminal board's list: the same groups, order, mar
     assert.deepEqual(s.list.groups.map((g) => [g.name, ...g.rows.map((r) => r.id)]), want);
     assert.deepEqual(s.list.groups.map((g) => [g.name, g.color]), [["ready to approve", "green"], ["working", "yellow"], ["to do", "overlay0"]]);
     const [ready, working, todo] = rowsOf(s.list);
-    assert.deepEqual([ready.title, ready.mark, ready.color, plain(term.sentence(term.items.find((r) => r.id === id)).text)], ["Make f", "✓", "green", ready.says.map((p) => p.t).join("")]);
+    assert.deepEqual([ready.title, ready.mark, ready.color, plain(term.sentence(term.items.find((r) => r.id === id)).text)], ["Make f", "!", "green", ready.says.map((p) => p.t).join("")]);
     assert.equal(ready.says.map((p) => p.t).join(""), "Pass · 1 minor"); assert.equal(ready.says[0].c, "green"); assert.deepEqual(ready.review, [{ t: "R#1", c: "green" }]); assert.match(ready.time, /^\d+s ago$/);
     assert.deepEqual([working.progress, working.percent, working.says.map((p) => p.t).join(""), working.strong, working.live], [40, "40%", "Drafting", true, true]);
     assert.deepEqual([todo.progress, todo.says, todo.live, todo.mark], [null, [], false, "○"]);
@@ -56,7 +56,7 @@ test("the web board shows the terminal board's list: the same groups, order, mar
     s = CALLS.pick.run(v, { id, open: true });
     assert.equal(s.list.selected, id); assert.equal(s.panel.title, "Make f"); assert.deepEqual(s.panel.parts.map((p) => p.head), ["Status", "Description", "Review", "The agent said", "Settings", "Session"]);
     const fact = (head, label) => s.panel.parts.find((p) => p.head === head).items.find((x) => x.label === label);
-    assert.equal(fact("Status", "State").lines[0].map((p) => p.t).join(""), `✓ ready to approve · ${ready.time}`); assert.equal(fact("Status", "State").lines[0][2].c, "green");
+    assert.equal(fact("Status", "State").lines[0].map((p) => p.t).join(""), `! ready to approve · ${ready.time}`); assert.equal(fact("Status", "State").lines[0][2].c, "green");
     assert.match(fact("Review", "Review 1").lines.map((l) => l.map((p) => p.t).join("")).join("|"), /^✓ Pass · 1 minor · \d+s ago · [0-9a-f]{7}\|Good\.$/);
     assert.match(fact("Review", "Findings").lines[0].map((p) => p.t).join(""), /^minor +f\.txt has no title \(f\.txt\) · not required$/);
     assert.equal(fact("Settings", "Merge").lines[0][0].t, "after your yes");

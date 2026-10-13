@@ -168,15 +168,21 @@ test("the board paints with what it read: true colour, the terminal's 16 colours
     assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.line("a"), "a");
     assert.equal(theme.muted("x"), "\x1b[2m\x1b[37mx\x1b[39m\x1b[22m"); // this theme's grey is most terminals' text colour: greyed-out words are faint too
     assert.equal(theme.selected("x"), "\x1b[100mx\x1b[49m"); // no selection colour in this theme: herdr's active row colour
-    assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map(theme.mark), ["◐", "◑", "◒", "×", "✓", "○", "✗"]);
+    assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map((s) => theme.mark(s)), ["◐", "◑", "◒", "!", "✓", "○", "✗"]);
     setTerminal(true);
     assert.equal(theme.fg("red", "x"), "\x1b[38;2;210;15;57mx\x1b[39m"); assert.equal(theme.selected("x"), "\x1b[48;2;189;208;245mx\x1b[49m");
     process.env.HERDR_CONFIG_PATH = cfg("");
     assert.equal(loadTheme(), false); // the terminal's own colours, whatever they are: nothing to ask
     // A symbol of its own for each state is the board's default: no two states are told apart by colour alone.
-    assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map(theme.mark), ["◐", "◑", "◒", "×", "✓", "○", "✗"]);
+    assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map((s) => theme.mark(s)), ["◐", "◑", "◒", "!", "✓", "○", "✗"]);
+    // A task that waits for you says what it needs: an answer, a yes or no, a sign-in; `!` where the kind is not known.
+    // None of them is a cross: that is for what went wrong, and told from it by the mark alone, with colour off too.
+    const needs = ["question", "permission", "auth", undefined, "nonsense"].map((k) => theme.mark("blocked", k));
+    assert.deepEqual(needs, ["?", "!", "⚷", "!", "!"]); assert.ok(needs.every((m) => !"×✗✕".includes(m) && m !== theme.mark("error")));
+    assert.equal(theme.mark("error", "question"), "✗"); assert.equal(theme.mark("working", "auth"), "◐"); // the kind belongs to blocked only
     process.env.HERDR_CONFIG_PATH = cfg(`[ui]\nstatus_indicators = "dots"\n`); loadTheme(); // herdr's dots only when its config asks for them by name
-    assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map(theme.mark), ["●", "●", "●", "●", "●", "○", "✗"]);
+    assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map((s) => theme.mark(s)), ["●", "●", "●", "!", "●", "○", "✗"]);
+    assert.deepEqual(["question", "permission", "auth", undefined].map((k) => theme.mark("blocked", k)), ["?", "!", "⚷", "!"]); // what a task needs is said with dots too
     process.env.HERDR_CONFIG_PATH = cfg(""); loadTheme();
     // No theme set here: the terminal's colours and its own text colour.
     assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.fg("teal", "x"), "\x1b[36mx\x1b[39m"); assert.equal(theme.line("a b"), "a b");

@@ -36,7 +36,7 @@ test("narrow screen: a live row's third line has the bar, the percent, the minut
     const long = width < 3 + review.title.length ? 1 : 0;
     rows.forEach((lines, n) => { assert.equal(lines.length, n === 1 ? 3 + long : 3, note); assert.ok(lines.every((l) => l.length <= width), note); assert.equal(lines.at(-1).length, width, note); });
     // Line 1 is the mark and the name with the whole width: nothing beside it.
-    assert.equal(rows[0][0].trimEnd(), " ◐ Agent at work"); assert.equal(rows[2][0].trimEnd(), " ✓ Good work"); assert.equal(rows[3][0].trimEnd(), " ◐ Brand new");
+    assert.equal(rows[0][0].trimEnd(), " ◐ Agent at work"); assert.equal(rows[2][0].trimEnd(), " ! Good work"); assert.equal(rows[3][0].trimEnd(), " ◐ Brand new");
     assert.equal(rows[1].slice(0, 1 + long).map((l) => l.trim().replace(/^◑ /, "")).join(" "), review.title, note);
     // Then what the task says, as on a wide screen.
     assert.deepEqual(rows.map((lines) => lines.at(-2).trimEnd()), ["   Reading the panel and its tests.", "   Running the tests", "   Pass · 1 minor", "   Just started"]);

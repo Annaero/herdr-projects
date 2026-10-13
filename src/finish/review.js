@@ -145,7 +145,8 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
     error = `${e.message || e}`.replace(/\s+/g, " ").slice(0, 400);
   }
   // Put back anything the reviewer changed: what you approve is exactly what the agent committed.
-  if (toLand) { try { S.gitOut(folder, ["reset", "--hard", change.head]); S.gitOut(folder, ["clean", "-fd"]); } catch {} }
+  // Asked first, so a reviewer that changed nothing (nearly every one) costs one git program, not two.
+  if (toLand && (F.headOf(folder) !== change.head || F.dirty(folder))) { try { S.gitOut(folder, ["reset", "--hard", change.head]); S.gitOut(folder, ["clean", "-fd"]); } catch {} }
   await closeReviewer(id);
   try { if (S.get(id).stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "Review complete" }); } } catch (e) { if (e.aborted) return { aborted: true }; }
   if (!review && cut) {

@@ -21,7 +21,7 @@ Both have the same parts, in the same order, and **one form for every part**:
  Max length for task titles
 
  Status ─────────────────────────────────────────────
- State        ✓ ready to approve · 4th review · 2m ago
+ State        ! ready to approve · 4th review · 2m ago
  On it        claude
  Change       PR#60 · 19 files, +340 −27
  Task         proj/84

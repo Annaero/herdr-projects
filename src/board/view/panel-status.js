@@ -1,12 +1,12 @@
 // The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you.
 import * as S from "../../store.js";
 import { clean, age, prNumber, prTag, merged, idLabel, bar } from "./words.js";
-import { reviewing, groupOf, waitOf, reviewerWord } from "./states.js";
+import { reviewing, standing, waitOf, reviewerWord, NEEDS } from "./states.js";
 import { roundWords, reviewNote } from "./review-words.js";
 import { name as keyName } from "../keys.js";
 import { madeByWords } from "../../automations/told.js";
 
-const ASKS = { question: "Asks you", permission: "Asks for your OK", auth: "Needs a login" };
+const asks = (kind) => (NEEDS[kind] ? NEEDS[kind][0].toUpperCase() + NEEDS[kind].slice(1) : "Needs you");
 // The facts under Status, in the order they are drawn. In a short window they go from the last of GIVE.
 const ORDER = ["head", "state", "progress", "now", "who", "made", "change", "task"];
 
@@ -20,7 +20,7 @@ export class PanelStatus {
     // now, wrapped whole; who is on it; the change, its pull request in the colour of its checks; the task's id.
     const when = `${r.state === "working" ? "for " : ""}${age(Date.now() - (r.at || Date.now()))}${r.state === "working" ? "" : " ago"}`;
     const rows = { head: [head("Status")] };
-    rows.state = fact("State", flow([this.mark(r) + " " + t.fg(c, t.bold(r.archivedAt ? "archived" : underReview ? reviewerWord(r) : groupOf(r))), (reviewing(r) || r.stage === "approval") && roundWords(r) ? t.fg(c, roundWords(r)) : "", dim(when)]));
+    rows.state = fact("State", flow([this.mark(r) + " " + t.fg(c, t.bold(r.archivedAt ? "archived" : underReview ? reviewerWord(r) : standing(r))), (reviewing(r) || r.stage === "approval") && roundWords(r) ? t.fg(c, roundWords(r)) : "", dim(when)]));
     const pct = ` ${r.progress}%`, eta = r.eta !== undefined ? `${r.eta}m left` : ""; // the bar takes what the numbers leave
     const beside = room - pct.length - (eta ? eta.length + 3 : 0); // with the minutes left on the same line, when a bar still fits
     if (r.progress !== undefined && r.state !== "done") rows.progress = fact("Progress", flow([t.fg(c, bar(r.progress, Math.max(1, Math.min(24, beside >= 8 ? beside : room - pct.length))) + pct), eta && t.fg(c, eta)]));
@@ -52,10 +52,10 @@ export class PanelStatus {
       alert(c, "Cut off", `Trying again by itself. ${note}. A reply, ${keyName("sendBack")} or ${keyName("yes")} tells the agent to continue right away.`, [["Cut off by", waitOf(r).error || failure.detail]]);
     } else if (failure) {
       told = failure.detail;
-      alert("red", "Went wrong", `${failure.title}\n${failure.sentAt ? "Sent to the agent. Kept here until it works." : failure.agentCanFix ? `The agent can fix this: ${keyName("sendBack")} sends it.` : "This needs you first."}`, [["Next step", failure.next || "Find the cause and fix it."], ["Details", failure.detail]]);
+      alert("red", r.kind === "auth" ? asks("auth") : "Went wrong", `${failure.title}\n${failure.sentAt ? "Sent to the agent. Kept here until it works." : failure.agentCanFix ? `The agent can fix this: ${keyName("sendBack")} sends it.` : "This needs you first."}`, [["Next step", failure.next || "Find the cause and fix it."], ["Details", failure.detail]]);
     } else if (approval && r.syncBlocked) alert("peach", "Behind main", `Cannot be approved yet: ${r.syncBlocked.why}. The board keeps trying to bring it up to date.`);
     else if (approval) { /* the state says it: ready to approve */ }
-    else if (r.state === "blocked") { told = note || said || ""; alert("red", ASKS[r.kind] || "Needs you", told); }
+    else if (r.state === "blocked") { told = note || said || ""; alert("red", asks(r.kind), told); }
     else if (r.state === "error") { told = (r.stage === "nosummary" ? r.screen : "") || note || said || "It failed"; alert("red", r.stage === "nosummary" ? "Stopped without a summary" : "Went wrong", told); }
     return { title, top, told };
   }

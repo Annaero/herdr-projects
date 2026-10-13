@@ -73,7 +73,7 @@ export function syncMain(t, tree) {
         if (!gone) return { status: "skip", onto, want: t.syncBranch };
         adopt = true;
       }
-      target = git(root, ["rev-parse", "HEAD"]); base = onto || "HEAD";
+      target = F.headOf(root) || git(root, ["rev-parse", "HEAD"]); base = onto || "HEAD";
     }
   } catch (e) { return { status: "error", detail: outputOf(e) }; }
   const seen = onto === null ? target : `${target} ${onto}`;

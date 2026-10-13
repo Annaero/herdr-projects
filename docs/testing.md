@@ -118,8 +118,9 @@ The check fails when a file uses a name it neither defines nor imports (`artifac
 left behind when code moves to another file), and names the file and the line. Such a fault is otherwise found only
 when that line runs. It is part of the guard (`test/guard.test.js`), so it runs on any change, over every file in
 `src`, `bin` and `scripts` (a test file runs from top to bottom in every check, which finds the same there); by hand:
-`node scripts/names.js`. It is eslint with the one rule `no-undef`, the
-repo's only development dependency (`npm ci` installs it).
+`node scripts/names.js`. It reads each file with the parser and the scope reading that eslint's `no-undef` rule is
+built on (`espree`, `eslint-scope`), without the linter around them, which took three times the processor time; the
+two are the repo's only development dependencies (`npm ci` installs them).
 
 ## Light tests
 

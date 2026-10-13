@@ -49,7 +49,9 @@ export function changeOf(t) {
   for (const from of [t.syncedTo, t.baseSha || t.from || "HEAD"].filter(Boolean)) {
     try {
       const range = `${from}...HEAD`;
-      return { stat: S.gitOut(t.worktree, ["diff", "--shortstat", range]), diff: S.gitOut(t.worktree, ["diff", "--stat", range]), head: S.gitOut(t.worktree, ["rev-parse", "HEAD"]), range };
+      // One git program, not three: the last line of `--stat` is what `--shortstat` prints, and the commit is read from git's own files.
+      const diff = S.gitOut(t.worktree, ["diff", "--stat", range]);
+      return { stat: diff.split("\n").pop().trim(), diff, head: headOf(t.worktree) || S.gitOut(t.worktree, ["rev-parse", "HEAD"]), range };
     } catch {}
   }
   return null;

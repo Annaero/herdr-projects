@@ -111,7 +111,7 @@ test("one row with no room for its bar takes the bar off every row of its sectio
   const two = [five[2], five[4], { ...ready, id: "p/8", title: "Rewrite the whole of the first-run screen and what it asks", progress: 100, pr: 7 }, { ...ready, id: "p/9", title: "Add an undo", progress: 100, pr: 12 }];
   lines = draw(v, two, 91);
   assert.match(lines[0], /^ ◐ Coordinator as a tab in the home space +█{6}░░ {2}72% {2}3m {13}2h {4}$/); assert.match(lines[1], /[█░]{8}/);
-  assert.match(lines[2], /^ ✓ Rewrite the whole of the first-run screen and what it asks +100% +PR#7 +2h ago$/); assert.match(lines[3], /^ ✓ Add an undo +100% +PR#12 +2h ago$/); // its bar went with its neighbour's
+  assert.match(lines[2], /^ ! Rewrite the whole of the first-run screen and what it asks +100% +PR#7 +2h ago$/); assert.match(lines[3], /^ ! Add an undo +100% +PR#12 +2h ago$/); // its bar went with its neighbour's
   // One column down the whole list, whatever each section shows of it.
   assert.equal(lines[1].indexOf("PR#61"), lines[2].indexOf("PR#7")); assert.equal(lines[2].indexOf("PR#7"), lines[3].indexOf("PR#12")); assert.equal(lines[0].indexOf("72%") + 3, lines[3].indexOf("100%") + 4);
 });

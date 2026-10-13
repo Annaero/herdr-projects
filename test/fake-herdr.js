@@ -156,12 +156,27 @@ function answer(argv, env) {
     if (verb === "close") { st.workspaces = st.workspaces.filter((x) => x !== w); st.panes = st.panes.filter((p) => p.workspace_id !== w.workspace_id); dropEmptyTabs(); ok({ type: "ok" }); }
   }
   if (area === "worktree") {
-    const repoOf = (cwd) => path.dirname(git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
+    // Read from git's own files where they say it, with no program started: a checkout's `.git` is a folder, a
+    // worktree's is a file that names its own folder inside the repo's, which names the repo's in `commondir`.
+    const repoOf = (cwd) => {
+      try {
+        const dot = path.join(cwd, ".git");
+        if (fs.statSync(dot).isDirectory()) return cwd;
+        const own = path.resolve(cwd, fs.readFileSync(dot, "utf8").replace(/^gitdir:\s*/, "").trim());
+        return path.dirname(path.resolve(own, fs.readFileSync(path.join(own, "commondir"), "utf8").trim()));
+      } catch { return path.dirname(git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"])); }
+    };
+    const hasBranch = (root, branch) => {
+      if (fs.existsSync(path.join(root, ".git", "refs", "heads", branch))) return true;
+      try { if (fs.readFileSync(path.join(root, ".git", "packed-refs"), "utf8").includes(` refs/heads/${branch}\n`)) return true; } catch {}
+      if (fs.existsSync(path.join(root, ".git", "refs", "heads"))) return false;
+      try { git(root, ["rev-parse", "--verify", `refs/heads/${branch}`]); return true; } catch { return false; }
+    };
     if (verb === "create") {
       const root = repoOf(path.resolve(flag("--cwd")));
       const branch = flag("--branch");
       const dest = path.join(dir, "worktrees", path.basename(root), branch.replace(/[^A-Za-z0-9._-]+/g, "-"));
-      let exists = true; try { git(root, ["rev-parse", "--verify", `refs/heads/${branch}`]); } catch { exists = false; }
+      const exists = hasBranch(root, branch);
       git(root, exists ? ["worktree", "add", dest, branch] : ["worktree", "add", "--no-track", "-b", branch, dest, flag("--base") || "HEAD"]);
       if (!st.workspaces.some((w) => w.cwd === root)) newWorkspace(root, path.basename(root), { checkout_path: root, repo_root: root, is_linked_worktree: false });
       const made = newWorkspace(dest, flag("--label"), { checkout_path: dest, repo_root: root, is_linked_worktree: true });

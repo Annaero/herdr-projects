@@ -20,10 +20,10 @@ export class Row {
     // herdr's own marks, a different one for each state, in the colour of the task's group.
     const c = statusColor(r);
     if (r.archivedAt) return t.fg(c, t.mark("unknown"));
-    if (inReview(r)) return t.fg(c, t.bold(t.mark("done")));
+    if (inReview(r)) return t.fg(c, t.bold(t.mark("blocked", "permission"))); // waits for your yes: the mark of a yes or no, in the green of work that is ready
     if (reviewerMark(r)) return t.fg(c, t.mark("review")); // the reviewer at work: the working mark, facing the other way
     if (boardStep(r)) return t.fg(c, t.mark("board")); // a step of the board's own: one mark for all of them
-    if (r.state === "blocked") return t.fg(c, t.bold(t.mark("blocked")));
+    if (r.state === "blocked") return t.fg(c, t.bold(t.mark("blocked", r.kind))); // what it needs from you: ? an answer, ! a yes or no, ⚷ a sign-in
     if (r.state === "done") return t.dim(t.fg(c, t.mark("done"))); // finished: the same mark, only quieter
     return t.fg(c, t.mark(MARK_STATES.includes(r.state) ? r.state : "idle"));
   }

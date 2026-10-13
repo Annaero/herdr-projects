@@ -34,7 +34,9 @@ export function freeBranch(root, t) {
 // that rule, without touching a committed file. The exclude file is shared by all of the repo's worktrees.
 export function excludeRuleDir(root) {
   try {
-    const file = path.resolve(root, S.gitOut(root, ["rev-parse", "--git-path", "info/exclude"]));
+    // In a plain checkout the file is where it always is; only a worktree or another layout is asked of git.
+    const own = path.join(root, ".git", "info");
+    const file = fs.existsSync(own) ? path.join(own, "exclude") : path.resolve(root, S.gitOut(root, ["rev-parse", "--git-path", "info/exclude"]));
     const cur = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
     if (cur.split("\n").some((l) => l.trim() === `${F.RULE_DIR}/`)) return;
     fs.mkdirSync(path.dirname(file), { recursive: true });

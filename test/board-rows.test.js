@@ -115,7 +115,7 @@ test("a row with no PR and no bar uses the empty space on its right, also with c
   // an empty cell wrapped in colour codes is not empty, and was taken for a column the row had to leave room for.)
   for (const width of [80, 100, 150]) {
     const [line, under] = v.rowLines(quiz, width, v.rowLayout([quiz, ...full], width, undefined, SCREEN)).map((l) => stripVTControlCharacters(l));
-    assert.match(line, /^ × Choose the palette +0s ago$/, `the time at the right edge at ${width}`);
+    assert.match(line, /^ \? Choose the palette +0s ago$/, `the time at the right edge at ${width}`);
     assert.equal(line.length, width);
     assert.equal(under, "   Sand or pebbles on the beach, and which palm?", `whole sentence at ${width}`);
   }
@@ -193,7 +193,7 @@ test("a row with nothing to say yet keeps its second line: rows do not change he
   // A working task: "Just started" until its first words, never a bare "…". One that waits with nothing to say: an empty line.
   assert.deepEqual(plain(v.rowLines(silent, 60, v.rowLayout([silent], 60, undefined, SCREEN))), [" ◐ New one" + " ".repeat(48) + "2h", "   Just started"]);
   assert.equal(plain(v.rowLines({ ...silent, msg: "" }, 60, v.rowLayout([silent], 60, undefined, SCREEN)))[1].trim(), ""); // a board of an older version says nothing: an empty line
-  assert.deepEqual(plain(v.rowLines(waits, 60, v.rowLayout([waits], 60, undefined, SCREEN))).map((l) => l.trimEnd()), [" ✓ Never reviewed" + " ".repeat(37) + "2h ago", ""]);
+  assert.deepEqual(plain(v.rowLines(waits, 60, v.rowLayout([waits], 60, undefined, SCREEN))).map((l) => l.trimEnd()), [" ! Never reviewed" + " ".repeat(37) + "2h ago", ""]);
   const before = plain(v.listLines(60, 20, SCREEN));
   silent.msg = "Reading the code."; waits.review = pass;
   const after = plain(v.listLines(60, 20, SCREEN));

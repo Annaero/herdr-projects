@@ -32,6 +32,10 @@ export const needsYou = (r) => r.state === "blocked" || r.state === "error";
 export const waitOf = (r) => waitingOf(r);
 export const reviewerWord = (r) => (waitOf(r) ? "reviewer was cut off" : "reviewer is working");
 export const groupOf = (r) => (inReview(r) ? "ready to approve" : needsYou(r) ? "needs you" : r.state === "working" ? "working" : r.state === "done" ? "done" : "to do");
+// What a task that waits for you needs, by its kind (OSC 7501), as the State line and the chat say it beside the mark
+// (? ! ⚷, theme.js). A task that went wrong, a merge that did not go through, or one whose kind is not known, "needs you".
+export const NEEDS = { question: "asks you", permission: "asks for your OK", auth: "needs a login" };
+export const standing = (r) => (r.state === "blocked" && r.stage !== "approval" && !r.archivedAt && (!failureFor(r) || r.kind === "auth") && NEEDS[r.kind]) || groupOf(r);
 // A live task: an agent, the reviewer or the board's check is on it, or it waits for you. Its row has two lines, the
 // second for what it says (row.js); a done, to-do or archived task has nothing to say and keeps one.
 export const isLive = (r) => !r.archivedAt && ["needs you", "ready to approve", "working"].includes(groupOf(r));

@@ -150,7 +150,7 @@ test("the task panel has one form for every part, in every state and at every wi
     const side = (name) => s.v.panel(STATES[name], 70, false).map((l) => stripVTControlCharacters(l)), labels = (name) => { const l = side(name); return l.slice(l.findIndex((x) => x.startsWith(" Status ")) + 1, l.indexOf("", 3)).filter((x) => /^ \S/.test(x)).map((x) => x.slice(1, 14).trimEnd()); };
     assert.deepEqual(labels("to do"), ["State", "Task"]); assert.deepEqual(labels("working"), ["State", "Progress", "Now", "On it", "Change", "Task"]);
     assert.deepEqual(labels("reviewing"), ["State", "Progress", "Now", "Change", "Task"]); assert.deepEqual(labels("done"), ["State", "On it", "Change", "Task"]);
-    assert.match(side("waiting for approval").join("\n"), /\n State {8}✓ ready to approve · 3rd review · 1m ago\n On it {8}claude\n Change {7}PR#60 · 19 files, \+340 −27\n Task {9}proj\/1\n/);
+    assert.match(side("waiting for approval").join("\n"), /\n State {8}! ready to approve · 3rd review · 1m ago\n On it {8}claude\n Change {7}PR#60 · 19 files, \+340 −27\n Task {9}proj\/1\n/);
     assert.match(side("done").join("\n"), /\n Change {7}PR#60 merged · 19 files, \+340 −27\n/);
     // What needs you is a part of its own right under Status, and the reviews read as a history: how each went, then the latest.
     assert.match(side("failed").join("\n"), /\n Task {9}proj\/1\n\n Went wrong ─+\n Conflict with main\n The agent can fix this: ctrl\+r sends it\.\n Next step {4}Resolve the conflict\.\n Details {6}Conflicting files:\n {14}src\/board\/view\/row\.js\n\n Description ─/);

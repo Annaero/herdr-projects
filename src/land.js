@@ -266,7 +266,7 @@ export async function landCore(id, g) {
     const mess = F.dirty(root);
     if (mess) return void fail("Merge needs a clean checkout", `Checkout: ${root}\n\nUncommitted or untracked files:\n${mess}`, "Commit, stash or move your own unsaved files, then approve again. The agent must not alter your checkout.", { agentCanFix: false, auth: false });
     const onto = git(root, ["symbolic-ref", "--short", "HEAD"]);
-    const target = git(root, ["rev-parse", "HEAD"]);
+    const target = F.headOf(root) || git(root, ["rev-parse", "HEAD"]);
     const conflict = (e) => {
       let files = ""; try { files = git(root, ["diff", "--name-only", "--diff-filter=U"]); } catch {}
       const detail = `${files ? `Conflicting files:\n${files}\n\n` : ""}Task branch: ${t.branch}\nTarget branch: ${onto}\nTarget commit: ${target}\nCheckout: ${root}\n\nGit output:\n${outputOf(e)}`;

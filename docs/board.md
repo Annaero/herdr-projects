@@ -19,14 +19,34 @@ counts the rest (`… 73 more (? shows all done)`) is under them, at the bottom,
 list of its own, newest first, and no part of this order.
 
 Each state has a mark of its own (`◐` the agent is working, `◑` the reviewer is working, `◒` the board
-itself is on it, `×` needs you, `✗` went wrong, `✓` done or ready, `○` to do), so no
-two are told apart by colour alone (herdr's `status_indicators = "dots"` brings its dots back). A row reads: the
+itself is on it, `✗` went wrong, `✓` done, `○` to do), so no
+two are told apart by colour alone (herdr's `status_indicators = "dots"` brings its dots back for working and done;
+what a waiting task needs keeps its mark with dots too).
+
+A task that waits for you is not one that failed, so its mark is never a cross. It says what the task needs, the
+`kind` of the terminal program-status spec ([OSC 7501](https://mitchellh.com/writing/program-status-osc7501)):
+
+| Mark | It needs | Its State line |
+|---|---|---|
+| `?` | an answer: the agent asks something and waits | `asks you` |
+| `!` | a yes or no: a permission dialog, a merge that did not go through | `asks for your OK` |
+| `!` in green | your yes to merge finished work (under `ready to approve`, in its green) | `ready to approve` |
+| `⚷` | a sign-in: the agent's program is logged out | `needs a login` |
+| `!` | you, and the board cannot tell for what (the kind is not known) | `needs you` |
+| `✗` | nothing of these: it went wrong | `needs you` |
+
+All but the green one are under `needs you` and in its colour, red; with colour off (`NO_COLOR`) the mark alone tells a task
+that waits from one that went wrong. The key is U+26B7, one column wide in terminal fonts; the web board draws the
+same marks. The records the board writes to the terminal carry no mark: they name the state and the kind
+(`state=blocked:kind=question`) and the terminal draws its own.
+
+A row reads: the
 name, then on the right two groups with a wider gap between them: the progress (the bar, the percent and the minutes
 left), and then the review, the pull request and the time:
 
 ```
  ready to approve
- ✓ Add an undo for clear                                              R#2 PR#18 12m ago
+ ! Add an undo for clear                                              R#2 PR#18 12m ago
    Fail · 1 critical, 1 major
  working
  ◐ Tidy the first-run questions                      ███░░░░░ 40% 12m  R#1 PR#17  5m
@@ -156,8 +176,8 @@ screen and on the chat line. The mark says it without colour too: the half moon 
 reviewer works, and is the agent's `◐` again once the task goes back to its agent. The board's own steps (starting,
 setting up, running the check, pushing, merging) share a third one, `◒`. A task that only waits keeps the plain
 `◐`: for a free slot, to try again after a turn was cut off, for its check's turn or for its turn to merge. So a
-blue `◑` with a bar says a review is running, an amber `◐` that the agent is at work, and a green `✓` that the task
-is ready for you. A group's heading keeps the colour of its group: a task under review is filed under `working`.
+blue `◑` with a bar says a review is running, an amber `◐` that the agent is at work, and a green `!` that the task
+is ready for your yes. A group's heading keeps the colour of its group: a task under review is filed under `working`.
 
 The blue is the theme's own `blue` where that one is told apart from everything it sits beside: the theme's green,
 its red, its amber, the light blue of herdr's own dot for done and idle (its `teal`), muted text, plain text and the

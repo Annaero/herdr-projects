@@ -114,7 +114,7 @@ function reviewBlue(p) {
   return [p.blue, ...REVIEW_BLUES].find(fits) ?? any().reduce((best, c) => (least(c) > least(best) ? c : best));
 }
 
-// The board marks each state with its own symbol (◐ × ✓ ○, ◑ while the reviewer works, ◒ for the board's own steps), so no two states are told apart by colour alone. Only a
+// The board marks each state with its own symbol (◐ ✗ ✓ ○, ◑ while the reviewer works, ◒ for the board's own steps; a task that waits for you says what it needs: ? ! ⚷), so no two states are told apart by colour alone. Only a
 // herdr config that asks for "dots" by name gets herdr's dots.
 let cfg = {}, P = resolve().palette, symbols = true;
 const marksOf = (r) => !r.dots;
@@ -153,7 +153,13 @@ const sgr = (c, bg) => (c < 0 ? String((c - A < 8 ? (bg ? 40 : 30) : (bg ? 92 : 
 // `ui.status_indicators` says "dots". A failure has no herdr state; it takes the cross herdr's own CLI prints.
 // The reviewer at work and the board's own steps have none either: they take the working mark turned another way
 // (◑ the reviewer, ◒ the board), and the agent's keeps herdr's.
-const MARKS = table({ working: ["●", "◐"], review: ["●", "◑"], board: ["●", "◒"], blocked: ["●", "×"], done: ["●", "✓"], idle: ["○", "○"], unknown: ["·", "·"], error: ["✗", "✗"] });
+// A blocked task is not a failed one, so it never takes a cross: its mark says what it needs from you (NEEDS), and
+// `!` where that is not known. Finished work that waits for your yes to merge is a yes or no too: `!`, in green (row.js).
+const MARKS = table({ working: ["●", "◐"], review: ["●", "◑"], board: ["●", "◒"], blocked: ["!", "!"], done: ["●", "✓"], idle: ["○", "○"], unknown: ["·", "·"], error: ["✗", "✗"] });
+// What a blocked task needs, by its kind (OSC 7501): an answer, a yes or no, or a sign-in. The key is U+26B7, one
+// column wide and narrow enough for one cell where the terminal's font borrows it from another.
+// herdr's dots have one dot for every blocked pane; the board says what is needed with them too, as a dot cannot.
+const NEEDS = table({ question: ["?", "?"], permission: ["!", "!"], auth: ["⚷", "⚷"] });
 export const theme = {
   fg(token, s) { const c = P[token]; return plain() || typeof c !== "number" ? String(s) : `\x1b[${sgr(c, false)}m${s}\x1b[39m`; },
   bg(token, s) { const c = P[token]; return plain() || typeof c !== "number" ? String(s) : `\x1b[${sgr(c, true)}m${s}\x1b[49m`; },
@@ -167,7 +173,7 @@ export const theme = {
   // own 16 colours (the "terminal" theme, whose grey is most terminals' text colour) it is faint as well, so it never
   // reads as the text beside it.
   muted(s) { const c = P.overlay0; return typeof c === "number" && c >= 0 ? this.fg("overlay0", s) : this.dim(this.fg("overlay0", s)); },
-  mark: (state) => (MARKS[state] || MARKS.unknown)[symbols ? 1 : 0],
+  mark: (state, kind) => ((state === "blocked" && NEEDS[kind]) || MARKS[state] || MARKS.unknown)[symbols ? 1 : 0],
   bold: (s) => (plain() ? String(s) : `\x1b[1m${s}\x1b[22m`),
   dim: (s) => (plain() ? String(s) : `\x1b[2m${s}\x1b[22m`),
   inverse: (s) => `\x1b[7m${s}\x1b[27m`,
