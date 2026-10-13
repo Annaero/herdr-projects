@@ -18,13 +18,12 @@ Both have the same parts, in the same order, and **one form for every part**:
   lines and whole facts give way (below), and the last line says where the rest is.
 
 ```
- Max length for task titles
+ #84 Max length for task titles
 
  Status ─────────────────────────────────────────────
- State        ! ready to approve · 4th review · 2m ago
+ State        ◆ ready to approve · 4th review · 2m ago
  On it        claude
  Change       PR#60 · 19 files, +340 −27
- Task         proj/84
 
  Description ────────────────────────────────────────
  A task title should have a maximum length.
@@ -40,20 +39,21 @@ Both have the same parts, in the same order, and **one form for every part**:
  Titles longer than 80 characters are cut between words.
 
  Settings ───────────────────────────────────────────
- Project      ~/dev/proj
- Worktree     on
- Agent        claude 2.1.296 · default model, effort
- …
+ all as usual · ctrl+e shows them
 ```
 
 - **The title** is on top, by itself.
 - **Status**, where it stands, one fact a row and always in this order: `State` (its mark and word, which review
   it is on, since when), `Progress` (the bar, its percent and the minutes left), `Now` (what the agent or the
   reviewer is doing right now, wrapped whole), `On it` (who), `Made by` (the [automation](automations.md) that made it, when one did), `Change` (the pull request, in the colour of its
-  checks, and the size of the change; the number is a link, and full screen the address is printed too) and `Task`
-  (its id). A task nobody is on says what puts an agent on it (`Next`).
+  checks, and the size of the change; the number is a link, and full screen the address is printed too). A task
+  nobody is on says what puts an agent on it (`Next`). The task is named as its row names it (`#84`, or `HSW-84`), in
+  the title and in the heading of the whole-task page (`Task details  #84 "Max length for task titles"`); its id as
+  a command takes it (`proj/84`) stands once, on the whole task, with the session.
 - **What it needs from you** is a part of its own right under Status, its headline in red: `Asks you`, `Asks for
-  your OK`, `Needs a login`, or `Went wrong` with what failed, who can fix it, the `Next step` and the `Details`.
+  your OK`, `Needs a login`, `Review failed` (what the review found, and what the two keys do: send it back, or merge
+  anyway), or `Went wrong` with what failed, who can fix it, the `Next step` and the `Details`. A headline is never
+  said again as the first line under it.
   `Behind main` and `Cut off` (the board tries again by itself) are the same part in their own colour, and an
   archived task says so there.
 - **The description**: whole on the full screen, cut after about 400 characters beside the list.
@@ -63,31 +63,40 @@ Both have the same parts, in the same order, and **one form for every part**:
   headline says so: `The reviewer says`. When the review ends it is the agent's again. A dialog that is only on a
   program's screen is said there in a line, with the way to it; what the chat shows, and from where, is in
   [the board](board.md).
-- **Settings**, what the task runs on, in a few rows: the project, the worktree, the agent, the reviewer, what
-  gets reviewed, what sends a review back and how many rounds, the evidence, and how it merges. A row that holds a
-  choice made for this task is in the text colour and one that comes from somewhere else is quieter. Full screen a
-  task's own choice is starred as well, and the worktree's folder is printed. A `Note` row says what the board
+- **Settings**, what the task runs on. Beside the list only what is this task's own shows, each a row, and one
+  line for the rest (`all as usual · ctrl+e shows them`): the same nine rows under every task took the place of the
+  review's findings and the agent's words. The whole task has them all: the project, the worktree, the agent, the
+  reviewer, when it is reviewed, what sends a review back and how many rounds, the evidence, and how it merges. A row
+  that holds a choice made for this task is in the text colour and one that comes from somewhere else is quieter;
+  a task's own choice is starred as well, and the worktree's folder is printed. A `Note` row says what the board
   could not use: a program that is not installed, something the repo's own file was refused, a mistake in your
   settings file.
 
 ## The settings page
 
-`Ctrl+E` on a task opens its settings full screen: every work [setting](settings.md) by its name, its value, and the
-place the value comes from.
+`Ctrl+E` on a task opens its settings full screen: every work [setting](settings.md) by its plain label, its value,
+the place the value comes from, and its name as a command takes it.
 
 ```
- Settings  proj/12
- ────────────────────────────────────────────────────────────────────
-  ↑ ↓ move · enter change · ctrl+u put back · esc back
+ Settings  #12 "Tidy the first-run questions"
+ ────────────────────────────────────────────────────────────────────────────────
+ Send back from: critical · [major] · minor · trivial
 
- ›   worker.agent           claude          built in
-   * worker.effort          high            this task
-     worker.fast            false           built in
+     Agent's program       claude    built in             worker.agent
+   * Agent's effort        high      this task            worker.effort
      …
-     review.rounds          5               you
-     merge.by               itself          your entry for proj
-     check.command          npm test        the repo's file
+▌›   Send back from        major     built in             review.mustFix
+     Rounds by itself      5         you                  review.rounds
+     Merged by             itself    your entry for proj  merge.by
+     Check command         npm test  the repo's file      check.command
 ```
+
+- The line on top is the selected row's: what it may be. A choice lists its words with the one it is now marked; a
+  switch reads `on · [off]`; anything typed says what to type (`a time, such as 90s or 15m`).
+- A setting that cannot apply to this task is not offered: fast mode, for a program that has none (only Codex has
+  one); a repo's setting, for a task in no repo. One that is this task's own all the same still shows, so that it can
+  be put back.
+- Only this page's keys act while it is open, and the hint line is its own ([keys](keys.md)).
 
 - `↑` `↓` move to a row (here they do not move between tasks).
 - `Enter` changes the row, for this task only: a switch or a choice goes to its next value and is saved at once;

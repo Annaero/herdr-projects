@@ -79,9 +79,10 @@ herdr-superwork delegate <id> --reviewer.agent claude --merge.by itself
 
 `delegate` takes any work setting for that task. A refused option changes nothing on the task.
 
-In the board, `Ctrl+E` opens the selected task's settings: move to a row, `Enter` changes it, `*` marks the rows
-that are this task's own and every other row names the place its value comes from, and `Ctrl+U` puts a row back
-([the task panel](task-panel.md)).
+In the board, `Ctrl+E` opens the selected task's settings: each row has the setting's plain label first and its name
+last, the line on top says what the selected row may be, `Enter` changes it, `*` marks the rows that are this task's
+own and every other row names the place its value comes from, and `Ctrl+U` puts a row back. What cannot apply to
+the task (fast mode for a program that has none) is not offered ([the task panel](task-panel.md)).
 
 ## The list
 
@@ -122,7 +123,7 @@ that are this task's own and every other row names the place its value comes fro
 | `repo.key` | `none` | repo entry, repo file | a short key for this repo's tasks, as `HSW` for herdr-superwork: 2 to 5 letters or digits, the first a letter, kept in capitals. With one, a task's tag on the board reads `HSW-134` instead of `#134`, and `HSW-134` (in any letter case) names the task wherever its id `herdr-superwork/134` does. `none`: no key. A key another repo already has is refused. More: [task numbers and keys](task-numbers.md) |
 | `board.agents` | `4` | you only | how many agents work at once |
 | `board.machines` | `auto` | you only | other machines: `auto` (herdr's saved machines), names (`exedev@vm-a, vm-b`) or `none` |
-| `board.open` | `tab` | you only | what the board key opens. `tab`: the board in a herdr tab of its own, which stays when you go into an agent; pressed on the board itself, the key takes you back to where you came from. `popup`: the board as herdr's popup, a framed window in the middle of herdr's screen, over whatever is there; the key again or `Esc` closes it, it closes when you go into an agent, and it is never left behind on a tab. More: [the board](board.md) |
+| `board.open` | `tab` | you only | what the board key opens. `tab`: the board in a herdr tab of its own, which stays when you go into an agent; pressed on the board itself, the key takes you back to where you came from. `popup`: the board as herdr's popup, a framed window in the middle of herdr's screen, over whatever is there (in a window under 110 columns or 30 rows it takes the whole pane: a margin would cost half the board); the key again or `Esc` closes it, as its hint line says (`esc close`), it closes when you go into an agent, and it is never left behind on a tab. More: [the board](board.md) |
 | `board.notify` | `none` | you only | when a task needs you, is ready to approve, or failed: `bell` rings the terminal bell, a command is run with `HERDR_SUPERWORK_ID`, `HERDR_SUPERWORK_TITLE` and `HERDR_SUPERWORK_EVENT` (`needs you`, `ready to approve` or `failed`) in its environment, `none` does neither |
 | `board.webUi` | `auto` | you only | the board inside the herdr web UI. `auto`: when the web UI plugin (`devswha.herdr-web-ui`) is installed, a small front door of the board's own runs in front of it and adds a Board entry to its menu; without that plugin nothing runs. `none`: never. More: [the board in the web UI](web-ui.md) |
 | `board.theme` | `herdr` | you only | the board's colours. `herdr`: herdr's own theme, read from this machine's `config.toml` and resolved as herdr does, so with no theme set there it is herdr's default (Catppuccin); `dark` or `light` picks that theme's dark or light one by hand; the name of one of herdr's themes (`nord`, `gruvbox`, … and `terminal` for the terminal's own colours) is that theme whatever the config says, for a herdr opened from another machine whose config names another one. More: [colours](colours.md) |

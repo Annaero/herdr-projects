@@ -24,14 +24,14 @@ test("the chat is pinned to the bottom of the window: tall, resized, and while t
       const lines = s.screen(120), note = `${what}, ${rows} rows`;
       assert.equal(lines.length, rows, note); // one line per row of the window: nothing is left over below
       const last = lines.length - 1, said = s.v.msg ? 1 : 0;
-      assert.match(lines[last], /^ {2}\S.* · /, note); // the hints are the last line
+      assert.match(lines[last], /^[ ▌] {1}\S.* · /, note); // the hints are the last line
       // The text box: plain between two rules, or (with a message showing) inside the one rounded box.
       const box = lines.findLastIndex((l) => /^(│ )?❯/.test(l));
       assert.ok(box > 0, note);
       const rule = lines.findLastIndex((l) => /^(─+|╰─+╯)$/.test(l));
       assert.equal(rule, last - 1 - said, note); // the text box sits right on the hints (and on what just happened)
       const head = lines.findIndex((l) => /^ \+ New task {2}/.test(l)); // where the chat block starts: who your words go to
-      assert.ok(head > 0, note); assert.match(lines[head + 1], /^(─+|╭─+╮)$/, note); // the box is right under that line
+      assert.ok(head > 0, note); assert.match(lines[head + 1], /^(─+|╭─[^\n]*╮)$/, note); // the box is right under that line
       if (rows >= 16) assert.equal(lines[head - 1].trim(), "", `${note}: an empty line sets the chat off from the list`);
       for (let n = head; n <= last; n++) assert.notEqual(lines[n].trim(), "", `${note}: an empty line inside the chat block`);
       const tasks = lines.slice(0, head).filter((l) => /Task number \d+/.test(l)).length;
@@ -48,7 +48,7 @@ test("the chat is pinned to the bottom of the window: tall, resized, and while t
     said = Array.from({ length: 6 }, (_, i) => `Line ${i + 1} of what it said.`).join("\n");
     const long = pinned(84, "long message");
     assert.equal(long.head, tall.head - 7); // its six lines, and the empty one between them and the line you type on
-    assert.deepEqual(s.screen(120).slice(long.head + 1, long.head + 10).map((l) => l.replace(/ +│$/, "")), ["╭" + "─".repeat(118) + "╮", ...Array.from({ length: 6 }, (_, i) => `│ Line ${i + 1} of what it said.`), "│", "│ ❯ what's next?"]);
+    assert.deepEqual(s.screen(120).slice(long.head + 1, long.head + 10).map((l) => l.replace(/ +│$/, "")), ["╭" + "─".repeat(118) + "╮", ...Array.from({ length: 6 }, (_, i) => `│ Line ${i + 1} of what it said.`), "│", "│ ❯ Add a task"]);
     for (const rows of [200, 30, 84]) pinned(rows, "long message, resized");
     // A draft that wraps: the box grows upwards too.
     s.type("word ".repeat(60));
@@ -99,10 +99,10 @@ test("resizing the real screen keeps the chat on the last line and the working r
       for (const l of lines) assert.ok(visibleWidth(l) <= columns, `${note}: a line is wider than the window`);
       // The bottom: the hints on the last row, and right above them the one rounded box, as wide as the window: the
       // message, an empty line, the line you type on.
-      assert.match(lines[rows - 1], /^ {2}\S/, note); assert.doesNotMatch(lines[rows - 1].trimEnd(), /·$/, note);
+      assert.match(lines[rows - 1], /^[ ▌] {1}\S/, note); assert.doesNotMatch(lines[rows - 1].trimEnd(), /·$/, note);
       const inBox = (n) => { assert.match(lines[n], /^│ .* │$/, note); assert.equal(visibleWidth(lines[n]), columns, note); return lines[n].slice(2, -2).trimEnd(); };
       assert.equal(lines[rows - 2], "╰" + "─".repeat(columns - 2) + "╯", note); assert.match(inBox(rows - 3), /^❯ /, note); assert.equal(inBox(rows - 4), "", note);
-      const head = lines.findIndex((l) => /^ ○ Coordinator/.test(l));
+      const head = lines.findIndex((l) => /^[ ▌]○ Coordinator/.test(l));
       assert.equal(lines[head + 1], "╭" + "─".repeat(columns - 2) + "╮", note);
       assert.equal(Array.from({ length: rows - 5 - head - 1 }, (_, i) => inBox(head + 2 + i)).join(" "), "Tasks 31 and 32 are both waiting.", note);
       // Who you talk to: a mark, the name, where it stands. No keys, no program, no label.
@@ -110,9 +110,9 @@ test("resizing the real screen keeps the chat on the last line and the working r
       // The working row: its columns sit at the window's right edge, however wide the window is.
       const row = lines.find((l) => /Pin the chat to the bottom/.test(l)) || "";
       if (rows >= 20) assert.ok(row, `${note}: the working row is in view`);
-      if (row && columns >= 120) { assert.match(row, /Pin the chat to the bottom +█+░+ +55% 12m {2}PR#3 {2}6m {4}$/, note); assert.equal(visibleWidth(row), columns, note); assert.match(lines[lines.indexOf(row) + 1], /^ {6,8}Checking every window size\. *$/, note); }
+      if (row && columns >= 120) { assert.match(row, /Pin the chat to the bottom +█+░+ +55% 12m left {2}PR#3 {2}6m {4}$/, note); assert.equal(visibleWidth(row), columns, note); assert.match(lines[lines.indexOf(row) + 1], /^[ ▌] {5,7}Checking every window size\. *$/, note); }
       // Under 80 columns its first line is the name alone: the columns are on its third line, the bar filling the width.
-      else if (row) { const third = lines[lines.indexOf(row) + 2] || ""; assert.match(row, /^ ◐ #\d+ Pin the chat to the bottom *$/, note); if (rows >= 20) { assert.match(third, /^ {3}█+░+ 55% 12m {2}PR#3 {2}6m$/, note); assert.equal(visibleWidth(third), columns, note); } }
+      else if (row) { const third = lines[lines.indexOf(row) + 2] || ""; assert.match(row, /^[ ▌]◐ #\d+ Pin the chat to the bottom *$/, note); if (rows >= 20) { assert.match(third, /^[ ▌] {6,8}█+░+ 55% 12m left {2}PR#3 {2}6m$/, note); assert.equal(visibleWidth(third), columns, note); } }
       // All spare height is the list's (a narrow screen's working row is one line taller).
       if (rows >= 20) assert.ok(lines.slice(0, head).filter((l) => /Task number \d+/.test(l)).length >= head - (columns < 80 ? 8 : 7), `${note}: the list fills the space above the chat`);
     }

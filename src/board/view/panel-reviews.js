@@ -22,7 +22,7 @@ export class PanelReviews {
     const hist = S.reviewHistory(r), last = hist[hist.length - 1];
     const stale = !!r.review?.stale;
     const name = (e) => `Review ${e.round}`;
-    const result = (e) => flow([verdictMark(t, e, quietReview(r, e, last)) + " " + t.bold(verdict(t, e, true, quietReview(r, e, last))), e.at ? dim(`${age(Date.now() - e.at)} ago`) : "", full && e.head ? dim(String(e.head).slice(0, 7)) : ""]);
+    const result = (e) => flow([verdictMark(t, e, quietReview(r, e, last)) + " " + t.bold(verdict(t, e, true, quietReview(r, e, last))), e.at ? dim(`${age(Date.now() - e.at)} ago`) : "", full && e.head ? dim(`at ${String(e.head).slice(0, 7)}`) : ""]); // `at abcdef1`: the commit that was reviewed
     // A review that still stood after main was merged in says so, with what ran instead: the newest time, and how often.
     const kept = (e) => { const k = (e.kept || []).at(-1); if (!k) return []; const words = S.keptWords(k, e.round); return wrap(`${words[0].toUpperCase()}${words.slice(1)}${k.at ? ` · ${age(Date.now() - k.at)} ago` : ""}${e.kept.length > 1 ? ` · ${e.kept.length} times` : ""}`, room).map((l) => dim(l)); };
     const notes = (e) => [...(e === last && stale && !e.error ? wrap("The work changed since this review.", room).map((l) => dim(l)) : []), ...kept(e)];

@@ -204,11 +204,11 @@ test("the board paints with what it read: true colour, the terminal's 16 colours
     // A task that waits for you says what it needs: an answer, a yes or no, a sign-in; `!` where the kind is not known.
     // None of them is a cross: that is for what went wrong, and told from it by the mark alone, with colour off too.
     const needs = ["question", "permission", "auth", undefined, "nonsense"].map((k) => theme.mark("blocked", k));
-    assert.deepEqual(needs, ["?", "!", "⚷", "!", "!"]); assert.ok(needs.every((m) => !"×✗✕".includes(m) && m !== theme.mark("error")));
+    assert.deepEqual(needs, ["?", "!", "@", "!", "!"]); assert.ok(needs.every((m) => !"×✗✗".includes(m) && m !== theme.mark("error")));
     assert.equal(theme.mark("error", "question"), "✗"); assert.equal(theme.mark("working", "auth"), "◐"); // the kind belongs to blocked only
     process.env.HERDR_CONFIG_PATH = cfg(`[ui]\nstatus_indicators = "dots"\n`); loadTheme(); // herdr's dots only when its config asks for them by name
     assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map((s) => theme.mark(s)), ["●", "●", "●", "!", "●", "○", "✗"]);
-    assert.deepEqual(["question", "permission", "auth", undefined].map((k) => theme.mark("blocked", k)), ["?", "!", "⚷", "!"]); // what a task needs is said with dots too
+    assert.deepEqual(["question", "permission", "auth", undefined].map((k) => theme.mark("blocked", k)), ["?", "!", "@", "!"]); // what a task needs is said with dots too
     process.env.HERDR_CONFIG_PATH = cfg(""); loadTheme();
     assert.equal(theme.fg("yellow", "x"), "\x1b[38;2;249;226;175mx\x1b[39m"); // no theme set here: herdr's default, as herdr shows it
     process.env.HERDR_CONFIG_PATH = cfg(`[theme]\nname = "terminal"\n`); loadTheme();

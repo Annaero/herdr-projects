@@ -5,7 +5,7 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import * as S from "../../store.js";
 import * as L from "../../automations/list.js";
 import { rowOf, firings, firingWords } from "../../automations/show.js";
-import { clean, short } from "./words.js";
+import { clean, short, when } from "./words.js";
 import { panelKit } from "./panel-kit.js";
 import { name as keyName } from "../keys.js";
 
@@ -22,7 +22,7 @@ export class AutomationPanel {
     part(wrap(clean(a.name)).map((l) => t.bold(l)));
     part([head("Status"),
       ...fact("State", a.on ? t.fg("green", `${t.mark("done")} ${t.bold("on")}`) : t.fg("yellow", `${t.mark("idle")} ${t.bold("off")}`) + (a.offWhy ? dim(` · ${a.offWhy}`) : dim(" · it never fires, and keeps everything"))),
-      ...fact("Trigger", r.trigger), ...(r.next ? fact("Next", `${r.next} · ${new Date(a.nextAt).toLocaleString()}`) : []),
+      ...fact("Trigger", r.trigger), ...(r.next ? fact("Next", `${r.next} · ${when(a.nextAt)}`) : []),
       ...fact("Repo", `${a.repo} · ${short(a.root)}`), ...fact("Last firing", r.last), ...(a.research ? fact("Research", "only · its tasks change nothing in the repo") : [])]);
     text("Prompt", wrap(a.prompt), 1);
     part([head("Settings"), ...(own.length ? own.flatMap((x) => wrap(`${x.name.padEnd(Math.max(...own.map((o) => o.name.length)))}  ${S.say(x.value).replace(/\s*\n\s*/g, " / ")} *`).map((l) => l.replace(/\*$/, t.fg("accent", "*")))) : wrap("None of its own: its tasks run on what any task would.").map(dim)),

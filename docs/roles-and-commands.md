@@ -46,4 +46,5 @@ words everywhere (the board's own messages and the Coordinator's closing line us
 (`proj/12: added`, or `proj/12: added, an agent is on it` with `--delegate`); `describe`, a new title and `report`
 say **updated**, with what changed (`updated (description)`, `updated (title)`, `updated (done)` for a new state);
 `delegate` says **started**; `clear` says **removed**; `archive` and `restore` say **archived** and **restored**;
-`approve` says **approved**.
+`approve` says **approved**. Work whose last review failed is refused by `approve`, with what the review found:
+`approve <id> --anyway` merges it all the same, and is for when the human said so in so many words.

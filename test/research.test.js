@@ -191,6 +191,6 @@ test("the row and the task panel say that a task is research only, and the panel
     S.update(plain.id, (t) => { t.report = { file: "report.md", link: "https://box.tail.ts.net:8750/proj/1/report/report.md", at: Date.now() }; });
     s.press("esc"); s.v.sel = plain.id; s.v.load();
     text = s.text(120);
-    assert.match(text, /│ {2}Report ─+/); assert.match(text, /↗ Open report/); assert.doesNotMatch(text, /Research only/); assert.match(text, /│ {2}Merge /);
+    assert.match(text, /│ {2}Report ─+/); assert.match(text, /↗ Open report/); assert.doesNotMatch(text, /Research only/); s.press("alt+t"); s.v.panelTop = 1e9; assert.match(s.text(120), /\n Merge /); s.press("esc");
   } finally { w.cleanup(); }
 });

@@ -120,7 +120,7 @@ test("a task that could not be brought up to date is held as behind main: no app
     assert.equal(t.stage, "approval"); assert.equal(t.syncSeen, seen, "the skipped attempt is not marked as seen"); assert.ok(t.syncRetryAt > Date.now());
     assert.equal(git(t.worktree, "rev-parse", "HEAD"), head);
     assert.match(t.syncBlocked.why, /not on its own branch/); assert.match(t.msg, /^Behind main/);
-    assert.deepEqual([stateOf(id).asReview, F.labelOf(t)], [false, "needs you"]);
+    assert.deepEqual([stateOf(id).asReview, F.labelOf(t)], [false, "behind main"]);
     assert.throws(() => A.approve(id), /behind main and cannot be approved yet/);
     assert.equal(S.get(id).stage, "approval");
     // back on its branch, and main has not moved since: the retry comes, and only then can it be approved
@@ -154,7 +154,7 @@ test("your checkout on another branch: nothing is merged into a waiting task, an
     t = await kick(id);
     assert.equal(t.stage, "approval"); assert.equal(git(t.worktree, "rev-parse", "HEAD"), head); assert.ok(!holds(t.worktree, side));
     assert.match(t.syncBlocked.why, /your checkout is on side, not on main/); assert.match(t.msg, /^Behind main/);
-    assert.deepEqual([stateOf(id).asReview, F.labelOf(t)], [false, "needs you"]);
+    assert.deepEqual([stateOf(id).asReview, F.labelOf(t)], [false, "behind main"]);
     assert.throws(() => A.approve(id), /behind main and cannot be approved yet/);
     // a new turn of the agent does not make it approvable either: it was not checked against where it would land
     A.tell(id, "Add f.txt too.");

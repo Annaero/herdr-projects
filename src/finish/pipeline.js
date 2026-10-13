@@ -10,6 +10,7 @@ import { closeReviewer, runReview } from "./review.js";
 import { runCheck } from "./check-run.js";
 import { mergesItself, byItself } from "./auto-merge.js";
 import { researchOnly, keptReport } from "./research.js";
+import { WORDS } from "../status-words.js";
 
 // "Finish anyway" on a turn that left no closing note: the screen text is the summary.
 export async function pipelineJob(id) {
@@ -177,12 +178,12 @@ export async function pipeline(id, g, text, wake, synced = null) {
   // Checked and reviewed, but not against where it would land (your checkout is on another branch): not approvable yet.
   const behind = sync?.status === "skip" ? Y.skipWhy(sync) : "";
   t = g.set((t) => { t.stage = "approval"; t.msg = behind ? Y.behindMsg(behind) : approvalMessage(t, note); if (behind) t.syncBlocked = { why: behind, at: Date.now() }; });
-  F.labelPane(t, F.labelOf(t));
+  F.labelTask(t);
 }
 // A pull-request blocker found by polling survives a passing local check: remote CI must confirm.
 function holdPrFailure(g, t) {
   if (!t.prFailure) return false;
   const h = g.set((t) => { t.stage = "approval"; t.failure = null; t.msg = `Local checks passed; pull request still blocked: ${t.prFailure.title}. Wait for remote confirmation or send the details to the agent`; });
-  F.labelPane(h, "failed");
+  F.labelTask(h, WORDS.wrong);
   return true;
 }

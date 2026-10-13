@@ -23,7 +23,7 @@ const HELP = `herdr-superwork: a work board for herdr
                                       (a refused option changes nothing on the task)
   herdr-superwork tell <id> <text>              send a message to the task's agent
   herdr-superwork stop <id>                     stop its agent
-  herdr-superwork approve <id>                  merge finished work that waits for approval
+  herdr-superwork approve <id> [--anyway]       merge finished work that waits for approval (--anyway: also when its review failed)
   herdr-superwork review <id>                   send the reviewer's findings back to the agent
   herdr-superwork retry <id>                    send the saved error back to the agent
   herdr-superwork fix <id>                      send failure details to the agent (never approves a merge)
@@ -57,7 +57,7 @@ const HELP = `herdr-superwork: a work board for herdr
 // positional arguments, --flag value, --flag (true), --no-flag (false)
 export function parse(argv) {
   const pos = [], flags = {};
-  const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "research", "every-repo"]);
+  const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "research", "every-repo", "anyway"]);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--") { pos.push(...argv.slice(i + 1)); break; }
@@ -190,7 +190,7 @@ export async function main(argv) {
     case "tell": { const r = A.tell(need(1, "an id"), need(2, "the text") && rest(2)); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "stop": { const t = A.stop(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: stopped`]; break; }
     case "start": { const t = A.startHuman(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: in progress`]; break; }
-    case "approve": { const r = A.approve(need(1, "an id")); result = [brief(shownOf(r.task.id)), r.msg]; break; }
+    case "approve": { const r = A.approve(need(1, "an id"), null, { anyway: flags.anyway === true }); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "review": { const r = A.sendReview(need(1, "an id")); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "retry": { const r = A.sendError(need(1, "an id")); result = [brief(shownOf(r.task.id)), r.msg]; break; }
     case "fix": { const r = A.sendFailure(need(1, "an id")); result = [brief(shownOf(r.task.id)), r.msg]; break; }

@@ -1,6 +1,8 @@
 // The web board's data: the same list, panel, buttons, questions and words the terminal board has, read from the
 // board's own code, and a button that presses the board's own key. The automations too: their list, one of them
 // whole, the same actions, and a firing as a link to the task it made. And other machines: the web UI's PCs (below).
+// Last, what the second UI/UX check asked of the page: a draft that keeps who it is for, a merge with no filled yes,
+// a More menu of only what applies, no terminal key on the page, and sizes a thumb can hit.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -44,7 +46,7 @@ test("the web board shows the terminal board's list: the same groups, order, mar
     assert.deepEqual(s.list.groups.map((g) => [g.name, ...g.rows.map((r) => r.id)]), want);
     assert.deepEqual(s.list.groups.map((g) => [g.name, g.color]), [["ready to approve", "green"], ["working", "yellow"], ["to do", "todo"]]);
     const [ready, working, todo] = rowsOf(s.list);
-    assert.deepEqual([ready.title, ready.mark, ready.color, plain(term.sentence(term.items.find((r) => r.id === id)).text)], ["Make f", "!", "green", ready.says.map((p) => p.t).join("")]);
+    assert.deepEqual([ready.title, ready.mark, ready.color, plain(term.sentence(term.items.find((r) => r.id === id)).text)], ["Make f", "◆", "green", ready.says.map((p) => p.t).join("")]);
     assert.equal(ready.says.map((p) => p.t).join(""), "Pass · 1 minor"); assert.equal(ready.says[0].c, "green"); assert.deepEqual(ready.review, [{ t: "R#1", c: "green" }]); assert.match(ready.time, /^\d+s ago$/);
     assert.deepEqual([working.progress, working.percent, working.says.map((p) => p.t).join(""), working.strong, working.live], [40, "40%", "Drafting", true, true]);
     assert.deepEqual([todo.progress, todo.says, todo.live, todo.mark], [null, [], false, "○"]);
@@ -59,8 +61,8 @@ test("the web board shows the terminal board's list: the same groups, order, mar
     s = CALLS.pick.run(v, { id, open: true });
     assert.equal(s.list.selected, id); assert.equal(s.panel.title, "Make f"); assert.deepEqual(s.panel.parts.map((p) => p.head), ["Status", "Description", "Review", "The agent said", "Settings", "Session"]);
     const fact = (head, label) => s.panel.parts.find((p) => p.head === head).items.find((x) => x.label === label);
-    assert.equal(fact("Status", "State").lines[0].map((p) => p.t).join(""), `! ready to approve · ${ready.time}`); assert.equal(fact("Status", "State").lines[0][2].c, "green");
-    assert.match(fact("Review", "Review 1").lines.map((l) => l.map((p) => p.t).join("")).join("|"), /^✓ Pass · 1 minor · \d+s ago · [0-9a-f]{7}\|Good\.$/);
+    assert.equal(fact("Status", "State").lines[0].map((p) => p.t).join(""), `◆ ready to approve · ${ready.time}`); assert.equal(fact("Status", "State").lines[0][2].c, "green");
+    assert.match(fact("Review", "Review 1").lines.map((l) => l.map((p) => p.t).join("")).join("|"), /^✓ Pass · 1 minor · \d+s ago · at [0-9a-f]{7}\|Good\.$/);
     assert.match(fact("Review", "Findings").lines[0].map((p) => p.t).join(""), /^minor +f\.txt has no title \(f\.txt\) · not required$/);
     assert.equal(fact("Settings", "Merge").lines[0][0].t, "after your yes");
     assert.deepEqual(s.panel.parts.find((p) => p.head === "Description").items, [{ k: "text", value: [{ t: "A file called f." }] }]);
@@ -68,7 +70,7 @@ test("the web board shows the terminal board's list: the same groups, order, mar
     assert.deepEqual(s.actions.map((b) => [b.id, b.label]), [["yes", "approve and merge this task"], ["sendBack", "send the review to the agent"], ["talk", "talk to the agent"]]);
     assert.equal(s.canOpen, true);
     assert.ok(s.menu.some((m) => m.id === "archive" && m.label === "archive this task") && s.menu.some((m) => m.id === "scope")); assert.equal(s.menu.some((m) => TERMINAL_ONLY.includes(m.id)), false);
-    assert.deepEqual([s.send.enter, s.send.delegate, s.send.place], ["add it as a task", "add it and put an agent on it", "what's next?"]);
+    assert.deepEqual([s.send.enter, s.send.delegate, s.send.place], ["add it as a task", "add it and put an agent on it", "Add a task"]);
     // a panel line read back: a headline, a fact (its value may be as grey as its label), what goes on under it, a text
     const t = webTheme, kinds = (line) => readLine(line).k;
     assert.deepEqual(readLine(` ${t.fg("red", t.bold("Asks you"))} ${t.fg("surface1", "────")}`), { k: "head", text: "Asks you", color: "red" });
@@ -96,7 +98,8 @@ test("a button presses the board's own key: a merge asks first, the answer is a 
     CALLS.pick.run(v, { id, open: true });
     // yes: the board asks before a merge, on the page too; no answers it and nothing happened
     let s = CALLS.press.run(v, { id: "yes", ...drive });
-    assert.deepEqual(s.ask, { q: 'Merge "Make f"?', detail: "", keys: [{ id: "sayYes", label: "yes" }, { id: "sayNo", label: "no" }] }); assert.deepEqual(s.actions, []);
+    // (It names the task, where it lands and that it cannot be undone; `danger`: neither answer is the filled button.)
+    assert.deepEqual(s.ask, { q: 'Merge #1 "Make f" into main?', detail: "A merge cannot be undone.", danger: true, keys: [{ id: "sayYes", label: "merge" }, { id: "sayNo", label: "do not merge" }] }); assert.deepEqual(s.actions, []);
     s = CALLS.press.run(v, { id: "sayNo", ...drive }); assert.equal(s.ask, null); assert.equal(S.get(id).stage, "approval"); assert.equal(s.draft, "");
     assert.equal(snapshot(viewOf("desk")).ask, null); // the other browser was never asked
     CALLS.press.run(v, { id: "yes", ...drive }); s = CALLS.press.run(v, { id: "sayYes", ...drive });
@@ -114,9 +117,9 @@ test("a button presses the board's own key: a merge asks first, the answer is a 
     // the board's words name a button, not a key, on the page
     CALLS.send.run(v, { text: "Sort the notes", ...drive }); const plainTask = S.list().find((t) => t.title === "Sort the notes");
     s = CALLS.pick.run(v, { id: plainTask.id, open: true });
-    assert.match(s.panel.parts[0].items.find((x) => x.label === "Next").lines[0][0].t, /^No agent is on this yet\. “Put an agent on it” puts one on it\.$/);
+    assert.match(s.panel.parts[0].items.find((x) => x.label === "Next").lines[0][0].t, /^No agent is on this yet\. “Put an agent on this task” puts one on it\.$/);
     assert.deepEqual(s.actions.map((b) => b.id), ["delegate", "talk"]);
-    s = CALLS.press.run(v, { id: "stop", ...drive }); assert.match(s.ask.q, /^Remove "Sort the notes"\?/); s = CALLS.press.run(v, { id: "back", ...drive }); assert.equal(s.ask, null); assert.ok(S.get(plainTask.id));
+    s = CALLS.press.run(v, { id: "stop", ...drive }); assert.match(s.ask.q, /^Remove #\d+ "Sort the notes"\?/); s = CALLS.press.run(v, { id: "back", ...drive }); assert.equal(s.ask, null); assert.ok(S.get(plainTask.id));
     // find narrows the list; an empty one shows everything again
     s = CALLS.find.run(v, { text: "readme" }); assert.deepEqual(rowsOf(s.list).map((r) => r.title), ["Tidy the readme"]); assert.equal(s.flags.filter, "readme");
     s = CALLS.find.run(v, { text: "" }); assert.equal(rowsOf(s.list).length, 5);
@@ -173,7 +176,7 @@ test("the web board has the automations: the list, one of them whole, the button
     assert.throws(() => CALLS.press.run(v, { id: "delegate", role: "watch" }), /This device can only watch/);
     // run it now: a task is made and started, and the firing is a link to it
     s = CALLS.press.run(v, { id: "delegate", ...drive });
-    assert.match(s.msg.text, /"Look for old dependencies" fired: proj\/1 was added and an agent is on it\./); assert.equal(S.get("proj/1").stage, "starting");
+    assert.match(s.msg.text, /"Look for old dependencies" fired: #1 was added and an agent is on it\./); assert.equal(S.get("proj/1").stage, "starting");
     fire(a, { kind: "schedule" }); s = snapshot(v);
     const lines = s.panel.parts.find((p) => p.head === "Firings").items;
     assert.deepEqual(lines.map((x) => x.go || ""), ["", "proj/1"]); assert.match(texts({ items: lines })[0], /skipped: its last task, proj\/1, is still being worked on/);
@@ -266,6 +269,18 @@ test("the web page's chat line shows only what there is: with no task's tag (the
     { const css = (await import("node:fs")).readFileSync(new URL("../src/webui/page/board.css", import.meta.url), "utf8"); for (const c of ["text", "red", "green", "yellow", "teal", "review", "check", "todo", "overlay0"]) assert.ok(css.includes(`.sw-input.sw-b-${c}`), `the page has a frame colour for ${c}`); assert.match(css, /\.sw-c-todo \{ color: var\(--sw-todo\)/); const v = (n) => new RegExp(`--sw-${n}: ([^;]+);`).exec(css)[1]; assert.equal(new Set(["text", "red", "green", "yellow", "teal", "review", "todo"].map(v)).size, 7, "each frame colour is a colour of its own: done is not the green of ready"); }
     chat.update(snap({ tag: "HSW-134", name: "Add an undo", toAgent: true }, "proj/134"));
     assert.deepEqual(drawn(), ["sw-mark:+", "sw-id:HSW-134", "sw-who-name:Add an undo", "sw-who-status:idle", "sw-who-flip:Talk to the Coordinator"]);
+    // A reload: the saved words come back with who they were for, before the page knows who it shows. The first
+    // drawing must not fail on that; the chip stays, and while another task shows the frame is the plain colour.
+    {
+      const kept = { "sw-draft": "Only for task one", "sw-draft-to": JSON.stringify({ id: "proj/1", reply: true, scope: "", label: "#1", enter: "send", delegate: "" }) };
+      globalThis.sessionStorage = { getItem: (k) => kept[k] ?? null, setItem: (k, v) => { kept[k] = v; }, removeItem: (k) => { delete kept[k]; } };
+      const back = chatEl({ onSend() {}, onPress() {} }), kids = back.el.kids, chip = kids.find((k) => k.className === "sw-to"), field = kids.at(-1).kids[0];
+      assert.equal(field.value, "Only for task one");
+      back.update(snap({ tag: "#2", name: "Needs you", toAgent: true, box: "red" }, "proj/2"));
+      assert.equal(chip.textContent, "To: #1 · not who is shown above"); assert.equal(chip.hidden, false); assert.equal(field.className, "sw-input sw-b-text");
+      back.update(snap({ tag: "#1", name: "Working", toAgent: true, box: "yellow" }, "proj/1"));
+      assert.equal(chip.textContent, "To: #1"); assert.equal(field.className, "sw-input sw-b-yellow"); assert.equal(JSON.parse(kept["sw-draft-to"]).id, "proj/1");
+    }
   } finally { Object.assign(globalThis, had); }
 });
 
@@ -373,4 +388,72 @@ test("the web board goes with the web UI: on another PC it is that machine's boa
     v.pcs = null; s = board("pc-a", null); assert.equal(s.flags.scope, "*"); s = board("pc-a"); assert.equal(s.flags.scope, "vm-a");
     v.dispose();
   }
+});
+
+// ---- the second UI/UX check on the web Board (its own board: after the tests that share one) ---------------------------
+const failing = { text: "No.", meets: false, pass: false, gate: "major", findings: [{ id: "F1", severity: "critical", subject: "Loses data", where: "a.js" }] };
+
+test("the web board: a draft goes to who it was typed for, a merge has no filled yes, and the page speaks web", async () => {
+  const w = await world();
+  try {
+    const one = A.add(w.root, "First").id, two = A.add(w.root, "Second").id;
+    const bad = A.add(w.root, "Add an undo").id; S.update(bad, (x) => { Object.assign(x, { stage: "approval", app: "claude", agent: "claude", review: failing, reviewRound: 1, summary: "Done." }); });
+    const v = new WebView({ cwd: w.root });
+    // Words typed while the first task was open, for that task; meanwhile another task was tapped. They go to the
+    // first all the same (here: they start its agent's description), and the view stays on what you looked at.
+    v.pick(one, true); v.press("talk"); assert.equal(v.reply, true); assert.equal(v.replyId, one);
+    v.pick(two, true); assert.equal(v.sel, two);
+    const before = S.get(two).description || "";
+    const out = v.send("for the first one", false, { id: one, reply: true });
+    assert.equal(out.kept, false); assert.equal(v.sel, two, "the view is where you left it"); assert.equal(S.get(two).description || "", before, "the task you tapped got nothing");
+    assert.ok(/for the first one/.test(S.get(one).description || "") || S.get(one).stage !== "todo", "the task they were for got them");
+    // A task that is gone meanwhile: nothing is sent, the words stay on the page.
+    assert.deepEqual(v.send("too late", false, { id: "proj/99", reply: true }), { kept: true }); assert.match(v.msg, /is gone\. Nothing was sent\./);
+    // For the Coordinator (none here: a new task), whatever task is open: never a reply to it.
+    const n = S.list().length; v.pick(two, true); v.press("talk"); v.send("A brand new task", false, { id: "", reply: false });
+    assert.equal(S.list().length, n + 1); assert.equal(v.sel, two);
+    // A draft for one machine's Coordinator goes to that machine, also after the view moved to another one; a
+    // machine that is gone meanwhile gets nothing, and nobody gets the words in its place.
+    {
+      const got = []; v.remotes = Object.fromEntries(["vm-a", "vm-b"].map((label) => [label, { label, ok: true, items: [] }]));
+      v.ssh = (m, what, args, cb) => { got.push([m.label, what, args.text]); cb?.({ ok: true, msg: "ok" }); }; v.pollRemotes = () => {};
+      v.scope = "vm-b"; v.load();
+      assert.equal(v.send("Words meant for vm-a", false, { id: "", reply: false, scope: "vm-a" }).kept, false);
+      assert.deepEqual(got, [["vm-a", "dispatch", "Words meant for vm-a"]]); assert.equal(v.scope, "vm-b", "the view is where you left it");
+      assert.deepEqual(v.send("For a machine that left", false, { id: "", reply: false, scope: "vm-c" }), { kept: true }); assert.match(v.msg, /vm-c is not among the machines you can reach now\. Nothing was sent\./); assert.equal(got.length, 1);
+      v.scope = ""; v.remotes = {}; v.load();
+    }
+    // The merge question of work whose review failed: what it is, what failed, and `danger`: neither answer is filled.
+    v.pick(bad, true); v.press("yes");
+    let s = snapshot(v);
+    assert.equal(s.ask.danger, true); assert.match(s.ask.q, /^Merge #3 "Add an undo" into \S+\?$/); assert.match(s.ask.detail, /^Its last review failed: 1 critical\. A merge cannot be undone\.$/);
+    assert.deepEqual(s.ask.keys, [{ id: "sayYes", label: "merge anyway" }, { id: "sayNo", label: "do not merge" }]);
+    v.press("sayNo"); assert.equal(S.get(bad).stage, "approval");
+    // More: only what applies, each a button's own words; nothing that names a terminal key, nothing for a key the page has no button for.
+    s = snapshot(v);
+    const ids = s.menu.map((i) => i.id);
+    assert.ok(!ids.includes("yes") && !ids.includes("sendBack") && !ids.includes("settings") && !ids.includes("undo") && !ids.includes("close") && !ids.includes("free"), ids.join(" "));
+    assert.ok(ids.includes("stop") && ids.includes("archive") && ids.includes("pin") && ids.includes("scope"));
+    assert.equal(s.menu.find((i) => i.id === "scope").label, "show every machine's tasks (now: this machine)");
+    const said = JSON.stringify(s);
+    assert.doesNotMatch(said, /ctrl\+|alt\+|\bshift\+/, "no terminal key anywhere on the page");
+    assert.match(said, /Change one with: herdr-superwork set <name> <value> --task proj\/3/); assert.doesNotMatch(said, /this task's own, not what it would be/);
+    // The header says the repo by its name: no folder path, nothing for the home folder.
+    assert.equal(s.list.head.where, "proj");
+    // The actions row: the review goes back first, and the yes says what it is.
+    assert.deepEqual(s.actions.slice(0, 2).map((b) => b.label), ["send the review to this task's agent", "merge this task anyway"]);
+  } finally { w.cleanup(); }
+});
+
+test("the page's styles: nothing read under 13px, targets a thumb can hit, one heading case, round marks drawn at one size", () => {
+  const css = fs.readFileSync(new URL("../src/webui/page/board.css", import.meta.url), "utf8");
+  assert.match(css, /--fs-2xs: 13px; --fs-xs: 13px;/); assert.doesNotMatch(css, /text-transform: uppercase/);
+  assert.doesNotMatch(css, /min-height: (2\d|3\d)px/, "no tap target under 40px");
+  for (const part of ["full", "right", "bottom"]) assert.match(css, new RegExp(`\\.sw-dot-${part} \\{`));
+  assert.match(css, /\.sw-board\.has-task \.sw-back \{ display: none; \}/, "one back arrow at a time on a phone");
+  assert.match(css, /\.sw-row\.is-selected \{[^}]*box-shadow: inset 3px 0 0 var\(--accent/, "the selected row has a bar in its gutter, not a tint alone");
+  const chat = fs.readFileSync(new URL("../src/webui/page/chat.js", import.meta.url), "utf8"), sheets = fs.readFileSync(new URL("../src/webui/page/sheets.js", import.meta.url), "utf8");
+  // The draft is kept with who it is for: a reload brings both back, so the words never go to whoever shows then.
+  assert.match(chat, /sessionStorage\.setItem\(TO, JSON\.stringify\(to\)\)/); assert.match(chat, /if \(box\.value\.trim\(\)\) to = savedTo\(\);/); assert.match(chat, /keep\(box\.value, to\)/); assert.match(chat, /scope: to\.scope \|\| ""/); assert.match(chat, /scope: snap\.flags\?\.scope \|\| ""/);
+  assert.match(chat, /"Send \+ start"/); assert.match(chat, /`To: \$\{to\.label\}/); assert.match(sheets, /!ask\.danger \? "\.btn-primary" : ""/);
 });

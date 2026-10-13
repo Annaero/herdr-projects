@@ -213,7 +213,7 @@ test("the commands: add, list, show, change, set and unset with --automation, on
       assert.equal(S.automations().length, 1);
       // its settings: the same three commands a task has
       assert.equal(await run("set", "merge.by", "itself", "--automation", "Old dependencies"), 'merge.by for "Old dependencies": itself  (this automation)\nIt applies from its next firing.\n');
-      assert.match(await run("show", "--automation", "Old dependencies"), /^"Old dependencies": every setting its next task will have[\s\S]*\n\* reviewer\.agent +claude +this automation\n[\s\S]*\n\* merge\.by +itself +this automation\n {2}merge\.method +squash +built in\n/);
+      assert.match(await run("show", "--automation", "Old dependencies"), /^"Old dependencies": every setting its next task will have[\s\S]*\n\* reviewer\.agent +claude +this automation\n[\s\S]*\n\* merge\.by +itself +this automation\n[ ▌] {1}merge\.method +squash +built in\n/);
       assert.equal(await run("unset", "merge.by", "--automation", "Old dependencies"), 'merge.by for "Old dependencies": you  (built in)\nIt applies from its next firing.\n');
       assert.match(await fails("set", "board.agents", "2", "--automation", "Old dependencies"), /cannot be set on an automation/); assert.match(await fails("set", "merge.by", "you", "--automation", "Old dependencies", "--task", "1"), /one of --task, --repo and --automation/);
       assert.match(await fails("set", "worker.effort", "ultra", "--automation", "Old dependencies"), /worker\.effort/); assert.deepEqual(S.automation(a.id).settings, { "reviewer.agent": "claude" });
@@ -227,7 +227,7 @@ test("the commands: add, list, show, change, set and unset with --automation, on
       assert.match(await run("automations", "firings", "Dependencies"), /^\d+s ago +run now {2}→ {2}skipped: its last task, proj\/1, is still being worked on\n\d+s ago +run now {2}→ {2}made proj\/1\n$/);
       assert.deepEqual(JSON.parse(await run("automations", "firings", "Dependencies", "--json")).map((f) => f.task || "skipped"), ["skipped", "proj/1"]);
       const shown = await run("automations", "show", "Dependencies");
-      assert.match(shown, /^Dependencies {2}\(on\)\n {2}trigger {3}when a task is merged, in every repo\n {2}repo {6}proj /); assert.match(shown, /\n {2}settings {2}reviewer\.agent claude\n {2}prompt\n {4}Look for dependencies that are out of date\.\n {2}firings\n {4}\d+s ago/);
+      assert.match(shown, /^Dependencies {2}\(on\)\n[ ▌] {1}trigger {3}when a task is merged, in every repo\n[ ▌] {1}repo {6}proj /); assert.match(shown, /\n[ ▌] {1}settings {2}reviewer\.agent claude\n[ ▌] {1}prompt\n[ ▌] {3}Look for dependencies that are out of date\.\n[ ▌] {1}firings\n[ ▌] {3}\d+s ago/);
       assert.equal(await run("automations", "off", "Dependencies"), '"Dependencies" is off. It never fires while it is off, and keeps everything.\n');
       assert.match(await fails("automations", "run", "Dependencies"), /"Dependencies" is off, and off it never fires\. Turn it on first/);
       assert.equal(await run("automations", "on", "Dependencies"), '"Dependencies" is on.\n');
@@ -274,25 +274,25 @@ test("the automations are a list of their own: one row each, a mark and a word f
     s.press("alt+o");
     let lines = s.screen(120);
     assert.equal(lines[0].trimEnd(), " herdr-superwork  automations · 3 · 1 off");
-    assert.match(lines[2], /^ ✓ Look for old dependencies {4}every 2h {16}proj {3}never fired {3}next in 2h *$/);
-    assert.match(lines[3], /^ ✓ Release note after a merge {3}when a task is merged {3}proj {3}never fired *$/);
-    assert.match(lines[4], /^ ○ Nightly audit {2}\[off\] {9}daily 03:00 {13}proj {3}never fired *$/); // off: another mark and the word, never colour alone
+    assert.match(lines[2], /^[ ▌]✓ Look for old dependencies {4}every 2h {16}proj {3}never fired {3}next in 2h *$/);
+    assert.match(lines[3], /^[ ▌]✓ Release note after a merge {3}when a task is merged {3}proj {3}never fired *$/);
+    assert.match(lines[4], /^[ ▌]○ Nightly audit {2}\[off\] {9}daily 03:00 {13}proj {3}never fired *$/); // off: another mark and the word, never colour alone
     assert.equal(lines.at(-1).trimEnd(), "  space turn this automation off · tab run it now · ctrl+x remove it · enter open it · esc back to the board");
     assert.match(T(s), /No Coordinator {2}an automation is made from a shell: herdr-superwork automations add/);
     // a narrow screen: two lines each, nothing cut, and the hints that give way are whole ones
     lines = s.screen(60);
-    assert.deepEqual(lines.slice(2, 8).map((l) => l.trimEnd()), [" ✓ Look for old dependencies", "   every 2h · proj · never fired · next in 2h", " ✓ Release note after a merge", "   when a task is merged · proj · never fired", " ○ Nightly audit  [off]", "   daily 03:00 · proj · never fired"]);
+    assert.deepEqual(lines.slice(2, 8).map((l) => l.trimEnd()), ["▌✓ Look for old dependencies", "▌  every 2h · proj · never fired · next in 2h", " ✓ Release note after a merge", "   when a task is merged · proj · never fired", " ○ Nightly audit  [off]", "   daily 03:00 · proj · never fired"]);
     assert.equal(lines.at(-1).trimEnd(), "  space turn this automation off · esc back to the board");
     // space: off and on
-    s.press("space"); assert.equal(S.automation(a.id).on, false); assert.match(T(s), /"Look for old dependencies" is off: it never fires, and keeps everything\./); assert.match(s.screen()[2], /^ ○ Look for old dependencies {2}\[off\]/);
+    s.press("space"); assert.equal(S.automation(a.id).on, false); assert.match(T(s), /"Look for old dependencies" is off: it never fires, and keeps everything\./); assert.match(s.screen()[2], /^[ ▌]○ Look for old dependencies {2}\[off\]/);
     assert.match(s.screen().at(-1), /space turn this automation on/);
     s.press("tab"); assert.match(T(s), /"Look for old dependencies" is off, and off it never fires\. space turns it on\./); assert.deepEqual(S.list(), []);
     s.press("space"); assert.equal(S.automation(a.id).on, true);
     // tab: fire it now. A task is added and an agent put on it
     s.press("tab");
-    assert.match(T(s), /"Look for old dependencies" fired: proj\/1 was added and an agent is on it\./); assert.equal(S.get("proj/1").stage, "starting"); assert.deepEqual(S.get("proj/1").settings, { "reviewer.agent": "claude", "merge.by": "itself" });
+    assert.match(T(s), /"Look for old dependencies" fired: #1 was added and an agent is on it\./); assert.equal(S.get("proj/1").stage, "starting"); assert.deepEqual(S.get("proj/1").settings, { "reviewer.agent": "claude", "merge.by": "itself" });
     assert.match(s.screen()[2], /proj {3}\d+s ago · proj\/1 {3}next in 2h/);
-    s.press("tab"); assert.match(T(s), /did not fire: its last task, proj\/1, is still being worked on\./); assert.match(s.screen()[2], /\d+s ago · skipped/);
+    s.press("tab"); assert.match(T(s), /did not fire: its last task, #1, is still being worked on\./); assert.match(s.screen()[2], /\d+s ago · skipped/);
     // the arrows move between automations; a key that acts on a task does nothing here
     s.press("down", "down", "down"); assert.equal(s.v.autoSel, c.id); s.press("up"); s.press("ctrl+a", "ctrl+p", "ctrl+l", "ctrl+f");
     assert.equal(s.v.mode, "new"); assert.equal(S.get("proj/1").archivedAt, null); assert.equal(S.get("proj/1").pinned, false);
@@ -301,10 +301,10 @@ test("the automations are a list of their own: one row each, a mark and a word f
     s.press("n"); assert.equal(S.automations().length, 3); s.press("ctrl+x", "y"); assert.deepEqual(S.automations().map((x) => x.name), ["Look for old dependencies", "Nightly audit"]);
     // the ? menu says what the keys do here
     s.press("?"); const menu = T(s);
-    for (const line of [/space {3}turn this automation on or off/, /tab {5}fire this automation now/, /ctrl\+x {2}remove this automation \(it asks first\)/, /ctrl\+e {2}this automation's settings: see and change each one/, /alt\+o {3}hide the automations/]) assert.match(menu, line);
+    for (const line of [/space +turn this automation on or off/, /tab +fire this automation now/, /ctrl\+x +remove this automation \(it asks first\)/, /ctrl\+e +this automation's settings: see and change each one/, /alt\+o +hide the automations/]) assert.match(menu, line);
     assert.doesNotMatch(menu, /archive|pin this task|approve/);
     s.press("esc", "esc"); assert.equal(s.v.automationsView, false); assert.match(s.screen()[0], /herdr-superwork {2}proj/); // esc goes back to the board
-    s.press("?"); assert.match(T(s), /alt\+o {3}show the automations/);
+    s.press("?"); assert.match(T(s), /alt\+o +show the automations/);
   } finally { w.cleanup(); }
 });
 
@@ -319,7 +319,7 @@ test("one automation, whole: its prompt, trigger, own settings and firings, newe
     assert.match(text, /^ Automation {2}Look for old dependencies/);
     for (const line of [/\n State {8}✓ on\n/, /\n Trigger {6}every 2h\n/, /\n Next {9}in 2h · /, /\n Repo {9}proj · /, /\n Prompt ─+\n Check which dependencies are out of date\.\n Open one pull request per major bump\.\n/,
       /\n Settings ─+\n reviewer\.agent {2}claude \*\n merge\.by {8}itself \*\n \* this automation's own, put on each task it makes\. ctrl\+e changes them: every setting, and the\n place each one comes from\n/]) assert.match(text, line);
-    assert.match(text, /\n Firings ─+\n {3}\d+s ago {3}every 2h {2}→ made proj\/2\n {3}\d+s ago {3}every 2h {2}skipped: its last task, proj\/1, is still being worked on\n {3}\d+s ago {3}run now {2}→ made proj\/1\n/);
+    assert.match(text, /\n Firings ─+\n[ ▌] {2}\d+s ago {3}every 2h {2}→ made proj\/2\n[ ▌] {2}\d+s ago {3}every 2h {2}skipped: its last task, proj\/1, is still being worked on\n[ ▌] {2}\d+s ago {3}run now {2}→ made proj\/1\n/);
     assert.equal(s.screen().at(-1).trimEnd(), "  ↑↓ pick a firing · enter go to its task · space turn this automation off · tab run it now · esc back to the list");
     // the arrows pick a firing; enter on a skipped one says so, on one that made a task goes to that task on the board
     s.press("enter"); assert.match(T(s), /↑ ↓ pick a firing; enter then goes to the task it made\./);
@@ -329,7 +329,7 @@ test("one automation, whole: its prompt, trigger, own settings and firings, newe
     assert.equal(s.v.automationsView, false); assert.equal(s.v.sel, first.task); assert.equal(s.v.current().id, "proj/1");
     // back in the list, the side panel shows the selected automation beside it on a wide screen
     s.press("alt+o"); s.v.side = true; const wide = s.screen(150);
-    assert.match(wide[2], /^ ✓ Look for old dependencies /); assert.match(wide[1], /│ {2}Look for old dependencies/); assert.ok(wide.some((l) => /│ {2}Firings ─/.test(l)));
+    assert.match(wide[2], /^[ ▌]✓ Look for old dependencies /); assert.match(wide[1], /│ {2}Look for old dependencies/); assert.ok(wide.some((l) => /│ {2}Firings ─/.test(l)));
     // esc: from the whole automation to the list, then to the board
     s.press("enter"); assert.equal(s.v.autoOpen, true); s.press("esc"); assert.deepEqual([s.v.autoOpen, s.v.automationsView], [false, true]); s.press("esc"); assert.equal(s.v.automationsView, false);
     assert.equal(second.task, "proj/2");
@@ -342,15 +342,15 @@ test("an automation's settings are the page a task has: its own rows marked, a r
     const [a] = three(w);
     S.setValue("review.rounds", 5);
     const s = open(w, { side: false, rows: 60 });
-    const rowOf = (name) => T(s, 120).split("\n").find((l) => new RegExp(` ${name.replace(".", "\\.")} `).test(l)) || "";
-    const go = (name) => { while (S.WORK[s.v.editing.at] !== name) s.press(S.WORK.indexOf(name) > s.v.editing.at ? "down" : "up"); };
+    const rowOf = (name) => T(s, 120).split("\n").find((l) => new RegExp(` ${name.replace(".", "\\.")}( |$)`).test(l)) || "";
+    const names = () => s.v.editRows(s.v.autoCurrent()).map((x) => x.name), go = (name) => { while (names()[s.v.editing.at] !== name) s.press(names().indexOf(name) > s.v.editing.at ? "down" : "up"); };
     s.press("alt+o", "ctrl+e");
     assert.match(T(s, 120), /^ Settings {2}Look for old dependencies/);
-    for (const name of S.WORK) assert.ok(rowOf(name), name);
+    for (const name of S.WORK) assert.equal(!!rowOf(name), names().includes(name), name); assert.ok(names().length >= S.WORK.length - 2); // every work setting, but fast mode for a program that has none
     for (const name of S.BOARD) assert.equal(rowOf(name), "", name);
-    assert.match(rowOf("worker.agent"), /^ › {3}worker\.agent +claude +built in *$/); assert.match(rowOf("reviewer.agent"), /^ {3}\* reviewer\.agent +claude +this automation *$/);
-    assert.match(rowOf("review.rounds"), /^ {5}review\.rounds +5 +you *$/); assert.match(T(s, 120), /\* this automation's own\. Every other row says the place its value comes from\./);
-    go("review.when"); s.press("enter"); assert.equal(S.automation(a.id).settings["review.when"], "never"); assert.match(rowOf("review.when"), /^ › \* review\.when +never +this automation *$/);
+    assert.match(rowOf("worker.agent"), /^▌› {3}Agent's program +claude +built in +worker\.agent *$/); assert.match(rowOf("reviewer.agent"), /^ {3}\* Reviewer's program +claude +this automation +reviewer\.agent *$/);
+    assert.match(rowOf("review.rounds"), /^ {5}Rounds by itself +5 +you +review\.rounds *$/); assert.match(T(s, 120), /\* this automation's own\. Every other row says the place its value comes from\./);
+    go("review.when"); s.press("enter"); assert.equal(S.automation(a.id).settings["review.when"], "never"); assert.match(rowOf("review.when"), /^▌› \* Review when +never +this automation +review\.when *$/);
     go("check.timeout"); s.press("enter"); s.type("20"); s.press("enter"); assert.match(T(s, 120), /check\.timeout is a time with a unit/); assert.equal(S.automation(a.id).settings["check.timeout"], undefined);
     s.type("m"); s.press("enter"); assert.equal(S.automation(a.id).settings["check.timeout"], "20m"); assert.equal(S.list().length, 0); // typed words never became a task
     s.press("ctrl+u"); assert.equal(S.automation(a.id).settings["check.timeout"], undefined); go("merge.by"); s.press("ctrl+u"); assert.deepEqual(S.automation(a.id).settings, { "reviewer.agent": "claude", "review.when": "never" });
@@ -372,7 +372,7 @@ test("a task an automation made says so on its row and in its panel; with the bo
     s.v.beat(); assert.deepEqual(S.list(), []);
     clock.tick(2 * HOUR + 1000); s.v.beat(); // no keeper runs: the open board fires what is due
     assert.deepEqual(S.list().map((t) => [t.id, t.title, t.stage]), [["proj/1", "Look for old dependencies", "starting"]]); assert.equal(S.firingsOf(a.id)[0].cause, "schedule");
-    assert.match(T(s), /\n . #1 Look for old dependencies \[auto\] /);
+    assert.match(T(s), /\n[ ▌]. #1 Look for old dependencies \[auto\] /);
     s.press("alt+t"); assert.match(T(s), /\n Made by {6}the automation "Look for old dependencies"\n/); s.press("esc");
     // in the list of automations with no Coordinator on, what is typed makes no task: it says how one is made, and the words stay
     s.press("alt+o"); s.type("every day at nine, tidy up"); s.press("enter");

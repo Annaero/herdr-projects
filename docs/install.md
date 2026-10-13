@@ -27,9 +27,9 @@ block sits between two marker lines, and a change herdr rejects is rolled back:
   the key does today (`prefix+w`, for one, is herdr's own workspace picker), for the offered key and for one you type
   with `k` alike, and however your config writes a binding (one key, a list of keys, the older `[keys.indexed]`). A key that is already set up for the board is left as it is;
 - sidebar rows, so herdr's sidebar shows each task's stage, its "doing now" line, its progress and the minutes left. herdr's default
-  sidebar shows none of these: without the rows the plugin puts a short status into the agent's name instead
-  (`approve? pass · claude`), which works with no setup. With the rows in place the name is left alone, so the
-  status is not said twice on one line.
+  sidebar shows none of these: without the rows the plugin puts where the task stands into the agent's name, after
+  the task's own (`#34 · ready to approve`), which works with no setup. With the rows in place the name is the
+  task's alone (`#34`), so the status is not said twice on one line.
 
 Nothing else is needed: no herdr integration, no hooks in your own agent settings. To add the blocks by hand instead:
 

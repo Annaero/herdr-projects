@@ -1,14 +1,17 @@
 // The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you.
 import * as S from "../../store.js";
 import { clean, age, prNumber, prTag, merged, bar } from "./words.js";
-import { reviewing, standing, waitOf, reviewerWord, NEEDS } from "./states.js";
+import { reviewing, standing, waitOf, reviewerWord, NEEDS, failedReview } from "./states.js";
+import { reviewTally } from "../../status-words.js";
 import { roundWords, reviewNote } from "./review-words.js";
 import { name as keyName } from "../keys.js";
 import { madeByWords } from "../../automations/told.js";
 
+// A part's headline is not said again as its first line.
+const same = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
 const asks = (kind) => (NEEDS[kind] ? NEEDS[kind][0].toUpperCase() + NEEDS[kind].slice(1) : "Needs you");
 // The facts under Status, in the order they are drawn. In a short window they go from the last of GIVE.
-const ORDER = ["head", "state", "progress", "now", "who", "made", "change", "task"];
+const ORDER = ["head", "state", "progress", "now", "who", "made", "change"];
 
 export class PanelStatus {
   // Returns the title's part, the status part (its facts by name in `rows`, redrawn by `draw`), and what the part
@@ -37,8 +40,7 @@ export class PanelStatus {
     const url = /^https?:\/\/\S+$/.test(String(r.pr || "")) ? String(r.pr) : "";
     const prName = url ? `\x1b]8;;${url}\x1b\\${prNumber(r)}\x1b]8;;\x1b\\` : prNumber(r);
     const pr = r.pr ? prTag(t, r, prName) + (merged(r) ? dim(" merged") : "") : "";
-    if (size || pr) rows.change = fact("Change", [...flow([pr, size && quiet(size)]), ...(full && url ? [dim(url)] : [])]);
-    rows.task = fact("Task", this.idWords(r), quiet);
+    if (size || pr) rows.change = fact("Change", [...flow([pr, size && quiet(size)]), ...(full && url && !this.ctx?.web ? [dim(url)] : [])]);
     if (!agent && !r.archivedAt && r.state === "idle" && !String(r.description || "").trim()) rows.next = fact("Next", wrap(`No agent is on this yet. ${keyName("delegate")} puts one on it.`, room), dim);
     const top = part([], { rows });
     top.draw = () => { top.lines = [...ORDER, "next"].flatMap((k) => rows[k] || []); return top; };
@@ -54,11 +56,13 @@ export class PanelStatus {
       alert(c, "Cut off", `Trying again by itself. ${note}. A reply, ${keyName("sendBack")} or ${keyName("yes")} tells the agent to continue right away.`, [["Cut off by", waitOf(r).error || failure.detail]]);
     } else if (failure) {
       told = failure.detail;
-      alert("red", r.kind === "auth" ? asks("auth") : "Went wrong", `${failure.title}\n${failure.sentAt ? "Sent to the agent. Kept here until it works." : failure.agentCanFix ? `The agent can fix this: ${keyName("sendBack")} sends it.` : "This needs you first."}`, [["Next step", failure.next || "Find the cause and fix it."], ["Details", failure.detail]]);
+      const heading = r.kind === "auth" ? asks("auth") : "Went wrong";
+      alert("red", heading, `${failure.title.toLowerCase() === heading.toLowerCase() ? "" : `${failure.title}\n`}${failure.sentAt ? "Sent to the agent. Kept here until it works." : failure.agentCanFix ? `The agent can fix this: ${keyName("sendBack")} sends it.` : "This needs you first."}`, [["Next step", failure.next || "Find the cause and fix it."], ["Details", failure.detail]]);
     } else if (approval && r.syncBlocked) alert("peach", "Behind main", `Cannot be approved yet: ${r.syncBlocked.why}. The board keeps trying to bring it up to date.`);
+    else if (failedReview(r)) alert("red", "Review failed", `${reviewTally(r) ? `It found ${reviewTally(r)}. ` : ""}${this.ctx?.web ? "Send the review to the agent to fix it, or merge it anyway: that asks first." : `${keyName("sendBack")} sends the review to the agent to fix. ${keyName("yes")} merges it anyway, and asks first.`}`);
     else if (approval) { /* the state says it: ready to approve */ }
-    else if (r.state === "blocked") { told = note || said || ""; alert("red", asks(r.kind), told); }
-    else if (r.state === "error") { told = (r.stage === "nosummary" ? r.screen : "") || note || said || "It failed"; alert("red", r.stage === "nosummary" ? "Stopped without a summary" : "Went wrong", told); }
+    else if (r.state === "blocked") { told = note || said || ""; alert("red", asks(r.kind), same(told, asks(r.kind)) ? "" : told); }
+    else if (r.state === "error") { told = (r.stage === "nosummary" ? r.screen : "") || note || said || "It failed"; const heading = r.stage === "nosummary" ? "Stopped without a summary" : "Went wrong"; alert("red", heading, same(told, heading) ? "" : told); }
     return { title, top, told };
   }
 }

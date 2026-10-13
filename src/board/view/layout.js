@@ -47,7 +47,11 @@ export class Layout {
       const who = calm(() => this.chatOf(r), null);
       const chat = safe("The chat", width, () => this.chatLines(width, r, rowsN < 16));
       const headN = chat.length;
-      const framed = calm(() => !this.ask && this.chatUp(who) && !!who.said && width >= 8, false); // a frame only where there can be a message in it (and room for its two edges)
+      // On a page that is read (the whole task, the settings, the menu) and in a window of only a few lines the chat
+      // folds to its head line, as its own key folds it, so the page or the list has the lines. A start that failed
+      // still says why.
+      const fold = this.chatFolded = (!!this.full || !!this.menu || rowsN < 14) && !who?.always;
+      const framed = calm(() => !fold && !this.ask && this.chatUp(who) && !!who.said && width >= 8, false); // a frame only where there can be a message in it (and room for its two edges)
       // What just happened, on a line of its own: the hints below it stay readable.
       const stale = !this.stale ? "" : this.ctx.canReload === false ? "herdr-superwork was updated: close the board and open it again for the new version." : "herdr-superwork was updated: the new version loads when nothing is half typed.";
       const said = this.msg && !(this.offNote && this.msgKind !== "red") ? wrapTextWithAnsi(t.fg(this.msgKind, this.msg) + (this.msgKind === "red" ? t.fg("overlay0", `  (${keyName("back")} dismisses)`) : ""), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : this.offNote ? wrapTextWithAnsi(t.fg("yellow", this.offNote), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : stale ? ["  " + t.fg("overlay0", stale)] : [];
@@ -83,9 +87,11 @@ export class Layout {
       // goes first, from the last of them back; the chat's own key, while the message is hidden, outlasts them.
       // It is made after the page above it, which decides what the arrows do (they scroll a task longer than its place).
       const hintLine = () => {
-        const hintList = calm(() => this.hints(r).filter(Boolean).slice(0, 5), [["", "the hints could not be shown"]]);
-        const hintText = () => t.fg("overlay0", hintList.map(([k, d]) => [k, d].filter(Boolean).join(" ")).join(" · "));
-        const giveUp = () => { const at = hintList.length - 2; return at > 1 && hintList[at] === this.chatKey ? at - 1 : at; };
+        const hintList = calm(() => this.hints(r).filter(Boolean).slice(0, 6), [["", "the hints could not be shown"]]);
+        // A key is in the brighter grey, what it does and the dots between in the quiet one (theme.js: soft, muted).
+        const hintText = () => hintList.map(([k, d]) => [k && t.soft(k), d && t.fg("overlay0", d)].filter(Boolean).join(" ")).join(t.fg("overlay0", " · "));
+        // A hint marked to stay (the popup's "esc close", "scroll the task") is not the one to go while another can.
+        const giveUp = () => { const at = hintList.length - 2; for (let n = at; n >= 1; n--) if (!hintList[n][2] && hintList[n] !== this.chatKey) return n; return hintList[at][2] ? hintList.length - 1 : at > 1 && hintList[at] === this.chatKey ? at - 1 : at; };
         while (hintList.length > 2 && visibleWidth(hintText()) > width - 2) hintList.splice(giveUp(), 1);
         // Still too wide with two left: the main thing stays, unless the other is the one way back (hints.js marks it).
         if (hintList.length === 2 && visibleWidth(hintText()) > width - 2) hintList.splice(hintList[1][2] ? 0 : 1, 1);
@@ -104,6 +110,7 @@ export class Layout {
       this.chatRows = messageN ? [chatTop, chatTop + chat.length + inputLines.length] : null;
       const shown = r || this.job();
       let top;
+      this.listAt = null; // where the list is on the screen, for a click: only while it shows
       if (this.menu) top = safe("The menu", width, () => this.menuLines(width, h), [""]);
       else if (this.automationsView) top = safe("The automations", width, () => this.autoScreen(width, h), [""]);
       else if (this.full && shown) top = safe("The task details", width, () => this.fullPanel(shown, width, h), [""]);
@@ -111,10 +118,10 @@ export class Layout {
         // The task panel on the right, while you have it open, on herdr's sidebar colour when the theme gives it one.
         const paneW = Math.max(38, Math.min(70, Math.floor(width * 0.38)));
         const listW = width - paneW - 3;
-        const left = safe("The list", listW, () => [...this.headLines(listW), ...this.listLines(listW, Math.max(1, h - 1), width)], [""]);
-        const right = shown ? safe("The task panel", paneW, () => this.panel(shown, paneW, false, h), [""]) : ["", " " + t.fg("overlay0", "nothing selected.")];
+        const left = safe("The list", listW, () => { const head = this.headLines(listW); this.listAt = [held.length + head.length, listW]; return [...head, ...this.listLines(listW, Math.max(1, h - head.length), width)]; }, [""]);
+        const right = shown ? safe("The task panel", paneW, () => this.panel(shown, paneW, false, h), [""]) : ["", " " + t.fg("overlay0", "Nothing selected.")];
         top = Array.from({ length: h }, (_, i) => truncateToWidth(left[i] ?? "", listW, "…", true) + " " + t.fg("surface_dim", "│") + t.under("sidebar_bg", truncateToWidth(" " + (right[i] ?? ""), paneW + 1, "…", true)));
-      } else top = safe("The list", width, () => [...this.headLines(width), ...this.listLines(width, Math.max(1, h - 1))], [""]);
+      } else top = safe("The list", width, () => { const head = this.headLines(width); this.listAt = [held.length + head.length, width]; return [...head, ...this.listLines(width, Math.max(1, h - head.length))]; }, [""]);
       bottom[bottom.length - 1] = hintLine();
       return this.pad([...held, ...this.pad(top, h), ...bottom].slice(0, rowsN), rowsN).map(fit);
     } catch (e) {

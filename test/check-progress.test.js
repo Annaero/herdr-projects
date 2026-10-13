@@ -111,14 +111,14 @@ test("the task shows it everywhere a task's progress shows, in a colour of its o
     assert.equal(statusColor(r), "check"); assert.equal(theme.fg("check", "x"), theme.fg("subtext0", "x")); if (!process.env.NO_COLOR) { assert.notEqual(theme.fg("check", "x"), theme.fg("yellow", "x")); assert.notEqual(theme.fg("check", "x"), theme.fg("overlay0", "x")); }
     assert.equal(statusColor({ ...r, stage: "working" }), "yellow"); assert.equal(statusColor({ ...r, stage: "reviewing" }), "review"); // the agent's and the reviewer's stay their own
     const f = s.v.rowFields(r, now), grey = (x) => theme.fg("check", x);
-    assert.equal(f.bar, grey("█████░░░")); assert.equal(f.percent, grey("65%")); assert.equal(f.eta, grey("3m"));
+    assert.equal(f.bar, grey("█████░░░")); assert.equal(f.percent, grey("65%")); assert.equal(f.eta, grey("3m left"));
     assert.ok(s.v.mark(r).startsWith(grey("x").split("x")[0]));
     const lines = (x) => s.v.rowLines(x, 120).map(stripVTControlCharacters); // a live row: its columns, then what it says under its name
-    assert.match(lines(r)[0], /Add a greeting +█████░░░ +65% +3m  +9m *$/); assert.match(lines(r)[1], /^ +Running the check · tests 31 of 47 *$/);
+    assert.match(lines(r)[0], /Add a greeting +█████░░░ +65% +3m left  +9m *$/); assert.match(lines(r)[1], /^ +Running the check · tests 31 of 47 *$/);
     // Waiting for its turn: the minutes, and no bar that pretends to move. Known at once: only the words.
     const waiting = row(stepCheck(startCheck(now, 2 * MIN), { state: "waiting", ahead: 2 }, now));
-    assert.deepEqual([s.v.rowFields(waiting, now).bar, s.v.rowFields(waiting, now).percent, s.v.rowFields(waiting, now).eta], ["", "", grey("6m")]);
-    assert.match(lines(waiting)[0], /Add a greeting +6m  +9m *$/); assert.match(lines(waiting)[1], /^ +Waiting for its turn · 2 ahead *$/);
+    assert.deepEqual([s.v.rowFields(waiting, now).bar, s.v.rowFields(waiting, now).percent, s.v.rowFields(waiting, now).eta], ["", "", grey("6m left")]);
+    assert.match(lines(waiting)[0], /Add a greeting +6m left  +9m *$/); assert.match(lines(waiting)[1], /^ +Waiting for its turn · 2 ahead *$/);
     const known = row(stepCheck(startCheck(now), { state: "known" }, now));
     assert.match(lines(known)[0], /Add a greeting  +9m *$/); assert.match(lines(known)[1], /^ +The check already passed for this exact code *$/);
     // The rows of a section still give the same things up together: the bar first, on every row.
@@ -133,13 +133,13 @@ test("the task shows it everywhere a task's progress shows, in a colour of its o
     // The chat line, when you talk to its agent: the same words, then the same bar, percent and minutes, in the same colour.
     const head = (x, width) => s.v.chatHead({ mark: s.v.mark(x), name: x.title, status: theme.muted(x.msg), progress: chatProgress(x) }, width)[0];
     const chatProgress = (x) => { s.v.reply = true; s.v.hasAgent = () => true; s.v.previewOf = () => null; s.v.sentTo = () => ""; s.v.turnMark = () => ""; return s.v.chatOf(x).progress; };
-    assert.deepEqual(chatProgress(r), [`${grey("█████░░░")} ${grey("65%")} ${grey("3m")}`, `${grey("65%")} ${grey("3m")}`]);
-    assert.match(stripVTControlCharacters(head(r, 120)), /^ ◒ Add a greeting {2}Running the check · tests 31 of 47 {2}█████░░░ 65% 3m$/);
-    assert.match(stripVTControlCharacters(head(r, 60)), /^ ◒ Add a greeting {2}Running the check · tes… {2}█████░░░ 65% 3m$/); // the words are cut, the numbers never
-    assert.match(stripVTControlCharacters(head(r, 52)), /^ ◒ Add a greeting {2}Running the check · test… {2}65% 3m$/); // too narrow for the bar
-    assert.match(stripVTControlCharacters(head(r, 30)), /^ ◒ Add a greeting {2}Running th…$/);
-    assert.deepEqual(chatProgress(waiting), [grey("6m")]); assert.deepEqual(chatProgress(known), []);
-    assert.match(stripVTControlCharacters(head(waiting, 120)), /^ ◐ Add a greeting {2}Waiting for its turn · 2 ahead {2}6m$/);
+    assert.deepEqual(chatProgress(r), [`${grey("█████░░░")} ${grey("65%")} ${grey("3m left")}`, `${grey("65%")} ${grey("3m left")}`]);
+    assert.match(stripVTControlCharacters(head(r, 120)), /^[ ▌]◒ Add a greeting {2}Running the check · tests 31 of 47 {2}█████░░░ 65% 3m left$/);
+    assert.match(stripVTControlCharacters(head(r, 60)), /^[ ▌]◒ Add a greeting {2}Running the check · tests 3… {2}65% 3m left$/); // the words are cut, the numbers never (here the bar gives way first)
+    assert.match(stripVTControlCharacters(head(r, 70)), /^[ ▌]◒ Add a greeting {2}Running the check · t[^…]*…? {2}█████░░░ 65% 3m left$/); // with room, the bar too
+    assert.match(stripVTControlCharacters(head(r, 30)), /^[ ▌]◒ Add a greeting {2}Running th…$/);
+    assert.deepEqual(chatProgress(waiting), [grey("6m left")]); assert.deepEqual(chatProgress(known), []);
+    assert.match(stripVTControlCharacters(head(waiting, 120)), /^[ ▌]◐ Add a greeting {2}Waiting for its turn · 2 ahead {2}6m left$/);
     assert.match(osc(r), /:progress=65:eta=3:/);
   }
 });

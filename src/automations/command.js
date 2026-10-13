@@ -2,6 +2,7 @@
 // setting, --research), show one, change its name, prompt or trigger, turn it on or off, run it now, read its
 // firings, remove it. Its own settings are changed by the settings' own commands with --automation <name>
 // (`set`, `unset`, `show`: settingsFor below). Every command accepts --json: each returns [value, text].
+import { when } from "../board/view/words.js";
 import * as S from "../store.js";
 import * as L from "./list.js";
 import { triggerOf } from "./triggers.js";
@@ -25,7 +26,7 @@ const HOW = `automations takes:
 const settingsOf = (flags) => Object.fromEntries(Object.entries(flags).filter(([k]) => k.includes(".")));
 const showText = (a, now = Date.now()) => {
   const d = describe(a, now), own = Object.entries(a.settings || {}), last = firings(a).slice(0, 5);
-  return [`${a.name}  (${d.on ? "on" : "off"}${a.offWhy ? `: ${a.offWhy}` : ""})`, `  trigger   ${d.trigger}${d.next ? `  (next: ${new Date(d.next).toLocaleString()})` : ""}`, `  repo      ${a.repo}  ${S.tilde(a.root)}`,
+  return [`${a.name}  (${d.on ? "on" : "off"}${a.offWhy ? `: ${a.offWhy}` : ""})`, `  trigger   ${d.trigger}${d.next ? `  (next: ${when(d.next)})` : ""}`, `  repo      ${a.repo}  ${S.tilde(a.root)}`,
     ...(a.research ? ["  research  only: its tasks change nothing in the repo"] : []),
     `  settings  ${own.length ? own.map(([k, v]) => `${k} ${S.say(v)}`).join(" · ") : "none of its own: its tasks run on what any task would"}`,
     "  prompt", ...String(a.prompt).split("\n").map((l) => `    ${l}`), "  firings", ...(last.length ? last.map((f) => `    ${firingLine(f, now)}`) : ["    none yet"])].join("\n");

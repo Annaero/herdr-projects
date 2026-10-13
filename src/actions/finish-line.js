@@ -11,12 +11,16 @@ import { delegate } from "./start.js";
 import { tell, stop } from "./talk.js";
 import { name as keyName } from "../board/keys.js";
 import { isResearch } from "../research.js";
+import { reviewFailed, reviewTally } from "../status-words.js";
 
 // ---- the finish line's keys -------------------------------------------------------------------------------------------
 // Approve: the one decision that ships finished work. An agent's own request for permission gets a yes instead.
 // `seen`: what the human was shown when they said yes ({ pr, head }). A merge is only ever what was asked about: if
 // the pull request or the reviewed commit is another one by now, nothing is merged and they are asked again.
-export function approve(id, seen = null) {
+// `anyway`: work whose last review failed is merged only when that is asked for in so many words. The guard is here,
+// not in the board's question, so the command line (and the Coordinator, which uses it) cannot merge such work by a
+// plain `approve` either.
+export function approve(id, seen = null, { anyway = false } = {}) {
   const cur = S.find(id);
   S.assertUnarchived(cur);
   const moved = (t) => { if (seen && t.stage === "approval" && ((seen.pr ?? null) !== (t.pr ?? null) || (seen.head ?? null) !== (t.reviewedHead ?? null))) throw new Error(`${t.id} changed while you were asked. Nothing was merged: look at it again, then approve.`); };
@@ -26,6 +30,7 @@ export function approve(id, seen = null) {
   const t = S.update(cur.id, (t) => {
     if (t.stage !== "approval") throw new Error(`${t.id} is not waiting for an approval to merge.`);
     moved(t);
+    if (reviewFailed(t) && !anyway) throw new Error(`${t.id} was not merged: its last review failed${reviewTally(t) ? ` (${reviewTally(t)})` : ""}. Send the review back with: herdr-superwork review ${t.id}. To merge it all the same: herdr-superwork approve ${t.id} --anyway`);
     // Main moved and the board could not bring this branch up to date yet: what was reviewed is not what would land.
     if (t.syncBlocked) throw new Error(`${t.id} is behind main and cannot be approved yet: ${t.syncBlocked.why}. The board keeps trying to bring it up to date.`);
     if (runnerAlive(t)) throw new Error(`${t.id} is busy. Try again in a moment.`);
@@ -112,7 +117,7 @@ export function finishAnyway(id) {
 export function retry(id) {
   const cur = S.find(id);
   S.assertUnarchived(cur);
-  if (cur.stage === "approval") return approve(cur.id); // a merge that failed
+  if (cur.stage === "approval") return approve(cur.id, null, { anyway: !!cur.mergeFailed }); // a merge that failed: the yes was given before it
   const carryOn = () => { const out = tell(cur.id, F.withTail(cur, "You stopped before the work was finished. Continue the task where you left off.")); return say(out.task, `${cur.id}: told the agent to continue`); };
   // The agent said it needs a login: you have signed in, and it is told to carry on.
   if (cur.stage === "asks" && cur.kind === "auth") return carryOn();

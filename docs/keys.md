@@ -1,13 +1,35 @@
 # Keys, questions and the ? menu
 
-**The board asks before what cannot be undone**, always the same way, in a small box: `Merge PR#18?  y = yes ·
-n = no`. `y` says yes, `n` or `Esc` says no, in upper or lower case; `Enter` never confirms, and no other key answers.
+**The board asks before what cannot be undone**, always the same way, in a small box. The question says what it
+does: a merge names the task, where it lands and that it cannot be undone (`Merge #18 "Add an undo for clear"
+(PR#18) into main?`, then `A merge cannot be undone.`; for another machine's task, where it lands there: `into main on otherbox`); after a failed review it says what the review found, and its
+yes reads `y = merge anyway`. A remove shows the task's whole title and what is really lost: the task with its
+description and reviews, and its worktree only where it has one (work in it that is not saved or not merged is kept).
+The keys are in the box and say what they do (`y = merge · n = do not merge`, `y = remove · n = keep`): `y` says yes,
+`n` or `Esc` says no, in upper or lower case; `Enter` never confirms, and no other key answers: on any other key the
+box says `press y or n`. A question longer than the window wraps, and its keys are never cut. On the web Board
+neither answer to a merge or a remove is the filled button.
+
+**Work whose review failed is never merged by a plain yes.** It is not under `ready to approve` but under `needs
+you`, as `Review failed · 1 critical, 1 major`; its hints offer sending the review back first, then `merge this task
+anyway`. The guard is in the approve action itself, not only in the question: `herdr-superwork approve <id>` (and so
+the Coordinator) refuses such work and says what the review found; `herdr-superwork approve <id> --anyway` merges
+it all the same.
+
 Merging and deleting a task ask; nothing else does by itself. A result stays on screen until
 your next key press, an error until `Esc` dismisses it.
 
 **Closing the board takes `Ctrl+C` twice**, as leaving Claude Code does. The first one shows `Press ctrl+c
-again to close the board` on the bottom line; `Ctrl+C` again while it shows (0.8 seconds, Claude Code's own wait)
+again to close the board` on the bottom line; `Ctrl+C` again while it shows (two seconds: time enough to read it)
 closes, with a draft in the text box too. Any other key, or the wait running out, takes the hint away, and that key does what it always does.
+`Esc` with nothing left to step back from closes nothing: its line names the key that does (`ctrl+c closes the
+board`), and `Ctrl+C` while it shows closes. In the popup that last `Esc` closes the board, and the hint line says
+so (`esc close`).
+
+**The settings page owns its keys.** While a task's settings are open (`Ctrl+E`), only that page's keys act: `↑` `↓`,
+`Enter`, `Ctrl+U`, `Esc` (or `Ctrl+E` again), and `Ctrl+C` to close the board. No key of the list archives, merges,
+pins or removes the task from there, and the hint line is the page's own (`↑ ↓ move · enter change · ctrl+u put back ·
+esc back to the task`; while a value is typed, `enter save this value · esc leave it as it is`).
 
 **One rule for the keys: `Ctrl` does something; `Alt` only shows or hides a part of the screen, and never changes
 anything.** The tables below are all the keys the board has. No other chord does anything, and no key of an earlier
@@ -73,7 +95,7 @@ main thing, except while you talk to a task's agent: there `space back to the Co
 Where the window is too narrow even for that one hint, it is said shorter, not cut: `enter send`, `ctrl+l merge this
 task`, `its agent` for `this task's agent`. That holds down to about 34 columns.
 
-A question the board asks has its keys in its own box (`y = yes · n = no`), and the hint line is empty meanwhile. An
+A question the board asks has its keys in its own box (`y = merge · n = do not merge`), and the hint line is empty meanwhile. An
 error stays on screen with `(esc dismisses)` after it.
 
 **The key that opens the board is herdr's, not the board's**: it is a line in herdr's `config.toml`, offered at the
@@ -93,11 +115,12 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 | Key | Does |
 |---|---|
 | `↑` `↓` | move between tasks |
+| `Pgup` `Pgdn` | a page up or down: ten tasks in the list, a page of text in the whole task |
 | `Enter` | send what you typed; with nothing typed, open the task's agent: its real herdr pane. The board keeps running in its own tab and is there as you left it; your key goes back to it (as a popup it closes, and your key opens it again where it was) |
 | `Space` | flip who you talk to: the selected task's agent, and back to the Coordinator. The chat says who. Nothing else changes it: while it is a task's agent, moving with `↑` `↓` makes it the agent of the task you moved to. On a task with no agent, your message puts one on it |
 | `Tab` | put an agent on the task. With text typed for the Coordinator: send it, and every task it adds from that message gets an agent at once, with nothing more to confirm (a message that adds no task delegates nothing) |
 | `Esc` | back, one step at a time, and nothing else: find is left, a draft is put away, then the whole task, the filter and the archive close. With none of those left it shows the same hint as `Ctrl+C`; the board as a popup (`board.open`) closes on it. It never shows or hides the chat and never changes who you talk to |
-| `?` | the menu: every key in these three groups, each line with its key. A ctrl or alt line can be picked with `↑` `↓` and `Enter`, which does what its key does. Under the keys, what a row's `R#2` review tag and its colour say; where the window is too short for all of it, `↓` on the last line scrolls on down, and `↑` on the first scrolls up |
+| `?` | the menu: every key in these three groups, each line with its key. A ctrl or alt line can be picked with `↑` `↓` and `Enter`, which does what its key does. It opens with no line picked. Under the keys, what a row shows: each mark with its word, the numbers on the right, and what the colour of a review tag and of a pull request say. Every line is whole (a long one wraps); where the window is too short for all of it the last line says how many lines are below, and `↓` on the last key scrolls on down, `↑` on the first scrolls up |
 | `y` `n` | answer a question the board asks: `y` yes, `n` or `Esc` no. Only while a question is up; `Enter` never confirms |
 
 **`Ctrl`: does something**
@@ -112,6 +135,7 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 | `Ctrl+E` `Ctrl+U` | the selected task's settings, full screen: every work setting by its name, its value, and the place it comes from (this task, your entry for its repo, you, the repo's file, built in). `↑` `↓` move to a row; `Enter` changes it (a switch or a choice goes to its next value, anything else is typed and saved with `Enter`); rows that are this task's own are marked `*`. `Ctrl+U` puts the selected row back to what it would be without this task's own answer. `Esc` or `Ctrl+E` again goes back ([settings.md](settings.md)) |
 | `Ctrl+Z` | undo: bring back a draft that was put away, or take the last archiving back |
 | `Ctrl+F` | find: type, and the list shows only the tasks that match, archived ones too. `Enter` keeps the filter, `Esc` leaves find; `Esc` on the list clears a filter that is kept |
+| `Ctrl+K` | only while a remote view holds the board's terminal at another size than herdr shows it (the line at the top says so): end that view, so the board has its own size again ([board-size.md](board-size.md)) |
 | `Ctrl+C` | twice: close the board, with text typed too: the draft is kept and is back when the board reopens |
 
 **`Alt`: only shows or hides**

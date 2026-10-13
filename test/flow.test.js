@@ -167,7 +167,8 @@ test("the finish line: commit leftovers, check, review, then wait for approval; 
     const st = w.state();
     assert.deepEqual(st.notifications, []); // nothing pops up when a task lands in review
     // herdr's own sidebar says what to do. With no sidebar rows in herdr's config the label rides on the agent's name too.
-    assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=approve? pass") && m.args.join(" ").includes("--display-agent approve? pass · claude")));
+    // It says where the task stands in the board's own words, what it says on a row of its own (the summary token), and names the task as the board does.
+    assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=ready to approve") && m.args.join(" ").includes("--display-agent #1 · ready to approve") && m.args.join(" ").includes("summary=Pass · 1 minor") && m.args.join(" ").includes("--clear-token progress")), JSON.stringify(st.metadata.map((m) => m.args.join(" ")).slice(-4)));
     // While the board ran the check, the sidebar had its line (no percent: this check reports no count), taken off again when it ended.
     const told = st.metadata.filter((m) => m.pane === t.link.pane).map((m) => m.args.join(" "));
     const began = told.findIndex((x) => x.includes("--token summary=Running the check") && x.includes("--clear-token progress")), ended = told.findIndex((x) => x.includes("--clear-token summary --clear-token progress --clear-token eta"));
@@ -180,9 +181,26 @@ test("the finish line: commit leftovers, check, review, then wait for approval; 
     try {
       F.labelPane(t, "approve? pass");
       const last = w.state().metadata.map((m) => m.args.join(" ")).filter((x) => x.includes("--state-label")).at(-1);
-      assert.ok(last.includes("idle=approve? pass") && last.includes("--clear-display-agent") && !last.includes("--display-agent approve"), last);
+      assert.ok(last.includes("idle=approve? pass") && / --display-agent #1 --token summary=/.test(last) && !last.includes("--display-agent #1 ·"), last); // the name is the task's alone: the label stands beside it
     } finally { if (oldCfg === undefined) delete process.env.HERDR_CONFIG_PATH; else process.env.HERDR_CONFIG_PATH = oldCfg; }
     assert.ok(!st.panes.some((p) => p.agent?.name === "sw-proj-1-r")); // the reviewer pane is closed again
+    // herdr's sidebar keeps no working line under a task that stopped working (the Watcher's "Just started" once stayed
+    // there for minutes): the keeper's pass writes a label once, names the task's pane as the board names the task,
+    // and takes the working line off a task that neither works nor has a label.
+    {
+      const calls = () => w.state().metadata.filter((m) => m.pane === t.link.pane).map((m) => m.args.join(" ")), labels = () => calls().filter((x) => x.includes("--state-label")).length;
+      F.labelTask(t); const live = { ...t, state: "blocked", live: { status: "done" } };
+      assert.match(calls().at(-1), /--state-label idle=ready to approve .*--display-agent #1 · ready to approve --token summary=Pass · 1 minor --clear-token progress --clear-token eta$/);
+      let n = labels(); F.syncSidebar([live]); assert.equal(labels(), n, "no label written twice");
+      assert.ok(calls().some((x) => x.includes("--title #1 Add a greeting")), calls().join("\n")); n = calls().length; F.syncSidebar([live]); assert.equal(calls().length, n, "named once");
+      F.labelPane(t, null); const stopped = { ...t, stage: "stopped", state: "idle", live: { status: "idle" } };
+      F.syncSidebar([stopped]); assert.match(calls().at(-1), /--clear-state-labels .*--clear-token summary --clear-token progress --clear-token eta$/);
+      n = calls().length; F.syncSidebar([stopped]); assert.equal(calls().length, n, "cleared once");
+      F.labelPane(t, null); n = calls().length; F.syncSidebar([{ ...t, stage: "working", state: "working", live: { status: "working" } }]); assert.equal(calls().length, n, "while it works the Watcher's line is the pane's to show");
+      F.syncSidebar([{ ...t, stage: "asks", kind: "question", msg: "Sand or pebbles?", state: "blocked", live: { status: "done" } }]);
+      assert.match(calls().at(-1), /--state-label idle=asks you .*--token summary=Sand or pebbles\? --clear-token progress --clear-token eta$/);
+      F.labelTask(t); // as it was: it waits for its yes
+    }
     assert.equal(st.panes.find((p) => p.pane_id === t.link.pane).agent.kind, "claude");
     // approve
     A.approve(id);

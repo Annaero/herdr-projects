@@ -28,7 +28,9 @@ export function panelEl(snap, handlers) {
   if (!p) return null;
   return h("article.sw-panel", { "aria-label": p.automation ? "Automation" : "Task" },
     h("header.sw-panel-head",
-      h("button.icon-button.sw-panel-back", { type: "button", "aria-label": "Back to the list", title: "Back to the list", onclick: handlers.onClose }, icon("back")),
+      // One back arrow at a time: on a phone this one stands for the Board's own while a task is open (board.css); beside
+      // the list on a wide screen, where the list never left, it is a close mark instead.
+      h("button.icon-button.sw-panel-back", { type: "button", "aria-label": "Back to the list", title: "Back to the list", onclick: handlers.onClose }, h("span.sw-narrow", icon("back")), h("span.sw-wide", icon("close"))),
       h("h3.sw-panel-title", p.tag ? h("span.sw-id", p.tag + " ") : null, p.title || "(no title)")),
     actionsEl(snap, handlers),
     h("div.sw-parts", p.parts.map((part) => h("section.sw-part",

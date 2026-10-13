@@ -44,7 +44,7 @@ export function calledOff(g) {
   const cur = g.check();
   if (!cur.mergeIntent?.auto || byItself(cur)) return false;
   const t = g.set((t) => { t.stage = "approval"; t.autoMerge = false; t.autoMergeLocal = false; t.mergeIntent = null; t.requireApproval = false; t.since = Date.now(); t.msg = approvalMessage(t); });
-  F.labelPane(t, F.labelOf(t));
+  F.labelTask(t);
   return true;
 }
 function start(id) {
@@ -68,5 +68,5 @@ function hold(seen) {
     t.stage = "approval"; t.autoMerge = false; t.autoMergeLocal = false; t.mergeIntent = null; t.requireApproval = false; t.since = Date.now();
     t.msg = approvalMessage(t);
   });
-  if (t.stage === "approval") F.labelPane(t, F.labelOf(t));
+  if (t.stage === "approval") F.labelTask(t);
 }

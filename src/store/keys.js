@@ -60,5 +60,12 @@ export function sayIds(text, keys = repoKeys()) {
   for (const [repo, key] of Object.entries(keys)) out = out.split(new RegExp(`(?<![\\w/.+-])${repo.replace(/[.+]/g, "\\$&")}/(\\d+)(?![\\w/])`)).map((part, n) => (n % 2 ? `${key}-${part}` : part)).join("");
   return out;
 }
+// The same for the board's own screen, where a task's name is the tag its row has: every known repo's ids, keyed or
+// not (`proj/14: stopped` -> `#14: stopped`, `HSW-14: stopped`). `repos`: the names of the repos the board knows.
+export function tagIds(text, repos = [], keys = repoKeys()) {
+  let out = String(text ?? "");
+  for (const repo of new Set([...repos, ...Object.keys(keys)])) out = out.split(new RegExp(`(?<![\\w/.+-])${repo.replace(/[.+*?^$()[\]{}|\\]/g, "\\$&")}/(\\d+)(?![\\w/])`)).map((part, n) => (n % 2 ? (keys[repo] ? `${keys[repo]}-${part}` : `#${part}`) : part)).join("");
+  return out;
+}
 // A task as a commit and a pull request name it: the short name with the id it stands for, or the id alone.
 export const taskRef = (id, keys = repoKeys()) => { const short = sayId(id, keys); return short === String(id) ? String(id) : `${short} (${id})`; };

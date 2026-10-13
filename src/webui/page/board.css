@@ -11,6 +11,8 @@
   --sw-teal: color-mix(in srgb, #14b8a6 78%, var(--text, #d8d0c3)); --sw-review: var(--status-working, #6cb8d6); --sw-check: var(--text, #d8d0c3);
   /* A task nobody has started: the web UI's dim text, never its plain text colour. */
   --sw-todo: var(--text-dim, #9b9183);
+  /* Nothing that is read is under 13px on the board, whatever the web UI's two smallest sizes are elsewhere. */
+  --fs-2xs: 13px; --fs-xs: 13px;
 }
 .sw-board {
   position: fixed; inset: 0; z-index: 22; /* over the web UI's drawer (20), under its dialogs (30) */ display: flex; flex-direction: column; min-width: 0;
@@ -35,7 +37,7 @@
 .sw-find { width: 100%; height: var(--touch-target, 40px); padding: 0 var(--space-3, 12px); border: var(--hairline, 1px) solid var(--sw-line); border-radius: var(--radius-md, 8px); background: var(--bg-input, #1c1916); color: var(--sw-text); font: inherit; font-size: var(--fs-input, 16px); }
 .sw-chips { flex: none; display: flex; flex-wrap: wrap; gap: var(--space-2, 8px); padding: 0 var(--space-3, 12px); }
 .sw-chips:not(:empty) { padding-top: var(--space-2, 8px); padding-bottom: var(--space-2, 8px); border-bottom: var(--hairline, 1px) solid var(--sw-line); }
-.sw-chip { display: inline-flex; align-items: center; gap: var(--space-1, 4px); min-height: 28px; padding: 0 var(--space-3, 12px); border: var(--hairline, 1px) solid var(--sw-line); border-radius: var(--radius-pill, 999px); background: var(--sw-lift); color: var(--sw-text); font: inherit; font-size: var(--fs-xs, 12px); cursor: pointer; }
+.sw-chip { display: inline-flex; align-items: center; gap: var(--space-1, 4px); min-height: var(--touch-target, 40px); padding: 0 var(--space-3, 12px); border: var(--hairline, 1px) solid var(--sw-line); border-radius: var(--radius-pill, 999px); background: var(--sw-lift); color: var(--sw-text); font: inherit; font-size: var(--fs-xs, 12px); cursor: pointer; }
 .sw-chip-x { color: var(--sw-dim); }
 /* The list and one task: side by side on a wide screen, one at a time on a phone. */
 .sw-body { flex: 1; min-height: 0; display: flex; }
@@ -47,6 +49,11 @@
   .sw-board.has-task .sw-list-host { display: block; flex: 0 1 44%; max-width: 560px; border-right: var(--hairline, 1px) solid var(--sw-line); }
 }
 .sw-list { max-width: var(--content-w, 820px); margin: 0 auto; }
+
+/* One back arrow at a time: while a task is open on a phone, the task's own stands for the Board's. */
+.sw-wide { display: none; } .sw-narrow, .sw-wide { line-height: 0; }
+@media (max-width: 899px) { .sw-board.has-task .sw-back { display: none; } }
+@media (min-width: 900px) { .sw-panel-back .sw-narrow { display: none; } .sw-panel-back .sw-wide { display: inline; } }
 
 /* One task. */
 .sw-panel { max-width: var(--content-w, 820px); margin: 0 auto; }
@@ -76,7 +83,7 @@
 
 /* The chat at the foot. */
 .sw-chat { flex: none; display: flex; flex-direction: column; gap: var(--space-2, 8px); padding: var(--space-2, 8px) var(--space-3, 12px) var(--space-3, 12px); border-top: var(--hairline, 1px) solid var(--sw-line); background: var(--sw-panel); }
-.sw-who { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 var(--space-2, 8px); padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-height: 24px; }
+.sw-who { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 var(--space-2, 8px); padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-height: var(--touch-target, 40px); align-items: center; }
 .sw-who:disabled { cursor: default; }
 .sw-who-name { font-weight: var(--fw-semibold, 600); color: var(--sw-strong); overflow-wrap: anywhere; }
 .sw-who-status { color: var(--sw-dim); font-size: var(--fs-sm, 13px); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -91,7 +98,7 @@
 .sw-by { color: var(--sw-text); font-weight: 600; }
 .sw-turn.is-mine { color: var(--sw-text); }
 .sw-turn.is-raw .sw-turn-text { font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-xs, 12px); white-space: pre; overflow-x: auto; }
-.sw-said-more { align-self: flex-start; font-size: var(--fs-xs, 12px); color: var(--sw-dim); min-height: 28px; height: 28px; margin-top: calc(-1 * var(--space-1, 4px)); }
+.sw-said-more { align-self: flex-start; font-size: var(--fs-xs, 12px); color: var(--sw-dim); min-height: var(--touch-target, 40px); height: var(--touch-target, 40px); margin-top: calc(-1 * var(--space-1, 4px)); }
 .sw-compose { display: flex; align-items: flex-end; gap: var(--space-2, 8px); }
 .sw-input { flex: 1; min-width: 0; min-height: var(--touch-target, 40px); max-height: 30vh; padding: 9px var(--space-3, 12px); resize: none; border: var(--hairline, 1px) solid var(--border-strong, #3e3830); border-radius: var(--radius-lg, 12px); background: var(--bg-input, #1c1916); color: var(--sw-text); font: inherit; font-size: var(--fs-input, 16px); line-height: 1.35; }
 /* Who the box sends to, by its frame (view/textbox.js: boxColor): the Coordinator's is the plain text colour, an agent's its task's status colour. */
@@ -100,7 +107,9 @@
 .sw-input:focus-visible { outline: var(--ring, 2px solid var(--sw-yellow)); outline-offset: 0; }
 .sw-send-row { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1, 4px); }
 .sw-send { min-height: var(--touch-target, 40px); }
-.sw-send-also { min-height: 28px; height: auto; font-size: var(--fs-2xs, 11px); max-width: 11em; white-space: normal; line-height: 1.2; padding: var(--space-1, 4px) var(--space-2, 8px); }
+.sw-send-also { min-height: var(--touch-target, 40px); white-space: nowrap; }
+/* Who the words in the box are for, while it holds any. */
+.sw-to { align-self: flex-start; padding: 2px var(--space-2, 8px); border: var(--hairline, 1px) solid var(--sw-line); border-radius: var(--radius-pill, 999px); background: var(--sw-lift); color: var(--sw-text); font-size: var(--fs-sm, 13px); }
 
 /* Over the board: the question, the More menu, the message. */
 .sw-scrim { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: center; background: var(--scrim, rgba(8, 6, 4, .55)); }
@@ -112,7 +121,7 @@
 .sw-ask-keys .sw-act { flex: 1 1 auto; text-align: center; justify-content: center; }
 .sw-menu-head { display: flex; align-items: center; gap: var(--space-2, 8px); margin-bottom: var(--space-2, 8px); }
 .sw-menu-title { flex: 1; min-width: 0; font-weight: var(--fw-semibold, 600); color: var(--sw-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sw-menu-name { margin: var(--space-3, 12px) 0 var(--space-1, 4px); font-size: var(--fs-2xs, 11px); font-weight: var(--fw-semibold, 600); letter-spacing: var(--tracking-caps, 0.06em); text-transform: uppercase; color: var(--sw-dim); }
+.sw-menu-name { margin: var(--space-3, 12px) 0 var(--space-1, 4px); font-size: var(--fs-sm, 13px); font-weight: var(--fw-semibold, 600); color: var(--sw-dim); }
 .sw-menu-item { display: block; width: 100%; min-height: var(--touch-target, 40px); padding: var(--space-2, 8px) var(--space-3, 12px); border: 0; border-radius: var(--radius-md, 8px); background: none; color: var(--sw-text); font: inherit; text-align: left; cursor: pointer; }
 .sw-menu-item:hover { background: var(--sw-hover); }
 .sw-toast-host { flex: none; position: relative; height: 0; }
@@ -120,7 +129,7 @@
 .sw-toast-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .sw-toast-red { border-color: var(--sw-red); color: var(--danger-text, #ffd9d4); background: color-mix(in srgb, var(--sw-red) 14%, var(--sw-lift)); }
 .sw-toast-green { border-color: var(--sw-green); } .sw-toast-yellow { border-color: var(--sw-yellow); }
-.sw-toast-x { flex: none; width: 24px; height: 24px; min-width: 24px; min-height: 24px; }
+.sw-toast-x { flex: none; width: var(--touch-target, 40px); height: var(--touch-target, 40px); min-width: var(--touch-target, 40px); min-height: var(--touch-target, 40px); }
 .sw-unread { margin: var(--space-3, 12px) var(--space-3, 12px) 0; padding: var(--space-2, 8px) var(--space-3, 12px); border: var(--hairline, 1px) solid var(--sw-yellow); border-radius: var(--radius-md, 8px); font-size: var(--fs-sm, 13px); }
 .sw-unread-line { margin: 0; color: var(--sw-text); overflow-wrap: anywhere; }
 .sw-unread summary { margin-top: var(--space-1, 4px); color: var(--sw-dim); cursor: pointer; }
@@ -130,7 +139,7 @@
 .sw-group { margin-top: var(--space-4, 16px); }
 .sw-group-name {
   display: flex; align-items: baseline; gap: var(--space-2, 8px); margin: 0; padding: 0 var(--space-3, 12px) var(--space-1, 4px);
-  font-size: var(--fs-2xs, 11px); font-weight: var(--fw-semibold, 600); letter-spacing: var(--tracking-caps, 0.06em); text-transform: uppercase;
+  font-size: var(--fs-sm, 13px); font-weight: var(--fw-semibold, 600);
 }
 .sw-count { color: var(--sw-dim); font-weight: var(--fw-regular, 400); letter-spacing: 0; }
 .sw-rows { list-style: none; margin: 0; padding: 0; }
@@ -139,9 +148,15 @@
   padding: var(--space-2, 8px) var(--space-3, 12px); border-radius: var(--radius-md, 8px); cursor: pointer;
 }
 .sw-row:hover { background: var(--sw-hover); }
-.sw-row.is-selected { background: var(--sw-lift); }
+/* The selected row: its tint, and a bar in its gutter, so that which task is selected never hangs on a tint alone. */
+.sw-row.is-selected { background: var(--sw-lift); box-shadow: inset 3px 0 0 var(--accent, #f0a830); }
 .sw-row:focus-visible, .sw-more:focus-visible { outline: var(--ring, 2px solid var(--sw-yellow)); outline-offset: calc(-1 * var(--ring-offset, 2px)); }
 .sw-mark { flex: none; width: 1.25em; text-align: center; line-height: var(--lh-base, 1.5); font-size: var(--fs-md, 14px); }
+/* The round marks, drawn at one size: an agent at work (full), its reviewer (the right half), the board (the lower half). */
+.sw-dot { display: inline-block; width: 0.72em; height: 0.72em; border-radius: 50%; border: 1.5px solid currentColor; box-sizing: border-box; vertical-align: -0.04em; }
+.sw-dot-full { background: currentColor; }
+.sw-dot-right { background: linear-gradient(90deg, transparent 50%, currentColor 50%); }
+.sw-dot-bottom { background: linear-gradient(180deg, transparent 50%, currentColor 50%); }
 .sw-main { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; row-gap: 2px; min-width: 0; flex: 1; }
 .sw-main > * { grid-column: 2; }
 .sw-main > .sw-id { grid-column: 1; margin-right: var(--space-2, 8px); }

@@ -35,11 +35,11 @@ test("the task details of a task with reviews and evidence show every review and
     s.press("alt+t");
     text = s.text(120);
     assert.doesNotMatch(text, /view error|could not be shown|is not defined/);
-    assert.match(text, /^ Task details {2}proj\/1/);
+    assert.match(text, /^ Task details {2}#1 "Build a flying game"/);
     assert.match(text, /\n Reviews · 3 ─+ *\n History {6}2\/5 no → no verdict → 4\/5 yes *\n/);
     for (const n of [1, 2, 3]) assert.match(text, new RegExp(`\\n Review ${n} {5}[✓✗–] `));
     // Each piece of evidence: its name, what it is, and its link printed in full.
-    assert.match(text, /\n Evidence ─+ *\n ↗ The plane takes off *\n {3}A screenshot of the first level\. *\n {3}https:\/\/example\.test\/proj\/1\/takeoff\.png *\n *\n ↗ The test run *\n {3}https:\/\/example\.test\/proj\/1\/tests\.txt *\n/);
+    assert.match(text, /\n Evidence ─+ *\n ↗ The plane takes off *\n[ ▌] {2}A screenshot of the first level\. *\n[ ▌] {2}https:\/\/example\.test\/proj\/1\/takeoff\.png *\n *\n ↗ The test run *\n[ ▌] {2}https:\/\/example\.test\/proj\/1\/tests\.txt *\n/);
     assert.ok(text.indexOf("\n Evidence ") < text.indexOf("\n Settings "));
     s.press("esc"); assert.equal(s.v.full, false);
   } finally { w.cleanup(); }
@@ -59,7 +59,7 @@ test("a part of the board that fails to draw says so in its place: the rest of t
       assert.doesNotMatch(text, /view error/);
       // (Beside the list the line wraps: read it without the panel's edge and its line breaks.)
       assert.match(text, /Reviews ─+/); assert.match(text.replace(/[\s│]+/g, " "), /✗ This part could not be shown: artifactLines is not defined/);
-      assert.match(text, /Build a flying game/); assert.match(text, /Description ─/); assert.match(text, /A small game\./); assert.match(text, /Settings ─/); assert.match(text, /Merge /);
+      assert.match(text, /Build a flying game/); assert.match(text, /Description ─/); assert.match(text, /A small game\./); assert.match(text, /Settings ─/); assert.match(text, full ? /Merge / : /all as usual · ctrl\+e shows them/); // beside the list only the settings that are this task's own
       assert.doesNotMatch(text, /Review 3/);
     }
     s.press("esc"); assert.equal(s.v.full, false);
@@ -72,11 +72,11 @@ test("a part of the board that fails to draw says so in its place: the rest of t
     s.press("alt+t");
     text = s.text(120);
     assert.match(text, /✗ The task details could not be shown: nope/);
-    assert.match(text, /\n❯ what's next\? *\n─+\n {2}tab put an agent on this task · [^\n]*esc back to the list *$/);
+    assert.match(text, /\n❯ Add a task *\n─+\n[ ▌] {1}tab put an agent on this task · [^\n]*esc back to the list *$/);
     s.press("esc"); assert.equal(s.v.full, false);
     tc.mock.restoreAll();
     // Any one section of the screen fails (the chat among them): never the error screen, and the others are there.
-    const marks = { list: /○ #1 Build a flying game/, panel: /Settings ─/, box: /❯ what's next\?/, hints: /tab put an agent on this task/ };
+    const marks = { list: /○ #1 Build a flying game/, panel: /Settings ─/, box: /❯ Add a task/, hints: /tab put an agent on this task/ };
     for (const [method, gone] of [["chatOf", ["hints"]], ["chatLines", []], ["chatUp", []], ["boxLines", ["box"]], ["hints", ["hints"]], ["listLines", ["list"]], ["headLines", ["list"]], ["heldLines", []]]) {
       const m = tc.mock.method(s.v, method, () => { throw new Error("nope"); });
       const page = s.text(120);

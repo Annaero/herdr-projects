@@ -12,6 +12,7 @@ import { spawn } from "node:child_process";
 import * as S from "./store.js";
 import * as F from "./flow.js";
 import { herdr } from "./herdr.js";
+import { landsOn } from "./sync.js";
 import { readAnswer, whyNot } from "./remote/why.js";
 export * from "./remote/why.js";
 
@@ -71,7 +72,9 @@ const snapshot = (t) => {
   // Its settings as this machine reads them, each with the place it came from: the task panel on the asking side.
   // What its agent (its reviewer, while it is under review) said: only for a task someone is on, and kept small.
   const talk = F.isAgentTask(t) && !t.archivedAt && t.stage !== "done" ? (() => { try { return F.taskTalk(t, { keep: 8, most: 6000 }); } catch { return undefined; } })() : undefined;
-  return { talk, folder: S.tilde(folder), tree: S.tilde(tree), branch: S.branchOf(tree || folder), settings: S.settingRows({ task: t }), problems: S.settingProblems(t), canWorktree: S.canWorktree(folder), repo: S.inRepo(t) };
+  // Where its work lands, for the asking side's merge question: only for a task that waits for that yes.
+  const onto = t.stage === "approval" ? (() => { try { return landsOn(t); } catch { return undefined; } })() : undefined;
+  return { talk, landsOn: onto, folder: S.tilde(folder), tree: S.tilde(tree), branch: S.branchOf(tree || folder), settings: S.settingRows({ task: t }), problems: S.settingProblems(t), canWorktree: S.canWorktree(folder), repo: S.inRepo(t) };
 };
 // `said`, `usage` and `agentVersion` ride along on each task; `version` is this side's plugin version (a machine on
 // an older plugin sends none, and the asking side then knows which requests it would not understand). Pending
@@ -95,13 +98,13 @@ export async function remoteMain([what, payload]) {
         restore: () => { A.restore(t.id); return `${t.id}: restored`; },
         delegate: () => { sent(); A.delegate(t.id); return `${t.id}: an agent is on it`; },
         tell: () => { if (!t.startedOnce) sent(); return A.tell(t.id, String(a.text || "")).msg; },
-        approve: () => A.approve(t.id, a.seen || null).msg,
+        approve: () => A.approve(t.id, a.seen || null, { anyway: a.anyway === true }).msg,
         fix: () => A.sendFailure(t.id).msg,
         retry: () => A.sendError(t.id).msg,
         again: () => A.retry(t.id).msg,
         review: () => A.sendReview(t.id).msg,
         finish: () => A.finishAnyway(t.id).msg,
-        pin: () => { A.pin(t.id); return ""; },
+        pin: () => { const p = A.pin(t.id); return `${t.id}: ${p.pinned ? "pinned" : "unpinned"}`; },
         stop: () => { A.stop(t.id); return `${t.id}: stopped.`; },
       };
       // Going into a task from another machine: reopen its space and restart its exited agent here first, with the

@@ -1,10 +1,14 @@
 // What you do to the selected task: yes, send back, stop, remove, undo, archive.
+import fs from "node:fs";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 import * as S from "../../store.js";
 import * as A from "../../actions.js";
+import * as G from "../../gate.js";
 import { herdr } from "../../herdr.js";
-import { clean, prNumber } from "./words.js";
-import { isAgent, failureFor } from "./states.js";
+import { clean, prNumber, short } from "./words.js";
+import { isAgent, failureFor, failedReview } from "./states.js";
+import { reviewTally } from "../../status-words.js";
+import { landsOn } from "../../sync.js";
 import { name as keyName } from "../keys.js";
 
 // The stages in which a task's agent (or its reviewer) is alive in its pane. "asks": it waits for your answer.
@@ -39,7 +43,10 @@ export class Actions {
     this.try(() => {
       if (action === "archive") { A.archive(r.id); this.archiveUndo = r; } else A.restore(r.id);
       this.full = false;
-      this.flash(action === "archive" ? `${this.idSay(r)}: archived. ${keyName("undo")} undoes it; ${keyName("archiveView")} shows the archive.` : `${this.idSay(r)}: restored.`, "green");
+      // The task left the list, so the selection went to its neighbour: the message says which.
+      this.load();
+      const next = this.current(), on = next && next.id !== r.id ? ` Now on ${this.nameSay(next)}.` : "";
+      this.flash(action === "archive" ? `Archived ${this.nameSay(r)}. ${keyName("undo")} undoes it; ${keyName("archiveView")} shows the archive.${on}` : `Restored ${this.nameSay(r)}.${on}`, "green");
     });
   }
   // ---- what the keys do -------------------------------------------------------------------------------------------------
@@ -48,8 +55,16 @@ export class Actions {
     if (r.archivedAt) return this.flash(`Archived tasks are read-only. ${keyName("archive")} restores.`, "yellow");
     if (r.stage === "approval" && r.state === "blocked") {
       if (r.syncBlocked) return this.flash(`Behind main, so it cannot be approved yet: ${r.syncBlocked.why}. The board keeps trying to bring it up to date.`, "yellow");
-      const mark = this.mergeMark(r.id), seen = { pr: r.pr ?? null, head: r.reviewedHead ?? null };
-      return this.confirm(`Merge ${prNumber(r) || `"${truncateToWidth(clean(r.title || r.id), 32, "…")}"`}?`, () => (r.host ? this.act(r, "approve", { seen }) : this.try(() => { const out = A.approve(r.id, seen); this.flash(out.msg, "green"); })), () => this.mergeMark(r.id) === mark);
+      // The question names what is merged, where it lands and that it cannot be undone. After a failed review the
+      // yes is "merge anyway", and only that yes carries the word the approve action asks for.
+      const mark = this.mergeMark(r.id), seen = { pr: r.pr ?? null, head: r.reviewedHead ?? null }, failed = failedReview(r), tally = failed ? reviewTally(r) : "";
+      // Another machine's task lands on that machine: it says on which branch (an older one there does not: then the
+      // question still says where, as far as this side knows).
+      const onto = r.host ? `${r.snap?.landsOn || "its main branch"} on ${clean(r.host)}` : landsOn(r), more = { anyway: failed };
+      const what = [this.numberTag(r), `"${clean(r.title || r.id)}"`].filter(Boolean).join(" "); // (the machine is named with where it lands)
+      return this.confirm(`Merge ${what}${prNumber(r) ? ` (${prNumber(r)})` : ""} into ${onto}?`,
+        () => (r.host ? this.act(r, "approve", { seen, ...more }) : this.try(() => { const out = A.approve(r.id, seen, more); this.flash(out.msg, "green"); })), () => this.mergeMark(r.id) === mark,
+        { danger: true, keys: [["sayYes", failed ? "merge anyway" : "merge"], ["sayNo", "do not merge"]], detail: `${failed ? `Its last review failed${tally ? `: ${tally}` : ""}. ` : ""}A merge cannot be undone.` });
     }
     if (isAgent(r) && r.state === "blocked" && r.kind === "permission") return r.host ? this.act(r, "approve") : this.try(() => { const out = A.approve(r.id); this.flash(out.msg, "green"); });
     // Stopped without a summary: yes takes the work as it is, through the check and the review.
@@ -63,6 +78,8 @@ export class Actions {
     if (r.archivedAt) return this.flash(`Archived tasks are read-only. ${keyName("archive")} restores.`, "yellow");
     const failure = failureFor(r);
     if (failure && !failure.agentCanFix && !(r.stage === "failed" && r.failure?.auth)) return this.flash(`This needs you first. ${failure.next || ""}`, "yellow");
+    // Nothing went wrong and no review has anything for the agent: a key that does nothing here says so quietly.
+    if (!failure && r.state !== "error" && !(r.review?.text && G.sendable(r.review))) return this.flash("Nothing to send back here.");
     if (r.host) return this.act(r, failure && failure.agentCanFix ? "fix" : r.state === "error" ? "retry" : "review");
     return this.try(() => { const out = failure && failure.agentCanFix ? A.sendFailure(r.id) : r.state === "error" ? A.sendError(r.id) : A.sendReview(r.id); this.flash(out.msg, "green"); });
   }
@@ -75,14 +92,18 @@ export class Actions {
     if (!this.running(r)) return this.remove(r);
     this.stick = r.id; // the selection stays on this row: a second tap never lands on another task
     if (r.host) return this.act(r, "stop");
-    return this.try(() => { A.stop(r.id); this.flash(`${this.idSay(r)}: stopped.`, "yellow"); });
+    return this.try(() => { A.stop(r.id); this.flash(`Stopped ${this.nameSay(r)}.`, "yellow"); });
   }
+  // The question shows the whole title and what is really lost: the task with all it holds, and its worktree only
+  // where it has one (a checkout with unsaved or unmerged work is kept, and the board then says where).
   remove(r) {
-    this.confirm(`Remove "${truncateToWidth(clean(r.title || r.id), 32, "…")}"? Its worktree goes too.`, () => {
+    const tree = r.host ? r.snap?.tree : r.worktree && fs.existsSync(r.worktree) ? r.worktree : "";
+    const lost = `This cannot be undone. The task goes, with its description${r.review || r.reviewRound ? ", its reviews" : ""} and what its agent said${this.running(r) ? "; its agent is stopped" : ""}. ${tree ? `Its worktree ${short(tree)} goes too; work in it that is not saved or not merged is kept.` : "It has no worktree."}${r.archivedAt ? "" : ` ${keyName("archive")} only archives it.`}`;
+    this.confirm(`Remove ${this.nameSay(r, Infinity)}?`, () => {
       if (r.host) return this.act(r, "clear");
-      A.clear(r.id).then((out) => { this.flash(out.kept.length ? `${this.idSay(r)}: removed. Kept, so no work is lost: ${out.kept.join(", ")}` : `${this.idSay(r)}: removed`, out.kept.length ? "yellow" : "overlay0"); this.load(); this.tui.requestRender(); }, (e) => { this.flash(e.message, "red"); this.tui.requestRender(); });
-      this.flash(`${this.idSay(r)}: removing…`);
-    });
+      A.clear(r.id).then((out) => { this.flash(out.kept.length ? `Removed ${this.nameSay(r)}. Kept, so no work is lost: ${out.kept.join(", ")}` : `Removed ${this.nameSay(r)}.`, out.kept.length ? "yellow" : "overlay0"); this.load(); this.tui.requestRender(); }, (e) => { this.flash(e.message, "red"); this.tui.requestRender(); });
+      this.flash(`Removing ${this.nameSay(r)}…`);
+    }, null, { danger: true, keys: [["sayYes", "remove"], ["sayNo", "keep"]], detail: lost });
   }
   undo() {
     // A draft comes back only to whoever it was for: a reply stays a reply to that task, never a new task. ctrl+z
@@ -110,6 +131,6 @@ export class Actions {
     const r = this.archiveUndo; this.archiveUndo = null;
     if (!r) return this.flash("Nothing to undo.");
     if (r.host) return this.act(r, "restore");
-    return this.try(() => { A.restore(r.id); this.flash(`${this.idSay(r)}: restored`, "green"); });
+    return this.try(() => { A.restore(r.id); this.flash(`Restored ${this.nameSay(r)}.`, "green"); });
   }
 }

@@ -3,7 +3,8 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import * as G from "../../gate.js";
 import { herdr } from "../../herdr.js";
 import { short, clean, age, prTag, bar, left } from "./words.js";
-import { MARK_STATES, failureFor, inReview, isLive, needsYou, statusColor, reviewerMark, boardStep, waitOf } from "./states.js";
+import { MARK_STATES, failureFor, inReview, failedReview, isLive, needsYou, statusColor, reviewerMark, boardStep, waitOf } from "./states.js";
+import { reviewTally } from "../../status-words.js";
 import { ETA_STEADY, PERCENT_MIN, PERCENT_STEADY, labelRoom, shownFrom } from "./row-fit.js";
 import { tallAt } from "./row-tall.js";
 import { isResearch } from "../../research.js";
@@ -20,10 +21,10 @@ export class Row {
     // herdr's own marks, a different one for each state, in the colour of the task's group.
     const c = statusColor(r);
     if (r.archivedAt) return t.fg(c, t.mark("unknown"));
-    if (inReview(r)) return t.fg(c, t.bold(t.mark("blocked", "permission"))); // waits for your yes: the mark of a yes or no, in the green of work that is ready
+    if (inReview(r)) return t.fg(c, t.bold(t.mark("ready"))); // passed and waits for your yes: a mark of its own, in the green of work that is ready
     if (reviewerMark(r)) return t.fg(c, t.mark("review")); // the reviewer at work: the working mark, facing the other way
     if (boardStep(r)) return t.fg(c, t.mark("board")); // a step of the board's own: one mark for all of them
-    if (r.state === "blocked") return t.fg(c, t.bold(t.mark("blocked", r.kind))); // what it needs from you: ? an answer, ! a yes or no, ⚷ a sign-in
+    if (r.state === "blocked") return t.fg(c, t.bold(t.mark("blocked", r.kind))); // what it needs from you: ? an answer, ! a yes or no, @ a sign-in
     if (r.state === "done") return t.dim(t.fg(c, t.mark("done"))); // finished: the same mark, only quieter
     return t.fg(c, t.mark(MARK_STATES.includes(r.state) ? r.state : "idle"));
   }
@@ -35,7 +36,7 @@ export class Row {
     const paint = (c, s) => (s ? t.fg(c, s) : "");
     const live = r.state !== "done", has = live && r.progress !== undefined;
     // The time is "working for" on a working row and "ago" on every other: the word says which.
-    return { bar: has ? paint(color, bar(r.progress)) : "", percent: has ? paint(color, `${r.progress}%`) : "", eta: live && r.eta !== undefined ? paint(color, left(r.eta)) : "", // minutes left show with no percent too
+    return { bar: has ? paint(color, bar(r.progress)) : "", percent: has ? paint(color, `${r.progress}%`) : "", eta: live && r.eta !== undefined ? paint(color, `${left(r.eta)} left`) : "", // minutes left, said as that ("25h left"), show with no percent too
       review: reviewTagInk(t, r), pr: prTag(t, r), elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
   }
   // What a row says: under its name on a live task's row, after its name on any other. Never what its heading
@@ -43,12 +44,15 @@ export class Row {
   sentence(r) {
     const t = this.theme;
     const words = (s) => clean(s || "").replace(/\*\*|`/g, "");
-    // What a row says is greyed out, never the title's colour: the two are told apart at a glance.
-    const quiet = (s) => (s ? t.muted(s) : "");
+    // What a row says is greyed out, never the title's colour: the two are told apart at a glance. It has to be read,
+    // so it is the brighter of the two greys (theme.js: soft). What a task asks of you is in the plain text colour.
+    const quiet = (s) => (s ? t.soft(s) : ""), plainly = (s) => (s ? t.fg("text", s) : "");
     const failure = failureFor(r);
     // Cut off by its provider, and the board tries again by itself: the row says why and when, not that it failed.
     if (waitOf(r)) return { text: quiet(words(r.msg)) };
     if (failure && !failure.sentAt && (r.failure || r.prFailure)) return { text: quiet(words(failure.msg || failure.title)) };
+    // Finished work whose review failed: it says so, in the colour of what failed, with the tally.
+    if (failedReview(r)) return { text: t.fg("red", "Review failed") + quiet(reviewTally(r) ? ` · ${reviewTally(r)}` : "") };
     if (inReview(r)) {
       // The result and a short tally: "Pass · 2 minor". Which review it was is the row's R# tag.
       const rv = currentReview(r);
@@ -69,12 +73,12 @@ export class Row {
     // While the reviewer works the row says only what the reviewer is doing: the colour of its mark, its bar, its
     // percent and its minutes left says a review is running, and its R# tag which one.
     if (r.state === "done") return { text: "" };
-    if (needsYou(r)) return { text: quiet(msg || { question: "Has a question", permission: "Asks for your OK", auth: "Needs a login" }[r.kind] || (r.state === "error" ? "Failed" : "")) };
+    if (needsYou(r)) return { text: (r.state === "blocked" && msg ? plainly : quiet)(msg || { question: "Has a question", permission: "Asks for your OK", auth: "Needs a login" }[r.kind] || (r.state === "error" ? "Failed" : "")) };
     return { text: quiet(msg) };
   }
   // What a row says on its first line, after its name: nothing on a live task's row, which says it on its second.
   saysBeside(r) { return isLive(r) ? { text: "" } : this.sentence(r); }
-  rowTitle(r) { return clean(r.title || r.id) + (isResearch(r) ? " [research]" : "") + (r.automation?.id ? " [auto]" : "") + (r.archivedAt ? " [archived]" : ""); }
+  rowTitle(r) { return clean(r.title || r.id) + (isResearch(r) ? " [research]" : "") + (r.automation?.id ? " [auto]" : "") + (r.archivedAt && !this.archiveView ? " [archived]" : ""); }
   // The fewest cells a row needs to say something: a sentence cut to a few letters says nothing.
   sayNeed(said) { return Math.min(visibleWidth(said.text || ""), SENTENCE_MIN); }
   // The columns on the right are laid out first, once for the whole list: which there are and how wide each is. Every
@@ -102,7 +106,7 @@ export class Row {
     const group = cols.findIndex(([key]) => !PROGRESS.includes(key));
     if (group > 0) cols.splice(group, 0, ["gap", 0]);
     const layout = { now, review, pr, elapsed, cols, num, numbering, ago: !tall && [...fields.values()].some((f) => f.ago), show: new Map(), tall };
-    if (tall) layout.third = this.tallLayout(records.filter(below).map((r) => this.rowFields(r, now)), width);
+    if (tall) layout.third = this.tallLayout(records.filter(below).map((r) => this.rowFields(r, now)), width, 3 + (num ? num + 1 : 0));
     // Decided at widths that do not move as the numbers tick: the percent and the minutes left count as their widest
     // ("100%", and words.js: left).
     const steady = { percent: PERCENT_STEADY, eta: ETA_STEADY };
@@ -145,16 +149,12 @@ export class Row {
     while (from < cells.length && !cells[from].text) from++;
     return { metadata: cells.slice(from).map((c) => fill(c.text, c.w, c.key === "pr")).join(" ") };
   }
-  // A row's name in `w` cells. In the all-machines view the machine's name sits before the task's, in what the
-  // task's name leaves: it is cut first.
-  rowNameParts(r, w) {
-    const t = this.theme;
-    const shown = truncateToWidth(this.nameInk(r, this.rowTitle(r)), w, "…");
-    const host = r.host && this.scope === "*" ? clean(r.host) : "", hostRoom = w - visibleWidth(shown) - 1;
-    return { host: host && hostRoom >= Math.min(3, visibleWidth(host)) ? t.fg("overlay0", truncateToWidth(host, hostRoom, "…")) + " " : "", shown };
-  }
+  // A row's name in `w` cells. With every machine shown, whose task it is stands in its number's tag (`otherbox#1`,
+  // row-number.js), never in its title.
+  rowNameParts(r, w) { return { host: "", shown: truncateToWidth(this.nameInk(r, this.rowTitle(r)), w, "…") }; }
   // The title is plain text whatever the task's state: the mark and the group's heading carry the state's colour.
-  nameInk(r, s) { return r.state === "working" || r.state === "blocked" ? this.theme.bold(s) : s; }
+  // A live task's is bold: one weight for every title under "needs you", one that went wrong included.
+  nameInk(r, s) { return ["working", "blocked", "error"].includes(r.state) ? this.theme.bold(s) : s; }
   rowName(r, w) { const { host, shown } = this.rowNameParts(r, w); return host + shown; }
   // A row's first line, measured: its mark and its number, the columns it keeps, and the room they leave its name.
   rowRoom(r, width, layout) {
@@ -180,7 +180,15 @@ export class Row {
   // task always has words (status-kept.js), and a task that waits with nothing to say an empty line. Never a bare "…".
   statusLine(r, width, layout = this.rowLayout([r], width)) {
     const lead = this.rowLead(r, width, layout);
-    return truncateToWidth(lead + this.sentence(r).text, width, "…");
+    return truncateToWidth(lead + this.saysUnder(r), width, "…");
+  }
+  // What stands on a live task's second line: what it says, or, where it has no words, something true and quiet
+  // instead of a gap: that it is your own task, that nobody reviewed it, or the plain word for where it stands.
+  saysUnder(r) {
+    const said = this.sentence(r).text;
+    if (said) return said;
+    const t = this.theme;
+    return t.soft(r.stage === "progress" ? "Yours: no agent on it" : inReview(r) ? "Not reviewed" : reviewerMark(r) ? "Under review" : r.state === "working" ? "Working" : "Needs you");
   }
   // Where a live task's lines under its first start: under its name.
   rowLead(r, width, layout) { const { prefix, labelRoom } = this.rowRoom(r, width, layout); return " ".repeat(visibleWidth(prefix) + visibleWidth(this.rowNameParts(r, labelRoom).host)); }

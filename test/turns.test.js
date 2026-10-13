@@ -117,11 +117,11 @@ test("a review that fails the gate goes straight back, as the plugin's own turn,
     assert.match(t.msg, /^Approve to merge\? Review: Fail · 1 major\./);
     assert.equal(paneOf(w, t).agent.prompts.length, 3);
     // three reviews ran: the task says which one it is on, to herdr's sidebar too
-    assert.equal(S.reviewRound(t), 3); assert.equal(F.labelOf(t), "approve? fail"); assert.equal(F.labelOf({ ...t, review: { score: 4, recommend: true, text: "Old." } }), "approve? 4/5"); // herdr's sidebar says what to do
-    assert.equal(F.labelOf({ ...t, stage: "reviewing" }), "reviewing"); assert.equal(F.labelOf({ ...t, stage: "reviewing", reviewRound: 0 }), "reviewing");
+    assert.equal(S.reviewRound(t), 3); assert.equal(F.labelOf(t), "review failed"); assert.deepEqual([F.labelOf({ ...t, review: { score: 4, recommend: true, text: "Old." } }), F.lineOf({ ...t, review: { score: 4, recommend: true, text: "Old." } })], ["ready to approve", "4/5"]); // herdr's sidebar says where it stands, in the board's words
+    assert.equal(F.labelOf({ ...t, stage: "reviewing" }), "under review"); assert.equal(F.labelOf({ ...t, stage: "reviewing", reviewRound: 0 }), "under review");
     assert.equal(F.labelOf({ ...t, stage: "reviewneeds" }), "needs you"); assert.equal(F.labelOf({ ...t, stage: "reviewneeds", reviewRound: 0 }), "needs you");
-    // Four labels in all: needs you, approve? pass or fail, reviewing, failed. The exact reason is on the board.
+    // The labels are the board's own status words (src/status-words.js); what the task says is the line beside them.
     const labels = new Set([{ stage: "approval" }, { stage: "approval", mergeFailed: true }, { stage: "approval", prFailure: {} }, { stage: "approval", syncBlocked: {} }, { stage: "asks" }, { stage: "asks", kind: "auth" }, { stage: "nosummary" }, { stage: "failed" }, { stage: "failed", failure: { auth: true } }, { stage: "failed", failure: { phase: "sync" } }, { stage: "merging" }, { stage: "merging", autoMerge: true }, { stage: "checking" }, { stage: "pushing" }, { stage: "working", expectedWake: { reason: "conflict" } }, { stage: "reviewing" }, { stage: "reviewneeds" }].map((x) => F.labelOf({ ...t, ...x }).replace(/ (?:pass|fail)$/, "")));
-    assert.deepEqual([...labels].sort(), ["", "approve?", "failed", "needs you", "reviewing"]);
+    assert.deepEqual([...labels].sort(), ["", "asks you", "behind main", "needs a login", "needs you", "review failed", "under review", "went wrong"]); assert.equal(F.labelOf({ stage: "approval" }), "ready to approve");
   } finally { w.cleanup(); }
 });

@@ -87,7 +87,7 @@ export function openBoard({ onClose }) {
   if (root) return;
   closing = onClose; snap = null; mark = ""; seenGo = null; seenMsg = -1; menuOpen = false; finding = false;
   for (const k of Object.keys(drawn)) drawn[k] = "";
-  chat = chatEl({ onSend: async (text, delegate) => { const out = await call("send", { text, delegate }); return !out.ok || !!out.kept; }, onPress: press });
+  chat = chatEl({ onSend: async (text, delegate, to) => { const out = await call("send", { text, delegate, to }); return !out.ok || !!out.kept; }, onPress: press });
   let wait = null;
   const find = h("input.sw-find", { type: "search", placeholder: "Type to filter, archived tasks too", "aria-label": "Find tasks", oninput: (e) => { clearTimeout(wait); const text = e.target.value; wait = setTimeout(() => call("find", { text }), 200); } });
   root = h("section.sw-board", { role: "region", "aria-label": "Work board" },

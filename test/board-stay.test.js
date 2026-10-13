@@ -33,7 +33,7 @@ test("enter on a task goes into its agent and the board stays as it was: from th
       assert.equal(s.v.leaving, undefined, what); assert.equal(s.v.disposed, false, what);
       assert.deepEqual(w.state().focus.slice(before), [`agent ${pane}`], `herdr moved to the agent: ${what}`);
       assert.equal(s.v.sel, id, what); assert.equal(s.v.filter, "greeting", what); assert.deepEqual(s.v.repo, S.repoOf(w.root), what);
-      assert.match(s.text().replace(/\s+/g, " "), /Opened proj\/1's agent\. prefix\+w brings you back to the board\./, what);
+      assert.match(s.text().replace(/\s+/g, " "), /Opened #1's agent\. prefix\+w brings you back to the board\./, what);
       assert.equal(S.readJson(path.join(S.dataDir(), "view.json")).sel, id, `where you were is saved: ${what}`);
       // It still takes keys when you are back, and a second enter goes in again.
       s.press("enter");
@@ -310,7 +310,7 @@ test("a board in a tab keeps running beside the popup: each has its own note, an
     // only shows how it closes.
     again.press("esc"); assert.equal(again.closed(), undefined); assert.equal(again.v.value(), "");
     again.press("esc"); assert.equal(again.closed(), null);
-    tab.press("esc", "esc"); assert.equal(tab.closed(), undefined); assert.match(tab.text(), /Press ctrl\+c again to close the board/);
+    tab.press("esc", "esc"); assert.equal(tab.closed(), undefined); assert.match(tab.text(), /\n {2}ctrl\+c closes the board *$/);
     // Closing the popup leaves the tab board's note alone.
     P.show(undefined, { here: { pane: "w9:p1", tab: "w9:t1" } }); assert.equal(up(w), null); assert.equal(note("pane").pane, "w9:p2");
     // "Approve the task in this pane" is asked by the board that was shown for it, not by whichever looks first.

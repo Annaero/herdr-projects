@@ -29,7 +29,9 @@ export async function openBoard({ folder }) {
     let view, unwatch = () => {};
     const done = (result) => {
       try { view.dispose(); } catch {}
-      try { if (result && result.reload) stopKeepingScreen(() => tui.stop()); else tui.stop(); } catch {}
+      // Closing leaves nothing behind: the screen's own stop would print the board's last frame once more on the plain
+      // screen, above your prompt. The same way out a reload takes, and then the full-screen view is left for good.
+      try { stopKeepingScreen(() => tui.stop()); if (!result?.reload) giveScreenBack(); } catch {}
       if (!result?.reload) restoreBoardTab(named); // the board that starts in its place closes in this tab too
       try { unwatch(); P.depart(); Popup.depart(); } catch {}
       // The plugin was updated under an open board: the same command starts again on the new code, in this terminal,

@@ -13,7 +13,8 @@ export function askEl(ask, onPress) {
   return h("div.sw-scrim", h("div.sw-sheet", { role: "alertdialog", "aria-modal": "true", "aria-label": ask.q },
     h("p.sw-ask-q", ask.q),
     ask.detail ? h("p.sw-ask-detail", ask.detail) : null,
-    h("div.sw-ask-keys", ask.keys.map((k, n) => h(`button.btn${n === 0 ? ".btn-primary" : ""}.sw-act`, { type: "button", onclick: () => onPress(k.id) }, cap(k.label))))));
+    h("div.sw-ask-keys", // A yes that cannot be undone (a merge, a remove) is never the filled button: neither answer is.
+    ask.keys.map((k, n) => h(`button.btn${n === 0 && !ask.danger ? ".btn-primary" : ""}.sw-act`, { type: "button", onclick: () => onPress(k.id) }, cap(k.label))))));
 }
 export function menuEl(snap, { onPress, onClose, onFind }) {
   const title = snap.list.groups.flatMap((g) => g.rows).find((r) => r.id === snap.list.selected)?.title || "";

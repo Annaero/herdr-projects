@@ -15,7 +15,7 @@ export const TALL_BELOW = 80;
 // A bar shorter than this says nothing: the percent beside it does.
 const BAR_MIN = 4;
 // The minutes left are this wide at least ("10m"), so that the bar keeps its length when "9m" turns "10m".
-const ETA_MIN = 3;
+const ETA_MIN = 8; // "10m left"
 // The gap left of a group: one cell, and two right of the progress (the bar, the percent, the minutes left), which is
 // the one wider gap of a row.
 const progress = (g) => ["percent", "eta"].includes(g[0][0]);
@@ -27,15 +27,15 @@ export class RowTall {
   // The third line's columns, once for the whole list: each is as wide as the widest of its kind, so they start at
   // the same place on every live row and every bar has the same length. In a width too small for all of them the
   // word "ago" goes first, then the tags, then the percent and the minutes; the time always stays.
-  tallLayout(fields, width) {
+  tallLayout(fields, width, lead = 3) {
     const max = (key) => Math.max(0, ...fields.map((f) => visibleWidth(f[key])));
     const elapsed = Math.max(3, max("elapsed"));
     const w = { percent: max("percent") && Math.max(max("percent"), PERCENT_MIN), eta: max("eta") && Math.max(max("eta"), ETA_MIN), review: max("review"), pr: Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), elapsed, ago: fields.some((f) => f.ago) };
     const right = () => this.tallGroups(w).reduce((n, g, at, all) => n + before(g, at, all) + g.reduce((m, [, cells]) => m + cells + 1, -1), 0);
-    for (const drop of [["ago"], ["review", "pr"], ["percent", "eta"]]) if (3 + right() > width) for (const key of drop) w[key] = 0;
+    for (const drop of [["ago"], ["review", "pr"], ["percent", "eta"]]) if (lead + right() > width) for (const key of drop) w[key] = 0;
     // The bar takes what the columns leave: it is why the line fills the width. Too short to read, it gives its
     // room to the word "ago" before it goes.
-    if (w.ago && fields.some((f) => f.bar) && width - 3 - right() < BAR_MIN) w.ago = false;
+    if (w.ago && fields.some((f) => f.bar) && width - lead - right() < BAR_MIN) w.ago = false;
     return { ...w, right: right() };
   }
   // Left to right: the progress, the review with its pull request, the time. One cell between them and two right of
@@ -57,7 +57,8 @@ export class RowTall {
       time: t.fg("overlay0", f.elapsed + (w.ago && f.ago ? " ago" : "")),
     };
     const right = this.tallGroups(w).map((g, n, all) => " ".repeat(before(g, n, all)) + g.map(([key, cells]) => fill(text[key], cells, key === "pr")).join(" ")).join("");
-    const lead = " ".repeat(Math.min(width, visibleWidth(this.mark(r)) + 2)), room = width - visibleWidth(lead) - w.right;
+    // It starts where the titles start, right of the mark and of the numbers' column: one left edge for a row's lines.
+    const lead = " ".repeat(Math.min(width, visibleWidth(this.mark(r)) + 2 + (layout.num ? layout.num + 1 : 0))), room = width - visibleWidth(lead) - w.right;
     const drawn = f.bar && room >= BAR_MIN ? t.fg(statusColor(r), bar(r.progress, room)) : "";
     return truncateToWidth(lead + fill(drawn, Math.max(0, room), true) + right, width, "");
   }

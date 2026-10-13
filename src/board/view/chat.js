@@ -29,7 +29,7 @@ export class Chat {
   // A reply to this task goes to an agent of its own (not, with its task named, to the Coordinator).
   hasAgent(r) { return isAgent(r) && (!!r.host || F.isAgentTask(r) || F.cleanedUp(r)); }
   // The task panel leaves "The agent said" to the chat while the chat shows that same message.
-  chatShows(r) { return !!r && this.reply && this.chatOpen && this.mode !== "find" && r.id === this.sel && !r.archivedAt && this.hasAgent(r) && !this.sentTo(r); }
+  chatShows(r) { return !!r && this.reply && this.chatOpen && !this.chatFolded && this.mode !== "find" && r.id === this.sel && !r.archivedAt && this.hasAgent(r) && !this.sentTo(r); }
   // What you just sent to a task's agent stands in the box until that agent says something new. It is remembered,
   // at the moment it is sent, with what the agent had last said and the turn it said it in: its next message takes
   // your words away again, also one in the very same words ("Done." twice), and also when the chat was showing
@@ -73,7 +73,7 @@ export class Chat {
     if (far) return { mark: t.fg("overlay0", t.mark("unknown")), color: "overlay0", name: `Coordinator on ${far}`, status: t.muted(`what you type goes to ${far}`), text: "" };
     // No Coordinator (it is off, its program is not installed, or herdr is not running): the same box adds tasks.
     if (!this.canDispatch && this.automationsView) return { mark: t.fg("overlay0", t.mark("unknown")), color: "overlay0", name: "No Coordinator", status: t.muted("an automation is made from a shell: herdr-superwork automations add"), text: "" };
-    if (!this.canDispatch) return { mark: t.fg("overlay0", "+"), color: "overlay0", name: "New task", status: t.muted("what you type is added as a task, word for word"), text: "" };
+    if (!this.canDispatch) return { mark: t.fg("overlay0", "+"), color: "overlay0", name: "New task", status: t.muted("added word for word"), text: "" };
     const v = this.coord;
     const fresh = !!v.unseen && !this.chatOpen;
     const color = fresh ? "green" : { working: "yellow", starting: "yellow", blocked: "red", idle: "green" }[v.state] || "overlay0";
@@ -124,7 +124,8 @@ export class Chat {
     const t = this.theme;
     if (c && !c.text) this.chatAt = null; // nothing said in between: the same words after it are a new message
     if (!c?.text || max < 1) return [];
-    const paint = (kind, l, p) => (kind === "by" ? t.fg("subtext0", l) : p.tone ? t.fg(p.tone, l) : p.mine ? l : t.muted(l));
+    // Their words have to be read: the brighter of the two greys (theme.js: soft). Who said them is the quiet one.
+    const paint = (kind, l, p) => (kind === "by" ? t.muted(l) : p.tone ? t.fg(p.tone, l) : p.mine ? l : t.soft(l));
     const { lines, latest } = partLines(c.parts || [{ by: "", text: c.text, raw: c.raw, mine: c.mine, tone: c.tone }], Math.max(1, width), paint);
     const top = this.chatWindow(c, lines.length, max, latest);
     return lines.slice(top, top + this.chatFit.rows);

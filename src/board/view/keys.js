@@ -7,9 +7,9 @@ import * as F from "../../flow.js";
 import * as H from "../../helpers.js";
 import { isAgent } from "./states.js";
 
-// Closing takes ctrl+c twice, as leaving Claude Code does ("Press Ctrl-C again to exit", shown for 0.8s): this long
-// the first one is remembered. Codex is no model here: it leaves on the first ctrl+c (its two-press code is off).
-const CLOSE_WAIT = 800;
+// Closing takes ctrl+c twice, as leaving Claude Code does ("Press Ctrl-C again to exit"): this long the first one
+// is remembered, two seconds, which is time enough to read the line that says so. Codex is no model here: it leaves on the first ctrl+c (its two-press code is off).
+const CLOSE_WAIT = 2000;
 // A view that types into the pane from an input line (the phone layout of herdr's web UI) sends what was typed and
 // then an enter of its own, 120 ms later (measured on herdr-web-ui 0.4.8). Behind a one-letter key of the board that
 // enter would press something: the first line of the ? menu, or "open the agent" after a yes. Within this long of
@@ -22,6 +22,7 @@ const READ_ONLY = () => `Archived tasks are read-only. ${K.name("archive")} rest
 export class Keys {
   handleInput(data) {
     const before = this.value();
+    this.topFree = false; // a key brings the view back to the selected task (the wheel may have moved it: mouse.js)
     try { this.handle(data); } catch (e) { this.flash(e.message, "red"); }
     // One printable character that did not go into the text box was a key of the board (?, space, y, n).
     this.loneAt = data.length === 1 && data >= " " && before === this.value() ? Date.now() : 0;
@@ -30,10 +31,11 @@ export class Keys {
   }
   // Closing the board is not a question: the first ctrl+c (or the last esc) shows a hint where the key hints are,
   // and ctrl+c again while it shows closes. Any other key, or a short wait, and the board carries on as before.
-  closeHint() {
+  closeHint(byEsc = false) {
     this.closeSoon();
     this.closing = setTimeout(() => { this.closing = null; if (!this.disposed) this.tui.requestRender(); }, CLOSE_WAIT);
     this.closing.unref?.();
+    this.closing.byEsc = byEsc; // esc at the top only shows how the board closes: its line names the key you have not pressed yet
   }
   closeSoon() { clearTimeout(this.closing); this.closing = null; }
   handle(data) {
@@ -64,6 +66,7 @@ export class Keys {
       }
       if (K.is(data, "sayNo") && this.ask.no) { const { no } = this.ask; this.ask = null; return no(); }
       if (esc || K.is(data, "sayNo") || close) this.ask = null;
+      else this.ask.nudge = true; // any other key: the box says which keys answer it
       return; // a question takes its own keys, nothing else: no other key answers it or is typed into the text box
     }
     if (this.menu) return this.menuKey(data);
@@ -83,7 +86,7 @@ export class Keys {
       else if (this.filter) this.filter = "";
       else if (this.archiveView) return this.toggleArchive();
       else if (this.ctx.popup) return this.done(undefined); // the popup: nothing left to step back from, so it closes
-      else return this.closeHint();
+      else return this.closeHint(true);
       return this.load();
     }
     if (this.mode === "find" && enter) { this.filter = text; this.mode = "new"; this.setValue(""); return this.load(); }
@@ -122,14 +125,18 @@ export class Keys {
     if (tab) {
       if (text) { if ((this.reply && r) || this.mode !== "new") return; this.dispatch(text, true); return this.setValue(""); }
       if (r?.archivedAt) return this.flash(READ_ONLY(), "yellow");
-      if (r && r.host) this.act(r, "delegate"); else if (r) this.try(() => { const t = A.delegate(r.id); this.flash(t.stage === "queued" ? `${r.id}: waiting for a free slot` : `${r.id}: an agent is on it`, "green"); });
+      if (r) this.stick = r.id;
+      if (r && r.host) this.act(r, "delegate"); else if (r) this.try(() => { const t = A.delegate(r.id); this.flash(t.stage === "queued" ? `${this.nameSay(r)} waits for a free slot.` : `An agent is on ${this.nameSay(r)}.`, "green"); });
       return;
     }
     // From here on the text box is empty.
     const scroll = K.is(data, "up") || K.is(data, "down");
     if (this.full && scroll) return this.scrollPanel(data);
+    if (this.full && (K.is(data, "pageUp") || K.is(data, "pageDown"))) return this.scrollPanelBy((K.is(data, "pageUp") ? -1 : 1) * Math.max(1, this.panelHeight - 1));
     // Every other key is an entry in ../keys.js. One that is not the board's right now is typed into the text box.
     const key = K.typed(data, (k) => k.run);
+    // The selection follows the task you act on, wherever the action moves it (list.js: the stick rule).
+    if (key && r && ["yes", "sendBack"].includes(key.id)) this.stick = r.id;
     if (key && (!key.on || key.on(this, r))) return key.run(this, r);
     this.input.handleInput(data);
     if (this.mode === "find") this.load();
@@ -142,7 +149,8 @@ export class Keys {
     this.reply = true; this.replyId = r.id;
   }
   // The row moves to or from the top; the selection goes with it, so the same key again takes the pin back.
-  pinTask(r) { if (r.archivedAt) return this.flash(READ_ONLY(), "yellow"); this.stick = r.id; return r.host ? this.act(r, "pin") : this.try(() => A.pin(r.id)); }
+  // It says so: a row that jumps to the top, or back into its group, is otherwise the only sign.
+  pinTask(r) { if (r.archivedAt) return this.flash(READ_ONLY(), "yellow"); this.stick = r.id; return r.host ? this.act(r, "pin") : this.try(() => { const t = A.pin(r.id); this.flash(t.pinned ? `Pinned ${this.nameSay(r)} to the top. ${K.name("pin")} unpins it.` : `Unpinned ${this.nameSay(r)}.`); }); }
   toggleAllDone() { this.allDone = !this.allDone; return this.load(); }
   toggleByRepo() { this.byRepo = !this.byRepo; this.savePrefs(); return this.load(); }
 }

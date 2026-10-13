@@ -20,12 +20,12 @@ test("done comes last: below to do under each heading of the status view and ins
     const newer = add("newer to do");
     const s = open(w);
     const shape = () => s.v.rows.map((r) => r.header ?? r.note ?? r.rec.id);
-    const more = "… 2 more (? shows all done)";
+    const more = "↓ 2 more done (alt+d shows them)";
     // By status: the sections in the order they need you, done under to do, and the fold line the last line of all.
     const byStatus = ["needs you", asks, "working", working, "to do", newer, older, "done", ...done.slice(0, 5), more];
     assert.deepEqual(shape(), byStatus);
     const lines = s.screen(120).map((l) => l.split("│")[0]), at = (re) => lines.findIndex((l) => re.test(l));
-    assert.ok(at(/^ to do/) > at(/^ working/) && at(/^ done/) > at(/older to do/) && at(/2 more \(\? shows all done\)/) > at(/done 4/), lines.join("\n"));
+    assert.ok(at(/^ to do/) > at(/^ working/) && at(/^ done/) > at(/older to do/) && at(/↓ 2 more done \(alt\+d shows them\)/) > at(/done 4/), lines.join("\n"));
     // The arrow keys follow the order shown: from the last to-do down into done, and no further than the last done row.
     s.v.sel = older; s.v.load();
     s.press("down"); assert.equal(s.v.sel, done[0]);

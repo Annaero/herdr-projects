@@ -13,6 +13,10 @@ export const wanted = () => { try { return S.setting("board.open") === "popup"; 
 export const NAME = "popup";
 // How much of herdr's screen it takes. herdr centres it, frames it and never makes it smaller than its own least.
 export const SIZE = { width: "90%", height: "90%" };
+// In a small window a margin costs half the board: under this many columns or rows of room the popup takes it all.
+export const SMALL = { cols: 110, rows: 30 };
+// The popup's size for the room the panes have (`area`: herdr's own, from `pane layout`; unknown: the usual size).
+export const sizeFor = (area) => (area && (area.width < SMALL.cols || area.height < SMALL.rows) ? { width: "100%", height: "100%" } : SIZE);
 const file = (socket) => path.join(S.dataDir(), `board-popup-${sessionName(socket)}.json`);
 // Is this board in herdr's popup? herdr gives a popup's program its plugin's id and no pane.
 export const inPopup = (env = process.env) => env.HERDR_ENV === "1" && !!env.HERDR_PLUGIN_ID && !env.HERDR_PANE_ID;
@@ -56,7 +60,9 @@ export function toggle(here, { socket = currentSocket(), keep = false } = {}) {
     close(at, socket);
     if (shows) return "";
   }
-  herdr(socket).openBoardPopup(SIZE);
+  let area = null;
+  try { area = here.pane ? herdr(socket).paneLayout(here.pane)?.area || null : null; } catch {}
+  herdr(socket).openBoardPopup(sizeFor(area));
   try { S.writeJson(file(socket), { tab: here.tab || "", pid: 0, at: Date.now() }); } catch {}
   return NAME;
 }

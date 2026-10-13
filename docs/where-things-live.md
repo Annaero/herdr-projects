@@ -38,6 +38,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `runner.js` | Long jobs (delegate, finish line, land, restart) run in a detached runner so the board stays responsive and hook commands never hold herdr up |
 | `state.js` | (herdr status, stage) -> what the board shows |
 | `status-kept.js` | A working task's line while the Watcher has written none for this run: the last sentence it wrote, kept and said with its age, or "Just started" |
+| `status-words.js` | The status words, each said once: where a task stands, in the words the board's rows and State line, herdr's sidebar and the web page all use |
 | `store.js` | Tasks on disk, locks and settings |
 | `submit.js` | Making sure that what the board hands an agent is really taken: nothing is typed before the agent's program is up, and a prompt that was typed but not submitted gets its enter again |
 | `sync.js` | Keeping a task's branch current with main, in the task's own worktree |
@@ -120,7 +121,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `layout.js` | The whole screen: what goes where, and what gives way when the window is small |
 | `list.js` | The task list: which rows there are, which one is selected, the header line, and the list as drawn |
 | `menu.js` | The ? menu: every key of the board in its three groups, plain, ctrl and alt, each line with its key |
-| `mouse.js` | The mouse wheel: it scrolls the chat's message under the pointer and the whole-task page, and moves between tasks over the list |
+| `mouse.js` | The mouse wheel and the click: the wheel scrolls the chat's message under the pointer and the whole-task page, and moves between tasks over the list; a click on a task's row selects it |
 | `osc.js` | The same tasks, told to the terminal (OSC 7501) |
 | `panel-edit.js` | The settings page: every work setting of the selected task by its name, its value and the place it comes from |
 | `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, label-and-value rows, and the list of parts |
@@ -189,7 +190,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `handled-turn.js` | A turn that is already handled: the same turn seen again, and a task re-armed for a turn that never came |
 | `live.js` | Live readings: a task as herdr sees it right now, and the board's list made from them |
 | `send.js` | Sending text to an agent: delivering or queueing it, the closing-note rule, the command's path, a cut-off turn tried again |
-| `sidebar.js` | Telling herdr's own sidebar where a task stands: the label on its pane |
+| `sidebar.js` | Telling herdr's own sidebar where a task stands: the label and the line on its pane, and the task's name |
 | `spaces.js` | herdr spaces the board opened and owes closing: a repo's own space, a done task's clean-up, spaces left over |
 | `tabs.js` | A task's tabs in its herdr space: the agent's tab is named `Agent`, and each reviewer has a tab of its own, named after its review round |
 | `talk.js` | A task's conversation as the board shows it: its agent's, or its reviewer's while the task is under review |
@@ -344,16 +345,13 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `board-keys.test.js` | The board's keys, and the text box owning the keyboard |
 | `board-layout.test.js` | The whole screen: the chat pinned to the bottom, through a resize |
 | `board-list.test.js` | The task list: the header, the groups, the done list |
-| `board-needs.test.js` | A task that waits for you says what it needs: its mark (? an answer, ! a yes or no, ⚷ a sign-in) and the words beside it, on a row, in the task panel, in the chat and on the web board; never the look of one that went… |
+| `board-needs.test.js` | A task that waits for you says what it needs: its mark (? an answer, ! a yes or no, @ a sign-in) and the words beside it, on a row, in the task panel, in the chat and on the web board; never the look of one that went… |
 | `board-order.test.js` | The order of the list: what waits for you, then what is being worked on, then to do, and done last |
 | `board-panel.test.js` | The task panel: beside the list and full screen |
 | `board-reply.test.js` | Replying to a task's agent: who gets your words, and words put away |
 | `board-review.test.js` | Reviews as the board shows them: on a row and in the task panel |
-| `board-row-fit.test.js` | What the rows of a section show when space is short: the same things on every row, given up together in one order |
-| `board-row-tall.test.js` | A live task's row on a narrow screen: its third line (the bar, the percent, the minutes left, the review tag, the pull request, the time), the width where it switches, the highlight, scrolling, and the to-dos giving… |
-| `board-row-wrap.test.js` | Rows on a narrow screen wrap instead of being cut: a live task's name and what it says take up to two lines each, the selected task's name as many as it needs, one-line rows go without their time, and the highlight,… |
-| `board-rows.test.js` | One row of the list: its name, what it says, its columns |
-| `board-settings.test.js` | The settings page of a task: every work setting by its name with the place it comes from, moving to a row, changing it, the mark on the rows that are the task's own, and the one key that puts a row back |
+| `board-rows.test.js` | One row of the list: its name, what it says, its columns; what a section's rows give up together when space is short; and a row on a narrow screen: its third line, and names and words that wrap |
+| `board-settings.test.js` | The settings page of a task: every work setting by its plain label and its name with the place it comes from, moving to a row, changing it, the mark on the rows that are the task's own, the one key that puts a row… |
 | `board-setup.test.js` | The first run, and the board loading its new version |
 | `board-size.test.js` | A terminal held at another size than herdr shows |
 | `board-stay.test.js` | Going into an agent never ends the board: in a pane of its own it runs on, and opening the board goes back to it |

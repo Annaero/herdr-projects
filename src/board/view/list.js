@@ -1,5 +1,5 @@
 // The task list: which rows there are, which one is selected, the header line, and the list as drawn.
-import { truncateToWidth } from "@earendil-works/pi-tui";
+import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import os from "node:os";
 import * as S from "../../store.js";
 import * as F from "../../flow.js";
@@ -32,7 +32,7 @@ export class List {
     const eligible = this.items.filter((r) => held(r) || (this.archiveView ? !!r.archivedAt : !!f || !r.archivedAt));
     // A task is found by its number and by its tag too: `134`, `#134`, `hsw-134` (row-number.js).
     const keyed = { keys: (() => { try { return S.repoKeys(); } catch { return {}; } })() };
-    const tags = (r) => { const tag = this.numberTag(r, keyed).toLowerCase(), n = tag.replace(/^.*[#-]/, ""); return tag ? [tag, `#${n}`, n] : []; };
+    const tags = (r) => { const tag = this.numberTag(r, keyed, false).toLowerCase(), n = tag.replace(/^.*[#-]/, ""); return tag ? [tag, `#${n}`, n] : []; };
     const shown = f ? eligible.filter((r) => held(r) || `${tags(r).join(" ")} ${r.id} ${r.title} ${r.msg} ${r.state} ${r.app} ${r.archivedAt ? "archived" : ""} ${r.description || ""} ${r.failure?.title || ""} ${r.failure?.detail || ""}`.toLowerCase().includes(f)) : eligible;
     const layout = JSON.stringify([this.scope, this.byRepo, this.allDone, this.archiveView, f]);
     const repoOf = (r) => r.id.split("/")[0];
@@ -61,6 +61,8 @@ export class List {
       return (n < before) !== wouldPrecede && (n < before) !== (to < afterIndex);
     });
     // The selection stays where it is while you read or answer a task, and on the row whose agent you just stopped.
+    // So it does on the task you just acted on (put an agent on it, said yes, sent it back, pinned it), wherever
+    // that moves it: the selection follows the task, and goes to a neighbour only when the task leaves the list.
     const reading = this.full || this.reply || (this.stick === selected && !!after);
     if (layout === this.selectionLayout && old && !reading && (!after || after.order !== old.order || crossed)) {
       // Prefer the old successor, then the next surviving row below it, then the nearest survivor above. Never
@@ -122,8 +124,8 @@ export class List {
         const later = whole ? [] : todo.filter((r, n) => n < from || n >= from + todos);
         for (const r of list) {
           if (!folded.includes(r) && !later.includes(r)) rows.push({ rec: r });
-          if (folded.length && r === done[done.length - 1]) rows.push({ note: `… ${folded.length} more (? shows all done)` });
-          if (later.length && r === todo[todo.length - 1]) rows.push({ note: `… ${later.length} more to do` });
+          if (folded.length && r === done[done.length - 1]) rows.push({ note: `↓ ${folded.length} more done (${keyName("allDone")} shows them)` });
+          if (later.length && r === todo[todo.length - 1]) rows.push({ note: `↓ ${later.length} more to do` });
         }
       }
       return rows;
@@ -151,16 +153,35 @@ export class List {
     if (ids.length) this.sel = ids[Math.max(0, Math.min(ids.length - 1, at + d))];
     if (this.grouped) this.rows = this.foldRows(); // the to-do it landed on is never folded away
   }
-  // The header: one line. Which project, and anything unusual about what the list shows.
+  // How many tasks stand in each group, for the header: the tasks of whoever's board shows, archived ones apart.
+  counts() {
+    const n = { "needs you": 0, "ready to approve": 0, working: 0, "to do": 0, done: 0, archived: 0 };
+    for (const r of this.items) n[r.archivedAt ? "archived" : groupOf(r)]++;
+    return n;
+  }
+  // The header says where you are. Whose tasks show comes first and is never cut: other machines in the accent
+  // colour (every machine, or one by its name), else the repo new tasks go to. Then how many tasks stand in each
+  // group. No folder path: it took the line and cut off what matters. A filter has a line of its own under it, which
+  // says what it is, how many tasks match and which key clears it.
   headLines(w) {
-    const t = this.theme;
-    const session = sessionName(currentSocket());
-    const parts = [this.archiveView ? "archive" : this.repo.root === os.homedir() ? "~" : `${this.repo.name} · ${short(this.repo.root)}`];
-    if (session !== "default") parts.push(`session ${session}`);
-    if (this.scope === "*") parts.push(`all machines: ${Object.keys(this.remotes).length ? Object.values(this.remotes).map((m) => (m.ok ? m.label : `${m.label} (no answer)`)).join(", ") : "no others found"}`);
-    else if (this.all) parts.push(`only ${this.scope}${this.remotes[this.scope] && this.remotes[this.scope].ok ? "" : " (no answer)"}`);
-    if (this.filter && this.mode !== "find") parts.push(`find: ${this.filter}`);
-    return [truncateToWidth(" " + t.bold("herdr-superwork") + t.fg("overlay0", "  " + parts.join(" · ")), w, "…")];
+    const t = this.theme, session = sessionName(currentSocket()), others = Object.values(this.remotes || {});
+    const scope = this.scope === "*" ? `all machines: ${others.length ? others.map((m) => (m.ok ? m.label : `${m.label} (no answer)`)).join(", ") : "no others found"}` : this.all ? `only ${this.scope}${this.remotes[this.scope] && this.remotes[this.scope].ok ? "" : " (no answer)"}` : "";
+    const n = this.counts(), where = this.archiveView ? "archive" : repoLabel(this.repo.name);
+    const tally = this.archiveView ? [`${n.archived} archived`] : [n["needs you"] && `${n["needs you"]} ${n["needs you"] === 1 ? "needs" : "need"} you`, n["ready to approve"] && `${n["ready to approve"]} ready`, n.working && `${n.working} working`, n["to do"] && `${n["to do"]} to do`, n.done && `${n.done} done`].filter(Boolean);
+    const rest = [...(scope ? [] : [where]), ...tally, ...(session !== "default" ? [`session ${session}`] : [])].join(" · ");
+    // The board's name gives way before whose tasks these are is cut.
+    // The board's name gives way before whose tasks these are; names too long for the line go on to the next, whole:
+    // they are never cut.
+    const name = " " + t.bold("herdr-superwork") + "  ", lead = scope && visibleWidth(name) + visibleWidth(scope) > w ? " " : name;
+    const named = scope ? wrapTextWithAnsi(scope, Math.max(4, w - visibleWidth(lead))) : [""];
+    const first = lead + (scope ? t.fg("accent", named[0]) : "");
+    const left = w - visibleWidth(first) - (scope ? 3 : 0);
+    const more = named.slice(1).map((l) => " " + t.fg("accent", l));
+    const head = [first + (rest && !more.length && left >= 4 ? t.fg("overlay0", (scope ? " · " : "") + truncateToWidth(rest, left, "…")) : ""), ...more];
+    const f = (this.mode === "find" ? this.value() : this.filter).trim();
+    if (!f) return head;
+    const found = this.grouped ? this.grouped.groups.reduce((sum, [, recs]) => sum + recs.length, 0) : 0;
+    return [...head, " " + t.fg("accent", truncateToWidth(`filter "${f}" · ${found} of ${this.items.length} · ${keyName("back")} ${this.mode === "find" ? "cancels" : "clears"}`, Math.max(1, w - 1), "…"))];
   }
   // `screen` is the whole board's width: the list's own, unless the task panel is beside it. It decides whether live
   // rows have their third line (row-tall.js), for all of them at once.
@@ -171,8 +192,10 @@ export class List {
     // A machine whose tasks could not be read is said where they would be, never shown as an empty one (remotes.js).
     const unread = this.unreadLines(width);
     if (!this.rows.length) {
-      const none = " " + t.fg("overlay0", this.filter || this.mode === "find" ? "nothing matches." : this.archiveView ? "No archived tasks." : "Nothing here yet. Type what needs doing.");
-      const all = ["", ...unread, ...(unread.length && this.scope !== "*" ? [] : [...(unread.length ? [""] : []), none])];
+      const typed = (this.mode === "find" ? this.value() : this.filter).trim();
+      // Wrapped in a narrow window, never cut: it is the only thing the list says then.
+      const none = wrapTextWithAnsi(this.filter || this.mode === "find" ? (typed ? `Nothing matches "${typed}".` : "Type to filter.") : this.archiveView ? "No archived tasks." : "Nothing here yet. Type what needs doing.", Math.max(8, width - 2)).map((l) => " " + t.fg("overlay0", l));
+      const all = ["", ...unread, ...(unread.length && this.scope !== "*" ? [] : [...(unread.length ? [""] : []), ...none])];
       // More than fits (why a machine does not answer, on a small screen): up and down scroll it, and a line says so.
       this.unreadMax = Math.max(0, all.length - h);
       const top = this.unreadTop = Math.min(this.unreadTop || 0, this.unreadMax);
@@ -190,28 +213,50 @@ export class List {
     for (const row of this.rows) { if (row.header || !sections.length) sections.push([]); if (row.rec) sections.at(-1).push(row.rec); }
     const layout = this.rowLayout(sections.flat(), width, sections, screen);
     this.rows.forEach((row) => {
-      if (row.header) lines.push({ text: "", sel: false }, { text: " " + (this.byRepo ? t.bold(t.fg("subtext0", repoLabel(row.header))) : t.fg(GROUP_COLOR[row.header] || "subtext0", row.header)), sel: false });
+      if (row.header) lines.push({ text: "", sel: false, head: true }, { text: " " + (this.byRepo ? t.bold(t.fg("subtext0", repoLabel(row.header))) : t.fg(GROUP_COLOR[row.header] || "subtext0", row.header)), sel: false, head: true });
       else if (row.note) lines.push({ text: "   " + t.fg("overlay0", row.note), sel: false });
       // A row of more than one line (a live task's, a wrapped name) is the selected row's in all of them: the highlight covers them.
-      else this.rowLines(row.rec, width, layout).forEach((text, n, all) => lines.push({ text, sel: row.rec.id === this.sel, n, rest: all.length - n }));
+      else this.rowLines(row.rec, width, layout).forEach((text, n, all) => lines.push({ text, sel: row.rec.id === this.sel, n, rest: all.length - n, id: row.rec.id }));
     });
+    // A list longer than its room keeps its last line to say how many tasks are not shown: never a heading with
+    // nothing under it, and never a list that only looks whole.
+    // (Not in a list of only a few lines, where that line is a third of what there is.)
+    const cutAny = lines.length > h && h >= 8, room = cutAny ? h - 1 : h;
     const at = lines.findIndex((l) => l.sel), end = lines.findLastIndex((l) => l.sel);
-    if (at < this.top + 2) this.top = Math.max(0, at - 2);
-    if (end >= this.top + h) this.top = Math.min(at, end - h + 1); // with room for one line only, the one with its name
-    this.top = Math.max(0, Math.min(this.top, Math.max(0, lines.length - h)));
+    // The wheel moves the view alone while words are in the box (mouse.js): the selection is then not pulled back into it.
+    if (!this.topFree) {
+      if (at < this.top + 2) this.top = Math.max(0, at - 2);
+      if (end >= this.top + room) this.top = Math.min(at, end - room + 1); // with room for one line only, the one with its name
+    }
+    this.top = Math.max(0, Math.min(this.top, Math.max(0, lines.length - room)));
     // The list scrolls by whole rows, so a row of two or three lines is never shown in part: at the top it comes into
     // view whole (or goes, when the selected row needs the lines), and at the bottom what fits of it is left empty.
     const first = lines[this.top];
-    if (first?.n && !first.sel) this.top += end < this.top - first.n + h ? -first.n : first.rest;
-    const shown = lines.slice(this.top, this.top + h), cut = lines[this.top + h];
-    if (shown.length === h && cut?.n) for (let n = 1; n <= cut.n && n <= h; n++) if (!shown[h - n].sel) shown[h - n] = { text: "", sel: false };
+    if (first?.n && !first.sel) this.top += end < this.top - first.n + room ? -first.n : first.rest;
+    const shown = lines.slice(this.top, this.top + room), cut = lines[this.top + room];
+    if (shown.length === room && cut?.n) for (let n = 1; n <= cut.n && n <= room; n++) if (!shown[room - n].sel) shown[room - n] = { text: "", sel: false };
+    for (let n = shown.length - 1; n >= 0 && (shown[n].head || !shown[n].text); n--) shown[n] = { text: "", sel: false };
+    // Which task each line of the list belongs to, for a click on it (mouse.js).
+    this.listIds = shown.map((l) => l.id || "");
     const out = shown.map((l) => (l.sel ? this.hl(l.text, width) : l.text));
     while (out.length < h) out.push("");
+    if (cutAny) {
+      const all = [...new Set(lines.filter((l) => l.id).map((l) => l.id))], seen = all.filter((id) => this.listIds.includes(id));
+      // Counted in tasks, the folded ones too: every task of the list that is not on the screen.
+      const total = this.grouped ? this.grouped.groups.reduce((sum, [, recs]) => sum + recs.length, 0) : all.length;
+      const above = seen.length ? all.indexOf(seen[0]) : 0, below = Math.max(0, total - seen.length - above);
+      const note = [below && `↓ ${below} more`, above && `↑ ${above} more`].filter(Boolean).join(" · ");
+      out[h - 1] = note ? " " + t.fg("overlay0", truncateToWidth(note, Math.max(1, width - 1), "…")) : "";
+    }
     return out;
   }
-  // Highlight a whole line: resets inside it (from truncation) would end the background early.
+  // The selected row, in every list: a bar in the gutter of each of its lines and the theme's tint behind it. Where
+  // no background can be painted (colour is off, or the theme has none for it) the line is in inverse video instead:
+  // the selection never hangs on colour alone. Resets inside the line (from truncation) would end the background early.
   hl(line, width) {
-    const t = this.theme;
-    return t.selected(truncateToWidth(line, width, "…", true));
+    const t = this.theme, cut = truncateToWidth(line, width, "…", true);
+    // (The line's first cell is its margin, also where colour codes stand before it.)
+    const barred = cut.replace(/^((?:\x1b\[[0-9;]*m)*) /, (m, codes) => codes + t.fg("accent", "▌")), tinted = t.selected(barred);
+    return tinted === barred ? t.inverse(barred.replace(/\x1b\[27m/g, "")) : tinted;
   }
 }

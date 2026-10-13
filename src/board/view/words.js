@@ -31,5 +31,7 @@ export const prTag = (t, r, s = prNumber(r)) => ink(t, prColor(r), s);
 export const prColor = (r) => (merged(r) ? "overlay0" : { passing: "green", failing: "red" }[r.prState] || "subtext0");
 export const repoLabel = (name) => (S.knownRepos()[name] === os.homedir() ? "~" : name);
 export const idLabel = (id) => { const [repo, ...rest] = String(id).split("/"); return [repoLabel(repo), ...rest].join("/"); };
+// A moment as a person reads it, the same on every machine: "Mon 19 Oct, 09:00".
+export const when = (ms) => { const d = new Date(ms), p = (n) => String(n).padStart(2, "0"); return `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()]} ${d.getDate()} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()]}, ${p(d.getHours())}:${p(d.getMinutes())}`; };
 export const tokens = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n || 0));
 export const bar = (pct, n = 8) => "█".repeat(Math.round((pct / 100) * n)).padEnd(n, "░");

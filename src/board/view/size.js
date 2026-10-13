@@ -1,5 +1,6 @@
 // The board's size: the window, what herdr shows of it, and another viewer holding the terminal at its own size.
-import { truncateToWidth } from "@earendil-works/pi-tui";
+import { truncateToWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { name as keyName } from "../keys.js";
 import * as S from "../../store.js";
 import { herdr, currentSocket, paneShown, takeTerminal } from "../../herdr.js";
 import { lookHeld, holders } from "../held.js";
@@ -165,10 +166,20 @@ export class Size {
     // at herdr's own window meanwhile.
     if (this.guest) return [truncateToWidth(" " + t.fg("overlay0", `Drawn for a remote view of this pane at ${d.columns}×${d.rows} (herdr's web UI has it open): herdr's own window (${d.room.columns}×${d.room.rows}) shows a cut-out of it until that view is closed`), width, "…")];
     // Taking the terminal changed nothing and no attach holds it: a second herdr window has the session at its size.
-    const text = this.gaveUp && !who ? `Held at ${d.columns}×${d.rows}: a key typed in this window frees it. Another herdr window on this session (a second device, a browser tab) has it at its own size, so herdr's own window (${d.room.columns}×${d.room.rows}) shows the board cut off or half empty`
-      : `Held at ${d.columns}×${d.rows}: ${who ? `kill ${who.pid}` : "closing its remote view"} frees it. `
-      + `Drawn for a remote view of this pane, so herdr's own window (${d.room.columns}×${d.room.rows}) shows it cut off or half empty`
-      + (who ? ` · herdr terminal attach, open ${age(who.seconds * 1000)}${d.by.length > 1 ? `, and ${d.by.length - 1} more` : ""}` : "");
-    return [truncateToWidth(" " + t.fg("yellow", "! " + text), width, "…")];
+    const text = this.gaveUp && !who ? `Shown cut off: another herdr window on this session (a second device, a browser tab) holds this pane at ${d.columns}×${d.rows} (herdr's own window: ${d.room.columns}×${d.room.rows}). A key typed in this window frees it.`
+      : `Shown cut off: a remote view holds this pane at ${d.columns}×${d.rows} (herdr's own window: ${d.room.columns}×${d.room.rows}). ${who ? `${keyName("free")} ends that view${d.by.length > 1 ? "s" : ""} (open ${age(who.seconds * 1000)}); closing it where it runs does the same.` : "Closing that view frees it."}`;
+    // Whole, on up to three lines: what frees the size is never the part that is cut.
+    return wrapTextWithAnsi(t.fg("yellow", "! " + text), Math.max(10, width - 2)).slice(0, 3).map((l) => " " + l);
+  }
+  // The remote views that hold the terminal, where they are processes this board may end (`herdr terminal attach`).
+  holder() { return this.held && !this.guest && this.held.by && this.held.by[0] ? this.held.by : null; }
+  // The key that frees the size: ends those views, as closing each where it runs would.
+  freeSize() {
+    const by = this.holder();
+    if (!by) return this.flash("Nothing holds this pane at another size.");
+    let ended = 0;
+    for (const p of by) { try { process.kill(p.pid, "SIGTERM"); ended++; } catch {} }
+    this.flash(ended ? `Ended ${ended === 1 ? "the remote view" : `${ended} remote views`} of this pane. The board has its own size again in a moment.` : "The remote view could not be ended from here: close it where it runs.", ended ? "green" : "yellow");
+    this.lookHeld();
   }
 }

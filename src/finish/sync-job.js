@@ -6,6 +6,7 @@ import * as Y from "../sync.js";
 import { firstLine, approvalMessage, fail } from "./shared.js";
 import { pipeline } from "./pipeline.js";
 import { closeReviewer } from "./review.js";
+import { WORDS } from "../status-words.js";
 
 // Main moved while a task waits for your approval (another task merged, or anything else): the board brings the
 // task's branch up to date by itself. Started by the housekeeping pass. Only a task at rest is touched: waiting for
@@ -30,12 +31,12 @@ export async function syncJob(id, { force = false } = {}) {
     if (r?.status === "skip") why = Y.skipWhy(r);
     if (why) {
       const b = g.set((t) => ({ ...Y.seenPatch(t, null), syncBlocked: { why, at: Date.now() }, msg: Y.behindMsg(why) }));
-      return void F.labelPane(b, "needs you");
+      return void F.labelTask(b, WORDS.needs);
     }
     if (r.status === "conflict") return void Y.conflictBack(id, g, tree, r, (failure, seen) => { fail(g, failure, { patch: seen }); });
     if (r.status !== "merged") { // already current: asked again when main moves
       const c = g.set((t) => ({ ...Y.seenPatch(t, r), ...(t.syncBlocked ? { syncBlocked: null, msg: approvalMessage(t) } : {}) }));
-      return void F.labelPane(c, F.labelOf(c));
+      return void F.labelTask(c);
     }
     await pipeline(id, g, t.summary || "", { reason: "sync" }, r);
   } catch (e) { if (!e.aborted) try { fail(g, { stage: "workflow", title: "The finish line failed", detail: e.stack || e.message, next: "Investigate the error, then finish again." }); } catch {} else await closeReviewer(id); }

@@ -16,7 +16,7 @@ test("other machines: the door answers one line of JSON, actions run where the t
     const lines = [door("list"), door("do", pack({ action: "pin", id: t.id })), door("do", pack({ action: "nope", id: t.id })), door("dispatch", pack({ text: "Added from afar" }))];
     const [list, pin, nope, disp] = lines.map((l) => JSON.parse(l));
     assert.equal(list.tasks[0].id, t.id); assert.equal(list.tasks[0].state, "idle"); assert.ok(list.tasks[0].snap.folder);
-    assert.deepEqual(pin, { ok: true, msg: "" }); assert.equal(S.get(t.id).pinned, true);
+    assert.deepEqual(pin, { ok: true, msg: "proj/1: pinned" }); assert.equal(S.get(t.id).pinned, true);
     assert.equal(nope.ok, false); assert.equal(disp.ok, true); assert.match(disp.msg, /added/);
     let found; machines((m) => { found = m; });
     assert.deepEqual(found.map((m) => [m.target, m.label]), [["exedev@vm-a", "vm-a"], [`${S.me() === "exedev" ? "exedev" : (await import("node:os")).userInfo().username}@vm-b`, "vm-b"]]);

@@ -43,8 +43,14 @@ cancellation that fails is saved as a visible failure), the old review marked st
 
 **With the board closed** a small background process, the keeper (`herdr-superwork keeper`), does what the open
 board's tick does: it polls pull requests, starts queued tasks, runs the Watcher, keeps herdr's sidebar labels
-current. There are four labels, each saying what to do: `needs you` (a question, a login, a branch that could not be
-brought up to date), `approve? pass` (or `approve? fail`), `reviewing` and `failed`; the exact reason is on the board. It raises no notification, pop-up or sound: what needs you is on the board and in
+current. The label is where the task stands, in the board's own words (one list: `src/status-words.js`): `asks you`,
+`asks for your OK`, `needs a login`, `needs you`, `ready to approve`, `review failed`, `behind main`, `went wrong`,
+`under review`. What the task says stands on a row of its own under it, whole (the question itself, `Pass · 1
+minor`, what failed), and the task is named there as on the board (`#34`, or `HSW-34`), in the pane's title too, so
+the web UI's sidebar reads the same. The moment a task stops working, the line it had while working (the Watcher's,
+`Just started` at first) is taken off: it used to stay until its three minutes ran out, under a task that was
+already waiting for you. A review that is running has two entries, the agent's and the reviewer's: they are two
+agents. It raises no notification, pop-up or sound: what needs you is on the board and in
 herdr's sidebar. herdr starts it with its server; any herdr event or
 opening the board starts it again if it died; it replaces itself when the plugin is updated, and exits when herdr is
 gone. An open board does the same: after an update it loads the new version by itself, in place, once nothing is half

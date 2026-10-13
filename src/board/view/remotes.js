@@ -34,7 +34,9 @@ export class Remotes {
   }
   // One of the few exact actions, on a task that lives on another machine.
   act(r, action, extra = {}, quiet = false, after) {
-    if (!quiet) this.flash(`${r.host}: …`);
+    // What is being done there, in words: never a bare "…".
+    const doing = { pin: r.pinned ? "Unpinning" : "Pinning", archive: "Archiving", restore: "Restoring", delegate: "Putting an agent on", stop: "Stopping", clear: "Removing", approve: "Merging", set: "Changing a setting of" }[action] || "Sending to";
+    if (!quiet) this.flash(`${doing} ${this.idSay(r)} on ${r.host}…`);
     // A task's work settings travel with it: what this machine says for it (you, and your entry for its repo) is
     // worked out here and sent along with whatever starts its agent. Board settings stay with each machine.
     const travel = ["delegate", "tell"].includes(action) ? { settings: S.toSend(String(r.rid).split("/")[0]), from: os.hostname() } : {};
@@ -59,7 +61,8 @@ export class Remotes {
     return this.load();
   }
   // A machine that does not answer keeps its place in the round: its own board is where the reason is said in full.
-  nextScope() { let ring = [""]; try { ring = ["", "*", ...Object.keys(this.remotes).sort()]; } catch {} return this.setScope(ring[(ring.indexOf(this.scope) + 1) % ring.length] ?? ""); }
+  scopeNext() { let ring = [""]; try { ring = ["", "*", ...Object.keys(this.remotes).sort()]; } catch {} return ring[(ring.indexOf(this.scope) + 1) % ring.length] ?? ""; }
+  nextScope() { return this.setScope(this.scopeNext()); }
   // The machines in view whose tasks could not be read (or have not come yet), each with why: what the list says
   // where their tasks would be.
   unread() {

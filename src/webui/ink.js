@@ -7,8 +7,9 @@ const names = [];
 const code = (token) => { let n = names.indexOf(token); if (n < 0) n = names.push(token) - 1; return n; };
 // The reviewer at work and the board's own steps: the terminal board's half moons (theme.js), so the page tells them
 // from the agent's dot without colour too. A task that waits for you says what it needs, as on the terminal board.
-const NEEDS = { question: "?", permission: "!", auth: "⚷" };
-const MARKS = { idle: "○", working: "●", review: "◑", board: "◒", blocked: "!", done: "✓", error: "✕", unknown: "·" };
+// One set of signs on both boards: the cross and the sign-in mark are the terminal board's.
+const NEEDS = { question: "?", permission: "!", auth: "@" };
+const MARKS = { idle: "○", working: "●", review: "◑", board: "◒", ready: "◆", blocked: "!", done: "✓", error: "✗", unknown: "·" };
 
 export const webTheme = {
   fg: (token, s) => (s === "" || s == null ? "" : `\x1b[38;5;${code(token)}m${s}\x1b[39m`),
@@ -17,6 +18,7 @@ export const webTheme = {
   under: (token, s) => String(s ?? ""),
   line: (s) => String(s ?? ""),
   muted: (s) => webTheme.fg("overlay0", s),
+  soft: (s) => webTheme.fg("subtext0", s),
   // The page draws each state's mark itself (the web UI's own shapes); the word is what travels.
   mark: (state, kind) => (state === "blocked" && NEEDS[kind]) || MARKS[state] || MARKS.unknown,
   bold: (s) => `\x1b[1m${s}\x1b[22m`,

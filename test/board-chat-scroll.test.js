@@ -44,9 +44,9 @@ test("the chat's box grows with the answer, up to two thirds of the window, and 
     // A taller window shows more of a long one: two thirds of 60 rows.
     b.said.text = answer(40); b.s.v.tui.terminal.rows = 60; c = b.chat();
     assert.equal(c.end - c.top + 1, 40); assert.equal(c.message.length, 36);
-    // Under the whole task, which is there to be read itself, the message keeps to a third of the window.
+    // Under the whole task, which is there to be read itself, the chat folds to its head line: the page has the lines.
     b.s.v.tui.terminal.rows = 30; b.s.press("\x1bt"); c = b.chat();
-    assert.equal(b.s.v.full, true); assert.equal(c.message.length, 8); assert.equal(c.down, true);
+    assert.equal(b.s.v.full, true); assert.equal(b.s.v.chatFit, null); assert.equal(b.s.v.chatRows, null);
   } finally { b.w.cleanup(); }
 });
 
@@ -55,7 +55,7 @@ test("alt+u and alt+j scroll a message longer than its box, with a draft too; th
   try {
     // The box names the key where there is more: under the message at first, on its top edge too once scrolled.
     let c = b.chat();
-    assert.match(c.lines[c.top], /^╭─+╮$/); assert.match(c.lines[c.end - 2], / alt\+j more ↓ │$/);
+    assert.match(c.lines[c.top], /^╭─[^\n]*╮$/); assert.match(c.lines[c.end - 2], / alt\+j more ↓ │$/);
     // Down half a box at a time, to the end and no further.
     b.key("alt+j"); c = b.chat();
     assert.equal(c.message[0], "Line 9 of the answer."); assert.equal(c.up, true); assert.equal(c.down, true);
@@ -114,7 +114,7 @@ test("the mouse wheel scrolls the chat under the pointer, also while you type; e
     b.wheel(2, 1); assert.equal(b.s.v.sel, ids[1]); b.wheel(2, 3); assert.equal(b.s.v.sel, ids[2]); b.wheel(2, -1); assert.equal(b.s.v.sel, ids[1]);
     assert.equal(b.chat().message[0], "Line 1 of the answer.");
     // In the menu the pick moves.
-    b.s.press("?"); b.s.screen(); b.wheel(2, 1); assert.equal(b.s.v.menu.at, 1); b.wheel(2, -1); assert.equal(b.s.v.menu.at, 0); b.s.press("esc");
+    b.s.press("?"); b.s.screen(); assert.equal(b.s.v.menu.at, -1); b.wheel(2, 1); b.wheel(2, 1); assert.equal(b.s.v.menu.at, 1); b.wheel(2, -1); assert.equal(b.s.v.menu.at, 0); b.s.press("esc");
     // A question keeps the screen as it is, and only the wheel is the board's: a click or a move is not taken.
     b.s.v.ask = { text: "Sure?", yes() {} }; b.wheel(2, 1); assert.equal(b.s.v.sel, ids[1]); b.s.v.ask = null;
     for (const type of ["press", "release", "move", "drag", "click"]) assert.equal(b.s.v.handleMouse({ type, button: "left", x: 5, y: 2 }), undefined);
@@ -133,8 +133,8 @@ test("the mouse wheel scrolls the whole-task page, with a draft too; over the ch
     b.wheel(5, 1); assert.match(b.chat().lines[0], /lines 3–/); assert.equal(b.s.v.sel, id);
     b.wheel(5, 2); assert.match(b.chat().lines[0], /lines 7–/);
     b.s.type("typing"); b.wheel(5, -1); assert.match(b.chat().lines[0], /lines 5–/); assert.equal(b.s.v.value(), "typing");
-    // Over the chat under the page it is the chat that scrolls; the page stays.
-    b.wheel(c.top + 1, 1); c = b.chat(); assert.equal(c.message[0], "Line 3 of the answer."); assert.match(c.lines[0], /lines 5–/);
+    // The chat under the page is folded to its head line: there is no message there to scroll, and the page stays.
+    c = b.chat(); assert.equal(b.s.v.chatFit, null); assert.match(c.lines[0], /lines 5–/);
     b.wheel(5, -100); assert.match(b.chat().lines[0], /lines 1–/);
   } finally { b.w.cleanup(); }
 });
@@ -169,7 +169,10 @@ test("a tall draft in a small window never takes the answer away: it gives rows 
     for (const [rows, least] of [[8, 1], [12, 3], [15, 3], [30, 3]]) {
       b.s.v.tui.terminal.rows = rows;
       let lines = b.s.screen();
-      assert.equal(lines.length, rows); assert.ok(b.s.v.chatFit, `the answer shows at ${rows} rows`); assert.ok(b.s.v.chatFit.rows >= least, `at least ${least} of its lines at ${rows} rows`);
+      assert.equal(lines.length, rows);
+      // In a window of only a few lines the chat folds to its head line by itself, so the list still has rows.
+      if (rows < 14) { assert.equal(b.s.v.chatFit, null, `folded at ${rows} rows`); continue; }
+      assert.ok(b.s.v.chatFit, `the answer shows at ${rows} rows`); assert.ok(b.s.v.chatFit.rows >= least, `at least ${least} of its lines at ${rows} rows`);
       assert.ok(lines.some((l) => /Line 1 of the answer\./.test(l)), `its first line at ${rows} rows`); assert.ok(lines.some((l) => /more ↓/.test(l) || /↓ │$/.test(l)), `it says there is more at ${rows} rows`);
       assert.ok(lines.some((l) => /draft line \d/.test(l)), `the draft is on show at ${rows} rows`);
       b.key("alt+j"); lines = b.s.screen();

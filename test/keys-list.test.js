@@ -26,7 +26,7 @@ test("the keys list: a key moved in its entry is moved everywhere, and its old c
     // the menu: opened, moved in and picked from with the moved keys
     s.press("?"); assert.equal(s.v.menu, null); s.v.setValue("");
     s.press("\x1bm"); assert.ok(s.v.menu); assert.match(s.text(), /alt\+k alt\+j  move between tasks/); assert.match(s.text(), /alt\+k alt\+j pick a key · alt\+e press it · alt\+b close the menu/);
-    s.press("down"); assert.equal(s.v.menu.at, 0); s.press("\x1bj"); assert.equal(s.v.menu.at, 1);
+    s.press("down"); assert.equal(s.v.menu.at, -1, "the old chord moves nothing, and no line is picked at first"); s.press("\x1bj", "\x1bj"); assert.equal(s.v.menu.at, 1);
     s.press("enter"); assert.ok(s.v.menu, "the old enter picks nothing"); s.press("\x1bb"); assert.equal(s.v.menu, null);
     // a message written outside the view names the moved key too
     const id = s.v.sel; S.update(id, (t) => { t.stage = "nosummary"; t.link = { pane: "p1" }; });

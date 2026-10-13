@@ -139,8 +139,9 @@ export class View {
   set focused(value) { this.input.focused = value; }
   savePrefs() { try { S.writeJson(this.prefs, { byRepo: this.byRepo, side: this.side, scope: this.scope, sel: this.sel, filter: this.filter, told: this.told, draft: this.mode === "new" && !this.reply ? this.value() : "", chat: this.chatOpen ? "open" : "closed", cwd: this.ctx.cwd, away: this.mode === "new" && this.reply && this.value().trim() ? { text: this.value(), to: this.replyId } : this.draftAway && { ...this.draftAway, cwd: this.draftAway.cwd || this.ctx.cwd } }); } catch {} }
   // A message stays until the next key press; an error stays until esc dismisses it.
-  // A message names a task by its repo's short key where it has one (store/keys.js).
-  flash(text, kind = "overlay0") { let said = clean(text); try { said = S.sayIds(said); } catch {} this.msg = said; this.msgKind = kind; }
+  // A message names a task as its row does: `#14`, or its repo's short key where it has one (store/keys.js). A line
+  // that shows a command to run keeps the id the command takes.
+  flash(text, kind = "overlay0") { let said = clean(text); try { if (!/herdr-superwork \w/.test(said)) said = S.tagIds(said, Object.keys(S.knownRepos())); } catch {} this.msg = said; this.msgKind = kind; }
   value() { return this.input.getText(); }
   setValue(v) { this.input.setText(v); }
   current() { return this.automationsView ? undefined : this.items.find((r) => r.id === this.sel); }

@@ -90,7 +90,7 @@ test("a fetch that fails is not a sync: a finished turn is held with the error, 
     assert.equal(t.stage, "approval"); assert.equal(t.syncSeen, seen, "the failed attempt is not marked as seen"); assert.ok(t.syncRetryAt > Date.now());
     // and it does not look ready: the row says why, and an approval is refused
     assert.match(t.syncBlocked.why, /main could not be fetched/); assert.match(t.msg, /^Behind main/);
-    assert.deepEqual([stateOf(id).asReview, F.labelOf(t)], [false, "needs you"]);
+    assert.deepEqual([stateOf(id).asReview, F.labelOf(t)], [false, "behind main"]);
     assert.throws(() => A.approve(id), /behind main and cannot be approved yet/);
     housekeeping(w.socket, { force: true });
     assert.equal(syncJobs(), 0); // not hammered: it waits for the pause
@@ -147,7 +147,7 @@ test("when the periodic fetch fails, nothing is known about main: waiting tasks 
     await pollPrs();
     t = await settle(id);
     assert.equal(t.stage, "approval"); assert.match(t.syncBlocked.why, /main could not be fetched/);
-    assert.deepEqual([stateOf(id).asReview, F.labelOf(t)], [false, "needs you"]);
+    assert.deepEqual([stateOf(id).asReview, F.labelOf(t)], [false, "behind main"]);
     assert.throws(() => A.approve(id), /behind main and cannot be approved yet/);
     // the remote is back: the retry finds the conflict
     git(w.root, "remote", "set-url", "origin", bare);

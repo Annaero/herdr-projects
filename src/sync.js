@@ -8,6 +8,7 @@ import * as S from "./store.js";
 import * as F from "./flow.js";
 import { outputOf } from "./runner.js";
 import { mergesItself } from "./finish/auto-merge.js";
+import { WORDS } from "./status-words.js";
 
 const git = S.gitOut;
 const lines = (text) => String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
@@ -24,6 +25,8 @@ export function mainBranch(root, t) {
 // merged locally into the branch your checkout is on (also with a remote, when pull requests are off), and that
 // branch is its main: tasks landed there are not at the remote yet.
 export const viaRemote = (root, t) => !!t.pr || (S.setting("merge.pr", t) === true && F.hasOrigin(root));
+// The branch a task's work lands on, in words, for the question that asks before a merge.
+export function landsOn(t) { const root = S.folderOf(t.id); try { return (viaRemote(root, t) ? mainBranch(root, t) : S.branchOf(root)) || "main"; } catch { return "main"; } }
 // The task's own worktree: the only place a sync ever merges. Empty for a task that works in the human's checkout.
 export function treeOf(t) {
   const root = S.folderOf(t.id);
@@ -193,7 +196,7 @@ export function conflictBack(id, g, tree, r, held) {
   }
   if (can && rounds > 0 && repairs >= rounds) {
     const a = g.set((t) => { Object.assign(t, S.failurePatch(failure), seenPatch(t, r)); t.stage = "asks"; t.kind = "question"; t.mergeFailed = false; t.msg = `The agent could not resolve the conflict with main after ${repairs} repairs. Full details are kept; you are needed`; });
-    F.labelPane(a, "needs you");
+    F.labelTask(a, WORDS.needs);
     return "asked";
   }
   held(failure, seenPatch(t, r));

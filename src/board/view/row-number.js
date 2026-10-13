@@ -11,8 +11,9 @@ import { clean, idLabel } from "./words.js";
 export const NAME_LEFT = 16;
 // The most empty cells between a tag and its title: the one that parts them, and two to line a shorter tag up.
 export const GAP = 3;
-// A tag is cut to this many cells (a key has 5 at most, so only another machine's could be longer).
-const TAG_MAX = 12;
+// A tag is cut to this many cells (a key has 5 at most, so only another machine's could be longer); one that names
+// its machine too (`otherbox#1`) to FAR_MAX.
+const TAG_MAX = 12, FAR_MAX = 14;
 const idOf = (r) => String(r.rid || r.id || "");
 const repoOf = (r) => idOf(r).split("/")[0];
 // The column for tags of these widths: the one that lines up the most titles within the limit, the narrower of two
@@ -41,12 +42,16 @@ export class RowNumber {
     return n;
   }
   // The tag in words. With a key: `HSW-134`. Without: `#134`, also where tasks of several repos are listed together
-  // (two of them may then both read `#1`). Another machine's task has the key its own machine gave it.
-  numberTag(r, n = this.numbering([r])) {
+  // (two of them may then both read `#1`). Another machine's task has the key its own machine gave it. Each machine
+  // counts its own tasks, so with more than one machine shown the tag names the machine too: `otherbox#1`
+  // (`otherbox:HSW-1` with a key). Only then, and never in find (`machine` false), which takes the number alone.
+  numberTag(r, n = this.numbering([r]), machine = true) {
     const num = idOf(r).split("/").pop(), repo = repoOf(r);
     if (r.title === undefined || !/^\d+$/.test(num)) return "";
-    const key = r.host ? r.key : n.keys[repo];
-    return truncateToWidth(key ? `${clean(key)}-${num}` : `#${num}`, TAG_MAX, "…");
+    const key = r.host ? r.key : n.keys[repo], far = machine && r.host && this.scope === "*" ? clean(r.host) : "";
+    // A long machine name is what is cut: the number is the part that tells two tasks apart.
+    const own = truncateToWidth(key ? `${clean(key)}-${num}` : `#${num}`, TAG_MAX, "…"), sep = far && key ? ":" : "";
+    return far ? truncateToWidth(far, Math.max(3, FAR_MAX - visibleWidth(own) - sep.length), "…") + sep + own : own;
   }
   // The tags' column in a list this wide: none where the tags gave way. They give way together, where the widest
   // would leave its row's name too few cells.
@@ -59,8 +64,11 @@ export class RowNumber {
     const tag = this.numberTag(r, n);
     return this.theme.muted(tag) + " ".repeat(this.numberWide(r, cells, n) - visibleWidth(tag));
   }
-  // A task named in the board's own messages: `HSW-134` with a key, else its id.
-  idSay(r) { const tag = r.host ? (r.key ? this.numberTag(r) : "") : this.numbering([r]).keys[repoOf(r)] ? this.numberTag(r) : ""; return tag || r.id; }
+  // A task named in the board's own messages, by the name its row has: `#134`, or `HSW-134` with a key.
+  idSay(r) { return this.numberTag(r) || r.id; }
+  // The same with its title, as a message says what was acted on: `#134 "Fix the footer"`. `max`: the most cells of
+  // the title; a question that names what it is about shows it whole.
+  nameSay(r, max = 40) { const tag = this.numberTag(r), title = clean(r.title || ""); return [tag || (title ? "" : r.id), title && `"${max === Infinity ? title : truncateToWidth(title, max, "…")}"`, r.host && this.scope !== "*" && `on ${clean(r.host)}`].filter(Boolean).join(" "); }
   // A task's id as the panel says it: with a key, the short name and the id it stands for.
   idWords(r) { const said = this.idSay(r); return said === r.id ? idLabel(r.id) : `${said} · ${idLabel(r.id)}`; }
 }

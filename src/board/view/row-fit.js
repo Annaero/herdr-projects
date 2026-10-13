@@ -10,7 +10,7 @@
 // not cost every row of its section the columns (a title is at most TITLE_MAX, 60: it loses a third at most).
 export const NAME_OWED = 40;
 // The minutes left are decided at this width whatever they read now: "9m" turning "10m" must not hide a bar.
-export const ETA_STEADY = 4;
+export const ETA_STEADY = 9; // "999m left"
 // The percent the same way: "99%" turning "100%" must not either.
 export const PERCENT_STEADY = 4;
 // The percent's column is drawn this wide at least ("45%"), so that it does not move when "9%" turns "10%".

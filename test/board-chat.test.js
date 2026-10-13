@@ -53,7 +53,7 @@ test("a task agent's chat: its message, then your just-sent words in its place, 
     s.press("\x1bc"); assert.deepEqual(chat(s).box, ["You:", "thanks", "", "❯ Send message to Agent"]);
     // space: back to the same box for everyone else. With no Coordinator there is no message to hold, so no frame.
     s.press("space"); c = chat(s);
-    assert.equal(c.framed, false); assert.match(c.who, /^ \+ New task {2}what you type is added as a task/); assert.doesNotMatch(c.hints, /alt\+c/);
+    assert.equal(c.framed, false); assert.match(c.who, /^ \+ New task {2}added word for word/); assert.doesNotMatch(c.hints, /alt\+c/);
   } finally { w.cleanup(); }
 });
 
@@ -63,7 +63,7 @@ test("the Coordinator's chat: what you sent stands in the box until it says some
     w.script({ coordinator: [{ said: "Six tasks are in progress." }, { status: "working" }] });
     const s = openCoord(w);
     s.type("where do things stand?"); s.press("enter"); s.beat();
-    assert.deepEqual(chat(s).box, ["You:", "where do things stand?", "", "❯ Send message to Coordinator"]); assert.match(chat(s).who, /^ . Coordinator {2}starting · 1 message waits to be sent$/);
+    assert.deepEqual(chat(s).box, ["You:", "where do things stand?", "", "❯ Send message to Coordinator"]); assert.match(chat(s).who, /^[ ▌]. Coordinator {2}starting · 1 message waits to be sent$/);
     await drainJobs(runJob); s.beat();
     assert.deepEqual(chat(s).box, ["Coordinator:", "Six tasks are in progress.", "", "❯ Send message to Coordinator"]); assert.equal(chat(s).who, " ○ Coordinator  idle");
     // The next words go in and it starts working: they stay in the box, the old reply is not shown under them.
@@ -94,15 +94,15 @@ test("a long message wraps inside the box and takes the rows it needs, never the
         // With its box it takes two thirds of the 30 rows: 16 lines of it. It starts at its beginning, whoever said it.
         assert.equal(body.length, 16, `sixteen lines of it at ${width} columns`); assert.match(body[0], /^Line 1 of what it said/);
         assert.doesNotMatch(body.join("\n"), /\*\*/);
-        assert.ok(c.lines.filter((l) => /Task number \d+/.test(l)).length >= 4, "the list keeps rows");
+        assert.ok(c.lines.filter((l) => /Task number \d+/.test(l)).length >= 3, "the list keeps rows");
       }
     }
     // A window too short for all of it: the message gives up its lines first; who you talk to and the line you type on stay.
     s.v.tui.terminal.rows = 10; mine = false;
     const c = chat(s, 80);
-    assert.equal(c.lines.length, 10); assert.match(c.who, /^ . Coordinator/); assert.equal(c.box.at(-1), "❯ Send message to Coordinator"); assert.ok(c.box.length <= 5);
-    // The colours: an agent's message is greyed out, your own is in the text colour.
-    assert.deepEqual(s.v.chatMessage({ text: "one\ntwo" }, 20, 5), [theme.muted("one"), theme.muted("two")]);
+    assert.equal(c.lines.length, 10); assert.match(c.who, /^[ ▌]. Coordinator/); assert.equal(c.box.at(-1), "❯ Send message to Coordinator"); assert.ok(c.box.length <= 5);
+    // The colours: an agent's message is in the brighter of the two greys (it has to be read), your own in the text colour.
+    assert.deepEqual(s.v.chatMessage({ text: "one\ntwo" }, 20, 5), [theme.soft("one"), theme.soft("two")]);
     assert.deepEqual(s.v.chatMessage({ text: "one\ntwo", mine: true }, 20, 5), ["one", "two"]);
     assert.deepEqual(s.v.chatMessage({ text: "one\ntwo\nthree", mine: true }, 20, 2), ["one", "two"]);
     assert.deepEqual(s.v.chatMessage({ text: "one\ntwo\nthree" }, 20, 0), []);

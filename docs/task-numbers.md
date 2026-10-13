@@ -44,10 +44,13 @@ shows the number on every row, and a repo can have a short key of its own so tha
   key with it (`PW-12`), in every list. So a list that holds tasks of several repos can show two `#1`: that is
   accepted. To see which repo each task is in, group the list by repo (`Alt+S`, in the `?` menu as "group by repo:
   see which repo each task is in"; the "Group by repo" button on the web board): each group's heading names its repo.
-  The task panel and the details page name the repo too, in their `Task` row (`pi-work/12`). No key is ever made up
+  The whole task names the repo too, in its `Task id` row (`pi-work/12`), with the session. No key is ever made up
   by the board.
-- **Other machines.** A task of another machine has the tag its own machine gives it (that machine's keys), and the
-  machine's name before its title as before.
+- **Other machines.** A task of another machine has the tag its own machine gives it (that machine's keys). Each
+  machine counts its own tasks, so with more than one machine shown the tag names the machine too: `otherbox#1`
+  (`otherbox:HSW-1` with a key), in the tags' column, never as a grey word before the title. A long machine name is
+  cut there, before the number is (fourteen cells at most). Only while more than one machine shows: one machine's
+  own board has the plain tag. Find takes the number alone, without the machine.
 - **When space runs out.** The tag is the last thing to go before the rest of a name: after what a row says, the bar,
   the word `ago`, the end of a long name, the percent with the minutes left, the `R#` tag with the pull request, and
   the time ([the board](board.md) has the whole order). It goes for the whole list at once, so the titles stay in one
@@ -55,17 +58,18 @@ shows the number on every row, and a repo can have a short key of its own so tha
   (a list under about 25 columns). Because the column takes a few cells from every row, each of the other things gives way that many
   columns earlier than it did.
 - **On a narrow screen** (under 80 columns), where a live row's name wraps, the lines of the name and of what the
-  task says start under the title. The line of the bar still starts right of the mark and fills the width.
+  task says start under the title. So does the line of the bar: a row has one left edge.
 
 ## Everywhere else a task is named
 
 | Where | What it shows |
 |---|---|
 | the list, the archive, find: one-, two- and three-line rows, of every group | the tag, as above |
-| the task panel and the details page | the tag before the title, greyed; the heading and the `Task` row say `HSW-134 · herdr-superwork/134` (without a key: the id) |
+| the task panel and the details page | the tag before the title, greyed; the heading says `Task details  HSW-134 "its title"`. The id itself (`herdr-superwork/134`) stands once, on the whole task, as `Task id` with the session: where a command needs it |
 | the chat's line that names who you talk to | the tag between the mark and the task's name; a window too narrow to leave the status 20 cells goes without it |
 | an automation's firings | `made HSW-140`, on the board and on the command line |
-| the board's own messages (`archived`, `restored`, `stopped`, `removed`) | `HSW-134: archived` |
+| the board's own messages | the tag and the title, in one form: `Archived HSW-134 "Fix the footer".`, `Pinned #14 "…" to the top.`, `Stopped #14 "…".`, `Removed …`; a message an action wrote with the id reads with the tag too (`#14: approved, merging`). Only a line that shows a command to run keeps the id the command takes. Pinning says so, and an action on another machine says what it is doing there (`Pinning #2 on otherbox…`), never a bare `…` |
+| herdr's sidebar, and a pane's title | the agent is shown as the task's tag (`#34`, not its inner name `sw-repo-34`), and the pane's title is the tag and the task's title, so the web UI's sidebar reads `#34 Add a file…` too; a reviewer's is `#34 reviewer` |
 | the web board | the same tag on each row, in the same column and with the same limit on the space before a title; what a task says and its bar start under the title, not under the tag; a list too narrow to leave the widest tag's title 16 letters shows no tags, on every row at once; before the task's title when one is open, and in the chat's line |
 
 **Short form or id.** With a key, everything that names a task in words says the short form, the same everywhere:

@@ -39,7 +39,7 @@ export class Panel {
     if (editing) this.panelTop = Math.min(this.editLine, Math.max(this.panelTop, this.editLine - this.panelHeight + 1));
     this.panelTop = Math.max(0, Math.min(this.panelTop, Math.max(0, lines.length - this.panelHeight)));
     const end = Math.min(lines.length, this.panelTop + this.panelHeight);
-    const left = " " + t.bold(editing ? "Settings" : "Task details") + t.muted(`  ${r.title === undefined ? idLabel(r.id) : this.idWords(r)}`), right = lines.length > this.panelHeight ? t.muted(`lines ${this.panelTop + 1}–${end} of ${lines.length} `) : "";
+    const left = " " + t.bold(editing ? "Settings" : "Task details") + t.muted(`  ${r.title === undefined ? idLabel(r.id) : truncateToWidth(this.nameSay(r, 60), Math.max(8, width - 40), "…")}`), right = lines.length > this.panelHeight ? t.muted(`lines ${this.panelTop + 1}–${end} of ${lines.length} `) : "";
     return [left + " ".repeat(Math.max(2, width - visibleWidth(left) - visibleWidth(right))) + right, t.fg("surface1", "─".repeat(width)), ...lines.slice(this.panelTop, end)];
   }
   // The task panel. One shape, beside the list and full screen, and one form for every part: a bold headline on a
@@ -112,6 +112,7 @@ export class Panel {
     if (over() > 0) top.drop("task", "who", "made", "next");
     let kept = rows;
     const redraw = () => { settings.lines = kept.length ? [head("Settings"), ...table(kept)] : []; };
+    if (over() > 0 && settings.lines.length && !kept.length) settings.lines = []; // only the line that says "all as usual": it goes first
     if (over() > 0 && settings.lines.length) { kept = rows.filter(([k]) => !NOT_SETTINGS.includes(k)); redraw(); }
     while (over() > 0 && kept.length && settings.lines.length) { kept = kept.slice(0, -1); redraw(); }
     for (const s of flexible) if (over() > 0 && s.last) s.lines = s.at(s.last);

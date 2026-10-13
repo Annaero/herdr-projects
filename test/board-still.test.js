@@ -42,7 +42,7 @@ test("a size that changes for a moment and is back does not move the board", asy
       const during = s.at(cols, rows), note = `${cols}x${rows}`;
       assert.equal(during.length, rows, note);
       assert.deepEqual(trimmed(during).slice(0, Math.min(rows, 46)), cut(wide, cols, rows), note);
-      assert.match(during[Math.min(rows, 46) - 1], /^ {2}\S/, `${note}: the hints are on its last drawn row`);
+      assert.match(during[Math.min(rows, 46) - 1], /^[ ▌] {1}\S/, `${note}: the hints are on its last drawn row`);
       s.wait(ms / 2); assert.deepEqual(trimmed(s.at(cols, rows)).slice(0, Math.min(rows, 46)), cut(wide, cols, rows), `${note}, still`);
       s.wait(ms / 2);
       assert.deepEqual(s.at(141, 46), wide, `${note}: back, and nothing has moved`);
@@ -52,7 +52,7 @@ test("a size that changes for a moment and is back does not move the board", asy
     assert.deepEqual(trimmed(s.at(47, 44)), cut(wide, 47, 44));
     s.wait(1000);
     const narrow = s.at(47, 44);
-    assert.equal(sidePanel(narrow), false); assert.equal(narrow.length, 44); assert.match(narrow[43], /^ {2}\S/);
+    assert.equal(sidePanel(narrow), false); assert.equal(narrow.length, 44); assert.match(narrow[43], /^[ ▌] {1}\S/);
     for (const l of narrow) assert.ok(l.length <= 47);
     assert.notDeepEqual(trimmed(narrow), cut(wide, 47, 44));
     { const fresh = open(w, { rows: 44 }); fresh.v.sel = s.v.sel; for (const row of fresh.v.rows) if (row.rec) row.rec.at = Date.now() - 5 * 3600000; assert.deepEqual(narrow, fresh.screen(47)); }
@@ -132,10 +132,10 @@ test("a second herdr window on the session: the board takes its terminal twice, 
     assert.doesNotMatch(text, /trying again|turned on, takes it back/);
     // The line at the top (the one a cut-out still shows) says the same, with what frees the size first.
     s.v.held = { columns: 54, rows: 24, room: { columns: 142, rows: 47 }, by: [] };
-    assert.match(s.at(54, 24)[0], /^ ! Held at 54×24: a key typed in this window frees it/);
+    assert.match(s.at(54, 24)[0], /^[ ▌]! Shown cut off: another herdr window on this/);
     assert.match(s.at(54, 24).join("\n"), /^(?![\s\S]*Another viewer holds)/); // one note, not two
-    s.v.held = { ...s.v.held, by: [{ pid: 4242, seconds: 60 }] }; // a real attach on the terminal is still named, with its process
-    assert.match(s.at(54, 24)[0], /^ ! Held at 54×24: kill 4242 frees it\./);
+    s.v.held = { ...s.v.held, by: [{ pid: 4242, seconds: 60 }] }; // a real attach on the terminal: the line names the key that ends it, never its process
+    assert.match(s.at(54, 24).slice(0, 3).join(" ").replace(/\s+/g, " "), /Shown cut off: a remote view holds this pane at 54×24 [^.]*\. ctrl\+k ends that view/); assert.doesNotMatch(s.at(54, 24).join("\n"), /kill 4242/);
     s.v.held = null;
     // You type in your window and herdr gives it the size: nothing claims to have disconnected anybody.
     s.at(141, 46); s.wait(2000); s.v.seeShown({ cols: 141, rows: 46, split: false });
@@ -229,5 +229,5 @@ test("a board that loads its new version keeps its screen: nothing leaves the fu
   const dead = stream(); giveScreenBack(dead); assert.deepEqual(dead.got, ["\x1b[?1049l\x1b[?25h"]);
   // main.js uses all of it on the reload path.
   const main = (await import("node:fs")).readFileSync(new URL("../src/board/main.js", import.meta.url), "utf8");
-  assert.match(main, /result\.reload\) stopKeepingScreen\(\(\) => tui\.stop\(\)\)/); assert.match(main, /\.\.\.keptEnv\(\)/); assert.match(main, /startOnKeptScreen\(\);[^\n]*\n\s*tui\.start\(\)/); assert.match(main, /giveScreenBack\(\)/);
+  assert.match(main, /stopKeepingScreen\(\(\) => tui\.stop\(\)\); if \(!result\?\.reload\) giveScreenBack\(\)/); // closing takes the same way out, and then leaves the full-screen view: no last frame is printed above the prompt assert.match(main, /\.\.\.keptEnv\(\)/); assert.match(main, /startOnKeptScreen\(\);[^\n]*\n\s*tui\.start\(\)/); assert.match(main, /giveScreenBack\(\)/);
 });

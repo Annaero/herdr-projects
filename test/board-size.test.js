@@ -45,27 +45,27 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     s.v.chatOf = () => ({ mark: "○", name: "Coordinator", status: "idle", color: "green", enter: true, said: true, always: true, text: "Tasks 31 and 32 are both waiting." });
     // Not held: the board is the terminal's size, as before.
     let lines = s.screen(435);
-    assert.equal(lines.length, 58); assert.match(lines[57], /^ {2}\S/); assert.match(lines.find((l) => /Pin the chat/.test(l)), /55% 12m {2}PR#3 {2}6m {4}$/); assert.doesNotMatch(lines.join("\n"), /Another viewer/);
+    assert.equal(lines.length, 58); assert.match(lines[57], /^[ ▌] {1}\S/); assert.match(lines.find((l) => /Pin the chat/.test(l)), /55% 12m left {2}PR#3 {2}6m {4}$/); assert.doesNotMatch(lines.join("\n"), /Another viewer/);
     // Held at 435x58 while a 412x56 window shows it: everything is inside the 412x56 that can be seen.
     s.v.shown = { cols: 412, rows: 56, split: false };
     lines = s.screen(435);
     assert.equal(lines.length, 58); // the terminal is still filled: the rows nobody sees are empty
     assert.deepEqual(lines.slice(56).map((l) => l.trim()), ["", ""]);
     for (const l of lines) assert.ok(l.trimEnd().length <= 411, "nothing is drawn right of what is shown");
-    assert.match(lines[55], /^ {2}\S.* · /); // the hints: the last row that is seen
-    assert.match(lines[54], /^ {2}Another viewer holds this terminal at 435×58; herdr shows it at 412×56\. The board takes it back\. *$/);
+    assert.match(lines[55], /^[ ▌] {1}\S.* · /); // the hints: the last row that is seen
+    assert.match(lines[54], /^[ ▌] {1}Another viewer holds this terminal at 435×58; herdr shows it at 412×56\. The board takes it back\. *$/);
     // The one rounded box ends where what is shown ends: the message, an empty line, the line you type on.
     assert.equal(lines[53], "╰" + "─".repeat(409) + "╯"); assert.match(lines[52], /^│ ❯ .* │$/); assert.match(lines[51], /^│ +│$/); assert.match(lines[50], /^│ Tasks 31 and 32 are both waiting\. +│$/); assert.equal(lines[49], "╭" + "─".repeat(409) + "╮");
     assert.ok([49, 50, 51, 52].every((n) => lines[n].length === 411));
     const row = lines.find((l) => /Pin the chat/.test(l));
-    assert.match(row, /Pin the chat to the bottom +█+░+ +55% 12m {2}PR#3 {2}6m {4}$/); assert.equal(row.length, 411); // the columns are back in view
-    assert.equal(lines.find((l) => /^ ○ Coordinator/.test(l)).trimEnd(), " ○ Coordinator  idle"); assert.match(lines[55], /alt\+c hide the latest message · \? all keys *$/); // the chat's key is on the hint line, whole
+    assert.match(row, /Pin the chat to the bottom +█+░+ +55% 12m left {2}PR#3 {2}6m {4}$/); assert.equal(row.length, 411); // the columns are back in view
+    assert.equal(lines.find((l) => /^[ ▌]○ Coordinator/.test(l)).trimEnd(), " ○ Coordinator  idle"); assert.match(lines[55], /alt\+c hide the latest message · \? all keys *$/); // the chat's key is on the hint line, whole
     // Held at 435x58 while a taller, narrower window shows it: the width is cut down, the rows are all there are.
     s.v.shown = { cols: 184, rows: 78, split: false };
     lines = s.screen(435);
-    assert.equal(lines.length, 58); assert.match(lines[57], /^ {2}\S.* · /); assert.match(lines[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78/);
+    assert.equal(lines.length, 58); assert.match(lines[57], /^[ ▌] {1}\S.* · /); assert.match(lines[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78/);
     for (const l of lines) assert.ok(l.trimEnd().length <= 183);
-    assert.match(lines.find((l) => /Pin the chat/.test(l)), /55% 12m {2}PR#3 {2}6m {4}$/);
+    assert.match(lines.find((l) => /Pin the chat/.test(l)), /55% 12m left {2}PR#3 {2}6m {4}$/);
     // The board takes its terminal back by itself: seen held twice in a row, the other viewer is disconnected and herdr
     // gives the terminal the window's size, so the chat is on the window's last row again with no key pressed.
     {
@@ -79,7 +79,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
       a.v.seeShown(tall); assert.deepEqual(took, [["w1:p1", { cols: 183, rows: 58 }]]);
       a.v.seeShown(tall);
       let l = a.screen(184);
-      assert.equal(l.length, 78); assert.match(l[77], /^ {2}\S.* · /); assert.equal(l[75], "─".repeat(184));
+      assert.equal(l.length, 78); assert.match(l[77], /^[ ▌] {1}\S.* · /); assert.equal(l[75], "─".repeat(184));
       assert.match(l[76], /Another viewer held this terminal at 435×58: it was disconnected, and your window has it again\./);
       // A viewer that comes back is sent away again, every time: the board has its pane's size, always.
       for (let round = 2; round <= 4; round++) {
@@ -87,7 +87,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
         a.v.seeShown(tall); assert.equal(took.length, round - 1);
         assert.match(a.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. The board takes it back\./); // what is true now, not what was done before
         a.v.seeShown(tall); assert.equal(took.length, round);
-        l = a.screen(184); assert.equal(l.length, 78); assert.match(l[77], /^ {2}\S.* · /); assert.doesNotMatch(l.join("\n"), /holds this terminal/);
+        l = a.screen(184); assert.equal(l.length, 78); assert.match(l[77], /^[ ▌] {1}\S.* · /); assert.doesNotMatch(l.join("\n"), /holds this terminal/);
       }
       // A try that fails is made again at every look, and says so; when herdr answers again the window is back.
       let fails = true; const tries = [];
@@ -99,7 +99,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
       assert.match(c.screen(435)[56], /Another viewer holds this terminal at 435×58; herdr shows it at 184×78\. Taking it back failed \(herdr did not answer\): trying again\./);
       fails = false; c.v.seeShown(tall); c.v.seeShown(tall);
       assert.deepEqual(tries, [true, true, true, true, false]);
-      l = c.screen(184); assert.equal(l.length, 78); assert.match(l[77], /^ {2}\S.* · /); assert.match(l[76], /it was disconnected, and your window has it again/);
+      l = c.screen(184); assert.equal(l.length, 78); assert.match(l[77], /^[ ▌] {1}\S.* · /); assert.match(l[76], /it was disconnected, and your window has it again/);
       // Sizes that agree never take anything, and a transient disagreement that is gone at the next look does not either.
       const b = open(w, { rows: 78, side: false }), none = [];
       b.v.tui.terminal.columns = 184; b.v.ctx.pane = "w1:p1"; b.v.ctx.takeTerminal = (...x) => none.push(x);
@@ -120,7 +120,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     // The other viewer went away: herdr and the terminal agree again, and the note is gone.
     s.v.tui.terminal.rows = 78; s.v.shown = { cols: 184, rows: 78, split: false };
     lines = s.screen(184);
-    assert.equal(lines.length, 78); assert.match(lines[77], /^ {2}\S.* · /); assert.equal(lines[76], "╰" + "─".repeat(182) + "╯"); assert.doesNotMatch(lines.join("\n"), /Another viewer/);
+    assert.equal(lines.length, 78); assert.match(lines[77], /^[ ▌] {1}\S.* · /); assert.equal(lines[76], "╰" + "─".repeat(182) + "╯"); assert.doesNotMatch(lines.join("\n"), /Another viewer/);
   } finally { w.cleanup(); }
 });
 
@@ -168,28 +168,32 @@ test("the board says so, top left, when another view holds its pane's size, and 
     const s = open(w, { rows: 58 });
     const head = () => s.screen(120)[0];
     // The fake pane has 120x34 in herdr's window, the terminal says 120x58: one look is not enough (a resize under way).
-    assert.doesNotMatch(s.text(120), /Held at/);
+    assert.doesNotMatch(s.text(120), /Shown cut off/);
     s.v.lookHeld();
-    assert.match(head(), /^ ! Held at 120×58: closing its remote view frees it\. Drawn for a remote view/);
+    assert.match(head(), /^[ ▌]! Shown cut off: a remote view holds this pane at 120×58 \(herdr's own window: 120×34\)\. Closing that view frees it\./); // a sentence, whole: no process number to kill
     assert.equal(s.screen(120).length, 58);
     assert.match(s.screen(120)[1], /herdr-superwork/); // the header and the list move down one line, nothing else changes
-    assert.match(s.screen(435)[0], /so herdr's own window \(120×34\) shows it cut off or half empty\s*$/);
-    assert.match(s.screen(60)[0], /^ ! Held at 120×58: closing its remote view frees/); // what to do survives a narrow window
+    assert.match(s.screen(60).slice(0, 3).join(" ").replace(/\s+/g, " "), /Shown cut off: a remote view holds this pane at 120×58 \(herdr's own window: 120×34\)\. Closing that view frees it\./, "in a narrow window it wraps: what frees the size is never cut off");
+    assert.match(s.screen(60)[0], /^[ ▌]! Shown cut off: a remote view holds this pane at 120×58/);
     // The same line over the whole task and the menu.
-    s.press("alt+t"); assert.match(head(), /Held at/); s.press("esc");
+    s.press("alt+t"); assert.match(head(), /Shown cut off/); s.press("esc");
     // Named with its process when one holds this terminal.
     s.v.held = { ...s.v.held, by: [{ pid: 4242, seconds: 2400 }] };
-    assert.match(s.screen(435)[0], /half empty · herdr terminal attach, open 40m\s*$/);
-    for (const width of [40, 90, 94]) assert.match(s.screen(width)[0], /^ ! Held at 120×58: kill 4242 frees it\./, `at ${width}`);
+    // The line names the key that ends that view, never a process number to kill; the key does it, and says so.
+    assert.match(s.screen(435)[0], /\. ctrl\+k ends that view \(open 40m\); closing it where it runs does the same\.\s*$/);
+    for (const width of [40, 90, 94]) { assert.match(s.screen(width).slice(0, 3).join(" ").replace(/\s+/g, " "), /Shown cut off: a remote view holds this pane at 120×58 [^.]*\. ctrl\+k ends that view/, `at ${width}`); assert.doesNotMatch(s.screen(width).join("\n"), /kill \d+/); }
+    { const killed = [], real = process.kill; process.kill = (pid, sig) => { killed.push([pid, sig]); return true; };
+      try { s.press("\x0b"); } finally { process.kill = real; }
+      assert.deepEqual(killed, [[4242, "SIGTERM"]]); assert.match(s.text(120), /Ended the remote view of this pane\./); }
     // The size is the window's again: gone at the next look.
     s.v.tui.terminal.rows = 34;
     s.v.lookHeld();
-    assert.doesNotMatch(s.text(120), /Held at/);
+    assert.doesNotMatch(s.text(120), /Shown cut off/);
     // A new size held: again only after a second look.
     s.v.tui.terminal.columns = 300; s.v.lookHeld();
-    assert.doesNotMatch(s.text(120), /Held at/);
+    assert.doesNotMatch(s.text(120), /Shown cut off/);
     s.v.lookHeld();
-    assert.match(head(), /Held at 300×34/);
+    assert.match(head(), /holds this pane at 300×34/);
     // Not in a tmux inside the pane, and not in a popup, which has no pane of its own. The plugin's own tab is a pane.
     process.env.TMUX = "x"; s.v.lookHeld(); s.v.lookHeld(); assert.equal(s.v.held, null); delete process.env.TMUX;
     process.env.HERDR_PLUGIN_ID = "x"; delete process.env.HERDR_PANE_ID; s.v.lookHeld(); s.v.lookHeld(); assert.equal(s.v.held, null); process.env.HERDR_PANE_ID = "w1:p1";

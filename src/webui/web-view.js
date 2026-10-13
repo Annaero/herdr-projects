@@ -24,7 +24,7 @@ const tui = { terminal: { rows: 200, columns: 400 }, requestRender() {}, stop() 
 const lastFolder = () => { const cwd = (S.readJson(path.join(S.dataDir(), "view.json")) || {}).cwd; try { if (cwd && fs.existsSync(cwd)) return cwd; } catch {} return os.homedir(); };
 
 // What a terminal sends for a key of the board (src/board/keys.js), so a button presses exactly that key.
-const NAMED = { enter: "\r", return: "\r", tab: "\t", escape: "\x1b", up: "\x1b[A", down: "\x1b[B" };
+const NAMED = { enter: "\r", return: "\r", tab: "\t", escape: "\x1b", up: "\x1b[A", down: "\x1b[B", pageUp: "\x1b[5~", pageDown: "\x1b[6~" };
 export function bytesOf(id) {
   const k = K.KEY[id];
   if (!k) throw new Error(`No key is called "${id}"`);
@@ -38,7 +38,7 @@ export function bytesOf(id) {
 }
 // Keys that are the terminal's own: closing the board's terminal, its menu overlay, its text box's editing, and the
 // parts of the screen the page lays out itself (the page scrolls, and shows the chat and the task as it has room).
-export const TERMINAL_ONLY = ["close", "menu", "newline", "find", "chatMessage", "chatScrollUp", "chatScrollDown", "side", "panel", "up", "down"];
+export const TERMINAL_ONLY = ["close", "menu", "newline", "find", "chatMessage", "chatScrollUp", "chatScrollDown", "side", "panel", "up", "down", "pageUp", "pageDown", "free"];
 
 export class WebView extends View {
   constructor({ cwd = lastFolder() } = {}) {
@@ -85,13 +85,32 @@ export class WebView extends View {
   }
   // What was typed on the page, sent as enter sends it (`delegate`: as tab does). Words the board did not take (an
   // agent that is busy, a task that is gone) stay the page's draft: `kept`.
-  send(text, delegate = false) {
+  // `to`: who the words were typed for ({ id, reply, scope }: a task's agent, or the Coordinator with `reply` false;
+  // `scope`: whose board showed then, which decides which machine's Coordinator gets them). The
+  // page locks that when the first letter is typed, so a tap on another task while a draft stands moves what you
+  // look at and never who gets the words: they are sent to `to`, and the view is put back as it was.
+  send(text, delegate = false, to = null) {
     const words = String(text ?? "");
     if (!words.trim()) return { kept: false };
+    const back = to ? { sel: this.sel, reply: this.reply, replyId: this.replyId, full: this.full, scope: this.scope } : null;
+    if (to) {
+      const id = String(to.id || ""), reply = !!to.reply && !!id;
+      // The machine the words were typed for: the view goes there for the send, and back. One that is no longer
+      // reachable gets nothing, and neither does anyone in its place.
+      if (typeof to.scope === "string" && to.scope !== this.scope) {
+        if (to.scope && to.scope !== "*" && !this.remotes[to.scope]) { this.flash(`${to.scope} is not among the machines you can reach now. Nothing was sent.`, "yellow"); return { kept: true }; }
+        this.scope = to.scope; try { this.load(); } catch {}
+      }
+      const restore = () => { if (this.scope !== back.scope) { this.scope = back.scope; try { this.load(); } catch {} } };
+      if (reply && !this.items.some((r) => r.id === id)) { restore(); this.flash("The task those words were for is gone. Nothing was sent.", "yellow"); return { kept: true }; }
+      if (reply) this.sel = id;
+      this.reply = reply; this.replyId = reply ? id : "";
+    }
     this.setValue(words); this.loneAt = 0;
     this.handleInput(bytesOf(delegate ? "delegate" : "enter"));
     const kept = this.value().trim() === words.trim();
     this.setValue("");
+    if (back) { if (this.scope !== back.scope) { this.scope = back.scope; try { this.load(); } catch {} } if ([...this.items, ...this.jobs].some((r) => r.id === back.sel)) this.sel = back.sel; this.reply = back.reply; this.replyId = back.reply ? this.sel : ""; this.full = back.full && !!(this.current() || this.job()); try { this.load(); } catch {} }
     return { kept };
   }
   // Tapping a row selects it; `open`: the page shows the whole task, so the selection stays on it while you read.

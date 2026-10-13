@@ -12,6 +12,7 @@ import * as Y from "./sync.js";
 import { calledOff } from "./finish/auto-merge.js";
 import { takeTurn } from "./finish/line.js";
 import { readTurnOf } from "./agents.js";
+import { WORDS } from "./status-words.js";
 
 const git = S.gitOut;
 
@@ -182,7 +183,7 @@ export async function landCore(id, g) {
   // A failed merge waits for you again, as plain "permission": the row, panel and details show the blocker.
   const fail = (title, detail, next, { agentCanFix = true, auth = S.isAuthFailure(detail), extra = {}, keepIntent = false } = {}) => {
     const f = g.set((t) => { t.stage = auth ? "failed" : "approval"; t.mergeFailed = true; t.msg = title; if (!keepIntent) t.mergeIntent = null; Object.assign(t, S.failurePatch({ stage: "merge", title, detail, next, agentCanFix, auth, ...extra })); });
-    F.labelPane(f, "failed");
+    F.labelTask(f, WORDS.wrong);
     return f;
   };
   // `head`: the commit that was merged. Nothing newer on the branch is taken for merged.
@@ -215,7 +216,7 @@ export async function landCore(id, g) {
     if (r.status === "conflict") {
       return void Y.conflictBack(id, g, tree, r, (failure, seen) => {
         const f = g.set((t) => { Object.assign(t, S.failurePatch(failure), seen); t.stage = "approval"; t.mergeFailed = true; t.msg = failure.title; });
-        F.labelPane(f, "failed");
+        F.labelTask(f, WORDS.wrong);
       });
     }
     // A clean update changed the commit: it is checked again (and reviewed again only when its review does not stand:

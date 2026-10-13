@@ -3,6 +3,9 @@ import * as A from "../../actions.js";
 import { herdr } from "../../herdr.js";
 import { bar } from "./words.js";
 import { waitingOf } from "../../store.js";
+import { NEEDS, WORDS, reviewFailed } from "../../status-words.js";
+
+export { NEEDS, reviewFailed };
 
 // The groups, in the order they need you. A task's state stays herdr's; the group is how the board sorts it.
 export const GROUPS = ["needs you", "ready to approve", "working", "to do", "done"];
@@ -13,9 +16,12 @@ export const MARK_STATES = ["working", "error", "done"];
 export const isAgent = (r) => !!r.agent && !["todo", "progress"].includes(r.stage);
 export const failureFor = (r) => (r.stage === "nosummary" ? null : A.failureOf(r));
 export const canSendError = (r) => !!r && !r.host ? A.canSendError(r) : !!r && (r.stage === "nosummary" || (r.stage === "failed" && !r.failure?.auth));
-// Finished work that waits for the one yes that merges it. A merge that failed, a branch behind main, or a pull
-// request whose checks fail is not ready: it needs you instead.
-export const inReview = (r) => r.state === "blocked" && r.kind === "permission" && r.stage === "approval" && !r.mergeFailed && !r.syncBlocked && !r.prFailure && r.prState !== "failing";
+// Finished work that waits for the one yes that merges it. A merge that failed, a branch behind main, a pull
+// request whose checks fail, or work whose last review failed is not ready: it needs you instead.
+const awaitsYes = (r) => r.state === "blocked" && r.kind === "permission" && r.stage === "approval" && !r.mergeFailed && !r.syncBlocked && !r.prFailure && r.prState !== "failing";
+export const inReview = (r) => awaitsYes(r) && !reviewFailed(r);
+// Work whose last review failed, and nothing else in its way: your call (merge anyway, or send the review back).
+export const failedReview = (r) => awaitsYes(r) && reviewFailed(r);
 export const reviewing = (r) => r.state !== "done" && (r.stage === "reviewing" || r.stage === "reviewneeds");
 // The reviewer is at work on it right now: not when its dialog waits for you, and not once the task is back with its agent.
 export const underReview = (r) => reviewing(r) && r.state === "working";
@@ -32,10 +38,11 @@ export const needsYou = (r) => r.state === "blocked" || r.state === "error";
 export const waitOf = (r) => waitingOf(r);
 export const reviewerWord = (r) => (waitOf(r) ? "reviewer was cut off" : "reviewer is working");
 export const groupOf = (r) => (inReview(r) ? "ready to approve" : needsYou(r) ? "needs you" : r.state === "working" ? "working" : r.state === "done" ? "done" : "to do");
-// What a task that waits for you needs, by its kind (OSC 7501), as the State line and the chat say it beside the mark
-// (? ! ⚷, theme.js). A task that went wrong, a merge that did not go through, or one whose kind is not known, "needs you".
-export const NEEDS = { question: "asks you", permission: "asks for your OK", auth: "needs a login" };
-export const standing = (r) => (r.state === "blocked" && r.stage !== "approval" && !r.archivedAt && (!failureFor(r) || r.kind === "auth") && NEEDS[r.kind]) || groupOf(r);
+// Where a task stands, in the words of the one list (status-words.js): what a task that waits for you needs, by its
+// kind (OSC 7501), as the State line and the chat say it beside the mark (? ! @, theme.js); "review failed" for
+// finished work whose review failed. A task that went wrong, a merge that did not go through, or one whose kind is
+// not known, "needs you".
+export const standing = (r) => (!r.archivedAt && failedReview(r) ? WORDS.reviewFailed : (r.state === "blocked" && r.stage !== "approval" && !r.archivedAt && (!failureFor(r) || r.kind === "auth") && NEEDS[r.kind]) || groupOf(r));
 // A live task: an agent, the reviewer or the board's check is on it, or it waits for you. Its row has two lines, the
 // second for what it says (row.js); a done, to-do or archived task has nothing to say and keeps one.
 export const isLive = (r) => !r.archivedAt && ["needs you", "ready to approve", "working"].includes(groupOf(r));

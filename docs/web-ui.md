@@ -112,19 +112,25 @@ plain text colour for the Coordinator, the task's status colour for its agent ([
 
 | On the terminal board | On the web board |
 |---|---|
-| the list, its groups, marks, progress, review and pull request tags | the same list; a pull request's tag is a link. The agent at work is the web UI's dot `●`; the reviewer at work `◑` and the board's own steps `◒` are the terminal board's marks |
-| moving between tasks | tap a task: it opens, whole |
+| the list, its groups, marks, progress, review and pull request tags | the same list; a pull request's tag is a link. The agent at work is a full dot, its reviewer the right half of one and the board's own steps the lower half: all three are drawn, at one size (as text the two half discs came out a third the size of the dot). Every other mark is the terminal board's own character (one cross, `✗`; `◆` ready to approve; `@` a sign-in), and the headings are written as the terminal writes them |
+| moving between tasks | tap a task: it opens, whole. The selected row has a bar in its gutter as well as its tint, as on the terminal board |
 | the task panel: status, what it needs from you, description, reviews, evidence, what the agent said, settings, session | the open task, every part, evidence as links |
 | the hint line: what can be done to the selected task now | the buttons at the top of the open task, in the same words |
-| the `?` menu | **More…** (and `⋯` in the header): every other action, as it stands for the selected task |
+| the `?` menu | **More…** (and `⋯` in the header): only what applies now and is not a button already, in the buttons' own words (`Remove this task`, `Show every machine's tasks`). A key the page has no button for has no entry |
 | the chat, and who it talks to | the box at the foot; tap its first line to switch between the Coordinator and the task's agent |
 | the chat's box: the newest thing said, under a line that names who said it (the reviewer, while the task is under review) | the same words under the same line (`Reviewer:`, `Agent:`, `You:`), never the program's screen; **Show all of it** has the rest of the conversation, which `alt+u` scrolls to on the terminal |
-| typing, then sending; sending and putting an agent on what is added | **Send**, and the second button beside it |
-| a question (approve a merge, remove a task) | a sheet with the same answers |
+| typing, then sending; sending and putting an agent on what is added | **Send**, and **Send + start** beside it, the same size |
+| who typed words are for | locked when the first of them is typed and written over the box (`To: #34`, `To: Coordinator`): tapping another task meanwhile changes what you look at, never who gets the words; while the page shows somebody else the chip says so (`To: #1 · not who is shown above`) and the box's frame is the plain colour. Which machine's Coordinator is part of it: words typed for `vm-a`'s go to `vm-a` also after the view moved to another machine, and to nobody when `vm-a` is no longer reachable. The draft is kept with who it is for, so a reload of the page brings both back |
+| a question (approve a merge, remove a task) | a sheet with the same words and answers; for a merge or a remove neither answer is the filled button, and after a failed review the yes reads **Merge anyway** |
 | the board's message to you | a short notice above the chat; one that says something went wrong stays until dismissed |
 | the automations: their list, one of them whole, on and off, run now, remove | **Show the automations** in More…; a row tapped open, the same buttons, each firing a link to its task ([automations](automations.md)) |
 | find, the archive, grouping by repo, all done tasks, other machines | the search button, and **Show** in More…; what is on shows as a chip under the header |
 | going into a task's agent | **Open this task's agent**: the web UI's own view of that pane (chat, or the terminal when no agent is in it) |
+
+**The page speaks web and fits a thumb.** No terminal key is named on it (a task's settings say the command that
+changes one, not `ctrl+e`; a setting that is the task's own says so in words, not with a star). There is one back
+arrow at a time: on a phone the open task's stands for the Board's. Nothing that is read is under 13 px, and
+everything that is tapped is 40 px high at least. The header names the repo, with no folder path.
 
 Every [key](keys.md) of the board is a button or a menu entry, except the ones that belong to a terminal: closing
 the board's terminal, the `?` menu itself, scrolling and showing the chat's message, the side panel and the full

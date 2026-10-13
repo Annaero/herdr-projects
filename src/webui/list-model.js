@@ -5,7 +5,7 @@ import os from "node:os";
 import * as S from "../store.js";
 import { currentSocket, sessionName } from "../herdr.js";
 import { GROUP_COLOR, isLive, statusColor } from "../board/view/states.js";
-import { idLabel, repoLabel, short } from "../board/view/words.js";
+import { idLabel, repoLabel } from "../board/view/words.js";
 import { tagCells } from "../board/view/row-number.js";
 import { webURL } from "../review-page.js";
 import { pieces, plain } from "./ink.js";
@@ -13,7 +13,7 @@ import { pieces, plain } from "./ink.js";
 export function rowOf(v, r, now = Date.now()) {
   const f = v.rowFields(r, now), mark = pieces(v.mark(r))[0] || { t: "·" };
   return {
-    id: r.id, label: idLabel(r.rid || r.id), tag: v.numberTag(r), host: r.host || "", title: plain(v.rowTitle(r)), strong: r.state === "working" || r.state === "blocked",
+    id: r.id, label: idLabel(r.rid || r.id), tag: v.numberTag(r), host: r.host || "", title: plain(v.rowTitle(r)), strong: ["working", "blocked", "error"].includes(r.state),
     mark: mark.t, markDim: !!mark.d, markBold: !!mark.b, color: statusColor(r), live: isLive(r),
     says: pieces(v.sentence(r).text),
     progress: r.state !== "done" && r.progress !== undefined ? Math.max(0, Math.min(100, Number(r.progress) || 0)) : null,
@@ -39,7 +39,8 @@ export function listOf(v) {
   const unread = v.unread();
   return {
     head: {
-      where: v.archiveView ? "archive" : v.repo.root === os.homedir() ? "~" : `${v.repo.name} · ${short(v.repo.root)}`,
+      // The repo new tasks go to, by its name: no folder path, and nothing for the home folder.
+      where: v.archiveView || v.repo.root === os.homedir() ? "" : v.repo.name,
       session: session === "default" ? "" : session,
       machines: v.scope === "*" ? (Object.values(v.remotes).map((m) => (m.ok ? m.label : `${m.label} (no answer)`)).join(", ") || "no others found") : "",
       only: v.all && v.scope !== "*" ? v.scope : "", filter: v.filter || "", host: os.hostname(), version: S.VERSION,

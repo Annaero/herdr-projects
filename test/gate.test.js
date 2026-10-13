@@ -214,7 +214,7 @@ test("review.rounds 0 is the manual mode: nothing goes back by itself; one task'
     let t = await settle(id, { max: 30 });
     // it waits for you, with merging by itself on too: a failed review is never merged by itself
     assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.equal(S.reviewRound(t), 1); assert.equal(paneOf(w, t).agent.prompts.length, 1); assert.equal(t.review.pass, false);
-    assert.match(t.msg, /^Approve to merge\? Review: Fail · 1 critical\./); assert.equal(F.labelOf(t), "approve? fail");
+    assert.match(t.msg, /^Approve to merge\? Review: Fail · 1 critical\./); assert.equal(F.labelOf(t), "review failed"); assert.equal(F.lineOf(t), "1 critical"); assert.throws(() => A.approve(id), /was not merged: its last review failed \(1 critical\)[^]*approve proj\/1 --anyway/); assert.equal(S.get(id).stage, "approval"); // a plain approve never merges it
     assert.match(A.sendReview(id).msg, /review sent/); // by hand, as before
     assert.equal(S.get(id).requireApproval, false); // the board's own words sent back are not you stepping in
     t = await settle(id, { max: 30 });

@@ -1,13 +1,20 @@
 # The mouse
 
-The board asks the terminal for the mouse, for one thing: the wheel.
+The board asks the terminal for the mouse, for two things: the wheel, and a click on a task's row.
 
 **The wheel.** With the pointer over the chat (the line that says who you talk to, and its box) it scrolls a message
 that is longer than its box, two lines a step, faster when you spin it. It does so while you type too, and never
 touches the draft. Anywhere else it does what `↑` and `↓` do: on the whole-task page (`Alt+T`) the page scrolls, two
 lines a step and with a draft in the text box too; in the `?` menu the pick moves; over the list the selection moves
-a task a step. A question, the first-run screen and a paste on show keep the screen as it is. Clicks do nothing on
-the board: every action is a key.
+a task a step. A question, the first-run screen and a paste on show keep the screen as it is.
+
+While the text box holds words, the wheel over the list moves the view only, never the selection: who the words are
+for is locked (the box's top edge says who: `To: #34`), and a turn of the wheel must not send an answer to another
+task's agent. The next key brings the view back to the selected task.
+
+**A click on a task's row selects it**, as `↑` and `↓` would; on the selected one it does nothing more, and every
+action is still a key. With words in the box a click selects nothing and the board says why (`Send or put away what
+you typed first`). A click anywhere else (the header, the chat, the task panel) is not the board's.
 
 **Selecting and copying.** A program that asks for the mouse gets all of it: herdr, and a terminal outside herdr,
 then no longer select text in the board themselves. So the board does it (pi-tui's own selection, the same on every
