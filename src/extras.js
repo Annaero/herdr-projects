@@ -66,11 +66,13 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
 - \`herdr-superwork config\` shows the settings; \`config <key> <value>\` changes one; \`config <key> <value> --id <id>\` sets it
   for one task.
 
-If you are an agent the board itself started on a task, your rules were given to you at the start: you may only suggest
-work that is not yours (\`suggest "<title>" --desc "<what and why>" --from <your id>\`: the human decides whether it
-becomes a task) and report yourself blocked (\`report <your id> --state blocked --kind question|permission|auth --msg "<why>"\`).
-Write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data".
-The board refuses your other commands: the human does those.
+If you are an agent or a reviewer the board itself started on a task, your rules were given to you at the start, and
+they come first: do nothing to the board beyond your own task unless a human explicitly told you to. An explicit
+instruction in your task's own description, or in a message from the human, counts as being told. Your own task is:
+reporting yourself blocked (\`report <your id> --state blocked --kind question|permission|auth --msg "<why>"\`;
+write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data")
+and suggesting work you came across that is not yours (\`suggest "<title>" --desc "<what and why>" --from <your id>\`:
+the human decides whether it becomes a task). Work you merely come across is a suggestion, never a task.
 `;
 }
 // Each installed agent program's own user-level skills folder (confirmed for Claude Code, Codex and pi: a folder per

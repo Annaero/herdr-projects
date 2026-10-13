@@ -68,7 +68,6 @@ test("an agent that reports itself blocked gets the right kind, and stopping aft
     const id = A.add(w.root, "Needs a token").id;
     A.delegate(id);
     let t = await settle(id);
-    assert.throws(() => A.report(id, { state: "done", asAgent: true }), /Do not report done yourself/);
     A.report(id, { state: "blocked", kind: "auth", msg: "NPM_TOKEN is missing", asAgent: true });
     w.patchState((s) => { const p = s.panes.find((p) => p.pane_id === t.link.pane); s.seq += 1; p.agent.status = "done"; p.agent.seq = s.seq; p.agent.completion = s.seq; });
     t = await settle(id);

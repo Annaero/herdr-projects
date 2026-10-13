@@ -92,15 +92,6 @@ function caller() {
   return null;
 }
 const callerTask = () => { const c = caller(); return c?.role === "agent" ? c.task : null; };
-// What an agent the board started may run. A guard against an agent's mistakes, not a security boundary.
-function refuse(cmd, pos, flags) {
-  const c = caller();
-  if (!c) return "";
-  const own = !pos[1] || (() => { try { return S.find(pos[1]).id === c.task.id; } catch { return false; } })();
-  const ok = c.role === "reviewer" ? ["list", "ls", "details"].includes(cmd)
-    : ["suggest", "suggestions", "add", "new", "list", "ls", "details"].includes(cmd) || (cmd === "report" && flags.state === "blocked" && own);
-  return ok ? "" : `Refused: as the ${c.role === "reviewer" ? "reviewer" : "agent"} of ${c.task.id} you may only run ${c.role === "reviewer" ? "list and details" : `suggest, suggestions, list, details and "report ${c.task.id} --state blocked"`}. The human does the rest from the board.`;
-}
 const line = (t) => `${t.id.padEnd(14)} ${String(t.state).padEnd(8)}${t.kind ? ` ${t.kind}` : ""}${t.shownApp ? ` [${t.shownApp}]` : ""}  ${t.title}${t.note ? `  · ${t.note}` : ""}${t.archivedAt ? "  (archived)" : ""}`;
 const brief = (t) => ({ id: t.id, state: t.state, kind: t.kind, app: t.shownApp, title: t.title, msg: t.note, stage: t.stage, progress: t.progress, eta: t.eta, pr: t.pr || undefined, archivedAt: t.archivedAt || undefined, review: S.currentReview(t) || undefined, reviewRound: S.reviewRound(t) || undefined });
 
@@ -144,8 +135,6 @@ export async function main(argv) {
     return 0;
   }
 
-  const no = refuse(cmd, pos, flags);
-  if (no) throw new Error(no);
   const A = await import("./actions.js");
   const F = await import("./flow.js");
   const { housekeeping } = await import("./housekeeping.js");
@@ -154,10 +143,10 @@ export async function main(argv) {
   let result;
   switch (cmd) {
     case "add": case "new": case "suggest": {
-      // An agent adds no task by itself: what it "adds" is a suggestion on its own task, for the human to decide.
-      const from = callerTask() || (cmd === "suggest" ? (flags.from ? S.find(flags.from) : null) : null);
-      if (cmd === "suggest" && !from) throw new Error("suggest needs --from <the id of the task you are on>. Try: herdr-superwork help");
-      if (from) {
+      // "suggest" is a suggestion on the task it came from, for the human to decide; "add" is a task, whoever asks.
+      if (cmd === "suggest") {
+        const from = flags.from ? S.find(flags.from) : callerTask();
+        if (!from) throw new Error("suggest needs --from <the id of the task you are on>. Try: herdr-superwork help");
         const r = A.suggest(from.id, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "" });
         result = [{ suggestion: r.suggestion || null, on: r.on || null, known: r.known || null }, `${r.msg}${r.suggestion ? S.titleNote(rest(1)) : ""} Carry on with your own task.`];
         break;

@@ -21,15 +21,15 @@ export function rename(id, title) { return S.update(S.find(id).id, (t) => { S.as
 export function describe(id, text) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.description = String(text || "").replace(/\r/g, "").trim(); }); }
 export function pin(id) { return S.update(S.find(id).id, (t) => { S.assertUnarchived(t); t.pinned = !t.pinned; }); }
 
-// A report, as in pi-work: the human (or any agent) says where a task stands. A delegated task's own agent may only
-// say it is blocked; it cannot mark itself done: the finish line does that.
+// A report, as in pi-work: the human (or any agent) says where a task stands. A delegated task's own agent is told to
+// say only that it is blocked (the finish line marks its work done), and is refused nothing: `asAgent` only marks
+// that the turn after its own "blocked" is not a finish.
 export function report(id, { state, kind, msg, title, progress, eta, asAgent = false } = {}) {
   const cur = S.find(id);
   if (title && !state) return rename(cur.id, title);
   if (!["idle", "working", "blocked", "done", "error"].includes(state)) throw new Error("state must be one of: idle, working, blocked, done, error");
-  if (asAgent && state !== "blocked") throw new Error("Do not report done yourself. Finish your work and stop; the board runs the check and marks it done. (Use --state blocked if you need the human.)");
   // "Mark it idle" on a task whose agent is working means "stop it": the same stop as the stop command.
-  if (state === "idle" && !asAgent && F.isAgentTask(cur) && AGENT_STAGES.includes(cur.stage)) return stop(cur.id);
+  if (state === "idle" && F.isAgentTask(cur) && AGENT_STAGES.includes(cur.stage)) return stop(cur.id);
   const delegated = F.isAgentTask(cur) && AGENT_STAGES.concat(["asks", "nosummary", "approval", "reviewneeds", "failed"]).includes(cur.stage);
   const mark = state === "done" ? F.tidyMark(cur, "merged") : null;
   const t = S.update(cur.id, (t) => {

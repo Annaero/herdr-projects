@@ -10,6 +10,7 @@ import { claim, release, guardFor, sh, outputOf } from "./runner.js";
 import { startArgs, preTrust, adapter, hookUsable, versionOf } from "./agents.js";
 import { settle } from "./submit.js";
 import * as R from "./research.js";
+import { AGENT_BOARD_RULE } from "./board-rule.js";
 
 // ---- names -----------------------------------------------------------------------------------------------------------
 // `sw-` + the repo name (lower-case, anything outside [a-z0-9] as `-`, 16 characters) + `-<n>`. Always matches herdr's
@@ -76,13 +77,14 @@ export function copyIncludes(root, dir, include) {
 export function rules(t) {
   const cmd = F.shim(), research = R.isResearch(t);
   const lines = [
-    "Do all of the work yourself, in this folder. Never delegate it or hand it to anyone else.",
+    "Do all of this task's own work yourself, in this folder. Never hand it to anyone else.",
     research ? R.researchRule(t) : "",
     t.worktree && research ? R.researchTree(t) : t.worktree ? `You are in your own git worktree on branch ${t.branch}; the human's checkout is elsewhere and untouched. Commit your work on this branch with clear messages. Do not push, merge into the human's branch or switch branches yourself (you may bring the base branch into your own branch to resolve a conflict). When you finish, the board runs the repo's check and opens the pull request.` : "",
     t.repoCfg?.check && !research ? `Your work only counts as done when this passes: ${t.repoCfg.check}` : "",
     "Do not stop until the work is finished and you have checked that it works. Stopping means it is finished and goes to review. End with a short summary of what you did.",
     `If you cannot continue without the human, run this and then stop: ${cmd} report ${t.id} --state blocked --kind <question|permission|auth> --msg "<why, in one line>"  (question: the human must type an answer; permission: you need approval to do something; auth: a login, token or credential is missing). Write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data". Do not end with a question otherwise.`,
-    `If you come across unrelated work that should be done (a bug elsewhere, a follow-up), do not do it and do not add it as a task: suggest it to the human with ${cmd} suggest "<short title: a few words, ${S.TITLE_RULE}>" --desc "<what and why, and the file it is in>" --from ${t.id} and carry on. It becomes a task only if they accept it. Suggest a thing once: ${cmd} suggestions lists what is suggested already and ${cmd} list the tasks, and what the board knows already is not added again. These are the only board commands you may run.`,
+    `If you come across unrelated work that should be done (a bug elsewhere, a follow-up), do not do it and do not add it as a task: suggest it to the human with ${cmd} suggest "<short title: a few words, ${S.TITLE_RULE}>" --desc "<what and why, and the file it is in>" --from ${t.id} and carry on. It becomes a task only if they accept it. Suggest a thing once: ${cmd} suggestions lists what is suggested already and ${cmd} list the tasks, and what the board knows already is not added again.`,
+    AGENT_BOARD_RULE,
     R.reportRule(t),
     `Before you stop, also write your closing summary (or your question to the human) to ${F.noteFile(t)} (the board's own folder for this task, not the folder you work in). It is the board's fallback when it cannot read your last message.`,
   ].filter(Boolean);

@@ -1,5 +1,6 @@
 // Suggested tasks: nothing adds a task by itself. What an agent or a reviewer comes across is a suggestion on its
-// task; the human makes it a task or dismisses it; the same work is never suggested twice.
+// task; the human makes it a task or dismisses it; the same work is never suggested twice. The board refuses an agent
+// it started nothing: its rules, not a guard, keep it to its own task unless a human told it otherwise.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { world } from "./helpers.js";
@@ -40,7 +41,7 @@ test("the same work in other words is recognised; different work is not", () => 
   assert.ok(!same("Fix the login page", "Fix the signup page")); assert.ok(!same("", "")); assert.ok(!same("Stop reviewers auto-creating tasks", "Show reviewer in task details"));
 });
 
-test("an agent's add or suggest is a suggestion on its own task, never a task; the human accepts or dismisses it", async () => {
+test("an agent's suggest is a suggestion on its own task; no board command is refused it, and its rules name none", async () => {
   const w = await world({ settings: { helper: "off" } });
   const write = process.stdout.write; let said = "";
   const board = async (...args) => { said = ""; process.stdout.write = (x, ...more) => { if (typeof x !== "string") return write.call(process.stdout, x, ...more); said += x; return true; }; try { await main(args); } finally { process.stdout.write = write; } return said; };
@@ -50,27 +51,30 @@ test("an agent's add or suggest is a suggestion on its own task, never a task; t
     S.update(two.id, (t) => { t.link = { socket: w.socket, pane: "w2:p1", reviewer: { pane: "w2:p2" } }; t.stage = "reviewing"; t.agent = "claude"; });
     // The rules an agent starts with name the command, and say it is the human's to decide.
     assert.match(agentRules(S.get(one.id)), /do not do it and do not add it as a task: suggest it to the human with \S+ suggest "<short title: a few words, at most 60 characters>" --desc "[^"]*" --from proj\/1 and carry on\. It becomes a task only if they accept it\./);
-    // From an agent's pane: "add" adds no task (an old habit), and so does "suggest".
+    // Able, not nudged: the rules list no way to change the board, and say when an agent may.
+    for (const told of [agentRules(S.get(one.id)), reviewBrief(S.get(two.id), { text: "Did it.", change: { head: "abc1234" }, toLand: true, ch: S.choices(S.get(two.id)) })]) {
+      assert.match(told, /Do nothing to the work board[^\n]*unless a human explicitly told you to\. An explicit instruction in this task's own description, or in a message from the human, counts as being told\./);
+      assert.doesNotMatch(told, /only board commands|\b(add|delegate|tell|accept|dismiss|approve|archive|restore|clear|config|describe) </);
+    }
+    assert.match(agentRules(S.get(one.id)), /Work you merely come across is a suggestion, never a task\./);
+    // From an agent's pane: "suggest" is a suggestion on its own task.
     process.env.HERDR_PANE_ID = "w1:p1";
-    assert.match(await board("add", "The importer drops the last row", "--desc", "In import.js. Seen on main too.", "--repo", w.root, "--delegate"), /^S1 on proj\/1: suggested to the human\. It becomes a task only if they accept it\. Carry on with your own task\.\n$/);
+    assert.match(await board("suggest", "The importer drops the last row", "--desc", "In import.js. Seen on main too."), /^S1 on proj\/1: suggested to the human\. It becomes a task only if they accept it\. Carry on with your own task\.\n$/);
     assert.match(await board("suggest", "Dates are parsed as text", "--from", one.id), /^S2 on proj\/1: suggested/);
     assert.equal(S.list().length, 2);
     assert.match(await board("suggest", "the importer drops the last row!"), /^Already suggested \(S1 on proj\/1\)\. Nothing was added\. Carry on/);
     assert.match(await board("suggestions"), /^proj\/1 S1 {2}The importer drops the last row {2}· from the agent\nproj\/1 S2 {2}Dates are parsed as text {2}· from the agent\n$/);
-    // An agent decides nothing itself, and a reviewer's only way is its verdict.
-    await assert.rejects(board("accept", one.id, "S1"), /Refused: as the agent of proj\/1 you may only run suggest, suggestions, list, details/);
-    await assert.rejects(board("dismiss", one.id, "S1"), /Refused/);
-    process.env.HERDR_PANE_ID = "w2:p2";
-    await assert.rejects(board("suggest", "Something", "--from", two.id), /Refused: as the reviewer of proj\/2 you may only run list and details/);
     // Another task's agent comes across the same thing, in its own words: recognised, on whichever task it is.
     process.env.HERDR_PANE_ID = "w2:p1";
     assert.match(await board("suggest", "The importer drops the last row of the file", "--desc", "import.js"), /^Already suggested \(S1 on proj\/1\)\. Nothing was added\./);
     assert.match(await board("suggest", "The exporter writes no header"), /^S1 on proj\/2: suggested/);
     assert.match(await board("suggest", "Speed up the exporting"), /^Already a task: proj\/2\. Nothing was added\./);
-    // With no pane to tell who is asking, suggest needs the task; add is then the human's own and adds the task.
+    // With no pane to tell who is asking, suggest needs the task. A reviewer names it too.
     delete process.env.HERDR_PANE_ID;
     await assert.rejects(board("suggest", "No task named"), /suggest needs --from/);
+    process.env.HERDR_PANE_ID = "w2:p2";
     assert.match(await board("suggest", "The README names a file that is gone", "--from", "2"), /^S2 on proj\/2: suggested/);
+    delete process.env.HERDR_PANE_ID;
     assert.equal(S.list().length, 2);
     // The human's yes makes it a task, started by nobody; their no keeps it from coming back.
     await assert.rejects(board("accept", one.id), /proj\/1 has 2 open suggestions: say which \(S1, S2\)/);
@@ -87,6 +91,24 @@ test("an agent's add or suggest is a suggestion on its own task, never a task; t
     S.update("proj/3", { stage: "done" });
     assert.match(A.suggest(two.id, "The importer drops the last row").msg, /^S3 on proj\/2: suggested/);
     assert.deepEqual(A.details(two.id).suggestions.map((s) => s.id), ["S1", "S2", "S3"]);
+    // Told to by the human (in its task, say), an agent or a reviewer the board started runs any command: an add is
+    // a real task, and nothing is refused or turned into a suggestion.
+    for (const [pane, n] of [["w1:p1", 4], ["w2:p2", 6]]) { // the accept in between makes proj/5
+      process.env.HERDR_PANE_ID = pane;
+      assert.match(await board("add", `Fix page ${n}`, "--desc", "As the task says.", "--repo", w.root), new RegExp(`^proj/${n}: added\\n$`));
+      assert.deepEqual([S.get(`proj/${n}`).stage, S.get(`proj/${n}`).description], ["todo", "As the task says."]);
+      assert.match(await board("describe", `proj/${n}`, "Every", "link", "on", "it."), /: updated \(description\)\n$/);
+      assert.match(await board("config", "gate", "minor", "--id", `proj/${n}`), /minor/);
+      assert.match(await board("archive", `proj/${n}`), /: archived\n$/); assert.match(await board("restore", `proj/${n}`), /: restored\n$/);
+      assert.match(await board("accept", two.id, n === 4 ? "S1" : "S2"), /^proj\/\d+: added from the suggestion\n$/);
+      assert.match(await board("dismiss", two.id, n === 4 ? "S3" : "S9").catch((e) => e.message), n === 4 ? /^S3 on proj\/2: dismissed\n$/ : /no suggestion S9/);
+      assert.match(await board("clear", `proj/${n}`), /: removed\n$/);
+    }
+    // Its own task too: told to, it reports it as anyone would (its rules name only "blocked").
+    process.env.HERDR_PANE_ID = "w1:p1";
+    assert.match(await board("report", one.id, "--state", "error", "--msg", "The human said to mark it failed"), /^proj\/1: updated \(error\)\n$/);
+    assert.match(await board("report", "--state", "done"), /^proj\/1: updated \(done\)\n$/); // no id: its own task
+    assert.equal(S.get(one.id).stage, "done");
   } finally { process.stdout.write = write; delete process.env.HERDR_PANE_ID; w.cleanup(); }
 });
 

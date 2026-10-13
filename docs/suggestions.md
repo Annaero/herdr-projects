@@ -1,19 +1,25 @@
 # Suggested tasks
 
 **Nothing adds a task by itself.** A task appears on the board only when you ask for it: you type it, you tell the
-Coordinator, or you accept a suggestion.
+Coordinator, you accept a suggestion, or you tell an agent to add it (a task whose description says "add a task for
+each of these and delegate it" has its agent do just that).
 
 An agent or a reviewer often comes across work that is not part of the task it is on: a test that was already
-flaky, a bug elsewhere, a follow-up. It may not do that work, and it may not add it as a task. It raises a **suggestion**
-instead, which is saved on the task it was working on:
+flaky, a bug elsewhere, a follow-up. Nobody asked for that work, so it does not do it and does not add it as a task.
+It raises a **suggestion** instead, which is saved on the task it was working on:
 
 - A reviewer's finding marked `preexisting` (it was there before the change) becomes one. It never holds the work
   back ([the gate](gate.md)). If the board is too busy to save it, it waits and tries again; one that still could
   not be saved reads `not suggested: the board could not save it` in the review, and the board
   saves it by itself as soon as it can (on its regular pass, and at every later review), whether or not a reviewer
   names it again.
-- An agent runs `herdr-superwork suggest "<short title>" --desc "<what and why>" --from <its task>`. An agent's
-  `add` does the same: it is a suggestion, never a task.
+- An agent runs `herdr-superwork suggest "<short title>" --desc "<what and why>" --from <its task>`.
+
+The board does not enforce this: an agent or a reviewer it started is refused no command, and its `add` adds a real
+task like anyone's. It is their rules that say so: do nothing to the board beyond your own task (reporting your own
+state, suggesting work you came across) unless a human explicitly told you to. An explicit instruction in the task's
+own description, or in a message from you, counts as being told
+([Roles and commands](roles-and-commands.md)).
 
 ## Where you see them
 
@@ -58,7 +64,7 @@ of it), so you decide on the details, not on a title.
 
 Then the same task's next one is asked. From a shell, or through the Coordinator when you tell it to:
 `herdr-superwork suggestions [<id>]` lists the open ones, `accept <id> [S1]` and `dismiss <id> [S1]` decide one.
-An agent the board started cannot accept or dismiss. Two yeses to one suggestion at the same moment (two boards,
+An agent the board started can run them too, and its rules tell it not to unless you said so. Two yeses to one suggestion at the same moment (two boards,
 or a board and a shell) make one task: the second is told it was made already. A yes that could not be written
 down (the task was busy) makes no task, so trying again never makes a second one. And when you added the same work
 yourself after it was suggested, yes makes no second task: it says `Already a task: proj/12`.

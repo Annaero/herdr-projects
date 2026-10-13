@@ -13,6 +13,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 |---|---|
 | `actions.js` | The exact actions of the board, also the subcommands any agent can run from its shell |
 | `agents.js` | Everything agent-specific: the table of agent programs (agents/kinds.js), reading what they saved, starting them, and what is installed |
+| `board-rule.js` | What an agent or a reviewer the board started is told about the board itself: able, not nudged |
 | `check-progress.js` | The board's own check as a task shows it: the count its command reports, the wait for a turn, the minutes left, and saying so when it stands still |
 | `cli.js` | The one program |
 | `coordinator.js` | The Coordinator: the agent behind the box at the bottom of the board |
