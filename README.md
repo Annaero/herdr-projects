@@ -54,6 +54,7 @@ One page per topic, in [docs/](docs/):
 - [The home folder: where the board keeps its files](docs/home-folder.md)
 - [Other machines](docs/other-machines.md)
 - [The board in the herdr web UI](docs/web-ui.md)
+- [The web board's chat box: the web UI's own, built again and measured](docs/web-chat-box.md)
 - [What was checked on herdr 0.9.3](docs/checked-on-herdr.md)
 - [Compared with pi-work](docs/compared-with-pi-work.md)
 

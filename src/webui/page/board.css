@@ -21,7 +21,11 @@
   position: fixed; inset: 0; z-index: 22; /* over the web UI's drawer (20), under its dialogs (30) */ display: flex; flex-direction: column; min-width: 0;
   background: var(--sw-bg); color: var(--sw-text); font: var(--fw-regular, 400) var(--fs-md, 14px)/var(--lh-base, 1.5) var(--font-ui, system-ui, sans-serif);
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Above a phone's keyboard as the web UI's own shell is: it writes the height that is left as --app-height. */
+  height: var(--app-height, 100%);
 }
+/* With the chat at the foot, the space under the box is the box's own (as under the web UI's). */
+.sw-board:has(> .sw-chat:not([hidden])) { padding-bottom: 0; }
 .sw-head {
   display: flex; align-items: center; gap: var(--space-2, 8px); flex: none;
   height: calc(var(--header-h, 52px) + env(safe-area-inset-top, 0px));
@@ -85,7 +89,8 @@
 @media (max-width: 420px) { .sw-fact { grid-template-columns: 1fr; } .sw-label { font-size: var(--fs-xs, 12px); } }
 
 /* The chat at the foot. */
-.sw-chat { flex: none; display: flex; flex-direction: column; gap: var(--space-2, 8px); padding: var(--space-2, 8px) var(--space-3, 12px) var(--space-3, 12px); border-top: var(--hairline, 1px) solid var(--sw-line); background: var(--sw-panel); }
+.sw-chat { flex: none; display: flex; flex-direction: column; gap: var(--space-2, 8px); padding: var(--space-2, 8px) var(--space-4, 16px) max(var(--space-4, 16px), calc(env(safe-area-inset-bottom, 0px) - var(--space-4, 16px))); border-top: var(--hairline, 1px) solid var(--sw-line); background: var(--sw-bg); }
+@media (max-width: 480px) { .sw-chat { padding-inline: var(--space-3, 12px); } }
 .sw-who { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 var(--space-2, 8px); padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-height: var(--touch-target, 40px); align-items: center; }
 .sw-who:disabled { cursor: default; }
 .sw-who-name { font-weight: var(--fw-semibold, 600); color: var(--sw-strong); overflow-wrap: anywhere; }
@@ -102,17 +107,7 @@
 .sw-turn.is-mine { color: var(--sw-text); }
 .sw-turn.is-raw .sw-turn-text { font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-xs, 12px); white-space: pre; overflow-x: auto; }
 .sw-said-more { align-self: flex-start; font-size: var(--fs-xs, 12px); color: var(--sw-dim); min-height: var(--touch-target, 40px); height: var(--touch-target, 40px); margin-top: calc(-1 * var(--space-1, 4px)); }
-.sw-compose { display: flex; align-items: flex-end; gap: var(--space-2, 8px); }
-.sw-input { flex: 1; min-width: 0; min-height: var(--touch-target, 40px); max-height: 30vh; padding: 9px var(--space-3, 12px); resize: none; border: var(--hairline, 1px) solid var(--border-strong, #3e3830); border-radius: var(--radius-lg, 12px); background: var(--bg-input, #1c1916); color: var(--sw-text); font: inherit; font-size: var(--fs-input, 16px); line-height: 1.35; }
-/* Who the box sends to, by its frame (view/textbox.js: boxColor): the Coordinator's is the plain text colour, an agent's its task's status colour. */
-.sw-input.sw-b-text { border-color: var(--sw-text); } .sw-input.sw-b-red { border-color: var(--sw-red); } .sw-input.sw-b-green { border-color: var(--sw-green); } .sw-input.sw-b-yellow { border-color: var(--sw-yellow); }
-.sw-input.sw-b-teal { border-color: var(--sw-teal); } .sw-input.sw-b-review { border-color: var(--sw-review); } .sw-input.sw-b-check { border-color: var(--sw-check); } .sw-input.sw-b-todo, .sw-input.sw-b-overlay0 { border-color: var(--sw-todo); }
-.sw-input:focus-visible { outline: var(--ring, 2px solid var(--sw-yellow)); outline-offset: 0; }
-.sw-send-row { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1, 4px); }
-.sw-send { min-height: var(--touch-target, 40px); }
-.sw-send-also { min-height: var(--touch-target, 40px); white-space: nowrap; }
-/* Who the words in the box are for, while it holds any. */
-.sw-to { align-self: flex-start; padding: 2px var(--space-2, 8px); border: var(--hairline, 1px) solid var(--sw-line); border-radius: var(--radius-pill, 999px); background: var(--sw-lift); color: var(--sw-text); font-size: var(--fs-sm, 13px); }
+/* The box you type in: compose.css. */
 
 /* Over the board: the question, the More menu, the message. */
 .sw-scrim { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: center; background: var(--scrim, rgba(8, 6, 4, .55)); }

@@ -273,8 +273,8 @@ test("the web page's chat line shows only what there is: with no task's tag (the
     chat.update(snap({ name: "Coordinator" })); assert.deepEqual(drawn(), ["sw-mark:+", "sw-who-name:Coordinator", "sw-who-status:idle"]);
     // The box's frame: the plain text colour for the Coordinator, the task's status colour for its agent.
     const box = () => chat.el.kids.at(-1).kids[0].className;
-    assert.equal(box(), "sw-input sw-b-text"); chat.update(snap({ name: "Add an undo", toAgent: true, box: "yellow" }, "proj/134")); assert.equal(box(), "sw-input sw-b-yellow");
-    { const css = (await import("node:fs")).readFileSync(new URL("../src/webui/page/board.css", import.meta.url), "utf8"); for (const c of ["text", "red", "green", "yellow", "teal", "review", "check", "todo", "overlay0"]) assert.ok(css.includes(`.sw-input.sw-b-${c}`), `the page has a frame colour for ${c}`); assert.match(css, /\.sw-c-todo \{ color: var\(--sw-todo\)/); const v = (n) => new RegExp(`--sw-${n}: ([^;]+);`).exec(css)[1]; assert.equal(new Set(["text", "red", "green", "yellow", "teal", "review", "todo"].map(v)).size, 7, "each frame colour is a colour of its own: done is not the green of ready"); }
+    assert.equal(box(), "sw-card sw-b-text"); chat.update(snap({ name: "Add an undo", toAgent: true, box: "yellow" }, "proj/134")); assert.equal(box(), "sw-card sw-b-yellow");
+    { const read = (name) => fs.readFileSync(new URL(`../src/webui/page/${name}.css`, import.meta.url), "utf8"), css = read("board"); for (const c of ["text", "red", "green", "yellow", "teal", "review", "check", "todo", "overlay0"]) assert.ok(read("compose").includes(`.sw-card.sw-b-${c}`), `the page has a frame colour for ${c}`); assert.match(css, /\.sw-c-todo \{ color: var\(--sw-todo\)/); const v = (n) => new RegExp(`--sw-${n}: ([^;]+);`).exec(css)[1]; assert.equal(new Set(["text", "red", "green", "yellow", "teal", "review", "todo"].map(v)).size, 7, "each frame colour is a colour of its own: done is not the green of ready"); }
     chat.update(snap({ tag: "HSW-134", name: "Add an undo", toAgent: true }, "proj/134"));
     assert.deepEqual(drawn(), ["sw-mark:+", "sw-id:HSW-134", "sw-who-name:Add an undo", "sw-who-status:idle", "sw-who-flip:Talk to the Coordinator"]);
     // A reload: the saved words come back with who they were for, before the page knows who it shows. The first
@@ -282,12 +282,12 @@ test("the web page's chat line shows only what there is: with no task's tag (the
     {
       const kept = { "sw-draft": "Only for task one", "sw-draft-to": JSON.stringify({ id: "proj/1", reply: true, scope: "", label: "#1", enter: "send", delegate: "" }) };
       globalThis.sessionStorage = { getItem: (k) => kept[k] ?? null, setItem: (k, v) => { kept[k] = v; }, removeItem: (k) => { delete kept[k]; } };
-      const back = chatEl({ onSend() {}, onPress() {} }), kids = back.el.kids, chip = kids.find((k) => k.className === "sw-to"), field = kids.at(-1).kids[0];
+      const back = chatEl({ onSend() {}, onPress() {} }), card = back.el.kids.at(-1).kids[0], field = card.kids[1], chip = card.kids[2].kids[0];
       assert.equal(field.value, "Only for task one");
       back.update(snap({ tag: "#2", name: "Needs you", toAgent: true, box: "red" }, "proj/2"));
-      assert.equal(chip.textContent, "To: #1 · not who is shown above"); assert.equal(chip.hidden, false); assert.equal(field.className, "sw-input sw-b-text");
+      assert.equal(chip.textContent, "To: #1 · not who is shown above"); assert.equal(chip.hidden, false); assert.equal(chip.className, "sw-to is-locked"); assert.equal(card.className, "sw-card sw-b-text");
       back.update(snap({ tag: "#1", name: "Working", toAgent: true, box: "yellow" }, "proj/1"));
-      assert.equal(chip.textContent, "To: #1"); assert.equal(field.className, "sw-input sw-b-yellow"); assert.equal(JSON.parse(kept["sw-draft-to"]).id, "proj/1");
+      assert.equal(chip.textContent, "To: #1"); assert.equal(card.className, "sw-card sw-b-yellow"); assert.equal(JSON.parse(kept["sw-draft-to"]).id, "proj/1");
     }
   } finally { Object.assign(globalThis, had); }
 });
@@ -463,5 +463,5 @@ test("the page's styles: nothing read under 13px, targets a thumb can hit, one h
   const chat = fs.readFileSync(new URL("../src/webui/page/chat.js", import.meta.url), "utf8"), sheets = fs.readFileSync(new URL("../src/webui/page/sheets.js", import.meta.url), "utf8");
   // The draft is kept with who it is for: a reload brings both back, so the words never go to whoever shows then.
   assert.match(chat, /sessionStorage\.setItem\(TO, JSON\.stringify\(to\)\)/); assert.match(chat, /if \(box\.value\.trim\(\)\) to = savedTo\(\);/); assert.match(chat, /keep\(box\.value, to\)/); assert.match(chat, /scope: to\.scope \|\| ""/); assert.match(chat, /scope: snap\.flags\?\.scope \|\| ""/);
-  assert.match(chat, /"Send \+ start"/); assert.match(chat, /`To: \$\{to\.label\}/); assert.match(sheets, /!ask\.danger \? "\.btn-primary" : ""/);
+  assert.match(chat, /`To: \$\{whom\.label\}/); assert.match(sheets, /!ask\.danger \? "\.btn-primary" : ""/);
 });

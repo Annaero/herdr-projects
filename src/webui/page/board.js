@@ -18,7 +18,8 @@ export const isOpen = () => !!root;
 // Beside the web UI's sidebar where it stands open on a wide screen; the whole screen on a phone.
 function fit() {
   if (!root) return;
-  const side = document.querySelector(".sidebar-shell") || document.querySelector(".sidebar"), box = side?.getBoundingClientRect();
+  // (The sidebar's own box, its right border included: its shell is a pixel narrower.)
+  const side = document.querySelector(".sidebar") || document.querySelector(".sidebar-shell"), box = side?.getBoundingClientRect();
   const beside = box && box.width > 0 && box.left >= 0 && box.right < window.innerWidth - 400 && window.innerWidth > 768;
   root.style.left = beside ? `${Math.round(box.right)}px` : "0";
 }

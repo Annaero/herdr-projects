@@ -12,7 +12,7 @@ let allowed = false, floating = null;
 
 function styles() {
   if (document.querySelector("link[data-sw]")) return;
-  document.head.append(h("link", { rel: "stylesheet", href: "/superwork/page/board.css", "data-sw": true }));
+  for (const name of ["board", "compose"]) document.head.append(h("link", { rel: "stylesheet", href: `/superwork/page/${name}.css`, "data-sw": true }));
 }
 const entry = (cls) => { const b = h(`button.${cls}`, { type: "button", "data-sw-entry": true, title: "Work board", onclick: () => show(true) }); b.append(icon("board"), "Board"); return b; };
 // In the web UI's menu when it is there; the floating button otherwise.

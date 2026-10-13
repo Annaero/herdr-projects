@@ -275,6 +275,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 |---|---|
 | `board.js` | The board over the web UI's page: its frame (the header, the list, one task, the chat), asking the board for what to show, and sending it what you do |
 | `chat.js` | The chat at the foot of the board: who it talks to (the Coordinator, or the selected task's agent), the newest thing said in that conversation under a line that names who said it (the agent, the reviewer while the task… |
+| `compose.js` | The box you type in, built as the herdr web UI builds its own chat input (its composer's card: Composer.tsx and Composer.css there), from the same CSS variables and none of its code: a card with the message as its… |
 | `dom.js` | The page's few tools: making elements, drawing the board's coloured pieces of text, and calling the front door |
 | `list.js` | The task list as the page draws it: the groups under their headings and one row per task |
 | `panel.js` | One task, whole: its title, the buttons for what can be done to it now, and the task panel's parts (status, what it needs from you, description, reviews, evidence, what the agent said, settings, session) |
@@ -292,6 +293,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | File | Holds |
 |---|---|
+| `chat-box-match.js` | Measures the web board's chat box against the herdr web UI's own chat input, in a real browser: both are opened side by side at a phone's and a desktop's size, in dark and light, empty, with one line, with many lines… |
 | `docs.js` | The pages made from the code: `node scripts/docs.js` writes them, `node scripts/docs.js --check` only says which are out of date (the check does that too: scripts/guard.js) |
 | `guard.js` | The repo's own rules, checked: no source file past its size, no name used and never defined, and no made page out of date |
 | `names.js` | Names used but never defined: a function called in a file that neither declares nor imports it (what is left behind when code moves to another file) |
@@ -327,6 +329,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [titles.md](titles.md) | Titles |
 | [waiting-for-you.md](waiting-for-you.md) | An agent that waits for you is not finished |
 | [watcher.md](watcher.md) | The Watcher: how often it looks, and what it costs |
+| [web-chat-box.md](web-chat-box.md) | The web board's chat box |
 | [web-ui.md](web-ui.md) | The board in the herdr web UI |
 | [where-things-live.md](where-things-live.md) | Where things live |
 
@@ -418,5 +421,6 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `watcher-pace.test.js` | The Watcher's pace: how often it looks, what it skips, one call at a time, and giving way on a busy machine |
 | `watcher.test.js` | The hidden helper: the watcher's line and guess |
 | `web-board.test.js` | The web board's data: the same list, panel, buttons, questions and words the terminal board has, read from the board's own code, and a button that presses the board's own key |
+| `web-chat-box.test.js` | The web board's chat box (src/webui/page/compose.js, compose.css): built as the herdr web UI builds its own chat input, from its CSS variables: the card and its parts, enter and shift+enter, the grip, both ways to… |
 | `web-door.test.js` | The front door of the herdr web UI: everything passes through as it is, the page gets one script line, and the board's own calls are only for someone the web UI lets in (a stand-in web UI answers here, in this process) |
 | `web-link.test.js` | The one setup step of the board in the herdr web UI: finding the web UI, pointing its shared link at the front door after a yes, pointing it back, and the terminal board asking once (Tailscale is a stand-in here) |

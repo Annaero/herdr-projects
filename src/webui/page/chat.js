@@ -1,9 +1,11 @@
 // The chat at the foot of the board: who it talks to (the Coordinator, or the selected task's agent), the newest
 // thing said in that conversation under a line that names who said it (the agent, the reviewer while the task is
-// under review, you), all of the conversation's words behind "Show all of it", and the box you type in. Who that is, what the box says while empty and what its buttons do with your
-// words come from the board (webui/side-model.js). What you type stays in this tab until it is sent.
-/* global sessionStorage, window, requestAnimationFrame */
+// under review, you), all of the conversation's words behind "Show all of it", and what the box you type in
+// (compose.js) does with your words: who they are for, kept with them until they are sent. Who that is, what the box
+// says while empty and what its buttons do come from the board (webui/side-model.js).
+/* global sessionStorage, requestAnimationFrame */
 import { h, markEl } from "./dom.js";
+import { composeEl } from "./compose.js";
 
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const DRAFT = "sw-draft";
@@ -19,13 +21,19 @@ export function chatEl({ onSend, onPress }) {
   // `to`: who the words in the box are for, taken when the first of them is typed and kept until they are sent or
   // cleared: { id, reply, label, enter, delegate }. Tapping another task meanwhile changes what you look at, not this.
   let open = false, last = "", to = null, now = null, tone = "text";
-  const box = h("textarea.sw-input", { rows: 1, "aria-label": "Message", enterKeyHint: "send", autocapitalize: "sentences" });
+  let busy = false;
+  const go = async (delegate) => {
+    const text = box.value;
+    if (!text.trim() || busy) return;
+    busy = true; sync();
+    const kept = await onSend(text, delegate, to ? { id: to.id, reply: to.reply, scope: to.scope || "" } : null);
+    busy = false;
+    if (!kept) { box.value = ""; to = null; keep(""); grow(); }
+    sync();
+  };
+  const { el: compose, card, box, to: chip, send, also, grow } = composeEl({ onSend: go, onInput: () => { sync(); keep(box.value, to); } });
   box.value = saved();
   if (box.value.trim()) to = savedTo(); // a reload brings the words back with who they were for
-  const grow = () => { box.style.height = "auto"; box.style.height = `${Math.min(box.scrollHeight, Math.round(window.innerHeight * 0.3))}px`; };
-  const send = h("button.btn.btn-primary.sw-send", { type: "button" }, "Send");
-  const also = h("button.btn.sw-send-also", { type: "button", hidden: true }, "Send + start");
-  const chip = h("div.sw-to", { hidden: true });
   const who = h("button.sw-who", { type: "button", title: "Change who you talk to" });
   const said = h("div.sw-said", { hidden: true });
   const more = h("button.btn.btn-ghost.sw-said-more", { type: "button", hidden: true, onclick: () => { open = !open; fit(); } });
@@ -38,37 +46,25 @@ export function chatEl({ onSend, onPress }) {
     said.replaceChildren(...(open ? parts : parts.slice(-1)).map(partEl));
     if (open) said.scrollTop = said.scrollHeight;
   };
-  const go = async (delegate) => {
-    const text = box.value;
-    if (!text.trim()) return;
-    send.disabled = also.disabled = true;
-    const kept = await onSend(text, delegate, to ? { id: to.id, reply: to.reply, scope: to.scope || "" } : null);
-    send.disabled = also.disabled = false;
-    if (!kept) { box.value = ""; to = null; keep(""); grow(); }
-    sync();
-  };
-  send.addEventListener("click", () => go(false));
-  also.addEventListener("click", () => go(true));
   who.addEventListener("click", () => onPress("talk"));
-  box.addEventListener("input", () => { sync(); keep(box.value, to); grow(); });
-  // Enter sends where there is a keyboard with a shift key to make a new line; on a phone enter is a new line.
-  box.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && window.matchMedia("(pointer: fine)").matches) { e.preventDefault(); go(false); } });
   let labels = { enter: "", delegate: "" };
   // The first word typed locks who the draft is for, as the box then says; an empty box lets it go again.
-  const sync = () => {
+  function sync() {
     const typing = !!box.value.trim();
     if (!typing) to = null; else if (!to && now) to = { ...now };
-    const l = to || labels;
+    const l = to || labels, whom = to || now;
     // Where the page now shows somebody else (another task, another machine's Coordinator), the chip says that the
     // words are not for them: the line above the box names who is shown, the chip who gets the words.
     const moved = !!to && !!now && (to.id !== now.id || to.reply !== now.reply || (to.scope || "") !== (now.scope || ""));
     // The frame's colour says who the box sends to: with a draft locked to somebody the page no longer shows (or
     // before the page knows who it shows, right after a reload), it is the plain one, never the open task's colour.
-    box.className = `sw-input sw-b-${to && (moved || !now) ? "text" : tone}`;
-    chip.hidden = !to; chip.textContent = to ? `To: ${to.label}${moved ? " · not who is shown above" : ""}` : "";
-    send.disabled = !typing; send.title = cap(l.enter); also.hidden = !typing || !l.delegate; also.title = cap(l.delegate);
-  };
-  const el = h("footer.sw-chat", who, note, said, more, chip, h("div.sw-compose", box, h("div.sw-send-row", also, send)));
+    card.className = `sw-card sw-b-${to && (moved || !now) ? "text" : tone}`;
+    // Who gets the words is always said in the box: quietly while it is empty, as a filled chip once words are locked
+    // to somebody.
+    chip.hidden = !whom; chip.className = `sw-to${to ? " is-locked" : ""}`; chip.textContent = whom ? `To: ${whom.label}${moved ? " · not who is shown above" : ""}` : "";
+    send.disabled = !typing || busy; send.title = cap(l.enter) || "Send message"; also.hidden = !typing || !l.delegate; also.disabled = busy; also.title = cap(l.delegate);
+  }
+  const el = h("footer.sw-chat", who, note, said, more, compose);
   return {
     el,
     fill(text) { box.value = text; to = null; sync(); keep(text, to); grow(); box.focus(); },

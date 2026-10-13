@@ -20,6 +20,7 @@ const PATHS = {
   find: '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
   more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
   close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  send: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
   board: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M13 8h4"/><path d="M13 12h4"/><path d="M13 16h2"/>',
 };
 export function icon(name) {
