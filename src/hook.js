@@ -14,6 +14,7 @@ import { ensureKeeper } from "./keeper.js";
 import { adapter, readTurnOf } from "./agents.js";
 import { taskLine } from "./delegate.js";
 import { hand, noteSent, checkSent, took, rest, notStarted } from "./submit.js";
+import { granted } from "./limits/run.js";
 
 // Stages in which a finished turn nobody saw start (a short turn, a herdr restart, a lock wait) still counts.
 const WAITING = ["asks", "nosummary", "approval", "failed", "reviewneeds"];
@@ -102,7 +103,7 @@ export function apply(id, a, api) {
         t.mergeIntent = null;
         if (t.review && !t.review.stale) t.review = { ...t.review, stale: true };
         t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
-        t.armedAt = t.workedAt; t.turnOpen = true; t.turnBy = "typed";
+        t.armedAt = t.workedAt; t.turnOpen = true; t.turnBy = "typed"; granted(t);
         t.stage = "working"; t.msg = ""; t.kind = undefined; t.watch = null; t.since = Date.now(); t.mergeFailed = false;
         if (t.failure?.auth) t.failure = null; // typing after a login problem is how "fixed" is said
         then = then || "unlabel";

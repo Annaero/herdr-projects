@@ -31,6 +31,15 @@ export function known(name) {
 // ---- a time carries a unit --------------------------------------------------------------------------------------------
 const UNIT = { s: 1000, m: 60000, h: 3600000 };
 export const ms = (time) => { const m = /^(\d+)([smh])$/.exec(String(time)); return m ? Number(m[1]) * UNIT[m[2]] : 0; };
+// What was meant by a time written out ("2 hours", "45min"): the nearest right one, or "".
+const noneMeant = (w) => (/^(no|non|off|never|unlimited|nolimit|0[a-z]*)$/.test(w) ? " Did you mean none?" : "");
+const timeMeant = (w, unit) => { const m = /^(\d+)([a-z]*)$/.exec(w); return !m || !Number(m[1]) ? "" : `${m[1]}${m[2] ? { h: "h", m: "m", s: "s" }[m[2][0]] || unit : unit}`; };
+// ---- a count of tokens: 500k, 2m, 1.5m ------------------------------------------------------------------------------------
+const BIG = { k: 1e3, m: 1e6, b: 1e9 };
+export const tokensOf = (count) => { const m = /^(\d+(?:\.\d+)?)([kmb]?)$/.exec(String(count)); return m ? Math.round(Number(m[1]) * (BIG[m[2]] || 1)) : 0; };
+// A count as the board keeps and says it: 2000000 is 2m, 1500000 is 1.5m, 500000 is 500k.
+export const tokensSay = (n) => { const x = Math.max(0, Math.round(Number(n) || 0)), cut = (v) => String(Number(v.toFixed(v < 10 ? 2 : v < 100 ? 1 : 0))); return x >= 1e6 ? `${cut(x / 1e6)}m` : x >= 1e3 ? `${cut(x / 1e3)}k` : String(x); };
+const tokensMeant = (w) => { const m = /^(\d+(?:[.,]\d+)?)\s*([a-z]*)$/.exec(w.replace(/[_\s]|,(?=\d{3})/g, "")); const n = m ? Number(m[1].replace(",", ".")) * (BIG[{ t: "k", k: "k", m: "m", b: "b" }[m[2][0]] || ""] || 1) : 0; return n >= 1 ? tokensSay(n) : ""; };
 
 // ---- an agent: a program, and the model that travels with it ------------------------------------------------------------
 export const AGENT_KINDS = () => Object.keys(AGENTS);
@@ -66,9 +75,16 @@ const CHECKS = {
     return w;
   },
   time(e, v) {
-    const w = word(v).toLowerCase().replace(/\s+/g, "");
-    if (!/^\d+[smh]$/.test(w) || !ms(w)) refuse(`${e.name} is a time with a unit, such as ${e.builtin} (s, m or h), not "${word(v)}".${/^\d+$/.test(w) ? ` Did you mean ${w}${e.builtin.slice(-1)}?` : ""}`);
+    const w = word(v).toLowerCase().replace(/\s+/g, ""), like = e.builtin === NONE ? "2h" : e.builtin, meant = timeMeant(w, e.none ? "m" : like.slice(-1));
+    if (e.none && w === NONE) return NONE;
+    if (!/^\d+[smh]$/.test(w) || !ms(w)) refuse(`${e.name} is a time with a unit, such as ${like} (s, m or h)${e.none ? ", or none" : ""}, not "${word(v)}".${meant ? ` Did you mean ${meant}?` : e.none ? noneMeant(w) : ""}`);
     return w;
+  },
+  tokens(e, v) {
+    const w = (typeof v === "number" ? String(v) : word(v)).toLowerCase().replace(/\s+/g, ""), meant = tokensMeant(w);
+    if (w === NONE) return NONE;
+    if (!/^\d+(\.\d+)?[km]?$/.test(w) || tokensOf(w) < 1) refuse(`${e.name} is a count of tokens, such as 500k or 2m, or none, not "${word(v)}".${meant ? ` Did you mean ${meant}?` : noneMeant(w)}`);
+    return tokensSay(tokensOf(w));
   },
   count(e, v) {
     const n = typeof v === "number" ? v : /^\d+$/.test(word(v)) ? Number(word(v)) : NaN;

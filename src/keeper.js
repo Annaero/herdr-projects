@@ -17,6 +17,8 @@ import { inline, userEnv } from "./runner.js";
 import { readTurnOf } from "./agents.js";
 import { tick as coordinatorTick, tellSidebar as coordinatorSidebar } from "./coordinator.js";
 import { automationsTick } from "./automations/tick.js";
+import { limitsTick } from "./limits/tick.js";
+import { carryOn } from "./actions/limits.js";
 
 const beatFile = () => path.join(S.dataDir(), "keeper.json");
 const log = (msg) => { try { fs.appendFileSync(path.join(S.dataDir(), "keeper.log"), `${new Date().toISOString()} ${process.pid} ${msg}\n`); } catch {} };
@@ -84,6 +86,7 @@ export function tickOnce(socket, { watch } = {}) {
       rows = F.boardFor(socket);
       try { F.syncSidebar(rows, { socket }); } catch {}
       try { refreshSaid(rows.flatMap((t) => [t, ...(t.tries || [])])); } catch {}
+      try { limitsTick(rows.flatMap((t) => [t, ...(t.tries || [])]), { carryOn }); } catch {} // a run at its time limit is stopped; a raised limit carries on (limits/tick.js)
       try { coordinatorTick(socket); } catch {}
       try { coordinatorSidebar(socket); } catch {}
     }, { waitMs: 0 });

@@ -32,6 +32,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `jobs.js` | The detached runner's entry: `herdr-superwork run <job> <task id>` |
 | `keeper.js` | The keeper: a small always-on background process that does what the open board's tick does, with no screen, so the board's information stays fresh and you are alerted with the board closed |
 | `land.js` | Landing: bring the branch up to date with main in the task's own worktree, merge (through the pull request when there is one, else locally), then clean up |
+| `limits.js` | Limits: the longest one run of an agent may take (`limit.time`) and the most tokens a task may use (`limit.tokens`) |
 | `notify.js` | Telling you that a task needs you, is ready to approve, or failed: the `board.notify` setting |
 | `remote.js` | Other machines |
 | `research.js` | Reports and research-only tasks: a report never goes into the repo, and a task marked research only changes nothing in it |
@@ -53,6 +54,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `archive.js` | Archive, restore, and clearing a task away for good |
 | `filing.js` | Adding and editing a task: add, rename, describe, pin, and a report of where it stands |
 | `finish-line.js` | The finish line's keys: approve, send the review or the failure back, finish anyway, retry |
+| `limits.js` | What you do to a task a limit stopped: carry on, or take its work as it is |
 | `settings.js` | The settings' commands: set, unset and show, for you, for your entry for a repo, or for one task |
 | `shared.js` | What the actions share: the stages an agent holds a slot in, and an action's answer |
 | `start.js` | Putting an agent on a task: the request, and starting queued tasks while slots are free |
@@ -67,6 +69,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `kinds.js` | Everything agent-specific lives in this one table |
 | `prompts.js` | What an agent was told: every prompt in its saved conversation, oldest first, where the program's file can be read |
 | `provider-error.js` | Provider errors: which ones pass by themselves, and which need the human |
+| `read-tokens.js` | The tokens a saved conversation has used so far, one counter per agent program: everything the model read and everything it wrote, every request of the conversation added up, as the provider counts it |
 | `read-turn.js` | Reading the end of a saved conversation, one reader per agent program: last message, error, tokens |
 | `screen-text.js` | The words on a program's screen, for a program whose saved conversation the board cannot read (agents/talk.js reads the others, and those never need this) |
 | `start.js` | The arguments an agent of a kind is started with, and whether it has a fast mode |
@@ -216,6 +219,16 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `talk.js` | A task's conversation as the board shows it: its agent's, or its reviewer's while the task is under review |
 | `task.js` | A task's own places and its herdr: the closing note, the review folder, whether an agent is on it |
 
+## `src/limits/`
+
+| File | Holds |
+|---|---|
+| `reached.js` | A limit is reached: the agent is stopped, its work is kept as it is, nothing is merged, and the task waits for you under "needs you" with one plain line (`stopped at its 2h limit`, `stopped at 2m tokens`) |
+| `run.js` | The light part of the limits, with nothing of the agents or the actions in it, so that what only draws a task (state.js, the rows, the panel) can ask it: whether a limit is said at all, whose run it is and how long it… |
+| `shown.js` | What a task shows of its limits: what this run and the task have used against each one, the words the row says when one is near, and the same for `details` |
+| `spent.js` | What a task has used: the tokens of every conversation it had (its agent's, each reviewer's, each new chat's), added up on the task, and how long its agent's run has taken |
+| `tick.js` | The limits' own pass, run by whoever ticks (the keeper, or an open board: keeper.js): a run that has taken its `limit.time` is stopped, a task a limit stopped carries on by itself once its limit was raised, and the… |
+
 ## `src/remote/`
 
 | File | Holds |
@@ -242,6 +255,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `repos.js` | Git plumbing, and repos: the first part of a task's id |
 | `retries.js` | A turn cut off by a passing provider error: the board waits, then tries again by itself (docs/how-work-gets-done.md) |
 | `reviews.js` | A task's reviews: the current one, which round, and every one it had |
+| `runs.js` | A run: one stretch of an agent's work on a task, from the moment it was set going (by you, or by the board with a check's output or a review's findings) to the end of that turn; for a reviewer, one review |
 | `settings-list.js` | The settings, each one defined once: its name, its built-in value, what it may be, whether it is a work or a board setting, and what it means |
 | `settings.js` | Settings as saved and read: yours, your entry for a repo, one task's own, and the repo's file |
 | `tasks.js` | Tasks on disk: reading, listing, changing, creating, and finding one by what it is called (its id, its number, its repo's key) |
@@ -338,6 +352,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [how-work-gets-done.md](how-work-gets-done.md) | How work gets done |
 | [install.md](install.md) | Installing, the first run, and taking it out again |
 | [keys.md](keys.md) | Keys, questions and the ? menu |
+| [limits.md](limits.md) | Limits: how long a run may take, how many tokens a task may use |
 | [mouse.md](mouse.md) | The mouse |
 | [other-machines.md](other-machines.md) | Other machines |
 | [provider-errors.md](provider-errors.md) | A turn cut off by the provider |
@@ -417,6 +432,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `home-folder.test.js` | The one home folder: where things are kept by default, and the one-time move of an older version's folders into it (old layout in, new layout out; twice; cut off; with new data there already) |
 | `keys-list.test.js` | The keys list is the one place a key is defined: moving a key there moves it in the handler, the ? menu, the hints and the messages, with no other file changed |
 | `lifecycle.test.js` |  |
+| `limits.test.js` | The limits (`limit.time`, `limit.tokens`): the two settings, the counting, the stop that keeps the work and merges nothing, and the ways on from it: continue, a higher limit, take the work as it is |
 | `merge.test.js` |  |
 | `notify.test.js` | The board.notify setting: a task that needs you, is ready to approve or failed rings the bell on an open board or runs your command, once per event; `none`, the built-in value, does neither |
 | `old-suggestions.test.js` | Suggested tasks are gone: what old tasks still carry of them is saved once and taken off, the old commands say so in a plain sentence, and a task that still carries some reads as any other |

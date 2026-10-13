@@ -48,6 +48,9 @@ export class PanelSettings {
     // A research-only task merges nothing: its row says so in place of how it would merge.
     if (isResearch(r)) rows.push(["Research", "only · no change to the repo", mine("research.only")]);
     else rows.push(["Merge", val("merge.by") === "itself" ? "by itself, once it passes" : "after your yes", mine("merge.by")]);
+    // What it may take: shown where a limit is set, and where this task has one of its own.
+    const time = val("limit.time") ?? "none", most = val("limit.tokens") ?? "none";
+    if (time !== "none" || most !== "none" || mine("limit.")) rows.push(["Limits", [time !== "none" && `${time} a run`, most !== "none" && (all["limit.tokens"]?.note ? `${most} tokens, not counted` : `${most} tokens`)].filter(Boolean).join(" · ") || "none", mine("limit.")]);
     const notes = [...Object.values(r.fallbacks || {}).filter(Boolean), ...(RX ? RX.problems || [] : S.settingProblems(r)).map((x) => `Not counted: ${x}`)];
     if (notes.length) rows.push(["Note", notes.join("\n"), true, true]);
     // The agent's session, full screen only. Context fullness and token use come from its saved conversation: blank
@@ -56,6 +59,7 @@ export class PanelSettings {
     const usage = agent ? r.usage : null;
     if (usage && usage.context && usage.window) session.push(["Context", `${Math.min(100, Math.round((usage.context / usage.window) * 100))}% full of ${tokens(usage.window)}`, false]);
     if (usage) session.push(["Tokens", `${tokens(usage.in)} in · ${tokens(usage.out)} out`, false]);
+    if (r.spent?.total) session.push(["Used so far", `${S.tokensSay(r.spent.total)} tokens, counted for this task`, false]); // limits/spent.js
     // The task's id as a command takes it: the one place the panel says it (everywhere else it is the row's tag).
     session.push(["Task id", r.rid || r.id, false]);
     if (r.link?.pane) session.push(["herdr", `${r.link.socket && !r.host ? `session ${sessionName(r.link.socket)} · ` : ""}space ${r.link.workspace || "?"} · pane ${r.link.pane}${r.link.agent ? ` · ${r.link.agent}` : ""}`, false]);

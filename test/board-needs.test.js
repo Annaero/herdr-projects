@@ -69,3 +69,25 @@ test("the kind comes from where the task stands, and the web board and the termi
   // A record for the terminal (OSC 7501) has no mark: it names the state and the kind, and the terminal draws its own.
   assert.match(osc(asks("question")), /^\x1b\]7501;state=blocked:id=proj\/1:kind=question:/); assert.doesNotMatch(osc(broke), /kind=/);
 });
+
+// A task a limit stopped (limits/reached.js) waits for you: its row says the plain line, its panel what it used and
+// the ways on, the hint line the two keys. While it runs, the panel says what is used and the row says it from near
+// the limit on. (What stops it, and what carries on: test/limits.test.js.)
+test("a task a limit stopped, and one near its limit: the row, the panel and the hints say so", () => {
+  const v = view(), page = (r, full = true) => stripVTControlCharacters(v.panel({ owner: "me", ...r }, 110, full).join("\n")), flat = (r) => page(r).replace(/\s+/g, " ");
+  const stopped = (limitStop, msg) => ({ ...base, ...show({ ...base, stage: "stopped", msg, limitStop }), stage: "stopped", raw: msg, limitStop, link: { pane: "p1" } });
+  const time = stopped({ what: "time", limit: "2h", role: "agent", used: 8400000, at: 1 }, "stopped at its 2h limit");
+  assert.deepEqual([time.state, time.msg, standing(time)], ["blocked", "stopped at its 2h limit", "needs you"]);
+  assert.match(page(time), /\n Stopped at a limit ─+\n It stopped at its 2h limit, after 2h20m\. Its work is kept as it is and nothing was merged\.\n/); assert.match(page(time), /herdr-superwork set limit\.time <value> --task proj\/1/);
+  assert.match(page(time).replace(/\s+/g, " "), /carries on, and so does a reply to the agent\. \S+ takes the work as it is, through the check and the review\./);
+  assert.match(stripVTControlCharacters(v.sentence({ ...time, msg: time.msg }).text), /^stopped at its 2h limit$/);
+  // a stopped review, findings that were kept, and work that was ready: each says what carrying on does
+  assert.match(flat(stopped({ what: "time", limit: "30m", role: "reviewer", used: 1860000, at: 1 }, "stopped at its 30m limit")), /The reviewer stopped at its 30m limit, after 31m\.[\s\S]*carries on: it is reviewed again/);
+  assert.match(flat(stopped({ what: "tokens", limit: "350k", role: "reviewer", review: true, used: 360000, at: 1 }, "stopped at 350k tokens")), /It stopped at 350k tokens, with 360k tokens used\.[\s\S]*carries on: the review goes to the agent/);
+  assert.match(flat(stopped({ what: "tokens", limit: "5m", role: "reviewer", ready: true, used: 5200000, at: 1 }, "stopped at 5m tokens")), /It stopped at 5m tokens, with 5\.2m tokens used\.[\s\S]*carries on: its work was finished and reviewed, and is put up for approval/);
+  // while it runs: what is used against each limit, and the row's words from near it on
+  const near = { ...base, state: "working", stage: "working", msg: "Running the tests", limits: { time: { limit: "2h", used: 6000000 }, tokens: { limit: "500k", used: 410000, kind: "claude" }, near: "1h40m of its 2h · 410k of 500k tokens" } };
+  assert.match(page(near), /\n Time {9}1h40m of 2h, this run\n Tokens {7}410k of 500k\n/);
+  assert.match(stripVTControlCharacters(v.sentence(near).text), /^1h40m of its 2h · 410k of 500k tokens · Running the tests$/);
+  assert.match(page({ ...near, limits: { tokens: { limit: "500k", used: 0, kind: "a-program-with-no-counter" } } }), /\n Tokens {7}not counted for this program · limit 500k\n/);
+});

@@ -26,6 +26,11 @@ export function rows(scope = {}) {
       const { kind } = agentOf(lookup(`${s.name.split(".")[0]}.agent`, scope, mine, at).value);
       if (kind && typeof AGENTS[kind]?.fast !== "function") note = `does nothing: ${kind} has no fast mode`;
     }
+    else if (s.name === "limit.tokens" && r.value !== "none") {
+      // A program whose tokens cannot be counted adds nothing to the count: said for the task's own agent and its reviewer.
+      const kinds = [task?.agent || agentOf(lookup("worker.agent", scope, mine, at).value).kind, lookup("review.when", scope, mine, at).value === "never" ? "" : agentOf(lookup("reviewer.agent", scope, mine, at).value).kind].filter((k) => k && typeof AGENTS[k]?.tokens !== "function");
+      if (kinds.length) note = `does nothing for ${[...new Set(kinds)].join(" and ")}: its tokens cannot be counted`;
+    }
     return { name: s.name, kind: s.kind, value: r.value, from: r.from, place: r.place, own: r.place === (task ? "task" : scope.repo ? "repo" : "you"), note, ...(s.name === RESEARCH && task && laterWords(task, r.value) ? { later: laterWords(task, r.value) } : {}) };
   });
 }

@@ -7,16 +7,17 @@
 //   kind     "work": looked up task -> your entry for the repo -> you -> the repo's file -> built in
 //            "board": yours only (everything under board., coordinator. and watcher.)
 //            "repo": a fact about one repo, said for that repo only: your entry for the repo -> the repo's file -> built in
-//   type     what a value is (store/settings/values.js): switch, choice, time, count, agent, effort, access, text,
-//            list, machines, notify, key, attempts
+//   type     what a value is (store/settings/values.js): switch, choice, time, count, tokens, agent, effort, access,
+//            text, list, machines, notify, key, attempts
 //   builtin  what it is until somebody says otherwise
 //   values   a choice's words
-//   none     true: an agent setting that may be `none`
+//   none     true: an agent or a time setting that may be `none`
 //   min      a count's smallest number
 //   repo     true: one of the seven facts the repo's own committed file may hold
 //   adds     true: its values add up across the places instead of the nearest one winning
 //   label    its plain name, as the settings page of a task shows it before the name itself
 //   means    a few words on what it does, said on the settings page beside what the selected row may be
+//            (for a switch or a choice: what "on" does; for a typed value: what the value is)
 //   doc      what it means, for docs/settings.md
 
 // The five every role has. `who` is the role as a sentence names it.
@@ -56,6 +57,9 @@ export const SETTINGS = [
   { name: "review.mustFix", label: "Send back from", kind: "work", type: "choice", values: ["critical", "major", "minor", "trivial"], builtin: "major", doc: "a finding that bad or worse fails the review. More: [the gate](gate.md)" },
   { name: "review.rounds", label: "Rounds by itself", kind: "work", type: "count", min: 0, builtin: 3, doc: "how many times work goes back to the agent by itself, for any one reason: findings, a failed check, a conflict with main, pull request feedback. `0`: nothing goes back by itself, and a failed review waits for you" },
   { name: "review.evidence", label: "Reviewer brings evidence", kind: "work", type: "switch", builtin: true, doc: "the reviewer brings evidence: screenshots, a recording, a link, test output" },
+  // how much it may take (limits.js). Never a fact of the repo's own file: code an agent writes cannot lift a limit.
+  { name: "limit.time", label: "Longest run", kind: "work", type: "time", none: true, builtin: "none", means: "the longest one run of an agent may take, the working agent's or the reviewer's. At it the agent is stopped, its work is kept, nothing merges, and the task waits for you. Read when a run starts", doc: "the longest one run of an agent may take, the working agent's or the reviewer's: a time (`2h`, `45m`) or `none`. Read when a run starts: set while one is under way, it counts from the next. Reached: the agent is stopped, its work is kept as it is, and the task waits for you under \"needs you\" (`stopped at its 2h limit`). Nothing is merged. More: [limits](limits.md)" },
+  { name: "limit.tokens", label: "Most tokens", kind: "work", type: "tokens", builtin: "none", means: "the most tokens the task may use, all its agents and reviews together, counted at the end of each turn. At it the task is stopped, its work is kept, nothing merges, and it waits for you", doc: "the most tokens a task may use, all its agents, attempts and reviews together, what is read again from the provider's cache included: a count (`2m`, `500k`) or `none`. Counted at the end of each turn, so one turn can pass it. Reached: as `limit.time` (`stopped at 2m tokens`). For a program whose tokens cannot be counted it does nothing, and `show <id>` says so. More: [limits](limits.md)" },
   // how it lands
   { name: "merge.by", label: "Merged by", kind: "work", type: "choice", values: ["you", "itself"], builtin: "you", doc: "`you`: finished work waits for your yes. `itself`: it merges the moment it may: its review passed, its checks pass, nothing conflicts. Read right before the merge, so a change counts for tasks under way. More: [the gate](gate.md#merging-by-itself)" },
   { name: "merge.method", label: "Merge method", kind: "work", type: "choice", values: ["squash", "merge", "rebase"], builtin: "squash", doc: "how approved work lands" },

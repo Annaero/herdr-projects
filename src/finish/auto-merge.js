@@ -1,6 +1,7 @@
 // Auto-merge, the setting: a task that may merge does so by itself while `merge.by` is `itself`, and waits for you
 // while it is `you`. The pipeline asks the setting when a task turns green; this is the housekeeping pass's part, for a
 // setting changed while a task already waits.
+import { overNow } from "../limits/reached.js";
 import * as S from "../store.js";
 import * as F from "../flow.js";
 import * as G from "../gate.js";
@@ -18,6 +19,7 @@ export const reviewed = (t) => S.setting("review.when", t) !== "never";
 export function green(t) {
   if (t.stage !== "approval" || t.archivedAt || !F.isAgentTask(t) || !t.reviewedHead || isResearch(t)) return false; // research only: never merged
   if (t.failure || t.prFailure || t.syncBlocked || t.mergeFailed || t.requireApproval || t.mergeIntent || t.autoMerge) return false;
+  if (overNow(t)) return false; // at its token limit nothing merges by itself (limits/reached.js): it waits for your yes, or a higher limit
   return t.review ? G.passes(t.review) : !reviewed(t);
 }
 // Will this task merge with nobody's yes? A merge already under way says it itself (the board's own, or one you

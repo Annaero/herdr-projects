@@ -29,10 +29,10 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork approve <id> [--anyway]       merge finished work that waits for approval (--anyway: also when its review failed)
   herdr-superwork pick <id> <letter>            keep one of a task's several attempts (attempts.by); the others' tabs close
   herdr-superwork review <id>                   send the reviewer's findings back to the agent
-  herdr-superwork retry <id>                    send the saved error back to the agent
+  herdr-superwork retry <id>                    send the saved error back to the agent; on a task a limit stopped: continue
   herdr-superwork fix <id>                      send failure details to the agent (never approves a merge)
-  herdr-superwork finish <id>                   finish anyway, when the agent stopped without a summary
-  herdr-superwork details <id>                  failure details, review and next steps
+  herdr-superwork finish <id>                   finish anyway, when the agent stopped without a summary or at a limit
+  herdr-superwork details <id>                  failure details, review, next steps, and what it used against its limits
   herdr-superwork pin|archive|restore|clear <id>
   herdr-superwork set <name> <value> [--repo NAME | --task ID | --automation NAME]
                                       change a setting: for you, for your entry for one repo, for one task, or for an automation

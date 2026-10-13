@@ -10,6 +10,7 @@ import { closeReviewer, runReview } from "./review.js";
 import { runCheck } from "./check-run.js";
 import { mergesItself, byItself } from "./auto-merge.js";
 import { researchOnly, keptReport } from "./research.js";
+import { tokensOver, stopAt } from "../limits.js";
 import { keepDiff } from "../attempts/diff.js";
 
 // "Finish anyway" on a turn that left no closing note: the screen text is the summary.
@@ -163,6 +164,23 @@ export async function pipeline(id, g, text, wake, synced = null) {
   // Then, still failing, it stops and waits for you.
   const rounds = t.reviewRounds || 0;
   const passed = !review || G.passes(review);
+  // The task's tokens, the reviewer's now among them. At the limit the task stops here, under "needs you", whatever
+  // would follow: findings that would go back wait with it, and work that is ready is neither put up as ordinary
+  // approval nor merged, by itself or as an approved merge that was being repaired. What was reviewed is kept, so
+  // carrying on goes from here (actions/limits.js).
+  const over = tokensOver(id);
+  if (over && review && !review.keptAt && !passed && rounds < ch["review.rounds"]) { g.set((t) => { t.review = review; t.stat = change?.stat; }); return void stopAt(id, "tokens", over, { role: "reviewer", review: true }); }
+  if (over && toLand) {
+    const why = sync?.status === "skip" ? Y.skipWhy(sync) : "";
+    g.set((t) => { t.review = review; t.stat = change.stat; t.reviewedHead = change.head || F.headOf(folder) || null; t.mergeFailed = false; t.failure = null; t.syncBlocked = why ? { why, at: Date.now() } : null; });
+    return void stopAt(id, "tokens", over, { role: "reviewer", ready: true });
+  }
+  // The same with nothing to land (a report, work outside a repo): reviewed, over its limit, it stops here too, and
+  // carrying on is what ends it as done.
+  if (over && review) {
+    g.set((t) => { t.review = review; t.failure = null; });
+    return void stopAt(id, "tokens", over, { role: "reviewer", ready: true, done: S.oneLine(`${G.sentence(review, "accept")} ${firstLine(text) || "Finished"}${note}`) });
+  }
   if (review && !review.keptAt && !passed && rounds < ch["review.rounds"]) {
     F.sendOwn(id, G.reviewMessage(review), { reason: "review", keepIntent: !!t.mergeIntent, patch: { review: { ...review, stale: true }, reviewRounds: rounds + 1 } });
     return;

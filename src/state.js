@@ -5,6 +5,7 @@
 import { RUNNER_STAGES, waitingOf, waitLine } from "./store.js";
 import { checkShown } from "./check-progress.js";
 import { quietLine, quietPlain } from "./status-kept.js";
+import { limitsOf } from "./limits/shown.js";
 import { attemptsShown, pickLine } from "./attempts/words.js";
 
 export const STATES = ["idle", "working", "blocked", "done", "error"];
@@ -21,7 +22,9 @@ export function show(t, live, now = Date.now()) {
   // A guess left over from the other role (the reviewer's, once the agent works again) is not shown as this one's.
   const role = roleOf(t), watch = role && t.watch?.role && t.watch.role !== role ? null : t.watch;
   const eta = role && watch?.role === role ? etaOf(watch.progress, began(t), now) : undefined;
-  const out = (state, extra = {}) => ({ state, app: t.app || undefined, msg: t.msg || "", ...extra });
+  // What it has used against its limits, while an agent runs on it and one is set (limits/shown.js).
+  const limits = limitsOf(t, now);
+  const out = (state, extra = {}) => ({ state, app: t.app || undefined, msg: t.msg || "", ...(limits ? { limits } : {}), ...extra });
   const agent = !!t.app && t.app !== t.owner;
   // A turn cut off by a passing provider error, and the board waiting to try again by itself: that is work going on,
   // not something that needs you, and the row says why and when.
@@ -36,7 +39,7 @@ export function show(t, live, now = Date.now()) {
     case "asks": return out("blocked", { kind: t.kind || "question" });
     case "nosummary": return out("error", { msg: t.msg || "Stopped without a summary" });
     case "reviewneeds": return out("blocked", { msg: t.msg || "The reviewer needs you" });
-    case "stopped": return out("idle", { msg: "Stopped" });
+    case "stopped": return t.limitStop ? out("blocked", { msg: t.msg || "Stopped at a limit" }) : out("idle", { msg: "Stopped" }); // a limit stopped it: it waits for you (limits/reached.js)
     // Done several times at once (attempts.js): its attempts' marks while they run, then your pick.
     case "attempts": { const a = attemptsShown(t.tries || [], now); return out(a.state, { kind: a.kind, msg: a.msg, progress: a.progress, eta: a.eta }); }
     case "pick": return out("blocked", { kind: "permission", msg: pickLine(t, t.tries) });

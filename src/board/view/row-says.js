@@ -57,6 +57,8 @@ export class RowSays {
     // While the reviewer works the row says only what the reviewer is doing: the colour of its mark, its bar, its
     // percent and its minutes left says a review is running, and its R# tag which one.
     if (r.state === "done") return { text: "" };
+    // Near a limit (limits/shown.js): how much is used, before what it is doing, so it is never the part cut off.
+    if (r.limits?.near && r.state === "working") return { text: t.fg("peach", r.limits.near) + quiet(msg ? ` · ${msg}` : "") };
     if (needsYou(r)) return { text: (r.state === "blocked" && msg ? plainly : quiet)(msg || BARE[r.kind] || (r.state === "error" ? BARE.error : "")) };
     return { text: quiet(msg) };
   }

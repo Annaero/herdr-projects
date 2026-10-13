@@ -39,7 +39,7 @@ export function shown(t, session, here, seen = new Map()) {
 // The same from what was saved alone, with no look at herdr: for whoever just changed a task and says so at once.
 export const saved = (t) => ({ ...t, ...pick(show({ ...t, pendingText: false }, undefined)) });
 // Names that cannot collide with a task's own fields (a task has its own `review` and `msg`).
-const pick = (s) => ({ state: s.state, kind: s.kind, note: s.msg, plain: s.plain || undefined, shownApp: s.app, progress: s.progress, eta: s.eta, asReview: !!s.review, stale: s.stale, exited: s.exited });
+const pick = (s) => ({ state: s.state, kind: s.kind, note: s.msg, plain: s.plain || undefined, shownApp: s.app, progress: s.progress, eta: s.eta, asReview: !!s.review, stale: s.stale, exited: s.exited, limits: s.limits });
 // This machine's tasks as one herdr session sees them (the keeper serves several sessions from one data folder).
 export function boardFor(socket) {
   const tasks = S.list();

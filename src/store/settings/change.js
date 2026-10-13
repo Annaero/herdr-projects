@@ -8,6 +8,7 @@ import { lookup, inRepo } from "./lookup.js";
 import { needsRepo, entryOf } from "../settings-list.js";
 import { saidKeys } from "../keys.js";
 import { NONE } from "./values.js";
+import { keepRunTimes } from "../runs.js";
 import { RESEARCH } from "../old-research.js";
 import { turnRefusal } from "../../research.js";
 
@@ -43,6 +44,7 @@ export function checked(pairs, scope = {}) {
   return out;
 }
 function save(values, { task, repo }) {
+  if (Object.hasOwn(values, "limit.time")) keepRunTimes(); // a run under way keeps the limit it started with (store/runs.js)
   if (!task) { for (const [name, v] of Object.entries(values)) writeYours(name, v, repo || ""); return null; }
   return update(task.id, (t) => {
     assertUnarchived(t);

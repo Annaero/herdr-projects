@@ -68,6 +68,8 @@ export class Actions {
         { danger: true, keys: [["sayYes", failed ? "merge anyway" : "merge"], ["sayNo", "do not merge"]], detail: `${failed ? `Its last review failed${tally ? `: ${tally}` : ""}. ` : ""}A merge cannot be undone.` });
     }
     if (isAgent(r) && r.state === "blocked" && r.kind === "permission") return r.host ? this.act(r, "approve") : this.try(() => { const out = A.approve(r.id); this.flash(out.msg, "green"); });
+    // Stopped at a limit: yes takes the work as it is too (a stopped review is done again).
+    if (r.stage === "stopped" && r.limitStop) return r.host ? this.act(r, "finish") : this.try(() => { const out = A.finishAnyway(r.id); this.flash(out.msg, "green"); });
     // Stopped without a summary: yes takes the work as it is, through the check and the review.
     if (r.stage === "nosummary") return r.host ? this.act(r, "finish") : this.try(() => { const out = A.finishAnyway(r.id); this.flash(out.msg, "green"); });
     // Something went wrong: yes tries the same step again, as it stands (ctrl+r is the one that asks the agent to fix it).
@@ -78,6 +80,8 @@ export class Actions {
   sendBack(r) {
     if (r.archivedAt) return this.flash(`Archived tasks are read-only. ${keyName("archive")} restores.`, "yellow");
     const failure = failureFor(r);
+    // Stopped at a limit: the same key carries on from where it stopped.
+    if (r.stage === "stopped" && r.limitStop) return r.host ? this.act(r, "retry") : this.try(() => { const out = A.carryOn(r.id); this.flash(out.msg, "green"); });
     if (failure && !failure.agentCanFix && !(r.stage === "failed" && r.failure?.auth)) return this.flash(`This needs you first. ${failure.next || ""}`, "yellow");
     // Nothing went wrong and no review has anything for the agent: a key that does nothing here says so quietly.
     if (!failure && r.state !== "error" && !(r.review?.text && G.sendable(r.review))) return this.flash("Nothing to send back here.");

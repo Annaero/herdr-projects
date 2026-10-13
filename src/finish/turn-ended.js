@@ -13,6 +13,7 @@ import { closeReviewer } from "./review.js";
 import { name as keyName } from "../board/keys.js";
 import { pendingSent } from "../submit.js";
 import { waits, stay } from "./waiting.js";
+import { tokensOver, stopAt } from "../limits.js";
 
 // ---- job: the agent's turn ended ----------------------------------------------------------------------------------------
 // Started two ways. By the agent's own turn-end hook (`turn-ended`): a definite stop, judged here from the saved
@@ -127,6 +128,9 @@ async function finishOnce(id, { force = false } = {}) {
       // the board gives up this is what it says. A turn that was itself such a retry counts on from the one before.
       const tries = (wake?.reason === "retry" && wake.tries) || t.cutRetry?.tries || 0, waits = S.retryWaits();
       if (turn.passing && tries < waits.length) {
+        // At its token limit nothing more is spent by itself: the task stops here instead of trying again.
+        const spent = tokensOver(id, "agent");
+        if (spent) { stopAt(id, "tokens", spent); return true; }
         const keepIntent = (!!wake?.keepIntent || !!t.cutRetry?.keepIntent) && !!t.mergeIntent;
         const failure = { stage: "agent", auth: false, agentCanFix: true, title: "Agent cut off", detail: `${why}\n\nThe ${S.gaveUp("agent", turn.reason, 1)}. That passes by itself: the board tells the agent to carry on, up to ${waits.length} times with growing waits.`, next: `Nothing: the board tells the agent to continue by itself. Reply or press ${keyName("sendBack")} to do it now.` };
         const w = g.set((t) => { t.stage = "failed"; t.msg = `Agent stopped: ${S.oneLine(why, 200)}`; if (!keepIntent) t.mergeIntent = null; Object.assign(t, S.failurePatch(failure)); t.waiting = { who: "agent", reason: turn.reason, error: S.oneLine(why, 400), until: Date.now() + waits[tries], tries: tries + 1, keepIntent, for: t.failure.at }; });
@@ -157,6 +161,9 @@ async function finishOnce(id, { force = false } = {}) {
       t = g.set((t) => { t.stage = "asks"; t.kind = "question"; t.msg = S.oneLine(text.split("\n").filter((l) => l.trim()).pop()); });
       return true;
     }
+    // The task's tokens, counted now that the turn has ended: at its limit it stops here, with this turn's work kept.
+    const over = tokensOver(id, "agent");
+    if (over) { stopAt(id, "tokens", over); return true; }
     await pipeline(id, g, text, wake);
   } catch (e) {
     if (!e.aborted) try { fail(g, { stage: "workflow", title: "The finish line failed", detail: e.stack || e.message, next: "Investigate the error, then finish again." }); } catch {}

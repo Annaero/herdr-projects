@@ -71,6 +71,10 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
   the agent by itself; anything milder passes (\`Pass · 2 minor\`). \`review.rounds 0\`: nothing goes back by itself.
 - \`herdr-superwork review <id>\` sends the reviewer's findings back to the agent; \`retry <id>\` sends a saved error back;
   \`fix <id>\` sends failure details; \`details <id>\` reads them.
+- Limits, both \`none\` unless set: \`limit.time\` (the longest one run of an agent may take: \`2h\`, \`45m\`) and
+  \`limit.tokens\` (the most tokens a task may use in all: \`2m\`, \`500k\`). At one, the agent is stopped, its work is kept,
+  nothing is merged and the task waits: \`retry <id>\` (or \`tell\`) continues, a higher limit carries on by itself,
+  \`finish <id>\` takes the work as it is. Only the human raises or removes a limit.
 - \`herdr-superwork automations\`: tasks made on a schedule or when something happens on the board. Each firing adds an
   ordinary task (its title the automation's name, its description the automation's prompt) and puts an agent on it at once.
   \`automations add "<name>" --prompt "<what each task is to do>" --schedule "<every 2h | daily 09:00 | mon 09:00 | cron "0 9 * * 1">"\`

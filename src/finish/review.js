@@ -13,6 +13,8 @@ import * as G from "../gate.js";
 import { ms, fail } from "./shared.js";
 import { reviewBrief, parseVerdict } from "./review-brief.js";
 import { REPORT } from "../research.js";
+import { count } from "../limits/spent.js";
+import { tokensOver, stopAt } from "../limits/reached.js";
 
 // ---- the reviewer: a visible herdr agent in a tab of its own in the task's space (flow/tabs.js) -------------------------
 export async function closeReviewer(id) {
@@ -30,6 +32,9 @@ export async function runReview(id, g, o) {
   for (let tries = 0; ; tries++) {
     const r = await reviewOnce(id, g, o);
     if (!r.cut) return r;
+    // At the task's token limit a cut-off review is not started again by itself (limits/reached.js).
+    const spent = tokensOver(id);
+    if (spent) { stopAt(id, "tokens", spent, { role: "reviewer" }); return { aborted: true }; }
     if (!r.cut.passing) return { error: `the reviewer stopped: ${r.cut.error}`, auth: r.auth, cut: true };
     if (tries >= waits.length) return { error: `${S.gaveUp("reviewer", r.cut.reason, tries + 1)}. Its error: ${r.cut.error.replace(/[.\s]+$/, "")}`, auth: false, cut: true };
     try {
@@ -147,6 +152,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   // Put back anything the reviewer changed: what you approve is exactly what the agent committed.
   // Asked first, so a reviewer that changed nothing (nearly every one) costs one git program, not two.
   if (toLand && (F.headOf(folder) !== change.head || F.dirty(folder))) { try { S.gitOut(folder, ["reset", "--hard", change.head]); S.gitOut(folder, ["clean", "-fd"]); } catch {} }
+  count(id, "reviewer"); // its tokens are the task's (limits/spent.js), read while the task still names its conversation
   await closeReviewer(id);
   try { if (S.get(id).stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "Review complete" }); } } catch (e) { if (e.aborted) return { aborted: true }; }
   if (!review && cut) {

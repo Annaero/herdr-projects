@@ -6,6 +6,7 @@ import { interruptKey } from "../agents.js";
 import { AGENT_STAGES, say } from "./shared.js";
 import { delegate } from "./start.js";
 import { retry } from "./finish-line.js";
+import { granted } from "../limits/run.js";
 import { standingOf } from "../attempts/words.js";
 
 // ---- talking to the agent --------------------------------------------------------------------------------------------
@@ -59,6 +60,7 @@ function cleaningUp(t) { if (t.stage === "done" && runnerAlive(t)) throw Object.
 // What every human-started turn does to a task.
 export function rearm(t, keepIntent = false) {
   cleaningUp(t);
+  granted(t); // stopped at a limit: your word gives it the limit once more (limits/spent.js)
   t.tidy = null; t.waiting = null; t.cutRetry = null;
   if (t.failure?.stage === "send") t.failure = null; // what you say now goes into the same box, and out with what sat there (submit.js keeps both)
   t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.turnBy = "reply"; t.selfBlocked = null; t.blocked = null;
@@ -87,7 +89,7 @@ export function stop(id) {
   try { F.assertLive(cur); a = F.h(cur).agentGet(cur.link.pane); } catch {}
   const t = S.update(cur.id, (t) => {
     t.stage = "stopped"; t.stoppedAt = Date.now(); t.stopSeq = a?.state_change_seq ?? t.last?.seq ?? 0; t.sawIdleAfterStop = false;
-    t.expectedWake = null; t.turnOpen = false; t.msg = ""; t.watch = null; t.mergeIntent = null; t.waiting = null;
+    t.expectedWake = null; t.turnOpen = false; t.msg = ""; t.watch = null; t.mergeIntent = null; t.waiting = null; t.limitStop = null;
   });
   if (t.runner && t.runner.pid !== process.pid && S.markerAlive(t.runner)) { try { process.kill(-t.runner.pid, "SIGTERM"); } catch { try { process.kill(t.runner.pid, "SIGTERM"); } catch {} } }
   if (a && ["working", "blocked", "unknown"].includes(a.agent_status)) { try { F.h(t).agentKeys(t.link.pane, interruptKey(t.agent)); } catch {} }

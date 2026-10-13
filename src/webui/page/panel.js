@@ -51,7 +51,7 @@ function setRow(x, canSet, onSet) {
     onchange: (e) => { const text = e.target.value.trim(); if (text && text !== x.value) onSet(x.name, text); else e.target.value = x.value; } });
   return h(`div.sw-set${x.own ? ".is-own" : ""}`,
     h("div.sw-set-top", h("span.sw-set-label", x.label), pick || box),
-    x.means ? h("p.sw-set-means", `On: ${x.means}.`) : null,
+    x.means ? h("p.sw-set-means", x.words ? `On: ${x.means}.` : `Means: ${x.means}.`) : null, // a typed value has no "on": what it is
     h("p.sw-set-from", `From ${x.from}`, h("span.sw-set-name", ` · ${x.name}`),
       x.own && canSet ? h("button.sw-set-back", { type: "button", title: "Back to what it would be without its own answer", onclick: () => onSet(x.name, null) }, "Put back") : null));
 }

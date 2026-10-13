@@ -62,7 +62,7 @@ export const KEYS = [
   { id: "sayNo", web: "No", keys: ["n", "shift+n"], raw: ["n", "N"], show: "n", with: "sayYes" },
 
   { id: "yes", web: "Yes", keys: ["ctrl+l"], group: "ctrl", hint: "retry the failed step",
-    doc: "yes, to whatever the task waits for: approve the merge (it asks first), keep the selected one of several attempts (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary as it is",
+    doc: "yes, to whatever the task waits for: approve the merge (it asks first), keep the selected one of several attempts (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary, or at a limit, as it is",
     menu: (v, r) => (r?.stage === "pick" ? "yes: keep the selected attempt" : "yes: approve the merge, say yes, retry, take it as it is"),
     run: (v, r) => (r ? v.yes(r) : undefined) },
   { id: "sendBack", web: "Send back", keys: ["ctrl+r"], group: "ctrl", hint: "tell this task's agent to fix it",

@@ -13,6 +13,8 @@ import { tell, stop } from "./talk.js";
 import { name as keyName } from "../board/keys.js";
 import { isResearch } from "../research.js";
 import { reviewFailed, reviewTally } from "../status-words.js";
+import { stoppedAtLimit, limitsDetail } from "../limits.js";
+import { carryOn, takeAsIs } from "./limits.js";
 
 // ---- the finish line's keys -------------------------------------------------------------------------------------------
 // Approve: the one decision that ships finished work. An agent's own request for permission gets a yes instead.
@@ -67,6 +69,7 @@ export const canSendError = (t) => (t?.stage === "nosummary" || (t?.stage === "f
 export function sendError(id) {
   const cur = S.find(id);
   S.assertUnarchived(cur);
+  if (stoppedAtLimit(cur)) return carryOn(cur.id); // a limit stopped it: "continue" (actions/limits.js)
   if (cur.stage === "failed" && cur.failure?.stage === "send") return retry(cur.id); // nothing reached the agent: there is no error of its own to send
   if (cur.stage === "nosummary" || (cur.stage === "failed" && cur.failure?.auth && cur.failure.stage === "agent")) { const out = tell(cur.id, F.withTail(cur, "You stopped before the work was finished. Continue the task where you left off.")); return say(out.task, `${cur.id}: told the agent to continue`); }
   if (!canSendError(cur)) throw new Error(`${cur.id} has no agent error to send. Login blockers need the human first.`);
@@ -110,6 +113,7 @@ export function sendFailure(id) {
 export function finishAnyway(id) {
   const cur = S.find(id);
   S.assertUnarchived(cur);
+  if (stoppedAtLimit(cur)) return takeAsIs(cur.id); // a limit stopped it: its work as it stands (actions/limits.js)
   if (cur.stage !== "nosummary") throw new Error(`${cur.id} did not stop without a summary.`);
   const t = S.update(cur.id, (t) => { if (t.stage !== "nosummary" || runnerAlive(t)) throw new Error(`${t.id} is busy.`); t.stage = "checking"; t.msg = ""; t.since = Date.now(); });
   spawnRunner("pipeline", t.id);
@@ -120,9 +124,10 @@ export function retry(id) {
   const cur = S.find(id);
   S.assertUnarchived(cur);
   if (cur.stage === "approval") return approve(cur.id, null, { anyway: !!cur.mergeFailed }); // a merge that failed: the yes was given before it
-  const carryOn = () => { const out = tell(cur.id, F.withTail(cur, "You stopped before the work was finished. Continue the task where you left off.")); return say(out.task, `${cur.id}: told the agent to continue`); };
+  if (stoppedAtLimit(cur)) return carryOn(cur.id);
+  const goOn = () => { const out = tell(cur.id, F.withTail(cur, "You stopped before the work was finished. Continue the task where you left off.")); return say(out.task, `${cur.id}: told the agent to continue`); };
   // The agent said it needs a login: you have signed in, and it is told to carry on.
-  if (cur.stage === "asks" && cur.kind === "auth") return carryOn();
+  if (cur.stage === "asks" && cur.kind === "auth") return goOn();
   if (cur.stage !== "failed") throw new Error(`${cur.id} has nothing to retry.`);
   // None of its attempts passed: trying again is starting over, with fresh attempts (attempts.js).
   if (cur.failure?.stage === "attempts") return say(delegate(cur.id), `${cur.id}: starting over with fresh attempts`);
@@ -137,7 +142,7 @@ export function retry(id) {
   // It never got going: put an agent on it again.
   if (!F.isAgentTask(cur) || ["start", "setup"].includes(f.stage)) return say(delegate(cur.id), `${cur.id}: starting again`);
   // The agent itself stopped (an error, a login you have fixed since): it is told to carry on.
-  if (f.stage === "agent") return carryOn();
+  if (f.stage === "agent") return goOn();
   // A step of the finish line (the check, the push, the pull request, the review, the merge): run it again.
   F.assertLive(cur);
   const t = S.update(cur.id, (t) => { if (t.stage !== "failed" || runnerAlive(t)) throw new Error(`${t.id} is busy. Try again in a moment.`); t.stage = "checking"; t.msg = ""; t.since = Date.now(); });
@@ -159,7 +164,7 @@ export function takeApprove(socket = currentSocket(), me = "") {
 }
 export function details(id) {
   const t = S.find(id);
-  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), research: isResearch(t), report: t.report || null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null,
+  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), research: isResearch(t), report: t.report || null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null, limits: limitsDetail(t),
     // Done several times at once (attempts.js): each attempt, where it stands, and what the reviewer said of them.
     ...(t.attempts?.length ? { attempts: S.attemptsOf(t).map((c) => ({ letter: c.letter, id: c.id, agent: c.settings?.["worker.agent"] || c.agent, standing: standingOf(c), stage: c.stage, stat: c.stat || "", worktree: c.worktree || null, branch: c.branch || null, diff: c.diff?.link || null, report: c.report?.link || null })), comparison: t.comparison || null, picked: t.picked || null } : {}) };
 }

@@ -6,12 +6,13 @@ import { reviewTally } from "../../status-words.js";
 import { roundWords, reviewNote } from "./review-words.js";
 import { name as keyName } from "../keys.js";
 import { madeByWords } from "../../automations/told.js";
+import { NEAR, timeLine, tokensLine, stoppedAtLimit, usedSay, canCount } from "../../limits.js";
 
 // A part's headline is not said again as its first line.
 const same = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
 const asks = (kind) => (NEEDS[kind] ? NEEDS[kind][0].toUpperCase() + NEEDS[kind].slice(1) : "Needs you");
 // The facts under Status, in the order they are drawn. In a short window they go from the last of GIVE.
-const ORDER = ["head", "state", "progress", "now", "who", "made", "change"];
+const ORDER = ["head", "state", "progress", "now", "time", "tokens", "who", "made", "change"];
 
 export class PanelStatus {
   // Returns the title's part, the status part (its facts by name in `rows`, redrawn by `draw`), and what the part
@@ -32,6 +33,11 @@ export class PanelStatus {
     else if (eta && r.state !== "done") rows.progress = fact("Progress", t.fg(c, eta));
     const note = reviewNote(r);
     if (r.state === "working" && note && !(failure && waitOf(r)?.who === "agent")) rows.now = fact("Now", wrap(note, room));
+    // What this run and the task have used against each limit that is set (limits/shown.js), in amber from near it on.
+    const lim = r.limits, nearInk = (x, of) => (x.used >= NEAR * of ? (s) => t.fg("peach", s) : quiet);
+    if (lim?.time) rows.time = fact("Time", timeLine(lim.time), nearInk(lim.time, S.ms(lim.time.limit)));
+    const counted = !lim?.tokens?.kind || canCount(lim.tokens.kind);
+    if (lim?.tokens) rows.tokens = fact("Tokens", tokensLine(lim.tokens, counted), counted ? nearInk(lim.tokens, S.tokensOf(lim.tokens.limit)) : quiet);
     const who = underReview ? "" : r.app ? (!agent && r.app === S.me() ? "you" : r.app) : "";
     if (who) rows.who = fact("On it", clean(who), quiet);
     if (madeByWords(r)) rows.made = fact("Made by", wrap(madeByWords(r), room), quiet); // an automation's task says so
@@ -61,6 +67,12 @@ export class PanelStatus {
     } else if (approval && r.syncBlocked) alert("peach", "Behind main", `Cannot be approved yet: ${r.syncBlocked.why}. The board keeps trying to bring it up to date.`);
     else if (failedReview(r)) alert("red", "Review failed", `${reviewTally(r) ? `It found ${reviewTally(r)}. ` : ""}${this.ctx?.web ? "Send the review to the agent to fix it, or merge it anyway: that asks first." : `${keyName("sendBack")} sends the review to the agent to fix. ${keyName("yes")} merges it anyway, and asks first.`}`);
     else if (approval) { /* the state says it: ready to approve */ }
+    else if (stoppedAtLimit(r)) { // a limit stopped it: what it used, and the three ways on
+      const ls = r.limitStop, name = `limit.${ls.what}`, review = ls.role === "reviewer", id = r.rid || r.id;
+      told = note || "";
+      const on = this.ctx?.web ? `${review ? "Carry on" : "Tell the agent to continue, or take its work as it is"} with the buttons; a reply to the agent continues it with your words.` : `${keyName("sendBack")} carries on${review ? (ls.ready ? (ls.done ? ": it was finished and reviewed, and is done" : ": its work was finished and reviewed, and is put up for approval") : ls.review ? ": the review goes to the agent" : ": it is reviewed again") : `, and so does a reply to the agent. ${keyName("yes")} takes the work as it is, through the check and the review`}.`;
+      alert("red", "Stopped at a limit", `${ls.role === "reviewer" && !ls.review && !ls.ready ? "The reviewer" : "It"} ${S.oneLine(r.raw || note || "stopped")}, ${usedSay(ls)}. Its work is kept as it is and nothing was merged.\n${on}`, [["More", `A higher limit carries on by itself: herdr-superwork set ${name} <value> --task ${id}`]]);
+    }
     else if (r.stage === "pick") told = note || ""; // what it needs is the Attempts part's own headline (panel-attempts.js)
     else if (r.state === "blocked") { told = note || said || ""; alert("red", asks(r.kind), same(told, asks(r.kind)) ? "" : told); }
     else if (r.state === "error") { told = (r.stage === "nosummary" ? r.screen : "") || note || said || "It failed"; const heading = r.stage === "nosummary" ? "Stopped without a summary" : "Went wrong"; alert("red", heading, same(told, heading) ? "" : told); }

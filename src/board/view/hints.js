@@ -58,6 +58,7 @@ export class Hints {
     else if (failedReview(r)) main = [rv && G.sendable(rv) && hint("sendBack", "send the review to this task's agent"), [...hint("yes", "merge this task anyway"), false, "merge anyway"], reply];
     else if (r.stage === "approval" && r.syncBlocked) main = [reply, open];
     else if (r.stage === "approval" && r.state === "blocked") main = [failure?.agentCanFix && !failure.sentAt && fix, hint("yes", "retry the merge"), reply];
+    else if (r.stage === "stopped" && r.limitStop) main = [hint("sendBack", r.limitStop.role === "reviewer" ? "carry on with this task" : "tell this task's agent to continue"), r.limitStop.role !== "reviewer" && hint("yes", "use its work as it is"), reply];
     else if (r.stage === "nosummary") main = [hint("sendBack", "tell this task's agent to continue"), hint("yes", "use its work as it is"), open];
     else if (failure?.agentCanFix) main = failure.sentAt && r.state === "working" ? [open, reply, stop] : [fix, r.stage === "failed" && asIs, reply];
     else if (failure) main = [(r.stage === "failed" || r.kind === "auth") && retry, reply, open];

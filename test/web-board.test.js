@@ -483,6 +483,13 @@ test("the web board has the settings page: every setting of the open task with i
     assert.deepEqual(row(s), { name: "research.only", label: "Research only", means: "its agent changes nothing in the repo; the result is a report, and nothing is pushed, opened or merged", own: false, value: "off", from: "built in",
       words: [{ value: "true", say: "on", now: false }, { value: "false", say: "off", now: true }], hint: "" });
     assert.equal(row(s, "review.rounds").words, null); assert.match(row(s, "review.rounds").hint, /a whole number, 0 or more/);
+    // The two limits are there like every setting: the plain label, what the value may be, and what it means.
+    assert.deepEqual([row(s, "limit.time").label, row(s, "limit.time").value, row(s, "limit.time").words], ["Longest run", "none", null]);
+    assert.match(row(s, "limit.time").hint, /^a time, such as 90s or 15m; none for none\. Means: the longest one run of an agent may take/); assert.match(row(s, "limit.time").means, /^the longest one run of an agent may take.*the task waits for you/);
+    assert.equal(row(s, "limit.tokens").label, "Most tokens"); assert.match(row(s, "limit.tokens").hint, /^a count of tokens, such as 500k or 2m; none for none/); assert.match(row(s, "limit.tokens").means, /^the most tokens the task may use/);
+    assert.throws(() => CALLS.set.run(v, { id: t, name: "limit.time", value: "2 hours", ...drive }), /Did you mean 2h\?/);
+    s = CALLS.set.run(v, { id: t, name: "limit.time", value: "2h", ...drive }); assert.deepEqual([row(s, "limit.time").value, row(s, "limit.time").own], ["2h", true]);
+    s = CALLS.set.run(v, { id: t, name: "limit.time", value: null, ...drive }); assert.equal(row(s, "limit.time").value, "none");
     // Changed from the page: the task's own, the label on its row follows, and the board says what it is now.
     s = CALLS.set.run(v, { id: t, name: "research.only", value: "true", ...drive });
     assert.deepEqual(S.get(t).settings, { "research.only": true }); assert.deepEqual([row(s).value, row(s).own, row(s).from], ["on", true, "this task"]);

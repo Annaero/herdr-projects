@@ -19,6 +19,7 @@
 //   latestSession the newest conversation saved in a folder since a time (the agent's own   none: the id chosen at launch
 //               "new chat" command starts another one)
 //   readTurn    the end of a saved conversation: last message, error, token use     none: blank on the board
+//   tokens      the tokens a saved conversation has used so far (read-tokens.js)    none: not counted, and `limit.tokens` does nothing for it
 //   skillDir    the program's own user-level skills folder                          none: no how-to is installed
 // Verified on claude 2.1.296, codex 0.160.0, pi 1.1.0 (docs/checked-on-herdr.md).
 import fs from "node:fs";
@@ -26,6 +27,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { claudeFile, codexFile, claudeHome, codexHome, piHome } from "./homes.js";
 import { headOf, when, turn, readClaude, readCodex, readPi, findFile } from "./read-turn.js";
+import { claudeTokens, codexTokens, piTokens } from "./read-tokens.js";
 
 const shq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 const hookCommand = (h) => [h.shim, "turn-ended", "--id", h.id, "--role", h.role, "--token", h.token, ...(h.role === "reviewer" ? ["--round", String(h.round)] : [])];
@@ -67,6 +69,7 @@ export const AGENTS = {
       return null;
     },
     readTurn: readClaude,
+    tokens: claudeTokens,
     skillDir: () => skillAt(claudeHome()),
     access: { full: ["--dangerously-skip-permissions"], ask: [] },
     efforts: ["low", "medium", "high", "xhigh", "max"],
@@ -130,6 +133,7 @@ export const AGENTS = {
       return null;
     },
     readTurn: readCodex,
+    tokens: codexTokens,
     skillDir: () => skillAt(codexHome()),
     // --no-daemon: a shared Codex background server of another version shows a restart dialog that herdr reads as
     // idle, so a prompt would be typed into it. Each agent runs on its own instead.
@@ -199,6 +203,7 @@ export default function (pi: any) {
       return null;
     },
     readTurn: readPi,
+    tokens: piTokens,
     skillDir: () => skillAt(piHome()),
     access: { full: [] }, // pi never asks before running something: it has no `ask`
     efforts: ["off", "minimal", "low", "medium", "high", "xhigh"],

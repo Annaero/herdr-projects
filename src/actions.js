@@ -6,4 +6,5 @@ export * from "./actions/start.js";
 export * from "./actions/talk.js";
 export * from "./actions/finish-line.js";
 export * from "./actions/archive.js";
+export * from "./actions/limits.js";
 export { pick } from "./attempts/settle.js"; // choosing one of several attempts (attempts.js)
