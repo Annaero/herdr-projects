@@ -5,7 +5,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parseToml } from "../src/toml.js";
-import { readHerdrConfig, resolve, parseColor, loadTheme, setTerminal, readAnswers, theme, pageTheme, apart, REVIEW_BLUE, REVIEW_APART, REVIEW_BESIDE, isBlue } from "../src/board/theme.js";
+import { readHerdrConfig, resolve, parseColor, loadTheme, setTerminal, readAnswers, theme, pageTheme, apart, REVIEW_BLUE, REVIEW_APART, REVIEW_BESIDE, TODO_APART, TODO_BESIDE, isBlue } from "../src/board/theme.js";
+import { THEME_NAMES } from "../src/board/palettes.js";
+import { entryOf } from "../src/store/settings-list.js";
 
 const cfg = (text) => { const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "hsw-theme-")), "config.toml"); fs.writeFileSync(f, text); return f; };
 
@@ -16,19 +18,43 @@ test("with no theme set, the board uses herdr's default: Catppuccin and dots", (
   assert.equal(palette.accent, 0x89b4fa); assert.equal(palette.yellow, 0xf9e2af); assert.equal(palette.red, 0xf38ba8); assert.equal(palette.teal, 0x94e2d5); assert.equal(palette.green, 0xa6e3a1);
 });
 
-test("the board's own setting: the terminal's colours when herdr's config here sets no theme, herdr's theme when it does", () => {
-  // herdr's client may run on another device with a config of its own: one here that sets no theme says nothing.
+test("the board's own setting: herdr's theme as herdr shows it, Catppuccin with none set; or one of herdr's themes by its name", () => {
+  // With no theme in herdr's config herdr shows its default, so the board does too: the two never look like two programs.
   const none = readHerdrConfig(cfg("onboarding = false\n[ui]\n"));
-  for (const [c, want] of [[none, "auto"], [{}, "auto"], [{ theme: { name: "nord" } }, "terminal"], [{ theme: { name: "nord", auto_switch: true, dark_name: "dracula" } }, "terminal"]]) {
+  for (const want of ["herdr", "auto", undefined]) for (const c of [none, {}, { theme: { custom: {} } }, { theme: { auto_switch: false } }, { ui: { accent: "red" } }]) assert.equal(resolve(c, null, want).name, "catppuccin");
+  assert.equal(entryOf("board.theme").builtin, "herdr"); assert.deepEqual(entryOf("board.theme").values, ["herdr", "dark", "light", ...THEME_NAMES]);
+  assert.equal(resolve({ theme: { name: "nord" } }, null, "herdr").name, "nord"); assert.equal(resolve({ theme: { name: "gruvbox", auto_switch: true } }, true, "herdr").name, "gruvbox-light");
+  assert.equal(resolve(none, null, "dark").name, "catppuccin"); assert.equal(resolve(none, null, "light").name, "catppuccin-latte");
+  // A theme by its name is that theme whatever the config names: for a herdr opened from another machine, whose
+  // client paints with a config the board cannot read. "terminal" is the terminal's own colours.
+  for (const [c, want] of [[none, "terminal"], [{ theme: { name: "nord" } }, "terminal"], [{ theme: { name: "nord", auto_switch: true, dark_name: "dracula" } }, "terminal"]]) {
     const t = resolve(c, true, want);
     assert.equal(t.name, "terminal");
     assert.equal(t.palette.text, null); assert.equal(t.palette.yellow, parseColor("yellow")); assert.equal(t.palette.teal, parseColor("cyan")); assert.equal(t.palette.green, parseColor("green")); assert.equal(t.palette.red, parseColor("lightred"));
   }
+  for (const name of THEME_NAMES) { const t = resolve({ theme: { name: "dracula", auto_switch: true } }, true, name); assert.equal(t.name, name); assert.equal(t.palette.red, resolve({ theme: { name } }).palette.red); }
   assert.equal(resolve({ theme: { custom: { red: "#010203" } } }, null, "terminal").palette.red, 0x010203); // custom colours apply to it, as in herdr
-  // Any theme setting here is followed, as herdr follows it; "herdr" follows herdr's config with nothing set, too.
-  for (const set of [{ theme: { custom: {} } }, { theme: { auto_switch: false } }, { ui: { accent: "red" } }]) assert.equal(resolve(set, null, "auto").name, "catppuccin");
-  assert.equal(resolve({ theme: { name: "nord" } }, null, "auto").name, "nord"); assert.equal(resolve({ theme: { name: "gruvbox", auto_switch: true } }, true, "auto").name, "gruvbox-light");
-  assert.equal(resolve(none, null, "herdr").name, "catppuccin"); assert.equal(resolve(none, null, "dark").name, "catppuccin"); assert.equal(resolve(none, null, "light").name, "catppuccin-latte");
+  assert.equal(resolve({ theme: { name: "nord" } }, null, "no-such-theme").name, "nord"); // a word that names nothing: herdr's own
+});
+
+test("a task nobody started is a dim grey of its own in every theme: never the plain text colour, the green of ready or the blue of a review", () => {
+  for (const name of THEME_NAMES) {
+    const p = resolve({ theme: { name } }, null, "herdr").palette, three = { "to do": p.todo, "ready to approve": p.green, "under review": p.review };
+    // The board's own three colours are told apart from each other and from plain text, and the grey from the background.
+    for (const [a, c] of Object.entries(three)) { assert.ok(apart(c, p.text) >= 50, `${name}: ${a} and plain text are ${Math.round(apart(c, p.text))} apart`); for (const [b, d] of Object.entries(three)) if (a !== b) assert.ok(apart(c, d) >= TODO_APART, `${name}: ${a} and ${b} are ${Math.round(apart(c, d))} apart`); }
+    for (const k of TODO_BESIDE) assert.ok(apart(p.todo, p[k]) >= TODO_APART, `${name}: to do and ${k}`);
+    // It is a grey, and a dim one: nearer the background than plain text is, where both are known.
+    if (p.todo >= 0) { const [r, g, b] = [p.todo >> 16, (p.todo >> 8) & 255, p.todo & 255]; assert.ok(Math.max(r, g, b) - Math.min(r, g, b) <= 70, `${name}: a grey`); assert.ok(apart(p.todo, p.panel_bg) < apart(p.text, p.panel_bg), `${name}: dimmer than text`); }
+  }
+  // The terminal's own colours: its white is most terminals' text colour, so the grey is its bright black, in the list and in the box alike.
+  { const p = resolve({}, null, "terminal").palette; assert.equal(p.todo, -16 + 8); assert.notEqual(p.todo, p.overlay0); assert.equal(p.text, null); }
+  assert.equal(resolve({}, null, "herdr").palette.todo, 0x6c7086); // the theme's own grey where it fits
+  // Colours of your own cannot take it away: a grey that is your text colour, or your green, gives way to another grey.
+  for (const custom of [{ overlay0: "#cdd6f4" }, { overlay0: "#a6e3a1", overlay1: "#a6e3a1" }, { overlay0: "white" }, { overlay0: "#3b82f6", overlay1: "#cdd6f4" }]) {
+    const p = resolve({ theme: { custom } }, null, "herdr").palette;
+    for (const k of TODO_BESIDE) assert.ok(apart(p.todo, p[k]) >= TODO_APART, `${JSON.stringify(custom)}: to do and ${k}`);
+  }
+  if (!process.env.NO_COLOR) { loadTheme(); assert.notEqual(theme.fg("todo", "to do"), theme.fg("text", "to do")); assert.notEqual(theme.fg("todo", "x"), theme.fg("green", "x")); assert.notEqual(theme.fg("todo", "x"), theme.fg("review", "x")); }
 });
 
 test("the terminal says whether it is light or dark", () => {
@@ -98,7 +124,7 @@ test("the review page takes the same theme, and follows the browser where herdr 
   // Colours given by name are kept on the page too; only the terminal theme's own colours give way to the browser's.
   assert.match(pageTheme({ theme: { custom: { green: "red", accent: "lightmagenta", text: "reset" } } }, "auto"), /--ink:#cdd6f4;.*--accent:#ff00ff;.*--ok:#cd0000;--bad:#f38ba8\}$/);
   assert.match(pageTheme({ theme: { name: "terminal", custom: { green: "red" } } }, "auto"), /--ok:#cd0000;--bad:#f38ba8\}@media.*--ok:#cd0000;--bad:#d20f39\}\}$/);
-  for (const [c, w] of [[{ theme: { name: "terminal" } }, "auto"], [{}, "auto"], [{ theme: { name: "nord" } }, "terminal"]]) assert.match(pageTheme(c, w), /--bg:#181825;.*prefers-color-scheme:light.*--bg:#eff1f5;--ink:#4c4f69;/); // the terminal's colours mean the browser's
+  for (const [c, w] of [[{ theme: { name: "terminal" } }, "auto"], [{}, "terminal"], [{ theme: { name: "nord" } }, "terminal"]]) assert.match(pageTheme(c, w), /--bg:#181825;.*prefers-color-scheme:light.*--bg:#eff1f5;--ink:#4c4f69;/); // the terminal's colours mean the browser's
 });
 
 test("the whole of TOML is read, so nothing herdr accepts is lost", () => {
@@ -137,7 +163,7 @@ test("a review that is running is a blue of its own in every theme: the theme's 
   assert.deepEqual(own, ["catppuccin-latte", "gruvbox-light", "one-light", "solarized", "solarized-light"]);
   for (const name of ["catppuccin", "dracula", "rose-pine", "rose-pine-dawn", "vesper"]) assert.equal(resolve({ theme: { name } }, null, "herdr").palette.review, REVIEW_BLUE, name);
   // The terminal's own colours: its blue, which is none of its green, its cyan and its greys.
-  { const p = resolve({}, null, "auto").palette; assert.equal(p.review, -16 + 4); for (const k of ["green", "red", "yellow", "teal", "subtext0", "overlay0"]) assert.notEqual(p.review, p[k], k); }
+  { const p = resolve({}, null, "terminal").palette; assert.equal(p.review, -16 + 4); for (const k of ["green", "red", "yellow", "teal", "subtext0", "overlay0"]) assert.notEqual(p.review, p[k], k); }
   assert.equal(resolve({ theme: { custom: { blue: "#0000ff" } } }, null, "herdr").palette.review, 0x0000ff); // a blue of your own is followed
   assert.equal(resolve({ theme: { custom: { blue: "#a6e3a1" } } }, null, "herdr").palette.review, REVIEW_BLUE); // one that is the theme's green is not
   // Colours of your own cannot take the blue away: a blue that is the red of what failed, or the agent's amber, is not
@@ -172,7 +198,7 @@ test("the board paints with what it read: true colour, the terminal's 16 colours
     setTerminal(true);
     assert.equal(theme.fg("red", "x"), "\x1b[38;2;210;15;57mx\x1b[39m"); assert.equal(theme.selected("x"), "\x1b[48;2;189;208;245mx\x1b[49m");
     process.env.HERDR_CONFIG_PATH = cfg("");
-    assert.equal(loadTheme(), false); // the terminal's own colours, whatever they are: nothing to ask
+    assert.equal(loadTheme(), false); // no theme set: herdr's default, with nothing to ask
     // A symbol of its own for each state is the board's default: no two states are told apart by colour alone.
     assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map((s) => theme.mark(s)), ["◐", "◑", "◒", "!", "✓", "○", "✗"]);
     // A task that waits for you says what it needs: an answer, a yes or no, a sign-in; `!` where the kind is not known.
@@ -184,7 +210,10 @@ test("the board paints with what it read: true colour, the terminal's 16 colours
     assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map((s) => theme.mark(s)), ["●", "●", "●", "!", "●", "○", "✗"]);
     assert.deepEqual(["question", "permission", "auth", undefined].map((k) => theme.mark("blocked", k)), ["?", "!", "⚷", "!"]); // what a task needs is said with dots too
     process.env.HERDR_CONFIG_PATH = cfg(""); loadTheme();
-    // No theme set here: the terminal's colours and its own text colour.
+    assert.equal(theme.fg("yellow", "x"), "\x1b[38;2;249;226;175mx\x1b[39m"); // no theme set here: herdr's default, as herdr shows it
+    process.env.HERDR_CONFIG_PATH = cfg(`[theme]\nname = "terminal"\n`); loadTheme();
+    // The terminal theme: the terminal's colours and its own text colour; a task nobody started is its bright black.
+    assert.equal(theme.fg("todo", "x"), "\x1b[90mx\x1b[39m");
     assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.fg("teal", "x"), "\x1b[36mx\x1b[39m"); assert.equal(theme.line("a b"), "a b");
     process.env.HERDR_CONFIG_PATH = cfg(`[theme]\nname = "catppuccin"\n`);
     assert.equal(loadTheme(), false); // no auto_switch: nothing to ask

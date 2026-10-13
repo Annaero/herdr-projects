@@ -26,6 +26,8 @@ const role = (name, who, builtin, kind) => [
   { name: `${name}.instructions`, kind, type: "text", builtin: "none", adds: kind === "work", doc: `your own words for ${who}, added after the board's own fixed rules${kind === "work" ? ". They add up across the places, broadest first, and the agent is told that later ones win" : ""}` },
 ];
 
+import { THEME_NAMES } from "../board/palettes.js";
+
 export const SETTINGS = [
   // who works, who reviews, who you talk to
   ...role("worker", "the working agent", { agent: "claude", fast: false }, "work"),
@@ -59,7 +61,7 @@ export const SETTINGS = [
   { name: "board.open", kind: "board", type: "choice", values: ["tab", "popup"], builtin: "tab", doc: "what the board key opens. `tab`: the board in a herdr tab of its own, which stays when you go into an agent; pressed on the board itself, the key takes you back to where you came from. `popup`: the board as herdr's popup, a framed window in the middle of herdr's screen, over whatever is there; the key again or `Esc` closes it, it closes when you go into an agent, and it is never left behind on a tab. More: [the board](board.md)" },
   { name: "board.notify", kind: "board", type: "notify", builtin: "none", doc: "when a task needs you, is ready to approve, or failed: `bell` rings the terminal bell, a command is run with `HERDR_SUPERWORK_ID`, `HERDR_SUPERWORK_TITLE` and `HERDR_SUPERWORK_EVENT` (`needs you`, `ready to approve` or `failed`) in its environment, `none` does neither" },
   { name: "board.webUi", kind: "board", type: "choice", values: ["auto", "none"], builtin: "auto", doc: "the board inside the herdr web UI. `auto`: when the web UI plugin (`devswha.herdr-web-ui`) is installed, a small front door of the board's own runs in front of it and adds a Board entry to its menu; without that plugin nothing runs. `none`: never. More: [the board in the web UI](web-ui.md)" },
-  { name: "board.theme", kind: "board", type: "choice", values: ["auto", "herdr", "terminal", "dark", "light"], builtin: "auto", doc: "the board's colours. `auto`: herdr's theme when this machine's `config.toml` sets one, else the terminal's own colours; `herdr` follows this machine's config exactly; `terminal` always uses the terminal's colours; `dark` or `light` picks herdr's dark or light theme by hand" },
+  { name: "board.theme", kind: "board", type: "choice", values: ["herdr", "dark", "light", ...THEME_NAMES], builtin: "herdr", doc: "the board's colours. `herdr`: herdr's own theme, read from this machine's `config.toml` and resolved as herdr does, so with no theme set there it is herdr's default (Catppuccin); `dark` or `light` picks that theme's dark or light one by hand; the name of one of herdr's themes (`nord`, `gruvbox`, … and `terminal` for the terminal's own colours) is that theme whatever the config says, for a herdr opened from another machine whose config names another one. More: [colours](colours.md)" },
 ];
 
 export const NAMES = SETTINGS.map((s) => s.name);

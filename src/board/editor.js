@@ -3,12 +3,13 @@
 import { CURSOR_MARKER, Editor, visibleWidth } from "@earendil-works/pi-tui";
 
 export class DraftEditor extends Editor {
-  hiddenAbove = 0; hiddenBelow = 0; above = 0; below = 0; viewportTop = 0; paste = undefined; bodyRows = 1;
+  tone = "text"; hiddenAbove = 0; hiddenBelow = 0; above = 0; below = 0; viewportTop = 0; paste = undefined; bodyRows = 1;
   constructor(tui, theme) {
     // pi-tui shows at most 30% of the terminal's rows of a draft (never fewer than 5). The board says how many rows the
     // box may take, so the editor is told of a terminal tall enough for exactly those: a wrapped draft is seen whole.
+    // Its rules are drawn in `tone`, the colour that says who the box sends to (view/textbox.js: boxColor).
     const box = () => Math.max(tui.terminal.rows, Math.ceil(this.bodyRows / 0.3) + 1);
-    super({ requestRender: () => tui.requestRender(), terminal: { get rows() { return box(); }, get columns() { return tui.terminal.columns; } } }, { borderColor: (s) => theme.fg("surface_dim", s), selectList: { selectedPrefix: (s) => s, selectedText: (s) => s, description: (s) => s, scrollInfo: (s) => s, noMatch: (s) => s } });
+    super({ requestRender: () => tui.requestRender(), terminal: { get rows() { return box(); }, get columns() { return tui.terminal.columns; } } }, { borderColor: (s) => theme.fg(this.tone, s), selectList: { selectedPrefix: (s) => s, selectedText: (s) => s, description: (s) => s, scrollInfo: (s) => s, noMatch: (s) => s } });
     this.focused = true;
     this.disableSubmit = true; // only the board may dispatch or delegate
   }

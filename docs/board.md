@@ -179,6 +179,8 @@ setting up, running the check, pushing, merging) share a third one, `◒`. A tas
 `◐`: for a free slot, to try again after a turn was cut off, for its check's turn or for its turn to merge. So a
 blue `◑` with a bar says a review is running, an amber `◐` that the agent is at work, and a green `!` that the task
 is ready for your yes. A group's heading keeps the colour of its group: a task under review is filed under `working`.
+A task nobody has started (`to do`: its heading and its `○`) is a dim grey of its own, never the plain text colour.
+Which colours are herdr's and which the board's own, and how the board follows herdr's theme: [colours](colours.md).
 
 The blue is the theme's own `blue` where that one is told apart from everything it sits beside: the theme's green,
 its red, its amber, the light blue of herdr's own dot for done and idle (its `teal`), muted text, plain text and the
@@ -315,7 +317,9 @@ The chat is three things, and looks the same for the Coordinator and for a task'
 - **One rounded box**: the newest thing said in that conversation, in grey, under a line that names who said it
   (`Coordinator:`, `Agent:`, `Reviewer:`, `You:`), then an empty line, and the line you type on (the prompt is only
   `❯`). While that line is empty it says in grey who gets your message, by the name of their tab: `Send message to
-  Coordinator`, or `Send message to Agent` for a task's agent. Nothing else is in it. A long message wraps, and the
+  Coordinator`, or `Send message to Agent` for a task's agent. Nothing else is in it. The box's frame and its `❯`
+  say it by colour too: the plain text colour for the Coordinator, the task's status colour for its agent
+  ([colours](colours.md)). A long message wraps, and the
   box grows with it: it takes the lines the message needs, up to two thirds of the window, and shrinks back for a
   short one. The list above gives up those rows and keeps the selected task in view. (Under the whole task, `Alt+T`,
   and the `?` menu, which are there to be read themselves, the message keeps to a third of the window.)

@@ -6,7 +6,11 @@
   --sw-line: var(--border, #2d2924); --sw-text: var(--text, #d8d0c3); --sw-dim: var(--text-dim, #9b9183); --sw-strong: var(--text-strong, #f2ebdf);
   /* The board's colour names (src/board/view/states.js), as the web UI's own status colours. */
   --sw-red: var(--status-blocked, #ff7b70); --sw-green: var(--status-done, #93c36b); --sw-yellow: var(--accent, #f0a830);
-  --sw-teal: var(--status-done, #93c36b); --sw-review: var(--status-working, #6cb8d6); --sw-check: var(--text, #d8d0c3);
+  /* Done is herdr's teal. The web UI has one colour for done, which is the green of "ready to approve" here: so the
+     teal is the board's own, pulled towards the page's text colour to read on its light and dark palettes alike. */
+  --sw-teal: color-mix(in srgb, #14b8a6 78%, var(--text, #d8d0c3)); --sw-review: var(--status-working, #6cb8d6); --sw-check: var(--text, #d8d0c3);
+  /* A task nobody has started: the web UI's dim text, never its plain text colour. */
+  --sw-todo: var(--text-dim, #9b9183);
 }
 .sw-board {
   position: fixed; inset: 0; z-index: 22; /* over the web UI's drawer (20), under its dialogs (30) */ display: flex; flex-direction: column; min-width: 0;
@@ -54,7 +58,7 @@
 .sw-part { margin-top: var(--space-4, 16px); }
 .sw-part-head { margin: 0 0 var(--space-2, 8px); padding-bottom: var(--space-1, 4px); border-bottom: var(--hairline, 1px) solid var(--sw-line); font-size: var(--fs-sm, 13px); font-weight: var(--fw-semibold, 600); color: var(--sw-strong); }
 .sw-part-head[class*="sw-c-"] { border-bottom-color: currentColor; }
-.sw-part-head.sw-c-red { color: var(--sw-red); } .sw-part-head.sw-c-yellow { color: var(--sw-yellow); } .sw-part-head.sw-c-green { color: var(--sw-green); } .sw-part-head.sw-c-peach { color: var(--sw-yellow); } .sw-part-head.sw-c-overlay0 { color: var(--sw-dim); } .sw-part-head.sw-c-review { color: var(--sw-review); }
+.sw-part-head.sw-c-red { color: var(--sw-red); } .sw-part-head.sw-c-yellow { color: var(--sw-yellow); } .sw-part-head.sw-c-green { color: var(--sw-green); } .sw-part-head.sw-c-peach { color: var(--sw-yellow); } .sw-part-head.sw-c-overlay0 { color: var(--sw-dim); } .sw-part-head.sw-c-todo { color: var(--sw-todo); } .sw-part-head.sw-c-review { color: var(--sw-review); }
 .sw-facts { margin: 0; }
 .sw-fact { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 0 var(--space-3, 12px); padding: 2px 0; }
 .sw-label { color: var(--sw-dim); font-size: var(--fs-sm, 13px); }
@@ -90,6 +94,9 @@
 .sw-said-more { align-self: flex-start; font-size: var(--fs-xs, 12px); color: var(--sw-dim); min-height: 28px; height: 28px; margin-top: calc(-1 * var(--space-1, 4px)); }
 .sw-compose { display: flex; align-items: flex-end; gap: var(--space-2, 8px); }
 .sw-input { flex: 1; min-width: 0; min-height: var(--touch-target, 40px); max-height: 30vh; padding: 9px var(--space-3, 12px); resize: none; border: var(--hairline, 1px) solid var(--border-strong, #3e3830); border-radius: var(--radius-lg, 12px); background: var(--bg-input, #1c1916); color: var(--sw-text); font: inherit; font-size: var(--fs-input, 16px); line-height: 1.35; }
+/* Who the box sends to, by its frame (view/textbox.js: boxColor): the Coordinator's is the plain text colour, an agent's its task's status colour. */
+.sw-input.sw-b-text { border-color: var(--sw-text); } .sw-input.sw-b-red { border-color: var(--sw-red); } .sw-input.sw-b-green { border-color: var(--sw-green); } .sw-input.sw-b-yellow { border-color: var(--sw-yellow); }
+.sw-input.sw-b-teal { border-color: var(--sw-teal); } .sw-input.sw-b-review { border-color: var(--sw-review); } .sw-input.sw-b-check { border-color: var(--sw-check); } .sw-input.sw-b-todo, .sw-input.sw-b-overlay0 { border-color: var(--sw-todo); }
 .sw-input:focus-visible { outline: var(--ring, 2px solid var(--sw-yellow)); outline-offset: 0; }
 .sw-send-row { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1, 4px); }
 .sw-send { min-height: var(--touch-target, 40px); }
@@ -160,7 +167,7 @@ a.sw-tag:hover { text-decoration: underline; }
 /* The board's colour names. */
 .sw-c-red { color: var(--sw-red); } .sw-c-green { color: var(--sw-green); } .sw-c-yellow { color: var(--sw-yellow); }
 .sw-c-teal { color: var(--sw-teal); } .sw-c-review, .sw-c-blue { color: var(--sw-review); } .sw-c-check, .sw-c-text { color: var(--sw-check); }
-.sw-c-overlay0, .sw-c-subtext0, .sw-c-surface_dim { color: var(--sw-dim); } .sw-c-accent, .sw-c-peach { color: var(--accent, #f0a830); }
+.sw-c-overlay0, .sw-c-subtext0, .sw-c-surface_dim { color: var(--sw-dim); } .sw-c-todo { color: var(--sw-todo); } .sw-c-accent, .sw-c-peach { color: var(--accent, #f0a830); }
 .sw-b { font-weight: var(--fw-semibold, 600); } .sw-d { opacity: 0.6; }
 
 /* When the web UI's menu is not found: the Board, floating. */

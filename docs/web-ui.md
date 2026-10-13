@@ -105,7 +105,10 @@ and the next load online replaces the copy.
 ## What the board looks like there
 
 It is drawn with the web UI's own colours, type, sizes and spacing (its CSS variables, `DESIGN.md` there), so it
-follows light and dark and every palette of the web UI by itself.
+follows light and dark and every palette of the web UI by itself. The web UI does not read herdr's theme, so there
+the Board matches herdr as the web shows it. A status is the web UI's own colour for it, a task nobody started is its
+dim text colour, and the frame of the text field says who gets your words, as the terminal board's box does: the
+plain text colour for the Coordinator, the task's status colour for its agent ([colours](colours.md)).
 
 | On the terminal board | On the web board |
 |---|---|

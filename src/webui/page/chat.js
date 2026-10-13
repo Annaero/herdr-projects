@@ -67,6 +67,9 @@ export function chatEl({ onSend, onPress }) {
       // Only where the message is longer than its few lines is there more to show (measured once it is laid out).
       const measure = () => { const over = !!c.text && (open || parts.length > 1 || said.scrollHeight > said.clientHeight + 2); more.hidden = !over; said.classList.toggle("has-more", over && !open); };
       measure(); requestAnimationFrame(measure);
+      // The box's frame says who gets your words, as on the terminal board: the plain text colour for the Coordinator,
+      // the task's status colour for its agent.
+      box.className = `sw-input sw-b-${c.box || "text"}`;
       box.placeholder = cap(snap.send.place || "");
       labels = snap.send;
       box.disabled = snap.role !== "drive";

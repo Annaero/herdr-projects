@@ -93,6 +93,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `held.js` | Is the board's terminal sized by something other than herdr's own window? |
 | `keys.js` | The board's keys, each one defined once: the ? menu, the hint line, the words that name a key and docs/keys.md are all made from this list |
 | `main.js` | Opens the board: full screen in the current terminal, which in herdr is a pane, the plugin's own tab included |
+| `palettes.js` | herdr's built-in themes as herdr 0.9.3 has them (its src/app/state.rs): each theme's colours, the names herdr accepts for it, and its dark and light pair |
 | `place.js` | The board that is running in herdr: where it is, written down while it runs, so that opening the board from anywhere in herdr goes back to that one instead of starting a second one |
 | `popup.js` | The board as a popup, for whoever chose it (`board.open`: popup): herdr's own popup, a framed window in the middle of herdr's screen that takes the keyboard and the mouse while it shows, as herdr's menu does |
 | `reload-screen.js` | A board that loads its new version keeps its screen: the old board's last frame stays until the new one has drawn over it |
@@ -300,6 +301,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [board.md](board.md) | The board: the list and the chat |
 | [check-progress.md](check-progress.md) | The check's progress: what the board shows, and how a check reports it |
 | [checked-on-herdr.md](checked-on-herdr.md) | What was checked on herdr 0.9.3 |
+| [colours.md](colours.md) | Colours: herdr's theme, and the box that says who you type to |
 | [compared-with-pi-work.md](compared-with-pi-work.md) | Compared with pi-work |
 | [coordinator.md](coordinator.md) | The Coordinator |
 | [gate.md](gate.md) | The gate |
@@ -333,6 +335,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `auto-merge.test.js` | The merge.by setting: a green task merges by itself, the repo's own file can never switch that on, and a change counts for tasks already under way |
 | `automations.test.js` | Automations: a schedule read from plain words or cron, a board event, a firing that makes a task and starts it with the automation's own settings, and the guards: one at a time, no loops, a runaway turned off, a missed… |
 | `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, stop or remove, retry |
+| `board-box-colour.test.js` | The text box says who you type to by colour: the plain text colour for the Coordinator, the task's status colour for its agent |
 | `board-chat-scroll.test.js` | The chat's message when it is long: the box grows with it, it scrolls with two keys and the mouse wheel, and the box says where there is more |
 | `board-chat.test.js` | The chat's box: the latest message, an empty line, the line you type on |
 | `board-evidence.test.js` | The task details of a reviewed task with evidence, and what the board shows when a part of it fails to draw |

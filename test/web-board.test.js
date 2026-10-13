@@ -42,7 +42,7 @@ test("the web board shows the terminal board's list: the same groups, order, mar
     const want = []; for (const row of term.rows) { if (row.header) want.push([row.header]); else if (row.rec) want.at(-1).push(row.rec.id); }
     let s = snapshot(v);
     assert.deepEqual(s.list.groups.map((g) => [g.name, ...g.rows.map((r) => r.id)]), want);
-    assert.deepEqual(s.list.groups.map((g) => [g.name, g.color]), [["ready to approve", "green"], ["working", "yellow"], ["to do", "overlay0"]]);
+    assert.deepEqual(s.list.groups.map((g) => [g.name, g.color]), [["ready to approve", "green"], ["working", "yellow"], ["to do", "todo"]]);
     const [ready, working, todo] = rowsOf(s.list);
     assert.deepEqual([ready.title, ready.mark, ready.color, plain(term.sentence(term.items.find((r) => r.id === id)).text)], ["Make f", "!", "green", ready.says.map((p) => p.t).join("")]);
     assert.equal(ready.says.map((p) => p.t).join(""), "Pass · 1 minor"); assert.equal(ready.says[0].c, "green"); assert.deepEqual(ready.review, [{ t: "R#1", c: "green" }]); assert.match(ready.time, /^\d+s ago$/);
@@ -208,6 +208,8 @@ test("the web board has each task's tag, as the terminal board's rows do: on its
   assert.equal(tags(s)[big], "HSW-134"); assert.equal(tags(s)[nine], "HSW-9"); assert.equal(wide(s)[big], 7); assert.equal(wide(s)[nine], 7);
   v.pick(big, true); s = snapshot(v); assert.equal(s.panel.tag, "HSW-134"); assert.equal(s.panel.title, "Number one three four");
   v.press("talk"); s = snapshot(v); assert.equal(s.chat.tag, "HSW-134"); assert.equal(s.chat.name, "Number one three four");
+  // The box says who gets your words by its frame too: this task's status colour (nobody started it: the dim grey), and the plain text colour for the Coordinator.
+  assert.equal(s.chat.box, "todo"); assert.match(s.send.place, /starts an agent/); v.press("talk"); assert.equal(snapshot(v).chat.box, "text"); v.press("talk");
   v.pick(big); v.find("hsw-9"); assert.equal(v.sel, nine); v.find("#134"); assert.equal(v.sel, big); v.find("");
   S.unsetValue("repo.key", { repo: "proj" });
 });
@@ -258,6 +260,10 @@ test("the web page's chat line shows only what there is: with no task's tag (the
     chat.update(snap({ tag: "", name: "New task" }));
     assert.deepEqual(drawn(), ["sw-mark:+", "sw-who-name:New task", "sw-who-status:idle"]); assert.doesNotMatch(who.textContent, /null|undefined/);
     chat.update(snap({ name: "Coordinator" })); assert.deepEqual(drawn(), ["sw-mark:+", "sw-who-name:Coordinator", "sw-who-status:idle"]);
+    // The box's frame: the plain text colour for the Coordinator, the task's status colour for its agent.
+    const box = () => chat.el.kids.at(-1).kids[0].className;
+    assert.equal(box(), "sw-input sw-b-text"); chat.update(snap({ name: "Add an undo", toAgent: true, box: "yellow" }, "proj/134")); assert.equal(box(), "sw-input sw-b-yellow");
+    { const css = (await import("node:fs")).readFileSync(new URL("../src/webui/page/board.css", import.meta.url), "utf8"); for (const c of ["text", "red", "green", "yellow", "teal", "review", "check", "todo", "overlay0"]) assert.ok(css.includes(`.sw-input.sw-b-${c}`), `the page has a frame colour for ${c}`); assert.match(css, /\.sw-c-todo \{ color: var\(--sw-todo\)/); const v = (n) => new RegExp(`--sw-${n}: ([^;]+);`).exec(css)[1]; assert.equal(new Set(["text", "red", "green", "yellow", "teal", "review", "todo"].map(v)).size, 7, "each frame colour is a colour of its own: done is not the green of ready"); }
     chat.update(snap({ tag: "HSW-134", name: "Add an undo", toAgent: true }, "proj/134"));
     assert.deepEqual(drawn(), ["sw-mark:+", "sw-id:HSW-134", "sw-who-name:Add an undo", "sw-who-status:idle", "sw-who-flip:Talk to the Coordinator"]);
   } finally { Object.assign(globalThis, had); }

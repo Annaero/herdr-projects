@@ -24,7 +24,7 @@ export function sideOf(v) {
   const typing = buttonsOf(v, r, { typing: true });
   const place = (() => { try { return plain(v.boxLines(300, 3, r)[1] || "").replace(/^\s*❯\s?/, "").trim(); } catch { return ""; } })();
   return {
-    chat: who ? { mark: pieces(who.mark)[0] || { t: "·" }, tag: who.tag || "", name: who.name, status: plain(who.status || ""), progress: plain((who.progress || [])[0] || ""), text: String(who.text || ""), parts: (who.parts || []).map((x) => ({ by: String(x.by || ""), text: String(x.text || ""), mine: !!x.mine, tone: x.tone || "", raw: !!x.raw })), raw: !!who.raw, mine: !!who.mine, tone: who.tone || "", note: who.note || "", toAgent: !!(v.reply && r) } : null,
+    chat: who ? { mark: pieces(who.mark)[0] || { t: "·" }, tag: who.tag || "", name: who.name, status: plain(who.status || ""), progress: plain((who.progress || [])[0] || ""), text: String(who.text || ""), parts: (who.parts || []).map((x) => ({ by: String(x.by || ""), text: String(x.text || ""), mine: !!x.mine, tone: x.tone || "", raw: !!x.raw })), raw: !!who.raw, mine: !!who.mine, tone: who.tone || "", note: who.note || "", toAgent: !!(v.reply && r), box: v.boxColor(r) } : null,
     ask: v.ask ? { q: String(v.ask.q || ""), detail: String(v.ask.detail || ""), keys: (v.ask.keys || [["sayYes", "yes"], ["sayNo", "no"]]).map(([id, label]) => ({ id, label })) } : null,
     msg: v.msg ? { text: v.msg, kind: v.msgKind || "overlay0", n: v.msgN || 0 } : null,
     // With nothing typed: what can be done to the selected task now. `back` is the page's own Back while a task is open.
