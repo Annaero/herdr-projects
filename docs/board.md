@@ -428,7 +428,8 @@ popup has the keyboard, or an event to plugins that a key was held back. Nothing
 that, so nothing does.
 
 **A board that looks cut off or half empty.** (What changes the board's size at all, and why a size that lasts a
-moment is not drawn for: [the board's size](board-size.md).) The board takes its pane's size back by itself within a few seconds:
+moment is not drawn for: [the board's size](board-size.md).) A view somebody is looking through, the board open in the
+web UI's terminal view, keeps the terminal, and the board's first line says so. From any other view the board takes its pane's size back by itself within a few seconds:
 the remote view described here is disconnected, and until then the board draws inside what herdr's window shows, so
 its text box and hints are never cut off. What follows is what you see until then, and when the
 board could not take the size back. A remote view of the pane the board runs in (a `herdr terminal attach`,

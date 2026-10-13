@@ -46,8 +46,8 @@ export function chatEl({ onSend, onPress }) {
       const c = snap.chat;
       el.hidden = !c;
       if (!c) return;
-      who.replaceChildren(h(`span.sw-mark${c.mark.c ? `.sw-c-${c.mark.c}` : ""}`, { "aria-hidden": "true" }, c.mark.t), h("span.sw-who-name", c.name), h("span.sw-who-status", [c.status, c.progress].filter(Boolean).join("  ")),
-        snap.list.selected && snap.panel?.task !== false ? h("span.sw-who-flip", c.toAgent ? "Talk to the Coordinator" : "Talk to this task's agent") : null);
+      who.replaceChildren(...[h(`span.sw-mark${c.mark.c ? `.sw-c-${c.mark.c}` : ""}`, { "aria-hidden": "true" }, c.mark.t), h("span.sw-who-name", c.name), h("span.sw-who-status", [c.status, c.progress].filter(Boolean).join("  ")),
+        snap.list.selected && snap.panel?.task !== false ? h("span.sw-who-flip", c.toAgent ? "Talk to the Coordinator" : "Talk to this task's agent") : null].filter(Boolean)); // with nothing selected there is no such button: a bare null would be written out as the word
       who.disabled = !snap.list.selected;
       note.hidden = !c.note; note.textContent = c.note;
       if (c.text !== last) { last = c.text; open = false; said.replaceChildren(ink([{ t: c.text }])); said.scrollTop = 0; }

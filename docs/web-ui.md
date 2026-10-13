@@ -143,6 +143,66 @@ gives each name a colour. So the two boards cannot disagree, and a change to the
 board. A key's button has a name of its own in the board's words there (`web` in `src/board/keys.js`): "“Undo” brings
 it back".
 
+## Other machines
+
+The web UI has machines of its own, its **PCs**: this one, and the ones added in its Settings → Remote PCs. The board
+has herdr's saved machines ([other machines](other-machines.md)). The front door asks the web UI which PCs it has
+(`GET /api/machines`, with your own login, nothing kept) and the board matches the two: by herdr's own id for the
+saved machine where the web UI names it, else by where they connect (the same host, port and herdr session, and the
+same user where both say one).
+
+- **Every machine, or one.** `More` → **Other machines** goes round as `Alt+M` does on the terminal board: this
+  machine, every machine, each one by itself. A chip says which, and takes you on. Every button works on another
+  machine's task as on the terminal board, and what you type while one machine shows goes to that machine's
+  Coordinator.
+- **Open this task's agent** on another machine's task: that machine reopens the task's space and restarts an exited
+  agent, as it does for the terminal board, and the page goes to the web UI's own view of that pane on that PC
+  (`?machine=<its PC>&pane=…`). Work never moves: only the page does.
+- **The board goes with the web UI.** Opened while the web UI shows a pane of another PC, the Board is that
+  machine's board by itself. Back on a pane of this machine it shows what it showed before. A choice of your own
+  stands while the web UI stays where it is.
+- **What is missing is said, not hidden:** the web UI has no PC for that machine (add it in Settings → Remote PCs),
+  the PC is not connected there, the web UI did not say which PCs it has (an older one), the other machine did not
+  answer or runs a plugin too old to reopen a space (the pane it last named is opened, and the board says to update),
+  or the web UI is on a PC the board knows no machine for (`herdr machine add`).
+
+Each machine with both plugins also has a front door and a Board of its own, at its own web UI's link.
+
+**When the web UI runs on one machine and the tasks are on another.** The Board is served by the machine the web
+UI runs on, so that machine needs this plugin too, on this version, and it needs the other machine as one of herdr's
+saved machines there (`herdr machine add`, or `board.machines`), reachable over SSH with `herdr-superwork` on its
+path. The machine with the tasks needs no web UI and no front door. The Board then shows that machine's tasks when
+the web UI is on one of its panes, or through `More` → **Other machines**. The terminal board that runs on the
+machine with the tasks is that machine's own program: it is that machine's plugin that has to be on this version
+for it to stay put in the web UI's terminal view.
+
+## The terminal board in the web UI's terminal view
+
+The terminal board is an ordinary pane, so the web UI shows it in its terminal view like any other, on this machine
+and on its other PCs. Three things made it unusable there and are handled by the board ([its size](board-size.md),
+[its keys](keys.md)):
+
+- **It is not disconnected.** The web UI's view of a pane sets that pane's size. The board used to take its size
+  back from every such view, the web UI reattached by itself, and the two took the terminal from each other every
+  four seconds. A view somebody is looking through now keeps the terminal, and the board is drawn for it.
+- **`Alt` keys and `Shift+Enter` work.** The web UI's terminal sends the old byte forms for them, and the board
+  takes those too.
+- **A phone's input line** sends an Enter of its own behind what you type. While a view of the pane is open, behind `?`, `y`, `n` or space that Enter
+  is dropped, so `?` opens the menu and leaves it open.
+
+| The key | In a desktop browser | On a phone |
+|---|---|---|
+| letters, `Enter`, `Tab`, `Esc`, arrows | typed | the input line and the key bar (`Esc` `Tab` `Enter` and the arrows) |
+| `Ctrl` keys | typed. A browser keeps a few for itself (`Ctrl+N`, `Ctrl+T`, `Ctrl+W` in Chrome): pick that line in the `?` menu | `Ctrl` on the key bar, then the letter with direct typing on (the keyboard button); or the `?` menu |
+| `Alt` keys | typed. On a Mac, Option types a character instead: pick the line in the `?` menu | `Alt` on the key bar, then the letter with direct typing on; or the `?` menu |
+| `?` | typed | typed into the input line and sent |
+
+**Going into an agent** from the terminal board there: for a task on this machine herdr's own window goes to the
+agent, and the board says to pick it in the web UI's sidebar. For a task on another machine the board does not turn
+its terminal into that agent's while the web UI shows it, and says where the agent is in the sidebar instead: the way
+back is herdr's `ctrl+b q`, and the web UI's view of the pane takes that chord for itself, so the board would stay
+inside the agent. The web Board's **Open this task's agent** is the way that works from a browser.
+
 ## When the web UI changes
 
 - **It updates itself**: nothing to do. The front door changes none of its files.
@@ -151,7 +211,8 @@ it back".
 - **It gets an add-on slot of its own**: the front door can go. Until then, check these on a new version of the web
   UI: the sidebar foot (`.sidebar-footer`), the drawer's scrim (`.scrim.is-open`), its address parameters `ws`,
   `pane` and `view` (`src/lib/deepLink.ts`), `/api/health?scope=bridge` saying who asks, and that `/superwork/` is
-  still free, and what `/api/access` says about its link (`server/tailscale.ts`).
+  still free, what `/api/access` says about its link (`server/tailscale.ts`), `/api/machines` naming each PC's
+  `id`, `kind`, `target` and `state`, and its `machine` address parameter.
 
 ## Trying it against a copy
 
@@ -166,3 +227,32 @@ push and update calls answer the same bytes through the front door as directly; 
 and acts; a restart of the web UI is followed; the link step and its way back change only the web UI's own private
 link, and its Settings → Phone, at the link, still names that link. Its self-update was not run for real: the front
 door changes none of its files and keeps none of its state, and a restart is what an update ends in.
+
+Checked on 2026-10-13, herdr-web-ui 0.4.8 with herdr 0.9.3, for other machines and the terminal view. Two separate
+herdrs on one computer stood in for two machines: each with its own settings, state and board, both plugins
+installed in each, the second reached only over SSH, saved in the first with `herdr machine add` and added in the
+first web UI as a PC. A real browser went through the front door at a phone's (390×800) and a desktop's (1280×800)
+size.
+
+| What | Result |
+|---|---|
+| The web Board: every machine, one machine, back | the other machine's tasks show with its name; the chip says which |
+| The web Board on another machine's task: pin, archive, undo, talk to its agent, approve and merge | each done on that machine (the merge at the phone's size); the answer shows on the board |
+| What is typed while one machine shows | went to that machine's Coordinator, which added the task there |
+| Open this task's agent, on another machine's task | landed in that agent's chat in the web UI, on that PC |
+| The Board opened while the web UI shows a pane of the other PC | that machine's board by itself; back on this machine, what it showed before |
+| The terminal board in the terminal view, before the change | the web UI's view and the board took the terminal from each other every four seconds, with a herdr window on the session and with none; no `Alt` key did anything |
+| The terminal board there now, this machine's and the other PC's, desktop | stays; every `Alt` and `Ctrl` key, `?`, `Shift+Enter`, drafts, find, the arrows did what they do in a terminal |
+| The same on the phone layout | `?` from the input line opens the menu and it stays open; the key bar's arrows move in it; `Alt` then `m` with direct typing shows every machine; a message from the input line reached the Coordinator |
+| From the terminal board there: an agent put on the other machine's task with `Tab`, then into it with `Enter` | the agent started there. Going in showed its screen, and `ctrl+b q` did not come back: the web UI's own view detached instead. Hence the board no longer goes in from there |
+| The mouse on the terminal board there (desktop) | the wheel over the list moves the selection a task a step; a drag over text is highlighted by the board; the selected row has its colour |
+| The board as herdr's popup (`board.open popup`), in the terminal view | the popup is a pane the web UI lists: it stays, and `Alt+M`, `?` and `Shift+Enter` work in it as in the tab |
+| The other machine on the plugin as it was before this change | Open this task's agent still lands in that agent's chat: its answer names no space, and a pane's id starts with its space's |
+| The web UI's address with a PC and no pane (`?machine=<pc>#board`) | the web UI goes to a pane of this machine by itself, so the Board is this machine's: it follows a pane, not a bare PC |
+| What a program gets from the terminal view | desktop: old bytes (`esc m` for `Alt+M`, `esc return` for `Shift+Enter`), also after it asked for the newer keyboard protocol; `ctrl+b` is held and sent with the next key. Phone: the input line sends the text, then a lone return 120 ms later, and ignores the key bar's `Ctrl` and `Alt`; the key bar and direct typing send the newer protocol's sequences. A click and the wheel arrive as mouse reports |
+
+Not checked: a browser's own reserved keys (the test browser has none: `Ctrl+N` and the like are Chrome's known
+ones), a Mac's Option key, the wheel over the chat and the mouse on a phone, a plugin so old that it sends no
+version (its message is covered by a test only), a machine with no web UI or front door of its own, a web UI newer
+than 0.4.8 that takes its PCs from herdr's own list, and real separate computers: everything above was two herdrs
+on one computer.

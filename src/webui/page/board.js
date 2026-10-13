@@ -22,11 +22,12 @@ function fit() {
   const beside = box && box.width > 0 && box.left >= 0 && box.right < window.innerWidth - 400 && window.innerWidth > 768;
   root.style.left = beside ? `${Math.round(box.right)}px` : "0";
 }
-// Into a task's agent: the web UI's own view of its pane. Its address says where the app is, and it follows a change
+// Into a task's agent: the web UI's own view of its pane, on this machine or on another. Its address says where the app is, and it follows a change
 // of address as it follows Back, so the page is not loaded again.
 function goTo(go) {
   const q = new URLSearchParams(location.search);
   for (const k of ["machine", "file", "settings", "section", "new", "cwd", "name", "agent", "sidebar"]) q.delete(k);
+  if (go.machine) q.set("machine", go.machine); // on another of the web UI's PCs: its own name for it
   q.set("ws", go.workspace); q.set("pane", go.pane); q.set("view", go.view);
   history.pushState(null, "", `${location.pathname}?${q}`);
   window.dispatchEvent(new PopStateEvent("popstate", { state: null }));

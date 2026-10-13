@@ -108,3 +108,20 @@ and says what gives the size back:
 
 It tries again the next time the sizes come apart after having agreed. That the board keeps the size of
 its own pane is fixed behaviour: there is no setting that turns it off.
+
+## A view somebody is looking through keeps the terminal
+
+One viewer is not disconnected: the board opened in the terminal view of herdr's web UI, in a browser or on a
+phone. Disconnecting it only started a contest (seen on herdr-web-ui 0.4.8: the web UI reattached by itself, and the
+two took the terminal from each other every four seconds, so the board could not be used there). Such a view is told
+by its age: it was opened in the last twenty seconds, or it is back within twenty seconds of being disconnected.
+Once taken for one, it stays one for as long as it runs. The board is then drawn for the whole terminal, as that view
+has it, and its first line says so for whoever looks at herdr's own window meanwhile:
+
+```
+ Drawn for a remote view of this pane at 119×47 (herdr's web UI has it open): herdr's own window (184×78) shows a cut-out of it until that view is closed
+```
+
+When the view is closed the window has its terminal again. A view nobody looks through (an attach an old browser
+left behind) is disconnected as before: it is old, and it does not come back. A view that was open before the board
+started is disconnected once, comes back, and then stays.

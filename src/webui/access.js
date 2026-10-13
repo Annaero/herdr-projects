@@ -10,11 +10,13 @@ import { ask, without } from "./proxy.js";
 export const WHO = "/api/health?scope=bridge";
 export const OUR_HEADER = "x-herdr-superwork";
 
+// The caller's headers for a question of ours to the web UI, without what belongs to the caller's own body: a
+// question has none.
+export const callerHeaders = (req) => without(req.rawHeaders.slice(), "content-length", "content-type", "transfer-encoding", "expect", "connection", "upgrade", "accept-encoding", "if-none-match", "if-modified-since", "range");
+
 // { ok, role } — role "drive" may change things, "watch" (a device paired to look only) may not.
 export async function who(req, to) {
-  // The caller's headers, without what belongs to its own body: this question has none.
-  const headers = without(req.rawHeaders.slice(), "content-length", "content-type", "transfer-encoding", "expect", "connection", "upgrade", "accept-encoding", "if-none-match", "if-modified-since", "range");
-  const answer = await ask(to, { path: WHO, headers });
+  const answer = await ask(to, { path: WHO, headers: callerHeaders(req) });
   if (!answer || answer.status !== 200) return { ok: false, why: answer ? "refused" : "down" };
   let auth;
   try { auth = JSON.parse(answer.body).auth; } catch { return { ok: false, why: "unreadable" }; }

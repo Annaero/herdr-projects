@@ -201,3 +201,57 @@ test("the board says so, top left, when another view holds its pane's size, and 
     assert.match(s.screen(120)[7], /\S/);
   } finally { for (const k of ["HERDR_ENV", "HERDR_PANE_ID", "HERDR_PLUGIN_ID", "TMUX"]) delete process.env[k]; if (tmux) process.env.TMUX = tmux; w.cleanup(); }
 });
+
+// Seen live on herdr-web-ui 0.4.8: the board opened in the web UI's terminal view was disconnected every four seconds
+// and reattached every four seconds, its Alt keys did nothing, and `?` typed on a phone pressed the menu's first line.
+test("a remote view somebody looks through keeps the terminal: the board is drawn for it, takes the keys it sends, and is not disconnected", async () => {
+  const { setKittyProtocolActive } = await import("@earendil-works/pi-tui");
+  const w = await world();
+  try {
+    A.add(w.root, "One task");
+    const tall = { cols: 184, rows: 78, split: false };
+    const start = (viewers) => { const a = open(w, { rows: 58, side: false }), took = []; Object.assign(a.v.tui.terminal, { columns: 435 }); a.v.ctx.pane = "w1:p1"; a.v.ctx.takeTerminal = () => took.push(1); a.v.ctx.viewers = viewers; return { a, took }; };
+    // a view opened a moment ago: never disconnected, drawn for the whole terminal, and said for herdr's own window
+    let by = [{ pid: 7, seconds: 3 }];
+    let { a, took } = start(() => by);
+    a.v.seeShown(tall); a.v.seeShown(tall); a.v.seeShown(tall);
+    assert.deepEqual(took, []); assert.equal(a.v.guest, true);
+    a.v.held = { columns: 435, rows: 58, room: { columns: 184, rows: 78 }, by, known: true };
+    let l = a.screen(435);
+    assert.equal(l.length, 58); assert.match(l[0], /^ Drawn for a remote view of this pane at 435×58 \(herdr's web UI has it open\): herdr's own window \(184×78\) shows a cut-out of it until that view is closed/);
+    assert.match(l[57], /\? all keys *$/); assert.doesNotMatch(l.join("\n"), /Another viewer|Held at/);
+    // it stays that view's guest however old the view gets, and when herdr gives no answer about it
+    by = [{ pid: 7, seconds: 4000 }]; a.v.guest = false; a.v.seeShown(tall); a.v.seeShown(tall); assert.equal(a.v.guest, true);
+    by = null; a.v.guest = false; a.v.seeShown(tall); a.v.seeShown(tall); assert.deepEqual(took, []);
+    // the alt keys and shift+enter as that view sends them (the old bytes, though the newer protocol was asked for)
+    setKittyProtocolActive(true);
+    try {
+      a.press("\x1bt"); assert.equal(a.v.full, true); a.press("\x1bt"); assert.equal(a.v.full, false);
+      a.type("one"); a.press("\x1b\r"); a.type("two"); assert.equal(a.v.value(), "one\ntwo"); a.v.setValue("");
+    } finally { setKittyProtocolActive(false); }
+    // the enter an input line adds behind a one-letter key presses nothing: the menu stays open
+    a.press("?"); a.press("\r"); assert.ok(a.v.menu); a.press("\x1b");
+    // the view is gone and left its size behind: the window takes its terminal again
+    by = []; a.v.lookHeld = () => {}; a.v.guest = false; a.v.hosts = null; a.v.seeShown(tall); assert.equal(took.length, 1);
+    // an attach nobody looks through (old, and not back after being disconnected) is disconnected as before
+    ({ a, took } = start(() => [{ pid: 9, seconds: 2400 }]));
+    a.v.seeShown(tall); a.v.seeShown(tall); assert.equal(took.length, 1); assert.equal(!!a.v.guest, false);
+    // one that is back right after the board disconnected it has a browser behind it: it keeps the terminal
+    a.v.tookBackAt = Date.now(); a.v.seeShown(tall); a.v.seeShown(tall); assert.equal(a.v.guest, true); assert.equal(took.length, 1);
+    // a view whose terminal has the very size of herdr's window holds nothing, and is a view all the same: the input
+    // line's enter is dropped and the terminal is not turned into another machine's agent
+    {
+      const b = open(w, { rows: 78, side: false }); b.v.tui.terminal.columns = 184; b.v.ctx.pane = "w1:p1"; b.v.ctx.viewers = () => [{ pid: 3, seconds: 900 }];
+      b.v.seeShown(tall); b.v.seeShown(tall); assert.equal(!!b.v.guest, false); assert.equal(b.v.watched, false);
+      b.v.lookHeld(); assert.equal(b.v.watched, true);
+      b.press("?"); b.press("\r"); assert.ok(b.v.menu); b.press("\x1b");
+      let asked = 0; b.v.ssh = () => { asked++; };
+      b.v.remoteChat({ host: "vm-a", rid: "far/1", title: "Theirs", link: { pane: "w1:p1" }, machine: { version: "0.2.0" } }); assert.equal(asked, 0); assert.match(b.v.msg, /^In the web UI, pick its agent in the sidebar under vm-a/);
+      b.v.ctx.viewers = () => null; b.v.lookHeld(); assert.equal(b.v.watched, true); // herdr gave no answer: what was known stands
+      b.v.ctx.viewers = () => []; b.v.lookHeld(); assert.equal(b.v.watched, false);
+    }
+    // from such a view the board does not turn its terminal into another machine's agent: the way back would not get through
+    a.v.remoteChat({ host: "vm-a", rid: "far/1", title: "Theirs", link: { pane: "w1:p1" }, machine: { version: "0.2.0" } });
+    assert.match(a.v.msg, /^In the web UI, pick its agent in the sidebar under vm-a: “Theirs”\./);
+  } finally { w.cleanup(); }
+});

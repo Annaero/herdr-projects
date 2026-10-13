@@ -7,6 +7,7 @@ import { herdr, inHerdr, readScreen } from "../../herdr.js";
 import { adapter } from "../../agents.js";
 import { reviewing } from "./states.js";
 import { name as keyName } from "../keys.js";
+import * as words from "./words.js";
 
 // This terminal becomes that one agent's, until you detach from it.
 const attachHere = (pane, socket) => spawnSync(process.env.HERDR_BIN_PATH || "herdr", ["agent", "attach", pane], { stdio: "inherit", env: { ...process.env, HERDR_SOCKET_PATH: socket } });
@@ -74,7 +75,8 @@ export class AgentPane {
   stay(r) {
     this.stick = r.id; // while you are away the selection stays on this task, whatever group its agent moves it to
     this.savePrefs();
-    this.flash(`Opened ${r.id}'s agent. ${this.ctx.boardKey ? `${this.ctx.boardKey} brings you back to the board.` : "The board stays here."}`, "green");
+    // herdr's own window moved to the agent. A browser that shows this board through herdr's web UI did not.
+    this.flash(this.watched ? `Opened ${r.id}'s agent in herdr's own window. In the web UI, pick it in the sidebar: “${words.clean(r.title || r.id)}”.` : `Opened ${r.id}'s agent. ${this.ctx.boardKey ? `${this.ctx.boardKey} brings you back to the board.` : "The board stays here."}`, "green");
     this.load(); this.tui.requestRender();
   }
   // A popup closes when you open an agent. The first few times it says, for a moment, how to get back.
@@ -88,6 +90,10 @@ export class AgentPane {
   }
   remoteChat(r) {
     if (!r.link?.pane) return this.flash(`No agent has been on this yet. ${keyName("delegate")} puts one on it.`, "yellow");
+    // Looked at through herdr's web UI (size.js: `watched`), this terminal must not become that agent's: the way back is
+    // ctrl+b q, and the web UI's own view of this pane takes that chord for itself (seen on herdr-web-ui 0.4.8: its
+    // view detached and the board stayed inside the agent). The web UI shows that agent's pane itself.
+    if (this.watched) return this.flash(`In the web UI, pick its agent in the sidebar under ${r.host}: “${words.clean(r.title || r.rid)}”. From here herdr's key for the way back would not get through while the web UI shows this pane.`, "yellow");
     const attach = (pane) => {
       const { command, args } = R.attachCommand(r.machine, pane);
       this.stick = r.id;

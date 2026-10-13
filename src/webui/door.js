@@ -12,6 +12,7 @@ import { pass, passUpgrade, DOWN } from "./proxy.js";
 import { BASE, mayBeShell, shellHeaders, sendShell } from "./shell.js";
 import { who, mayCall, CHANGES, LOOKS } from "./access.js";
 import { isAccess, accessHeaders, sendAccess } from "./phone.js";
+import { askPcs } from "./pcs.js";
 
 const PAGE = path.join(path.dirname(fileURLToPath(import.meta.url)), "page");
 const TYPES = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml" };
@@ -66,6 +67,15 @@ function sendPage(req, res, name) {
 // `onDown()`: the web UI did not answer (it may have moved to another port). `link()`: the web UI's shared link that
 // goes through this front door ("" when none does), for the one answer phone.js corrects.
 export function createDoor({ to, board = boardThread(), onDown = () => {}, link = () => "" }) {
+  // The web UI's PCs (pcs.js), as it last said: asked again after a few seconds. Null: it could not say.
+  let known = { at: 0, list: null };
+  const pcs = async (req, up) => {
+    if (Date.now() - known.at < 5000) return known.list;
+    let list = null;
+    try { list = await askPcs(req, up); } catch {}
+    known = { at: Date.now(), list };
+    return list;
+  };
   async function ours(req, res) {
     const url = new URL(req.url, "http://door");
     const rest = url.pathname.slice(BASE.length + 1);
@@ -76,11 +86,15 @@ export function createDoor({ to, board = boardThread(), onDown = () => {}, link 
     const person = up ? await who(req, up) : { ok: false, why: "down" };
     if (!person.ok) return json(res, person.why === "down" ? 503 : 401, { ok: false, msg: person.why === "down" ? "The herdr web UI is not answering." : "Log in to the herdr web UI first." });
     const client = url.searchParams.get("client") || "", call = rest.slice(4);
+    // The PC the web UI's page is on ("" for this machine), and the web UI's PCs: asked for a call that may need
+    // them (something pressed, or a page that is on another PC), with the caller's own headers, and kept a moment.
+    const machine = (url.searchParams.get("machine") || "").slice(0, 80);
+    const web = async (needs) => ({ machine, pcs: needs ? await pcs(req, up) : undefined });
     const answer = (out) => json(res, out.ok ? 200 : 500, out.ok ? { ok: true, role: person.role, ...out.data } : { ok: false, msg: out.msg });
     if (req.method === "GET") {
       // The page's first question: am I let in? Nothing of the board is in the answer.
       if (call === "hello") return json(res, 200, { ok: true, role: person.role });
-      if (call === "board") return answer(await board.call(client, "board", { have: url.searchParams.get("have") || "" }));
+      if (call === "board") return answer(await board.call(client, "board", { have: url.searchParams.get("have") || "", ...(await web(!!machine)) }));
       return json(res, 404, { ok: false, msg: "Not found" });
     }
     if (req.method !== "POST" || ![...CHANGES, ...LOOKS].includes(call)) return json(res, 404, { ok: false, msg: "Not found" });
@@ -88,7 +102,7 @@ export function createDoor({ to, board = boardThread(), onDown = () => {}, link 
     if (!may.ok) return json(res, may.status, { ok: false, msg: may.msg });
     const args = await body(req);
     if (!args) return json(res, 400, { ok: false, msg: "The request could not be read." });
-    return answer(await board.call(client, call, { ...args, role: person.role }));
+    return answer(await board.call(client, call, { ...args, role: person.role, ...(await web(call === "press" || !!machine)) }));
   }
   const server = http.createServer((req, res) => {
     if (isOurs(req.url)) return void ours(req, res).catch(() => { try { json(res, 500, { ok: false, msg: "The board could not answer." }); } catch { res.destroy(); } });

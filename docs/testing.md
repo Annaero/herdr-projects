@@ -105,6 +105,11 @@ over its budget is not remembered as passed, so the next run measures it again; 
 of that run is remembered. The suite's time by the clock is measured when all of it runs in one go. The numbers are `BUDGET` in
 `test/check.js`; the last line of a run shows what it cost.
 
+Every test file is a Node program of its own, and each loaded and compiled the same code again: about a twelfth of
+the suite's processor time. The check now turns on Node's compile cache for the run (`NODE_COMPILE_CACHE`, kept in
+the check's own folder beside what passed), so that work is done once. Measured on 2026-10-13, three runs each of
+the same code: 63.4, 61.0 and 63.6 s without it, 56.9, 56.5 and 57.6 s with it.
+
 Over budget: make the file's tests lighter (below), or split it by area into two files (files run side by side, the
 tests in one file one after another). Do not raise the budget to get a change through.
 

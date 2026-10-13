@@ -2,8 +2,9 @@
 // action to the machine that owns the task, through one entry point there: `herdr-superwork remote list|do|dispatch`,
 // run over SSH with a login shell so PATH is set. Work never moves between machines.
 //
-// Machines come from `herdr machine list --json` (the ones the client added with `herdr machine add`). Not verified
-// on a machine with saved profiles: when that list does not expose SSH targets, the `machines` setting names them.
+// Machines come from `herdr machine list --json` (the ones the client added with `herdr machine add`). Each has an
+// `id`, a `label`, a `target` (`user@host` or `ssh://user@host:port`), a `session` and `enabled` (seen on herdr
+// 0.9.3 with a saved machine). The `machines` setting names them by hand instead.
 import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -18,8 +19,9 @@ export function machines(done) {
   if (want !== "auto") return done(want.split(/[\s,]+/).filter(Boolean).map((x) => ({ target: x.includes("@") ? x : `${user}@${x}`, label: x.split("@").pop().split(".")[0], session: "" })));
   let list = [];
   try { list = herdr().machines(); } catch {}
+  // `id`: herdr's own id for the saved machine (the web UI names its PCs by it: webui/pcs.js).
   done(list.filter((m) => m && m.enabled !== false).map((m) => ({
-    target: String(m.ssh_target || m.target || m.ssh || m.host || ""), session: String(m.remote_session || m.session || ""),
+    id: String(m.id || ""), target: String(m.ssh_target || m.target || m.ssh || m.host || ""), session: String(m.remote_session || m.session || ""),
     label: String(m.label || m.name || m.ssh_target || m.target || "").split("@").pop().split(".")[0].replace(/[^A-Za-z0-9_.-]/g, "-"),
   })).filter((m) => m.target && m.label));
 }
@@ -92,7 +94,7 @@ export async function remoteMain([what, payload]) {
       };
       // Going into a task from another machine: reopen its space and restart its exited agent here first, with the
       // same function the local board calls, and answer with the pane to attach to.
-      if (a.action === "reopen") { const D = await import("./delegate.js"); const r = D.reopen(t.id, { restart: true }); return say({ ok: true, msg: "", pane: r.pane.pane_id, hasAgent: r.hasAgent }); }
+      if (a.action === "reopen") { const D = await import("./delegate.js"); const r = D.reopen(t.id, { restart: true }); return say({ ok: true, msg: "", pane: r.pane.pane_id, workspace: r.pane.workspace_id || "", hasAgent: r.hasAgent }); }
       if (a.action === "clear") { const out = await A.clear(t.id); return say({ ok: true, msg: out.kept.length ? `${t.id}: removed. Kept, so no work is lost: ${out.kept.join(", ")}` : `${t.id}: removed` }); }
       if (!acts[a.action]) return say({ ok: false, msg: `Unknown action ${a.action}` });
       return say({ ok: true, msg: acts[a.action]() });

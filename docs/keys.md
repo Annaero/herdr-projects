@@ -21,7 +21,9 @@ while one machine is shown by itself, what you type goes to that machine's Coord
 
 The `?` menu lists the same three groups, each line with its key. A `Ctrl` or `Alt` line can also be picked there,
 which does what the key does: so a terminal that does not pass `Alt` on (a Mac terminal without "Option as Meta",
-some phone keyboards) loses nothing.
+some phone keyboards) loses nothing. In the terminal view of herdr's web UI the `Alt` keys and `Shift+Enter` arrive
+in the old byte form and are taken as such, and the Enter a phone's input line adds behind `?`, `y`, `n` or space is
+dropped ([the web UI](web-ui.md)).
 
 Apart from `Enter`, `Tab`,
 `Esc` and `Ctrl+C`, a key acts on the board only while the text box is empty: with a draft in it, the keys are the

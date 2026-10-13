@@ -24,3 +24,8 @@ words that add one), the machine you are on works out what you say for it, you a
 sends that along (kept on the task as what it carried, apart from anything else the task tracks): there it stands where that machine's own "you" would, under the task's own settings and above
 the repo's file. `show <id>` there says `sent from <your machine>`. Board settings (how many agents at once, the
 Watcher, the Coordinator) stay with each machine ([settings](settings.md)).
+
+**In the herdr web UI.** The web Board shows other machines as `Alt+M` does, acts on their tasks, and opens their
+agents in the web UI's own view of that machine, when the web UI has that machine as one of its PCs. The terminal
+board works in the web UI's terminal view too, on this machine and on another. What works how, and what the board
+says when something is missing: [the board in the herdr web UI](web-ui.md).

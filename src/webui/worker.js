@@ -44,6 +44,8 @@ parentPort?.on("message", (m) => {
   try {
     const call = CALLS[m.call];
     if (!call) throw new Error(`Unknown call ${m.call}`);
-    parentPort.postMessage({ n: m.n, ok: true, data: call.run(viewOf(m.client), m.args || {}) });
+    const v = viewOf(m.client), args = m.args || {};
+    v.seeWeb?.({ pcs: args.pcs, machine: args.machine }); // what the door knows of the web UI's machines (pcs.js)
+    parentPort.postMessage({ n: m.n, ok: true, data: call.run(v, args) });
   } catch (e) { parentPort.postMessage({ n: m.n, ok: false, msg: String((e && e.message) || e) }); }
 });

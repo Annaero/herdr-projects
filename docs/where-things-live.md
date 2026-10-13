@@ -243,10 +243,12 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `link.js` | The one setup step: the web UI's shared link |
 | `list-model.js` | The task list for the web board: the groups and rows the terminal board shows, in its order, each row with the mark, the words, the columns and the colours the board's own row code gives it (view/row.js through a web… |
 | `panel-model.js` | The task panel for the web board |
+| `pcs.js` | The web UI's own machines (its "PCs": this one and the ones added in its Settings → Remote PCs) and the board's (herdr's saved machines, remote.js): which is which |
 | `phone.js` | The one answer of the web UI that the front door corrects: how a phone can reach it (`GET /api/access`, what its Settings → Phone shows) |
 | `proxy.js` | Passing a request through to the web UI untouched: the same method, address and headers in, the same status, headers and bytes out, as they come (a stream stays a stream, a ranged or ready-compressed answer is not… |
 | `shell.js` | The one thing the front door changes in what the web UI sends: its page (the HTML shell) gets one line more, a script of ours that adds the Board to its menu |
 | `side-model.js` | What stands beside the list on the web board: who the chat talks to and their latest message, the question the board asks, its message to you, the buttons for the selected task and the entries of its More menu |
+| `web-pcs.js` | The web board and the web UI's machines: opening an agent that runs on another machine in the web UI's own view of that machine's pane, and showing the board of the machine the web UI is on |
 | `web-view.js` | The board with no terminal: the same View the terminal board is (its list, its selection, its questions, its actions, its words), opened for a web page |
 | `worker.js` | The board's side of the front door, in a thread of its own: reading tasks asks herdr, and asking herdr waits |
 

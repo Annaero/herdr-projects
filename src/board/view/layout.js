@@ -8,7 +8,8 @@ import { name as keyName } from "../keys.js";
 export class Layout {
   render(width) { return this.draw(width).map((l) => this.theme.line(l)); }
   draw(width) {
-    const rows = this.tui.terminal.rows, shown = this.shownNow(), f = fitShown({ cols: width, rows }, shown);
+    // A remote view the board is the guest of (size.js: liveView) has the terminal: drawn for all of it.
+    const rows = this.tui.terminal.rows, asked = this.shownNow(), shown = this.guest ? null : asked, f = fitShown({ cols: width, rows }, shown);
     // A size that is back within a moment is not laid out for: the screen stays as it was, cut to what there is room
     // for. Rows go from the top, so the text box and its hints stay.
     const now = { cols: f.cols, rows: Math.max(8, f.rows) }, at = this.steady(now);

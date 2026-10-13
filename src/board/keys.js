@@ -143,8 +143,13 @@ export const KEYS = [
 export const KEY = Object.fromEntries(KEYS.map((k) => [k.id, k]));
 const entry = (id) => { const k = KEY[id]; if (!k) throw new Error(`No key is called "${id}" (src/board/keys.js)`); return k; };
 
+// A chord as the old terminals send it: esc, then the letter, for alt. The board asks its terminal for the newer way
+// (the kitty keyboard protocol) and is told it has it, and the key reader then takes esc-and-a-letter for alt no
+// longer. A view that types into the pane from outside (the terminal view of herdr's web UI, in a browser or on a
+// phone: checked on herdr-web-ui 0.4.8) still sends the old bytes, so every alt key was dead there.
+const old = (chord) => { const m = /^alt\+([a-z0-9])$/.exec(chord); return m ? `\x1b${m[1]}` : ""; };
 // Is this what was typed the key called `id`?
-export const is = (data, id) => { const k = entry(id); return !!k.raw?.includes(data) || k.keys.some((c) => matchesKey(data, c)); };
+export const is = (data, id) => { const k = entry(id); return !!k.raw?.includes(data) || k.keys.some((c) => matchesKey(data, c) || (data.length === 2 && data === old(c))); };
 // The key called `id` as the board writes it: "ctrl+a". `pair`: with the keys described in the same row ("↑ ↓").
 // The web board (one thread of the front door, never the terminal's process) has buttons, not keys: there a key is
 // named as its button is.

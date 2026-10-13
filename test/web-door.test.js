@@ -21,6 +21,8 @@ async function standIn() {
     const cookie = String(req.headers.cookie || "");
     const role = /token=watch/.test(cookie) ? "watch" : /token=good/.test(cookie) ? "drive" : "";
     if (req.url.startsWith("/api/health")) return res.end(JSON.stringify({ ok: true, auth: role ? { required: false, authenticated: true, via: "token", role } : { required: true, authenticated: false, reason: "token_required" } }));
+    // its PCs, for someone it lets in: this machine and one added over SSH, each with its whole list of panes
+    if (req.url === "/api/machines") { if (!role) { res.writeHead(401); return res.end("{}"); } return res.end(JSON.stringify({ machines: [{ id: "local", name: "home", kind: "local", enabled: true, state: "connected", snapshot: { panes: [] } }, { id: "pc-1", name: "far", kind: "ssh", target: { destination: "me@far.example", port: 2200 }, enabled: true, state: "connected", snapshot: { panes: [{ pane_id: "w1:p1" }] } }] })); }
     if (req.url === "/api/stream") { res.writeHead(200, { "content-type": "text/event-stream", "X-Odd-Case": "Kept" }); res.write("data: one\n\n"); return void setTimeout(() => res.end("data: two\n\n"), 30); }
     if (req.url === "/api/echo") { const parts = []; req.on("data", (d) => parts.push(d)); return void req.on("end", () => { res.writeHead(201, { "content-type": "application/octet-stream", "set-cookie": ["a=1", "b=2"] }); res.end(Buffer.concat(parts)); }); }
     if (req.url === "/assets/app.js") { const body = zlib.gzipSync("console.log(1)"); res.writeHead(req.headers.range ? 206 : 200, { "content-type": "text/javascript", "content-encoding": "gzip", "content-length": body.length, "cache-control": "public, max-age=31536000, immutable", etag: '"abc"' }); return res.end(body); }
@@ -104,7 +106,7 @@ test("the board's calls are as protected as the web UI's own: nothing without it
     assert.equal(d.calls.length, 0);
     // logged in: the web UI was asked with the caller's own cookie, and the board answers
     const board = await d.ask("/superwork/api/board?client=abc&have=m1", { headers: { cookie: "token=good" } });
-    assert.deepEqual(await board.json(), { ok: true, role: "drive", did: "board" }); assert.deepEqual(d.calls.at(-1), { client: "abc", call: "board", args: { have: "m1" } });
+    assert.deepEqual(await board.json(), { ok: true, role: "drive", did: "board" }); assert.deepEqual(d.calls.at(-1), { client: "abc", call: "board", args: { have: "m1", machine: "", pcs: undefined } });
     assert.ok(d.up.seen.some((s) => s.url === "/api/health?scope=bridge" && s.raw.includes("token=good")));
     // a change needs the board's own header and the same origin, as the web UI's controls do
     const post = (headers, call = "send", body = '{"text":"hello"}') => d.ask(`/superwork/api/${call}?client=abc`, { method: "POST", headers: { cookie: "token=good", ...headers }, body });
@@ -113,11 +115,21 @@ test("the board's calls are as protected as the web UI's own: nothing without it
     assert.equal((await post({ "x-herdr-superwork": "1", origin: "https://evil.example" })).status, 403);
     assert.equal((await post({ "x-herdr-superwork": "1" })).status, 403); // no word on where it comes from
     assert.equal(d.calls.filter((c) => c.call === "send").length, 0);
-    const ok = await post(PAGE); assert.equal(ok.status, 200); assert.deepEqual(d.calls.at(-1), { client: "abc", call: "send", args: { text: "hello", role: "drive" } });
+    const ok = await post(PAGE); assert.equal(ok.status, 200); assert.deepEqual(d.calls.at(-1), { client: "abc", call: "send", args: { text: "hello", role: "drive", machine: "", pcs: undefined } });
     assert.equal((await post({ "x-herdr-superwork": "1", origin: `http://127.0.0.1:${d.port}` })).status, 200);
     // the role is the web UI's word, never the caller's: a device paired to watch cannot send, whatever it claims
     const watch = await d.ask("/superwork/api/send", { method: "POST", headers: { ...PAGE, cookie: "token=watch" }, body: '{"text":"x","role":"drive"}' }); assert.equal(watch.status, 403);
     const look = await d.ask("/superwork/api/pick", { method: "POST", headers: { ...PAGE, cookie: "token=watch" }, body: '{"id":"a/1","role":"drive"}' }); assert.equal(look.status, 200); assert.equal(d.calls.at(-1).args.role, "watch");
+    // The web UI's own machines: asked of the web UI with the caller's own cookie when something is pressed or the
+    // page is on another PC, and only what the board needs of each is passed on (never its panes).
+    assert.equal(d.up.seen.filter((s) => s.url === "/api/machines").length, 0);
+    const far = { id: "pc-1", name: "far", local: false, profile: "", to: "me@far.example", port: 2200, session: "", connected: true, state: "connected" };
+    await d.ask("/superwork/api/press?client=abc", { method: "POST", headers: { ...PAGE, cookie: "token=good" }, body: '{"id":"enter"}' });
+    assert.deepEqual(d.calls.at(-1).args.pcs.map((p) => p.id), ["local", "pc-1"]); assert.deepEqual(d.calls.at(-1).args.pcs[1], far); assert.equal(d.calls.at(-1).args.machine, "");
+    assert.ok(d.up.seen.some((s) => s.url === "/api/machines" && s.raw.includes("token=good")));
+    await d.ask("/superwork/api/board?client=abc&machine=pc-1", { headers: { cookie: "token=good" } });
+    assert.equal(d.calls.at(-1).args.machine, "pc-1"); assert.deepEqual(d.calls.at(-1).args.pcs[1], far);
+    assert.equal(d.up.seen.filter((s) => s.url === "/api/machines").length, 1); // kept for a moment, not asked with every look
     // what is not a call is not found, and a body that is not JSON is refused
     assert.equal((await d.ask("/superwork/api/clear", { method: "POST", headers: { ...PAGE, cookie: "token=good" }, body: "{}" })).status, 404);
     assert.equal((await post(PAGE, "send", "not json")).status, 400);

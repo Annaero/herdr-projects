@@ -1,6 +1,6 @@
 // The web board's data: the same list, panel, buttons, questions and words the terminal board has, read from the
 // board's own code, and a button that presses the board's own key. The automations too: their list, one of them
-// whole, the same actions, and a firing as a link to the task it made.
+// whole, the same actions, and a firing as a link to the task it made. And other machines: the web UI's PCs (below).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { world, settle } from "./helpers.js";
@@ -13,6 +13,7 @@ import { WebView, bytesOf, TERMINAL_ONLY } from "../src/webui/web-view.js";
 import { CALLS, snapshot, viewOf } from "../src/webui/worker.js";
 import { pieces, plain, webTheme } from "../src/webui/ink.js";
 import { readLine } from "../src/webui/panel-model.js";
+import { address, same, pcOf, machineOf, readPcs } from "../src/webui/pcs.js";
 import * as L from "../src/automations/list.js";
 import { parseSchedule, parseEvent } from "../src/automations/triggers.js";
 import { fire } from "../src/automations/fire.js";
@@ -135,12 +136,9 @@ test("other machines on the web board: their tasks show with the machine's name,
     assert.equal(s.flags.scope, "*"); assert.equal(s.list.head.machines, "vm-a"); assert.match(s.msg.text, /Every machine you can reach/);
     const far = rowsOf(s.list).find((r) => r.host === "vm-a");
     assert.deepEqual([far.id, far.title, far.says.map((p) => p.t).join("")], ["vm-a:far/1", "Theirs", "Building"]);
-    s = CALLS.pick.run(v, { id: far.id, open: true }); assert.equal(s.panel.parts.find((p) => p.head === "Settings").items.find((x) => x.label === "Machine").lines[0][0].t.trim(), "vm-a"); assert.equal(s.canOpen, false);
+    s = CALLS.pick.run(v, { id: far.id, open: true }); assert.equal(s.panel.parts.find((p) => p.head === "Settings").items.find((x) => x.label === "Machine").lines[0][0].t.trim(), "vm-a"); assert.equal(s.canOpen, true); // its agent opens in the web UI's view of that machine (below)
     s = CALLS.press.run(v, { id: "archive", ...drive });
     assert.deepEqual(asked.at(-2), ["vm-a", "do", { action: "archive", id: "far/1" }]); assert.equal(s.msg.text, "far/1: archived.");
-    // its agent's pane is on that machine: the board says so instead of opening it
-    theirs.archivedAt = null; s = CALLS.pick.run(v, { id: far.id, open: true }); s = CALLS.press.run(v, { id: "enter", ...drive });
-    assert.equal(s.go, null); assert.match(s.msg.text, /Its agent runs on vm-a/);
     v.dispose();
   }
 });
@@ -195,4 +193,110 @@ test("the web board has the automations: the list, one of them whole, the button
     CALLS.pick.run(v, { id: a.id, open: true }); s = CALLS.pick.run(v, { id: a.id, open: false }); assert.equal(s.panel, null); assert.equal(s.flags.automations, true);
     s = CALLS.press.run(v, { id: "automations", role: "watch" }); assert.equal(s.flags.automations, false); assert.notEqual(s.list.head.where, "automations");
   } finally { w.cleanup(); }
+});
+
+// ---- across machines: which of the web UI's PCs is which of the board's machines, opening another machine's agent in
+// the web UI's own view of that machine's pane, and the board going with the web UI to the PC it is on. No other
+// machine is asked for real: a stand-in answers as its door does (src/remote.js).
+const pc = (o) => ({ id: "pc-1", name: "far", local: false, profile: "", to: "", port: 0, session: "", connected: true, state: "connected", ...o });
+
+test("a machine of the board and a PC of the web UI are the same one by herdr's id, or by where they connect", () => {
+  assert.deepEqual(address("ssh://me@Far.example:2200"), { user: "me", host: "far.example", port: 2200 });
+  assert.deepEqual(address("me@far.example", 2200), { user: "me", host: "far.example", port: 2200 });
+  assert.deepEqual(address("far"), { user: "", host: "far", port: 0 }); // an SSH alias
+  assert.deepEqual(address("ssh://[fd7a::1]:22"), { user: "", host: "[fd7a::1]", port: 22 });
+  // herdr's own way to write a saved machine, and the web UI's way to write the PC it was added as
+  const m = { id: "79cd", label: "far", target: "ssh://me@far.example:2200", session: "default" };
+  assert.equal(same(m, pc({ to: "me@far.example", port: 2200 })), true);
+  assert.equal(same(m, pc({ to: "far.example", port: 2200 })), true); // no user said on one side
+  assert.equal(same(m, pc({ to: "you@far.example", port: 2200 })), false);
+  assert.equal(same(m, pc({ to: "me@far.example" })), false); // a port left out is not taken for another
+  assert.equal(same(m, pc({ to: "me@far.example", port: 2200, session: "work" })), false); // another herdr on that machine
+  assert.equal(same({ ...m, session: "work" }, pc({ to: "me@far.example", port: 2200, session: "work" })), true);
+  assert.equal(same(m, pc({ local: true, to: "me@far.example", port: 2200 })), false);
+  // a PC the web UI took from herdr's own list names herdr's id: that decides, whatever the addresses say
+  assert.equal(same(m, pc({ profile: "79cd", to: "alias" })), true); assert.equal(same(m, pc({ profile: "other", to: "me@far.example", port: 2200 })), false);
+  // a machine named in board.machines has no id and no port
+  const named = { target: "me@vm-a", label: "vm-a", session: "" };
+  assert.equal(pcOf(named, [pc({ id: "local", local: true }), pc({ id: "x", to: "me@vm-b" }), pc({ id: "y", to: "vm-a" })]).id, "y"); assert.equal(pcOf(named, [pc({ to: "me@vm-b" })]), null);
+  assert.equal(machineOf(pc({ to: "vm-a" }), [m, named]), named); assert.equal(machineOf(pc({ to: "nowhere" }), [m, named]), null); assert.equal(pcOf(named, null), null);
+  // what the web UI answers, down to what the board needs; an answer that is no list of PCs is none
+  const list = readPcs(JSON.stringify({ machines: [{ id: "local", name: "home", kind: "local", enabled: true, state: "connected", snapshot: { panes: [1, 2] } }, { id: "p", name: "far", kind: "ssh", herdr_profile_id: "79cd", target: { destination: "me@far", port: 22, session: "work" }, enabled: false, state: "disconnected" }, { name: "no id" }] }));
+  assert.deepEqual(list, [{ id: "local", name: "home", local: true, profile: "", to: "", port: 0, session: "", connected: true, state: "connected" }, { id: "p", name: "far", local: false, profile: "79cd", to: "me@far", port: 22, session: "work", connected: false, state: "turned off" }]);
+  for (const bad of ["", "not json", "{}", '{"machines":{}}', '{"error":{"code":"bridge_only"}}']) assert.equal(readPcs(bad), null, bad);
+});
+
+test("on the web board another machine's agent opens in the web UI's view of that machine's pane, and what is missing is said plainly", async () => {
+  {
+    S.setValue("board.machines", "vm-a");
+    const v = new WebView({ cwd: w.root });
+    const asked = [];
+    const theirs = { id: "far/1", title: "Theirs", stage: "working", state: "working", agent: "claude", app: "claude", msg: "", note: "Building", at: Date.now(), created: Date.now(), link: { pane: "w1:p1" }, snap: { folder: "~/far", choices: {} } };
+    const todo = { id: "far/2", title: "Not started", stage: "todo", state: "idle", msg: "", at: Date.now(), created: Date.now(), snap: { folder: "~/far", choices: {} } };
+    let version = "0.2.0", reopen = { ok: true, msg: "", pane: "w3:p2", workspace: "w3", hasAgent: true };
+    v.ssh = (m, what, arg, cb) => { asked.push([m.label, what, arg]); cb(what === "list" ? { host: "vm-a", ...(version ? { version } : {}), tasks: [theirs, todo] } : arg.action === "reopen" ? reopen : { ok: true, msg: "" }); };
+    CALLS.press.run(v, { id: "scope", ...drive });
+    const open = (pcs) => { CALLS.pick.run(v, { id: "vm-a:far/1", open: true }); v.seeWeb({ pcs, machine: "" }); return CALLS.press.run(v, { id: "enter", ...drive, pcs }); };
+    const mine = pc({ id: "pc-9", name: "vm-a", to: "vm-a" });
+    // the web UI has that machine as a PC: the machine reopens its own task's space, and the page goes to that pane there
+    let s = open([pc({ id: "local", local: true }), mine]);
+    assert.deepEqual(asked.at(-1), ["vm-a", "do", { action: "reopen", id: "far/1" }]);
+    assert.deepEqual(s.go, { n: 1, machine: "pc-9", pane: "w3:p2", workspace: "w3", view: "chat" }); assert.equal(s.canOpen, true);
+    // its agent has exited and could not be restarted: the pane's terminal, as on this machine
+    reopen = { ok: true, msg: "", pane: "w3:p2", workspace: "w3", hasAgent: false }; s = open([mine]); assert.deepEqual([s.go.n, s.go.view], [2, "terminal"]);
+    // an answer from before the workspace was sent along: a pane's id starts with its space's
+    reopen = { ok: true, msg: "", pane: "w7:p1", hasAgent: true }; s = open([mine]); assert.deepEqual([s.go.pane, s.go.workspace], ["w7:p1", "w7"]);
+    // the machine refuses, or does not answer: said, and the page goes nowhere
+    reopen = { ok: false, msg: "far/1: its worktree is gone" }; s = open([mine]); assert.equal(s.go.n, 3); assert.equal(s.msg.text, "far/1: its worktree is gone");
+    reopen = null; s = open([mine]); assert.equal(s.go.n, 3); assert.equal(s.msg.text, "vm-a did not answer");
+    reopen = { ok: true, msg: "", pane: "w3:p2", workspace: "w3", hasAgent: true };
+    // the web UI has no such PC, has it but not connected, or could not say what it has: each said as what it is
+    const before = asked.length;
+    s = open([pc({ id: "local", local: true }), pc({ to: "elsewhere" })]); assert.match(s.msg.text, /^The web UI has no PC for vm-a \(.*@vm-a\)\. Add it there \(Settings → Remote PCs → Add PC\)/);
+    s = open([{ ...mine, connected: false, state: "reconnecting" }]); assert.equal(s.msg.text, "vm-a is not connected in the web UI (reconnecting). Connect it there, then open the agent again.");
+    v.pcs = null; CALLS.pick.run(v, { id: "vm-a:far/1", open: true }); s = CALLS.press.run(v, { id: "enter", ...drive }); assert.match(s.msg.text, /^The web UI did not say which PCs it has/);
+    assert.equal(asked.length - before, 0); assert.equal(s.go.n, 3); // and the other machine is not asked to open anything
+    // a task there that no agent has been on has nothing to open
+    CALLS.pick.run(v, { id: "vm-a:far/2", open: true }); s = CALLS.press.run(v, { id: "enter", ...drive, pcs: [mine] }); assert.equal(s.canOpen, false); assert.match(s.msg.text, /^No agent has been on this yet/);
+    // a machine on an older plugin cannot reopen a space: the pane it last named is opened, and the board says to update
+    version = ""; v.pollRemotes(true); s = open([mine]);
+    assert.deepEqual(s.go, { n: 4, machine: "pc-9", pane: "w1:p1", workspace: "w1", view: "chat" }); assert.equal(s.msg.text, "Update herdr-superwork on vm-a: it cannot reopen a closed space yet."); assert.notEqual(asked.at(-1)[2]?.action, "reopen");
+    v.dispose();
+  }
+});
+
+test("the web board goes with the web UI: on another PC it is that machine's board, and back on this one what it was", async () => {
+  {
+    S.setValue("board.machines", "vm-a vm-b");
+    const v = new WebView({ cwd: w.root });
+    v.ssh = (m, what, arg, cb) => cb(what === "list" ? { host: m.label, version: "0.2.0", tasks: [] } : { ok: true, msg: "" });
+    v.scope = ""; v.msg = ""; // the test before left every machine showing
+    const pcs = [pc({ id: "local", name: "home", local: true }), pc({ id: "pc-a", name: "vm-a", to: "vm-a" }), pc({ id: "pc-x", name: "stranger", to: "nowhere" })];
+    const board = (machine, list = pcs) => { v.seeWeb({ pcs: list, machine }); return CALLS.board.run(v, {}); };
+    // this machine's page: nothing changes, whatever the board showed
+    let s = board(""); assert.equal(s.flags.scope, ""); assert.equal(s.msg, null);
+    // the web UI goes to vm-a: that machine's board by itself, as the terminal board's own key shows it
+    s = board("pc-a"); assert.equal(s.flags.scope, "vm-a"); assert.equal(s.list.head.only, "vm-a"); assert.equal(s.msg.text, "Only vm-a. What you type goes to vm-a.");
+    // what a page opened later starts with is what this one showed before it went there, not where the web UI was
+    assert.equal(S.readJson(v.webPrefs).scope, "");
+    // while it stays there, a choice of your own stands
+    CALLS.press.run(v, { id: "scope", ...drive }); const chosen = v.scope; s = board("pc-a"); assert.equal(s.flags.scope, chosen);
+    // back on this machine: what the board showed before it went
+    s = board(""); assert.equal(s.flags.scope, "");
+    v.setScope("*"); s = board("pc-a"); assert.equal(s.flags.scope, "vm-a"); s = board("local"); assert.equal(s.flags.scope, "*");
+    // a PC the board has no machine for: said, and the board stays as it is
+    s = board("pc-x"); assert.equal(s.flags.scope, "*"); assert.match(s.msg.text, /^The web UI is on stranger, which the board knows no machine for: add it with herdr machine add/);
+    // the machine is added while the web UI stays on that PC: said once, looked for again after a few seconds, and
+    // the board then goes there by itself
+    s = board("pc-x"); assert.equal(s.msg.n, v.msgN); const said = v.msgN; board("pc-x"); assert.equal(v.msgN, said);
+    S.setValue("board.machines", "vm-a vm-b nowhere"); s = board("pc-x"); assert.equal(s.flags.scope, "*"); // not asked again at once
+    v.strangerTried = Date.now() - 11000; s = board("pc-x"); assert.equal(s.flags.scope, "nowhere"); assert.equal(s.msg.text, "Only nowhere. What you type goes to nowhere.");
+    S.setValue("board.machines", "vm-a vm-b"); s = board(""); assert.equal(s.flags.scope, "*");
+    // also straight from another PC's board: it does not go on showing that one under the new PC's name
+    s = board("pc-a"); assert.equal(s.flags.scope, "vm-a"); s = board("pc-x"); assert.equal(s.flags.scope, "*"); assert.match(s.msg.text, /The board shows what it showed before\.$/);
+    s = board(""); assert.equal(s.flags.scope, "*");
+    // the web UI's list has not come (or it has no such PC): nothing happens until it has
+    v.pcs = null; s = board("pc-a", null); assert.equal(s.flags.scope, "*"); s = board("pc-a"); assert.equal(s.flags.scope, "vm-a");
+    v.dispose();
+  }
 });

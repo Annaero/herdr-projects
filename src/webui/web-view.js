@@ -2,7 +2,8 @@
 // actions, its words), opened for a web page. Nothing is drawn here and nothing is decided here: a button on the page
 // presses the key it stands for (`press`), and what is typed is sent as enter or tab would send it (`send`). What is
 // left out is only what belongs to a terminal: the first-run screen, the pane's size, the OSC lines, the timer (the
-// page asks), and going into an agent, which on the web is a link to the web UI's own view of that pane (`go`).
+// page asks), and going into an agent, which on the web is a link to the web UI's own view of that pane (`go`), on
+// this machine or on another of the web UI's.
 // One per browser that has the board open, so each has its own selection, question and message.
 import fs from "node:fs";
 import os from "node:os";
@@ -14,6 +15,7 @@ import * as K from "../board/keys.js";
 import { herdr } from "../herdr.js";
 import { View } from "../board/view.js";
 import { webTheme } from "./ink.js";
+import { followWeb, webChat } from "./web-pcs.js";
 
 // From here on the board's words name a key as its button on the page.
 K.nameAsButtons();
@@ -60,7 +62,8 @@ export class WebView extends View {
   closeHint() {}
   askWebUi() {}
   // The web board keeps its own few choices, in a file of its own: it never writes the terminal board's.
-  savePrefs() { if (!this.ready) return; try { S.writeJson(this.webPrefs, { byRepo: this.byRepo, allDone: this.allDone, scope: this.scope }); } catch {} }
+  // While it shows the machine the web UI is on (web-pcs.js), what is kept is what it showed before it went there.
+  savePrefs() { if (!this.ready) return; try { S.writeJson(this.webPrefs, { byRepo: this.byRepo, allDone: this.allDone, scope: this.followed !== undefined ? this.followed : this.scope }); } catch {} }
   // Each message is numbered, so a page shows one once however often it asks.
   flash(text, kind) { super.flash(text, kind); this.msgN = (this.msgN || 0) + 1; }
   // What the terminal board does once a second, without the ticking a keeper does anyway.
@@ -74,7 +77,7 @@ export class WebView extends View {
   // Words the key puts into the text box (a draft brought back, words taken back to change) are the page's draft.
   press(id) {
     if (TERMINAL_ONLY.includes(id)) return { draft: "" };
-    this.setValue("");
+    this.setValue(""); this.loneAt = 0; // a button is no input line: no enter of its own follows it (view/keys.js)
     this.handleInput(bytesOf(id));
     const draft = this.value();
     this.setValue("");
@@ -85,7 +88,7 @@ export class WebView extends View {
   send(text, delegate = false) {
     const words = String(text ?? "");
     if (!words.trim()) return { kept: false };
-    this.setValue(words);
+    this.setValue(words); this.loneAt = 0;
     this.handleInput(bytesOf(delegate ? "delegate" : "enter"));
     const kept = this.value().trim() === words.trim();
     this.setValue("");
@@ -108,12 +111,14 @@ export class WebView extends View {
   }
   // An automation's settings page is the terminal board's (as a task's is): here the command changes them.
   autoSettings(a) { this.flash(`Its settings are changed on the terminal board, or with: herdr-superwork set <name> <value> --automation "${a.name}"`, "yellow"); }
+  // The web UI's own machines, and the one it is on: the board follows it there (web-pcs.js).
+  seeWeb(web) { try { followWeb(this, web); } catch {} }
   find(text) { this.filter = String(text ?? "").trim().slice(0, 200); this.mode = "new"; this.load(); }
   // Into the agent: on the web that is the web UI's own view of its pane. The task's space is reopened first, as the
   // terminal board does; the page then goes to the link.
   chat(r) {
     if (r.archivedAt) return this.flash(`Archived tasks are read-only. ${K.name("archive")} restores.`, "yellow");
-    if (r.host) return this.flash(`Its agent runs on ${r.host}. Open that machine in the web UI to see it.`, "yellow");
+    if (r.host) return webChat(this, r); // on another machine: the web UI's view of that machine's pane (web-pcs.js)
     if (!F.isAgentTask(r)) return this.flash("No agent has been on this yet.", "yellow");
     F.assertLive(r);
     let pane;

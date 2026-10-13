@@ -33,8 +33,8 @@ export function sideOf(v) {
     send: { enter: typing.find((b) => b.id === "enter")?.label || "", delegate: typing.find((b) => b.id === "delegate")?.label || "", place },
     menu: (() => { try { return v.menuItems().filter((i) => !TERMINAL_ONLY.includes(i.id)).map((i) => ({ id: i.id, group: i.group, label: String(i.label || "") })); } catch { return []; } })(),
     flags: { automations: !!v.automationsView, archive: !!v.archiveView, byRepo: !!v.byRepo, allDone: !!v.allDone, scope: v.scope || "", reply: !!v.reply, open: !!(v.automationsView ? v.autoOpen : v.full), filter: v.filter || "" },
-    // The selected task has an agent whose pane the web UI can show.
-    canOpen: !!r && r.title !== undefined && !r.archivedAt && !r.host && isAgent(r),
+    // The selected task has an agent whose pane the web UI can show: on this machine, or on another of its PCs.
+    canOpen: !!r && r.title !== undefined && !r.archivedAt && (r.host ? !!r.link?.pane : isAgent(r)),
     go: v.go || null,
   };
 }

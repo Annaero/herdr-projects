@@ -49,14 +49,14 @@ export function passUpgrade(req, socket, head, to) {
 }
 
 // A small request of our own to the web UI, answered whole: { status, headers, body } or null when it does not answer.
-export function ask(to, { method = "GET", path, headers = [] }, ms = 4000) {
+export function ask(to, { method = "GET", path, headers = [], max = 1 << 20 }, ms = 4000) {
   return new Promise((resolve) => {
     let done = false;
     const end = (v) => { if (!done) { done = true; resolve(v); } };
     const up = http.request({ host: to.host, port: to.port, method, path, headers, agent, setHost: false, timeout: ms }, (answer) => {
       const parts = [];
       let size = 0;
-      answer.on("data", (d) => { size += d.length; if (size > 1 << 20) { up.destroy(); return end(null); } parts.push(d); });
+      answer.on("data", (d) => { size += d.length; if (size > max) { up.destroy(); return end(null); } parts.push(d); });
       answer.on("end", () => end({ status: answer.statusCode, headers: answer.headers, body: Buffer.concat(parts).toString("utf8") }));
       answer.on("error", () => end(null));
     });

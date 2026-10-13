@@ -232,6 +232,9 @@ export async function main(argv, { budget = BUDGET } = {}) {
     count();
     const probe = fs.mkdtempSync(path.join(os.tmpdir(), "sw-check-"));
     // A test with no board of its own never reads yours: the home folder is an empty one for the whole run.
+    // Every test file is a Node program of its own that loads the same code: Node keeps what it compiled (its compile
+    // cache, in the check's own folder), so the next program, and the next run, does not compile it again.
+    if (!process.env.NODE_COMPILE_CACHE) process.env.NODE_COMPILE_CACHE = path.join(storeDir(), "compiled");
     Object.assign(process.env, { HERDR_SUPERWORK_HOME: path.join(probe, "home"), HERDR_SUPERWORK_CHECK_PROBE: probe, NODE_OPTIONS: `${process.env.NODE_OPTIONS || ""} --require=${JSON.stringify(path.join(here, "check-probe.cjs"))}`.trim() });
     const cores = os.availableParallelism(), loadBefore = os.loadavg()[0], usedBefore = machineCpu(), began = Date.now();
     const failed = new Set();

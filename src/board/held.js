@@ -45,5 +45,7 @@ export function lookHeld(h, term, env = process.env) {
   if (!pane || env.HERDR_ENV !== "1" || env.TMUX) return null;
   const held = heldSize(term, h.paneLayout(pane), pane);
   if (!held) return null;
-  return { ...held, by: holders(h.paneGet(pane)?.terminal_id) };
+  // `known`: herdr said which terminal it is, so an empty `by` means nothing is attached (and not "could not look").
+  const id = h.paneGet(pane)?.terminal_id;
+  return { ...held, by: holders(id), known: !!id };
 }

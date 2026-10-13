@@ -1,5 +1,6 @@
 // What a typed key does, where the board's state decides it: a question, a draft, find, esc, enter, tab. Every
 // other key, and every key's chord and name, is an entry in ../keys.js: a new key goes there, not here.
+import { isKittyProtocolActive } from "@earendil-works/pi-tui";
 import * as K from "../keys.js";
 import * as A from "../../actions.js";
 import * as F from "../../flow.js";
@@ -9,11 +10,21 @@ import { isAgent } from "./states.js";
 // Closing takes ctrl+c twice, as leaving Claude Code does ("Press Ctrl-C again to exit", shown for 0.8s): this long
 // the first one is remembered. Codex is no model here: it leaves on the first ctrl+c (its two-press code is off).
 const CLOSE_WAIT = 800;
+// A view that types into the pane from an input line (the phone layout of herdr's web UI) sends what was typed and
+// then an enter of its own, 120 ms later (measured on herdr-web-ui 0.4.8). Behind a one-letter key of the board that
+// enter would press something: the first line of the ? menu, or "open the agent" after a yes. Within this long of
+// such a key it is dropped, while such a view is attached to the board's terminal (size.js: `watched`).
+// A desktop view sends the same byte for a real enter, so the wait is kept short: twice the measured gap, and less
+// than anyone takes to press enter after another key on purpose.
+const LINE_ENTER = 250;
 const READ_ONLY = () => `Archived tasks are read-only. ${K.name("archive")} restores.`;
 
 export class Keys {
   handleInput(data) {
+    const before = this.value();
     try { this.handle(data); } catch (e) { this.flash(e.message, "red"); }
+    // One printable character that did not go into the text box was a key of the board (?, space, y, n).
+    this.loneAt = data.length === 1 && data >= " " && before === this.value() ? Date.now() : 0;
     this.syncReply();
     this.tui.requestRender();
   }
@@ -27,7 +38,12 @@ export class Keys {
   closeSoon() { clearTimeout(this.closing); this.closing = null; }
   handle(data) {
     if (this.leaving) return;
+    // The enter an input line adds: not a key press, so it picks no menu line and opens no agent.
+    if (data === "\r" && this.watched && Date.now() - (this.loneAt || 0) < LINE_ENTER) return;
     if (data === "\x1b\x1b") data = "\x1b"; // esc tapped twice arrives as one read: it is still esc
+    // shift+enter as the old terminals send it (esc, return), from a view that types into the pane from outside
+    // (herdr's web UI) while the text box listens for the newer form: handed on as that (keys.js: `old`).
+    if (data === "\x1b\r" && isKittyProtocolActive()) data = "\x1b[13;2u";
     // ctrl+c while the hint shows closes the board; any other key takes the hint away and then does what it always does.
     const again = !!this.closing;
     this.closeSoon();

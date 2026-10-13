@@ -1,5 +1,5 @@
 // The page's few tools: making elements, drawing the board's coloured pieces of text, and calling the front door.
-/* global document, fetch, sessionStorage, crypto */
+/* global document, fetch, sessionStorage, crypto, location */
 
 // h("div.sw-row", { onclick }, child, …): a tag with classes, then properties and children.
 export function h(spec, ...rest) {
@@ -45,10 +45,13 @@ export const client = (() => {
   catch { return Math.random().toString(36).slice(2, 14); }
 })();
 const BASE = "/superwork/api";
+// The PC the web UI's page is on (its address says: `?machine=<pc>`, left out for this machine). Sent with every
+// call, so the board is the board of that machine.
+const machine = () => { try { return new URLSearchParams(location.search).get("machine") || ""; } catch { return ""; } };
 // A read. Answers { ok, status, … }; never throws.
 export async function get(what, params = {}) {
   try {
-    const r = await fetch(`${BASE}/${what}?${new URLSearchParams({ client, ...params })}`, { credentials: "same-origin", cache: "no-store" });
+    const r = await fetch(`${BASE}/${what}?${new URLSearchParams({ client, machine: machine(), ...params })}`, { credentials: "same-origin", cache: "no-store" });
     const j = await r.json().catch(() => ({}));
     return { ...j, ok: r.ok && j.ok !== false, status: r.status };
   } catch { return { ok: false, status: 0, msg: "No connection." }; }
@@ -56,7 +59,7 @@ export async function get(what, params = {}) {
 // A change: the same address, with the header that says it comes from the board's own controls.
 export async function post(what, body = {}) {
   try {
-    const r = await fetch(`${BASE}/${what}?${new URLSearchParams({ client })}`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-herdr-superwork": "1" }, body: JSON.stringify(body) });
+    const r = await fetch(`${BASE}/${what}?${new URLSearchParams({ client, machine: machine() })}`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-herdr-superwork": "1" }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
     return { ...j, ok: r.ok && j.ok !== false, status: r.status };
   } catch { return { ok: false, status: 0, msg: "No connection." }; }
