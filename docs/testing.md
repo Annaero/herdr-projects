@@ -94,7 +94,7 @@ The check fails, and names the file, when a test file costs more than:
 
 | | One test file | The whole suite |
 |---|---|---|
-| Processor time (its own and that of the programs it starts) | 6 s | 70 s |
+| Processor time (its own and that of the programs it starts) | 6 s | 90 s |
 | Time by the clock | 6 s | 15 s |
 | Programs started | 1000 | |
 

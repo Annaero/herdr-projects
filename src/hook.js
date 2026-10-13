@@ -17,7 +17,7 @@ import { hand, noteSent, checkSent, took, rest, notStarted } from "./submit.js";
 import { granted } from "./limits/run.js";
 
 // Stages in which a finished turn nobody saw start (a short turn, a herdr restart, a lock wait) still counts.
-const WAITING = ["asks", "nosummary", "approval", "failed", "reviewneeds"];
+const WAITING = ["asks", "nosummary", "approval", "failed", "reviewneeds", "plan"];
 
 export function hookMain() {
   // The keeper does the board's periodic work with the board closed. herdr's startup and every hook event start it
@@ -219,7 +219,7 @@ function deliverInbox(t, api) {
   const wake = items.map((m) => m.wake).filter(Boolean).pop() || null;
   // The send time arms the pipeline for the turn this starts, so it is written before the text goes out.
   const before = { armedAt: t.armedAt, expectedWake: t.expectedWake, stage: t.stage, msg: t.msg };
-  S.update(t.id, (t) => { t.armedAt = Date.now(); if (wake) t.expectedWake = wake; if (["asks", "nosummary", "failed", "approval", "reviewneeds"].includes(t.stage)) { t.stage = "working"; t.msg = ""; } }, { waitMs: 10000 });
+  S.update(t.id, (t) => { t.armedAt = Date.now(); if (wake) t.expectedWake = wake; if (["asks", "nosummary", "failed", "approval", "reviewneeds", "plan"].includes(t.stage)) { t.stage = "working"; t.msg = ""; } }, { waitMs: 10000 });
   const text = items.map((m) => m.text).join("\n\n");
   try { noteSent(t.id, hand(api, t.link.pane, text), text, !!items[0].first); }
   catch (e) {

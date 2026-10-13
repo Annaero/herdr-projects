@@ -15,12 +15,13 @@ export function accessArgs(kind, access = "full") {
 }
 // The arguments a worker, a reviewer or the Coordinator of this kind is started with.
 // `resume` reopens a known conversation; `session` names a new one; `extra` are the hook and standing-rule arguments.
-export function startArgs(kind, { model, effort, fast, access = "full", resume, session, extra = [] } = {}) {
+// `plan`: the program's own plan-mode arguments, in place of its access flags (plan.js).
+export function startArgs(kind, { model, effort, fast, access = "full", plan = null, resume, session, extra = [] } = {}) {
   const a = adapter(kind), level = effortFor(kind, effort);
   return [
     ...(resume && a.resume ? a.resume(resume) : []), // first: Codex's `resume` is a subcommand
     ...(!resume && session && a.sessionArgs ? a.sessionArgs(session) : []),
-    ...accessArgs(kind, access),
+    ...(plan || accessArgs(kind, access)),
     ...(model && a.model ? a.model(model) : []),
     ...(level && a.effort ? a.effort(level) : []),
     ...(fast === true && a.fast ? a.fast() : fast === false && a.slow ? a.slow() : []),

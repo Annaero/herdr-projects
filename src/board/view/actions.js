@@ -12,7 +12,7 @@ import { landsOn } from "../../sync.js";
 import { name as keyName } from "../keys.js";
 
 // The stages in which a task's agent (or its reviewer) is alive in its pane. "asks": it waits for your answer.
-const LIVE_STAGES = [...S.SLOT_STAGES, "asks"];
+const LIVE_STAGES = [...S.SLOT_STAGES, "asks", "plan"];
 
 export class Actions {
   // herdr's "approve the task in the focused pane" action lands here: the board opens on that task and asks first.

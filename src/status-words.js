@@ -9,7 +9,7 @@ import { currentReview } from "./store.js";
 
 // What a task that waits for you needs, by its kind (OSC 7501): beside its mark (? ! @, board/theme.js).
 export const NEEDS = { question: "asks you", permission: "asks for your OK", auth: "needs a login" };
-export const WORDS = { needs: "needs you", ready: "ready to approve", reviewFailed: "review failed", working: "working", underReview: "under review", todo: "to do", done: "done", wrong: "went wrong", behind: "behind main", pick: "pick one", passed: "passed its check" };
+export const WORDS = { needs: "needs you", ready: "ready to approve", reviewFailed: "review failed", working: "working", underReview: "under review", plan: "plan ready", todo: "to do", done: "done", wrong: "went wrong", behind: "behind main", pick: "pick one", passed: "passed its check" };
 
 // Finished work whose last review failed. It still waits for your yes or no, but it is not "ready": it stands under
 // "needs you", and a merge of it has to be asked for in so many words (actions/finish-line.js: approve).

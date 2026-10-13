@@ -6,6 +6,7 @@ import { interruptKey } from "../agents.js";
 import { AGENT_STAGES, say } from "./shared.js";
 import { delegate } from "./start.js";
 import { retry } from "./finish-line.js";
+import { awaitsPlan, planReply, sentBack } from "./plan.js";
 import { granted } from "../limits/run.js";
 import { standingOf } from "../attempts/words.js";
 
@@ -15,8 +16,10 @@ import { standingOf } from "../attempts/words.js";
 export function tell(id, text, { keepIntent = false } = {}) {
   const cur = S.find(id);
   S.assertUnarchived(cur);
-  const words = String(text || "").trim();
-  if (!words) throw new Error("Nothing to send.");
+  const typed = String(text || "").trim();
+  if (!typed) throw new Error("Nothing to send.");
+  // A reply to a plan that waits for you sends the plan back to its writer with these words (actions/plan.js).
+  const back = awaitsPlan(cur), words = back ? planReply(cur, typed) : typed;
   // A reply to a task that never had an agent starts one with that message, through the normal delegation path, so
   // the slot limit and the queue apply.
   if (!F.isAgentTask(cur) && ["todo", "progress"].includes(cur.stage)) {
@@ -46,14 +49,14 @@ export function tell(id, text, { keepIntent = false } = {}) {
   const live = F.liveOf(cur, F.readSession(cur.link.socket));
   if (live.gone || live.status == null) { // the agent has exited: start it again, with the words waiting for it
     S.queueText(cur.id, words);
-    S.update(cur.id, (t) => rearm(t, keepIntent));
+    S.update(cur.id, (t) => { rearm(t, keepIntent); if (back) sentBack(t); });
     spawnRunner("restart", cur.id);
     return say(S.get(cur.id), "The agent had exited: starting it again with your message.");
   }
-  const t = S.update(cur.id, (t) => rearm(t, keepIntent));
+  const t = S.update(cur.id, (t) => { rearm(t, keepIntent); if (back) sentBack(t); });
   F.tellSidebar(t);
   const how = F.deliver(t, words);
-  return say(S.get(t.id), how === "queued" ? "queued: open the agent and answer its dialog first" : "Sent to the agent");
+  return say(S.get(t.id), how === "queued" ? "queued: open the agent and answer its dialog first" : back ? "The plan went back to its writer with your words" : "Sent to the agent");
 }
 // A task that just ended is being cleaned up: a reply waits for that, or its work would go with the worktree.
 function cleaningUp(t) { if (t.stage === "done" && runnerAlive(t)) throw Object.assign(new Error(`${t.id} is cleaning up after it finished. Try again in a moment.`), { code: "BUSY" }); }

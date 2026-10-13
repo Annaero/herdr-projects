@@ -69,7 +69,7 @@ export class PanelStatus {
       alert("red", heading, `${failure.title.toLowerCase() === heading.toLowerCase() ? "" : `${failure.title}\n`}${failure.sentAt ? "Sent to the agent. Kept here until it works." : failure.agentCanFix ? `The agent can fix this: ${keyName("sendBack")} sends it.` : "This needs you first."}`, [["Next step", failure.next || "Find the cause and fix it."], ["Details", failure.detail]]);
     } else if (approval && r.syncBlocked) alert("peach", "Behind main", `Cannot be approved yet: ${r.syncBlocked.why}. The board keeps trying to bring it up to date.`);
     else if (failedReview(r)) alert("red", "Review failed", `${reviewTally(r) ? `It found ${reviewTally(r)}. ` : ""}${this.ctx?.web ? "Send the review to the agent to fix it, or merge it anyway: that asks first." : `${keyName("sendBack")} sends the review to the agent to fix. ${keyName("yes")} merges it anyway, and asks first.`}`);
-    else if (approval) { /* the state says it: ready to approve */ }
+    else if (approval || r.stage === "plan") { /* the state says it: ready to approve; plan ready, and the plan's own part says what a yes does (panel-plan.js) */ }
     else if (stoppedAtLimit(r)) { // a limit stopped it: what it used, and the three ways on
       const ls = r.limitStop, name = `limit.${ls.what}`, review = ls.role === "reviewer", id = r.rid || r.id;
       told = note || "";

@@ -11,7 +11,8 @@ export const PLUGIN_ID = "herdr-superwork";
 
 // Every stage a task can be in. The board's five states are derived from these in state.js.
 export const STAGES = ["todo", "progress", "queued", "starting", "setup", "working", "stopped", "nosummary", "asks", "checking",
-  "pushing", "reviewing", "reviewneeds", "approval", "merging", "failed", "done",
+  "pushing", "reviewing", "reviewneeds", "plan", "approval", "merging", "failed", "done",
+  // "plan": its plan is written and waits for your yes (plan.js).
   // Several attempts (src/attempts.js). `attempts`: the task's attempts are under way, each a small task of its own.
   // `pick`: more than one passed the check, and the task waits for you to choose. `tried`: an attempt that passed.
   "attempts", "pick", "tried"];

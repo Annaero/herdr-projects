@@ -10,7 +10,7 @@ export const reviewRound = (t) => Math.max(0, Math.floor(Number(t?.reviewRound) 
 // A review that failed is kept too, with why. Nothing is ever dropped from the list. A review from before the gate
 // keeps its score and its advice as they were.
 const reviewEntry = (rv, round, at) => ({ round, at, ...(rv.by ? { by: rv.by } : {}), ...(rv.error ? { error: oneLine(rv.error, 400) }
-  : { ...(isTagged(rv) ? { meets: rv.meets, findings: rv.findings, gate: rv.gate, pass: rv.pass, left: rv.left || 0 } : { score: rv.score, recommend: rv.recommend, problems: rv.problems || [] }), text: rv.text, checks: rv.checks || [], limitations: rv.limitations || [], head: rv.head || null }) });
+  : { ...(isTagged(rv) ? { meets: rv.meets, findings: rv.findings, gate: rv.gate, pass: rv.pass, left: rv.left || 0 } : { score: rv.score, recommend: rv.recommend, problems: rv.problems || [] }), text: rv.text, checks: rv.checks || [], limitations: rv.limitations || [], ...(rv.offPlan ? { offPlan: rv.offPlan } : {}) /* where the build left its approved plan (plan.js) */, head: rv.head || null }) });
 // The one review saved on a task from before the list existed. `round`: which review it was.
 const savedReview = (t, round) => (t?.review && (Number.isInteger(t.review.score) || isTagged(t.review)) ? [reviewEntry(t.review, Math.max(1, round), t.review.at)] : []);
 // A review saved before the list existed has no number of its own: it is the one the counter stands at. So it is

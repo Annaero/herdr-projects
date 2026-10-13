@@ -13,6 +13,8 @@ import * as G from "../gate.js";
 import { ms, fail } from "./shared.js";
 import { reviewBrief, parseVerdict } from "./review-brief.js";
 import { REPORT } from "../research.js";
+import { PLAN } from "../plan.js";
+import { startProgram } from "../plan/sandbox.js";
 import { reviewerNow, nextReviewer } from "./review-fallback.js";
 import { count } from "../limits/spent.js";
 import { tokensOver, stopAt } from "../limits/reached.js";
@@ -54,9 +56,11 @@ export async function runReview(id, g, o) {
     }
   }
 }
-async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
+// `plan`: this is the look at a plan, not at work (plan/review.js): { brief } is what the reviewer is told. It is no
+// round of the task's reviews: it has the tab `Plan review`, round 0 for its own turn-end report, and leaves no page.
+async function reviewOnce(id, g, { text, change, toLand, ch, check, plan = null }) {
   // One that just took the review over says so on the row until the Watcher has a line of it (review-fallback.js).
-  let t = g.set((t) => { const took = S.lastHandover(t, "reviewer"); t.msg = took && t.msg === S.handoverLine(took) ? t.msg : "Under review"; t.stage = "reviewing"; t.watch = null; t.waiting = null; t.reviewAt = Date.now(); });
+  let t = g.set((t) => { const took = S.lastHandover(t, "reviewer"); t.msg = took && t.msg === S.handoverLine(took) ? t.msg : plan ? "The reviewer checks the plan" : "Under review"; t.stage = "reviewing"; t.watch = null; t.waiting = null; t.reviewAt = Date.now(); });
   g.allow("reviewneeds");
   const api = F.h(t);
   const folder = S.cwdOf(t);
@@ -75,13 +79,13 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   // A stand-in for a program that is not installed is a hand-over like any other: written on the task, and the
   // reviewer of its later rounds.
   if (now.standIn) g.set((t) => { const h = S.logHandover(t, { role: "reviewer", from: ch["reviewer.agent"], to: now.agent, why: `${now.standIn} is not installed here` }); t.reviewerOn = now.agent; t.msg = S.handoverLine(h); });
-  const round = (t.reviewRound || 0) + 1, other = by !== ch["reviewer.agent"];
-  t = g.set((t) => { S.keepSavedReview(t); t.reviewRound = round; t.reviewSession = null; t.fallbacks = { ...(t.fallbacks || {}), reviewer: rkind !== who.kind && !t.reviewerOn && !now.standIn ? `reviewed by ${rkind}: ${who.kind} is not installed here` : undefined }; });
+  const round = plan ? 0 : (t.reviewRound || 0) + 1, other = by !== ch["reviewer.agent"];
+  t = g.set((t) => { if (!plan) { S.keepSavedReview(t); t.reviewRound = round; } t.reviewSession = null; t.fallbacks = { ...(t.fallbacks || {}), reviewer: rkind !== who.kind && !t.reviewerOn && !now.standIn ? `reviewed by ${rkind}: ${who.kind} is not installed here` : undefined }; });
   // From the second round of a send-back on, the reviewer checks the earlier findings instead of starting over.
-  const before = S.reviewHistory(t).filter((e) => G.isTagged(e));
+  const before = plan ? [] : S.reviewHistory(t).filter((e) => G.isTagged(e));
   const earlier = (t.reviewRounds || 0) > 0 && before.length ? before.at(-1).findings : null;
   const used = before.flatMap((e) => e.findings.map((f) => f.id));
-  const brief = `${taskLine(t, "reviewer", round)}\n\n${reviewBrief(t, { text, change, toLand, ch, earlier, check })}${who.instructions ? `\n\n${ownWords(who.instructions)}` : ""}`;
+  const brief = `${taskLine(t, "reviewer", round)}\n\n${plan ? plan.brief(t, dir) : reviewBrief(t, { text, change, toLand, ch, earlier, check })}${who.instructions ? `\n\n${ownWords(who.instructions)}` : ""}`;
   let pane = null, tab = null, error = "", review = null, sent = false, sentAt = 0, auth = false, quietSince = 0, cut = null, mark = null;
   // The reviewer ended its turn with no verdict. Its saved conversation says why: a turn that ended in the provider's
   // error was cut off (`cut`), and only one that really finished is "finished without a verdict", with its last message.
@@ -97,7 +101,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
     preTrust(rkind, t.root || S.folderOf(t.id), who.access);
     await closeReviewer(id); // a tab left over from an interrupted round
     // Its own tab, never focused: the human stays where they are, and the agent's tab and the board keep their size.
-    const made = F.openReviewerTab(api, t, round, { cwd: folder, env: S.boardEnv(), by: other ? rkind : "" });
+    const made = F.openReviewerTab(api, t, round, { cwd: folder, env: S.boardEnv(), by: other ? rkind : "" }, plan ? F.PLAN_REVIEW_TAB : undefined);
     tab = made.tab; pane = { pane_id: made.pane };
     const taken = api.agents().map((a) => a.name).filter(Boolean);
     let name = `${t.link.agent || `sw-task-${t.n}`}-r`.slice(0, 32);
@@ -108,7 +112,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
     F.tellSidebar(t); // the reviewer's pane has its entry in herdr's sidebar from the start
     const start = (hook) => {
       const args = startArgs(rkind, { model: rmodel, effort: reffort, fast: who.fast, access: who.access, session: x.session, extra: hook });
-      try { api.agentStart(name, rkind, pane.pane_id, args); settle(api, pane.pane_id, [rkind, ...args].join(" ")); } // up before its brief is typed (submit.js)
+      try { if (plan) startProgram(api, S.get(id), name, rkind, pane.pane_id, args); else api.agentStart(name, rkind, pane.pane_id, args); settle(api, pane.pane_id, [rkind, ...args].join(" ")); } // up before its brief is typed (submit.js)
       catch (e) { if (e.code === "agent_not_ready") return; if (!hook.length) throw e; start([]); } // once more without the hook arguments
     };
     start(x.hook);
@@ -169,15 +173,16 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
   try { if (S.get(id).stage === "reviewneeds") { g.set({ stage: "reviewing", msg: "Review complete" }); } } catch (e) { if (e.aborted) return { aborted: true }; }
   if (!review && cut) {
     // Not a review: the task's count of reviews is put back, so the next try (or the next real review) has this number.
-    try { g.set((t) => { if (t.reviewRound === round) t.reviewRound = round - 1; }); } catch (e) { if (e.aborted) return { aborted: true }; }
+    try { g.set((t) => { if (!plan && t.reviewRound === round) t.reviewRound = round - 1; }); } catch (e) { if (e.aborted) return { aborted: true }; }
     return { cut, error, auth, by };
   }
   if (!review) return { error: error || "no valid verdict", auth };
   G.stamp(review, ch["review.mustFix"]);
   review.by = by; // who reviewed: the task's history keeps it
+  if (plan) { fs.rmSync(dir, { recursive: true, force: true }); delete review.listed; return { review }; }
   // Move the folder to the task's artifacts and publish the evidence page.
   const art = S.artifactsDir(id);
-  try { for (const f of fs.existsSync(art) ? fs.readdirSync(art) : []) if (f !== REPORT) fs.rmSync(path.join(art, f), { recursive: true, force: true }); /* the task's report is kept there too (research.js) */ fs.mkdirSync(art, { recursive: true }); fs.cpSync(dir, art, { recursive: true }); fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+  try { for (const f of fs.existsSync(art) ? fs.readdirSync(art) : []) if (f !== REPORT && f !== PLAN) fs.rmSync(path.join(art, f), { recursive: true, force: true }); /* the task's report is kept there too (research.js), and its plan (plan.js) */ fs.mkdirSync(art, { recursive: true }); fs.cpSync(dir, art, { recursive: true }); fs.rmSync(dir, { recursive: true, force: true }); } catch {}
   try {
     t = S.get(id);
     review.artifacts = await publishReview({ enabled: ch["review.evidence"], dir: art, listed: review.listed, review, task: t,

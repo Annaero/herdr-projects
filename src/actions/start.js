@@ -32,7 +32,7 @@ export function delegate(id, opts = {}) {
     // Work that already landed and was cleaned up starts a new round in a fresh worktree, never in your checkout.
     if (F.cleanedUp(t)) {
       if (t.link?.workspace && t.link.ownsWorkspace) old = { socket: t.link.socket, workspace: t.link.workspace };
-      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "syncedTo", "syncSeen", "syncBranch", "syncRepairs", "syncRetryAt", "syncBlocked", "handled", "session", "said", "summary", "stat", "kept", "tidy", "exitedAt", "repoFile", "repoRefused", "researchRun", "researchTurned", "attempts", "picked", "as", "comparison", "comparing", "checkedHead", "checkedWith", "spaceDir"]) delete t[k];
+      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "syncedTo", "syncSeen", "syncBranch", "syncRepairs", "syncRetryAt", "syncBlocked", "handled", "session", "said", "summary", "stat", "kept", "tidy", "exitedAt", "repoFile", "repoRefused", "researchRun", "researchTurned", "attempts", "picked", "as", "comparison", "comparing", "checkedHead", "checkedWith", "spaceDir", "plan"]) delete t[k]; // a new round starts with a new plan, where one is asked for
       t.link = {};
     }
     t.on = null; S.freshList(t); // a new start is `worker.agent` again, with its whole fallback list before it

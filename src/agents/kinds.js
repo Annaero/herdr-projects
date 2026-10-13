@@ -13,6 +13,8 @@
 //   minVersion  the oldest program version its turn-end hook was verified on        older: runs without the hook
 //   hookArgs    launch arguments that make it call `turn-ended` at every turn end   none: the closing note and herdr's status
 //   sessionArgs launch arguments that choose the conversation's id                  none: the id comes from the hook or the file
+//   planMode    launch arguments for its own plan mode, where nothing is changed    none: the board's rule and its look at the repo
+//               and the plan is handed to the board by a hook (plan.js)
 //   standing    launch arguments that keep the rules in force for the whole session none: rules ride on every prompt
 //   rulesFile   the file in its start folder it reads at every new conversation      none: not known to read one (the Coordinator's rules)
 //   transcript  where a conversation is saved                                       none: nothing is read
@@ -42,7 +44,11 @@ export const AGENTS = {
       const command = hookCommand(h).map(shq).join(" ");
       const file = path.join(h.dir, `hook-${h.role}.json`);
       const one = [{ hooks: [{ type: "command", command, async: true }] }];
-      fs.writeFileSync(file, JSON.stringify({ hooks: { Stop: one, StopFailure: one } }), { mode: 0o600 });
+      // In plan mode the plan is presented with ExitPlanMode, which asks in the terminal. The board takes the plan
+      // there instead (plan/presented.js): the hook is given the plan, refuses the tool, and the turn ends.
+      // Verified on 2.1.296: the hook's input carries `tool_input.plan`, and its words reach the agent.
+      const plan = h.plan ? { PreToolUse: [{ matcher: "ExitPlanMode", hooks: [{ type: "command", command: [h.shim, "plan-written", "--id", h.id, "--token", h.token].map(shq).join(" ") }] }] } : {};
+      fs.writeFileSync(file, JSON.stringify({ hooks: { Stop: one, StopFailure: one, ...plan } }), { mode: 0o600 });
       return ["--settings", file];
     },
     newSession: () => randomUUID(),
@@ -72,6 +78,8 @@ export const AGENTS = {
     tokens: claudeTokens,
     skillDir: () => skillAt(claudeHome()),
     access: { full: ["--dangerously-skip-permissions"], ask: [] },
+    // In place of the access flags: in plan mode an edit asks in the terminal, whatever the access (verified on 2.1.296).
+    planMode: () => ["--permission-mode", "plan"],
     efforts: ["low", "medium", "high", "xhigh", "max"],
     resume: (id) => ["--resume", id],
     model: (m) => ["--model", m],

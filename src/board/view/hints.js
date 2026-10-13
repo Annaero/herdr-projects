@@ -63,6 +63,7 @@ export class Hints {
     else if (failure?.agentCanFix) main = failure.sentAt && r.state === "working" ? [open, reply, stop] : [fix, r.stage === "failed" && asIs, reply];
     else if (failure) main = [(r.stage === "failed" || r.kind === "auth") && retry, reply, open];
     else if (r.state === "error" && canSendError(r)) main = [fix, r.stage === "failed" && asIs, reply];
+    else if (r.stage === "plan" && r.state === "blocked") main = [[...hint("yes", "approve this task's plan"), false, "approve the plan"], hint("talk", "send the plan back with your words"), hint("panel", "read the whole plan")];
     else if (agentOn && r.state === "blocked" && r.kind === "permission") main = [hint("yes", "say yes to this task's agent"), reply, open];
     else if (agentOn && r.state === "blocked") main = [r.kind === "question" ? hint("talk", "answer this task's agent") : reply, open];
     else if (agentOn && r.state === "working") main = [open, reply, stop];

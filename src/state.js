@@ -37,6 +37,7 @@ export function show(t, live, now = Date.now()) {
     case "failed": return t.failure?.auth ? out("blocked", { kind: "auth" }) : out("error");
     case "approval": return out("blocked", { kind: "permission", review: !t.mergeFailed && !t.syncBlocked });
     case "asks": return out("blocked", { kind: t.kind || "question" });
+    case "plan": return out("blocked", { kind: "permission", plan: true }); // its plan waits for your yes (plan.js)
     case "nosummary": return out("error", { msg: t.msg || "Stopped without a summary" });
     case "reviewneeds": return out("blocked", { msg: t.msg || "The reviewer needs you" });
     case "stopped": return t.limitStop ? out("blocked", { msg: t.msg || "Stopped at a limit" }) : out("idle", { msg: "Stopped" }); // a limit stopped it: it waits for you (limits/reached.js)

@@ -41,6 +41,9 @@ export class PanelSettings {
     // Under each of the two: who takes over when it cannot go on, where a list says so.
     const list = (name) => (Array.isArray(val(name)) ? [["Takes over", `${val(name).join(", then ")} · when the ${name === "worker.fallback" ? "agent" : "reviewer"} cannot go on`, mine(name)]] : []);
     rows.push(["Agent", role("worker", r.agent, r.agentVersion), mine("worker.")], ...list("worker.fallback"));
+    // A plan first: who says yes to it, and who writes it when that is not the working agent.
+    const planBy = val("plan.approve"), planner = S.agentOf(val("plan.agent"));
+    rows.push(["Plan first", !planBy || planBy === "none" ? "off" : `${planBy === "reviewer" ? "the reviewer approves it" : "you approve it"} · written by ${planner.kind ? `${planner.kind}${planner.model ? ` · ${planner.model}` : ""}` : "the agent"}`, mine("plan.")]);
     // Done several times at once: how many and by whom, and who picks (attempts.js).
     if (r.attempts?.length > 1 || S.attemptCount(val("attempts.by")) > 1) rows.push(["Attempts", `${r.attempts?.length > 1 ? r.attempts.map((a) => `${a.letter} ${a.agent}`).join(", ") : S.say(val("attempts.by"))} · ${r.picked ? `${r.picked.letter} was chosen` : val("attempts.pick") === "reviewer" ? "the reviewer picks" : "you pick"}`, mine("attempts.")]);
     const noReview = val("review.when") === "never";

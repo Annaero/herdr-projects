@@ -10,6 +10,7 @@ import { closeReviewer, runReview } from "./review.js";
 import { runCheck } from "./check-run.js";
 import { mergesItself, byItself } from "./auto-merge.js";
 import { researchOnly, keptReport } from "./research.js";
+import { pending as planPending } from "../plan.js";
 import { WORDS } from "../status-words.js";
 import { handOver } from "./hand-over.js";
 import { tokensOver, stopAt } from "../limits.js";
@@ -29,6 +30,8 @@ export async function pipelineJob(id) {
 // `synced`: the caller already brought the branch up to date with main (a re-sync, or the sync after an approval)
 // and this is its result.
 export async function pipeline(id, g, text, wake, synced = null) {
+  // A task that starts with a plan, and the build has not started: this turn was the plan's, and nothing of it is work (plan/written.js).
+  if (planPending(g.check())) return void (await (await import("../plan/written.js")).planWritten(id, g, text));
   let t = g.set((t) => { t.stage = "checking"; t.syncBlocked = null; t.msg = synced ? "Checking the branch updated with main" : "Checking the result"; t.watch = null; t.check = null; t.summary = String(text || "").trim(); });
   const folder = S.cwdOf(t), root = S.folderOf(t.id), tree = F.isAgentTask(t) && t.worktree && fs.existsSync(t.worktree) ? t.worktree : "";
   const env = { HERDR_SUPERWORK_ID: t.id, HERDR_SUPERWORK_WORKTREE: folder, HERDR_SUPERWORK_REPO: root };

@@ -26,7 +26,9 @@ const HELP = `herdr-superwork: a work board for herdr
                                       (a refused option changes nothing on the task)
   herdr-superwork tell <id> <text>              send a message to the task's agent
   herdr-superwork stop <id>                     stop its agent
-  herdr-superwork approve <id> [--anyway]       merge finished work that waits for approval (--anyway: also when its review failed)
+  herdr-superwork approve <id> [--anyway]       merge finished work that waits for approval (--anyway: also when its review failed);
+                                                on a task whose plan is ready (plan.approve you): yes to the plan, the build starts.
+                                                tell <id> <text> there sends the plan back with those words
   herdr-superwork pick <id> <letter>            keep one of a task's several attempts (attempts.by); the others' tabs close
   herdr-superwork review <id>                   send the reviewer's findings back to the agent
   herdr-superwork retry <id>                    send the saved error back to the agent; on a task a limit stopped: continue
@@ -120,6 +122,7 @@ export async function main(argv) {
 
   // ---- entries herdr itself calls: keep them light, they run on every agent status change -------------------------
   if (cmd === "turn-ended") { const { turnEnded } = await import("./turn.js"); try { turnEnded({ id: flags.id, role: flags.role, token: flags.token, round: flags.round }, pos.slice(1)); } catch {} return 0; } // run by an agent's own hook: silent, always 0
+  if (cmd === "plan-written") { const { presented } = await import("./plan/presented.js"); return presented({ id: flags.id, token: flags.token }); } // run by a program in its own plan mode, when it presents its plan (plan/presented.js)
   if (cmd === "hook") { const { hookMain } = await import("./hook.js"); hookMain(); return 0; }
   if (cmd === "keeper") { const { keeperMain } = await import("./keeper.js"); await keeperMain(); return 0; }
   if (cmd === "keeper-work") { const { keeperWork } = await import("./keeper.js"); await keeperWork(); return 0; }

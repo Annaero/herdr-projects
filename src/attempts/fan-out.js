@@ -4,9 +4,11 @@ import * as S from "../store.js";
 import { discard } from "./adopt.js";
 
 // Read now, as the task starts: who makes each attempt ([] when the task is done once, the usual way). A task in no
-// repo, or one that already has its worktree (its agent is only started again), is never split.
+// repo, or one that already has its worktree (its agent is only started again), is never split. One that starts with
+// a plan is not split here: its plan is made and approved once, and then it is split (plan/build.js).
 export function attemptsFor(t) {
   if (t.attemptOf || t.startedOnce || !S.canWorktree(S.folderOf(t.id))) return [];
+  if (S.setting("plan.approve", t) !== "none") return []; // a plan first: it is split after the plan's yes (plan/build.js)
   return S.attemptAgents(S.setting("attempts.by", t), S.setting("worker.agent", t));
 }
 // Returns the task as it now stands, or null when it is done once. Attempts of an earlier round go first: the task

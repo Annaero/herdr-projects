@@ -1,4 +1,4 @@
-// The task panel: beside the list and full screen. Its parts are in panel-status.js, panel-reviews.js and panel-settings.js.
+// The task panel: beside the list and full screen. Its parts are in panel-status.js, panel-plan.js, panel-reviews.js and panel-settings.js.
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { clean, age, idLabel, brief } from "./words.js";
 import { isAgent, failureFor, reviewing, statusColor, underReview as reviewerAtWork } from "./states.js";
@@ -46,7 +46,7 @@ export class Panel {
   // thin rule, then either facts (a greyed-out label on the left, its value on the right, every value starting in the
   // same column and wrapped under itself) or a text. An empty line stands between two parts and nowhere else. The
   // parts: the title, where it stands (`Status`), what it needs from you (its headline in the state's colour),
-  // the description, the report, the reviews, what the agent said, and every setting. Beside the list (`fit` is
+  // the description, the plan, the report, the reviews, what the agent said, and every setting. Beside the list (`fit` is
   // the height there) the description is short and only the latest review shows; full screen everything is whole,
   // with every review, the newest first.
   panel(r, width, full = false, fit = 0) {
@@ -76,6 +76,7 @@ export class Panel {
     if (start !== desc) cut = true;
     if (desc) text("Description", wrap(start), 2);
 
+    if (attempt("Plan", () => this.panelPlan(p))) cut = true;
     if (attempt("Attempts", () => this.panelAttempts(p))) cut = true; // a task done several times at once (panel-attempts.js)
     attempt("Report", () => this.panelReport(p));
     if (attempt("Reviews", () => this.panelReviews(p))) cut = true;

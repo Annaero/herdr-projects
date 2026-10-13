@@ -31,7 +31,7 @@ export class PanelReviews {
     const finding = (f, tail = "") => wrap(`${f.subject}${f.where ? ` (${f.where})` : ""}${tail}`, room - pad).flatMap((l, n) => (pad > 2 ? [(n ? " ".repeat(pad) : t.fg(SEVERITY[f.severity] || "overlay0", String(f.severity).padEnd(pad))) + l] : [...(n ? [] : [t.fg(SEVERITY[f.severity] || "overlay0", String(f.severity))]), "  " + l]));
     const found = (e) => { const s = G.split(e); return fact("Findings", [...s.required.flatMap((f) => finding(f)), ...s.optional.flatMap((f) => finding(f, " · not required")), ...s.preexisting.flatMap((f) => finding(f, ` · pre-existing${G.wentTo(f) ? `, ${G.wentTo(f)}` : ""}`)), ...(e.left ? wrap(`${e.left} smaller finding${e.left === 1 ? "" : "s"} noticed late, left out`, room).map((l) => dim(l)) : [])]); };
     const whole = (e) => [...fact(name(e), [...result(e), ...notes(e), ...wrap(e.error || e.text || "No comment.", room)]),
-      ...(G.isTagged(e) ? (e.findings?.length || e.left ? found(e) : []) : items("Problems", e.problems)), ...items("Checked", e.checks), ...items("Unverified", e.limitations)];
+      ...(G.isTagged(e) ? (e.findings?.length || e.left ? found(e) : []) : items("Problems", e.problems)), ...items("Left the plan", e.offPlan), ...items("Checked", e.checks), ...items("Unverified", e.limitations)];
     const trail = () => fact("History", flow(hist.map((e) => verdict(t, e, false, quietReview(r, e, last))), room, " → "));
     const title = hist.length > 1 ? `Reviews · ${hist.length}` : "Review";
     const evidence = reviewArtifacts(r.review?.artifacts);
@@ -44,7 +44,7 @@ export class PanelReviews {
       const row = (k) => fact(name(last), [...result(last), ...notes(last), ...first(all, k, room)]);
       // The full screen has more whenever the summary was shortened here, the review found or checked something, or
       // there is more evidence, or more about it, than its name.
-      if (hist.length > 1 || brief(said, 280) !== said || [last.findings, last.problems, last.checks, last.limitations].some((x) => x?.length) || last.left || last.head || evidence.length > 1 || evidence.some((a) => a.detail || a.link || a.url)) cut = true;
+      if (hist.length > 1 || brief(said, 280) !== said || [last.findings, last.problems, last.checks, last.limitations, last.offPlan].some((x) => x?.length) || last.left || last.head || evidence.length > 1 || evidence.some((a) => a.detail || a.link || a.url)) cut = true;
       // Short of room the summary gives up lines, then the history goes, the evidence, the summary and the headline:
       // what is left last is the review's own row, which one and how it went.
       const shapes = [...all.map((_, n) => [head(title), ...(hist.length > 1 ? trail() : []), ...row(all.length - n), ...links]), [head(title), ...row(1), ...links], [head(title), ...row(1)], [head(title), ...fact(name(last), result(last))], fact(name(last), verdictMark(t, last, quietReview(r, last, last)) + " " + t.bold(verdict(t, last, true, quietReview(r, last, last))))];

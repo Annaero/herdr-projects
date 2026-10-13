@@ -7,6 +7,8 @@ Every task an agent takes on has a herdr space of its own. Its helpers are laid 
 - **`Reviewer #1`, `Reviewer #2`, …**: one tab per review, opened when the review starts and closed when it ends,
   whatever its result (also when you stop the task, and when a review is cut off and tried again). The number is the
   review round, the same one as the row's `R#2` tag. A reviewer is never a pane inside the agent's tab.
+- **`Planner`**: a planner of its own (`plan.agent`), while it writes the task's plan; closed after the plan's yes.
+  **`Plan review`**: the reviewer's look at a plan (`plan.approve: reviewer`). More: [a plan first](plan.md).
 
 - **`Agent A`, `Agent B`, …** and **`Picker`**: a task done several times at once has one tab per attempt, each in
   its own worktree, and a tab for the reviewer while it compares them. When one attempt is chosen the others' tabs

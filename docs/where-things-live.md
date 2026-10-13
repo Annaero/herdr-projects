@@ -34,6 +34,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `land.js` | Landing: bring the branch up to date with main in the task's own worktree, merge (through the pull request when there is one, else locally), then clean up |
 | `limits.js` | Limits: the longest one run of an agent may take (`limit.time`) and the most tokens a task may use (`limit.tokens`) |
 | `notify.js` | Telling you that a task needs you, is ready to approve, or failed: the `board.notify` setting |
+| `plan.js` | A plan first (`plan.approve`, `plan.agent`): the work starts with a plan, and nothing in the repo is changed until the plan is approved |
 | `remote.js` | Other machines |
 | `research.js` | Reports and research-only tasks: a report never goes into the repo, and a task marked research only changes nothing in it |
 | `review-page.js` | The evidence page |
@@ -55,6 +56,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `filing.js` | Adding and editing a task: add, rename, describe, pin, and a report of where it stands |
 | `finish-line.js` | The finish line's keys: approve, send the review or the failure back, finish anyway, retry |
 | `limits.js` | What you do to a task a limit stopped: carry on, or take its work as it is |
+| `plan.js` | A plan that waits for you ("plan ready"): the yes that starts the build, and the reply that sends the plan back |
 | `settings.js` | The settings' commands: set, unset and show, for you, for your entry for a repo, or for one task |
 | `shared.js` | What the actions share: the stages an agent holds a slot in, and an action's answer |
 | `start.js` | Putting an agent on a task: the request, and starting queued tasks while slots are free |
@@ -145,6 +147,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `panel-attempts.js` | The attempts in the task panel, for a task done several times at once: the reviewer's comparison with its recommendation on top, then each attempt with its agent, where it stands, its time, its tokens, the size of its… |
 | `panel-edit.js` | The settings page: every work setting of the selected task by its name, its value and the place it comes from |
 | `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, label-and-value rows, and the list of parts |
+| `panel-plan.js` | The plan in the task panel: where the plan step stands, the plan's own words, and its private link |
 | `panel-report.js` | The report in the task panel: that a task is research only, and the link to the report its agent wrote |
 | `panel-reviews.js` | The reviews in the task panel: how each went, each one under its own label, and the evidence |
 | `panel-settings.js` | The settings in the task panel: what this task runs on, in a few rows, and its agent's session |
@@ -230,6 +233,18 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `shown.js` | What a task shows of its limits: what this run and the task have used against each one, the words the row says when one is near, and the same for `details` |
 | `spent.js` | What a task has used: the tokens of every conversation it had (its agent's, each reviewer's, each new chat's), added up on the task, and how long its agent's run has taken |
 | `tick.js` | The limits' own pass, run by whoever ticks (the keeper, or an open board: keeper.js): a run that has taken its `limit.time` is stopped, a task a limit stopped carries on by itself once its limit was raised, and the… |
+
+## `src/plan/`
+
+| File | Holds |
+|---|---|
+| `build.js` | The plan step's two ends: it begins when the agent would first start, and after the yes the build starts |
+| `lock.js` | While a plan waits for its yes, the task's own worktree cannot be written to: its files, its folders and its git index are read-only |
+| `presented.js` | A program in its own plan mode presents its plan: the board takes it there, and the tool that would ask in the terminal is refused |
+| `review.js` | The reviewer's look at a plan (`plan.approve`: reviewer): the plan is checked against the task's description, and the same gate decides |
+| `sandbox.js` | While a plan waits for its yes, its writer's program runs where the task's worktree is mounted read-only: a barrier the program cannot take off |
+| `untouched.js` | Nothing in the repo is changed before the plan's yes: the board looks for itself, and puts back what changed |
+| `written.js` | The plan's turn ended: the board makes sure nothing was changed, takes the plan, and hands it to whoever approves it |
 
 ## `src/remote/`
 
@@ -359,6 +374,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [limits.md](limits.md) | Limits: how long a run may take, how many tokens a task may use |
 | [mouse.md](mouse.md) | The mouse |
 | [other-machines.md](other-machines.md) | Other machines |
+| [plan.md](plan.md) | A plan first: `plan.approve` and `plan.agent` |
 | [provider-errors.md](provider-errors.md) | A turn cut off by the provider |
 | [research.md](research.md) | Reports, and research-only tasks |
 | [roles-and-commands.md](roles-and-commands.md) | Roles and commands |
@@ -442,6 +458,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `notify.test.js` | The board.notify setting: a task that needs you, is ready to approve or failed rings the bell on an open board or runs your command, once per event; `none`, the built-in value, does neither |
 | `old-suggestions.test.js` | Suggested tasks are gone: what old tasks still carry of them is saved once and taken off, the old commands say so in a plain sentence, and a task that still carries some reads as any other |
 | `plain-words.test.js` | The board's plain words: a task is added, updated, removed, started, archived, restored |
+| `plan.test.js` | A plan first (`plan.approve`, `plan.agent`): the two settings and where they may be said, what the plan's writer is told, the task waiting as "plan ready" with nothing in the repo changed, the yes and the reply, the… |
 | `pull-requests.test.js` |  |
 | `rearm.test.js` |  |
 | `remerge.test.js` | Work that passed its review and then only took main in is not reviewed again: the tests run on the merged result and the review stands |

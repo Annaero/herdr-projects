@@ -11,6 +11,8 @@ import { settle } from "./submit.js";
 import * as R from "./research.js";
 import { AGENT_BOARD_RULE } from "./board-rule.js";
 import { automationRule } from "./automations/told.js";
+import * as P from "./plan.js";
+import { startProgram, boxed } from "./plan/sandbox.js";
 import { openPlace, reopenPlace } from "./attempts/place.js";
 
 // ---- names -----------------------------------------------------------------------------------------------------------
@@ -33,14 +35,15 @@ import { baseRef, freeBranch, excludeRuleDir, copyIncludes } from "./delegate/wo
 export const WAIT_RULE = "That command is the only way to say that you are waiting, and it holds for one stop: run it every time you stop for the human's answer, also for each question of an interview or a consultation and also when you ran it before. Their answer arrives as your next message, and then you carry on. A stop without it means you are finished, whatever your last message, your report or your closing note says: the work is then checked and reviewed as it stands. Never run it to put off the review of finished work.";
 // The board's own rules are fixed. Your own words for the worker (`worker.instructions`) come after them.
 export function rules(t) {
-  const cmd = F.shim(), research = R.isResearch(t);
+  const cmd = F.shim(), research = R.isResearch(t), planner = P.planner(t); // a planner of its own builds nothing: it has the plan's rule, and none about the work
   const w = S.work(t), check = S.commandOf(w["check.command"]), words = roleOf("worker", (n) => w[n]).instructions;
   const lines = [
-    "Do all of this task's own work yourself, in this folder. Never hand it to anyone else.",
-    research ? R.researchRule(t) : "",
-    t.worktree && research ? R.researchTree(t) : t.worktree ? `You are in your own git worktree on branch ${t.branch}; the human's checkout is elsewhere and untouched. Commit your work on this branch with clear messages. Do not push, merge into the human's branch or switch branches yourself (you may bring the base branch into your own branch to resolve a conflict). When you finish, the board runs the repo's check and opens the pull request.` : "",
-    check && !research ? `Your work only counts as done when this passes: ${check}` : "",
-    "Do not stop until the work is finished and you have checked that it works. Stopping means it is finished and goes to review. End with a short summary of what you did.",
+    planner ? P.plannerRule(t) : "Do all of this task's own work yourself, in this folder. Never hand it to anyone else.",
+    P.open(t) && !planner ? P.planRule(t) : "",
+    research && !planner ? R.researchRule(t) : "",
+    planner ? "" : t.worktree && research ? R.researchTree(t) : t.worktree ? `You are in your own git worktree on branch ${t.branch}; the human's checkout is elsewhere and untouched. Commit your work on this branch with clear messages. Do not push, merge into the human's branch or switch branches yourself (you may bring the base branch into your own branch to resolve a conflict). When you finish, the board runs the repo's check and opens the pull request.` : "",
+    check && !research && !planner ? `Your work only counts as done when this passes: ${check}` : "",
+    planner ? "" : "Do not stop until the work is finished and you have checked that it works. Stopping means it is finished and goes to review. End with a short summary of what you did.",
     `If you cannot continue without the human, run this and then stop: ${cmd} report ${t.id} --state blocked --kind <question|permission|auth> --msg "<why, in one line>"  (question: the human must type an answer; permission: you need approval to do something; auth: a login, token or credential is missing). Write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data". Do not end with a question otherwise.`,
     WAIT_RULE,
     `If you come across unrelated work that should be done (a bug elsewhere, a follow-up), do not do it and do not add it as a task: mention it in a short "Also noticed" list at the end of your closing note${research ? " and of your report" : " (and of your report, if you write one)"}, one line each with the file it is in, and carry on. Nothing else is done with it. There is no command for suggesting a task any more: where this task's description asks for "suggestions on this task", that list is what it gets.`,
@@ -57,9 +60,9 @@ export function rules(t) {
 export const turnedWords = (t) => (t.researchTurned ? `${R.isResearch(t) ? "This task is research only from now on" : "This task is no longer research only: its result is a change to the repo, as for any task"}. These rules replace the ones you were given.\n\n${rules(t)}` : "");
 // Every worker's first prompt starts with one line naming the task and the role: it is how a conversation file is
 // matched to its task for an agent kind that names its own sessions.
-export const taskLine = (t, role = "agent", round = 0) => `Work board task ${(role === "agent" && t.as) || t.id}, role: ${role}${round ? `, round ${round}` : ""}.`;
+export const taskLine = (t, role = P.planner(t) ? "planner" : "agent", round = 0) => `Work board task ${(role === "agent" && t.as) || t.id}, role: ${role}${round ? `, round ${round}` : ""}.`;
 // With a launch flag for standing rules the rules stay in force for the whole session and are not repeated here.
-export const firstPrompt = (t, standing = !!adapter(t.agent).standing) => [taskLine(t), t.title, t.description, standing ? "" : rules(t)].filter(Boolean).join("\n\n");
+export const firstPrompt = (t, standing = !!adapter(t.agent).standing) => [taskLine(t), t.title, t.description, P.open(t) ? P.FIRST : P.handed(t), standing ? "" : rules(t)].filter(Boolean).join("\n\n");
 
 // The launch arguments that are the plugin's own: the turn-end hook (with a new secret token) and the standing rules.
 // Returns { extra, hooked, session }. Nothing is written to the user's own agent settings.
@@ -68,7 +71,7 @@ export function launchExtras(t, role, { kind, round = 0, standing = "", resume =
   const token = randomBytes(18).toString("hex");
   S.setToken(t.id, role, token, round);
   let hook = null;
-  if (hookUsable(kind)) { try { hook = a.hookArgs({ shim: F.shim(), id: t.id, role, round, token, dir: S.dirOf(t.id) }); } catch { hook = null; } }
+  if (hookUsable(kind)) { try { hook = a.hookArgs({ shim: F.shim(), id: t.id, role, round, token, dir: S.dirOf(t.id), plan: role === "agent" && !!P.planArgs(t, kind) }); } catch { hook = null; } }
   const session = !resume && a.newSession ? a.newSession() : null;
   return { hook: hook || [], rules: standing && a.standing ? a.standing(standing, S.dirOf(t.id)) : [], hooked: !!hook, session, version: versionOf(kind) };
 }
@@ -81,18 +84,18 @@ export function startAgent(id, g, { prompt, resume = null }) {
   const kind = t.agent;
   // The worker's settings, read now, as it starts. Its program is the one the task was delegated with: a model set
   // for another program is not handed to it.
-  const now = S.work(t), who = roleOf("worker", (n) => now[n]);
-  // One that took over from another (finish/hand-over.js) runs on the model its entry on the list names.
-  const took = S.agentOf(t.on), model = took.kind === kind ? took.model : who.kind === kind ? who.model : "", level = effortFor(kind, who.effort);
+  const now = S.work(t), worker = roleOf("worker", (n) => now[n]), who = P.planner(t) ? { ...worker, ...t.plan.writer, effort: "", fast: undefined } : worker;
+  // One that took over from another (finish/hand-over.js) runs on the model its entry on the list names; a planner of its own (plan.js) on its own program and model.
+  const took = S.agentOf(P.planner(t) ? "" : t.on), model = took.kind === kind ? took.model : who.kind === kind ? who.model : "", level = effortFor(kind, who.effort);
   preTrust(kind, t.root || S.folderOf(t.id), who.access);
   const taken = api.agents().filter((a) => a.pane_id !== t.link.pane).map((a) => a.name).filter(Boolean);
   const name = agentName(t, taken);
-  F.nameAgentTab(api, t.link.tab, t);
+  if (P.planner(t)) F.nameTab(api, t.link.tab, F.PLANNER_TAB); else F.nameAgentTab(api, t.link.tab, t);
   const x = launchExtras(t, "agent", { kind, standing: rules(t), resume });
-  const args = (hooked) => startArgs(kind, { model, effort: level, fast: who.fast, access: who.access, resume, session: x.session, extra: [...(hooked ? x.hook : []), ...x.rules] });
+  const args = (hooked) => startArgs(kind, { model, effort: level, fast: who.fast, access: who.access, plan: P.planArgs(t, kind), resume, session: x.session, extra: [...(hooked ? x.hook : []), ...x.rules] });
   let blocked = false, hooked = x.hooked;
   const start = (withHook) => {
-    try { api.agentStart(name, kind, t.link.pane, args(withHook)); }
+    try { startProgram(api, t, name, kind, t.link.pane, args(withHook)); } // in a read-only mount while its plan waits (plan/sandbox.js)
     catch (e) {
       if (e.code === "agent_not_ready") { blocked = true; return; } // a dialog is in the way (folder trust, first run): the text waits in the inbox
       if (!withHook) throw e;
@@ -106,6 +109,7 @@ export function startAgent(id, g, { prompt, resume = null }) {
   t = g.set((t) => {
     t.stage = "working"; t.armedAt = Date.now(); t.expectedWake = null; t.turnOpen = true; t.turnBy = "start"; t.msg = ""; t.link = { ...t.link, agent: name }; if (!(t.workAt >= (t.since || 0))) t.workAt = Date.now(); t.startedAgentAt = Date.now(); t.exitedAt = null;
     t.hooked = hooked; t.agentVersion = x.version || ""; t.sent = null; t.unsent = null;
+    if (P.open(t)) t.plan = { ...t.plan, mode: !!P.planArgs(t, kind) || boxed(t) };
     if (t.failure?.stage === "send") t.failure = null;
     const session = resume || x.session || null;
     if (session !== (t.session || null)) { t.session = session; t.transcript = null; t.handled = { ...(t.handled || {}), msg: null, pos: 0 }; }
@@ -119,7 +123,7 @@ export function startAgent(id, g, { prompt, resume = null }) {
 // a task that waited for a slot starts on what the setting says now. Only a conversation that is reopened keeps
 // its program, which is the one that holds it.
 function agentNow(g, t) {
-  if (t.startedAgentAt && resumable(t)) return t;
+  if ((t.startedAgentAt && resumable(t)) || P.planner(t)) return t; // a planner holds the pane: it is its program
   const kind = S.agentOf(t.on || S.setting("worker.agent", t)).kind; // the one that took over stays on it
   return kind && kind !== t.agent ? g.set((t) => { t.agent = kind; t.app = kind; t.session = null; t.transcript = null; }) : t;
 }
@@ -156,6 +160,8 @@ export async function delegateJob(id) {
     const api = F.h(t);
     const root = S.folderOf(t.id);
     const label = F.spaceLabel(t);
+    // The plan has its yes: this start is the build's (plan/build.js).
+    if (P.approved(t) && !t.plan.built) return void (await (await import("./plan/build.js")).startBuild(id, g));
     const env = () => ({ HERDR_SUPERWORK_ID: t.id, HERDR_SUPERWORK_WORKTREE: S.cwdOf(t), HERDR_SUPERWORK_REPO: root });
     // 1. A place to work, unless the task still has a live pane from an earlier run.
     const livePane = t.link.pane ? api.paneGet(t.link.pane) : null;
@@ -213,6 +219,7 @@ export async function delegateJob(id) {
     // to work (the repo's own file as the commit it starts from has it), and its setup has run, so a change made
     // while it waited for a slot or while the setup ran counts (research.js).
     t = g.set((t) => R.startsAs(t));
+    if (!t.startedAgentAt && !t.plan) t = (await import("./plan/build.js")).begin(g, t, api); // the work starts with a plan, where `plan.approve` says so
     const waiting = S.takeText(id).map((m) => m.text), turned = t.startedAgentAt ? turnedWords(t) : "";
     try { startAgent(id, g, t.startedAgentAt ? againPrompt(t, [turned, ...waiting].filter(Boolean)) : { prompt: [firstPrompt(t), ...waiting].join("\n\n") }); }
     catch (e) { if (waiting.length) S.untakeText(id, waiting.length); throw e; }

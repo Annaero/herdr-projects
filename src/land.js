@@ -98,6 +98,7 @@ export async function cleanup(t, { deleteBranch = "merged", keepUnmerged = false
   const landed = () => !tip || ["HEAD", t.baseSha, t.from].some((ref) => { try { git(root, ["merge-base", "--is-ancestor", tip, ref]); return true; } catch { return false; } });
   const spent = keepUnmerged && !!t.branch && landed();
   if (t.worktree && fs.existsSync(t.worktree)) {
+    if (t.plan?.locked) (await import("./plan/lock.js")).unlock(t); // read-only while its plan waited (plan/lock.js): a worktree that cannot be written cannot be removed
     if (F.dirty(t.worktree)) return keep(`${S.tilde(t.worktree)} (uncommitted changes)`);
     if (moved()) return keep(`${S.tilde(t.worktree)} (new work arrived during clean-up)`);
     if (keepUnmerged && t.branch && !spent) return keep(`${S.tilde(t.worktree)} (unmerged work on ${t.branch})`);

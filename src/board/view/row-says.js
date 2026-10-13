@@ -54,6 +54,7 @@ export class RowSays {
     }
     // Checks that fail with nothing saved about them yet: the row still says why it is not ready.
     if (r.stage === "approval" && r.prState === "failing" && !r.mergeFailed && !r.syncBlocked) return { text: quiet("The pull request's checks fail") };
+    if (r.stage === "plan" && r.state === "blocked") return { text: plainly("Plan ready") + quiet(r.msg ? ` · ${words(r.msg)}` : "") }; // its plan waits for your yes: the row says so, then the plan's first words
     const raw = words((r.review?.stale ? reviewNote(r) : r.msg) || "");
     const msg = r.plain || ["working", "needs you", "under review", "idle"].includes(raw) ? "" : raw; // `plain`: the board's own plain word (state.js)
     // While the reviewer works the row says only what the reviewer is doing: the colour of its mark, its bar, its

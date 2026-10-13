@@ -99,7 +99,7 @@ function answer(argv, env) {
     else execFileSync(process.execPath, cmd, { input: JSON.stringify(says), env, stdio: ["pipe", "ignore", "ignore"] });
   }
 
-  // One scripted turn. Steps: { merge: "commit to merge first", files: {path: text}, commit: "message", note: "closing note", verdict: {...},
+  // One scripted turn. Steps: { merge: "commit to merge first", files: {path: text}, commit: "message", note: "closing note", plan: "the plan's text", verdict: {...},
   // status: "done" | "unknown" | "blocked" | "working", session: "id", screen: "text" }
   function play(p, prompt) {
     const script = read(path.join(dir, "script.json"), {});
@@ -133,8 +133,10 @@ function answer(argv, env) {
     (p.agent.prompts ||= []).push(prompt);
     bump(p, "working", false);
     if (step.merge) { try { git(p.cwd, ["merge", "-q", "--no-edit", String(step.merge)]); } catch {} } // conflicts are resolved by `files` and `commit`
-    for (const [rel, text] of Object.entries(step.files || {})) { fs.mkdirSync(path.dirname(path.join(p.cwd, rel)), { recursive: true }); fs.writeFileSync(path.join(p.cwd, rel), text); }
-    if (step.commit) { git(p.cwd, ["add", "-A"]); git(p.cwd, ["-c", "user.email=agent@test", "-c", "user.name=agent", "commit", "-qm", String(step.commit)]); }
+    // `refused`: the folder is read-only (a plan that waits for its yes, src/plan/lock.js), and the agent's writes fail as a real program's would.
+    const tryTo = (fn) => { try { fn(); } catch (e) { if (!step.refused) throw e; } };
+    for (const [rel, text] of Object.entries(step.files || {})) tryTo(() => { fs.mkdirSync(path.dirname(path.join(p.cwd, rel)), { recursive: true }); fs.writeFileSync(path.join(p.cwd, rel), text); });
+    if (step.commit) tryTo(() => { git(p.cwd, ["add", "-A"]); git(p.cwd, ["-c", "user.email=agent@test", "-c", "user.name=agent", "commit", "-qm", String(step.commit)]); });
     // The task's own folder on the board, where its agent is told to write: the task numbered `n` that this pane is on.
     const tasks = path.join(env.HERDR_SUPERWORK_DATA_DIR || "", "tasks");
     // Told which task it is on (its first prompt's task line): that task's folder. The chosen attempt of several is
@@ -143,6 +145,8 @@ function answer(argv, env) {
     const mine = told && fs.existsSync(path.join(tasks, ...told.split("/"), "task.json")) ? path.join(tasks, ...told.split("/")) : (() => { try { const all = fs.readdirSync(tasks).map((r) => path.join(tasks, r, String(n))).filter((d) => fs.existsSync(path.join(d, "task.json"))); return all.find((d) => fs.readFileSync(path.join(d, "task.json"), "utf8").includes(`"${p.pane_id}"`)) || all[0]; } catch { return null; } })();
     // `oldNote`: the note where an older version's rule put it, in the folder the agent works in.
     if (step.note !== undefined && step.note !== null) { const f = step.oldNote || !mine ? path.join(p.cwd, ".herdr-superwork", `closing-${n}.md`) : path.join(mine, "closing-note.md"); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, step.note); const t = new Date(Date.now() + 5); fs.utimesSync(f, t, t); }
+    // `plan`: the plan a task that starts with one is told to save, in the task's own folder (src/plan.js).
+    if (step.plan && mine) { const f = path.join(mine, "artifacts", "plan", "plan.md"); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, step.plan); }
     // The picker's answer, in the task's own compare folder; `report`: the one report it writes from all of them.
     if (step.comparison) { const out = path.join(tasks, ...String((/^Work board task (\S+),/.exec(prompt) || [])[1] || "x/0").split("/"), "compare"); fs.mkdirSync(out, { recursive: true }); fs.writeFileSync(path.join(out, "comparison.json"), typeof step.comparison === "string" ? step.comparison : JSON.stringify(step.comparison)); }
     if (step.report && told && env.HERDR_SUPERWORK_REPORTS_DIR) { const out = path.join(env.HERDR_SUPERWORK_REPORTS_DIR, ...told.split("/")); fs.mkdirSync(out, { recursive: true }); fs.writeFileSync(path.join(out, "report.md"), step.report); }
@@ -264,6 +268,19 @@ function answer(argv, env) {
       ok({ type: "pane_move", move_result: { changed: true, closed_workspace_id: emptied ? from : null, created_tab: tabOut(t), pane: paneOut(p) } });
     }
     if (verb === "close") { st.panes = st.panes.filter((x) => x !== p); dropEmptyTabs(); ok({ type: "ok" }); }
+    // A command run at the pane's shell. One that starts an agent program in a read-only mount (src/plan/sandbox.js:
+    // `env HERDR_SUPERWORK_AGENT=<name> bwrap … -- <kind> <args>`) leaves that agent in the pane, as herdr finds it
+    // there by itself; `boxed` says it runs in that mount.
+    if (verb === "run") {
+      const words = []; argv.slice(3).join(" ").replace(/'((?:[^']|'\\'')*)'|(\S+)/g, (m, quoted, bare) => { words.push(quoted !== undefined ? quoted.replace(/'\\''/g, "'") : bare); return ""; });
+      const at = words.indexOf("--"), name = (words.find((x) => x.startsWith("HERDR_SUPERWORK_AGENT=")) || "").split("=")[1] || "";
+      if (words.includes("bwrap") && at > 0 && !p.agent) {
+        st.seq += 1;
+        p.agent = { kind: words[at + 1], name, status: "idle", seq: st.seq, args: words.slice(at + 2), pid: 5000000 + st.seq, boxed: true };
+        if ((st.dialogs[p.agent.kind] || 0) > 0) { st.dialogs[p.agent.kind] -= 1; p.agent.status = "blocked"; }
+      }
+      ok({ type: "ok" });
+    }
     if (verb === "read" && p.agent?.boot > 0) { p.agent.boot -= 1; out(`user@host:${p.cwd}$ ${[p.agent.kind, ...p.agent.args].join(" ")}\n`); } // not drawn yet: only the command that started it
     if (verb === "read") out(p.agent?.screen || p.screen || "");
     if (verb === "report-metadata") { st.metadata.push({ pane: p.pane_id, args: argv.slice(3) }); if (has("--display-agent")) p.display_agent = flag("--display-agent"); if (has("--clear-display-agent")) delete p.display_agent; ok({ type: "ok" }); }

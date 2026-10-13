@@ -68,6 +68,10 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
 - \`herdr-superwork pick <id> <letter>\`: keep one of a task's several attempts (\`--attempts.by 3\` on \`delegate\`), when it waits as "pick one". Only when the human names the one.
   With \`merge.by\` set to \`itself\` (\`set merge.by itself\`, or \`--task <id>\` for one task) work that passed its review
   merges by itself; \`you\`, the default, waits for that approval. Only the human changes it.
+- A plan first: \`--plan.approve you\` on delegate makes a task start with a plan, and nothing in the repo is changed
+  before it is approved. The task then waits as "plan ready": \`approve <id>\` is the human's yes to the plan (only when
+  they plainly say so), \`tell <id> "<text>"\` sends the plan back with their words. \`--plan.approve reviewer\`: the
+  reviewer checks the plan and the build goes on. \`--plan.agent <program[/model]>\`: who writes it, when not the working agent.
 - Finished work is reviewed by a second agent. It lists findings tagged critical, major, minor or trivial; the board
   decides from them. A finding at or above \`review.mustFix\` (major by default) fails the review and goes back to
   the agent by itself; anything milder passes (\`Pass · 2 minor\`). \`review.rounds 0\`: nothing goes back by itself.

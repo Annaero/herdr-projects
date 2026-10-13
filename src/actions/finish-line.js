@@ -12,6 +12,8 @@ import { delegate } from "./start.js";
 import { tell, stop } from "./talk.js";
 import { name as keyName } from "../board/keys.js";
 import { isResearch } from "../research.js";
+import { awaitsPlan, approvePlan } from "./plan.js";
+import { readPlan } from "../plan.js";
 import { reviewFailed, reviewTally } from "../status-words.js";
 import { stoppedAtLimit, limitsDetail } from "../limits.js";
 import { carryOn, takeAsIs } from "./limits.js";
@@ -29,6 +31,7 @@ export function approve(id, seen = null, { anyway = false } = {}) {
   const moved = (t) => { if (seen && t.stage === "approval" && ((seen.pr ?? null) !== (t.pr ?? null) || (seen.head ?? null) !== (t.reviewedHead ?? null))) throw new Error(`${t.id} changed while you were asked. Nothing was merged: look at it again, then approve.`); };
   moved(cur);
   if (cur.stage === "asks" && cur.kind === "permission") return tell(cur.id, "Yes, go ahead.");
+  if (awaitsPlan(cur)) return approvePlan(cur.id); // its plan waits for the yes: the build starts
   if (cur.stage === "pick") throw new Error(`${cur.id} waits for you to pick one of its attempts, not for a merge: herdr-superwork pick ${cur.id} <letter>`);
   if (isResearch(cur)) throw new Error(`${cur.id} is research only: nothing of it is merged. To merge its change after all, turn that off (herdr-superwork set research.only false --task ${cur.id}) and delegate it again.`);
   const t = S.update(cur.id, (t) => {
@@ -164,7 +167,7 @@ export function takeApprove(socket = currentSocket(), me = "") {
 }
 export function details(id) {
   const t = S.find(id);
-  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), agent: t.on || t.agent || null, handovers: S.handovers(t).map((h) => ({ ...h, words: S.handoverLine(h) })), research: isResearch(t), report: t.report || null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null, limits: limitsDetail(t),
+  return { task: { id: t.id, title: t.title, stage: t.stage, msg: t.msg, description: t.description }, failure: failureOf(t), review: S.currentReview(t) || null, reviews: S.reviewHistory(t), agent: t.on || t.agent || null, handovers: S.handovers(t).map((h) => ({ ...h, words: S.handoverLine(h) })), research: isResearch(t), report: t.report || null, plan: t.plan ? { ...t.plan, home: undefined, text: readPlan(t) } : null, pr: t.pr || null, worktree: t.worktree || null, branch: t.branch || null, limits: limitsDetail(t),
     // Done several times at once (attempts.js): each attempt, where it stands, and what the reviewer said of them.
     ...(t.attempts?.length ? { attempts: S.attemptsOf(t).map((c) => ({ letter: c.letter, id: c.id, agent: c.settings?.["worker.agent"] || c.agent, standing: standingOf(c), stage: c.stage, stat: c.stat || "", worktree: c.worktree || null, branch: c.branch || null, diff: c.diff?.link || null, report: c.report?.link || null })), comparison: t.comparison || null, picked: t.picked || null } : {}) };
 }

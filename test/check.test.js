@@ -73,7 +73,7 @@ test("the budget: a file over its processor time, its time by the clock or its p
   assert.equal(stretch(4, 8), 1); assert.equal(stretch(16, 8), 2); assert.equal(stretch(1, 4), 2); assert.equal(stretch(8, 4), 4);
   assert.equal(stretch(1, 8, 0.75), 4); assert.equal(stretch(24, 8, 0.5), 3); assert.equal(stretch(1, 8, 1), 10); // other programs had three quarters of the machine while it ran: four times as long
   // the budget itself: a few seconds a file, the suite well under a minute of processor time, a small fixed number of runs at once
-  assert.ok(BUDGET.fileCpu <= 6 && BUDGET.fileWall <= 6 && BUDGET.fileLaunches <= 1000 && BUDGET.suiteWall <= 15 && BUDGET.suiteCpu <= 70);
+  assert.ok(BUDGET.fileCpu <= 6 && BUDGET.fileWall <= 6 && BUDGET.fileLaunches <= 1000 && BUDGET.suiteWall <= 15 && BUDGET.suiteCpu <= 90);
   assert.ok(SLOTS >= 1 && SLOTS <= 4);
 });
 

@@ -37,7 +37,7 @@ export function report(id, { state, kind, msg, title, progress, eta, asAgent = f
   if (!["idle", "working", "blocked", "done", "error"].includes(state)) throw new Error("state must be one of: idle, working, blocked, done, error");
   // "Mark it idle" on a task whose agent is working means "stop it": the same stop as the stop command.
   if (state === "idle" && F.isAgentTask(cur) && AGENT_STAGES.includes(cur.stage)) return stop(cur.id);
-  const delegated = F.isAgentTask(cur) && AGENT_STAGES.concat(["asks", "nosummary", "approval", "reviewneeds", "failed"]).includes(cur.stage);
+  const delegated = F.isAgentTask(cur) && AGENT_STAGES.concat(["asks", "nosummary", "approval", "reviewneeds", "failed", "plan"]).includes(cur.stage);
   const mark = state === "done" ? F.tidyMark(cur, "merged") : null;
   const t = S.update(cur.id, (t) => {
     S.assertUnarchived(t);

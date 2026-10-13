@@ -47,6 +47,7 @@ One page per topic, in [docs/](docs/):
 - [Several attempts, and one kept: best of three, a council](docs/attempts.md)
 - [Handing text to an agent: typed is not sent](docs/handing-over.md)
 - [A turn cut off by the provider](docs/provider-errors.md)
+- [A plan first: nothing is changed until the plan is approved](docs/plan.md)
 - [The fallback agent: another agent takes over](docs/fallback.md)
 - [The gate](docs/gate.md)
 - [Limits: how long a run may take, how many tokens a task may use](docs/limits.md)

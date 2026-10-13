@@ -140,6 +140,8 @@ export function herdr(socket = null) {
     // pane has a new id there; the space it leaves closes by itself when that was its last pane. Never focused.
     paneMove: (id, { workspace, label }) => call(["pane", "move", id, "--new-tab", "--workspace", workspace, ...(label ? ["--label", label] : []), "--no-focus"]).move_result,
     paneClose: (id) => quiet(() => call(["pane", "close", id])),
+    // Run a command in the pane, at its shell: typed and entered (a program started in a mount of its own: plan/sandbox.js).
+    paneRun: (id, command) => call(["pane", "run", id, command]),
     // End the program in the pane's foreground (an agent that will not take its text), so the pane is at its shell
     // again. True once herdr sees no agent there.
     paneQuit(id, waitMs = 6000) {
