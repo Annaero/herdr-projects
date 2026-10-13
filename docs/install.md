@@ -50,7 +50,9 @@ Optionally bind `herdr-superwork.approve-current` too: for the task that owns th
 that task with the merge question up (`y` = yes, `n` or `esc` = no), and does nothing anywhere else.
 
 **Before unlinking the plugin** run `herdr-superwork remove-extras`: herdr gives a plugin no uninstall hook, so this
-is what takes the marked blocks out of `config.toml` and removes the how-to files (below).
+is what takes the marked blocks out of `config.toml` and removes the how-to files (below). With the herdr web UI
+plugin installed it also points that web UI's shared link back at the web UI and stops the board's front door
+([the board in the herdr web UI](web-ui.md)).
 
 Everything the board keeps for you is in one folder, `~/.herdr-superwork/`: [the home folder](home-folder.md).
 Updating from a version that kept its files in `~/.local/state`, `~/.config` and `~/.local/share` needs nothing from

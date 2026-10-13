@@ -50,6 +50,7 @@ One page per topic, in [docs/](docs/):
 - [Settings](docs/settings.md)
 - [The home folder: where the board keeps its files](docs/home-folder.md)
 - [Other machines](docs/other-machines.md)
+- [The board in the herdr web UI](docs/web-ui.md)
 - [What was checked on herdr 0.9.3](docs/checked-on-herdr.md)
 - [Compared with pi-work](docs/compared-with-pi-work.md)
 

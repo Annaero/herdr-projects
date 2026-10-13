@@ -22,6 +22,7 @@ export function hookMain() {
   // The keeper does the board's periodic work with the board closed. herdr's startup and every hook event start it
   // when it is not running; an agent's own commands never do.
   try { ensureKeeper(); } catch (e) { log(e); }
+  if (process.env.HERDR_PLUGIN_EVENT === "startup") { try { import("./webui/keep.js").then((W) => W.ensureDoor()).catch(() => {}); } catch {} } // the board in the herdr web UI starts with herdr
   if (process.env.HERDR_PLUGIN_EVENT === "startup") { try { import("./extras.js").then((X) => { X.syncSkill(); X.removePopups(); }).catch(() => {}); } catch {} }
   if (!S.hasTasks()) return; // nothing of ours anywhere: do nothing, in any herdr session
   const socket = currentSocket();

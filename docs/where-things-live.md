@@ -18,7 +18,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `cli.js` | The one program |
 | `coordinator.js` | The Coordinator: the agent behind the box at the bottom of the board |
 | `delegate.js` | Delegating: a herdr worktree workspace, the repo's setup, then the agent in its root pane with the first prompt |
-| `extras.js` | The two things the plugin writes outside its own folders, both consented and removable |
+| `extras.js` | The things the plugin writes outside its own folders, each consented and removable |
 | `finish.js` | The finish line: commit, check, push, draft pull request, review, then the approval gate |
 | `flow.js` | What the pieces share: reading herdr's view of a task, and sending text to its agent |
 | `gate.js` | The gate |
@@ -115,6 +115,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `states.js` | Where a task stands, as the board sorts it: its group, its colour, whether an agent is on it, whether it waits for you |
 | `suggestions.js` | Suggested tasks: work a reviewer or an agent came across outside its own task |
 | `textbox.js` | The text box you type in |
+| `web-ui.js` | The board inside the herdr web UI, asked about once: with that plugin installed and its link shared, the board asks whether the link may go through its front door, which is what puts the Board into the web UI… |
 | `words.js` | Small words and numbers the board's parts share: a time as "12m", a pull request as "PR#16", a long text cut short |
 
 ## `src/coordinator/`
@@ -187,6 +188,38 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `pace.js` | The Watcher's pace: how often it looks, how much it gives way when the machine is busy, and which screens count as changed |
 | `prompt.js` | What the Watcher is asked and how its answer is read: one prompt for every agent in the call, one line and one percent each |
 
+## `src/webui/`
+
+| File | Holds |
+|---|---|
+| `access.js` | Who may use the board through the front door: only someone the web UI itself lets in |
+| `command.js` | `herdr-superwork web-ui`: how the board in the herdr web UI stands, and the one setup step by hand |
+| `door.js` | The front door: a small server in front of the herdr web UI |
+| `find.js` | The herdr web UI plugin (devswha.herdr-web-ui): whether it is installed in this herdr, and the address its server listens on |
+| `ink.js` | The board's own drawing code, used for a web page: a theme that marks text with the name of its colour instead of a terminal's colour codes, and the reading of such text into pieces a page can draw ({ t: text, c:… |
+| `keep.js` | The front door's life |
+| `link.js` | The one setup step: the web UI's shared link |
+| `list-model.js` | The task list for the web board: the groups and rows the terminal board shows, in its order, each row with the mark, the words, the columns and the colours the board's own row code gives it (view/row.js through a web… |
+| `panel-model.js` | The task panel for the web board |
+| `phone.js` | The one answer of the web UI that the front door corrects: how a phone can reach it (`GET /api/access`, what its Settings → Phone shows) |
+| `proxy.js` | Passing a request through to the web UI untouched: the same method, address and headers in, the same status, headers and bytes out, as they come (a stream stays a stream, a ranged or ready-compressed answer is not… |
+| `shell.js` | The one thing the front door changes in what the web UI sends: its page (the HTML shell) gets one line more, a script of ours that adds the Board to its menu |
+| `side-model.js` | What stands beside the list on the web board: who the chat talks to and their latest message, the question the board asks, its message to you, the buttons for the selected task and the entries of its More menu |
+| `web-view.js` | The board with no terminal: the same View the terminal board is (its list, its selection, its questions, its actions, its words), opened for a web page |
+| `worker.js` | The board's side of the front door, in a thread of its own: reading tasks asks herdr, and asking herdr waits |
+
+## `src/webui/page/`
+
+| File | Holds |
+|---|---|
+| `board.js` | The board over the web UI's page: its frame (the header, the list, one task, the chat), asking the board for what to show, and sending it what you do |
+| `chat.js` | The chat at the foot of the board: who it talks to (the Coordinator, or the selected task's agent), their latest message, and the box you type in |
+| `dom.js` | The page's few tools: making elements, drawing the board's coloured pieces of text, and calling the front door |
+| `list.js` | The task list as the page draws it: the groups under their headings and one row per task |
+| `panel.js` | One task, whole: its title, the buttons for what can be done to it now, and the task panel's parts (status, what it needs from you, suggested tasks, description, reviews, evidence, what the agent said, settings, session) |
+| `sheets.js` | What comes up over the board: the question it asks (approve a merge, remove a task, make a suggestion a task), the More menu with every other action, and the board's short message to you |
+| `start.js` | The script the front door adds to the herdr web UI's page |
+
 ## `bin/`
 
 | File | Holds |
@@ -230,6 +263,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [testing.md](testing.md) | Tests |
 | [titles.md](titles.md) | Titles |
 | [watcher.md](watcher.md) | The Watcher: how often it looks, and what it costs |
+| [web-ui.md](web-ui.md) | The board in the herdr web UI |
 | [where-things-live.md](where-things-live.md) | Where things live |
 
 ## The tests: `test/`
@@ -311,3 +345,6 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `turns.test.js` |  |
 | `watcher-pace.test.js` | The Watcher's pace: how often it looks, what it skips, one call at a time, and giving way on a busy machine |
 | `watcher.test.js` | The hidden helper: the watcher's line and guess |
+| `web-board.test.js` | The web board's data: the same list, panel, buttons, questions and words the terminal board has, read from the board's own code, and a button that presses the board's own key |
+| `web-door.test.js` | The front door of the herdr web UI: everything passes through as it is, the page gets one script line, and the board's own calls are only for someone the web UI lets in (a stand-in web UI answers here, in this process) |
+| `web-link.test.js` | The one setup step of the board in the herdr web UI: finding the web UI, pointing its shared link at the front door after a yes, pointing it back, and the terminal board asking once (Tailscale is a stand-in here) |

@@ -57,6 +57,9 @@ where a `closing-1.md` beside `data` and `settings` comes from. What that means 
 - The how-to file in each agent program's own skills folder (`~/.claude/skills/herdr-superwork` and the others)
   and the marked blocks in herdr's `config.toml`: they have to be where those programs read them.
   `herdr-superwork remove-extras` takes them out ([installing](install.md)).
+- With the herdr web UI plugin installed, and only after a yes: where that web UI's shared link (`tailscale serve`)
+  points, so the Board shows in it. `herdr-superwork web-ui unlink` and `remove-extras` point it back
+  ([the board in the herdr web UI](web-ui.md)).
 - The trust mark for a repo, in the agent program's own settings (`~/.claude.json`, `~/.codex/config.toml`).
 - This repo's own test runner keeps what already passed in `~/.cache/herdr-superwork-check` ([tests](testing.md)).
   That is the cache of a tool for working on this code, not something the board keeps for you: it can be deleted

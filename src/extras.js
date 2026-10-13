@@ -1,9 +1,11 @@
-// The two things the plugin writes outside its own folders, both consented and removable. They are:
+// The things the plugin writes outside its own folders, each consented and removable. They are:
 //   1. a small how-to in each installed agent program's own skills folder (setting `skill`, default on), so any chat
 //      knows the board without being told;
 //   2. on a yes at the board's first run, marked blocks in herdr's config.toml: a key to open the board and the sidebar
-//      rows that show the plugin's labels.
-// `remove-extras` takes all of it out again. The plugin never edits a file, or a block, it did not write.
+//      rows that show the plugin's labels;
+//   3. on a yes, with the herdr web UI plugin installed: where that web UI's shared link (`tailscale serve`) points,
+//      so the Board shows in it (webui/link.js does it and writes down what it changed).
+// `remove-extras` takes all of it out again. The plugin never edits a file, a block or a link it did not write.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -144,6 +146,8 @@ export function boardKey() {
 // May the board take this key? Asked as soon as one is typed at the first run, and again before it is written.
 export const checkKey = (key) => K.check(key, read(), K.defaults(), S.tilde(herdrConfig()));
 export const answer = (patch) => save({ asked: true, ...patch });
+// Written down beside the answers: what else the plugin changed outside its folders (the web UI's shared link).
+export const note = (patch) => save(patch);
 // Add one marked block. The edit is checked on a copy first, the file is backed up, and herdr is told to reload; if
 // herdr rejects the result the backup comes back and herdr reloads again. Returns { ok, msg, paste? }.
 export function addBlock(what, arg) {
@@ -199,6 +203,8 @@ export function removeBlocks(what = "[^\\n]*") {
   spawnSync(herdrBin(), ["server", "reload-config"], { encoding: "utf8", timeout: 15000 });
   return true;
 }
+// 3. The web UI's shared link goes back to the web UI, and the front door stops (webui/command.js).
+export const removeWebUi = async () => { try { return await (await import("./webui/command.js")).leave(); } catch (e) { return { ok: false, n: 0, msg: String(e?.message || e) }; } };
 // Everything the plugin wrote outside its own folders, taken out, and nothing written back at the next start. herdr
 // gives a plugin no uninstall hook, so docs/install.md says to run this before unlinking.
 export function removeExtras() {

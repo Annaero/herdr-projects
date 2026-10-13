@@ -91,6 +91,8 @@ ${pageTheme()}*{box-sizing:border-box}html{scroll-padding-top:6rem}body{margin:0
 const serveFile = () => path.join(S.dataDir(), "serve.json");
 const procStart = (pid) => { try { const s = fs.readFileSync(`/proc/${pid}/stat`, "utf8"); return s.slice(s.lastIndexOf(")") + 2).split(" ")[19]; } catch { return null; } };
 const serverAlive = (info) => !!info?.pid && S.pidAlive(info.pid) && (!info.start || procStart(info.pid) === info.start);
+// The page server that runs now ({ pid, port }), or null.
+export const serverInfo = () => { const info = S.readJson(serveFile()); return serverAlive(info) && info.port ? info : null; };
 export function ensureServer() {
   let info = S.readJson(serveFile()) || {};
   if (serverAlive(info) && info.port) return info;
@@ -153,7 +155,11 @@ export function serveMain() {
   });
   const prev = S.readJson(serveFile()) || {};
   const up = () => S.writeJson(serveFile(), { ...(S.readJson(serveFile()) || {}), pid: process.pid, start: procStart(process.pid), port: server.address().port });
-  server.once("error", () => server.listen(0, "127.0.0.1", up)); // the old port is taken: any free one
+  // The old port may still be held for a moment by the process this one takes over from; then any free one.
+  let tries = 0;
+  server.on("error", () => { if (server.listening) return; if (prev.port && tries++ < 12) setTimeout(() => server.listen(prev.port, "127.0.0.1", up), 250); else server.listen(0, "127.0.0.1", up); });
   server.listen(prev.port || 0, "127.0.0.1", up);
+  // The same process is the front door of the herdr web UI, while that plugin is installed (webui/keep.js).
+  import("./webui/keep.js").then((K) => { const door = K.runDoor(); for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { Promise.resolve(door.stop()).finally(() => process.exit(0)); }); }).catch(() => {});
   return new Promise(() => {}); // runs until the machine restarts; started again on demand
 }

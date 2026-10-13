@@ -171,6 +171,9 @@ export function herdr(socket = null) {
     // The board in a tab of its own, an ordinary pane that stays when you go elsewhere. Answers that pane.
     openBoard: () => call(["plugin", "pane", "open", "--plugin", "herdr-superwork", "--entrypoint", "board", "--placement", "tab"]).plugin_pane?.pane || null,
     tabRename: (id, label) => quiet(() => call(["tab", "rename", id, label])),
+    // The plugins herdr has installed, and the folder one keeps its own settings in ("" when herdr names none).
+    plugins: () => quiet(() => { const j = JSON.parse(run(null, ["plugin", "list", "--json"], { raw: true, timeout: 8000 })); return j.result?.plugins || j.plugins || []; }, []),
+    pluginConfigDir: (id) => quiet(() => run(null, ["plugin", "config-dir", id], { raw: true, timeout: 5000 }).trim(), ""),
     machines: () => quiet(() => { const j = JSON.parse(run(null, ["machine", "list", "--json"], { raw: true })); return Array.isArray(j) ? j : j.machines || j.result?.machines || []; }, []),
   };
 }

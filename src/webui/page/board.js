@@ -1,0 +1,122 @@
+// The board over the web UI's page: its frame (the header, the list, one task, the chat), asking the board for what
+// to show, and sending it what you do. It is kept fresh while it is open: asked every two seconds, drawn again only
+// where something changed. Nothing about a task is worked out here: every word, colour and button comes from the
+// board (src/webui/*-model.js), and a button only says which key of the board it presses.
+/* global document, window, location, history, PopStateEvent */
+import { h, icon, get, post } from "./dom.js";
+import { listEl } from "./list.js";
+import { panelEl } from "./panel.js";
+import { chatEl } from "./chat.js";
+import { askEl, menuEl, toast, trapEscape } from "./sheets.js";
+
+let root = null, timer = null, closing = null, snap = null, mark = "", busy = false;
+let menuOpen = false, finding = false, seenMsg = -1, seenGo = null, chat = null, untrap = null;
+const drawn = { list: "", panel: "", ask: "", menu: "", chips: "" };
+const part = (name) => root.querySelector(`.sw-${name}`);
+
+export const isOpen = () => !!root;
+// Beside the web UI's sidebar where it stands open on a wide screen; the whole screen on a phone.
+function fit() {
+  if (!root) return;
+  const side = document.querySelector(".sidebar-shell") || document.querySelector(".sidebar"), box = side?.getBoundingClientRect();
+  const beside = box && box.width > 0 && box.left >= 0 && box.right < window.innerWidth - 400 && window.innerWidth > 768;
+  root.style.left = beside ? `${Math.round(box.right)}px` : "0";
+}
+// Into a task's agent: the web UI's own view of its pane. Its address says where the app is, and it follows a change
+// of address as it follows Back, so the page is not loaded again.
+function goTo(go) {
+  const q = new URLSearchParams(location.search);
+  for (const k of ["machine", "file", "settings", "section", "new", "cwd", "name", "agent", "sidebar"]) q.delete(k);
+  q.set("ws", go.workspace); q.set("pane", go.pane); q.set("view", go.view);
+  history.pushState(null, "", `${location.pathname}?${q}`);
+  window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+}
+function note(text) { const n = part("note"); n.textContent = text || ""; n.hidden = !text; }
+function chips() {
+  const f = snap.flags, head = snap.list.head, out = [];
+  const chip = (text, title, fn) => h("button.sw-chip", { type: "button", title, onclick: fn }, text, h("span.sw-chip-x", { "aria-hidden": "true" }, "×"));
+  if (f.archive) out.push(chip("Archive", "Back to the board", () => press("archiveView")));
+  if (f.filter) out.push(chip(`Find: ${f.filter}`, "Clear the filter", () => call("find", { text: "" })));
+  if (head.machines) out.push(chip(`All machines: ${head.machines}`, "Change whose board you see", () => press("scope")));
+  if (head.only) out.push(chip(`Only ${head.only}`, "Change whose board you see", () => press("scope")));
+  if (f.byRepo) out.push(chip("By repo", "Group by status", () => press("byRepo")));
+  if (head.suggested) out.push(h("button.sw-chip.sw-chip-go", { type: "button", onclick: () => press("suggested") }, `${head.suggested} suggested task${head.suggested === 1 ? "" : "s"}`));
+  return out;
+}
+// Draw what changed. Each part is compared as text, so a tick that changed nothing touches nothing on the page.
+function draw() {
+  if (!root || !snap) return;
+  root.classList.toggle("has-task", !!snap.panel);
+  part("where").textContent = [snap.list.head.where, snap.list.head.session && `session ${snap.list.head.session}`].filter(Boolean).join(" · ");
+  const once = (key, value, fn) => { const text = JSON.stringify(value); if (drawn[key] !== text) { drawn[key] = text; fn(); } };
+  once("chips", [snap.flags, snap.list.head], () => part("chips").replaceChildren(...chips()));
+  once("list", snap.list, () => part("list-host").replaceChildren(listEl(snap.list, { onPick: (id) => call("pick", { id, open: true }), onMore: () => press("allDone") })));
+  once("panel", [snap.panel, snap.actions, snap.canOpen, snap.role], () => { const el = panelEl(snap, { onPress: press, onMenu: () => { menuOpen = true; draw(); }, onClose: () => call("pick", { id: snap.list.selected, open: false }) }); const host = part("task-host"), top = host.scrollTop; host.replaceChildren(...(el ? [el] : [])); host.scrollTop = top; });
+  once("ask", snap.ask, () => part("ask-host").replaceChildren(...[askEl(snap.ask, press)].filter(Boolean)));
+  once("menu", menuOpen ? [snap.menu, snap.list.selected] : null, () => part("menu-host").replaceChildren(...(menuOpen ? [menuEl(snap, { onPress: press, onClose: () => { menuOpen = false; draw(); }, onFind: () => { finding = true; draw(); part("find").focus(); } })] : [])));
+  part("find-row").hidden = !finding;
+  chat.update(snap);
+  if (snap.msg && snap.msg.n !== seenMsg) { seenMsg = snap.msg.n; toast(part("toast-host"), snap.msg, () => press("back")); }
+  if (snap.go && seenGo !== null && snap.go.n !== seenGo) { seenGo = snap.go.n; return goTo(snap.go); }
+  seenGo = snap.go ? snap.go.n : 0;
+}
+function take(out) {
+  if (!root) return false;
+  if (!out.ok) { note(out.status === 401 ? "Log in to the herdr web UI to see the board." : out.msg || "The board is not answering."); return false; }
+  note("");
+  if (out.same) return true;
+  mark = out.mark; snap = out;
+  draw();
+  return true;
+}
+async function refresh() { if (!root || busy) return; take(await get("board", { have: mark })); }
+// Something you did: sent, and drawn from the answer at once.
+async function call(what, body) {
+  busy = true;
+  const out = await post(what, body);
+  busy = false;
+  if (!out.ok && out.status && out.status !== 401) { toast(part("toast-host"), { text: out.msg || "That did not work.", kind: "red" }, () => {}); return out; }
+  take(out);
+  return out;
+}
+// A key that brings words back (a draft that was put away, words taken back to change) puts them in the text box.
+const press = async (id) => { const out = await call("press", { id }); if (out.draft) chat.fill(out.draft); return out; };
+
+export function openBoard({ onClose }) {
+  if (root) return;
+  closing = onClose; snap = null; mark = ""; seenGo = null; seenMsg = -1; menuOpen = false; finding = false;
+  for (const k of Object.keys(drawn)) drawn[k] = "";
+  chat = chatEl({ onSend: async (text, delegate) => { const out = await call("send", { text, delegate }); return !out.ok || !!out.kept; }, onPress: press });
+  let wait = null;
+  const find = h("input.sw-find", { type: "search", placeholder: "Type to filter, archived tasks too", "aria-label": "Find tasks", oninput: (e) => { clearTimeout(wait); const text = e.target.value; wait = setTimeout(() => call("find", { text }), 200); } });
+  root = h("section.sw-board", { role: "region", "aria-label": "Work board" },
+    h("header.sw-head",
+      h("button.icon-button.sw-back", { type: "button", "aria-label": "Close the board", title: "Close the board", onclick: () => closing?.() }, icon("back")),
+      h("h2.sw-name", "Board"), h("span.sw-where"),
+      h("span.sw-head-space"),
+      h("button.icon-button", { type: "button", "aria-label": "Find tasks", title: "Find tasks", onclick: () => { finding = !finding; draw(); if (finding) find.focus(); else if (snap?.flags.filter) { find.value = ""; call("find", { text: "" }); } } }, icon("find")),
+      h("button.icon-button", { type: "button", "aria-label": "More", title: "More", "aria-haspopup": "dialog", onclick: () => { menuOpen = true; draw(); } }, icon("more"))),
+    h("div.sw-find-row", { hidden: true }, find),
+    h("div.sw-chips"),
+    h("p.sw-note", { hidden: true, role: "status" }),
+    h("div.sw-body", h("div.sw-list-host"), h("div.sw-task-host")),
+    h("div.sw-toast-host", { "aria-live": "polite" }),
+    chat.el,
+    h("div.sw-ask-host"), h("div.sw-menu-host"));
+  document.body.append(root);
+  // On a phone the Board entry is in the web UI's drawer: the drawer closes as it does when you pick a pane there.
+  try { document.querySelector(".scrim.is-open")?.click(); } catch {}
+  // Escape goes one step back, as it does on the terminal board: the menu, the open task, then the board itself.
+  untrap = trapEscape(() => { if (snap?.ask) return press("back"); if (menuOpen) { menuOpen = false; return draw(); } if (snap?.panel) return call("pick", { id: snap.list.selected, open: false }); closing?.(); });
+  fit();
+  window.addEventListener("resize", fit);
+  refresh();
+  timer = setInterval(() => { fit(); if (!document.hidden) refresh(); }, 2000);
+}
+export function closeBoard() {
+  if (!root) return;
+  clearInterval(timer); timer = null;
+  untrap?.(); untrap = null;
+  window.removeEventListener("resize", fit);
+  root.remove(); root = null;
+}

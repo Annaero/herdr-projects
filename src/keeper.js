@@ -113,6 +113,8 @@ export async function keeperWork() {
       if (!ok) continue;
       try { tickOnce(socket, { watch: watchTick }); } catch {}
     }
+    // The board inside the herdr web UI: its front door is seen to here, every half minute (webui/keep.js).
+    if (S.due("front-door", 30000)) { try { (await import("./webui/keep.js")).ensureDoor(); } catch {} }
     if (!live) process.exit(3); // every herdr it knows is gone
     await new Promise((r) => setTimeout(r, 1000));
   }

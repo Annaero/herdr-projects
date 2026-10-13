@@ -38,6 +38,7 @@ import { PanelReviews } from "./view/panel-reviews.js";
 import { PanelReport } from "./view/panel-report.js";
 import { PanelSettings } from "./view/panel-settings.js";
 import { Suggestions } from "./view/suggestions.js";
+import { WebUi } from "./view/web-ui.js";
 
 export { asRow } from "./view/states.js";
 export { fitShown } from "./view/size.js";
@@ -113,6 +114,7 @@ export class View {
     // The Coordinator can be turned on or off (a setting, herdr starting) while the board is open.
     if (this.tick % 5 === 0) { try { this.canDispatch = C.ready(); } catch {} }
     if (this.tick % 5 === 0) this.lookHeld();
+    if (this.tick === 3) { try { this.askWebUi(); } catch {} }
     try { this.load(); } catch {}
     try { this.takeApprove(); } catch {}
     try { this.syncCoord(); } catch {}
@@ -163,6 +165,7 @@ const PARTS = [
   PanelReport,
   PanelSettings,
   Suggestions,
+  WebUi,
 ];
 for (const part of PARTS) {
   for (const [name, d] of Object.entries(Object.getOwnPropertyDescriptors(part.prototype))) if (name !== "constructor") Object.defineProperty(View.prototype, name, d);

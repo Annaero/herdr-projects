@@ -23,6 +23,8 @@
 //          is handled where the board's state decides (view/keys.js)
 //   on     (v, r) => whether the key is the board's right now; otherwise it goes to the text box
 //   draft  it is the board's key with a draft in the text box too (it changes nothing, so the draft is safe)
+//   web    what its button is called on the web board (src/webui/), where a key is a button: the board's words name
+//          it so there ("“Undo” brings it back")
 //
 // The order is the order everywhere: docs/keys.md and the ? menu.
 import { matchesKey } from "@earendil-works/pi-tui";
@@ -36,53 +38,53 @@ export const KEYS = [
     run: (v) => v.move(-1) },
   { id: "down", keys: ["down"], show: "↓", with: "up",
     run: (v) => v.move(1) },
-  { id: "enter", keys: ["enter", "return"], group: "plain", help: "send what is typed; with nothing typed, open this task's agent", hint: "open this task's agent",
+  { id: "enter", web: "Open agent", keys: ["enter", "return"], group: "plain", help: "send what is typed; with nothing typed, open this task's agent", hint: "open this task's agent",
     doc: "send what you typed; with nothing typed, open the task's agent: its real herdr pane. The board keeps running in its own tab and is there as you left it; your key goes back to it" },
   { id: "newline", keys: ["shift+enter"], fixed: true, hint: "new line",
     doc: "a new line in what you are typing. Like the cursor keys and backspace, it is the text box's own editing key, not a key of the board" },
-  { id: "talk", keys: [], raw: [" "], show: "space", group: "plain", help: "flip who you talk to: the Coordinator, or this task's agent", hint: "talk to this task's agent",
+  { id: "talk", web: "Talk", keys: [], raw: [" "], show: "space", group: "plain", help: "flip who you talk to: the Coordinator, or this task's agent", hint: "talk to this task's agent",
     doc: "flip who you talk to: the selected task's agent, and back to the Coordinator. The chat says who. Nothing else changes it: while it is a task's agent, moving with {up} {down} makes it the agent of the task you moved to. On a task with no agent, your message puts one on it",
     run: (v, r) => v.flipReply(r) },
-  { id: "delegate", keys: ["tab"], group: "plain", help: "put an agent on this task", hint: "put an agent on this task",
+  { id: "delegate", web: "Put an agent on it", keys: ["tab"], group: "plain", help: "put an agent on this task", hint: "put an agent on this task",
     doc: "put an agent on the task. With text typed for the Coordinator: send it, and every task it adds from that message gets an agent at once, with nothing more to confirm (a message that adds no task delegates nothing)" },
-  { id: "back", keys: ["escape"], show: "esc", group: "plain", help: "back, one step at a time", hint: "back",
+  { id: "back", web: "Back", keys: ["escape"], show: "esc", group: "plain", help: "back, one step at a time", hint: "back",
     doc: "back, one step at a time, and nothing else: find is left, a draft is put away, then the whole task, the filter and the archive close. With none of those left it shows the same hint as {close}. It never shows or hides the chat, never changes who you talk to, and never closes the board by itself" },
-  { id: "menu", keys: [], raw: ["?"], show: "?", group: "plain", help: "this menu", hint: "all keys",
+  { id: "menu", web: "More", keys: [], raw: ["?"], show: "?", group: "plain", help: "this menu", hint: "all keys",
     doc: "the menu: every key in these three groups, each line with its key. A ctrl or alt line can be picked with {up} {down} and {enter}, which does what its key does. Under the keys, what a row's `R#2` review tag and its colour say; where the window is too short for all of it, {down} on the last line scrolls on down, and {up} on the first scrolls up",
     run: (v) => { v.menu = { at: 0 }; } },
-  { id: "sayYes", keys: ["y", "shift+y"], raw: ["y", "Y"], show: "y", gap: "  ", group: "plain", help: "answer a question: {sayYes} yes, {sayNo} or {back} no ({enter} never confirms)",
+  { id: "sayYes", web: "Yes", keys: ["y", "shift+y"], raw: ["y", "Y"], show: "y", gap: "  ", group: "plain", help: "answer a question: {sayYes} yes, {sayNo} or {back} no ({enter} never confirms)",
     doc: "answer a question the board asks: {sayYes} yes, {sayNo} or {back} no. Only while a question is up; {enter} never confirms" },
-  { id: "sayNo", keys: ["n", "shift+n"], raw: ["n", "N"], show: "n", with: "sayYes" },
+  { id: "sayNo", web: "No", keys: ["n", "shift+n"], raw: ["n", "N"], show: "n", with: "sayYes" },
 
-  { id: "yes", keys: ["ctrl+l"], group: "ctrl", hint: "retry the failed step",
+  { id: "yes", web: "Yes", keys: ["ctrl+l"], group: "ctrl", hint: "retry the failed step",
     doc: "yes, to whatever the task waits for: approve the merge (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary as it is",
     menu: () => "yes: approve the merge, say yes, retry, take it as it is",
     run: (v, r) => (r ? v.yes(r) : undefined) },
-  { id: "sendBack", keys: ["ctrl+r"], group: "ctrl", hint: "tell this task's agent to fix it",
+  { id: "sendBack", web: "Send back", keys: ["ctrl+r"], group: "ctrl", hint: "tell this task's agent to fix it",
     doc: "send it back: whatever went wrong (a failed check, a conflict, an error, a review with findings) goes to the task's agent to fix; a stopped agent is told to continue",
     menu: () => "send it back: tell the agent to fix it, or to continue",
     run: (v, r) => (r ? v.sendBack(r) : undefined) },
-  { id: "stop", keys: ["ctrl+x"], group: "ctrl", hint: "stop this task's agent",
+  { id: "stop", web: "Stop", keys: ["ctrl+x"], group: "ctrl", hint: "stop this task's agent",
     doc: "stop the agent, when one is running (working, starting, checking, under review, or waiting for your answer); the selection stays on that row. On a task with no agent running (idle, never started, stopped, finished, archived) it asks to remove the task instead: {sayYes} removes it, its worktree too. A task you marked as your own work in progress has no agent to stop: there the key puts it back in to do. A stop never goes on to that question by itself: removing takes a second {stop}, and a {sayYes}",
     menu: (v, r) => (!r ? "stop the agent, or remove the task" : r.stage === "progress" ? "put this task back in to do" : v.running(r) ? "stop this task's agent" : "remove this task"),
     run: (v, r) => (r ? v.stop(r) : undefined) },
-  { id: "archive", keys: ["ctrl+a"], group: "ctrl", hint: "restore this task",
+  { id: "archive", web: "Archive", keys: ["ctrl+a"], group: "ctrl", hint: "restore this task",
     doc: "archive the selected task, or restore it from the archive",
     menu: (v, r) => (r?.archivedAt ? "restore this task" : "archive this task"),
     run: (v, r) => (r ? v.archiveSelected(r) : v.flash("Select a task to archive or restore.")) },
-  { id: "pin", keys: ["ctrl+p"], group: "ctrl",
+  { id: "pin", web: "Pin", keys: ["ctrl+p"], group: "ctrl",
     doc: "pin the selected task to the top, or unpin it",
     menu: (v, r) => (r?.pinned ? "unpin this task" : "pin this task to the top"),
     run: (v, r) => (r ? v.pinTask(r) : undefined) },
-  { id: "suggested", keys: ["ctrl+n"], group: "ctrl", hint: "see this task's suggestion",
+  { id: "suggested", web: "Suggested tasks", keys: ["ctrl+n"], group: "ctrl", hint: "see this task's suggestion",
     doc: "suggested tasks: asks about the selected task's first open suggestion, or goes to the first task that has one. In that question {sayYes} makes it a task, {sayNo} dismisses it and {back} leaves it for later ([suggestions.md](suggestions.md))",
     menu: (v) => (v.suggestionCount() ? `suggested tasks (${v.suggestionCount()}): make one a task, or dismiss it` : "suggested tasks: none wait"),
     run: (v) => v.suggestKey() },
-  { id: "undo", keys: ["ctrl+z"], group: "ctrl",
+  { id: "undo", web: "Undo", keys: ["ctrl+z"], group: "ctrl",
     doc: "undo: bring back a draft that was put away, or take the last archiving back",
     menu: (v) => (v.draftAway ? "undo: bring back what you typed" : v.archiveUndo ? "undo the archive" : "undo"),
     run: (v) => v.undo() },
-  { id: "find", keys: ["ctrl+f"], group: "ctrl",
+  { id: "find", web: "Find", keys: ["ctrl+f"], group: "ctrl",
     doc: "find: type, and the list shows only the tasks that match, archived ones too. {enter} keeps the filter, {back} leaves find; {back} on the list clears a filter that is kept",
     menu: () => "find: show only the tasks that match",
     run: (v) => { v.mode = "find"; v.full = false; v.setValue(v.filter); } },
@@ -106,23 +108,23 @@ export const KEYS = [
     doc: "the side panel: the selected task, beside the list",
     menu: (v) => `${v.side ? "hide" : "show"} the side panel: this task, beside the list`,
     run: (v) => (v.full ? undefined : v.toggleSide()) },
-  { id: "panel", keys: ["alt+t"], group: "alt",
+  { id: "panel", web: "Open the task", keys: ["alt+t"], group: "alt",
     doc: "the whole task, full screen, and back to the list",
     menu: (v) => (v.full ? "back to the list" : "show the whole task, full screen"),
     run: (v) => (v.full ? v.foldPanel() : v.openPanel()) },
-  { id: "archiveView", keys: ["alt+a"], group: "alt",
+  { id: "archiveView", web: "Show the archive", keys: ["alt+a"], group: "alt",
     doc: "the archive, and back to the board",
     menu: (v) => `${v.archiveView ? "hide" : "show"} the archive`,
     run: (v) => v.toggleArchive() },
-  { id: "byRepo", keys: ["alt+s"], group: "alt",
+  { id: "byRepo", web: "Group by repo", keys: ["alt+s"], group: "alt",
     doc: "the list grouped by repo, or by status",
     menu: (v) => (v.byRepo ? "group by status" : "group by repo"),
     run: (v) => v.toggleByRepo() },
-  { id: "allDone", keys: ["alt+d"], group: "alt",
+  { id: "allDone", web: "Show all done", keys: ["alt+d"], group: "alt",
     doc: "every done task, or only the latest",
     menu: (v) => (v.allDone ? "show only the latest done" : "show all done"),
     run: (v) => v.toggleAllDone() },
-  { id: "scope", keys: ["alt+m"], group: "alt",
+  { id: "scope", web: "Other machines", keys: ["alt+m"], group: "alt",
     doc: "other machines: this machine only, every machine, then each machine by itself",
     menu: (v) => `other machines (now: ${v.scope === "" ? "this machine only" : v.scope === "*" ? "every machine" : `only ${v.scope}`})`,
     run: (v) => v.nextScope() },
@@ -135,7 +137,11 @@ const entry = (id) => { const k = KEY[id]; if (!k) throw new Error(`No key is ca
 // Is this what was typed the key called `id`?
 export const is = (data, id) => { const k = entry(id); return !!k.raw?.includes(data) || k.keys.some((c) => matchesKey(data, c)); };
 // The key called `id` as the board writes it: "ctrl+a". `pair`: with the keys described in the same row ("↑ ↓").
-const own = (k) => k.show || k.keys[0];
+// The web board (one thread of the front door, never the terminal's process) has buttons, not keys: there a key is
+// named as its button is.
+let buttons = false;
+export const nameAsButtons = () => { buttons = true; };
+const own = (k) => (buttons && k.web ? `“${k.web}”` : k.show || k.keys[0]);
 export const name = (id, pair = false) => { const k = entry(id); return pair ? [k, ...KEYS.filter((x) => x.with === id)].map(own).join(k.gap || " ") : own(k); };
 // The key that was typed, among those `pick` lets through.
 export const typed = (data, pick = () => true) => KEYS.find((k) => pick(k) && is(data, k.id));
