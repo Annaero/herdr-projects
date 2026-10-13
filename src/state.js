@@ -4,6 +4,7 @@
 // no `error` state and no blocked `kind` today. When it exposes them (OSC 7501), this is the only place to change.
 import { RUNNER_STAGES, waitingOf, waitLine } from "./store.js";
 import { checkShown } from "./check-progress.js";
+import { quietLine } from "./status-kept.js";
 
 export const STATES = ["idle", "working", "blocked", "done", "error"];
 const STAGE_LINE = { starting: "starting", queued: "waiting for a free slot", setup: "setting up", checking: "running the check", pushing: "pushing the branch", reviewing: "under review", merging: "merging" };
@@ -38,7 +39,8 @@ export function show(t, live, now = Date.now()) {
     case "queued": case "starting": return out("working", { msg: t.msg || STAGE_LINE[t.stage] });
   }
   // Under review the Watcher follows the reviewer: its line, its own progress and the minutes left worked out from it, started afresh for every round.
-  if (t.stage === "reviewing") return out("working", { msg: watch?.msg || t.msg || STAGE_LINE.reviewing, progress: watch?.progress ?? 0, eta, reviewing: true });
+  // No line of this round's yet: "Review just started", never the bare stage (status-kept.js).
+  if (t.stage === "reviewing") return out("working", { msg: watch?.msg || (t.msg && t.msg !== STAGE_LINE.reviewing ? t.msg : quietLine(t, "reviewer", t.reviewAt, now)), progress: watch?.progress ?? 0, eta, reviewing: true });
   // The board's own check: the count its command reports and the minutes left, never the Watcher's guess (check-progress.js).
   if (t.stage === "checking" && t.check) return out("working", { ...checkShown(t.check, now), reviewing: false });
   if (RUNNER_STAGES.includes(t.stage)) return out("working", { msg: t.msg || STAGE_LINE[t.stage], progress: t.watch?.progress, eta, reviewing: false });
@@ -49,7 +51,8 @@ export function show(t, live, now = Date.now()) {
   if (live.gone) return out("error", { msg: "the agent's terminal is gone" });
   if (live.status == null) return out("error", { msg: "the agent has exited", exited: true });
   if (live.status === "blocked") return out("blocked", { kind: t.pendingText ? "permission" : undefined, msg: t.pendingText ? "queued: open the agent and answer its dialog first" : "needs you" });
-  if (live.status === "working") return out("working", { msg: watch?.msg || t.msg || "working", progress: watch?.progress ?? 0, eta });
+  // Working, and the Watcher has not looked since this run began: its last sentence with its age, or "Just started".
+  if (live.status === "working") return out("working", { msg: watch?.msg || t.msg || quietLine(t, "agent", began(t), now), progress: watch?.progress ?? 0, eta });
   if (live.status === "unknown") return out("working", { msg: "herdr can't tell if it stopped" });
   // Idle or done. Text typed in a while ago that it has still not started on (submit.js): say that, not work that is not going on.
   if (t.sent?.tries) return out("working", { msg: "has not started yet: pressing enter again" });

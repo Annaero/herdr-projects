@@ -69,6 +69,12 @@ function tell(t, watch, role, now) {
   herdr(t.link.socket).metadata(pane, ["--token", `summary=${watch.msg}`, "--token", `progress=${watch.progress}%`, ...(eta === undefined ? [] : ["--token", `eta=${eta}m`]), "--ttl-ms", String(P.TOLD_TTL_MS)]);
   if (t.link.workspace && t.link.ownsWorkspace) { try { herdr(t.link.socket).call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", "--token", `summary=${watch.msg}`, "--ttl-ms", String(P.TOLD_TTL_MS)]); } catch {} }
 }
+function tellLine(t, line, role) {
+  const pane = paneOf(t, role);
+  if (!pane) return;
+  herdr(t.link.socket).metadata(pane, ["--token", `summary=${line}`, "--clear-token", "progress", "--clear-token", "eta", "--ttl-ms", String(P.TOLD_TTL_MS)]);
+  if (t.link.workspace && t.link.ownsWorkspace) { try { herdr(t.link.socket).call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", "--token", `summary=${line}`, "--ttl-ms", String(P.TOLD_TTL_MS)]); } catch {} }
+}
 export function watchTick(tasks, now = Date.now(), { load = P.loadNow(), run = runHelper } = {}) {
   // The keeper hands over the same tasks once per herdr session, each time as that session sees them.
   const view = tasks.find((t) => t.live && !t.live.away)?.link?.socket || "";
@@ -88,6 +94,8 @@ export function watchTick(tasks, now = Date.now(), { load = P.loadNow(), run = r
     busy.push({ id: t.id, at: w.at, t, role, w });
     // Between looks herdr's sidebar still gets the minutes left, worked out again from the last guess.
     if (t.watch?.role === role && t.watch.msg && now - w.toldAt >= P.TOLD_MS) { w.toldAt = now; try { tell(t, t.watch, role, now); } catch {} }
+    // Before the first look of a run it gets the line the board shows (status-kept.js), and no percent.
+    else if (!(t.watch?.role === role && t.watch.msg) && t.note && now - w.toldAt >= P.TOLD_MS) { w.toldAt = now; try { tellLine(t, t.note, role); } catch {} }
   }
   if (pace.running || !busy.length) return;
   const slow = P.slowdown(load) * P.afterFailures(pace.fails);

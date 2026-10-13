@@ -39,8 +39,8 @@ test("narrow screen: a live task's name and what it says wrap to two lines each,
   assert.match(lines[0], /^ ◐ word1 word2 .*\d$/); assert.match(lines[1], /^ {3}word\d+ .*…$/); assert.match(lines[2], /^ {3}say1 say2 .*\d$/); assert.match(lines[3], /^ {3}say\d+ .*…$/);
   // What fits one line takes one line: a short row is the three lines it was.
   assert.deepEqual(rows({ ...busy, title: "Short", msg: "Busy." }, 49).slice(0, 2), [" ◐ Short", "   Busy."]);
-  // With nothing to say yet, its line is still there.
-  assert.deepEqual(rows({ ...busy, msg: "" }, 49).slice(2, 3), ["   …"]);
+  // With nothing to say, its line is still there, and empty: never a bare "…".
+  assert.deepEqual(rows({ ...busy, msg: "" }, 49).slice(2, 3).map((l) => l.trim()), [""]); assert.equal(rows({ ...busy, msg: "" }, 49).length, rows({ ...busy, msg: "Busy." }, 49).length);
   // Every width: nothing runs off the edge, every line after the first starts under the name.
   for (const width of [20, 30, 38, 49, 60, 79]) for (const l of rows(wordy, width)) { assert.ok(l.length <= width, `at ${width}: ${l}`); assert.match(l, /^ ◐ | {3}\S/, `at ${width}: ${l}`); }
 });

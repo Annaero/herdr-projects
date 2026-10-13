@@ -46,6 +46,10 @@ export function update(id, fn, opts) {
     const t = get(id);
     if (!t) throw new Error(`No task ${id}`);
     const before = t.stage;
+    // The Watcher's sentence about the agent's work outlives the guess it came with: whatever this change does to
+    // `watch` (every new run drops it), the sentence is kept with its time (status-kept.js). Kept here, where every
+    // change passes, so a task saved by an older version keeps its sentence too.
+    if (t.watch?.role === "agent" && t.watch.msg) t.lastLine = { msg: t.watch.msg, at: t.watch.at };
     const patch = typeof fn === "function" ? fn(t) : fn;
     if (patch === false) return t; // nothing to write
     if (patch && typeof patch === "object") Object.assign(t, patch);

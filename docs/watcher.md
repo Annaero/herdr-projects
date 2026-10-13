@@ -37,6 +37,19 @@ The Watcher guesses only a percent. The board works out the minutes left from th
 time it draws, so they keep counting between looks and do not jump. herdr's own sidebar is told the line, the
 percent and the minutes worked out afresh once a minute, look or no look.
 
+## Before the first look
+
+Every new run of an agent (started, told to go on, sent back after a review, a conflict or a retry) starts with no
+guess, and the first look takes about a minute. The task's line is never a bare "…" meanwhile:
+
+- **It had a sentence before:** that sentence stays, with how old it is before it (`12m ago: Running the check`),
+  so it is not read as a new one. The percent starts again at 0.
+- **Its first run:** `Just started`, and `Review just started` for a reviewer, who is a new agent every round.
+  After three minutes with still no sentence (the Watcher's calls fail) it says `No status yet`.
+- **With the Watcher off** no sentence comes, and the line stays empty.
+
+The list, the task panel, the whole-task page and herdr's own sidebar all say the same words.
+
 ## A lighter start
 
 With Claude as the Watcher (the default) the program is started with nothing of yours loaded: no MCP servers, no

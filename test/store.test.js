@@ -112,7 +112,7 @@ test("minutes left come from the percent and the time spent, and move as time pa
   // The stage decides whose clock runs. A reviewer's guess kept on a task whose agent works again (a stopped review,
   // delegated again) is not shown as the agent's: no 80% and 10m beside an assignment that is a second old.
   const again = show({ ...task, since: t0 + 100 * min, workAt: 0, reviewAt: t0 + 60 * min, watch: { msg: "reading the diff", progress: 80, role: "reviewer" } }, { status: "working" }, t0 + 100 * min + 1000);
-  assert.deepEqual([again.progress, again.eta, again.msg], [0, undefined, "working"]);
+  assert.deepEqual([again.progress, again.eta, again.msg], [0, undefined, "Just started"]);
   assert.equal(began({ ...task, watch: { progress: 80, role: "reviewer" } }), t0); // stage working: the agent's start, whatever the old guess says
   assert.equal(at({ ...task, stage: "reviewing", watch: { progress: 50, role: "agent" } }, 66), undefined);
   assert.equal(at({ ...task, stage: "merging", watch: { progress: 50, role: "reviewer" } }, 66), undefined); // no one is watched in a runner stage

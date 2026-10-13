@@ -167,11 +167,11 @@ export class Row {
   }
   // A live task's second line: what it says, under its name, with the row's whole width. It starts where the task's
   // name starts: right of the mark and, in the all-machines view, right of the machine's name. Too long, it is cut at
-  // its end, never wrapped (on a narrow screen it is: row-wrap.js). The line is there from the start, so a row does not grow when its words arrive: until then a
-  // working task has a quiet "…" on it, and a task that waits with nothing to say an empty line.
+  // its end, never wrapped (on a narrow screen it is: row-wrap.js). The line is there from the start, so a row does not grow when its words arrive: a working
+  // task always has words (status-kept.js), and a task that waits with nothing to say an empty line. Never a bare "…".
   statusLine(r, width, layout = this.rowLayout([r], width)) {
-    const t = this.theme, lead = this.rowLead(r, width, layout);
-    return truncateToWidth(lead + (this.sentence(r).text || (r.state === "working" ? t.muted("…") : "")), width, "…");
+    const lead = this.rowLead(r, width, layout);
+    return truncateToWidth(lead + this.sentence(r).text, width, "…");
   }
   // Where a live task's lines under its first start: under its name.
   rowLead(r, width, layout) { const { prefix, labelRoom } = this.rowRoom(r, width, layout); return " ".repeat(visibleWidth(prefix) + visibleWidth(this.rowNameParts(r, labelRoom).host)); }

@@ -189,7 +189,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   const under = { ...working, stage: "reviewing", reviewRound: 3, msg: "Running the tests." };
   assert.match(row(under, 120), /^ ◐ Other +█+░+ +50% {2}R#3 +0s\n {3}Running the tests\.$/); // no word "review", whichever review it is: the colour says it
   assert.match(row({ ...under, reviewRound: 1 }, 120), /^ ◐ Other [^\n]*\n {3}Running the tests\.$/);
-  assert.match(row({ ...under, reviewRound: 1, msg: "under review" }, 120), /^ ◐ Other +█[^\n]*\n {3}…$/); // only the heading's own word to say: the quiet placeholder
+  assert.match(row({ ...under, reviewRound: 1, msg: "under review" }, 120), /^ ◐ Other +█[^\n]*\n {3}$/); // only the heading's own word to say: an empty line, never a bare "…"
   assert.match(row(under, 30), /^ ◐ Other +50% {2}R#3 +0s\n {3}Running the tests\.$/);
   assert.match(row({ ...under, stage: "reviewneeds", state: "blocked", progress: undefined, msg: "the reviewer shows a dialog" }, 120), /^ × Other +R#3 {2}0s ago\n {3}the reviewer shows a dialog$/);
   assert.doesNotMatch(row({ ...working, reviewRound: 3 }, 120), /review/); // back with the agent: no review is running

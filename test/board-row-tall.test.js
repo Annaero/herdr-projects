@@ -24,7 +24,7 @@ const plain = (lines) => lines.map((l) => stripVTControlCharacters(l));
 const agent = { ...work, id: "p/1", title: "Agent at work", msg: "Reading the panel and its tests.", progress: 40, eta: 12 };
 const review = { ...work, id: "p/2", title: "Under review with a name that is long enough to be cut", stage: "reviewing", reviewRound: 1, msg: "Running the tests", progress: 70, eta: 3, pr: 17 };
 const waits = { ...ready, id: "p/3", title: "Good work", review: pass, reviewRound: 1, pr: 18 };
-const fresh = { ...work, id: "p/4", title: "Just started" };
+const fresh = { ...work, id: "p/4", title: "Brand new", msg: "Just started" };
 const LIVE = [agent, review, waits, fresh];
 
 test("narrow screen: a live row's third line has the bar, the percent, the minutes left, the review tag, the pull request and the time, and fills the width", () => {
@@ -36,10 +36,10 @@ test("narrow screen: a live row's third line has the bar, the percent, the minut
     const long = width < 3 + review.title.length ? 1 : 0;
     rows.forEach((lines, n) => { assert.equal(lines.length, n === 1 ? 3 + long : 3, note); assert.ok(lines.every((l) => l.length <= width), note); assert.equal(lines.at(-1).length, width, note); });
     // Line 1 is the mark and the name with the whole width: nothing beside it.
-    assert.equal(rows[0][0].trimEnd(), " ◐ Agent at work"); assert.equal(rows[2][0].trimEnd(), " ✓ Good work"); assert.equal(rows[3][0].trimEnd(), " ◐ Just started");
+    assert.equal(rows[0][0].trimEnd(), " ◐ Agent at work"); assert.equal(rows[2][0].trimEnd(), " ✓ Good work"); assert.equal(rows[3][0].trimEnd(), " ◐ Brand new");
     assert.equal(rows[1].slice(0, 1 + long).map((l) => l.trim().replace(/^◐ /, "")).join(" "), review.title, note);
     // Then what the task says, as on a wide screen.
-    assert.deepEqual(rows.map((lines) => lines.at(-2).trimEnd()), ["   Reading the panel and its tests.", "   Running the tests", "   Pass · 1 minor", "   …"]);
+    assert.deepEqual(rows.map((lines) => lines.at(-2).trimEnd()), ["   Reading the panel and its tests.", "   Running the tests", "   Pass · 1 minor", "   Just started"]);
     for (const lines of rows) lines[2] = lines.at(-1);
     // Line 3, in order. The bar takes the room the others leave, so it is as long on every row.
     const bar = width - 34;
@@ -116,7 +116,7 @@ test("narrow screen: the highlight covers all three lines of the selected row, a
     assert.ok(lit().every((l) => l.length === 50)); // each to the screen's edge
   }
   v.move(1); assert.equal(v.sel, "p/4"); // one press, one task: never onto a row's second or third line
-  if (!process.env.NO_COLOR) assert.deepEqual(lit().map((l) => l.trim()), ["◐ Just started", "…", "2h"]);
+  if (!process.env.NO_COLOR) assert.deepEqual(lit().map((l) => l.trim()), ["◐ Brand new", "Just started", "2h"]);
   v.move(1); assert.equal(v.sel, "p/9");
   if (!process.env.NO_COLOR) assert.equal(lit().length, 1); // a done row is one line
   v.move(-1); v.move(-1); assert.equal(v.sel, "p/1");

@@ -19,13 +19,13 @@ export class RowWrap {
   // such a row has no columns beside its name (they are on its last line, or not shown), so the list knows a row's
   // height before it lays its columns out.
   wrapParts(r, width) {
-    const t = this.theme, indent = Math.min(width, visibleWidth(this.mark(r)) + 2), room = Math.max(1, width - indent);
+    const indent = Math.min(width, visibleWidth(this.mark(r)) + 2), room = Math.max(1, width - indent);
     const name = upTo(wrapTextWithAnsi(this.rowTitle(r), room), r.id === this.sel ? Infinity : WRAP_LINES, room);
     if (!isLive(r)) return { indent, name, says: [] };
     // What it says starts under the task's name: right of the machine's name too, when that shows before it.
     // A long machine name would leave it a few cells a line: it then starts under the machine's name instead.
     const host = name.length > 1 ? 0 : visibleWidth(this.rowNameParts(r, room).host), lead = indent + (room - host < SAY_MIN ? 0 : host), sayRoom = Math.max(1, width - lead);
-    const said = this.sentence(r).text || (r.state === "working" ? t.muted("…") : "");
+    const said = this.sentence(r).text;
     return { indent, lead, name, says: upTo(wrapTextWithAnsi(said, sayRoom), WRAP_LINES, sayRoom).map(closed) };
   }
   // The lines a row takes in the list.

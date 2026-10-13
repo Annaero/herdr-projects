@@ -33,6 +33,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `review-page.js` | The evidence page |
 | `runner.js` | Long jobs (delegate, finish line, land, restart) run in a detached runner so the board stays responsive and hook commands never hold herdr up |
 | `state.js` | (herdr status, stage) -> what the board shows |
+| `status-kept.js` | A working task's line while the Watcher has written none for this run: the last sentence it wrote, kept and said with its age, or "Just started" |
 | `store.js` | Tasks on disk, locks and settings |
 | `submit.js` | Making sure that what the board hands an agent is really taken: nothing is typed before the agent's program is up, and a prompt that was typed but not submitted gets its enter again |
 | `sync.js` | Keeping a task's branch current with main, in the task's own worktree |
@@ -287,6 +288,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `remerge.test.js` | Work that passed its review and then only took main in is not reviewed again: the tests run on the merged result and the review stands |
 | `remote.test.js` | Other machines: the door, actions where the task lives, the SSH line |
 | `retry.test.js` | A turn cut off by the model's provider: recognised from the agent's own conversation file, retried by the board when the error is one that passes, and never taken for a finished turn or a review |
+| `status-kept.test.js` | A working task's line before the Watcher's first look of a run: the last sentence kept with its age, or "Just started", never a bare "…" |
 | `store.test.js` |  |
 | `submit.test.js` | Text handed to an agent is really submitted: nothing is typed before a slow-starting program has drawn its screen, an enter that was lost is pressed again (the text is never typed twice), and an agent that still does… |
 | `suggestions.test.js` | Suggested tasks: nothing adds a task by itself |

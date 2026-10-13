@@ -188,10 +188,11 @@ test("all machines: a remote task's second line starts under its task's name, ri
 });
 
 test("a row with nothing to say yet keeps its second line: rows do not change height when the words arrive", () => {
-  const silent = { ...work, id: "p/1", title: "Just started" }, waits = { ...ready, id: "p/2", title: "Never reviewed" };
+  const silent = { ...work, id: "p/1", title: "New one", msg: "Just started" }, waits = { ...ready, id: "p/2", title: "Never reviewed" };
   const v = board([silent, waits, { ...done, id: "p/3", title: "Finished" }]);
-  // A working task: a quiet "…" until its first words. One that waits with nothing to say: an empty line.
-  assert.deepEqual(plain(v.rowLines(silent, 60, v.rowLayout([silent], 60, undefined, SCREEN))), [" ◐ Just started" + " ".repeat(43) + "2h", "   …"]);
+  // A working task: "Just started" until its first words, never a bare "…". One that waits with nothing to say: an empty line.
+  assert.deepEqual(plain(v.rowLines(silent, 60, v.rowLayout([silent], 60, undefined, SCREEN))), [" ◐ New one" + " ".repeat(48) + "2h", "   Just started"]);
+  assert.equal(plain(v.rowLines({ ...silent, msg: "" }, 60, v.rowLayout([silent], 60, undefined, SCREEN)))[1].trim(), ""); // a board of an older version says nothing: an empty line
   assert.deepEqual(plain(v.rowLines(waits, 60, v.rowLayout([waits], 60, undefined, SCREEN))).map((l) => l.trimEnd()), [" ✓ Never reviewed" + " ".repeat(37) + "2h ago", ""]);
   const before = plain(v.listLines(60, 20, SCREEN));
   silent.msg = "Reading the code."; waits.review = pass;
