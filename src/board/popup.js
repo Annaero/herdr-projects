@@ -1,19 +1,24 @@
-// The board as herdr's popup, for whoever chose it (`board.open`: popup): a plugin pane in herdr's overlay, which
-// lies over the tab you are in. The board key opens it, closes it when pressed again, and takes away one left
-// behind over another tab; where it is, is written down while it runs, apart from the note of a board in a tab.
+// The board as a popup, for whoever chose it (`board.open`: popup): herdr's own popup, a framed window in the middle
+// of herdr's screen that takes the keyboard and the mouse while it shows, as herdr's menu does. herdr has one popup
+// and keeps it with the tab it opened over, so the board never leaves it behind: it closes the moment another tab
+// shows. The board key opens it; pressed again, or `esc`, closes it. Where it is, is written down while it runs.
 import path from "node:path";
 import fs from "node:fs";
 import * as S from "../store.js";
 import { herdr, currentSocket, sessionName } from "../herdr.js";
+import * as Sock from "../herdr-socket.js";
 
-// Set on the board the key opens in the overlay: herdr tells a program nothing about how its pane was placed.
-export const POPUP_ENV = "HERDR_SUPERWORK_POPUP";
 export const wanted = () => { try { return S.setting("board.open") === "popup"; } catch { return false; } };
+// The popup is no pane and has no id: this stands for it where a board is named (a line left for it, a question).
+export const NAME = "popup";
+// How much of herdr's screen it takes. herdr centres it, frames it and never makes it smaller than its own least.
+export const SIZE = { width: "90%", height: "90%" };
 const file = (socket) => path.join(S.dataDir(), `board-popup-${sessionName(socket)}.json`);
-// The overlay pane this board runs in, "" for every other board.
-export const overPane = (env = process.env) => (env.HERDR_ENV === "1" && env[POPUP_ENV] === "1" ? env.HERDR_PANE_ID || "" : "");
-export function arrive(pane = overPane(), socket = currentSocket()) {
-  if (pane) { try { S.writeJson(file(socket), { pane, pid: process.pid }); } catch {} }
+// Is this board in herdr's popup? herdr gives a popup's program its plugin's id and no pane.
+export const inPopup = (env = process.env) => env.HERDR_ENV === "1" && !!env.HERDR_PLUGIN_ID && !env.HERDR_PANE_ID;
+// `tab`: the tab it opened over, which is the only one herdr shows it with.
+export function arrive(tab, socket = currentSocket(), env = process.env) {
+  if (inPopup(env)) { try { S.writeJson(file(socket), { tab: String(tab || ""), pid: process.pid }); } catch {} }
 }
 export function depart(socket = currentSocket()) {
   try { if (S.readJson(file(socket))?.pid === process.pid) fs.rmSync(file(socket), { force: true }); } catch {}
@@ -24,36 +29,48 @@ const alive = (pid) => { if (!(pid > 0)) return false; try { process.kill(pid, 0
 const STARTING_MS = 10000;
 // How long a closed popup's board is waited for: it saves what you typed as it ends, and the next one reads that.
 export const pace = { goneMs: 2000 };
-// The popup that exists, shown or hidden: its pane as herdr has it. A note nobody stands behind is taken away.
-function standing(api, socket) {
+// The board's popup that exists: its note, while its board runs (herdr ends the popup with its program) or is still
+// starting. A note nobody stands behind is taken away.
+function standing(socket) {
   const note = S.readJson(file(socket));
-  if (!note?.pane) return null;
-  let pane = null;
-  try { if (alive(note.pid) || (!note.pid && Date.now() - note.at < STARTING_MS)) pane = api.paneGet(note.pane); } catch {}
-  if (!pane) { try { fs.rmSync(file(socket), { force: true }); } catch {} return null; }
-  return { pane, pid: note.pid };
+  if (!note) return null;
+  if (alive(note.pid) || (!note.pid && Date.now() - note.at < STARTING_MS)) return note;
+  try { fs.rmSync(file(socket), { force: true }); } catch {}
+  return null;
 }
-function close(api, at, socket) {
-  try { api.pluginPaneClose(at.pane.pane_id); } catch {}
+function close(at, socket) {
+  try { Sock.popupClose(socket); } catch {}
   if (!at.pid) { try { fs.rmSync(file(socket), { force: true }); } catch {} } // its board never started: nobody else takes the note away
   for (const until = Date.now() + pace.goneMs; Date.now() < until && alive(at.pid); ) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
 }
-// The board key with the popup chosen. `here`: where you are (place.js: context). It shows over this tab: closed,
-// the toggle (`keep`: left open, for a command that needs the board). It was left over another tab, where herdr
-// hides it: closed there and opened here. None: opened. Answers the pane of the board that shows now, "" when the
-// key closed it. Throws what herdr answered when it would not open one.
+// The board key with the popup chosen. `here`: where you are (place.js: context). None is open: opened. It shows
+// (herdr gives its keys to the popup, so this is the action run some other way): closed, the toggle (`keep`: left
+// open, for a command that needs the board). One is still there with a tab that no longer shows, which its board
+// closes by itself within a moment: closed, and opened here. Answers the name of the board that shows now, "" when
+// the key closed it. Throws what herdr answered when it would not open one.
 export function toggle(here, { socket = currentSocket(), keep = false } = {}) {
-  const api = herdr(socket);
-  const at = standing(api, socket);
+  const at = standing(socket);
   if (at) {
-    const shows = here.tab ? at.pane.tab_id === here.tab : !!at.pane.focused;
-    if (shows && keep) return at.pane.pane_id;
-    close(api, at, socket);
+    const shows = !here.tab || !at.tab || at.tab === here.tab;
+    if (shows && keep) return NAME;
+    close(at, socket);
     if (shows) return "";
   }
-  const pane = api.openBoardOver({ [POPUP_ENV]: "1" })?.pane_id || "";
-  if (pane) { try { S.writeJson(file(socket), { pane, pid: 0, at: Date.now() }); } catch {} }
-  return pane;
+  herdr(socket).openBoardPopup(SIZE);
+  try { S.writeJson(file(socket), { tab: here.tab || "", pid: 0, at: Date.now() }); } catch {}
+  return NAME;
+}
+// The popup never stays behind on a tab that does not show: the moment herdr shows another one (a notification
+// taken, an agent focused from a command, another window of this session: the popup itself takes every key and click
+// of its own window), `gone` is called, which closes the board. herdr tells of a tab from the moment it is asked to,
+// and a board takes a moment to start: once it is being told, the board asks whether its tab still shows, so a move
+// made while it started closes it as well. Answers what stops the watching.
+export function watch(tab, gone, socket = currentSocket(), told = Sock.onTabShown, asked = Sock.askSoon) {
+  if (!tab) return () => {};
+  let stopped = false;
+  const stop = told((shown) => { if (shown !== tab) gone(); }, socket,
+    () => asked("tab.get", { tab_id: tab }, (r) => { if (!stopped && r?.tab && r.tab.focused === false) gone(); }, socket));
+  return () => { stopped = true; stop(); };
 }
 // The task whose agent (or reviewer) runs in a pane: the popup opens on the task you were looking at.
 export function taskAt(pane, socket = currentSocket()) {

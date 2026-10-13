@@ -143,6 +143,8 @@ export const KEYS = [
 export const KEY = Object.fromEntries(KEYS.map((k) => [k.id, k]));
 const entry = (id) => { const k = KEY[id]; if (!k) throw new Error(`No key is called "${id}" (src/board/keys.js)`); return k; };
 
+// Is this what was typed a chord that is not the board's own: the key herdr's config gives the board (view/place.js)?
+export const pressed = (data, chord) => { try { return matchesKey(data, chord) || (chord.length === 1 && data === chord); } catch { return false; } };
 // A chord as the old terminals send it: esc, then the letter, for alt. The board asks its terminal for the newer way
 // (the kitty keyboard protocol) and is told it has it, and the key reader then takes esc-and-a-letter for alt no
 // longer. A view that types into the pane from outside (the terminal view of herdr's web UI, in a browser or on a

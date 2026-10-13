@@ -8,6 +8,7 @@ import * as S from "../src/store.js";
 import * as A from "../src/actions.js";
 import * as P from "../src/board/place.js";
 import * as Popup from "../src/board/popup.js";
+import * as K from "../src/herdr-keys.js";
 import { say, heard } from "../src/board/say.js";
 import { main } from "../src/cli.js";
 import { open } from "./board-helpers.js";
@@ -171,7 +172,10 @@ const space = (w) => w.patchState((s) => {
   for (const [pane, tab] of [["w9:p1", "w9:t1"], ["w9:p2", "w9:t2"]]) s.panes.push({ pane_id: pane, workspace_id: "w9", tab_id: tab, terminal_id: `term_${pane}`, cwd: w.root, agent: null });
 });
 const note = (name) => S.readJson(path.join(S.dataDir(), `board-${name}-default.json`));
-const overlays = (w) => w.state().panes.filter((p) => p.label === "Work board" && /:over/.test(p.pane_id));
+// What herdr gives the program in its popup: its plugin's id, and no pane.
+const POP = { HERDR_ENV: "1", HERDR_PLUGIN_ID: "herdr-superwork" };
+const up = (w) => w.state().popup || null;
+const noteFile = () => path.join(S.dataDir(), "board-popup-default.json");
 
 test("board.open is a setting like the others: a tab unless you choose the popup", async () => {
   const w = await world();
@@ -180,52 +184,108 @@ test("board.open is a setting like the others: a tab unless you choose the popup
     assert.equal(await main(["set", "board.open", "popup"]), 0); assert.equal(Popup.wanted(), true);
     await assert.rejects(() => main(["set", "board.open", "window"]), /tab|popup/);
     assert.equal(await main(["unset", "board.open"]), 0); assert.equal(S.setting("board.open"), "tab");
-    // The board the key opens in the overlay is told so; herdr's floating popup has no pane; anything else is a pane.
-    const over = { HERDR_ENV: "1", HERDR_PLUGIN_ID: "herdr-superwork", HERDR_PANE_ID: "w9:p7", HERDR_SUPERWORK_POPUP: "1" };
-    assert.equal(Popup.overPane(over), "w9:p7"); assert.equal(P.inPopup(over), true); assert.equal(P.ownPane(over), "", "a popup is never gone back to");
-    assert.equal(Popup.overPane({ ...over, HERDR_SUPERWORK_POPUP: "" }), ""); assert.equal(P.inPopup({ ...over, HERDR_SUPERWORK_POPUP: "" }), false);
+    // herdr's popup is no pane: its program gets the plugin's id and no pane id. Anything else is a pane.
+    assert.equal(P.inPopup(POP), true); assert.equal(P.ownPane(POP), "", "a popup is never gone back to"); assert.equal(P.ownName(POP), "popup");
+    const pane = { ...POP, HERDR_PANE_ID: "w9:p7" };
+    assert.equal(P.inPopup(pane), false); assert.equal(P.ownPane(pane), "w9:p7"); assert.equal(P.ownName(pane), "w9:p7"); assert.equal(P.ownName({}), "");
     assert.deepEqual(P.context({ HERDR_PLUGIN_CONTEXT_JSON: JSON.stringify({ focused_pane_id: "w9:p1", tab_id: "w9:t1" }) }), { pane: "w9:p1", tab: "w9:t1" });
     assert.deepEqual(P.context({ HERDR_PLUGIN_CONTEXT_JSON: "{" }), { pane: "", tab: "" });
   } finally { w.cleanup(); }
 });
 
-test("with the popup chosen the key opens the board over the tab you are in, closes it when pressed again, and takes one left behind over another tab with it", async () => {
+test("with the popup chosen the key opens the board in herdr's popup, closes it when run again, and takes one left behind over another tab with it", async () => {
   const w = await world({ settings: { "board.open": "popup" } });
   const waited = Popup.pace.goneMs; Popup.pace.goneMs = 0; // the board that closes is this test's own process
   try {
     space(w);
     const here = { pane: "w9:p1", tab: "w9:t1" };
     w.patchState((s) => { s.shows = "w9:t1"; });
-    // None is open: one opens in herdr's overlay, told that it is the popup. No tab is made.
-    const first = P.show(undefined, { here });
-    assert.equal(overlays(w).length, 1); assert.equal(overlays(w)[0].pane_id, first); assert.deepEqual(overlays(w)[0].env, ["HERDR_SUPERWORK_POPUP=1"]);
-    assert.equal(w.state().boardPlacement, "overlay"); assert.ok(!w.state().tabs?.some((t) => t.label === "board"));
-    // Pressed again before its board has even started: that one is closed, and no second is laid over it.
-    assert.equal(note("popup").pane, first);
-    assert.equal(P.show(undefined, { here: { pane: first, tab: "w9:t1" } }), ""); assert.equal(overlays(w).length, 0); assert.equal(note("popup"), null);
-    assert.equal(P.show(undefined, { here }), first.replace(/\d+$/, (n) => String(Number(n) + 1))); assert.equal(overlays(w).length, 1);
-    const up = overlays(w)[0].pane_id;
-    Popup.arrive(up); // its board starts and writes down where it is
-    assert.equal(note("popup").pid, process.pid);
+    // None is open: herdr's popup opens, at the board's size. No pane and no tab is made for it.
+    const panes = w.state().panes.length;
+    assert.equal(P.show(undefined, { here }), "popup");
+    assert.deepEqual(up(w), { tab: "w9:t1", ...Popup.SIZE }); assert.equal(w.state().boardPlacement, "popup");
+    assert.equal(w.state().panes.length, panes); assert.ok(!w.state().tabs?.some((t) => t.label === "board"));
+    // Run again before its board has even started: that one is closed, and no second is opened over it.
+    assert.equal(note("popup").tab, "w9:t1"); assert.equal(note("popup").pid, 0);
+    assert.equal(P.show(undefined, { here }), ""); assert.equal(up(w), null); assert.equal(note("popup"), null);
+    assert.equal(P.show(undefined, { here }), "popup"); assert.ok(up(w));
+    Popup.arrive("w9:t1", undefined, POP); // its board starts and writes down where it is
+    assert.deepEqual(note("popup"), { tab: "w9:t1", pid: process.pid });
+    Popup.arrive("w9:t1", undefined, { HERDR_ENV: "1", HERDR_PANE_ID: "w9:p2" }); assert.equal(note("popup").pid, process.pid, "a board in a pane writes no popup note");
     // A command that needs the board (approve the task in this pane) leaves the one that shows open.
-    assert.equal(P.show(undefined, { here: { pane: up, tab: "w9:t1" }, keep: true }), up); assert.equal(overlays(w).length, 1);
-    // Pressed again while it shows: closed. herdr gives the key to the popup's own pane, so that is where it comes from.
-    assert.equal(P.show(undefined, { here: { pane: up, tab: "w9:t1" } }), ""); assert.equal(overlays(w).length, 0);
-    assert.equal(w.state().focus.at(-1), `closed ${up}`);
-    // Left behind over a tab you are no longer in, where herdr hides it: closed there, opened here. The key is never dead.
-    const second = P.show(undefined, { here }); Popup.arrive(second);
+    assert.equal(P.show(undefined, { here, keep: true }), "popup"); assert.ok(up(w)); assert.equal(w.state().focus.at(-1), "popup over w9:t1");
+    // Run again while it shows: closed. (herdr gives the popup every key, so the key itself is the board's to see:
+    // board-keys.test.js. This is the action run another way.)
+    assert.equal(P.show(undefined, { here }), ""); assert.equal(up(w), null); assert.equal(w.state().focus.at(-1), "popup closed");
+    // Still there over a tab that no longer shows (its board closes it within a moment by itself): closed there,
+    // opened here. The key is never dead.
+    P.show(undefined, { here }); Popup.arrive("w9:t1", undefined, POP);
     w.patchState((s) => { s.shows = "w9:t2"; });
-    const third = P.show(undefined, { here: { pane: "w9:p2", tab: "w9:t2" } });
-    assert.deepEqual(overlays(w).map((p) => [p.pane_id, p.tab_id]), [[third, "w9:t2"]]); assert.notEqual(third, second);
-    assert.deepEqual(w.state().focus.slice(-2), [`closed ${second}`, "over w9:t2"]);
-    // Its board ended without saying so (its pane is gone): the note is taken away and a new one opens.
-    S.writeJson(path.join(S.dataDir(), "board-popup-default.json"), { pane: "gone:p1", pid: process.pid });
-    w.patchState((s) => { s.panes = s.panes.filter((p) => !/:over/.test(p.pane_id)); });
-    assert.ok(P.show(undefined, { here: { pane: "w9:p2", tab: "w9:t2" } })); assert.equal(overlays(w).length, 1);
+    assert.equal(P.show(undefined, { here: { pane: "w9:p2", tab: "w9:t2" } }), "popup");
+    assert.equal(up(w).tab, "w9:t2"); assert.deepEqual(w.state().focus.slice(-2), ["popup closed", "popup over w9:t2"]);
+    // Its board ended without saying so (herdr ends the popup with its program): the note is taken away and a new one opens.
+    S.writeJson(noteFile(), { tab: "w9:t2", pid: 2 ** 30 }); w.patchState((s) => { s.popup = null; });
+    assert.equal(P.show(undefined, { here: { pane: "w9:p2", tab: "w9:t2" } }), "popup"); assert.ok(up(w)); assert.equal(note("popup").pid, 0);
     // Only the board that wrote the note takes it away.
-    Popup.arrive("w9:p7"); S.writeJson(path.join(S.dataDir(), "board-popup-default.json"), { pane: "w9:p7", pid: 1 }); Popup.depart(); assert.ok(note("popup"));
-    Popup.arrive("w9:p7"); Popup.depart(); assert.equal(note("popup"), null);
+    S.writeJson(noteFile(), { tab: "w9:t2", pid: 1 }); Popup.depart(); assert.ok(note("popup"));
+    Popup.arrive("w9:t2", undefined, POP); Popup.depart(); assert.equal(note("popup"), null);
   } finally { Popup.pace.goneMs = waited; w.cleanup(); }
+});
+
+test("the popup is never left behind: its board closes the moment herdr shows another tab", async () => {
+  const w = await world({ settings: { "board.open": "popup" } });
+  try {
+    // herdr tells of every tab that comes to show (herdr-socket.js); the test is herdr here.
+    let tell = null, stopped = 0, gone = 0;
+    const watch = (tab) => Popup.watch(tab, () => { gone++; }, undefined, (on) => { tell = on; return () => { stopped++; }; });
+    const stop = watch("w9:t1");
+    tell("w9:t1"); assert.equal(gone, 0, "its own tab showing again is nothing");
+    tell("w9:t2"); assert.equal(gone, 1, "another tab of the space");
+    tell("w3:t1"); assert.equal(gone, 2, "another space's tab");
+    stop(); assert.equal(stopped, 1);
+    // The tab changed while the board was still starting, before herdr was asked to tell: once it tells, the board
+    // asks whether its tab still shows, and closes when it does not.
+    let begun = null, shows = { tab: { tab_id: "w9:t1", focused: false } }; const asks = [];
+    const early = (tab) => Popup.watch(tab, () => { gone++; }, undefined, (on, socket, started) => { begun = started; return () => {}; }, (method, params, cb) => { asks.push([method, params]); cb(shows); });
+    gone = 0; early("w9:t1"); assert.deepEqual(asks, [], "not before herdr tells"); begun();
+    assert.deepEqual(asks, [["tab.get", { tab_id: "w9:t1" }]]); assert.equal(gone, 1);
+    shows = { tab: { tab_id: "w9:t1", focused: true } }; gone = 0; early("w9:t1"); begun(); assert.equal(gone, 0, "its tab shows: it stays");
+    shows = null; early("w9:t1"); begun(); assert.equal(gone, 0, "herdr did not say: it stays, and the next tab that shows closes it");
+    shows = { tab: { focused: false } }; const off = early("w9:t1"); off(); begun(); assert.equal(gone, 0, "a board that is closing already is not closed twice");
+    // A board that was not told its tab watches nothing.
+    tell = null; watch("")(); assert.equal(tell, null);
+  } finally { w.cleanup(); }
+});
+
+test("in the popup the board key closes the board: herdr hands the popup every key, its own too", async () => {
+  const w = await world({ settings: { "board.open": "popup" } });
+  try {
+    A.add(w.root, "First");
+    // "prefix+a" is herdr's prefix key and then a: the prefix alone does nothing, as in herdr, and what follows it is
+    // only the board key when it is that key.
+    const ownKey = K.presses("prefix+a", "");
+    assert.deepEqual(ownKey, { first: ["ctrl+b"], key: "a" });
+    const s = open(w, { ctx: { popup: true, ownKey } });
+    s.press("ctrl+b"); assert.equal(s.closed(), undefined); assert.equal(s.v.value(), "");
+    s.type("x"); assert.equal(s.v.value(), "x", "another key after the prefix is typed as always"); assert.equal(s.closed(), undefined);
+    s.type("a"); assert.equal(s.v.value(), "xa", "a alone is a letter");
+    s.press("ctrl+b"); s.type("a"); assert.equal(s.closed(), null, "closed, with a draft in the box too"); assert.equal(s.v.value(), "xa");
+    s.v.dispose(); assert.equal(S.readJson(path.join(S.dataDir(), "view-popup.json")).draft, "xa", "and the draft is there next time");
+    // The prefix is waited for a moment only: a late a is a letter.
+    const late = open(w, { ctx: { popup: true, ownKey } });
+    assert.equal(late.v.ownKey("\x02", 1000), true); assert.equal(late.v.ownKey("a", 1000 + 60000), false); assert.equal(late.closed(), undefined);
+    late.v.dispose();
+    // While a question is asked, the key still closes: it is the way out everywhere.
+    S.writeJson(path.join(S.dataDir(), "view-popup.json"), {});
+    const q = open(w, { ctx: { popup: true, ownKey } }); q.press("ctrl+x"); assert.ok(q.v.ask); q.press("ctrl+b"); q.type("a"); assert.equal(q.closed(), null);
+    // A key without the prefix is one press; the prefix keys are the config's own, one or several.
+    assert.deepEqual(K.presses("Ctrl+Alt+B", ""), { first: [], key: "ctrl+alt+b" });
+    assert.deepEqual(K.presses("prefix+-", `[keys]\nprefix = ["ctrl+a", "ctrl+space"]\n`), { first: ["ctrl+a", "ctrl+space"], key: "-" });
+    assert.equal(K.presses("", ""), null);
+    const one = open(w, { ctx: { popup: true, ownKey: K.presses("ctrl+g", "") } }); one.press("ctrl+g"); assert.equal(one.closed(), null);
+    // A board in a pane never sees that key (herdr takes it), and does nothing with its parts.
+    const pane = open(w, { ctx: { ownKey } }); pane.press("ctrl+b"); pane.type("a"); assert.equal(pane.closed(), undefined); assert.equal(pane.v.value(), "a");
+  } finally { w.cleanup(); }
 });
 
 test("a board in a tab keeps running beside the popup: each has its own note, and its own selection and words", async () => {
@@ -237,8 +297,8 @@ test("a board in a tab keeps running beside the popup: each has its own note, an
     const a = A.add(w.root, "First").id, b = A.add(w.root, "Second").id;
     P.arrive("w9:p2"); // a board you started yourself in a pane
     const tab = open(w, { ctx: { ownPane: "w9:p2" } }); tab.v.sel = a; tab.v.load(); tab.type("for the tab"); tab.v.savePrefs();
-    const over = P.show(undefined, { here: { pane: "w9:p1", tab: "w9:t1" } }); Popup.arrive(over);
-    assert.equal(note("pane").pane, "w9:p2", "the tab board's note is its own"); assert.equal(note("popup").pane, over);
+    const over = P.show(undefined, { here: { pane: "w9:p1", tab: "w9:t1" } }); Popup.arrive("w9:t1", undefined, POP);
+    assert.equal(over, "popup"); assert.equal(note("pane").pane, "w9:p2", "the tab board's note is its own"); assert.equal(note("popup").tab, "w9:t1");
     // The first popup starts from the tab's view, without the words typed there: they are in that board's box.
     const pop = open(w, { ctx: { popup: true, ownPane: over } });
     assert.equal(pop.v.sel, a); assert.equal(pop.v.value(), "");
@@ -252,7 +312,7 @@ test("a board in a tab keeps running beside the popup: each has its own note, an
     again.press("esc"); assert.equal(again.closed(), null);
     tab.press("esc", "esc"); assert.equal(tab.closed(), undefined); assert.match(tab.text(), /Press ctrl\+c again to close the board/);
     // Closing the popup leaves the tab board's note alone.
-    P.show(undefined, { here: { pane: over, tab: "w9:t1" } }); assert.equal(note("pane").pane, "w9:p2");
+    P.show(undefined, { here: { pane: "w9:p1", tab: "w9:t1" } }); assert.equal(up(w), null); assert.equal(note("pane").pane, "w9:p2");
     // "Approve the task in this pane" is asked by the board that was shown for it, not by whichever looks first.
     A.askApprove(a, undefined, over);
     assert.equal(A.takeApprove(undefined, "w9:p2"), "", "the tab board leaves it"); assert.equal(A.takeApprove(undefined, over), a);
@@ -341,7 +401,7 @@ test("herdr will not open the popup: the board opens in a tab and says why", asy
     space(w);
     w.patchState((s) => { s.busy = "ui_busy"; });
     const pane = P.show(undefined, { here: { pane: "w9:p1", tab: "w9:t1" } });
-    assert.equal(w.state().boardPlacement, "tab"); assert.ok(pane); assert.equal(overlays(w).length, 0);
+    assert.equal(w.state().boardPlacement, "tab"); assert.ok(pane); assert.notEqual(pane, "popup"); assert.equal(up(w), null);
     // The line is for that board: another one leaves it, and it is said once.
     assert.equal(heard("w9:p2"), null);
     const s = open(w, { ctx: { ownPane: pane } });

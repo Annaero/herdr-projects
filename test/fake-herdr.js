@@ -285,19 +285,20 @@ function answer(argv, env) {
   }
   if (area === "notification") { st.notifications.push({ title: argv[2], body: flag("--body") || "" }); ok({ type: "notification_show", shown: true }); }
   // The board is opened in a tab of its own: an ordinary pane, in the first space there is (herdr: the one that shows).
-  // `--placement popup`: herdr's popup, which is no pane. `--placement overlay`: a pane over the tab that shows
-  // (`st.shows`, else the first space's first tab), with the `--env` it was given; `st.busy`: herdr refuses it.
-  if (area === "plugin" && verb === "pane" && argv[2] === "close") {
-    const q = findPane(argv[3]); if (!q) fail("pane_not_found", "pane not found");
-    st.panes = st.panes.filter((x) => x !== q); st.focus.push(`closed ${q.pane_id}`);
-    ok({ type: "plugin_pane_closed", pane_id: q.pane_id });
+  // `--placement popup`: herdr's popup, which is no pane: one at a time (`st.popup`: the tab it opened over, `st.shows`,
+  // else the first space's first tab, and its size), closed by the socket's `popup.close` (the pretend command
+  // `socket <method>`: herdr's command line has none). `st.busy`: herdr refuses to open it.
+  if (area === "socket") {
+    if (verb !== "popup.close") fail("unknown_method", `fake herdr's socket does not know: ${verb}`);
+    if (!st.popup) fail("popup_not_open", "no popup is open");
+    st.popup = null; st.focus.push("popup closed");
+    ok({ type: "ok" });
   }
-  if (area === "plugin" && verb === "pane" && flag("--placement") === "overlay") {
-    if (st.busy) fail(st.busy, st.busy === "ui_busy" ? "a popup pane is already open" : "herdr said no");
-    const w = st.workspaces[0], tab = st.shows || `${w.workspace_id}:t1`;
-    const q = { pane_id: `${tab.split(":")[0]}:over${st.nextP}`, workspace_id: tab.split(":")[0], tab_id: tab, terminal_id: `term_${st.nextP++}`, cwd: w.cwd, agent: null, label: "Work board", env: argv.flatMap((a, i) => (a === "--env" ? [argv[i + 1]] : [])) };
-    st.panes.push(q); st.focus.push(`over ${tab}`); st.boardPlacement = "overlay";
-    ok({ type: "plugin_pane_opened", plugin_pane: { entrypoint: "board", plugin_id: "herdr-superwork", pane: paneOut(q) } });
+  if (area === "plugin" && verb === "pane" && flag("--placement") === "popup") {
+    if (st.busy || st.popup) fail(st.busy || "ui_busy", st.busy && st.busy !== "ui_busy" ? "herdr said no" : "a popup pane is already open");
+    st.popup = { tab: st.shows || `${st.workspaces[0].workspace_id}:t1`, width: flag("--width") || "", height: flag("--height") || "" };
+    st.focus.push(`popup over ${st.popup.tab}`); st.boardPlacement = "popup";
+    ok({ type: "ok" });
   }
   if (area === "plugin" && verb === "pane") {
     st.focus.push("board"); st.boardPlacement = flag("--placement") || "popup";

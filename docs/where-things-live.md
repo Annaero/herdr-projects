@@ -24,6 +24,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `gate.js` | The gate |
 | `helpers.js` | The hidden helper, as a hidden model call: the watcher (a status line and a progress guess for whatever is running; the board works out the minutes left) |
 | `herdr-keys.js` | The keys herdr already uses, its own defaults and what the user's config.toml binds, and so which key the board may take: it never takes one that is in use, and says what that key does today |
+| `herdr-socket.js` | herdr's socket, spoken to directly, for the two things its command line has not got (herdr 0.9.3): closing its popup (`popup.close`), and being told the moment another tab shows (`events.subscribe`) |
 | `herdr.js` | The only file that runs the herdr binary |
 | `hook.js` | The event hook entry |
 | `housekeeping.js` | The housekeeping pass |
@@ -92,7 +93,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `keys.js` | The board's keys, each one defined once: the ? menu, the hint line, the words that name a key and docs/keys.md are all made from this list |
 | `main.js` | Opens the board: full screen in the current terminal, which in herdr is a pane, the plugin's own tab included |
 | `place.js` | The board that is running in herdr: where it is, written down while it runs, so that opening the board from anywhere in herdr goes back to that one instead of starting a second one |
-| `popup.js` | The board as herdr's popup, for whoever chose it (`board.open`: popup): a plugin pane in herdr's overlay, which lies over the tab you are in |
+| `popup.js` | The board as a popup, for whoever chose it (`board.open`: popup): herdr's own popup, a framed window in the middle of herdr's screen that takes the keyboard and the mouse while it shows, as herdr's menu does |
 | `reload-screen.js` | A board that loads its new version keeps its screen: the old board's last frame stays until the new one has drawn over it |
 | `say.js` | A line for a board that is running, from a command that has no screen of its own (the board key's action): left here for the board in one pane, which shows it on its message line within a second |
 | `tab.js` | The board's own tab: named `herdr-superwork` while the board is open full screen in a pane of herdr, and given the name it had before when the board closes |
@@ -125,7 +126,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `panel-settings.js` | The settings in the task panel: what this task runs on, in a few rows, and its agent's session |
 | `panel-status.js` | The top of the task panel: the title, where the task stands under its Status headline, and what it needs from you |
 | `panel.js` | The task panel: beside the list and full screen |
-| `place.js` | Where this board is, and what follows from it: the popup keeps its own selection, filter and draft apart from a board in a tab, it opens on the task you were looking at, and a line left for this board by the board key… |
+| `place.js` | Where this board is, and what follows from it: the popup keeps its own selection, filter and draft apart from a board in a tab, it opens on the task you were looking at, its own key closes it, and a line left for this… |
 | `remotes.js` | Other machines: ask each for its board, send each action to the machine that owns the task, and whose board you see |
 | `review-words.js` | A review in a few words: its result, its colour, which round it was |
 | `row-fit.js` | What a section of the list shows when space is short: its rows give the same things up together, in one order |

@@ -83,7 +83,8 @@ error stays on screen with `(esc dismisses)` after it.
 workspace picker) or one your config already binds: it refuses it and says what the key does today.
 
 Pressed again, the board key takes you back: on the board in its tab, to the pane you came from; with
-`board.open` set to `popup`, it closes the popup ([the board](board.md)).
+`board.open` set to `popup`, it closes the popup ([the board](board.md)). herdr gives a popup every key, so there
+the board reads that key itself, from herdr's `config.toml`: herdr's prefix key and then the key.
 
 Restarting the Coordinator, starting a new one and going into its whole chat are not on the board: see
 [the Coordinator](coordinator.md).

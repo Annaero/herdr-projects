@@ -47,7 +47,7 @@ export async function world({ repo = true, settings = {}, repoSettings = null, o
   // The fake herdr answers in this process: launching it as a program for every call was most of the suite's time. A
   // program this test did not start itself (the command line, an agent's hook) still runs test/bin/herdr, and so does a
   // test that asks for it: `world({ program: true })`.
-  globalThis.__swHerdr = program ? null : { bin: process.env.HERDR_BIN_PATH, run: herdr, turnEnded, kids: (pid) => (pid === 1 ? [2] : []),
+  globalThis.__swHerdr = program ? null : { bin: process.env.HERDR_BIN_PATH, run: herdr, ask: (method, params, socket) => herdr(["socket", method, JSON.stringify(params || {})], { ...process.env, HERDR_SOCKET_PATH: socket }), turnEnded, kids: (pid) => (pid === 1 ? [2] : []),
     kill: (pid) => patchState((s) => { for (const p of s.panes) if (p.agent?.pid === pid) p.agent = null; }) }; // ending a fake agent's process: its pane is at its shell again // the fake's pids: only 1 has children
   globalThis.__swGh = program ? null : (args) => ghRun(args); // gh too: see fake-gh.js
   // Locks are kept in this process too (no flock started for every change to a task). `locks: false` takes the real

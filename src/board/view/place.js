@@ -1,11 +1,15 @@
 // Where this board is, and what follows from it: the popup keeps its own selection, filter and draft apart from a
-// board in a tab, it opens on the task you were looking at, and a line left for this board by the board key is shown.
+// board in a tab, it opens on the task you were looking at, its own key closes it, and a line left for this board by
+// the board key is shown.
 import fs from "node:fs";
 import path from "node:path";
 import * as S from "../../store.js";
 import { taskAt } from "../popup.js";
 import { heard } from "../say.js";
-import { name as keyName } from "../keys.js";
+import { name as keyName, pressed } from "../keys.js";
+
+// How long the board key's second press is waited for after herdr's prefix key.
+const PREFIX_MS = 3000;
 
 export class Place {
   // What the board was like when it last closed. The popup has a file of its own: a board may run in a tab at the
@@ -49,6 +53,19 @@ export class Place {
     if (!t || t.archivedAt) return;
     this.sel = t.id; this.stick = t.id;
     if (this.scope && this.scope !== "*") this.scope = "";
+  }
+  // herdr hands its popup every key, its own too, so the key that opened the board never reaches herdr while the
+  // popup shows: the board knows that key (`ctx.ownKey`: herdr-keys.js, presses) and closes on it, which makes it the
+  // toggle it is everywhere else. herdr's prefix key does nothing by itself here, as in herdr. True: the key was
+  // the board's own, or the prefix, and goes no further.
+  ownKey(data, now = Date.now()) {
+    const k = this.ctx.popup && this.ctx.ownKey;
+    if (!k) return false;
+    const armed = this.prefixed && now - this.prefixed < PREFIX_MS;
+    this.prefixed = 0;
+    if (k.first.length ? armed && pressed(data, k.key) : pressed(data, k.key)) { this.done(undefined); return true; }
+    if (k.first.some((p) => pressed(data, p))) { this.prefixed = now; return true; }
+    return false;
   }
   // A line the board key left for this board (../say.js), on the message line.
   hear() {

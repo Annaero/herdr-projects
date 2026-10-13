@@ -10,13 +10,13 @@ import * as Popup from "./popup.js";
 import { say } from "./say.js";
 
 const file = (socket) => path.join(S.dataDir(), `board-pane-${sessionName(socket)}.json`);
-// The herdr pane this board runs in, to come back to. None outside herdr, none in herdr's floating popup, which is
-// no pane, and none for the popup the board key opens: that one is closed and opened, never gone back to.
-export const ownPane = (env = process.env) => (env.HERDR_ENV === "1" && !Popup.overPane(env) ? env.HERDR_PANE_ID || "" : "");
-// Is this board a popup? The one the board key opens in herdr's overlay (popup.js), or herdr's floating popup, when
-// someone opens the plugin's pane that way by hand (herdr gives that one its plugin's id and no pane). Either lies
-// over the panes of its tab, so it is the board that closes for an agent.
-export const inPopup = (env = process.env) => !!Popup.overPane(env) || (!!env.HERDR_PLUGIN_ID && !env.HERDR_PANE_ID);
+// The herdr pane this board runs in, to come back to. None outside herdr, and none in herdr's popup, which is no
+// pane: that one is closed and opened, never gone back to.
+export const ownPane = (env = process.env) => (env.HERDR_ENV === "1" && !Popup.inPopup(env) ? env.HERDR_PANE_ID || "" : "");
+// Is this board herdr's popup (popup.js)? It lies over everything, so it is the board that closes for an agent.
+export const inPopup = Popup.inPopup;
+// What this board is called where one is named (a line left for it, the approve question): its pane, or the popup.
+export const ownName = (env = process.env) => ownPane(env) || (Popup.inPopup(env) ? Popup.NAME : "");
 // Where you are, as herdr tells a plugin's command and a plugin's pane: the pane that has the keyboard and its tab.
 export function context(env = process.env) {
   try { const c = JSON.parse(env.HERDR_PLUGIN_CONTEXT_JSON || "{}"); return { pane: String(c.focused_pane_id || ""), tab: String(c.tab_id || "") }; }
@@ -72,8 +72,8 @@ const why = (e) => (e?.code === "ui_busy"
 // Opening the board from anywhere in herdr (your key, an action). In a tab (`board.open`, the built-in choice): the
 // one that is running, else a new one in a tab of its own, named so you can tell it from the others; pressed on the
 // board itself, back to where you came from. As a popup: popup.js, and when herdr will not open one, the tab, which
-// says why. `keep`: the board is needed, so the key's way back and the popup's toggle are off. Answers the pane of
-// the board that shows now, "" when there is none.
+// says why. `keep`: the board is needed, so the key's way back and the popup's toggle are off. Answers the board that
+// shows now, as it is named (`ownName`: its pane, or the popup), "" when there is none.
 export function show(socket = currentSocket(), { keep = false, here = context() } = {}) {
   let told = "";
   if (Popup.wanted()) {

@@ -80,3 +80,19 @@ export function suggest(text, defs = BUILT_IN) {
   const why = first ? `${OFFERED[0]} is already ${first.by === "herdr" ? "herdr's own key" : "bound in your config"} (${first.what})` : "";
   return { key, note: !first ? "" : key ? `${why}, so this is the next free key.` : `${why}, and so are the other keys this would offer.` };
 }
+
+// What a key of herdr's config is as key presses, for a program herdr hands every key to (its popup): "prefix+a" is
+// one of the prefix keys (`[keys] prefix`, one or several, herdr's own when the config names none) and then `a`; a
+// key without the prefix is itself. Answers { first: the prefix keys, key } in the names the board's keys have, with
+// `first` empty when there is no prefix; null for no key, and when the prefix is not known.
+const PRESSED = { minus: "-", comma: ",", backtick: "`", ampersand: "&", cmd: "super" };
+const pressed = (key) => norm(key).split("+").map((p) => PRESSED[p] || p).join("+");
+export function presses(key, text, defs = BUILT_IN) {
+  const k = norm(key);
+  if (!k) return null;
+  if (!k.startsWith("prefix+")) return { first: [], key: pressed(k) };
+  let conf = null;
+  try { conf = parseToml(String(text || "")); } catch {}
+  const set = list(conf?.keys?.prefix), first = (set.length ? set : list(defs.prefix)).map(pressed);
+  return first.length ? { first, key: pressed(k.slice("prefix+".length)) } : null; // no prefix known: a letter alone is never the key
+}

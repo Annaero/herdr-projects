@@ -153,6 +153,8 @@ export function boardKey() {
   const m = /\[\[keys\.command\]\][^\[]*?command\s*=\s*"herdr-superwork\.open"/.exec(read());
   return m ? (/^\s*key\s*=\s*"([^"]+)"/m.exec(m[0]) || [])[1] || "" : "";
 }
+// That key as key presses, for the board in herdr's popup, which herdr hands every key to: its own key closes it.
+export const boardPresses = () => K.presses(boardKey(), read());
 // May the board take this key? Asked as soon as one is typed at the first run, and again before it is written.
 export const checkKey = (key) => K.check(key, read(), K.defaults(), S.tilde(herdrConfig()));
 export const answer = (patch) => save({ asked: true, ...patch });

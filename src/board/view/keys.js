@@ -41,6 +41,7 @@ export class Keys {
     // The enter an input line adds: not a key press, so it picks no menu line and opens no agent.
     if (data === "\r" && this.watched && Date.now() - (this.loneAt || 0) < LINE_ENTER) return;
     if (data === "\x1b\x1b") data = "\x1b"; // esc tapped twice arrives as one read: it is still esc
+    if (this.ownKey(data)) return; // the popup: the board key itself closes it (place.js)
     // shift+enter as the old terminals send it (esc, return), from a view that types into the pane from outside
     // (herdr's web UI) while the text box listens for the newer form: handed on as that (keys.js: `old`).
     if (data === "\x1b\r" && isKittyProtocolActive()) data = "\x1b[13;2u";
