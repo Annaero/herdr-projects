@@ -16,7 +16,7 @@ import { theme } from "../src/board/theme.js";
 import { WebView, bytesOf, TERMINAL_ONLY } from "../src/webui/web-view.js";
 import { CALLS, snapshot, viewOf } from "../src/webui/worker.js";
 import { pieces, plain, webTheme } from "../src/webui/ink.js";
-import { readLine } from "../src/webui/panel-model.js";
+import { readLine, settingsUp } from "../src/webui/panel-model.js";
 import { address, same, pcOf, machineOf, readPcs } from "../src/webui/pcs.js";
 import * as L from "../src/automations/list.js";
 import { parseSchedule, parseEvent } from "../src/automations/triggers.js";
@@ -59,7 +59,7 @@ test("the web board shows the terminal board's list: the same groups, order, mar
     assert.deepEqual(snapshot(v, s.mark), { same: true, mark: s.mark });
     // one task, whole: the panel's parts under their headlines, each a list of facts and lines of text
     s = CALLS.pick.run(v, { id, open: true });
-    assert.equal(s.list.selected, id); assert.equal(s.panel.title, "Make f"); assert.deepEqual(s.panel.parts.map((p) => p.head), ["Status", "Description", "Review", "The agent said", "Settings", "Session"]);
+    assert.equal(s.list.selected, id); assert.equal(s.panel.title, "Make f"); assert.deepEqual(s.panel.parts.map((p) => p.head), ["Status", "Settings", "Description", "Review", "The agent said", "Session"]); // the settings stand above the long texts on a page that scrolls, however long those are
     const fact = (head, label) => s.panel.parts.find((p) => p.head === head).items.find((x) => x.label === label);
     assert.equal(fact("Status", "State").lines[0].map((p) => p.t).join(""), `◆ ready to approve · ${ready.time}`); assert.equal(fact("Status", "State").lines[0][2].c, "green");
     assert.match(fact("Review", "Review 1").lines.map((l) => l.map((p) => p.t).join("")).join("|"), /^✓ Pass · 1 minor · \d+s ago · at [0-9a-f]{7}\|Good\.$/);
@@ -503,6 +503,14 @@ test("the web board has the settings page: every setting of the open task with i
     s = CALLS.set.run(v, { id: t, name: "research.only", value: "true", ...drive });
     assert.deepEqual(S.get(t).settings, { "research.only": true }); assert.deepEqual([row(s).value, row(s).own, row(s).from], ["on", true, "this task"]);
     assert.match(s.msg.text, /^Research only: on {2}\(this task\)$/); assert.match(rowsOf(s.list).find((x) => x.id === t).title, /Look into the logs \[research\]/);
+    // The task's own panel says the same, in words: every setting it runs with, and after a value somebody chose
+    // the place it came from. A built-in value names none.
+    { const facts = s.panel.parts.find((p) => p.head === "Settings").items.filter((x) => x.k === "fact"), said = (label) => facts.find((x) => x.label === label).lines.flat().map((x) => x.t).join("");
+      assert.deepEqual(facts.map((x) => x.label).filter((k) => !["Project", "Worktree", "Branch", "Note"].includes(k)), ["Agent", "Plan first", "Reviewer", "Review when", "Send back", "Check", "Research", "Workspace", "Also"]);
+      // A long description never pushes them down the page: they stand right under the status, and under what the task needs from you.
+      assert.deepEqual(settingsUp([{ head: "Status" }, { head: "Asks you", color: "red" }, { head: "Description" }, { head: "The agent said" }, { head: "Settings" }, { head: "Session" }]).map((p) => p.head), ["Status", "Asks you", "Settings", "Description", "The agent said", "Session"]);
+      S.update(t, (x) => { x.description = Array.from({ length: 80 }, (_, i) => `Line ${i + 1} of a very long description.`).join("\n"); }); v.look(); { const heads = snapshot(v).panel.parts.map((p) => p.head); assert.ok(heads.indexOf("Settings") < heads.indexOf("Description") && heads.indexOf("Settings") <= 2, heads.join(" · ")); }
+      assert.equal(said("Research"), "only · no change to the repo (this task)"); assert.equal(said("Send back"), "major or worse · 3 rounds max"); assert.doesNotMatch(JSON.stringify(s.panel), /as usual/); }
     // A typed value; a wrong one is refused in the board's words and changes nothing.
     s = CALLS.set.run(v, { id: t, name: "review.rounds", value: "5", ...drive }); assert.deepEqual([row(s, "review.rounds").value, S.get(t).settings["review.rounds"]], ["5", 5]);
     assert.throws(() => CALLS.set.run(v, { id: t, name: "review.rounds", value: "many", ...drive }), /review\.rounds must be a whole number/);

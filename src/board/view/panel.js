@@ -6,8 +6,6 @@ import { WIDE } from "./size.js";
 import { panelKit } from "./panel-kit.js";
 import { name as keyName, is as isKey } from "../keys.js";
 
-// The rows among a task's settings that are not settings: in a window too short for all of them, these go first.
-const NOT_SETTINGS = ["Branch", "Note"];
 // The widest the task details are drawn full screen: text wider than this is hard to read.
 const READ = 100;
 
@@ -47,11 +45,11 @@ export class Panel {
   // same column and wrapped under itself) or a text. An empty line stands between two parts and nowhere else. The
   // parts: the title, where it stands (`Status`), what it needs from you (its headline in the state's colour),
   // the description, the plan, the report, the reviews, what the agent said, and every setting. Beside the list (`fit` is
-  // the height there) the description is short and only the latest review shows; full screen everything is whole,
+  // the height there) the description is short, only the latest review shows and the settings are there all the same; full screen everything is whole,
   // with every review, the newest first.
   panel(r, width, full = false, fit = 0) {
     const p = panelKit(this.theme, width);
-    const { t, w, room, dim, wrap, out, head, flow, fact, first, alert, parts, part, text, attempt } = p;
+    const { t, w, dim, wrap, out, head, flow, fact, first, alert, parts, part, text, attempt, room } = p;
 
     if (r.title === undefined) { // words on their way to another machine
       const bad = r.state === "error";
@@ -70,11 +68,13 @@ export class Panel {
     // Each part is drawn on its own (`attempt`): one that fails says so in its place and takes nothing else with it.
     const { title, top, told } = attempt("Status", () => this.panelStatus(p), null) || { title: part([t.bold(clean(r.title || "(no title)"))]), top: { lines: [], rows: {}, drop() {} }, told: "" };
 
-    // The description: whole on the full screen, its first few hundred characters beside the list.
+    // The description: whole on the full screen, its first few hundred characters beside the list. Short of room
+    // there it keeps its beginning, and with no room for three lines it is one line that says where to read it.
     const desc = this.desc(r).trim();
     const start = full ? desc : brief(desc, 400);
     if (start !== desc) cut = true;
-    if (desc) text("Description", wrap(start), 2);
+    const said = wrap(start), where = dim(truncateToWidth(`Description · ${keyName("panel")} shows it`, w, "…"));
+    const about = desc ? part([head("Description"), ...said], { at: (n) => (n < 1 ? [] : n < 3 ? [where] : n > said.length ? [head("Description"), ...said] : [head("Description"), ...first(said, n - 1)]) }) : null;
 
     if (attempt("Plan", () => this.panelPlan(p))) cut = true;
     if (attempt("Attempts", () => this.panelAttempts(p))) cut = true; // a task done several times at once (panel-attempts.js)
@@ -91,7 +91,7 @@ export class Panel {
       if (whole && whole !== told) text(screen ? `On the ${pv.who}'s screen now` : pv.who === "reviewer" ? "The reviewer says" : "The agent said", wrap(shown), 1, screen ? "end" : "start");
     });
 
-    const { settings, rows, table, cut: shorter } = attempt("Settings", () => this.panelSettings(p), null) || { settings: { lines: [] }, rows: [], table: () => [] };
+    const { settings, rows, draw, cut: shorter } = attempt("Settings", () => this.panelSettings(p), null) || { settings: { lines: [] }, rows: [], draw: () => [] };
     if (shorter) cut = true;
 
     let lead = [""], gap = true;
@@ -100,29 +100,46 @@ export class Panel {
     const more = dim(truncateToWidth(`${keyName("panel")} shows the whole task`, w, "…"));
     if (!fit || render().length + (cut ? 2 : 0) <= fit) return out([...render(), ...(cut ? ["", more] : [])]);
     // Too tall for its place beside the list. Nothing is cut in the middle of a line: whole lines and whole facts give
-    // way, the least needed first, and the last line says where the rest is. First the empty line on top. Then the
-    // long parts give up lines (what the agent said, the description, the review), each down to a
-    // few lines; then all of them but the review go. Then the facts that are said elsewhere: the task's id and who is
-    // on it, and the rows among the settings that are not settings. Then the settings, from the last, each one whole,
-    // and their headline with the last of them. Only then is the review down to its one row.
+    // way, the least needed first, and the last line says where the rest is. The settings outlast every text: first
+    // the empty line on top; then the long parts give up lines (what the agent said, the reviews), each down to a
+    // few lines, then they go, the review down to its one row, and the plan and the report with them. Then the
+    // description gives up lines, down to the one that says where to read it, what the task needs from you is down to
+    // its first two lines, and that one line goes. Only then the settings: the facts among them that are no setting,
+    // then one row at a time from the last of their order (panel-settings.js), the last line saying how many are left.
     const space = Math.max(1, fit - 1);
     const over = () => render().length - space;
-    const flexible = parts.filter((s) => s.at).sort((a, b) => a.pri - b.pri);
-    if (over() > 0) lead = [];
-    for (const s of flexible) if (over() > 0 && s.lines.length > s.min) s.lines = s.at(Math.max(s.min, s.lines.length - over()));
-    for (const s of flexible) if (over() > 0 && !s.last) s.lines = s.at(0);
-    if (over() > 0) top.drop("task", "who", "made", "next");
+    const flexible = parts.filter((s) => s.at && s !== about).sort((a, b) => a.pri - b.pri);
+    const names = (list) => new Set(list.flatMap((x) => x.items.flatMap((i) => i.names))).size;
     let kept = rows;
-    const redraw = () => { settings.lines = kept.length ? [head("Settings"), ...table(kept)] : []; };
-    if (over() > 0 && settings.lines.length && !kept.length) settings.lines = []; // only the line that says "all as usual": it goes first
-    if (over() > 0 && settings.lines.length) { kept = rows.filter(([k]) => !NOT_SETTINGS.includes(k)); redraw(); }
-    while (over() > 0 && kept.length && settings.lines.length) { kept = kept.slice(0, -1); redraw(); }
-    for (const s of flexible) if (over() > 0 && s.last) s.lines = s.at(s.last);
-    // A very short window. What it needs from you gives up lines, down to its first two. Then the empty lines between
-    // the parts go, the Status headline, all but the first line of the title, and every other part but the review's
-    // row; then the change, the review's row, and the title: the state, the progress and what the task is doing now
-    // are the last to stay.
-    for (const s of parts) if (over() > 0 && s.alert) s.lines = s.alert(Math.max(2, s.lines.length - over()));
+    const redraw = () => { settings.lines = kept.length ? [head("Settings"), ...draw(kept, names(rows) - names(kept))] : []; };
+    const tail = () => { for (const s of flexible) if (over() > 0 && s.last) s.lines = s.at(s.last); };
+    const needs = () => { for (const s of parts) if (over() > 0 && s.alert) s.lines = s.alert(Math.max(2, s.lines.length - over())); };
+    // `keep`: the settings are there, and everything else gives way to them.
+    const give = (keep) => {
+      for (const s of flexible) if (over() > 0 && s.lines.length > s.min) s.lines = s.at(Math.max(s.min, s.lines.length - over()));
+      for (const s of flexible) if (over() > 0 && !s.last) s.lines = s.at(0);
+      if (keep) tail();
+      for (const s of parts) if (keep && over() > 0 && !s.at && !s.alert && ![title, top, settings].includes(s)) s.lines = [];
+      if (about && over() > 0) about.lines = about.at(Math.max(1, about.lines.length - over()));
+      if (keep) needs();
+      if (about && over() > 0) about.lines = [];
+      if (!keep) return;
+      if (over() > 0 && settings.lines.length) { kept = rows.filter((x) => !x.fact); redraw(); }
+      if (over() > 0) kept = [...kept].sort((a, b) => a.rank - b.rank);
+      while (over() > 0 && kept.length) { kept = kept.slice(0, -1); redraw(); }
+    };
+    if (over() > 0) lead = [];
+    const whole = parts.map((s) => s.lines);
+    give(true);
+    // No room for a single setting: nothing has given way to them, and the other parts have the lines.
+    if (!settings.lines.length) { parts.forEach((s, n) => { s.lines = s === settings ? [] : whole[n]; }); give(false); }
+    // A very short window, with no setting left. The facts that are said elsewhere go (the task's id, who is on it),
+    // the review is down to its one row, and what it needs from you gives up lines, down to its first two. Then the
+    // empty lines between the parts go, the Status headline, all but the first line of the title, and every other
+    // part but the review's row; then the change, the review's row, and the title: the state, the progress and what
+    // the task is doing now are the last to stay.
+    if (over() > 0) top.drop("task", "who", "made", "next");
+    tail(); needs();
     if (over() > 0) gap = false;
     if (over() > 0) top.drop("head");
     if (over() > 0) title.lines = [truncateToWidth(title.lines[0] || "", w, "…")];

@@ -22,22 +22,36 @@ test("the task panel beside the list cuts a long description short and says wher
     assert.doesNotMatch(text, /Line 9 of/); assert.doesNotMatch(text, /Line 80 of/);
     // The title by itself, the status under its headline as facts (a label, then its value, every value in one column), then the description, then the settings: each part under its own headline, an empty line between.
     assert.match(text, /│ {2}#2 Long one *\n[^\n]*│ *\n[^\n]*│ {2}Status ─+ *\n[^\n]*│ {2}State {8}○ to do · \ds ago *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n/);
-    assert.match(text, keyed(/│ {2}Settings ─+ *\n[^\n]*│ {2}all as usual · {settings} shows them *\n/)); // beside the list only what is this task's own; the whole task has every row
+    assert.match(text, /│ {2}Settings ─+ *\n[^\n]*│ {2}Agent {8}claude · default model *\n[^\n]*│ {15}default effort *\n[^\n]*│ {2}Plan first {3}off *\n/); assert.doesNotMatch(text, /as usual/); // beside the list too: every setting it runs with, never a line that says they are the usual ones
     assert.match(stripVTControlCharacters(s.v.panel(s.v.current(), 80, true).join("\n")), /\n Settings ─+\n Project {6}\S+\n Worktree {5}on\n Branch {7}main\n Agent /);
-    // Every setting shows on the whole task, also one that is only your default; beside the list none of those does.
-    const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Review when", "Send back", "Evidence", "Merge"], whole = stripVTControlCharacters(s.v.panel(s.v.current(), 80, true).join("\n"));
-    for (const fact of SETTINGS) { assert.match(whole, new RegExp(`\n ${fact} `), fact); assert.doesNotMatch(text, new RegExp(`│  ${fact} `), fact); }
-    assert.match(whole, /\n Review when {2}the task is in a repo\n Send back {4}major or worse · 3 rounds max\n Evidence {5}on\n/);
-    // A short window keeps the parts apart: the long parts give way first, then the settings from the last, each one
-    // whole. No line is cut in the middle, and the last line says where the rest is.
-    { const low = open(w, { rows: 21 }); low.v.sel = big.id; low.v.load(); const t24 = low.text(120), side = low.screen(120).map((l) => (l.split("│")[1] || "").trimEnd());
-      assert.match(t24, keyed(/│ {2}all as usual · {settings} shows them/), "beside the list the settings are one line: none of them is this task's own");
-      assert.match(t24, /│ {2}Status ─+ *\n[^\n]*│ {2}State {8}○ to do · \ds ago *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n/); // the headlines and the empty line between the parts stay
-      assert.ok(!side.some((l) => l.endsWith("…") && !l.endsWith(" …")), "nothing is cut in the middle of a line: only the description says, at its end, that there is more");
-      assert.match(t24, keyed(/│ {2}{panel} shows the whole task/)); assert.match(t24, /Line 1 of/); }
+    // Every setting shows in both, also one that is only the built-in value; where the task is (its project, its
+    // worktree, its branch) is on the whole task only.
+    const SETTINGS = ["Agent", "Plan first", "Reviewer", "Review when", "Send back", "Check", "Merge", "Workspace", "Also"], whole = stripVTControlCharacters(s.v.panel(s.v.current(), 80, true).join("\n"));
+    for (const fact of SETTINGS) { assert.match(whole, new RegExp(`\n ${fact} `), fact); assert.match(text, new RegExp(`│  ${fact} `), fact); }
+    for (const fact of ["Project", "Worktree", "Branch"]) { assert.match(whole, new RegExp(`\n ${fact} `), fact); assert.doesNotMatch(text, new RegExp(`│  ${fact} `), fact); }
+    assert.match(whole, /\n Review when {2}in a repo · with evidence\n Send back {4}major or worse · 3 rounds max\n Check {8}no command · 15m at most\n Merge {8}after your yes · squash · opens a pull request\n Workspace {4}from main · removed when done\n Also {9}one attempt · not research only · no limits · no fallback\n/);
+    assert.doesNotMatch(whole, /\((this task|you|this repo)\)/, "a built-in value names no place");
+    // A short window gives the settings its lines before the description: the description is cut further, then it is
+    // the one line that says where to read it, then it goes, and only then a setting does. With no room for all of
+    // them the ones that say who works, who reviews and how it is reviewed stay, and a line counts the rest. No line
+    // is cut in the middle, and the last line says where the rest is.
+    const beside = (rows) => { const low = open(w, { rows }); low.v.sel = big.id; low.v.load(); return low.screen(120).map((l) => (l.split("│")[1] || "").trimEnd()); };
+    const every = (side, at) => { for (const fact of SETTINGS) assert.ok(side.some((l) => l.startsWith(`  ${fact} `)), `${at}: ${fact}`); assert.ok(!side.some((l) => /more settings?/.test(l)), `${at}: no setting is left out`); };
+    { const side = beside(32), t32 = side.join("\n"); every(side, "32 rows");
+      assert.match(t32, /\n {2}Description ─+\n {2}Line 1 of a very long description\.\n {2}Line 2 of a very long description\.\n {2}Line 3 of a very long description\. …\n\n {2}Settings ─/); }
+    { const side = beside(30), t30 = side.join("\n"); every(side, "30 rows");
+      assert.match(t30, keyed(/\n {2}State {8}○ to do · \ds ago\n\n {2}Description · {panel} shows it\n\n {2}Settings ─/)); assert.doesNotMatch(t30, /Line 1 of/); }
+    { const side = beside(27), t27 = side.join("\n"); every(side, "27 rows"); assert.doesNotMatch(t27, /Description|Line 1 of/); }
+    { const side = beside(21), t21 = side.join("\n");
+      assert.match(t21, keyed(/\n {2}Status ─+\n {2}State {8}○ to do · \ds ago\n\n {2}Settings ─+\n {2}Agent {8}claude · default model\n {15}default effort\n {2}Reviewer {5}codex · default model\n {15}default effort · fast\n {2}Review when {2}in a repo · with evidence\n {2}Send back {4}major or worse · 3 rounds max\n {2}15 more settings · {settings} shows them\n\n {2}{panel} shows the whole task/));
+      assert.ok(!side.some((l) => l.endsWith("…")), "nothing is cut in the middle of a line"); }
+    // With too little room for all, a value somebody chose comes before the built-in ones.
+    S.setValue("limit.time", "2h", { task: S.get(big.id) });
+    assert.match(beside(21).join("\n"), /\n {2}Settings ─+\n {2}Limits {7}2h a run \(this task\)\n {15}no token limit\n {2}Agent {8}claude · default model\n/);
+    S.unsetValue("limit.time", { task: S.get(big.id) });
     S.setValue("worker.agent", "claude/opus", { task: S.get(big.id) }); s.v.load();
     text = s.text(120);
-    assert.match(text, /│ {2}Agent {8}\S+ · opus · default effort/); assert.doesNotMatch(text, /│ {2}Reviewer /); assert.match(text, keyed(/│ {2}the rest as usual · {settings} shows every *\n[^\n]*│ {2}setting/)); // this task's own setting shows beside the list; the usual ones do not
+    assert.match(text, /│ {2}Agent {8}\S+ · opus \(this task\) *\n[^\n]*│ {15}default effort *\n/); assert.match(text, /│ {2}Reviewer {5}codex · default model/); assert.doesNotMatch(text, /as usual/); // this task's own setting says so beside the list, and the built-in ones are there too
     // A long text with no line breaks is cut between words after a few hundred characters.
     const prose = A.add(w.root, "Prose", { description: "word ".repeat(400).trim() });
     s.v.sel = prose.id; s.v.load();
@@ -49,7 +63,7 @@ test("the task panel beside the list cuts a long description short and says wher
       // is only your default is quieter.
       const raw = s.v.render(120).join("\n"), grey = ink("overlay0"), textInk = ink("text"), quiet = ink("subtext0");
       assert.ok(raw.includes("\x1b[1mDescription\x1b[22m") && raw.includes(`${grey}Agent        \x1b[39m${textInk}`) && raw.includes(`${textInk}  Line 1 of a very long`), "headlines are bold, labels grey, the text is neither");
-      assert.ok(stripVTControlCharacters(raw).includes("the rest as usual"), "the usual settings are one quiet line beside the list");
+      assert.ok(raw.includes(`${ink("accent")}(this task)`) && raw.includes(`${quiet}codex · default model`), "the place a value came from is in the accent colour; a built-in value is quieter");
       { const whole = s.v.panel(s.v.current(), 100, true).map((l) => s.v.theme.line(l)).join("\n"); assert.ok(whole.includes(`${grey}Reviewer     \x1b[39m${textInk}${quiet}codex`), "on the whole task a default setting is quieter"); }
     }
     // The task details: the same parts full screen, scrolled, with every setting.
@@ -59,11 +73,15 @@ test("the task panel beside the list cuts a long description short and says wher
     s.v.panelTop = 1e9; text = s.text(120);
     assert.match(text, /Line 80 of/);
     for (const fact of SETTINGS) assert.match(text, new RegExp(`\\n ${fact} `), fact);
-    // A choice made for this task alone shows in both, and is starred on the full screen.
+    // A choice made for this task alone says so after its value, in both.
     for (const [k, v] of [["review.when", "always"], ["review.mustFix", "minor"], ["review.rounds", "5"], ["review.evidence", "false"]]) S.setValue(k, v, { task: S.get(big.id) });
     s.v.load(); s.v.panelTop = 1e9; text = s.text(120);
-    assert.match(text, /\n Review when {2}always \*/); assert.match(text, /\n Send back {4}minor or worse · 5 rounds max \*/); assert.match(text, /\n Evidence {5}off \*/);
-    assert.match(text, /opus · default effort \*/); assert.match(text, /\* this task's own, not what it would be otherwise/);
+    assert.match(text, /\n Review when {2}always \(this task\) · no evidence \(this task\) *\n/); assert.match(text, /\n Send back {4}minor or worse \(this task\) · 5 rounds max \(this task\) *\n/);
+    assert.match(text, /opus \(this task\) · default effort *\n/); assert.doesNotMatch(text, /\* this task's own/);
+    // A value from your own settings, or from the repo's file, names that place instead.
+    S.setValue("merge.method", "rebase", {}); S.setValue("merge.by", "itself", { repo: "proj" }); s.v.load(); s.v.panelTop = 1e9;
+    assert.match(s.text(120), /\n Merge {8}by itself, once it passes \(you, for this repo\) · rebase \(you\) · opens a pull request *\n/);
+    S.unsetValue("merge.method", {}); S.unsetValue("merge.by", { repo: "proj" }); s.v.load();
     s.press("up"); assert.ok(s.v.panelTop < s.v.panelLength); assert.equal(s.v.sel, big.id); // the arrows scroll the panel, they do not move the selection
     s.press("esc"); assert.equal(s.v.full, false);
     s.v.sel = "proj/1"; s.v.load();
@@ -132,7 +150,7 @@ test("the task panel has one form for every part, in every state and at every wi
       failed: { ...base, state: "error", stage: "failed", prState: "failing", failure: { stage: "merge", phase: "sync", title: "Conflict with main", detail: "Conflicting files:\nsrc/board/view/row.js", agentCanFix: true, next: "Resolve the conflict." } },
       done: { ...base, state: "done", stage: "done", prState: "merged", prMerged: true },
     };
-    const LABELS = ["State", "Progress", "Now", "On it", "Change", "Task", "Next step", "Details", "History", "Review 1", "Review 2", "Review 3", "Evidence", "Findings", "Checked", "Unverified", "Project", "Worktree", "Branch", "Agent", "Reviewer", "Review when", "Send back", "Merge", "Task id"];
+    const LABELS = ["State", "Progress", "Now", "On it", "Change", "Task", "Next step", "Details", "History", "Review 1", "Review 2", "Review 3", "Evidence", "Findings", "Checked", "Unverified", "Project", "Worktree", "Branch", "Agent", "Plan first", "Reviewer", "Review when", "Send back", "Check", "Merge", "Workspace", "Also", "Task id"];
     for (const [name, r] of Object.entries(STATES)) for (const [width, full] of [[38, false], [46, false], [58, false], [70, false], [44, true], [80, true], [100, true]]) {
       const lines = s.v.panel(r, width, full).map((l) => stripVTControlCharacters(l)), at = `${name}, ${width} columns${full ? ", full screen" : ""}`;
       assert.ok(lines.every((l) => l.length <= width), `${at}: nothing runs over`);
@@ -175,14 +193,31 @@ test("the task panel has one form for every part, in every state and at every wi
       const lines = s.v.panel(wordy, 60, false).map((l) => stripVTControlCharacters(l));
       assert.ok(lines.some((l) => l.endsWith(" …")), "the summary is shortened"); assert.equal(lines.at(-1), " alt+t shows the whole task");
       assert.doesNotMatch(s.v.panel({ ...wordy, review: { score: 4, recommend: true, text: "Fine." } }, 60, false).map((l) => stripVTControlCharacters(l)).join("\n"), /shows the whole task/); }
-    // The star of a task's own setting is wrapped with its value: it never runs over the edge.
+    // The place a task's own setting came from is wrapped with its value: it never runs over the edge.
     S.setValue("reviewer.agent", "claude", { task: S.get(id) }); S.setValue("reviewer.fast", "on", { task: S.get(id) });
     for (const width of [40, 56, 70, 71, 72, 100]) {
       const page = s.v.panel({ owner: "me", ...S.get(id), state: "idle", at: now }, width, true).map((l) => stripVTControlCharacters(l)), from = page.findIndex((l) => l.startsWith(" Reviewer ")), row = page.slice(from, page.findIndex((l, n) => n > from && /^ \S/.test(l)));
-      assert.ok(page.every((l) => l.length <= width), `${width} columns: no setting runs over`); assert.match(row.at(-1), /\*$/, `${width} columns: the star is there`);
+      assert.ok(page.every((l) => l.length <= width), `${width} columns: no setting runs over`); assert.match(row.at(-1), /\(this task\)$/, `${width} columns: the place is there`);
       // (A dot between two facts is left out where the second starts a line: read without the dots.)
-      assert.equal(row.map((l) => l.slice(14).trim()).join(" ").replace(/ ·/g, ""), "claude default model default effort no fast mode in claude *", `${width} columns: the whole value`);
+      assert.equal(row.map((l) => l.slice(14).trim()).join(" ").replace(/ ·/g, ""), "claude default model (this task) default effort no fast mode in claude (this task)", `${width} columns: the whole value`);
     }
+    // One of a pair set and the other not: both are said, each with its value and the place it came from. The
+    // same holds for what is moot: a reviewer's own choices where nothing is reviewed, a planner where no plan is asked for.
+    { const pair = A.add(w.root, "A pair").id, T = () => ({ task: S.get(pair) }), whole = () => s.v.panel({ owner: "me", ...S.get(pair), state: "idle", at: now }, 100, true).map((l) => stripVTControlCharacters(l)).join("\n");
+      S.setValue("worker.fallback", "codex", T()); S.setValue("reviewer.fallback", "none", T()); S.setValue("limit.time", "2h", T()); S.setValue("limit.tokens", "none", T());
+      assert.match(whole(), /\n Takes over {3}codex · when the agent cannot go on \(this task\)\n/); assert.match(whole(), /\n Takes over {3}nobody · when the reviewer cannot go on \(this task\)\n/);
+      assert.match(whole(), /\n Limits {7}2h a run \(this task\) · no token limit \(this task\)\n/); assert.doesNotMatch(whole(), /no limits|no fallback/);
+      S.setValue("limit.time", "none", T()); S.unsetValue("limit.tokens", T()); S.unsetValue("worker.fallback", T());
+      assert.match(whole(), /\n Limits {7}no time limit \(this task\) · no token limit\n/); assert.match(whole(), /\n Also {9}one attempt · not research only · no fallback \(this task\)\n/);
+      S.setValue("review.when", "never", T()); S.setValue("reviewer.effort", "high", T()); S.setValue("plan.agent", "codex", T());
+      assert.match(whole(), /\n Plan first {3}off · would be written by codex \(this task\)\n/); assert.match(whole(), /\n Reviewer {5}off \(this task\) · high effort \(this task\)\n/);
+      // Every work setting this task has an answer of its own for is named as this task's somewhere in the part.
+      assert.equal((whole().match(/\(this task\)/g) || []).length, 6); }
+    // Another machine's task: the same rows, from the settings that machine sent, each with its place there.
+    { const sent = S.settingRows({ task: S.get(id) }).map((x) => (x.name === "review.rounds" ? { ...x, value: 1, place: "you", from: "you" } : x.name === "check.command" ? { ...x, value: "npm test", place: "file", from: "the repo's file" } : x));
+      const far = s.v.panel({ owner: "me", ...S.get(id), id: `vm-a:${id}`, rid: id, host: "vm-a", state: "idle", at: now, snap: { folder: "~/far", settings: sent, canWorktree: true } }, 70, false).map((l) => stripVTControlCharacters(l)).join("\n");
+      assert.match(far, /\n Settings ─+\n Machine {6}vm-a\n Agent {8}claude · default model · default effort\n/); assert.match(far, /\n Send back {4}major or worse · 1 round max \(you\)\n Check {8}npm test \(this repo\) · 15m at most\n/);
+      assert.match(far, /\n Reviewer {5}claude · default model \(this task\) · default effort\n {14}no fast mode in claude \(this task\)\n/); }
     if (!process.env.NO_COLOR) {
       // A result and a severity are said in words and marks; the colour only repeats them. A headline that needs you is in its state's colour.
       const raw = s.v.panel(STATES.done, 100, true).join("\n"), red = ink("red"), green = ink("green"), yellow = ink("yellow");

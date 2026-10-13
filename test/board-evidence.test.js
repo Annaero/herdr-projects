@@ -59,7 +59,7 @@ test("a part of the board that fails to draw says so in its place: the rest of t
       assert.doesNotMatch(text, /view error/);
       // (Beside the list the line wraps: read it without the panel's edge and its line breaks.)
       assert.match(text, /Reviews ─+/); assert.match(text.replace(/[\s│]+/g, " "), /✗ This part could not be shown: artifactLines is not defined/);
-      assert.match(text, /Build a flying game/); assert.match(text, /Description ─/); assert.match(text, /A small game\./); assert.match(text, /Settings ─/); assert.match(text, full ? /Merge / : keyed(/all as usual · {settings} shows them/)); // beside the list only the settings that are this task's own
+      assert.match(text, /Build a flying game/); assert.match(text, /Description ─/); assert.match(text, /A small game\./); assert.match(text, /Settings ─/); assert.match(text, /Merge /); assert.doesNotMatch(text, /as usual/); // every setting, beside the list too
       assert.doesNotMatch(text, /Review 3/);
     }
     s.press("esc"); assert.equal(s.v.full, false);

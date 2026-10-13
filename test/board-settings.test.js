@@ -36,9 +36,9 @@ test("the settings page: every work setting, where each comes from, and a mark o
     assert.match(text, /\n Agent's program: a program \(claude, codex or pi\), with a model after a slash if you like *\n/);
     s.press("down", "down"); assert.match(s.text(120), /\n Agent's access: \[full\] · ask *\n/); s.press("up", "up");
     assert.match(text, /\* this task's own\. Every other row says the place its value comes from\./); assert.match(text, /Board settings are yours only: herdr-superwork show/);
-    // esc goes back one step, to the whole task: it says how to get here, and stars the same choice
+    // esc goes back one step, to the whole task: it says how to get here, and names the same choice as this task's
     s.press("esc"); assert.equal(s.v.editing, null); assert.equal(s.v.full, true); // back to the whole task, one step
-    s.v.panelTop = 1e9; assert.match(s.text(120), /\n Reviewer +claude · default model · default effort · no fast mode in claude \*/); assert.match(s.text(120), keyed(/{settings} changes them: every setting, and the place each one comes from/));
+    s.v.panelTop = 1e9; assert.match(s.text(120), /\n Reviewer +claude · default model \(this task\) · default effort · no fast mode in claude */); assert.match(s.text(120), keyed(/{settings} changes them: every setting, and the place each one comes from/));
   } finally { w.cleanup(); }
 });
 

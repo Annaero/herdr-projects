@@ -62,7 +62,7 @@ test("out of allowance: the next agent on the list takes the task over in the sa
     clearInterval(v.timer);
     const panel = v.panel(stateOf(id), 100, true).map((l) => stripVTControlCharacters(l)).join("\n");
     assert.match(panel, / On it +codex\n Took over +codex took over from claude: out of allowance until 17:00 · \d+s ago\n/);
-    assert.match(panel, / Agent +codex 9\.9\.9 · default model · default effort\n Takes over +codex, then pi · when the agent cannot go on\n/);
+    assert.match(panel, / Agent +codex 9\.9\.9 · default model · default effort\n Takes over +codex, then pi · when the agent cannot go on \(you\)\n/);
     // with nobody left the panel's note says who was passed over
     S.update(id, (t) => { t.fallbacks = { worker: S.nobodyLeft("worker.fallback", ["pi is not installed here"]) }; });
     assert.match(v.panel(stateOf(id), 100, true).map((l) => stripVTControlCharacters(l)).join("\n"), / Note +worker\.fallback: nobody left to take over \(pi is not installed here\)/);

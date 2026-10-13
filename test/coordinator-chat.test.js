@@ -190,7 +190,7 @@ test("one chat for everyone: space on a task talks to its agent, otherwise to th
     // the chat folds to its head line, so the page has the lines: the page itself says what the agent said. Space
     // again goes back to the Coordinator.
     {
-      const n = open(w); n.v.sel = t.id; n.v.load(); n.screen(70); n.press("space");
+      const n = open(w, { rows: 40 }); n.v.sel = t.id; n.v.load(); n.screen(70); n.press("space");
       assert.equal(n.v.reply, true); assert.equal(n.v.full, false); n.press("alt+t");
       assert.match(n.text(70), /\n─+\n❯ Send message to Agent *\n─+\n[ ▌] {1}enter open this task's agent · esc back to the list *$/); assert.doesNotMatch(n.text(90), keyed(/{chatMessage}/), "the chat's key is not offered where the chat is folded");
       assert.match(n.text(70), /The agent said ─+ *\n Done\./);

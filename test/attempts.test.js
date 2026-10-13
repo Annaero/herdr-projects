@@ -310,7 +310,7 @@ test("one row with ×3, pick one under needs you, the panel's attempts, the appr
     const id = A.add(w.root, "Greet").id;
     A.delegate(id, { "attempts.by": 3 });
     // while they start: one row, tagged, no row for an attempt
-    const b = open(w, { rows: 50 });
+    const b = open(w, { rows: 64 });
     assert.match(b.text(), /Greet ×3/);
     assert.equal(b.v.items.length, 1);
     await settleAll(id);

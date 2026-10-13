@@ -39,7 +39,16 @@ Both have the same parts, in the same order, and **one form for every part**:
  Titles longer than 80 characters are cut between words.
 
  Settings ───────────────────────────────────────────
- all as usual · ctrl+e shows them
+ Agent        claude · opus (this task) · default effort
+ Plan first   off
+ Reviewer     codex · default model · default effort · fast
+ Review when  in a repo · with evidence
+ Send back    major or worse · 5 rounds max (you)
+ Check        npm test (this repo) · 15m at most
+ Merge        after your yes · squash · opens a pull request
+ Workspace    from main · removed when done
+ Also         one attempt · not research only · no limits
+              no fallback
 ```
 
 - **The title** is on top, by itself.
@@ -56,7 +65,9 @@ Both have the same parts, in the same order, and **one form for every part**:
   said again as the first line under it.
   `Behind main` and `Cut off` (the board tries again by itself) are the same part in their own colour, and an
   archived task says so there.
-- **The description**: whole on the full screen, cut after about 400 characters beside the list.
+- **The description**: whole on the full screen, cut after about 400 characters beside the list. Where the panel is
+  too short for it and the settings, it is cut further, then it is one line (`Description · alt+t shows it`), then it
+  goes: all of that before a single setting does (below).
 - **Attempts**, for a task done several times at once: the reviewer's comparison, then each attempt
   ([several attempts](attempts.md)). While the task waits for your pick it is headed `Pick one of 3`, in red, and is
   what it needs from you.
@@ -66,14 +77,35 @@ Both have the same parts, in the same order, and **one form for every part**:
   headline says so: `The reviewer says`. When the review ends it is the agent's again. A dialog that is only on a
   program's screen is said there in a line, with the way to it; what the chat shows, and from where, is in
   [the board](board.md).
-- **Settings**, what the task runs on. Beside the list only what is this task's own shows, each a row, and one
-  line for the rest (`all as usual · ctrl+e shows them`): the same nine rows under every task took the place of the
-  review's findings and the agent's words. The whole task has them all: the project, the worktree, the agent, the
-  reviewer, when it is reviewed, what sends a review back and how many rounds, the evidence, and how it merges. A row
-  that holds a choice made for this task is in the text colour and one that comes from somewhere else is quieter;
-  a task's own choice is starred as well, and the worktree's folder is printed. A `Note` row says what the board
-  could not use: a program that is not installed, something the repo's own file was refused, a mistake in your
-  settings file.
+- **Settings**: every setting the task runs with, and its value, beside the list as on the whole task. Never a line
+  that says they are the usual ones. A few to a row, in plain words:
+
+  | Row | Says | Settings |
+  |---|---|---|
+  | `Agent` | who works: the program (and its version), its model, its effort; `fast`, `asks before acting` and `words of your own` where they are so | `worker.*` |
+  | `Takes over` | who takes over when the agent, or the reviewer, cannot go on, under that one's row. Once one of the two has a list both have the row, and the one without says `nobody` | `worker.fallback`, `reviewer.fallback` |
+  | `Plan first` | `off`, or who approves the plan and who writes it (a planner somebody chose is said while it is off too) | `plan.approve`, `plan.agent` |
+  | `Attempts` | how many and by whom, and who picks; only for more than one | `attempts.by`, `attempts.pick` |
+  | `Reviewer` | who reviews, as `Agent`; `off` where nothing is reviewed, with what somebody chose for it all the same | `reviewer.*` |
+  | `Review when` | `in a repo`, `always` or `never`, and whether the reviewer brings evidence | `review.when`, `review.evidence` |
+  | `Send back` | how bad a finding sends the work back, and how many rounds go by themselves | `review.mustFix`, `review.rounds` |
+  | `Check` | the check's command and how long it may run | `check.command`, `check.timeout` |
+  | `Merge` | after your yes or by itself, how it lands, and whether a pull request is opened. A research-only task has `Research` here instead: it merges nothing | `merge.by`, `merge.method`, `merge.pr`, `research.only` |
+  | `Limits` | the longest run and the most tokens, both of them (`2h a run · no token limit`); only where one is set, or somebody said `none` | `limit.time`, `limit.tokens` |
+  | `Workspace` | what the worktree starts from, what sets it up, is copied in and tears it down, and whether it is removed when done | `workspace.*` |
+  | `Also` | in a word each, what has no row of its own while it is nothing: `one attempt`, `not research only`, `no limits`, `no fallback` | |
+
+  **A value that is not the built-in one says where it came from**, in words after it: `(this task)`, `(this repo)`
+  for the repo's own file, `(you)` for your settings, `(you, for this repo)` for your entry for the repo. Such a value
+  is in the text colour and the place in the accent colour; a built-in value is quieter and names no place. So
+  every setting somebody chose is there with its place, also one that says `none`, or one that does nothing now. A task
+  in no repo has no `Check` and no `Workspace` row. The whole task adds where the task is (`Project`, `Worktree`
+  with its folder, `Branch`); beside the list only a project that is not this board's, and another machine's name
+  (`Machine`), have a row. A `Note` row says what the board could not use: a program that is not installed,
+  something the repo's own file was refused, a mistake in your settings file. A task on another machine has the
+  same rows, from the settings that machine sent. The web Board's task panel has them too, and there they stand
+  right under `Status` and what the task needs from you, above the description, the reviews and what the agent
+  said: its page scrolls, so what is on top is what has the room ([the board in the web UI](web-ui.md)).
 
 ## The settings page
 
@@ -122,17 +154,22 @@ where it runs in herdr. Beside the list, when anything is shorter than on the fu
 its value is under it, indented. Nothing is cut there either.
 
 **In a short window whole lines give way, the least needed first.** The state and the `Now` text stay whole, and
-what the task needs from you outlasts every setting:
+**the settings outlast every text**: they are shown in full whenever they can be.
 
-1. The empty line on top. Then the long parts give up lines: what the agent said first, then
-   the description, then the review (its summary, then `History` and `Evidence`), each down to a few lines. A text
-   that lost lines ends in ` …`.
-2. Those parts go, all but the review, which keeps its row and one line of its summary.
-3. The facts that are said elsewhere: `Task`, `On it` and `Made by`, and the rows among the settings that are not settings.
-4. The settings, from the last, each one whole. Their headline goes with the last of them.
-5. The review is down to its one row (`Review 3  ✓ Pass · 2 minor`), and what it needs from you gives up lines.
-6. The empty lines between the parts, the `Status` headline, the title's second line; then `Change`, the review's
-   row and the title.
+1. The empty line on top. Then what the agent said and the review give up lines (the review its summary, then
+   `History` and `Evidence`), each down to a few lines. A text that lost lines ends in ` …`.
+2. What the agent said, the attempts, the plan and the report go; the review keeps its one row
+   (`Review 3  ✓ Pass · 2 minor`).
+3. The description gives up lines, down to one that says where to read it (`Description · alt+t shows it`). What the
+   task needs from you is down to its first two lines. Then that one line of the description goes.
+4. Only now the settings. First the rows among them that are no setting (`Project`, `Machine`, `Note`). Then one row
+   at a time, each whole, and the ones that stay longest are: a row with a value somebody chose (one that names its
+   place), then `Agent`, `Reviewer`, `Review when`, `Send back` and `Merge`, then the rest. The last line under them
+   says how many settings have no room and the key that shows them (`13 more settings · ctrl+e shows them`).
+5. With no room for a single setting, their headline goes too, and the other parts have their lines back: they give
+   way as in 1 and 2, the description last of the texts.
+6. The facts that are said elsewhere (`Task`, `On it`, `Made by`), the review down to its one row, the empty lines
+   between the parts, the `Status` headline, the title's second line; then `Change`, the review's row and the title.
 
 What is left then is the state, the progress and the `Now` text. With no room for those and the last line
 (`alt+t shows the whole task`), that line goes, then the progress, then the state: the text itself is the last to

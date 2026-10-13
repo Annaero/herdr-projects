@@ -91,13 +91,13 @@ test("fast mode: the command and the task panel say where it does nothing", asyn
     assert.doesNotMatch(await sw("set", "worker.fast", "off"), /no fast mode/);
     // the panel: "fast" where it is on, a note where it is on and does nothing, whether the task chose it or inherits it
     const s = open(w);
-    const row = (t, label) => stripVTControlCharacters(s.v.panel({ owner: "me", ...S.get(t) }, 80, true).join("\n")).split("\n").find((l) => l.startsWith(` ${label} `));
-    assert.match(row(id, "Reviewer"), /claude · default model · default effort · no fast mode in claude( \*)?$/);
+    const row = (t, label) => stripVTControlCharacters(s.v.panel({ owner: "me", ...S.get(t) }, 80, true).join("\n")).split("\n").filter((l, n, all) => { let at = n; while (at >= 0 && /^ {14}/.test(all[at])) at--; return all[at]?.startsWith(` ${label} `); }).map((l, n) => (n ? l.trim() : l)).join(" · "); // a row and the lines it runs on to
+    assert.match(row(id, "Reviewer"), /claude · default model \(this task\) · default effort · no fast mode in claude( \(this task\))?$/);
     assert.match(row(id, "Agent"), /^ Agent +claude · default model · default effort$/);
     const other = A.add(w.root, "Other").id;
-    assert.match(row(other, "Reviewer"), /codex · default model · default effort · fast$/);
-    S.setValue("reviewer.agent", "pi", { task: S.get(other) }); assert.match(row(other, "Reviewer"), /pi · default model · default effort · no fast mode in pi \*$/);
-    S.setValue("reviewer.fast", "off"); assert.match(row(other, "Reviewer"), /pi · default model · default effort \*$/); S.unsetValue("reviewer.fast");
-    S.setValue("worker.agent", "codex", { task: S.get(other) }); S.setValue("worker.fast", "on", { task: S.get(other) }); assert.match(row(other, "Agent"), /codex · default model · default effort · fast \*$/);
+    assert.match(row(other, "Reviewer"), /codex · default model · default effort · fast \(you\)$/);
+    S.setValue("reviewer.agent", "pi", { task: S.get(other) }); assert.match(row(other, "Reviewer"), /pi · default model \(this task\) · default effort · no fast mode in pi \(you\)$/);
+    S.setValue("reviewer.fast", "off"); assert.match(row(other, "Reviewer"), /pi · default model \(this task\) · default effort$/); S.unsetValue("reviewer.fast");
+    S.setValue("worker.agent", "codex", { task: S.get(other) }); S.setValue("worker.fast", "on", { task: S.get(other) }); assert.match(row(other, "Agent"), /codex · default model \(this task\) · default effort · fast \(this task\)$/);
   } finally { w.cleanup(); }
 });

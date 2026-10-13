@@ -1,7 +1,7 @@
 // The task panel for the web board. The board's own panel code (view/panel.js and its parts) draws the whole task
 // with a web theme, too wide for anything to wrap; this file only reads what it drew back into its shape: parts under
-// their headlines, each a list of facts (a label and its value) and lines of text. What the panel says, in which
-// order and in which colour, is the terminal board's.
+// their headlines, each a list of facts (a label and its value) and lines of text. What the panel says, and in which
+// colour, is the terminal board's; so is the order, but for the settings, which stand higher here (settingsUp).
 import { pieces } from "./ink.js";
 
 const WIDE = 4000;
@@ -43,9 +43,20 @@ export function partsOf(lines) {
   return parts;
 }
 
+// A page scrolls, so what has the room is what is on top: the settings stand right under where the task stands and
+// what it needs from you (a headline in a state's colour), above the description, the reviews and what the agent said,
+// however long those are. Every part is whole on the page, in the terminal board's order otherwise.
+export function settingsUp(parts) {
+  const at = parts.findIndex((p) => p.head === "Settings");
+  if (at < 0 || parts[0]?.head !== "Status") return parts;
+  const rest = parts.filter((_, n) => n !== at);
+  let to = 1; while (to < rest.length && rest[to].color) to++;
+  return [...rest.slice(0, to), parts[at], ...rest.slice(to)];
+}
+
 export function panelOf(v, r) {
   if (!r) return null;
-  const parts = partsOf(v.panel(r, WIDE, true));
+  const parts = settingsUp(partsOf(v.panel(r, WIDE, true)));
   // The progress is a bar on the page, not a row of block characters.
   const bar = r.state !== "done" && r.progress !== undefined ? Math.max(0, Math.min(100, Number(r.progress) || 0)) : null;
   for (const p of parts) for (const f of p.items) if (f.k === "fact" && f.label === "Progress" && bar !== null) { f.bar = bar; f.lines = f.lines.map((l) => l.map((x) => ({ ...x, t: x.t.replace(/^[█░]+ ?/, "") })).filter((x) => x.t)); }

@@ -155,7 +155,7 @@ test("plan.approve you: the agent writes its plan and the task waits as plan rea
     b.press("alt+t"); // the whole task
     const whole = b.text();
     assert.match(whole, /plan ready/); assert.match(whole, /Stands\s+waits for your yes/); assert.match(whole, /Written by\s+the working agent/); assert.match(whole, /1\. Add f\.txt with one line\./); assert.match(whole, /Open plan/);
-    assert.match(whole, /Plan first\s+you approve it · written by the agent/);
+    assert.match(whole, /Plan first\s+you approve it \((this task|you)\) · written by the agent/);
     assert.match(JSON.stringify(A.details(id).plan), /Add f\.txt with one line/);
     // The web Board is the same board: the plan's part with its words, and the yes as a button.
     const web = CALLS.pick.run(new WebView({ cwd: w.root }), { id, open: true });
@@ -269,7 +269,7 @@ test("plan.agent: a planner writes the plan in a tab of its own, on its own prog
     assert.match(planner.agent.args.join(" "), /You are the planner of this task/);
     assert.equal(w.state().panes.find((p) => p.pane_id === t.plan.home.pane).agent, null, "the working agent has not started");
     const b = open(w, { rows: 90 }); b.press("alt+t");
-    assert.match(b.text(), /Written by\s+codex · gpt-5\.5/); assert.match(b.text(), /Plan first\s+you approve it · written by codex · gpt-5\.5/);
+    assert.match(b.text(), /Written by\s+codex · gpt-5\.5/); assert.match(b.text(), /Plan first\s+you approve it \((this task|you)\) · written by codex · gpt-5\.5 \((this task|you)\)/);
     const home = t.plan.home.pane, plannerPane = t.link.pane;
     A.approve(id);
     t = await started(id);

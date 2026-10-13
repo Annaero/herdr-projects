@@ -114,7 +114,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   const ready = page({ ...second, summary: "Did the work.", said: "Built Skylark.", stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" });
   // (Its review says no: it is not "ready", it says so under a headline of its own with what the two keys do, and its id is not a fact here.)
   assert.match(ready, keyed(/^\n #\d+ Build a flying game\n\n Status ─+\n State {8}! review failed · 2nd review · 0s ago\n On it {8}claude\n Change {7}PR#12 · 4 files, \+120 −31\n\n Review failed ─+\n It found 3\/5, reviewer says no\. {sendBack} sends the review to the agent to fix\.\n {yes} merges it anyway, and asks first\.\n\n Review ─+\n Review 2 {5}✗ 3\/5, says don't merge\n[ ▌] {13}Crashes\.\n\n The agent said ─+\n Built Skylark\.\n\n Settings ─+\n Project /));
-  assert.match(ready, keyed(/\n the rest as usual · {settings} shows every setting$/)); assert.doesNotMatch(ready, /https:|shows the whole task|ready to approve|proj\/1/); // beside the list only the settings that are its own; the link is in the PR's number
+  assert.match(ready, /\n Send back {4}major or worse · 3 rounds max\n Merge {8}after your yes\n Also {9}one attempt · not research only · no limits · no fallback$/); assert.doesNotMatch(ready, /as usual|https:|shows the whole task|ready to approve|proj\/1/); // beside the list every setting it runs with; the link is in the PR's number
   assert.match(page({ ...second, stat: " 4 files changed, 120 insertions(+), 31 deletions(-)" }, true), /\n Change {7}PR#12 · 4 files, \+120 −31\n[ ▌] {13}https:\/\/github\.com\/a\/b\/pull\/12\n/); // full screen it is printed too
   assert.doesNotMatch(ready, /Description|None\./);
   // Every review the task had: how many, how each went, and the latest under its own name, on both shapes of the panel.
@@ -134,30 +134,35 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   // a side panel too short for the settings still has where the task stands and the latest review, as its one row;
   // with no room for both, the change goes before the review's row
   { const at = (fit) => v.panel({ owner: "me", ...spiral, worktree: "", description: "Long. ".repeat(200) }, 46, false, fit).map((l) => stripVTControlCharacters(l));
-    assert.deepEqual(at(12), [" #1 Build a flying game", "", " Status ─────────────────────────────────────", " State        ◆ ready to approve · 3rd review", "              0s ago", " Change       PR#12", "", " Reviews · 3 ────────────────────────────────", " Review 3     ✓ 4/5, says merge · 1m ago", "              Fine now.", "", " alt+t shows the whole task"]);
+    assert.deepEqual(at(12), [" #1 Build a flying game", "", " Status ─────────────────────────────────────", " State        ◆ ready to approve · 3rd review", "              0s ago", " On it        claude", " Change       PR#12", "", " Reviews · 3 ────────────────────────────────", " Review 3     ✓ 4/5, says merge · 1m ago", "              Fine now.", " alt+t shows the whole task"]);
     assert.deepEqual(at(8), [" #1 Build a flying game", " Status ─────────────────────────────────────", " State        ◆ ready to approve · 3rd review", "              0s ago", " Change       PR#12", " Review 3     ✓ 4/5, says merge", "", " alt+t shows the whole task"]);
     assert.deepEqual(at(4), [" #1 Build a flying game", " State        ◆ ready to approve · 3rd review", "              0s ago", " alt+t shows the whole task"]); }
   // many reviews in a narrow panel: the history is wrapped, and every one of them is there
   const many = { ...spiral, reviews: Array.from({ length: 12 }, (_, n) => ({ round: n + 1, score: 2, recommend: false, text: "Still broken." })) };
   assert.match(stripVTControlCharacters(v.panel({ owner: "me", ...many }, 44, false).join("\n")), /\n Reviews · 12 ─+\n History {6}2\/5 no → 2\/5 no → 2\/5 no\n[ ▌] {13}→ 2\/5 no → 2\/5 no → 2\/5 no\n[ ▌] {13}→ 2\/5 no → 2\/5 no → 2\/5 no\n[ ▌] {13}→ 2\/5 no → 2\/5 no → 2\/5 no\n Review 12 {4}✗ 2\/5, says don't merge\n/);
   const busy = { ...spiral, title: "Build a flying game with a very long name that wraps onto two lines", state: "working", kind: undefined, stage: "working", progress: 40, eta: 12, msg: "Running the whole test suite again after the last fix", said: "Working on it.", description: "Long. ".repeat(200), usage: { in: 1000, out: 2000, context: 5000, window: 200000 }, link: { pane: "p1", workspace: "w1" } };
-  // a short window: the long parts give way, then the settings go (beside the list they are only the ones that are
-  // this task's own, and a line for the rest), and only then is the review down to its one row. Where the task stands and what it is doing now stay whole at every height,
-  // wrapped and never cut
-  const SETTINGS = ["Project", "Worktree", "Agent", "Reviewer", "Reviewed", "Send back", "Evidence", "Merge"];
+  // a short window: the settings outlast every text. What the agent said and the review's summary give way first,
+  // then the description (cut, then one line that says where to read it, then gone), and only then a setting: the
+  // ones that say who works and who reviews stay longest, with a line that counts the rest. With no room for a
+  // single setting the review has its summary again. Where the task stands and what it is doing now stay whole at
+  // every height, wrapped and never cut
+  const SETTINGS = ["Agent", "Plan first", "Reviewer", "Review when", "Send back", "Merge", "Also"];
   const STATE = " State        ◐ working · for 0s", PROGRESS = " Progress     ██████░░░░░░░░░ 40% · 12m left", NOW = [" Now          Running the whole test suite", "              again after the last fix"];
-  for (const fit of [30, 20, 16, 12, 8, 6]) {
+  for (const fit of [40, 30, 24, 20, 16, 12, 8, 6]) {
     const lines = v.panel({ owner: "me", ...busy }, 45, false, fit).map((l) => stripVTControlCharacters(l));
     assert.ok(lines.length <= fit, `fits in ${fit} lines`);
     const at = lines.indexOf(STATE);
     assert.deepEqual(lines.slice(at + 1, at + 4), [PROGRESS, ...NOW], `the status and what it is doing, whole, with room for ${fit} lines`);
     const kept = SETTINGS.filter((fact) => lines.some((l) => l.startsWith(` ${fact} `)));
-    const usual = lines.some((l) => /as usual · ctrl\+e/.test(l));
-    assert.ok(kept.every((k) => k === "Project"), `only the settings that are this task's own, with room for ${fit} lines`);
-    assert.ok(fit >= 30 ? kept.length === 1 && usual : fit <= 12 ? !kept.length : true, `${kept.length} settings with room for ${fit} lines`);
-    assert.equal(lines.includes(" Settings ──────────────────────────────────"), kept.length > 0 || usual, "the settings keep their headline while one of them is there");
+    const more = lines.find((l) => /more settings? · ctrl\+e shows/.test(l));
+    assert.deepEqual(kept, fit >= 30 ? SETTINGS : fit === 24 ? ["Agent", "Plan first", "Reviewer", "Review when", "Send back", "Merge"] : fit === 20 ? ["Agent", "Reviewer"] : [], `the settings with room for ${fit} lines`);
+    assert.equal(more, fit === 24 ? " 7 more settings · ctrl+e shows them" : fit === 20 ? " 13 more settings · ctrl+e shows them" : undefined, `how many settings have no room, with room for ${fit} lines`);
+    assert.equal(lines.includes(" Settings ──────────────────────────────────"), kept.length > 0, "the settings keep their headline while one of them is there");
+    assert.equal(lines.includes(" Description ───────────────────────────────"), fit >= 40, `the description with room for ${fit} lines`);
+    assert.equal(lines.includes(" Description · alt+t shows it"), fit === 30, `one line for the description with room for ${fit} lines`);
+    assert.ok(!lines.some((l) => l.startsWith(" The agent said")), "what the agent said gives way before a setting does");
     assert.equal(lines.some((l) => l.startsWith(" Review 3     ✓ 4/5, says merge")), fit > 6, `the latest review with room for ${fit} lines`);
-    assert.equal(lines.includes("              Fine now."), fit >= 16, `the review's summary with room for ${fit} lines`);
+    assert.equal(lines.includes("              Fine now."), fit === 16, `the review's summary with room for ${fit} lines`);
     assert.equal(lines.includes(" Status ────────────────────────────────────"), fit >= 12, `the headline with room for ${fit} lines`);
     assert.equal(lines.some((l) => l.startsWith(" #1 Build a flying game")), fit >= 6, `the title with room for ${fit} lines`);
     assert.ok(!lines.some((l) => /^[ ▌] {13}/.test(l) && l.endsWith("…")) && !lines.some((l) => SETTINGS.some((k) => l.startsWith(` ${k} `)) && l.endsWith("…")), "no fact is cut with an ellipsis");
