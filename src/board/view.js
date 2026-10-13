@@ -17,6 +17,7 @@ import { Size } from "./view/size.js";
 import { Setup } from "./view/setup.js";
 import { List } from "./view/list.js";
 import { Row } from "./view/row.js";
+import { RowSays } from "./view/row-says.js";
 import { RowTall } from "./view/row-tall.js";
 import { RowWrap } from "./view/row-wrap.js";
 import { RowNumber } from "./view/row-number.js";
@@ -159,6 +160,7 @@ const PARTS = [
   Setup,
   List,
   Row,
+  RowSays,
   RowTall,
   RowWrap,
   RowNumber,

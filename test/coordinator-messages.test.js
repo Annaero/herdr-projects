@@ -17,8 +17,11 @@ test("what you say is never lost: a dialog on its screen holds it, a failed star
     C.send(w.root, "first"); await drainJobs(runJob);
     assert.equal(C.get().queue.length, 1); assert.equal(C.look().state, "blocked");
     const s = open(w);
-    assert.match(s.text(), /\n[ ▌]. Coordinator {2}needs you · 1 message waits to be sent *\n╭─[^\n]*╮\n/); // what waits for you is on its screen: that is in the box
-    s.press("alt+c"); assert.match(s.text(), /\n[ ▌]. Coordinator {2}needs you · 1 message waits to be sent *\n─[^\n]*\n❯ /); // hidden: its one line still says it
+    assert.match(s.text(), /\n[ ▌]. Coordinator {2}asks you · 1 message waits to be sent *\n╭─[^\n]*╮\n/); // what waits for you is on its screen: that is in the box
+    s.press("alt+c"); assert.match(s.text(), /\n[ ▌]. Coordinator {2}asks you · 1 message waits to be sent *\n─[^\n]*\n❯ /); // hidden: its one line still says it
+    // herdr's sidebar names it and says where it stands in the same words (herdr's own are `sw-coordinator` and `blocked`).
+    C.tellSidebar(); assert.match(w.state().metadata.at(-1).args.join(" "), /--display-agent Coordinator · asks you · 1 message waits to be sent --title Coordinator /);
+    const told = w.state().metadata.length; fs.rmSync(S.stampFile("coordinator-sidebar-default"), { force: true }); C.tellSidebar(); assert.equal(w.state().metadata.length, told); // the same words: not written again
     // You answer the dialog in its chat; the tick then types the waiting words in.
     w.patchState((st) => { const p = st.panes.find((x) => x.agent); p.agent.status = "idle"; });
     fs.rmSync(S.stampFile(`coordinator-default`), { force: true });

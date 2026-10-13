@@ -146,12 +146,16 @@ test("the watcher: the pace is a setting, and herdr's sidebar keeps the minutes 
   try {
     S.update("proj/1", (t) => { t.since = Date.now() - 30 * 60000; t.workAt = 0; });
     tick(0); answer(calls[0], all(1, 50));
-    const told = () => w.state().metadata.filter((m) => m.args.join(" ").includes("summary=doing 1")).map((m) => /eta=(\d+)m/.exec(m.args.join(" "))?.[1]);
-    assert.deepEqual(told(), ["30"]);
+    // herdr's sidebar is told the row by whoever ticks (flow/sidebar.js): the Watcher itself writes nothing to herdr.
+    const sync = () => F.syncSidebar(F.board());
+    const told = () => w.state().metadata.filter((m) => m.pane && m.args.join(" ").includes("summary=doing 1")).map((m) => /progress=(.*?) --/.exec(m.args.join(" "))?.[1]);
+    sync(); assert.deepEqual(told(), ["50% 30m left"]);
     screen("proj/1", "● Writing tests\n");
     tick(61); tick(119); assert.equal(calls.length, 1); // two minutes between looks, as set
-    // No look, yet the sidebar is told again once a minute, with the minutes worked out afresh: 31 spent at 50%.
-    assert.deepEqual(told(), ["30", "31"]);
+    // No look, yet the sidebar has the minutes worked out afresh, written when they change: 31 spent at 50%.
+    sync(); assert.deepEqual(told(), ["50% 30m left"]);
+    S.update("proj/1", (t) => { t.since -= 60000; }); sync(); assert.deepEqual(told(), ["50% 30m left", "50% 31m left"]);
+    S.update("proj/1", (t) => { t.since += 60000; });
     assert.equal(F.board().find((t) => t.id === "proj/1").eta, 30); // the board's own row counts by itself
     tick(125); assert.equal(calls.length, 2);
     assert.equal(S.setting("watcher.every"), "120s"); assert.equal(S.entryOf("watcher.every").builtin, "60s");

@@ -88,6 +88,7 @@ async function reviewOnce(id, g, { text, change, toLand, ch, check }) {
     const startedAt = Date.now(); // a turn-end report older than this is from a try of this review that was cut off
     const x = launchExtras(t, "reviewer", { kind: rkind, round });
     t = g.set((t) => { t.link = { ...t.link, reviewer: { pane: pane.pane_id, tab, agent: name, kind: rkind } }; t.reviewSession = x.session; });
+    F.tellSidebar(t); // the reviewer's pane has its entry in herdr's sidebar from the start
     const start = (hook) => {
       const args = startArgs(rkind, { model: rmodel, effort: reffort, fast: who.fast, access: who.access, session: x.session, extra: hook });
       try { api.agentStart(name, rkind, pane.pane_id, args); settle(api, pane.pane_id, [rkind, ...args].join(" ")); } // up before its brief is typed (submit.js)

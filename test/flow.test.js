@@ -166,40 +166,49 @@ test("the finish line: commit leftovers, check, review, then wait for approval; 
     assert.deepEqual([s.state, s.kind, s.asReview], ["blocked", "permission", true]);
     const st = w.state();
     assert.deepEqual(st.notifications, []); // nothing pops up when a task lands in review
-    // herdr's own sidebar says what to do. With no sidebar rows in herdr's config the label rides on the agent's name too.
-    // It says where the task stands in the board's own words, what it says on a row of its own (the summary token), and names the task as the board does.
-    assert.ok(st.metadata.some((m) => m.args.join(" ").includes("idle=ready to approve") && m.args.join(" ").includes("--display-agent #1 · ready to approve") && m.args.join(" ").includes("summary=Pass · 1 minor") && m.args.join(" ").includes("--clear-token progress")), JSON.stringify(st.metadata.map((m) => m.args.join(" ")).slice(-4)));
-    // While the board ran the check, the sidebar had its line (no percent: this check reports no count), taken off again when it ended.
-    const told = st.metadata.filter((m) => m.pane === t.link.pane).map((m) => m.args.join(" "));
-    const began = told.findIndex((x) => x.includes("--token summary=Running the check") && x.includes("--clear-token progress")), ended = told.findIndex((x) => x.includes("--clear-token summary --clear-token progress --clear-token eta"));
-    assert.ok(began >= 0 && ended > began, told.join("\n")); assert.equal(t.check, null);
-    // Once the plugin's sidebar rows are installed, the state text shows beside the agent's name: renaming the agent
-    // as well would say the label twice on one line, so the name is left alone.
-    const cfg = path.join(w.root, "..", "herdr-config.toml"), oldCfg = process.env.HERDR_CONFIG_PATH;
-    fs.writeFileSync(cfg, "# >>> herdr-superwork sidebar (added by the herdr-superwork plugin)\n[ui.sidebar.agents]\nrows = [[\"agent\", \"state_text\"]]\n# <<< herdr-superwork sidebar\n");
-    process.env.HERDR_CONFIG_PATH = cfg;
-    try {
-      F.labelPane(t, "approve? pass");
-      const last = w.state().metadata.map((m) => m.args.join(" ")).filter((x) => x.includes("--state-label")).at(-1);
-      assert.ok(last.includes("idle=approve? pass") && / --display-agent #1 --token summary=/.test(last) && !last.includes("--display-agent #1 ·"), last); // the name is the task's alone: the label stands beside it
-    } finally { if (oldCfg === undefined) delete process.env.HERDR_CONFIG_PATH; else process.env.HERDR_CONFIG_PATH = oldCfg; }
+    // herdr's own sidebar says what the row says (flow/sidebar.js): where it stands with its review round as the
+    // agent's shown name, the row's second line as the summary token, and the task named as the board names it.
+    const said = st.metadata.filter((m) => m.pane === t.link.pane).map((m) => m.args.join(" "));
+    assert.match(said.at(-1), /--clear-state-labels --display-agent ready to approve · R#1 · <1m ago --title #1 Add a greeting --token summary=Pass · 1 minor --clear-token progress --clear-token eta$/);
+    // The task's space is named the same way, with the same line under it: one writer, so no label fights it.
+    assert.equal(st.workspaces.find((x) => x.workspace_id === t.link.workspace).label, "#1 Add a greeting");
+    assert.match(st.metadata.filter((m) => m.workspace === t.link.workspace).at(-1).args.join(" "), /--token summary=Pass · 1 minor --clear-token progress$/);
+    // On its way here the reviewer's pane had an entry of its own from its start, naming the reviewer.
+    assert.ok(st.metadata.some((m) => m.pane && m.pane !== t.link.pane && m.args.join(" ").includes("--display-agent reviewer · under review · R#1 · <1m --title #1 Add a greeting")), "the reviewer's own entry");
+    assert.equal(t.check, null);
     assert.ok(!st.panes.some((p) => p.agent?.name === "sw-proj-1-r")); // the reviewer pane is closed again
-    // herdr's sidebar keeps no working line under a task that stopped working (the Watcher's "Just started" once stayed
-    // there for minutes): the keeper's pass writes a label once, names the task's pane as the board names the task,
-    // and takes the working line off a task that neither works nor has a label.
+    // The keeper's pass writes an entry once and again only when a word of it changed; a task that stopped working
+    // keeps no working line (the Watcher's "Just started" once stayed there for minutes), and one that is archived
+    // while its pane lives on has what the board wrote taken off.
     {
-      const calls = () => w.state().metadata.filter((m) => m.pane === t.link.pane).map((m) => m.args.join(" ")), labels = () => calls().filter((x) => x.includes("--state-label")).length;
-      F.labelTask(t); const live = { ...t, state: "blocked", live: { status: "done" } };
-      assert.match(calls().at(-1), /--state-label idle=ready to approve .*--display-agent #1 · ready to approve --token summary=Pass · 1 minor --clear-token progress --clear-token eta$/);
-      let n = labels(); F.syncSidebar([live]); assert.equal(labels(), n, "no label written twice");
-      assert.ok(calls().some((x) => x.includes("--title #1 Add a greeting")), calls().join("\n")); n = calls().length; F.syncSidebar([live]); assert.equal(calls().length, n, "named once");
-      F.labelPane(t, null); const stopped = { ...t, stage: "stopped", state: "idle", live: { status: "idle" } };
-      F.syncSidebar([stopped]); assert.match(calls().at(-1), /--clear-state-labels .*--clear-token summary --clear-token progress --clear-token eta$/);
-      n = calls().length; F.syncSidebar([stopped]); assert.equal(calls().length, n, "cleared once");
-      F.labelPane(t, null); n = calls().length; F.syncSidebar([{ ...t, stage: "working", state: "working", live: { status: "working" } }]); assert.equal(calls().length, n, "while it works the Watcher's line is the pane's to show");
-      F.syncSidebar([{ ...t, stage: "asks", kind: "question", msg: "Sand or pebbles?", state: "blocked", live: { status: "done" } }]);
-      assert.match(calls().at(-1), /--state-label idle=asks you .*--token summary=Sand or pebbles\? --clear-token progress --clear-token eta$/);
-      F.labelTask(t); // as it was: it waits for its yes
+      const calls = () => w.state().metadata.filter((m) => m.pane === t.link.pane).map((m) => m.args.join(" "));
+      const live = { ...t, state: "blocked", kind: "permission", live: { status: "done" } };
+      let n = calls().length; F.syncSidebar([live]); F.syncSidebar([live]); assert.equal(calls().length, n, "nothing written twice");
+      F.syncSidebar([{ ...t, stage: "stopped", state: "idle", note: "Stopped", live: { status: "idle" } }]);
+      assert.match(calls().at(-1), /--display-agent to do · R#1 · <1m ago .*--token summary=Stopped --clear-token progress --clear-token eta$/);
+      const working = { ...t, stage: "working", state: "working", note: "Writing greet.sh", progress: 40, eta: 12, research: true, pr: "https://example.com/pull/7", live: { status: "working" } };
+      F.syncSidebar([working]); assert.match(calls().at(-1), /--display-agent agent · working · R#1 PR#7 · \[research\] · <1m .*--token summary=Writing greet\.sh --token progress=40% 12m left --clear-token eta$/);
+      n = calls().length; F.syncSidebar([working]); assert.equal(calls().length, n, "the same words: not written again");
+      F.syncSidebar([{ ...working, eta: 11 }]); assert.match(calls().at(-1), /progress=40% 11m left/); // a minute less: written
+      F.syncSidebar([{ ...t, stage: "asks", kind: "question", msg: "Sand or pebbles?", note: "Sand or pebbles?", state: "blocked", live: { status: "done" } }]);
+      assert.match(calls().at(-1), /--display-agent asks you · R#1 · <1m ago .*--token summary=Sand or pebbles\? --clear-token progress --clear-token eta$/);
+      // herdr not running, or the pane of another session: nothing is written and nothing taken off.
+      n = calls().length; F.syncSidebar([{ ...live, live: { down: true } }]); assert.equal(calls().length, n);
+      F.syncSidebar([{ ...live, archivedAt: Date.now() }]); assert.match(calls().at(-1), /--clear-state-labels --clear-display-agent --clear-title --clear-token summary --clear-token progress --clear-token eta$/);
+      n = calls().length; F.syncSidebar([{ ...live, archivedAt: Date.now() }]); assert.equal(calls().length, n, "taken off once");
+      F.tellSidebar(t); assert.match(calls().at(-1), /--display-agent ready to approve · R#1 /); // as it was: it waits for its yes
+      // A review under way: the agent's pane and the reviewer's each name their own agent.
+      w.patchState((st) => { const p = st.panes.find((x) => x.pane_id === t.link.pane); st.panes.push({ ...p, pane_id: "w9:rv", agent: null }); });
+      F.syncSidebar([{ ...t, stage: "reviewing", state: "working", note: "Reading the diff", link: { ...t.link, reviewer: { pane: "w9:rv" } }, live: { status: "done" } }]);
+      const names = w.state().metadata.filter((m) => m.pane).slice(-2).map((m) => /--display-agent (\w+ · under review)/.exec(m.args.join(" "))?.[1]);
+      assert.deepEqual(names, ["agent · under review", "reviewer · under review"]);
+      // herdr started again keeps nothing of what was written: its own reading of the pane has no shown name, so
+      // the same words are written again, though none of them changed.
+      F.syncSidebar([live]); n = calls().length;
+      const pane = () => w.state().panes.find((x) => x.pane_id === t.link.pane);
+      F.syncSidebar([{ ...live, live: { status: "done", pane: pane() } }]); assert.equal(calls().length, n, "herdr has it: not written again");
+      w.patchState((st) => { delete st.panes.find((x) => x.pane_id === t.link.pane).display_agent; });
+      F.syncSidebar([{ ...live, live: { status: "done", pane: pane() } }]); assert.equal(calls().length, n + 1, "herdr lost it: written again"); assert.match(calls().at(-1), /--display-agent ready to approve · R#1 .*--token summary=Pass · 1 minor/);
     }
     assert.equal(st.panes.find((p) => p.pane_id === t.link.pane).agent.kind, "claude");
     // approve

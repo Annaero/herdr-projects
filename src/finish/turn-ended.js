@@ -88,7 +88,7 @@ async function finishOnce(id, { force = false } = {}) {
       // It said that it waits for the human, then stopped: that is not a finish, whichever signal of the stop came first.
       if (waits(t, turn)) { stay(id, t, turn, { comp, seq, term }, ev.session); return true; }
       // A turn that ended in a stage other than "working" was the human's, typed in the agent's own terminal.
-      if (t.stage !== "working") { t = S.update(id, (t) => { humanTurn(t); }, { waitMs: 10000 }); F.labelPane(t, null); await closeReviewer(id); }
+      if (t.stage !== "working") { t = S.update(id, (t) => { humanTurn(t); }, { waitMs: 10000 }); F.tellSidebar(t); await closeReviewer(id); }
     } else {
       // 2b. The hook-less route: no event (a crash, a kind without a hook, a hook marked not working).
       if (a && (a.agent_status === "working" || a.agent_status === "blocked")) return true;
@@ -130,7 +130,7 @@ async function finishOnce(id, { force = false } = {}) {
         const keepIntent = (!!wake?.keepIntent || !!t.cutRetry?.keepIntent) && !!t.mergeIntent;
         const failure = { stage: "agent", auth: false, agentCanFix: true, title: "Agent cut off", detail: `${why}\n\nThe ${S.gaveUp("agent", turn.reason, 1)}. That passes by itself: the board tells the agent to carry on, up to ${waits.length} times with growing waits.`, next: `Nothing: the board tells the agent to continue by itself. Reply or press ${keyName("sendBack")} to do it now.` };
         const w = g.set((t) => { t.stage = "failed"; t.msg = `Agent stopped: ${S.oneLine(why, 200)}`; if (!keepIntent) t.mergeIntent = null; Object.assign(t, S.failurePatch(failure)); t.waiting = { who: "agent", reason: turn.reason, error: S.oneLine(why, 400), until: Date.now() + waits[tries], tries: tries + 1, keepIntent, for: t.failure.at }; });
-        F.labelPane(w, null);
+        F.tellSidebar(w);
         return true;
       }
       const gaveUp = turn.passing ? `${S.gaveUp("agent", turn.reason, tries + 1)}. ` : "";

@@ -1,87 +1,113 @@
-// Telling herdr's own sidebar where a task stands: the label and the line on its pane, and the task's name.
-import fs from "node:fs";
-import os from "node:os";
+// Telling herdr's own sidebar about a task: one entry per live agent, a small copy of the task's row on the board.
 import path from "node:path";
 import * as S from "../store.js";
-import * as G from "../gate.js";
-import { herdr } from "../herdr.js";
-import { isAgentTask, h } from "./task.js";
-import { board } from "./live.js";
-import { real } from "./spaces.js";
-import { sidebarWords } from "../status-words.js";
+import { herdr, currentSocket, sessionName } from "../herdr.js";
+import { isAgentTask } from "./task.js";
+import { saved } from "./live.js";
+import { entryOf, reviewerEntry, taskName } from "./sidebar-entry.js";
 
 // ---- telling herdr's own sidebar -------------------------------------------------------------------------------------
-// While a task waits for you its pane says so in herdr's sidebar, in the words the board's own State line uses
-// (status-words.js), with no change to the client's herdr settings. herdr's default sidebar shows neither state
-// labels nor custom tokens (verified on 0.9.3): only the agent's display name. So the label goes three ways: into
-// the display name (shows with no setup), as a state label, and, with what the task says, as the `summary` token,
-// which has a row of its own and so is never cut short (both show once the sidebar rows from docs/install.md are in
-// herdr's config). The task is named there as on the board: `#34`, or `HSW-34` where its repo has a key.
+// An entry has three rows, the board row's three facts (sidebar-entry.js makes the words):
+//   1. herdr's own dot, then the task's number and title. That is the name of the task's space, which the board
+//      keeps as `#34 Add a file…` (the task's tab names, `Agent` and `Reviewer #1`, are hidden by the sidebar rows).
+//   2. who is on it and where it stands, then the review round, the pull request and the tags: the agent's shown name.
+//   3. the row's second line, then the percent and the time left: the pane's `summary` and `progress` tokens.
+// herdr's default sidebar shows the first two (verified on 0.9.3: it shows no custom tokens). The third, and row 1
+// without the tab's name, show once the sidebar rows from docs/install.md are in herdr's config. The dot is herdr's
+// own reading of the pane: the board writes no state to herdr (docs/checked-on-herdr.md says why).
 //
-// The `summary`, `progress` and `eta` tokens of a pane have three writers: the Watcher while an agent works
-// (helpers.js) and the check while it runs (finish/check-run.js), both with a time to live of three minutes, and
-// this file. Checked on herdr 0.9.3: a token goes when its time is up, but nothing took it away sooner, so a task
-// that had stopped working kept its last working line ("Just started") for up to three minutes; and on the space,
-// the label (written to stay) and the Watcher's line (written to run out) were one token, so whichever came last
-// stood. Now a task that leaves working has those tokens taken off or replaced here, at once.
+// This file is the only writer of a task's panes and space. The Watcher and the check keep what they find on the
+// task; the board shows it on the row, and the row is what is written here: by whoever ticks, once a second
+// (`syncSidebar`, which is also how often an open board draws its rows again), and at once where a task comes to
+// wait for you, goes wrong, is taken up again or ends (`tellSidebar`). Written to stay, and written again only when
+// a word changed; taken off again when the task is archived or removed while its pane lives on.
 const sidebarFile = () => path.join(S.dataDir(), "sidebar.json");
-const TOKENS = ["summary", "progress", "eta"];
-const clearTokens = TOKENS.flatMap((name) => ["--clear-token", name]);
-const key = (t) => `${t.link.socket}|${t.link.pane}`;
-const remember = (t, value) => { try { const seen = S.readJson(sidebarFile(), {}) || {}; seen[key(t)] = value; for (const k of Object.keys(seen).slice(0, -400)) delete seen[k]; S.writeJson(sidebarFile(), seen); } catch {} };
-// `text`: where the task stands (empty or null: its agent works, or it is no longer the board's to label). `line`: what it says.
-export function labelPane(t, text, line = "") {
-  if (!isAgentTask(t)) return;
-  const api = h(t);
-  const label = text ? String(text).slice(0, 40) : "", said = label ? String(line || "").slice(0, 200) : "";
-  remember(t, label ? `${label}|${said}` : "");
-  const tag = S.tagOf(t.id) || t.id;
-  // With the plugin's sidebar rows installed the state text sits beside the agent's name, so the name is the
-  // task's alone; without them the name is all that shows, and carries the label too.
-  const name = ["--display-agent", label && !sidebarRows() ? `${tag} · ${label}` : tag];
-  // What it says has a row of its own, whole; with nothing to say that row shows where it stands.
-  const tokens = label ? ["--token", `summary=${said || label}`, "--clear-token", "progress", "--clear-token", "eta"] : clearTokens;
-  if (label) api.metadata(t.link.pane, ["--state-label", `idle=${label}`, "--state-label", `done=${label}`, "--state-label", `unknown=${label}`, "--state-label", `blocked=${label}`, ...name, ...tokens]);
-  else api.metadata(t.link.pane, ["--clear-state-labels", ...name, ...tokens]);
-  if (t.link.workspace && t.link.ownsWorkspace) { try { api.call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", ...(label ? ["--token", `summary=${said ? `${label} · ${said}` : label}`] : ["--clear-token", "summary"])]); } catch {} }
-}
-// A task's panes by its name: the pane's title and the agent's shown name are the task's tag and title, so herdr's
-// sidebar and the web UI's read `#34 Add a file…` and not the agent's inner name (`sw-repo-34`). Once per pane.
-function namePanes(t, seen) {
-  const tag = S.tagOf(t.id) || t.id, title = `${tag} ${S.oneLine(t.title || "", 60)}`.trim(), api = h(t);
-  for (const [pane, shown, name] of [[t.link.pane, title, tag], [t.link.reviewer?.pane, `${tag} review ${S.reviewNumber(t) || ""}`.trim(), `${tag} reviewer`]]) {
-    const k = `name|${t.link.socket}|${pane}`;
-    if (!pane || seen[k] === shown) continue;
-    try { api.metadata(pane, ["--title", shown, ...(pane === t.link.pane ? [] : ["--display-agent", name])]); seen[k] = shown; } catch {}
+const SOURCE = "plugin:herdr-superwork";
+const token = (name, value) => (value ? ["--token", `${name}=${value}`] : ["--clear-token", name]);
+// `eta` was a token of its own in older versions: it is now part of `progress` ("8% 16m left"), as the row writes it.
+// Row 2 as herdr keeps it: where the task stands, then the row's time, last, so that it is the first thing cut.
+export const shownName = (e) => [e.stands, e.age].filter(Boolean).join(" · ").slice(0, 80);
+const paneArgs = (e, title) => ["--clear-state-labels", "--display-agent", shownName(e), ...(title ? ["--title", title] : []), ...token("summary", e.line), ...token("progress", e.progress), "--clear-token", "eta"];
+const CLEAR = ["--clear-state-labels", "--clear-display-agent", "--clear-title", "--clear-token", "summary", "--clear-token", "progress", "--clear-token", "eta"];
+// What a task's panes and space are to say: [key, what is written there, how].
+function wanted(t, now) {
+  const socket = t.link.socket, api = herdr(socket), e = entryOf(t, { now }), out = [];
+  out.push([`e|${socket}|${t.link.pane}`, e, () => api.metadata(t.link.pane, paneArgs(e, e.name))]);
+  const rv = t.link.reviewer?.pane;
+  if (rv) { const r = reviewerEntry(t, { now }); out.push([`e|${socket}|${rv}`, r, () => api.metadata(rv, paneArgs(r, e.name))]); }
+  // The task's space: its name is the task's number and title, and under it the row's second line. One writer.
+  const ws = t.link.ownsWorkspace && t.link.workspace;
+  if (ws) {
+    out.push([`n|${socket}|${ws}`, e.name, () => api.call(["workspace", "rename", ws, e.name]) || true]);
+    out.push([`w|${socket}|${ws}`, [e.line, e.progress], () => api.call(["workspace", "report-metadata", ws, "--source", SOURCE, ...token("summary", e.line), ...token("progress", e.progress)]) || true]);
   }
+  return out;
 }
-// Are the plugin's sidebar rows in herdr's config (the first run adds them, between its marker lines)?
-let rowsSeen = { at: 0, on: false };
-function sidebarRows() {
-  if (process.env.HERDR_SUPERWORK_INLINE === "1" && process.env.HERDR_CONFIG_PATH === undefined) return false; // tests never read the real config
-  const file = process.env.HERDR_CONFIG_PATH || path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), "herdr", "config.toml");
-  if (Date.now() - rowsSeen.at > 5000 || rowsSeen.file !== file) { let on = false; try { on = fs.readFileSync(file, "utf8").includes("# >>> herdr-superwork sidebar"); } catch {} rowsSeen = { at: Date.now(), on, file }; }
-  return rowsSeen.on;
+// What was written, by where: `e` a task's pane, `n` its space's name, `w` its space's tokens, `c` the Coordinator's pane.
+const read = () => { const all = S.readJson(sidebarFile(), {}) || {}; return Object.fromEntries(Object.entries(all).filter(([k]) => /^[enwc]\|/.test(k))); };
+// Writes what changed, and remembers what herdr took: what it did not take (herdr gone for a moment) is written
+// again by the next tick that reads the pane alive.
+function write(list, seen) {
+  let changed = false;
+  for (const [key, value, how] of list) {
+    const sig = JSON.stringify(value);
+    if (seen[key] === sig) continue;
+    try { if (!how()) continue; } catch { continue; }
+    seen[key] = sig; changed = true;
+  }
+  return changed;
 }
-// What herdr's sidebar says about a task: where it stands, in the board's own words. Nothing while the agent simply
-// works, or while the board is busy by itself: herdr's own status says that.
-export const labelOf = (t) => sidebarWords(t).label;
-export const lineOf = (t) => sidebarWords(t).line;
-// A task's pane labelled with where it stands now. `or`: the words for a task whose stage has none of its own.
-export function labelTask(t, or = "") { const w = sidebarWords(t); labelPane(t, w.label || or, w.line); }
-// The stages in which somebody's working line is the pane's to show: the Watcher's, or the check's.
-const WORKING = ["working", "checking", "starting", "setup", "pushing", "merging", "queued"];
-// Keep every live pane's label current; writes only when the value for that pane id changed (a restored task's new
-// pane therefore gets its label). Called by whoever ticks: the keeper, or the board when no keeper is alive.
-// A task that neither works nor has a label (stopped, done, put back) has its working line taken off once: "idle".
-export function syncSidebar(tasks) {
-  const seen = S.readJson(sidebarFile(), {}) || {}, names = { ...seen };
+const told = (t) => isAgentTask(t) && !t.archivedAt;
+// Did herdr lose what was written to a pane? `have`: herdr's own reading of the pane (`pane list`, `agent get`), which
+// carries the shown name it was given (checked on 0.9.3). Written, by the cache, and no longer there: herdr was
+// started again since, and a pane starts with nothing. The cache alone would never write the same words again.
+const forgotten = (sig, have) => !!sig && !!have && !have.display_agent && !!JSON.parse(sig).stands;
+// A task that just changed, said in herdr's sidebar at once, by whoever changed it: by what was saved, with no look
+// at herdr (the next tick, within a second, reads herdr too). Never throws: a sidebar is a convenience.
+export function tellSidebar(t, now = Date.now()) {
+  try {
+    if (!t || !told(t)) return;
+    const seen = read();
+    if (write(wanted(saved(t), now), seen)) S.writeJson(sidebarFile(), seen);
+  } catch {}
+}
+// Keeps every live pane of one herdr session current: the tasks as that session sees them (flow/live.js: boardFor).
+// Called by whoever ticks: the keeper, or the board when no keeper is alive. A pane that is no longer a live task's
+// (archived, removed, its reviewer gone) has what the board wrote taken off, once.
+export function syncSidebar(tasks, { socket = tasks.find((t) => t.live && !t.live.away)?.link?.socket || currentSocket(), now = Date.now() } = {}) {
+  const seen = read(), list = [];
+  let down = false, lost = false;
   for (const t of tasks) {
-    if (!isAgentTask(t) || t.archivedAt || !t.live || t.live.gone || t.live.down || t.live.away) continue;
-    const { label, line } = sidebarWords(t), want = label ? `${label.slice(0, 40)}|${line.slice(0, 200)}` : WORKING.includes(t.stage) ? "" : "idle";
-    if ((seen[key(t)] ?? "") !== want) { try { labelPane(t, label, line); if (want === "idle") remember(t, "idle"); } catch {} }
-    try { namePanes(t, names); } catch {}
+    if (!isAgentTask(t) || t.link.socket !== socket) continue;
+    if (t.live?.down) down = true;
+    if (!told(t) || !t.live || t.live.gone || t.live.down || t.live.away) continue;
+    if (forgotten(seen[`e|${socket}|${t.link.pane}`], t.live.pane)) lost = true;
+    try { list.push(...wanted(t, now)); } catch {}
   }
-  // The names are kept in the same file: read again, so the labels written a line above are not lost.
-  try { const now = S.readJson(sidebarFile(), {}) || {}; let changed = false; for (const [k, v] of Object.entries(names)) if (k.startsWith("name|") && now[k] !== v) { now[k] = v; changed = true; } if (changed) S.writeJson(sidebarFile(), now); } catch {}
+  // herdr restarted: it kept none of what was written, so all of it is written again, whether a word changed or not.
+  if (lost && S.due(`sidebar-again-${sessionName(socket)}`, 10000)) for (const key of Object.keys(seen)) if (key.split("|")[1] === socket) delete seen[key];
+  let changed = write(list, seen) || lost;
+  if (!down) {
+    const keep = new Set(list.map(([key]) => key)), api = herdr(socket);
+    for (const key of Object.keys(seen)) {
+      const [kind, at, id] = key.split("|");
+      if (at !== socket || keep.has(key) || kind === "c") continue;
+      if (kind === "e") api.metadata(id, CLEAR);
+      if (kind === "w") { try { api.call(["workspace", "report-metadata", id, "--source", SOURCE, "--clear-token", "summary", "--clear-token", "progress"]); } catch {} }
+      delete seen[key]; changed = true;
+    }
+  }
+  if (changed) { try { S.writeJson(sidebarFile(), seen); } catch {} }
 }
+// The name a task's space is opened under: what its row starts with.
+export const spaceLabel = (t) => taskName(t);
+// The same for a pane that is no task's: the Coordinator's (coordinator/sidebar.js). `entry` as sidebar-entry.js makes it.
+export function tellPane(socket, pane, entry, have = null) {
+  try {
+    const seen = read();
+    if (forgotten(seen[`c|${socket}|${pane}`], have)) delete seen[`c|${socket}|${pane}`];
+    if (write([[`c|${socket}|${pane}`, entry, () => herdr(socket).metadata(pane, paneArgs(entry, entry.name))]], seen)) S.writeJson(sidebarFile(), seen);
+  } catch {}
+}
+// What `tellSidebar` says of a task: its entry by what was saved alone.
+export const entryNow = (t, now = Date.now()) => entryOf(saved(t), { now });

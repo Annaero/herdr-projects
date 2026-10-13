@@ -13,6 +13,6 @@ export const approvalMessage = (t, note = "") => {
 };
 export function fail(g, failure, extra = {}) {
   const t = g.set((t) => { t.stage = "failed"; t.msg = failure.msg || failure.title; t.mergeIntent = extra.keepIntent ? t.mergeIntent : null; Object.assign(t, S.failurePatch(failure), extra.patch || {}); });
-  F.labelPane(t, null);
+  F.tellSidebar(t);
   return t;
 }

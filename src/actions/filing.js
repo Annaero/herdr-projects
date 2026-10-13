@@ -52,7 +52,7 @@ export function report(id, { state, kind, msg, title, progress, eta, asAgent = f
     else if (state === "error") { t.stage = "failed"; Object.assign(t, S.failurePatch({ stage: "agent", title: "Marked as failed", detail: S.oneLine(msg) || "No details given.", auth: false })); }
   });
   // Called done by you: its space leaves herdr's sidebar as after a merge. Unmerged work stays on its branch.
-  if (state === "done" && F.isAgentTask(t)) { try { F.labelPane(t, null); } catch {} spawnRunner("cleanup", t.id, ["--merged"]); }
+  if (state === "done" && F.isAgentTask(t)) { try { F.tellSidebar(t); } catch {} spawnRunner("cleanup", t.id, ["--merged"]); }
   return t;
 }
 const clampPct = (p) => Math.max(0, Math.min(100, Math.round(Number(p)) || 0));

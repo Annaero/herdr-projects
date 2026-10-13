@@ -13,6 +13,8 @@ import { spawnSync } from "node:child_process";
 import * as S from "./store.js";
 import { AGENTS, installed } from "./agents.js";
 import * as K from "./herdr-keys.js";
+import { launch } from "./herdr.js";
+import { AGENT_TAB, reviewerTab } from "./flow/tabs.js";
 
 const stateFile = () => path.join(S.dataDir(), "extras.json");
 export const extras = () => S.readJson(stateFile(), {}) || {};
@@ -129,7 +131,10 @@ const BEGIN = (what) => `# >>> herdr-superwork ${what} (added by the herdr-super
 const END = (what) => `# <<< herdr-superwork ${what}`;
 const BLOCKS = {
   key: (key) => `[[keys.command]]\nkey = "${key}"\ntype = "plugin_action"\ncommand = "herdr-superwork.open"\ndescription = "work board"`,
-  sidebar: () => `[ui.sidebar.agents]\nrows = [["state_icon", "machine", "workspace", "tab"], ["agent", "state_text"], [{ token = "$summary", dim = true }, "$progress", "$eta"]]\n\n[ui.sidebar.spaces]\nrows = [["state_icon", "workspace"], ["branch", "git_status"], [{ token = "$summary", dim = true }]]`,
+  // Row 1: herdr's dot, the machine where there is more than one, and the space's name, which for a task is its
+  // number and title (flow/sidebar.js); the tab's name too, but not a task's own tabs, whose names say nothing the
+  // next row does not. Row 2: who is on it and where it stands. Row 3: what it says, its percent and time left.
+  sidebar: () => `[ui.sidebar.agents]\nrows = [["state_icon", "machine", "workspace", { token = "tab", rules = [{ equals = "${AGENT_TAB}", hide = true }, { starts_with = "${reviewerTab("")}", hide = true }] }], ["agent"], [{ token = "$summary", dim = true }, "$progress"]]\n\n[ui.sidebar.spaces]\nrows = [["state_icon", "workspace"], ["branch", "git_status"], [{ token = "$summary", dim = true }, "$progress"]]`,
 };
 export const blockText = (what, arg) => `${BEGIN(what)}\n${BLOCKS[what](arg)}\n${END(what)}`;
 const read = () => { try { return fs.readFileSync(herdrConfig(), "utf8"); } catch { return ""; } };
@@ -195,6 +200,34 @@ export function addBlock(what, arg) {
   }
   if (what === "sidebar") save({ sidebar: true });
   return { ok: true, msg: r.status === "unknown" ? `Added. herdr could not be asked to reload (${S.oneLine(r.why, 120)}): restart herdr or run herdr server reload-config.` : "Added." };
+}
+// The sidebar rows the plugin wrote, brought up to this version's: an older block (its rows named the tab and wrote
+// the status twice) is replaced by the rows above, between the same marker lines. Only the plugin's own block, and
+// only when it differs; checked on a copy first, and put back if herdr rejects it. At herdr's start and when the
+// board opens.
+export function refreshSidebar() {
+  if (process.env.HERDR_SUPERWORK_INLINE === "1" && process.env.HERDR_CONFIG_PATH === undefined) return false; // tests never touch the real config
+  const file = herdrConfig(), text = read(), want = blockText("sidebar");
+  const at = text.indexOf(BEGIN("sidebar")), end = at < 0 ? -1 : text.indexOf(END("sidebar"), at);
+  if (end < 0 || text.slice(at, end + END("sidebar").length) === want) return false;
+  try { if (fs.lstatSync(file).isSymbolicLink()) return false; } catch { return false; } // a managed link: not ours to rewrite unasked
+  return S.withLock("extras", () => {
+    const next = text.slice(0, at) + want + text.slice(end + END("sidebar").length);
+    if (!accepted(next)) return false;
+    try { fs.copyFileSync(file, `${file}.bak-herdr-superwork`); fs.writeFileSync(file, next); } catch { return false; }
+    const reload = () => launch(["server", "reload-config"], { encoding: "utf8", timeout: 15000, env: process.env });
+    if (/"status":\s*"failed"/.test(String(reload().stdout))) { try { fs.writeFileSync(file, text); reload(); } catch {} return false; }
+    return true;
+  }, { waitMs: 15000 });
+}
+// Would herdr take this config? Asked of a copy, never of the real file. Yes when herdr cannot be asked.
+function accepted(text) {
+  const cand = path.join(S.dataDir(), `config-candidate-${process.pid}.toml`);
+  try {
+    fs.mkdirSync(S.dataDir(), { recursive: true }); fs.writeFileSync(cand, text);
+    const c = launch(["config", "check"], { encoding: "utf8", timeout: 8000, env: { ...process.env, HERDR_CONFIG_PATH: cand } });
+    return c.error || c.status === null ? true : c.status === 0 && /ok/i.test(String(c.stdout));
+  } catch { return true; } finally { try { fs.rmSync(cand, { force: true }); } catch {} }
 }
 // An earlier version offered to turn on herdr's notification pop-ups. The plugin raises none now, so the block it
 // wrote for that is taken out again, at herdr's start and when the board opens.

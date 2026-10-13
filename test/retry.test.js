@@ -210,7 +210,7 @@ test("the working agent: a turn cut off by a passing provider error is told to c
     assert.equal(S.waitingOf(t).tries, 1);
     let row = stateOf(id);
     assert.equal(row.state, "working"); assert.match(row.note, /^Agent's connection dropped, trying again in 2m$/);
-    assert.equal(F.labelOf(t), "");
+    assert.deepEqual([F.entryNow(t).where, F.entryNow(t).line], ["agent · working", row.note]); // herdr's sidebar says what the row says
     // on the board: under "working", the row and the task panel say why and when, and nothing asks for you
     const v = new View({ terminal: { rows: 40, columns: 130 }, requestRender() {}, stop() {}, start() {} }, theme, () => {}, { cwd: w.root, canReload: true });
     clearInterval(v.timer); v.side = true;

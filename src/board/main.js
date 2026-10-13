@@ -20,7 +20,7 @@ export async function openBoard({ folder }) {
   // The board opening is one of the keeper's starters; the how-to files are refreshed here too.
   try { ensureKeeper(); } catch {}
   let boardKey = "", ownKey = null;
-  try { const X = await import("../extras.js"); X.syncSkill(F.shim()); X.removePopups(); boardKey = X.boardKey(); ownKey = X.boardPresses(); } catch {}
+  try { const X = await import("../extras.js"); X.syncSkill(F.shim()); X.removePopups(); X.refreshSidebar(); boardKey = X.boardKey(); ownKey = X.boardPresses(); } catch {}
   // A board that has reloaded itself a few times in a row stops doing so: something keeps changing its files.
   const reloads = Number(process.env.HERDR_SUPERWORK_RELOADS) || 0;
   const named = nameBoardTab(boardPane());

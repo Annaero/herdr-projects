@@ -6,7 +6,7 @@ in the box, `add` and `report --title`. The number is `TITLE_MAX` in `src/store/
 ## Why 60
 
 A row of the list has about that much for a title: in a 120-column window with the task panel open the list is 72
-cells wide, and the mark and the time take the rest. It is also what herdr's sidebar is given as the label of a
+cells wide, and the mark and the time take the rest. It is also what herdr's sidebar is given, after the task's number, as the name of a
 task's space. A title that fits is read whole in both places; a sentence of 100 characters filled the row and
 pushed out what the row says about the task.
 

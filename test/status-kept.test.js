@@ -74,9 +74,10 @@ test("no bare … as a status line: the list, the panel, the whole-task page and
     let d = drawn();
     assert.equal(row().msg, "Just started"); assert.ok(d.side.some((l) => /^[ ▌] {5}Just started/.test(l)), "the list");
     for (const k of ["side", "page"]) { assert.ok(d[k].some((l) => /Now\s+Just started/.test(l)), k); assert.ok(!bare(d[k]), k); }
-    // The Watcher's first look: until its answer herdr's sidebar gets the same words, and no percent.
+    // Until the Watcher's first answer herdr's sidebar has the same words as the row.
+    F.syncSidebar(F.board());
+    assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("--display-agent agent · working") && m.args.join(" ").includes("summary=Just started")));
     look();
-    assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("summary=Just started") && m.args.join(" ").includes("--clear-token progress")));
     assert.ok(drawn().side.some((l) => /^[ ▌] {5}editing the greeting file/.test(l)));
     // Told to go on (a new turn): the guess goes, the sentence stays, with how old it is.
     // The task as an older version saved it: the guess only, no kept sentence. It is kept all the same.
@@ -91,8 +92,9 @@ test("no bare … as a status line: the list, the panel, the whole-task page and
     d = drawn();
     assert.ok(d.side.some((l) => /^[ ▌] {5}5m ago: editing the greeting file/.test(l)), "the list");
     for (const k of ["side", "page"]) { assert.ok(d[k].some((l) => /Now\s+5m ago: editing/.test(l)), k); assert.ok(!bare(d[k]), k); }
-    look();
+    F.syncSidebar(F.board());
     assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("summary=5m ago: editing the greeting file")));
+    look();
     assert.ok(S.get("proj/1").watch); // the new sentence takes its place
     assert.ok(drawn().side.some((l) => /^[ ▌] {5}editing the greeting file/.test(l)));
   } finally { delete process.env.HERDR_SUPERWORK_HELPER_CMD; w.cleanup(); }

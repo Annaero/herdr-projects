@@ -38,7 +38,7 @@ export function delegate(id, opts = {}) {
     t.checkFails = 0; t.reviewRounds = 0; t.prRounds = 0; t.syncRepairs = 0;
   });
   if (old) F.closeLater(old.socket, old.workspace);
-  F.labelPane(t, null);
+  F.tellSidebar(t);
   startQueued(socket);
   return S.get(t.id);
 }

@@ -26,10 +26,12 @@ block sits between two marker lines, and a change herdr rejects is rolled back:
   that herdr binds by default, or that your config already binds, is never taken: the screen refuses it and says what
   the key does today (`prefix+w`, for one, is herdr's own workspace picker), for the offered key and for one you type
   with `k` alike, and however your config writes a binding (one key, a list of keys, the older `[keys.indexed]`). A key that is already set up for the board is left as it is;
-- sidebar rows, so herdr's sidebar shows each task's stage, its "doing now" line, its progress and the minutes left. herdr's default
-  sidebar shows none of these: without the rows the plugin puts where the task stands into the agent's name, after
-  the task's own (`#34 · ready to approve`), which works with no setup. With the rows in place the name is the
-  task's alone (`#34`), so the status is not said twice on one line.
+- sidebar rows, so that an agent's entry in herdr's sidebar is a small copy of its task's row on the board
+  ([herdr's sidebar](sidebar.md)): the task's number and title; who is on it and where it stands, with the review
+  round and the pull request (`agent · working · R#1 PR#113`); and the row's second line with its percent and time
+  left. Without the rows herdr shows the first two, with the tab's name (`Agent`) after the title, and not the
+  third: its default sidebar shows no custom value. The rows an older version of the plugin wrote are brought up to
+  date by themselves, between the same marker lines; rows of your own are never touched.
 
 Nothing else is needed: no herdr integration, no hooks in your own agent settings. To add the blocks by hand instead:
 
@@ -40,10 +42,10 @@ type = "plugin_action"
 command = "herdr-superwork.open"
 
 [ui.sidebar.agents]
-rows = [["state_icon", "machine", "workspace", "tab"], ["agent", "state_text"], [{ token = "$summary", dim = true }, "$progress", "$eta"]]
+rows = [["state_icon", "machine", "workspace", { token = "tab", rules = [{ equals = "Agent", hide = true }, { starts_with = "Reviewer #", hide = true }] }], ["agent"], [{ token = "$summary", dim = true }, "$progress"]]
 
 [ui.sidebar.spaces]
-rows = [["state_icon", "workspace"], ["branch", "git_status"], [{ token = "$summary", dim = true }]]
+rows = [["state_icon", "workspace"], ["branch", "git_status"], [{ token = "$summary", dim = true }, "$progress"]]
 ```
 
 A `[[keys.command]]` wins over herdr's own binding of the same key, without a warning: written by hand on a key

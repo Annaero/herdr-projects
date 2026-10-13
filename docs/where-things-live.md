@@ -137,6 +137,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `review-words.js` | A review in a few words: its result, its colour, which round it was |
 | `row-fit.js` | What a section of the list shows when space is short: its rows give the same things up together, in one order |
 | `row-number.js` | A task's number on its row: the quiet tag between the mark and the title, `#134`, or `HSW-134` where its repo has a short key (store/keys.js) |
+| `row-says.js` | What a row says and counts, in words: its second line, and its percent, minutes left, review round, pull request and time |
 | `row-tall.js` | A live task's third line on a narrow screen: the bar, the percent, the minutes left, the review tag, the pull request and the time, which have no room beside the name there |
 | `row-wrap.js` | A row on a narrow screen, wrapped instead of cut: a live task's name and what it says take up to two lines each, and the selected task's name as many as it needs |
 | `row.js` | One row of the list: its mark, its number (row-number.js), its name, its columns on the right and, for a live task, a second line that says what it does (a third on a narrow screen: row-tall.js, where long ones wrap:… |
@@ -157,6 +158,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `pump.js` | The pump: the detached job that starts the Coordinator and types into it, one at a time per herdr session |
 | `requests.js` | Requests to the Coordinator: written down here (send, restart, new, stop, open), carried out by the pump |
 | `rules.js` | The Coordinator's standing rules: what they say, and the files in its folder that every conversation reads them from |
+| `sidebar.js` | The Coordinator in herdr's sidebar: named `Coordinator`, standing as the line above the board's box says, with its last message under it |
 | `state.js` | The Coordinator's saved state (one file per herdr session) and the folder it chats in |
 | `who.js` | Who the Coordinator is: the agent kind, model and effort chosen for it, and whether it can run here |
 
@@ -171,7 +173,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | File | Holds |
 |---|---|
 | `auto-merge.js` | Auto-merge, the setting: a task that may merge does so by itself while `merge.by` is `itself`, and waits for you while it is `you` |
-| `check-run.js` | Running the repo's check with its progress shown: the file the command reports to, what is kept on the task while it runs, and telling herdr's sidebar |
+| `check-run.js` | Running the repo's check with its progress shown: the file the command reports to, and what is kept on the task while it runs (the row shows that, and herdr's sidebar the row: flow/sidebar.js) |
 | `line.js` | The line: a repo's tasks merge one at a time |
 | `old-holds.js` | Approval holds an older version left behind: tasks owing you a yes although you never stepped into them |
 | `pipeline.js` | The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval |
@@ -192,7 +194,8 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `handled-turn.js` | A turn that is already handled: the same turn seen again, and a task re-armed for a turn that never came |
 | `live.js` | Live readings: a task as herdr sees it right now, and the board's list made from them |
 | `send.js` | Sending text to an agent: delivering or queueing it, the closing-note rule, the command's path, a cut-off turn tried again |
-| `sidebar.js` | Telling herdr's own sidebar where a task stands: the label and the line on its pane, and the task's name |
+| `sidebar-entry.js` | What herdr's sidebar says about a task: its board row again, in plain words |
+| `sidebar.js` | Telling herdr's own sidebar about a task: one entry per live agent, a small copy of the task's row on the board |
 | `spaces.js` | herdr spaces the board opened and owes closing: a repo's own space, a done task's clean-up, spaces left over |
 | `tabs.js` | A task's tabs in its herdr space: the agent's tab is named `Agent`, and each reviewer has a tab of its own, named after its review round |
 | `talk.js` | A task's conversation as the board shows it: its agent's, or its reviewer's while the task is under review |
@@ -322,6 +325,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [research.md](research.md) | Reports, and research-only tasks |
 | [roles-and-commands.md](roles-and-commands.md) | Roles and commands |
 | [settings.md](settings.md) | Settings: one lookup |
+| [sidebar.md](sidebar.md) | herdr's sidebar: a small copy of the board's rows |
 | [tabs.md](tabs.md) | A task's tabs in herdr |
 | [task-numbers.md](task-numbers.md) | Task numbers and repo keys |
 | [task-panel.md](task-panel.md) | The task panel |

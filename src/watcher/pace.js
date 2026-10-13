@@ -5,8 +5,6 @@ import os from "node:os";
 export const TICK_MS = 5000; // the Watcher thinks about looking this often, not on every tick of the board
 export const GAP_MS = 15000; // from one call's start to the next, at the least
 export const BATCH = 8; // agents one call covers at the most; the rest ride in the next call
-export const TOLD_MS = 60000; // herdr's sidebar is told the minutes left this often, with or without a look
-export const TOLD_TTL_MS = 180000;
 
 // How busy the machine is: the one-minute load per core. 1 is every core in use, 2 is twice what it can do.
 export const loadNow = () => os.loadavg()[0] / Math.max(1, os.availableParallelism?.() || os.cpus().length);

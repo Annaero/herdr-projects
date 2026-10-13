@@ -12,7 +12,6 @@ import { here, open } from "./board-helpers.js";
 import { stripVTControlCharacters } from "node:util";
 import * as F from "../src/flow.js";
 import { groupOf, standing } from "../src/board/view/states.js";
-import { sidebarWords } from "../src/status-words.js";
 import { sizeFor } from "../src/board/popup.js";
 
 test("the board: one header line, the five groups, a symbol for each state, the task panel from 90 columns", async () => {
@@ -147,11 +146,12 @@ test("work whose review failed is not ready: it stands under needs you, its yes 
     // The guard is in the action itself: the command line (and so the Coordinator) cannot merge it by a plain approve.
     assert.throws(() => A.approve(bad), /proj\/1 was not merged: its last review failed \(1 critical, 1 major\)\..*herdr-superwork approve proj\/1 --anyway/);
     assert.equal(S.get(bad).stage, "approval");
-    // herdr's sidebar says the same, in the board's own words, with what it says on a line of its own.
-    assert.deepEqual(sidebarWords(S.get(bad)), { label: "review failed", line: "1 critical, 1 major" });
-    assert.deepEqual(sidebarWords(S.get(good)), { label: "ready to approve", line: "Pass" });
-    assert.deepEqual([F.labelOf({ stage: "asks", kind: "question", msg: "Sand or pebbles?" }), F.lineOf({ stage: "asks", kind: "question", msg: "Sand or pebbles?" })], ["asks you", "Sand or pebbles?"]);
-    assert.deepEqual(sidebarWords({ stage: "working" }), { label: "", line: "" });
+    // herdr's sidebar says the same, in the board's own words, with the row's second line on a line of its own.
+    const said = (t) => { const e = F.entryNow(t); return [e.where, e.line]; };
+    assert.deepEqual(said(S.get(bad)), ["review failed", "Review failed · 1 critical, 1 major"]);
+    assert.deepEqual(said(S.get(good)), ["ready to approve", "Pass"]);
+    assert.deepEqual(said({ id: "proj/9", stage: "asks", kind: "question", msg: "Sand or pebbles?" }), ["asks you", "Sand or pebbles?"]);
+    assert.deepEqual(said({ id: "proj/9", stage: "working", agent: "claude", app: "claude" }), ["agent · working", ""]);
   } finally { w.cleanup(); }
 });
 

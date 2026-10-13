@@ -18,7 +18,7 @@ const bin = () => process.env.HERDR_BIN_PATH || "herdr";
 // The one place the program is started. Tests may answer for one program path themselves (`globalThis.__swHerdr`: its
 // `bin`, and `run(args, env)` giving what the program would: status, stdout, stderr), so that a test's hundreds of calls
 // are not hundreds of programs; any other path is started as always.
-const launch = (args, opts) => { const own = globalThis.__swHerdr; return own && own.bin === bin() ? own.run(args, opts.env) : spawnSync(bin(), args, opts); };
+export const launch = (args, opts) => { const own = globalThis.__swHerdr; return own && own.bin === bin() ? own.run(args, opts.env) : spawnSync(bin(), args, opts); };
 // The processes started by one process. Tests answer this too (`kids` beside `run`): pgrep reads every process there is.
 const kids = (pid) => {
   const own = globalThis.__swHerdr;

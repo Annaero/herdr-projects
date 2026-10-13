@@ -150,7 +150,7 @@ export async function delegateJob(id) {
   try {
     const api = F.h(t);
     const root = S.folderOf(t.id);
-    const label = t.title.slice(0, 60);
+    const label = F.spaceLabel(t);
     const env = () => ({ HERDR_SUPERWORK_ID: t.id, HERDR_SUPERWORK_WORKTREE: S.cwdOf(t), HERDR_SUPERWORK_REPO: root });
     // 1. A place to work, unless the task still has a live pane from an earlier run.
     const livePane = t.link.pane ? api.paneGet(t.link.pane) : null;
@@ -236,7 +236,7 @@ export async function restartJob(id) {
       let res;
       if (ws) { const first = api.panes(ws.workspace_id)[0]; pane = first ? api.paneSplit(first.pane_id, { cwd: S.cwdOf(t), env: S.boardEnv() }) : null; }
       if (!pane) {
-        res = t.worktree && fs.existsSync(t.worktree) ? F.openingWorktree(api, root, () => api.worktreeOpen({ cwd: root, path: t.worktree, label: t.title.slice(0, 60) })) : api.workspaceCreate({ cwd: S.cwdOf(t), label: t.title.slice(0, 60), env: S.boardEnv() });
+        res = t.worktree && fs.existsSync(t.worktree) ? F.openingWorktree(api, root, () => api.worktreeOpen({ cwd: root, path: t.worktree, label: F.spaceLabel(t) })) : api.workspaceCreate({ cwd: S.cwdOf(t), label: F.spaceLabel(t), env: S.boardEnv() });
         pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
       }
       t = g.set((t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true, reviewer: null }; });
@@ -260,7 +260,7 @@ export function reopen(id, { restart = false } = {}) {
   let pane = api.paneGet(t.link.pane);
   if (!pane) {
     if (!(t.worktree && fs.existsSync(t.worktree))) throw new Error("Its terminal is gone. Reply or delegate again to start its agent.");
-    const res = F.openingWorktree(api, S.folderOf(t.id), () => api.worktreeOpen({ cwd: S.folderOf(t.id), path: t.worktree, label: String(t.title).slice(0, 60) }));
+    const res = F.openingWorktree(api, S.folderOf(t.id), () => api.worktreeOpen({ cwd: S.folderOf(t.id), path: t.worktree, label: F.spaceLabel(t) }));
     pane = res.root_pane || api.panes(res.workspace.workspace_id)[0];
     t = S.update(t.id, (t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true }; });
     F.nameAgentTab(api, pane.tab_id);

@@ -9,6 +9,7 @@ import { clean } from "./words.js";
 import { isAgent, reviewing, underReview, checking, standing, reviewerWord } from "./states.js";
 import { partLines, partsText } from "./chat-text.js";
 import { withMine } from "./talk.js";
+import { coordinatorStands, coordinatorStatus } from "../../status-words.js";
 
 // The fewest cells the status keeps when the progress stands beside it.
 const CHAT_STATUS_MIN = 20;
@@ -76,10 +77,10 @@ export class Chat {
     const v = this.coord;
     const fresh = !!v.unseen && !this.chatOpen;
     const color = fresh ? "green" : { working: "yellow", starting: "yellow", blocked: "red", idle: "green" }[v.state] || "overlay0";
-    const word = v.error ? "could not be started" : fresh ? "new reply" : { none: "not started: your first message starts it", starting: "starting", working: "working", blocked: "needs you", idle: "idle", exited: "stopped: your next message starts it again" }[v.state] || v.state;
+    // Where it stands, in the words herdr's sidebar has for it too (status-words.js); a reply you have not seen yet is the board's own to say.
+    const word = !v.error && fresh ? "new reply" : coordinatorStands(v);
     const mark = t.fg(v.error ? "red" : color, t.mark(v.error ? "error" : ["working", "starting"].includes(v.state) ? "working" : v.state === "blocked" ? "blocked" : v.state === "idle" ? "idle" : "unknown"));
-    const waiting = (v.waiting || []).length;
-    const status = [word, waiting && `${waiting} ${waiting > 1 ? "messages wait" : "message waits"} to be sent`].filter(Boolean).join(" · ");
+    const status = coordinatorStatus(v, word);
     // Rare, and too long for the status: a default that changed under a running Coordinator gets a line of its own.
     const note = v.stale ? `your default is now ${C.describe(v.def)}: herdr-superwork coordinator new starts a new one on it` : "";
     // Which program, model and effort it runs on is not said here: that is the Coordinator's own pane's to say.

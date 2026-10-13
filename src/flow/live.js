@@ -30,6 +30,8 @@ export function shown(t, session, here) {
   const pending = isAgentTask(t) && S.pendingText(t.id).length > 0;
   return { ...t, live, ...pick(show({ ...t, pendingText: pending }, live)) };
 }
+// The same from what was saved alone, with no look at herdr: for whoever just changed a task and says so at once.
+export const saved = (t) => ({ ...t, ...pick(show({ ...t, pendingText: false }, undefined)) });
 // Names that cannot collide with a task's own fields (a task has its own `review` and `msg`).
 const pick = (s) => ({ state: s.state, kind: s.kind, note: s.msg, plain: s.plain || undefined, shownApp: s.app, progress: s.progress, eta: s.eta, asReview: !!s.review, stale: s.stale, exited: s.exited });
 // This machine's tasks as one herdr session sees them (the keeper serves several sessions from one data folder).

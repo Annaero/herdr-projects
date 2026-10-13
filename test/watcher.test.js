@@ -34,7 +34,8 @@ test("the hidden helper: the watcher writes a line and a guess", async () => {
     assert.deepEqual([S.get("proj/1").watch.msg, S.get("proj/1").watch.progress, "eta" in S.get("proj/1").watch], ["editing the greeting file", 42, false]);
     const shown = F.board().find((t) => t.id === "proj/1");
     assert.deepEqual([shown.note, shown.progress, shown.eta], ["editing the greeting file", 42, 55]); // 40 × 58 ÷ 42
-    assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("summary=editing the greeting file") && m.args.join(" ").includes("progress=42% --token eta=55m")));
+    F.syncSidebar(F.board()); // whoever ticks tells herdr's sidebar the row: the same line, percent and minutes left
+    assert.ok(w.state().metadata.some((m) => m.args.join(" ").includes("--display-agent agent · working") && m.args.join(" ").includes("summary=editing the greeting file") && m.args.join(" ").includes("progress=42% 55m left")));
     // What it was told: the task's description (cut short), the time spent, and no rule against going lower.
     const first = fs.readFileSync(seen, "utf8");
     assert.match(first, /Task: build a login page\nWhat the task asks for:\nIt needs a password field\. x+\n/); assert.ok(!first.includes("x".repeat(900)));

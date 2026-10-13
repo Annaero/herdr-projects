@@ -23,7 +23,7 @@ export function hookMain() {
   // when it is not running; an agent's own commands never do.
   try { ensureKeeper(); } catch (e) { log(e); }
   if (process.env.HERDR_PLUGIN_EVENT === "startup") { try { import("./webui/keep.js").then((W) => W.ensureDoor()).catch(() => {}); } catch {} } // the board in the herdr web UI starts with herdr
-  if (process.env.HERDR_PLUGIN_EVENT === "startup") { try { import("./extras.js").then((X) => { X.syncSkill(); X.removePopups(); }).catch(() => {}); } catch {} }
+  if (process.env.HERDR_PLUGIN_EVENT === "startup") { try { import("./extras.js").then((X) => { X.syncSkill(); X.removePopups(); X.refreshSidebar(); }).catch(() => {}); } catch {} }
   if (!S.hasTasks()) return; // nothing of ours anywhere: do nothing, in any herdr session
   const socket = currentSocket();
   let event = process.env.HERDR_PLUGIN_EVENT || "", data = {};
@@ -154,9 +154,9 @@ export function apply(id, a, api) {
   if (then === "cancel-auto") {
     // A failed cancellation must be seen: the merge may still happen by itself while the agent changes the work.
     try { F.cancelAutoMerge(t); } catch (e) { log(e); try { S.update(id, (t) => { Object.assign(t, S.failurePatch({ stage: "merge", title: "Could not cancel the pending auto-merge", detail: `${e.message}\n\nYou typed in the agent's terminal while GitHub was set to merge ${t.pr || "the pull request"} by itself. That is still set: it may merge when its checks pass.`, next: `Cancel it yourself: gh pr merge ${F.prNumber(t.pr || "")} --disable-auto`, agentCanFix: false, auth: false })); }, { waitMs: 10000 }); } catch {} }
-    F.labelPane(t, null);
+    F.tellSidebar(t);
   }
-  if (then === "unlabel") F.labelPane(t, null);
+  if (then === "unlabel") F.tellSidebar(t);
   if (then === "recover") spawnRunner("recover", id);
   if (then === "finish") spawnRunner("finish", id);
   if (then === "finish-force") spawnRunner("finish", id, ["--force"]);

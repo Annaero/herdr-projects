@@ -7,7 +7,6 @@ import * as S from "./store.js";
 import * as F from "./flow.js";
 import { herdr } from "./herdr.js";
 import { adapter } from "./agents.js";
-import { began, etaOf } from "./state.js";
 import { userEnv } from "./runner.js";
 import * as P from "./watcher/pace.js";
 import { CALL_MS, takeTurn, giveTurn } from "./watcher/one.js";
@@ -55,7 +54,7 @@ function helperEnv() {
 // whose look is due, and only one call runs at a time on the machine (watcher/one.js). A screen that says what it said at the last look costs no
 // call. It starts fresh on every look. It guesses no minutes: those follow from the percent (state.js), so they keep
 // counting between looks.
-const looks = new Map(); // id -> { at, role, words, toldAt }
+const looks = new Map(); // id -> { at, role, words }
 const pace = { seen: new Map(), callAt: 0, running: false, fails: 0 };
 let lean = true; // start the helper's program with as little loaded as it allows (agents/kinds.js)
 export function watcherReset() { looks.clear(); Object.assign(pace, { seen: new Map(), callAt: 0, running: false, fails: 0 }); lean = true; }
@@ -63,20 +62,8 @@ export function watcherReset() { looks.clear(); Object.assign(pace, { seen: new 
 const turnOf = (c) => `${c.since || 0}:${c.handled?.at || 0}:${c.reviewRound || 0}`;
 const roleIn = (t) => (t.stage === "reviewing" ? "reviewer" : "agent");
 const paneOf = (t, role) => (role === "reviewer" ? t.link.reviewer?.pane : t.link.pane);
-// To herdr as pane metadata tokens, so herdr's own sidebar can show the line, the percent and the minutes left.
-function tell(t, watch, role, now) {
-  const pane = paneOf(t, role);
-  if (!pane) return;
-  const eta = etaOf(watch.progress, began(t, role), now);
-  herdr(t.link.socket).metadata(pane, ["--token", `summary=${watch.msg}`, "--token", `progress=${watch.progress}%`, ...(eta === undefined ? [] : ["--token", `eta=${eta}m`]), "--ttl-ms", String(P.TOLD_TTL_MS)]);
-  if (t.link.workspace && t.link.ownsWorkspace) { try { herdr(t.link.socket).call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", "--token", `summary=${watch.msg}`, "--ttl-ms", String(P.TOLD_TTL_MS)]); } catch {} }
-}
-function tellLine(t, line, role) {
-  const pane = paneOf(t, role);
-  if (!pane) return;
-  herdr(t.link.socket).metadata(pane, ["--token", `summary=${line}`, "--clear-token", "progress", "--clear-token", "eta", "--ttl-ms", String(P.TOLD_TTL_MS)]);
-  if (t.link.workspace && t.link.ownsWorkspace) { try { herdr(t.link.socket).call(["workspace", "report-metadata", t.link.workspace, "--source", "plugin:herdr-superwork", "--token", `summary=${line}`, "--ttl-ms", String(P.TOLD_TTL_MS)]); } catch {} }
-}
+// What a look finds is kept on the task (`watch`). The board's row shows it, and herdr's sidebar is told the row
+// (flow/sidebar.js, the one writer): nothing is written to herdr from here.
 export function watchTick(tasks, now = Date.now(), { load = P.loadNow(), run = runHelper } = {}) {
   // The keeper hands over the same tasks once per herdr session, each time as that session sees them.
   const view = tasks.find((t) => t.live && !t.live.away)?.link?.socket || "";
@@ -92,12 +79,8 @@ export function watchTick(tasks, now = Date.now(), { load = P.loadNow(), run = r
     const working = !t.archivedAt && F.isAgentTask(t) && t.state === "working" && (t.stage === "reviewing" || (t.stage === "working" && t.live?.status === "working"));
     if (!working || !paneOf(t, role)) continue;
     let w = looks.get(t.id);
-    if (!w || w.role !== role) looks.set(t.id, w = { at: 0, role, words: null, toldAt: 0 }); // a review is a new assignment: its first look is due at once
+    if (!w || w.role !== role) looks.set(t.id, w = { at: 0, role, words: null }); // a review is a new assignment: its first look is due at once
     busy.push({ id: t.id, at: w.at, t, role, w });
-    // Between looks herdr's sidebar still gets the minutes left, worked out again from the last guess.
-    if (t.watch?.role === role && t.watch.msg && now - w.toldAt >= P.TOLD_MS) { w.toldAt = now; try { tell(t, t.watch, role, now); } catch {} }
-    // Before the first look of a run it gets the line the board shows (status-kept.js), and no percent.
-    else if (!(t.watch?.role === role && t.watch.msg) && t.note && now - w.toldAt >= P.TOLD_MS) { w.toldAt = now; try { tellLine(t, t.note, role); } catch {} }
   }
   if (pace.running || !busy.length) return;
   const slow = P.slowdown(load) * P.afterFailures(pace.fails);
@@ -140,8 +123,7 @@ export function watchTick(tasks, now = Date.now(), { load = P.loadNow(), run = r
       try {
         const watch = { ...got, at, role: b.role };
         // A late answer cannot overwrite a newer turn or its result.
-        const cur = S.update(b.id, (c) => { if (c.stage !== b.stage || turnOf(c) !== b.turn || watcherOff()) return false; c.watch = watch; });
-        if (cur.watch === watch || cur.watch?.at === watch.at) { b.w.toldAt = at; tell(cur, watch, b.role, at); }
+        S.update(b.id, (c) => { if (c.stage !== b.stage || turnOf(c) !== b.turn || watcherOff()) return false; c.watch = watch; });
       } catch {}
     });
   });

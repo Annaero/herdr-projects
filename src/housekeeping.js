@@ -16,7 +16,6 @@ import * as Y from "./sync.js";
 import { autoMergePass, green } from "./finish/auto-merge.js";
 import { linePass } from "./finish/line.js";
 import { notifyPass } from "./notify.js";
-import { WORDS } from "./status-words.js";
 
 const key = (socket) => createHash("sha1").update(String(socket)).digest("hex").slice(0, 8);
 
@@ -207,10 +206,10 @@ async function pollOne(id, pr, j) {
       else if (t.stage === "approval" || t.autoMerge) t.msg = `${why} ${t.autoMerge ? "Auto-merge is blocked; send details to cancel pending auto-merge and repair safely" : "Automatic retries are exhausted; send details to the agent to try again"}`;
     }
   }, { waitMs: 10000 });
-  if (then === "merged") { const t = S.get(id); F.labelPane(t, null); const { cleanupJob } = await import("./land.js"); await cleanupJob(id, { deleteBranch: mode }); }
+  if (then === "merged") { const t = S.get(id); F.tellSidebar(t); const { cleanupJob } = await import("./land.js"); await cleanupJob(id, { deleteBranch: mode }); }
   if (then === "merged") { const t = S.get(id); F.dropRemoteBranch(S.folderOf(id), t.branch, mode === "always" ? j.headRefOid || t.prHead || "" : ""); }
-  if (then === "unreviewed") { const t = S.get(id); F.labelTask(t, WORDS.wrong); if (legacy) F.gh(["pr", "merge", F.prNumber(pr), "--disable-auto"], S.folderOf(id), 60000); }
-  if (then === "closed") F.labelTask(S.get(id), WORDS.wrong);
+  if (then === "unreviewed") { const t = S.get(id); F.tellSidebar(t); if (legacy) F.gh(["pr", "merge", F.prNumber(pr), "--disable-auto"], S.folderOf(id), 60000); }
+  if (then === "closed") F.tellSidebar(S.get(id));
   if (then === "land") spawnRunner("land", id);
   if (then === "wake") {
     const { sendFailure } = await import("./actions.js");

@@ -6,7 +6,7 @@ import { spawnRunner } from "../runner.js";
 import { herdr } from "../herdr.js";
 import { adapter, needsNote } from "../agents.js";
 import { noteFile, h } from "./task.js";
-import { labelPane } from "./sidebar.js";
+import { tellSidebar } from "./sidebar.js";
 import { hand, noteSent } from "../submit.js";
 import { isResearch } from "../research.js";
 
@@ -53,7 +53,7 @@ export const noteRule = (t) => `Before you stop, write your closing summary (or 
 export function sendOwn(id, text, { reason, keepIntent = false, patch = {}, tries = 0 } = {}) {
   const wake = { reason, keepIntent, at: Date.now(), ...(tries ? { tries } : {}) };
   const t = S.update(id, (t) => { Object.assign(t, patch); t.waiting = null; t.expectedWake = wake; t.armedAt = wake.at; t.stage = "working"; t.turnOpen = false; t.msg = ""; t.watch = null; t.app = t.agent || t.app; }, { waitMs: 10000 });
-  labelPane(t, null);
+  tellSidebar(t);
   return deliver(t, withTail(t, text), wake);
 }
 

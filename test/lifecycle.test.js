@@ -169,5 +169,17 @@ test("no notifications: a task that needs you raises nothing, and the pop-up blo
     fs.writeFileSync(real, before); fs.rmSync(file); fs.symlinkSync(real, file);
     assert.equal(X.removePopups(), false); // a linked config is someone else's file: left as it is
     assert.equal(fs.readFileSync(real, "utf8"), before);
+    // The sidebar rows an older version wrote are brought up to this version's, between the same marker lines: only
+    // the plugin's own block, only when it differs, never a file that is a link, never one herdr would reject.
+    const older = X.blockText("sidebar").replace(/rows = .*\n\n/, 'rows = [["state_icon", "machine", "workspace", "tab"], ["agent", "state_text"]]\n\n');
+    fs.rmSync(file); fs.writeFileSync(file, `[keys]\nx = "prefix+x"\n\n${older}\n\n[ui]\nmouse_capture = true\n`);
+    w.patchState((st) => { st.configRejects = "rules ="; });
+    assert.equal(X.refreshSidebar(), false); assert.ok(fs.readFileSync(file, "utf8").includes(older)); // herdr would not take it: left as it was
+    w.patchState((st) => { st.configRejects = ""; });
+    assert.equal(X.refreshSidebar(), true);
+    assert.equal(fs.readFileSync(file, "utf8"), `[keys]\nx = "prefix+x"\n\n${X.blockText("sidebar")}\n\n[ui]\nmouse_capture = true\n`);
+    assert.match(X.blockText("sidebar"), /\{ token = "tab", rules = \[\{ equals = "Agent", hide = true \}, \{ starts_with = "Reviewer #", hide = true \}\] \}\], \["agent"\], \[\{ token = "\$summary", dim = true \}, "\$progress"\]\]/);
+    assert.equal(X.refreshSidebar(), false); // up to date: nothing written
+    fs.writeFileSync(file, "[ui.sidebar.agents]\nrows = [[\"agent\"]]\n"); assert.equal(X.refreshSidebar(), false); // rows of your own: not the plugin's to change
   } finally { delete process.env.HERDR_CONFIG_PATH; w.cleanup(); }
 });

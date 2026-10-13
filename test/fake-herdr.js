@@ -13,6 +13,7 @@ import os from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+const kept = new Map(); // state file -> { text, st }: what this process last wrote there
 class Exit { constructor(status, stdout = "", stderr = "") { Object.assign(this, { status, stdout, stderr }); } }
 export function herdr(argv, env = process.env) {
   try { answer(argv, env); } catch (e) { return e instanceof Exit ? e : new Exit(1, "", `${e?.stack || e}\n`); } // an error of its own: what node prints as it dies
@@ -21,8 +22,18 @@ function answer(argv, env) {
   const dir = env.HERDR_FAKE_DIR;
   const file = path.join(dir, "state.json");
   const read = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return d; } };
-  const st = read(file, { seq: 0, nextW: 1, nextP: 100, workspaces: [], panes: [], notifications: [], metadata: [], focus: [], calls: [], dialogs: {} });
-  const save = () => fs.writeFileSync(file, JSON.stringify(st, null, 2));
+  // The state is read and written whole on every call, and a test makes hundreds: the text this process last wrote
+  // is kept with what it was read as, so a file that still holds exactly that text is not parsed again.
+  const load = () => {
+    let text = null;
+    try { text = fs.readFileSync(file, "utf8"); } catch {}
+    const hit = kept.get(file);
+    kept.delete(file); // taken: put back only by a save
+    if (text !== null && hit && hit.text === text) return hit.st;
+    try { return JSON.parse(text); } catch { return null; }
+  };
+  const st = load() || { seq: 0, nextW: 1, nextP: 100, workspaces: [], panes: [], notifications: [], metadata: [], focus: [], calls: [], dialogs: {} };
+  const save = () => { const text = JSON.stringify(st); fs.writeFileSync(file, text); kept.set(file, { text, st }); };
   st.calls.push(argv.join(" ").slice(0, 300));
   const out = (text) => { save(); throw new Exit(0, text); };
   const ok = (result) => out(JSON.stringify({ id: "fake", result }) + "\n");
@@ -34,8 +45,8 @@ function answer(argv, env) {
 
   const wsOut = (w) => ({ workspace_id: w.workspace_id, label: w.label, pane_count: st.panes.filter((p) => p.workspace_id === w.workspace_id).length, ...(w.worktree ? { worktree: w.worktree } : {}) });
   const agentOut = (p) => ({ agent: p.agent.kind, agent_status: p.agent.status, name: p.agent.name, pane_id: p.pane_id, workspace_id: p.workspace_id, tab_id: p.tab_id, terminal_id: p.terminal_id, cwd: p.cwd, foreground_cwd: p.cwd,
-    state_change_seq: p.agent.seq, ...(p.agent.completion != null ? { completion_seq: p.agent.completion } : {}), ...(p.agent.session ? { agent_session: { kind: "id", value: p.agent.session } } : {}) });
-  const paneOut = (p) => ({ pane_id: p.pane_id, workspace_id: p.workspace_id, tab_id: p.tab_id, terminal_id: p.terminal_id, cwd: p.cwd, foreground_cwd: p.cwd, agent: p.agent?.kind || null, agent_status: p.agent?.status || "unknown" });
+    state_change_seq: p.agent.seq, ...(p.display_agent ? { display_agent: p.display_agent } : {}), ...(p.agent.completion != null ? { completion_seq: p.agent.completion } : {}), ...(p.agent.session ? { agent_session: { kind: "id", value: p.agent.session } } : {}) });
+  const paneOut = (p) => ({ pane_id: p.pane_id, workspace_id: p.workspace_id, tab_id: p.tab_id, terminal_id: p.terminal_id, cwd: p.cwd, foreground_cwd: p.cwd, agent: p.agent?.kind || null, agent_status: p.agent?.status || "unknown", ...(p.display_agent ? { display_agent: p.display_agent } : {}) });
   function newWorkspace(cwd, label, worktree) {
     const id = `w${st.nextW++}`;
     const w = { workspace_id: id, label: label || (cwd === os.homedir() ? "~" : path.basename(cwd)), cwd, worktree }; // the home folder's space is `~`, as herdr's is
@@ -144,6 +155,9 @@ function answer(argv, env) {
   }
 
   const [area, verb] = argv;
+  // herdr's word on a config file (`config.rejects`: a test's stand-in for one it will not take), and a reload of it.
+  if (area === "config" && verb === "check") { const text = fs.readFileSync(env.HERDR_CONFIG_PATH, "utf8"); if (st.configRejects && text.includes(st.configRejects)) { save(); throw new Exit(1, "config: invalid\n"); } out("config: ok\n"); }
+  if (area === "server" && verb === "reload-config") ok({ type: "config_reload", status: "applied", diagnostics: [] });
   if (area === "workspace") {
     if (verb === "list") ok({ type: "workspace_list", workspaces: st.workspaces.map(wsOut) });
     if (verb === "create") { const made = newWorkspace(path.resolve(flag("--cwd") || "."), flag("--label")); findPane(made.root_pane.pane_id).env = envOf(); ok({ type: "workspace_created", ...made }); }
@@ -152,6 +166,8 @@ function answer(argv, env) {
     if (verb === "get" && st.wsGetOk != null && st.wsGetOk-- <= 0) fail("timeout", "timed out"); // answers this many lookups, then none
     if (verb === "get") ok({ type: "workspace_info", workspace: wsOut(w) });
     if (verb === "focus") { st.focus.push(`workspace ${w.workspace_id}`); ok({ type: "workspace_info", workspace: wsOut(w) }); }
+    if (verb === "rename") { w.label = argv.slice(3).join(" "); ok({ type: "workspace_info", workspace: wsOut(w) }); }
+    if (verb === "report-metadata") { st.metadata.push({ workspace: w.workspace_id, args: argv.slice(3) }); ok({ type: "ok" }); }
     if (verb === "close" && st.closeFails) fail("timeout", "timed out"); // a test's stand-in for a close herdr did not do
     if (verb === "close") { st.workspaces = st.workspaces.filter((x) => x !== w); st.panes = st.panes.filter((p) => p.workspace_id !== w.workspace_id); dropEmptyTabs(); ok({ type: "ok" }); }
   }
@@ -242,7 +258,7 @@ function answer(argv, env) {
     if (verb === "close") { st.panes = st.panes.filter((x) => x !== p); dropEmptyTabs(); ok({ type: "ok" }); }
     if (verb === "read" && p.agent?.boot > 0) { p.agent.boot -= 1; out(`user@host:${p.cwd}$ ${[p.agent.kind, ...p.agent.args].join(" ")}\n`); } // not drawn yet: only the command that started it
     if (verb === "read") out(p.agent?.screen || p.screen || "");
-    if (verb === "report-metadata") { st.metadata.push({ pane: p.pane_id, args: argv.slice(3) }); ok({ type: "ok" }); }
+    if (verb === "report-metadata") { st.metadata.push({ pane: p.pane_id, args: argv.slice(3) }); if (has("--display-agent")) p.display_agent = flag("--display-agent"); if (has("--clear-display-agent")) delete p.display_agent; ok({ type: "ok" }); }
   }
   if (area === "agent") {
     if (verb === "get" && st.agentGetFails) fail("timeout", "timed out"); // a test's stand-in for a lookup herdr did not answer

@@ -34,8 +34,9 @@ one of them runs it at a time ([how work gets done](how-work-gets-done.md)).
 ## Between looks
 
 The Watcher guesses only a percent. The board works out the minutes left from that percent and the time spent, every
-time it draws, so they keep counting between looks and do not jump. herdr's own sidebar is told the line, the
-percent and the minutes worked out afresh once a minute, look or no look.
+time it draws, so they keep counting between looks and do not jump. herdr's own sidebar is told the row
+itself ([herdr's sidebar](sidebar.md)), so it has the line, the percent and the minutes worked out afresh as soon as
+one of them changes, look or no look. The Watcher writes nothing to herdr itself.
 
 ## Before the first look
 

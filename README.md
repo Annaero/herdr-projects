@@ -37,6 +37,7 @@ One page per topic, in [docs/](docs/):
 - [Keys, questions and the ? menu](docs/keys.md)
 - [The mouse: the wheel, and selecting text](docs/mouse.md)
 - [The Coordinator](docs/coordinator.md)
+- [herdr's sidebar: a small copy of the board's rows](docs/sidebar.md)
 - [Roles and commands](docs/roles-and-commands.md)
 - [How work gets done](docs/how-work-gets-done.md)
 - [An agent that waits for you is not finished](docs/waiting-for-you.md)

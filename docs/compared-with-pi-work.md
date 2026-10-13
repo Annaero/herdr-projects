@@ -8,8 +8,9 @@ the same conversation; a progress bar on your own tasks; a reply to a task with 
 
 Different by choice, or because herdr or an agent program cannot do it:
 
-- No "2 blocked · 1 working" counter: herdr's sidebar is the closed-board view. It shows the plugin's labels only
-  with the sidebar rows in herdr's config (offered at first run); otherwise a short status in the agent's name.
+- No "2 blocked · 1 working" counter: herdr's sidebar is the closed-board view: each live agent's entry
+  there is a small copy of its task's row ([herdr's sidebar](sidebar.md)). The row's second line shows only with
+  the sidebar rows in herdr's config (offered at first run).
 - No notifications: nothing pops up or sounds when a task needs you, with the board open or closed, and
   there is no bell. The board does not emit terminal status reports (OSC 7501) while closed.
 - The sidebar shows only tasks with a live agent pane.

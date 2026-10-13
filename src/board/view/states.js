@@ -3,7 +3,7 @@ import * as A from "../../actions.js";
 import { herdr } from "../../herdr.js";
 import { bar } from "./words.js";
 import { waitingOf } from "../../store.js";
-import { NEEDS, WORDS, reviewFailed } from "../../status-words.js";
+import { NEEDS, WORDS, WHO, STEPS, QUEUED, reviewFailed } from "../../status-words.js";
 
 export { NEEDS, reviewFailed };
 
@@ -43,6 +43,20 @@ export const groupOf = (r) => (inReview(r) ? "ready to approve" : needsYou(r) ? 
 // finished work whose review failed. A task that went wrong, a merge that did not go through, or one whose kind is
 // not known, "needs you".
 export const standing = (r) => (!r.archivedAt && failedReview(r) ? WORDS.reviewFailed : (r.state === "blocked" && r.stage !== "approval" && !r.archivedAt && (!failureFor(r) || r.kind === "auth") && NEEDS[r.kind]) || groupOf(r));
+// Who is on a task and where it stands, for herdr's sidebar: { who, stand }, both from the one list. `who` only
+// while somebody is on it: the agent, the reviewer, the board at one of its own steps (also while that step waits
+// its turn), or you on a task of your own. A task that waits says only what it waits for. The words are the State
+// line's, but for finished work that is not ready, where the sidebar has no panel to say why: a merge or a pull
+// request that failed "went wrong", a branch that cannot be brought up to date is "behind main".
+export function whoStands(r) {
+  const say = (stand, who = "") => ({ who, stand });
+  if (r.archivedAt) return say("archived");
+  if (r.state === "working") return underReview(r) ? say(WORDS.underReview, WHO.reviewer) : BOARD_STEPS.includes(r.stage) ? say(STEPS[r.stage], WHO.board) : r.stage === "queued" ? say(QUEUED) : say(WORDS.working, r.stage === "progress" ? WHO.you : WHO.agent);
+  if (r.stage === "approval" && (r.mergeFailed || r.prFailure || r.prState === "failing")) return say(WORDS.wrong);
+  if (r.stage === "approval" && r.syncBlocked) return say(WORDS.behind);
+  if (r.state === "error" && r.stage !== "nosummary") return say(WORDS.wrong);
+  return say(standing(r));
+}
 // A live task: an agent, the reviewer or the board's check is on it, or it waits for you. Its row has two lines, the
 // second for what it says (row.js); a done, to-do or archived task has nothing to say and keeps one.
 export const isLive = (r) => !r.archivedAt && ["needs you", "ready to approve", "working"].includes(groupOf(r));

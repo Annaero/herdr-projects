@@ -8,7 +8,6 @@ import * as S from "./store.js";
 import * as F from "./flow.js";
 import { outputOf } from "./runner.js";
 import { mergesItself } from "./finish/auto-merge.js";
-import { WORDS } from "./status-words.js";
 
 const git = S.gitOut;
 const lines = (text) => String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
@@ -196,7 +195,7 @@ export function conflictBack(id, g, tree, r, held) {
   }
   if (can && rounds > 0 && repairs >= rounds) {
     const a = g.set((t) => { Object.assign(t, S.failurePatch(failure), seenPatch(t, r)); t.stage = "asks"; t.kind = "question"; t.mergeFailed = false; t.msg = `The agent could not resolve the conflict with main after ${repairs} repairs. Full details are kept; you are needed`; });
-    F.labelTask(a, WORDS.needs);
+    F.tellSidebar(a);
     return "asked";
   }
   held(failure, seenPatch(t, r));

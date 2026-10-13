@@ -37,7 +37,7 @@ export function approve(id, seen = null, { anyway = false } = {}) {
     t.stage = "merging"; t.msg = "Merging"; t.requireApproval = false; t.since = Date.now(); t.mergeFailed = false;
     t.mergeIntent = { approvedAt: Date.now(), repairs: t.mergeIntent?.repairs || 0, verifiedHead: t.reviewedHead || null };
   });
-  F.labelPane(t, null);
+  F.tellSidebar(t);
   spawnRunner("land", t.id);
   return say(t, `${t.id}: approved, merging`);
 }

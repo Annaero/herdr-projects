@@ -38,7 +38,7 @@ export function tell(id, text, { keepIntent = false } = {}) {
     return say(S.get(cur.id), "The agent had exited: starting it again with your message.");
   }
   const t = S.update(cur.id, (t) => rearm(t, keepIntent));
-  F.labelPane(t, null);
+  F.tellSidebar(t);
   const how = F.deliver(t, words);
   return say(S.get(t.id), how === "queued" ? "queued: open the agent and answer its dialog first" : "Sent to the agent");
 }
@@ -72,6 +72,6 @@ export function stop(id) {
   if (t.runner && t.runner.pid !== process.pid && S.markerAlive(t.runner)) { try { process.kill(-t.runner.pid, "SIGTERM"); } catch { try { process.kill(t.runner.pid, "SIGTERM"); } catch {} } }
   if (a && ["working", "blocked", "unknown"].includes(a.agent_status)) { try { F.h(t).agentKeys(t.link.pane, interruptKey(t.agent)); } catch {} }
   if (t.link.reviewer?.pane) F.closeReviewerTab(F.h(t), t.link.reviewer);
-  F.labelPane(t, null);
+  F.tellSidebar(t);
   return S.get(t.id);
 }

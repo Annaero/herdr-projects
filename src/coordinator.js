@@ -14,3 +14,4 @@ export * from "./coordinator/requests.js";
 export * from "./coordinator/place.js";
 export * from "./coordinator/pump.js";
 export * from "./coordinator/look.js";
+export * from "./coordinator/sidebar.js";

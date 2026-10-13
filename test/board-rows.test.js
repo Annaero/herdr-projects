@@ -1,5 +1,6 @@
 // One row of the list: its name, what it says, its columns; what a section's rows give up together when space is short; and a row on a narrow screen: its third line, and names and words that wrap. And a live task's row of two lines: which rows are, what
-// the second line says, the highlight, scrolling by whole rows, the done rows giving way in a list taller than its room.
+// the second line says, the highlight, scrolling by whole rows, the done rows giving way in a list taller than its room. And herdr's sidebar, which says
+// what a row says: the same number, title, who, status words, review round, pull request, line, percent and time left, at every stage.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { stripVTControlCharacters } from "node:util";
@@ -10,7 +11,8 @@ import { View, osc } from "../src/board/view.js";
 import { theme } from "../src/board/theme.js";
 import { machines } from "../src/remote.js";
 import { open } from "./board-helpers.js";
-import { GROUPS, groupOf, isLive } from "../src/board/view/states.js";
+import { GROUPS, groupOf, isLive, asRow } from "../src/board/view/states.js";
+import { entryOf, reviewerEntry, coordinatorEntry, taskName, CAP } from "../src/flow/sidebar-entry.js";
 import { NAME_OWED } from "../src/board/view/row-fit.js";
 import { TALL_BELOW } from "../src/board/view/row-tall.js";
 
@@ -788,3 +790,72 @@ test("all machines, narrow screen: a wrapped name has the line to itself, and wh
   assert.deepEqual(rows({ ...far, host: "box" }).slice(0, 2).map((l) => l.trimEnd()), [" ◐ box#1 Fix login", "         Running the tests one by one"]);
 });
 }
+
+// ---- herdr's sidebar: a small copy of the row (docs/sidebar.md) -------------------------------------------------------
+const plainWords = (s) => stripVTControlCharacters(s).replace(/\s+/g, " ").trim();
+const reviewFailedOnce = { round: 1, gate: "major", meets: true, pass: false, findings: [{ id: "F1", severity: "critical", where: "a.js", what: "Broken" }] };
+const reviewPassedOnce = { round: 1, gate: "major", meets: true, pass: true, findings: [] };
+
+test("herdr's sidebar, every stage: the entry's three rows are the board row's number and title, who and where it stands, and its second line with the percent and time left", async () => {
+  const w = await world();
+  try {
+    const id = A.add(w.root, "Show automations in the main list").id;
+    const s = open(w), base = { ...S.get(id), agent: "claude", app: "claude", link: { pane: "w1:p1", socket: "x" } };
+    // A task as the board shows it at each stage: [what is saved and read, row 2, row 3's line, row 3's numbers].
+    const stages = [
+      [{ stage: "starting", state: "working", note: "Starting" }, "board · starting", "", ""],
+      [{ stage: "setup", state: "working", note: "Setting up" }, "board · setting up", "", ""],
+      [{ stage: "working", state: "working", note: "Reading the list code", progress: 8, eta: 16 }, "agent · working", "Reading the list code", "8% 16m left"],
+      [{ stage: "working", state: "working", note: "Just started", plain: true, progress: 0 }, "agent · working", "", "0%"],
+      [{ stage: "working", state: "blocked", kind: "permission", note: "Queued: open the agent and answer its dialog first" }, "asks for your OK", "Queued: open the agent and answer its dialog first", ""],
+      [{ stage: "checking", state: "working", note: "Running the check · 12 of 40", progress: 30, eta: 2 }, "board · checking", "Running the check · 12 of 40", "30% 2m left"],
+      [{ stage: "pushing", state: "working", note: "Pushing the branch" }, "board · pushing", "Pushing the branch", ""],
+      [{ stage: "reviewing", state: "working", reviewRound: 1, note: "Reading the diff", progress: 40, eta: 3, pr: "https://example.com/pull/113" }, "agent · under review · R#1 PR#113", "Reading the diff", "40% 3m left"], // the agent's own entry while its work is reviewed
+      [{ stage: "reviewneeds", state: "blocked", reviewRound: 1, note: "The reviewer needs you" }, "needs you · R#1", "The reviewer needs you", ""],
+      [{ stage: "asks", state: "blocked", kind: "question", note: "Sand or pebbles?" }, "asks you", "Sand or pebbles?", ""],
+      [{ stage: "asks", state: "blocked", kind: "permission", note: "Need your OK to delete the test data" }, "asks for your OK", "Need your OK to delete the test data", ""],
+      [{ stage: "asks", state: "blocked", kind: "auth", note: "Need a GitHub login to open the PR" }, "needs a login", "Need a GitHub login to open the PR", ""],
+      [{ stage: "failed", state: "blocked", kind: "auth", failure: { auth: true, title: "Not signed in" } }, "needs a login", "", ""], // no words of its own: the row says "Needs a login" again, the entry does not
+      [{ stage: "failed", state: "error", failure: { title: "Check failed" }, note: "Check failed" }, "went wrong", "Check failed", ""],
+      [{ stage: "nosummary", state: "error", note: "Stopped without a summary" }, "needs you", "Stopped without a summary", ""],
+      [{ stage: "approval", state: "blocked", kind: "permission", reviewRound: 1, review: reviewFailedOnce, reviews: [reviewFailedOnce], pr: "https://example.com/pull/113" }, "review failed · R#1 PR#113", "Review failed · 1 critical", ""],
+      [{ stage: "approval", state: "blocked", kind: "permission", reviewRound: 1, review: reviewPassedOnce, reviews: [reviewPassedOnce], pr: "https://example.com/pull/113" }, "ready to approve · R#1 PR#113", "Pass", ""],
+      [{ stage: "approval", state: "blocked", kind: "permission", syncBlocked: { why: "main moved and the merge conflicts" }, note: "main moved and the merge conflicts" }, "behind main", "main moved and the merge conflicts", ""],
+      [{ stage: "approval", state: "blocked", kind: "permission", mergeFailed: true, failure: { title: "The merge failed" }, note: "The merge failed" }, "went wrong", "The merge failed", ""],
+      [{ stage: "merging", state: "working", note: "Merging" }, "board · merging", "", ""],
+      [{ stage: "stopped", state: "idle", note: "Stopped" }, "to do", "Stopped", ""],
+      [{ stage: "done", state: "done", note: "Merged into main." }, "done", "", ""],
+    ];
+    for (const [patch, stands, line, numbers] of stages) {
+      const t = { ...base, ...patch }, e = entryOf(t), r = asRow(t), name = `${patch.stage} ${patch.state} ${patch.kind || ""}`;
+      assert.deepEqual([e.name, e.stands, e.line, e.progress], ["#1 Show automations in the main list", stands, line, numbers], name);
+      // Word for word what the board draws: the row's own sentence, its percent, its minutes left, its tags.
+      const f = s.v.rowFields(r, Date.now());
+      if (e.line) assert.equal(e.line, plainWords(s.v.sentence(r).text), name);
+      assert.equal(e.progress, [plainWords(f.percent), plainWords(f.eta)].filter(Boolean).join(" "), name);
+      assert.ok(e.stands.endsWith([plainWords(f.review), plainWords(f.pr)].filter(Boolean).join(" ")), name);
+      assert.ok(plainWords(s.v.row(r, 200)).includes(e.name) || r.state === "done", name);
+      assert.notEqual(e.line.toLowerCase(), e.where.toLowerCase(), `${name}: row 3 never repeats row 2`);
+    }
+    // The reviewer's own entry names the task the same way, with the reviewer as who, whatever the task waits for.
+    const inReview = { ...base, stage: "reviewing", state: "working", reviewRound: 2, note: "Reading the diff", progress: 40 };
+    assert.deepEqual([reviewerEntry(inReview).name, reviewerEntry(inReview).stands, reviewerEntry(inReview).line], [entryOf(inReview).name, "reviewer · under review · R#2", "Reading the diff"]);
+    // The two live agents of a task under review are told apart: each entry names the agent it stands for.
+    assert.equal(entryOf(inReview).stands, "agent · under review · R#2"); assert.notEqual(entryOf(inReview).stands, reviewerEntry(inReview).stands);
+    // The row's time is the entry's too, by the minute: "10m" at work as the row has it, "ago" where the row says so.
+    const at = Date.now() - 10 * 60000, old = { ...base, stage: "working", state: "working", at, since: at };
+    assert.equal(entryOf(old).age, plainWords(s.v.rowFields(asRow(old), Date.now()).elapsed)); assert.equal(entryOf(old).age, "10m");
+    assert.equal(entryOf({ ...base, stage: "asks", state: "blocked", kind: "question", at }).age, "10m ago"); assert.equal(entryOf({ ...base, stage: "working", state: "working", at: Date.now() - 5000, since: Date.now() - 5000 }).age, "<1m");
+    assert.equal(reviewerEntry({ ...base, stage: "reviewneeds", state: "blocked", reviewRound: 1 }).where, "reviewer · needs you");
+    // A research task and an automation's task carry their tags; a repo's key is the number, as on the row.
+    assert.equal(entryOf({ ...base, stage: "working", state: "working", research: true, automation: { id: "a1" } }).stands, "agent · working · [research] [auto]");
+    S.setValue("repo.key", "HSW", { repo: "proj" }); assert.equal(taskName(base), "HSW-1 Show automations in the main list");
+    // herdr keeps 80 characters: a longer line is cut here, with the mark that says so, and the number is never what is cut.
+    const long = entryOf({ ...base, title: "T".repeat(100), stage: "asks", state: "blocked", kind: "question", note: "word ".repeat(40) });
+    assert.equal(long.line.length, CAP); assert.ok(long.line.endsWith("…")); assert.equal(long.name.length, CAP); assert.ok(long.name.startsWith("HSW-1 T"));
+    // The Coordinator: its name, where it stands in the words of the line above the board's box, its last message.
+    assert.deepEqual(coordinatorEntry({ state: "idle", said: "Done.\nBoth tasks are added." }), { name: "Coordinator", where: "Coordinator · idle", stands: "Coordinator · idle", age: "", line: "Done. Both tasks are added.", progress: "" });
+    assert.equal(coordinatorEntry({ state: "working", waiting: ["a", "b"] }).stands, "Coordinator · working · 2 messages wait to be sent");
+    assert.equal(coordinatorEntry({ state: "blocked" }).stands, "Coordinator · asks you");
+  } finally { w.cleanup(); }
+});

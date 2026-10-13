@@ -64,7 +64,9 @@ you get back to the board, or go anywhere else in herdr, the way you do from eve
 `herdr-superwork`.
 
 **Where it lives in herdr.** The Coordinator has no herdr space of its own in the sidebar: it is a tab named
-`Coordinator` in the home space, the one herdr labels `~`. It is a whole tab, never a pane inside one of yours.
+`Coordinator` in the home space, the one herdr labels `~`. It is a whole tab, never a pane inside one of yours. In the
+sidebar's list of agents it is named `Coordinator` and stands as the line above the board's box says
+(`Coordinator · idle`), with its latest message under it ([herdr's sidebar](sidebar.md)).
 
 - **Found or started, from everywhere.** A message from the board in a pane, from the board in herdr's popup or from
   a shell (`coordinator tell`) goes to the Coordinator that is running. When none is (its program exited, its tab or
