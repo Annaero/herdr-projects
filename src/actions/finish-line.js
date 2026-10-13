@@ -26,7 +26,7 @@ export function approve(id, seen = null, { anyway = false } = {}) {
   const moved = (t) => { if (seen && t.stage === "approval" && ((seen.pr ?? null) !== (t.pr ?? null) || (seen.head ?? null) !== (t.reviewedHead ?? null))) throw new Error(`${t.id} changed while you were asked. Nothing was merged: look at it again, then approve.`); };
   moved(cur);
   if (cur.stage === "asks" && cur.kind === "permission") return tell(cur.id, "Yes, go ahead.");
-  if (isResearch(cur)) throw new Error(`${cur.id} is research only: nothing of it is merged. To merge its change after all, turn that off first: config research false --id ${cur.id}`);
+  if (isResearch(cur)) throw new Error(`${cur.id} is research only: nothing of it is merged. To merge its change after all, turn that off (herdr-superwork set research.only false --task ${cur.id}) and delegate it again.`);
   const t = S.update(cur.id, (t) => {
     if (t.stage !== "approval") throw new Error(`${t.id} is not waiting for an approval to merge.`);
     moved(t);

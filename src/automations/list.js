@@ -1,6 +1,6 @@
 // The automations themselves: making one, changing its name, prompt or trigger, its own settings, on and off,
 // removing it. An automation is a saved task plus a trigger:
-//   { id, name, prompt, trigger, repo, root, settings, research, on, since, nextAt, offWhy, created, lastTask, made }
+//   { id, name, prompt, trigger, repo, root, settings, on, since, nextAt, offWhy, created, lastTask, made }
 // (`lastTask`: the task of its last firing; `made`: when its last few tasks were made. Both are for the guards in fire.js.)
 // `settings` holds only the work settings that differ, exactly as a task holds its own; at a firing they are put on
 // the new task and everything else is looked up by the one rule. There is no place of its own in that order.
@@ -8,6 +8,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import * as S from "../store.js";
 import { nextAfter, sayTrigger } from "./triggers.js";
+import { RESEARCH, isResearch } from "../research.js";
 
 const refuse = (msg) => { throw Object.assign(new Error(msg), { refused: true }); };
 export function find(ref) {
@@ -41,6 +42,8 @@ export function checkedSettings(a, pairs) {
   }
   return S.checked(pairs, { task: asTask(a) });
 }
+// Will its next task be research only? Its own setting, else what any task in its repo would be.
+export const researchOnly = (a) => isResearch(asTask(a));
 // Every work setting as the next task will have it: { name, value, from, own, note }.
 export const settingRows = (a) => S.settingRows({ task: asTask(a) }).filter((r) => r.kind === "work").map((r) => ({ ...r, from: r.own ? "this automation" : r.from }));
 export function setSetting(ref, name, value) {
@@ -57,13 +60,15 @@ export function unsetSetting(ref, name) {
 
 // ---- making and changing ------------------------------------------------------------------------------------------------
 // `folder`: where the command was typed; `repo`: a repo by its name on the board or a path, as `add` takes it.
-export function add({ name, prompt, trigger, repo = "", folder, settings = {}, research = false, now = Date.now() }) {
+// `research`: the short form (--research, --no-research) of one of its settings, research.only.
+const withResearch = (settings, research) => ({ ...(settings || {}), ...(research === undefined ? {} : { [RESEARCH]: research === true }) });
+export function add({ name, prompt, trigger, repo = "", folder, settings = {}, research, now = Date.now() }) {
   if (!trigger) refuse("An automation needs one trigger: --schedule \"every 2h\" or --when merged.");
   const where = S.folderFor(repo, folder);
   if (!where || !fs.existsSync(where)) refuse(`No repo or folder "${repo}".`);
   const { name: repoName, root } = S.repoOf(where);
-  const a = { id: crypto.randomBytes(4).toString("hex"), name: nameOf(name), prompt: promptOf(prompt), trigger, repo: repoName, root, settings: {}, research: research === true, on: true, since: now, created: now };
-  a.settings = checkedSettings(a, settings);
+  const a = { id: crypto.randomBytes(4).toString("hex"), name: nameOf(name), prompt: promptOf(prompt), trigger, repo: repoName, root, settings: {}, on: true, since: now, created: now };
+  a.settings = checkedSettings(a, withResearch(settings, research));
   arm(a, now);
   return S.changeAutomations((list) => { if (list.some((x) => x.name.toLowerCase() === a.name.toLowerCase())) refuse(`There is an automation "${a.name}" already.`); list.push(a); return a; });
 }
@@ -77,7 +82,8 @@ export function change(ref, { name, prompt, trigger, research, now = Date.now() 
   const a = find(ref);
   const next = { ...(name !== undefined ? { name: nameOf(name, a.id) } : {}), ...(prompt !== undefined ? { prompt: promptOf(prompt) } : {}) };
   if (name === undefined && prompt === undefined && !trigger && research === undefined) refuse("Nothing to change: give --name, --prompt, a trigger (--schedule, --when), or --research / --no-research.");
-  return S.changeAutomation(a.id, (x) => { Object.assign(x, next); if (research !== undefined) x.research = research === true; if (trigger) { x.trigger = trigger; arm(x, now); } });
+  if (research !== undefined) next.settings = checkedSettings(a, withResearch(a.settings, research));
+  return S.changeAutomation(a.id, (x) => { Object.assign(x, next); if (trigger) { x.trigger = trigger; arm(x, now); } });
 }
 // Off, it never fires and keeps everything. On again, a schedule counts from now and the runaway count starts over.
 export function turn(ref, on, now = Date.now()) {

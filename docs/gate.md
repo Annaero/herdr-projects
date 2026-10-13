@@ -74,7 +74,7 @@ it is green:
   yet made (the setting is asked again right before the merge).
 
 A repo's own committed file cannot switch this on. `"land": "auto"` in `.herdr-superwork.json` used to; that file
-now holds six facts only ([settings](settings.md)), so code an agent writes can never make its own work merge
+now holds seven facts only ([settings](settings.md)), so code an agent writes can never make its own work merge
 unasked. To merge by itself in one repo, say so yourself: `set merge.by itself --repo <name>`. `show <id>` says what
 a task really runs on, and where each value comes from.
 

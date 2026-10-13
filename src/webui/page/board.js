@@ -5,13 +5,13 @@
 /* global document, window, location, history, PopStateEvent */
 import { h, icon, get, post } from "./dom.js";
 import { listEl } from "./list.js";
-import { panelEl } from "./panel.js";
+import { panelEl, settingsEl } from "./panel.js";
 import { chatEl } from "./chat.js";
 import { askEl, menuEl, toast, trapEscape } from "./sheets.js";
 
 let root = null, timer = null, closing = null, snap = null, mark = "", busy = false;
-let menuOpen = false, finding = false, seenMsg = -1, seenGo = null, chat = null, untrap = null;
-const drawn = { list: "", panel: "", ask: "", menu: "", chips: "" };
+let menuOpen = false, finding = false, seenMsg = -1, seenGo = null, chat = null, untrap = null, wentTo = 0;
+const drawn = { list: "", panel: "", settings: "", ask: "", menu: "", chips: "" };
 const part = (name) => root.querySelector(`.sw-${name}`);
 
 export const isOpen = () => !!root;
@@ -52,7 +52,10 @@ function draw() {
   const once = (key, value, fn) => { const text = JSON.stringify(value); if (drawn[key] !== text) { drawn[key] = text; fn(); } };
   once("chips", [snap.flags, snap.list.head], () => part("chips").replaceChildren(...chips()));
   once("list", snap.list, () => part("list-host").replaceChildren(listEl(snap.list, { onPick: (id) => call("pick", { id, open: true }), onMore: () => press("allDone") })));
-  once("panel", [snap.panel, snap.actions, snap.canOpen, snap.role], () => { const el = panelEl(snap, { onPress: press, onMenu: () => { menuOpen = true; draw(); }, onClose: () => call("pick", { id: snap.list.selected, open: false }), onGo: (id) => call("pick", { id, open: true }) }); const host = part("task-host"), top = host.scrollTop; host.replaceChildren(...(el ? [el] : [])); host.scrollTop = top; });
+  once("panel", [snap.panel, snap.actions, snap.canOpen, snap.role], () => { const el = panelEl(snap, { onPress: press, onMenu: () => { menuOpen = true; draw(); }, onClose: () => call("pick", { id: snap.list.selected, open: false }), onGo: (id) => call("pick", { id, open: true }) }); const host = part("task-host"), top = host.scrollTop; part("panel-host").replaceChildren(...(el ? [el] : [])); host.scrollTop = top; });
+  // All settings stands under the task in a place of its own, drawn again only when a setting changed: what you
+  // are typing into one of its boxes is not taken away by the task's status moving on.
+  once("settings", snap.settings, () => { const host = part("task-host"), top = host.scrollTop, went = snap.settings?.show || 0, el = settingsEl(snap, { onSet: (id, name, value) => call("set", { id, name, value }) }); part("settings-host").replaceChildren(...(el ? [el] : [])); host.scrollTop = top; if (el && went > wentTo) el.scrollIntoView({ block: "start" }); wentTo = went; });
   once("ask", snap.ask, () => part("ask-host").replaceChildren(...[askEl(snap.ask, press)].filter(Boolean)));
   once("menu", menuOpen ? [snap.menu, snap.list.selected] : null, () => part("menu-host").replaceChildren(...(menuOpen ? [menuEl(snap, { onPress: press, onClose: () => { menuOpen = false; draw(); }, onFind: () => { finding = true; draw(); part("find").focus(); } })] : [])));
   part("find-row").hidden = !finding;
@@ -100,7 +103,7 @@ export function openBoard({ onClose }) {
     h("div.sw-find-row", { hidden: true }, find),
     h("div.sw-chips"),
     h("p.sw-note", { hidden: true, role: "status" }),
-    h("div.sw-body", h("div.sw-list-host"), h("div.sw-task-host")),
+    h("div.sw-body", h("div.sw-list-host"), h("div.sw-task-host", h("div.sw-panel-host"), h("div.sw-settings-host"))),
     h("div.sw-toast-host", { "aria-live": "polite" }),
     chat.el,
     h("div.sw-ask-host"), h("div.sw-menu-host"));

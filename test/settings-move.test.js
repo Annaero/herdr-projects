@@ -39,7 +39,7 @@ test("the move, with exactly this computer's file: every old name becomes its ne
     for (const k of ["own", "repoCfg", "base", "worktreeMode"]) assert.equal(k in t, false, k);
     assert.equal(S.setting("check.command", t), "npm run check -- --all"); assert.equal(S.setting("merge.by", t), "you"); assert.equal(S.setting("review.rounds", t), 5);
     assert.deepEqual(S.get(b).settings, {}); assert.equal("own" in S.get(b), false);
-    assert.equal(S.get(c).research, true); assert.deepEqual(S.get(c).settings, { "review.when": "never" });
+    assert.equal(S.get(c).research, undefined); assert.deepEqual(S.get(c).settings, { "review.when": "never", "research.only": true }); // the old switch is the setting now (store/old-research.js)
     // once: a second run changes nothing, also after you changed something since
     S.setValue("board.agents", 3);
     const now = fs.readFileSync(file(), "utf8"), task = fs.readFileSync(taskFile(a), "utf8");

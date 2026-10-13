@@ -6,6 +6,7 @@ import * as S from "../../store.js";
 import { sessionName } from "../../herdr.js";
 import { short, tokens } from "./words.js";
 import { name as keyName } from "../keys.js";
+import { isResearch } from "../../research.js";
 
 // A task's settings, each with the place it came from: this machine's own lookup, or what the task's machine sent.
 export const settingsOf = (r) => (r.host ? r.snap?.settings || [] : S.settingRows({ task: r }));
@@ -43,7 +44,7 @@ export class PanelSettings {
     rows.push(["Send back", `${bar === "trivial" ? "any finding" : bar === "critical" ? "critical only" : `${bar} or worse`} · ${rounds === 0 ? "by hand" : `${rounds ?? "?"} round${rounds === 1 ? "" : "s"} max`}`, mine("review.mustFix", "review.rounds")]);
     rows.push(["Evidence", val("review.evidence") === false ? "off" : "on", mine("review.evidence")]);
     // A research-only task merges nothing: its row says so in place of how it would merge.
-    if (r.research === true) rows.push(["Research", "only · no change to the repo", true, true]);
+    if (isResearch(r)) rows.push(["Research", "only · no change to the repo", mine("research.only")]);
     else rows.push(["Merge", val("merge.by") === "itself" ? "by itself, once it passes" : "after your yes", mine("merge.by")]);
     const notes = [...Object.values(r.fallbacks || {}).filter(Boolean), ...(RX ? RX.problems || [] : S.settingProblems(r)).map((x) => `Not counted: ${x}`)];
     if (notes.length) rows.push(["Note", notes.join("\n"), true, true]);
@@ -68,7 +69,7 @@ export class PanelSettings {
     // and the line under the rows names the command that changes one.
     const web = !!this.ctx?.web, own = web ? "(this task's own)" : "*";
     const table = (list) => list.flatMap(([k, v, differs, fact_]) => { const star = full && differs && !(web && fact_), x = fact(k, lines(star ? `${v} ${own}` : v), (l) => (differs ? l : quiet(l))); if (star && !web) x[x.length - 1] = x[x.length - 1].replace(/\*$/, t.fg("accent", "*")); return x; });
-    const change = web ? `Change one with: herdr-superwork set <name> <value> --task ${r.rid || r.id}` : `${keyName("settings")} changes them: every setting, and the place each one comes from`;
+    const change = web ? "All settings, below, has every one of them, and changes them" : `${keyName("settings")} changes them: every setting, and the place each one comes from`;
     const foot = full ? [...(!web && rows.some(([, , differs]) => differs) ? wrap("* this task's own, not what it would be otherwise").map((l) => dim(l).replace("*", t.fg("accent", "*"))) : []), ...(r.archivedAt ? [] : wrap(change).map(dim))] : [];
     // Beside the list only what differs from what it would be anyway: the rows that are this task's own (and a
     // note, which is always about this task). The usual ones are a key away, on the whole task and its settings page.

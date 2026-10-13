@@ -70,7 +70,7 @@ export function movedTask(t, old = {}) {
   // can; a task that ran on that keeps it, as its own choice.
   if (t.repoCfg?.land === "auto" && own.autoMerge == null && (old?.autoMerge === undefined || old?.autoMerge === null) && t.startedOnce) settings["merge.by"] ??= "itself";
   const next = { ...t, settings };
-  if (own.research === true) next.research = true;
+  if (own.research === true) next.research = true; // the old switch: it becomes the setting when the task is read (old-research.js)
   if (t.repoCfg !== undefined) next.repoFile = movedFacts(t.repoCfg);
   for (const k of ["own", "repoCfg", "worktreeMode", "base"]) delete next[k];
   return next;

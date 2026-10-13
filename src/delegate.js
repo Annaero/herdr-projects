@@ -51,6 +51,9 @@ export function rules(t) {
   const short = S.sayId(t.id); // the repo's short key, where it has one: the human may call the task by it
   return `Rules for this task (its id on the work board is ${t.id}${short !== t.id ? `; the human also calls it ${short}, and every command takes that name too` : ""}):\n${lines.map((l) => `- ${l}`).join("\n")}${words ? `\n\n${ownWords(words)}` : ""}`;
 }
+// An agent that goes on in the conversation it had, on a task that was research only and is not now (or the other
+// way round, `researchTurned`: actions/start.js): it is told so, with the rules as they are from here on.
+export const turnedWords = (t) => (t.researchTurned ? `${R.isResearch(t) ? "This task is research only from now on" : "This task is no longer research only: its result is a change to the repo, as for any task"}. These rules replace the ones you were given.\n\n${rules(t)}` : "");
 // Every worker's first prompt starts with one line naming the task and the role: it is how a conversation file is
 // matched to its task for an agent kind that names its own sessions.
 export const taskLine = (t, role = "agent", round = 0) => `Work board task ${t.id}, role: ${role}${round ? `, round ${round}` : ""}.`;
@@ -155,8 +158,10 @@ export async function delegateJob(id) {
     // 1. A place to work, unless the task still has a live pane from an earlier run.
     const livePane = t.link.pane ? api.paneGet(t.link.pane) : null;
     if (livePane && api.agentGet(t.link.pane)) { // delegate again on a task whose agent is still there: just continue it
-      t = g.set((t) => { t.stage = "working"; t.armedAt = Date.now(); t.turnOpen = true; t.turnBy = "start"; });
-      return void F.deliver(t, F.withTail(t, "Continue this task."));
+      t = g.set((t) => R.startsAs(t));
+      const turned = turnedWords(t);
+      t = g.set((t) => { t.stage = "working"; t.armedAt = Date.now(); t.turnOpen = true; t.turnBy = "start"; delete t.researchTurned; });
+      return void F.deliver(t, F.withTail(t, [turned, "Continue this task."].filter(Boolean).join("\n\n")));
     }
     if (!livePane) {
       let res, patch = {};
@@ -171,7 +176,7 @@ export async function delegateJob(id) {
         const from = baseRef(root, S.setting("workspace.from", t));
         res = F.openingWorktree(api, root, () => api.worktreeCreate({ cwd: root, branch, base: from, label }));
         const dir = res.worktree?.path || res.workspace?.worktree?.checkout_path;
-        // The repo's own file, read from the commit the worktree starts from: its six facts, and what it was refused.
+        // The repo's own file, read from the commit the worktree starts from: its seven facts, and what it was refused.
         const file = S.repoFile(root, from);
         excludeRuleDir(root);
         patch = { worktree: dir, branch, from, baseSha: (from === "HEAD" && F.headOf(root)) || S.gitOut(root, ["rev-parse", from]), repoFile: file.facts, repoRefused: file.refused, fresh: true, ownNote: true, copy: true };
@@ -201,9 +206,14 @@ export async function delegateJob(id) {
     // 3. The agent, in the workspace's root pane, then the task.
     //    A task whose agent ran before (delegated again after it exited) continues instead of starting over.
     t = agentNow(g, t);
-    const waiting = S.takeText(id).map((m) => m.text);
-    try { startAgent(id, g, t.startedAgentAt ? againPrompt(t, waiting) : { prompt: [firstPrompt(t), ...waiting].join("\n\n") }); }
+    // Research only or not is decided now, for this run, right before the program is started: the task has its place
+    // to work (the repo's own file as the commit it starts from has it), and its setup has run, so a change made
+    // while it waited for a slot or while the setup ran counts (research.js).
+    t = g.set((t) => R.startsAs(t));
+    const waiting = S.takeText(id).map((m) => m.text), turned = t.startedAgentAt ? turnedWords(t) : "";
+    try { startAgent(id, g, t.startedAgentAt ? againPrompt(t, [turned, ...waiting].filter(Boolean)) : { prompt: [firstPrompt(t), ...waiting].join("\n\n") }); }
     catch (e) { if (waiting.length) S.untakeText(id, waiting.length); throw e; }
+    if (t.researchTurned) g.set((t) => { delete t.researchTurned; });
   } catch (e) {
     if (e.aborted) return;
     try { S.update(id, (t) => { if (t.runner?.pid !== process.pid) return false; t.stage = "failed"; t.msg = "Could not start"; Object.assign(t, S.failurePatch({ stage: "start", title: "Could not start the agent", detail: `${e.message}${e.args ? `\n\nherdr ${e.args.join(" ")}` : ""}`.trim() || outputOf(e), agentCanFix: false, next: "Fix what herdr reports, then delegate again." })); }, { waitMs: 10000 }); } catch {}
@@ -242,6 +252,8 @@ export async function restartJob(id) {
       t = g.set((t) => { t.link = { ...t.link, workspace: pane.workspace_id, tab: pane.tab_id, pane: pane.pane_id, terminal: pane.terminal_id, ownsWorkspace: true, reviewer: null }; });
     }
     t = agentNow(g, t);
+    // A start that was asked for and never got as far as its agent (its setup failed): this is that start.
+    if (t.researchOpen) t = g.set((t) => R.startsAs(t));
     const waiting = S.takeText(id).map((m) => m.text);
     try { startAgent(id, g, t.unsent ? unsentPrompt(t, waiting) : againPrompt(t, waiting)); }
     catch (e) { if (waiting.length) S.untakeText(id, waiting.length); throw e; }

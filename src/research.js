@@ -2,16 +2,36 @@
 // A report (a review, a research result, anything written for the human to read that is not part of the product) is
 // written into the task's own folder among the board's reports (docs/home-folder.md), outside every repo; the board
 // gives it a private link.
-// A research-only task (`research`, a setting of one task) has that report as its whole result: the finish line
-// pushes, opens and merges nothing for it, and a change in its worktree or on its branch goes back to its agent.
+// A research-only task (the setting `research.only`, looked up like every other) has that report as its whole result:
+// the finish line pushes, opens and merges nothing for it, and a change in its worktree or on its branch goes back to
+// its agent.
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import * as S from "./store.js";
 
-// The setting exists per task only and is off unless chosen, so the task's own choice is all there is to read: this
-// also answers for a row that came from another machine.
-export const isResearch = (t) => t?.research === true;
+export { RESEARCH } from "./store/old-research.js";
+import { RESEARCH } from "./store/old-research.js";
+// Is this task research only? The one answer everything reads: the agent's rules, the finish line, the label.
+//   a row of the board (`research`)   as the machine that owns the task worked it out (flow/live.js), so a task from
+//                                     another machine is never looked up in this machine's settings, and drawing a
+//                                     row (it has a `state`, or a `host`) asks nothing: a row that does not say it is not
+//   a task whose agent was started    what it was started as (`researchRun`, written at each start: startsAs below).
+//                                     A change to the setting counts from its next start, as for every setting
+//   a task not started yet, or one    what the setting says now: the task, your entry for its repo, you, the repo's
+//   that waits to start (`researchOpen`)   file. A change counts at once, and for the start it waits for
+export const isResearch = (t) => !!t && (typeof t.research === "boolean" ? t.research : t.state !== undefined || t.host ? false : typeof t.researchRun === "boolean" && !t.researchOpen ? t.researchRun : S.setting(RESEARCH, t) === true);
+// The same answer for every task of one list (the board's, read once a second): tasks of one repo that say nothing
+// of their own share one lookup. `seen`: a Map kept for that one list.
+export function isResearchAmong(t, seen) {
+  const asks = typeof t.research !== "boolean" && (typeof t.researchRun !== "boolean" || t.researchOpen);
+  if (!asks || t.settings?.[RESEARCH] !== undefined || t.carried || t.repoFile) return isResearch(t);
+  const repo = String(t.repo || String(t.id).split("/")[0]);
+  if (!seen.has(repo)) seen.set(repo, isResearch(t));
+  return seen.get(repo);
+}
+// A started task whose setting now says something else than it runs as: said beside the setting, wherever it shows.
+export const laterWords = (t, value) => (typeof t?.researchRun === "boolean" && !t.researchOpen && t.researchRun !== (value === true) ? `counts from its next start: this run is ${t.researchRun ? "research only" : "not research only"}` : "");
 // Where a task's report is: a folder of its own among the board's reports, where the agent writes it and where it
 // stays. And the name the board serves it under.
 export const REPORT = "report";
@@ -101,6 +121,30 @@ export function changesOf(t, dir) {
   if (t.branch && on !== t.branch) seen.add(`(the worktree is on ${on || "no branch"}, not on ${t.branch})`);
   return [...seen];
 }
+// The moment an agent starts: what the setting says now is what this run is, kept on the task until the next start.
+// Called by the job that starts the agent, right before the program is started: the task has its place to work, so
+// the repo's own file is read from the commit its worktree started from, and its setup has run. Changes the task in place; throws the refusal below where a start as research
+// only cannot be honoured. `researchTurned`: an agent that goes on in its conversation is told (delegate.js).
+export function startsAs(t) {
+  const only = S.setting(RESEARCH, t) === true, why = turnRefusal(t, only);
+  if (why) throw new Error(`${why} To start it as it was: herdr-superwork set ${RESEARCH} false --task ${t.id}`);
+  if (typeof t.researchRun === "boolean" && t.researchRun !== only && t.startedAgentAt) t.researchTurned = true;
+  t.researchRun = only;
+  delete t.researchOpen;
+}
+// Turning it on for a task that was started as an ordinary one cannot always be honoured: a research-only task
+// changes nothing in the repo, so one whose agent has changed it already, or whose pull request is open, is refused
+// with that reason. Returns the reason, or "" where the change is fine: it then counts from the task's next start.
+// Turning it off is always fine.
+export function turnRefusal(t, to) {
+  if (to !== true || t?.researchRun !== false) return "";
+  const instead = `Leave ${t.id} as it is and add a new task as research only, or`;
+  if (t.pr && !t.prMerged && t.prState !== "closed") return `${RESEARCH} cannot be turned on for ${t.id}: its pull request is open (${t.pr}), and a research-only task opens none. ${instead} close the pull request first.`;
+  let list = null;
+  try { const dir = S.cwdOf(t); if (!t.worktree || dir === t.worktree) list = changesOf(t, dir); } catch {}
+  if (list?.length) return `${RESEARCH} cannot be turned on for ${t.id}: its agent has already changed the repo (${changedWords(list)}: ${list.slice(0, 3).join(", ")}${list.length > 3 ? ", …" : ""}), and a research-only task changes nothing in it. ${instead} undo the changes first.`;
+  return "";
+}
 export const changedWords = (list) => `${list.length} ${list.length === 1 ? "change" : "changes"} in the repo`;
 // What the agent is told when its research-only task changed the repo, and what the task shows if it does so again.
 export function changedFailure(t, tree, list, rounds) {
@@ -111,8 +155,8 @@ export function changedFailure(t, tree, list, rounds) {
     msg: `Research only, but its agent changed the repo${gaveUp ? ` again${gaveUp}` : ""} (${changedWords(list)}): nothing was pushed, opened or merged`,
     detail: `This task is research only: it may change nothing in the repo. Nothing was committed, pushed, opened as a pull request or merged.\n\n${t.worktree ? `Worktree: ${tree}\nBranch: ${t.branch || ""}` : `Folder (your own checkout): ${tree}`}\n\nChanged${t.worktree ? "" : " since the agent started"}:\n${shown}`,
     next: t.worktree
-      ? `Move the result out of the repo: save the report in ${reportFolder(t)}/ (outside the repo), then undo every change, the commits too, so that the branch is where it started (${String(t.syncedTo || t.baseSha || t.from || "").slice(0, 12)}) with no commit of yours on it and \`git status\` is clean. If the change is wanted after all, the human turns the task's research setting off: config research false --id ${t.id}.`
-      : `This is the human's own checkout, and it may hold changes of theirs: undo only what you changed yourself, file by file, and never reset or clean the checkout. Move the result out of the repo first: save the report in ${reportFolder(t)}/ (outside the repo). Take back a commit of yours without losing anything of the human's. If a listed change is not yours, or the change is wanted after all, say so and stop: the human turns the task's research setting off (config research false --id ${t.id}) or retries.`,
+      ? `Move the result out of the repo: save the report in ${reportFolder(t)}/ (outside the repo), then undo every change, the commits too, so that the branch is where it started (${String(t.syncedTo || t.baseSha || t.from || "").slice(0, 12)}) with no commit of yours on it and \`git status\` is clean. If the change is wanted after all, the human turns research only off for this task (herdr-superwork set research.only false --task ${t.id}) and delegates it again.`
+      : `This is the human's own checkout, and it may hold changes of theirs: undo only what you changed yourself, file by file, and never reset or clean the checkout. Move the result out of the repo first: save the report in ${reportFolder(t)}/ (outside the repo). Take back a commit of yours without losing anything of the human's. If a listed change is not yours, or the change is wanted after all, say so and stop: the human turns research only off for this task (herdr-superwork set research.only false --task ${t.id}) and delegates it again, or retries.`,
   };
 }
 

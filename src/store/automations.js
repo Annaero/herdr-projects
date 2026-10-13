@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { dataDir, readJson, writeJson, readLines, withLock } from "./files.js";
+import { researchMovedAutomation } from "./old-research.js";
 
 export const automationsDir = () => path.join(dataDir(), "automations");
 const listFile = () => path.join(automationsDir(), "automations.json");
@@ -14,7 +15,7 @@ const ID = /^[a-f0-9]{8}$/;
 export const FIRINGS_KEPT = 200;
 
 // ---- the list ----------------------------------------------------------------------------------------------------------
-export const automations = () => { const j = readJson(listFile()); return Array.isArray(j?.list) ? j.list.filter((a) => a && ID.test(a.id)) : []; };
+export const automations = () => { const j = readJson(listFile()); return Array.isArray(j?.list) ? j.list.filter((a) => a && ID.test(a.id)).map(researchMovedAutomation) : []; }; // one saved with the old research switch reads as the setting (old-research.js)
 export const hasAutomations = () => fs.existsSync(listFile());
 // One automation by its name (any case) or its id; null when there is none.
 export function automation(ref) {

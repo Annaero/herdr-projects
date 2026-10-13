@@ -8,6 +8,8 @@ import { lookup, inRepo } from "./lookup.js";
 import { needsRepo, entryOf } from "../settings-list.js";
 import { saidKeys } from "../keys.js";
 import { NONE } from "./values.js";
+import { RESEARCH } from "../old-research.js";
+import { turnRefusal } from "../../research.js";
 
 const refuse = (msg) => { throw Object.assign(new Error(msg), { refused: true }); };
 const roleOf = (name) => name.split(".")[0];
@@ -27,6 +29,8 @@ export function checked(pairs, scope = {}) {
   for (const [name, value] of Object.entries(pairs)) { allowed(name, scope); out[name] = check(name, value); }
   // Two repos with one key would make `HSW-134` two tasks: the second is refused, and told who has it.
   if (out["repo.key"] && out["repo.key"] !== NONE) { const other = saidKeys().find((s) => s.key === out["repo.key"] && s.repo !== scope.repo); if (other) refuse(`repo.key: ${other.repo} already has the key ${other.key}. Choose another for ${scope.repo}.`); }
+  // Research only, on a task that was started as an ordinary one: refused where it cannot be honoured (research.js).
+  if (scope.task && out[RESEARCH] !== undefined) { const why = turnRefusal(scope.task, out[RESEARCH]); if (why) refuse(why); }
   const agentFor = (role) => out[`${role}.agent`] ?? lookup(`${role}.agent`, scope).value;
   for (const [name, value] of Object.entries(out)) {
     const e = known(name);
@@ -57,6 +61,8 @@ export function setMany(pairs, scope = {}) { const values = checked(pairs, scope
 // unset: back to what it would be without this place's answer. Works for every setting.
 export function unsetValue(name, scope = {}) {
   allowed(name, scope);
+  // Taking a task's own "not research only" away may turn it on, by a default: refused as setting it would be.
+  if (name === RESEARCH && scope.task) { const { [name]: own, ...rest } = scope.task.settings || {}; const why = turnRefusal(scope.task, lookup(name, { task: { ...scope.task, settings: rest } }).value); if (why) refuse(why); }
   const t = save({ [name]: undefined }, scope);
   return lookup(name, scope.task ? { task: t } : scope);
 }

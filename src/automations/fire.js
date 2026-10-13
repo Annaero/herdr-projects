@@ -51,7 +51,7 @@ export function fire(ref, cause, now = Date.now()) {
     // An event's task hands on the automations it came from, so two automations can never fire each other for ever.
     const chain = [...new Set([...(cause.kind === "event" ? madeBy(cause.task)?.chain || [] : []), a.id])];
     const t = S.create(a.root, a.name, { description: descriptionOf(a, cause) });
-    S.update(t.id, { settings, automation: { id: a.id, name: a.name, chain, cause: cause.kind, at: now }, ...(a.research ? { research: true } : {}) });
+    S.update(t.id, { settings, automation: { id: a.id, name: a.name, chain, cause: cause.kind, at: now } });
     S.changeAutomation(a.id, (x) => { x.lastTask = t.id; x.made = [...(x.made || []), now].slice(-RUNAWAY - 1); });
     let note = "";
     try { A.delegate(t.id); } catch (e) { note = `added, but no agent could be put on it: ${e.message}`; }

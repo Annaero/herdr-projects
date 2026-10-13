@@ -73,9 +73,9 @@ export function writeYours(name, value, repo = "") {
   writeJson(configFile(), file);
 }
 
-// ---- the repo's own committed file: six facts, no more ----------------------------------------------------------------------
+// ---- the repo's own committed file: seven facts, no more ----------------------------------------------------------------------
 // Read from the commit a worktree starts from (`ref`), so an agent's own branch cannot change the rules it is checked
-// by; anything but the six facts is refused, so code written by agents can never loosen a guard.
+// by; anything but the seven facts is refused, so code written by agents can never loosen a guard.
 // Returns { facts, refused }: `refused` is one sentence per thing that did not count.
 export function repoFile(root, ref) {
   let text = "";

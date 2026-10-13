@@ -8,14 +8,19 @@ import { delegate } from "./start.js";
 import { stop } from "./talk.js";
 import { details } from "./finish-line.js";
 import { inherited } from "../automations/told.js";
+import { RESEARCH } from "../research.js";
 
 // ---- adding and editing ----------------------------------------------------------------------------------------------
-// `research`: the task is research only from the start (research.js). `from`: the task whose agent adds it. A task
-// an automation made hands that on, so the new task's events never fire that automation (automations/told.js).
-export function add(folder, title, { description = "", repo, research = false, from = null } = {}) {
+// `settings`: work settings of the task's own, from the start (--<setting> VALUE). `research`: the short form of one
+// of them, research.only (true: --research, false: --no-research; research.js). `from`: the task whose agent adds
+// it. A task an automation made hands that on, so the new task's events never fire that automation (automations/told.js).
+export function add(folder, title, { description = "", repo, research, settings = {}, from = null } = {}) {
+  const own = { ...settings, ...(research === undefined ? {} : { [RESEARCH]: research === true }) };
   const t = S.create(S.folderFor(repo, folder), title, { description }), automation = inherited(from);
-  if (research || automation) S.update(t.id, { ...(research ? { research: true } : {}), ...(automation ? { automation } : {}) });
-  return research || automation ? S.get(t.id) : t;
+  // A refused setting adds nothing: the task is taken away again.
+  try { if (Object.keys(own).length) S.setMany(own, { task: t }); } catch (e) { S.remove(t.id); throw e; }
+  if (automation) S.update(t.id, { automation });
+  return S.get(t.id);
 }
 // A new title follows the same limit as a first one: too long, it is shortened and its full text opens the description.
 const retitle = (t, title) => { const now = S.titled(title, t.description); if (now.title) { t.title = now.title; t.description = now.description; delete t.subject; /* what an older version kept beside a shortened title */ } };

@@ -3,6 +3,7 @@ import * as S from "../store.js";
 import { herdr, currentSocket, sessionName, socketExists } from "../herdr.js";
 import { show } from "../state.js";
 import { isAgentTask } from "./task.js";
+import { isResearchAmong } from "../research.js";
 
 // ---- live readings ---------------------------------------------------------------------------------------------------
 // One `agent list` and one `pane list` per herdr session answer for every task on the board.
@@ -25,10 +26,12 @@ export function liveOf(t, session, here = currentSocket()) {
   return a ? { status: a.agent_status, agent: a, pane } : { status: null, pane };
 }
 // A task as the board and `list` show it: the task plus its derived state.
-export function shown(t, session, here) {
+export function shown(t, session, here, seen = new Map()) {
   const live = liveOf(t, session, here);
   const pending = isAgentTask(t) && S.pendingText(t.id).length > 0;
-  return { ...t, live, ...pick(show({ ...t, pendingText: pending }, live)) };
+  // Research only or not is worked out here, by the machine that owns the task: a row says it, and nothing that draws
+  // a row looks it up again (research.js).
+  return { ...t, live, research: isResearchAmong(t, seen), ...pick(show({ ...t, pendingText: pending }, live)) };
 }
 // The same from what was saved alone, with no look at herdr: for whoever just changed a task and says so at once.
 export const saved = (t) => ({ ...t, ...pick(show({ ...t, pendingText: false }, undefined)) });
@@ -38,13 +41,15 @@ const pick = (s) => ({ state: s.state, kind: s.kind, note: s.msg, plain: s.plain
 export function boardFor(socket) {
   const tasks = S.list();
   const session = tasks.some((t) => isAgentTask(t) && t.link.socket === socket) ? readSession(socket) : null;
-  return tasks.map((t) => shown(t, session, socket));
+  const seen = new Map();
+  return tasks.map((t) => shown(t, session, socket, seen));
 }
 export function board({ includeArchived = false } = {}) {
   const here = currentSocket();
   const tasks = S.list({ includeArchived });
   const session = tasks.some((t) => isAgentTask(t) && t.link.socket === here) ? readSession(here) : null;
-  return tasks.map((t) => shown(t, session, here));
+  const seen = new Map();
+  return tasks.map((t) => shown(t, session, here, seen));
 }
 // Refuse a live action with the reason the board shows.
 export function assertLive(t) {

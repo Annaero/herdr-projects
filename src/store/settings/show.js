@@ -7,9 +7,12 @@ import { yours, repoFile } from "./places.js";
 import { folderOf } from "../repos.js";
 import { lookup, placesOf, inRepo } from "./lookup.js";
 import { repoKeys } from "../keys.js";
+import { RESEARCH } from "../old-research.js";
+import { laterWords } from "../../research.js";
 
-// One row per setting: { name, value, from, place, own, kind, note }. `own`: said in the nearest place of the scope
-// (this task, or you). `note`: why a value does nothing here.
+// One row per setting: { name, value, from, place, own, kind, note, later }. `own`: said in the nearest place of the
+// scope (this task, or you). `note`: why a value does nothing here. `later`: a value that counts from the task's next
+// start only, said after the place it came from.
 export function rows(scope = {}) {
   const mine = yours(), task = scope.task || null, at = placesOf(scope, mine);
   const noRepo = at.noRepo;
@@ -22,7 +25,7 @@ export function rows(scope = {}) {
       const { kind } = agentOf(lookup(`${s.name.split(".")[0]}.agent`, scope, mine, at).value);
       if (kind && typeof AGENTS[kind]?.fast !== "function") note = `does nothing: ${kind} has no fast mode`;
     }
-    return { name: s.name, kind: s.kind, value: r.value, from: r.from, place: r.place, own: r.place === (task ? "task" : scope.repo ? "repo" : "you"), note };
+    return { name: s.name, kind: s.kind, value: r.value, from: r.from, place: r.place, own: r.place === (task ? "task" : scope.repo ? "repo" : "you"), note, ...(s.name === RESEARCH && task && laterWords(task, r.value) ? { later: laterWords(task, r.value) } : {}) };
   });
 }
 // What is wrong in the files, one sentence each. The board keeps running: each such setting falls to the next place.
@@ -39,7 +42,7 @@ export function showText(scope = {}) {
   const list = rows(scope), task = scope.task || null;
   const wide = Math.max(...list.map((r) => r.name.length)), val = Math.max(...list.map((r) => say(r.value).split("\n")[0].length).filter((n) => n <= 40));
   const head = task ? `${task.id}: every setting, and the place it came from (* = this task's own)` : scope.repo ? `Your entry for ${scope.repo} (* = said there)` : "Your settings (* = changed by you)";
-  const lines = list.map((r) => `${r.own ? "*" : " "} ${r.name.padEnd(wide)}  ${say(r.value).replace(/\s*\n\s*/g, " / ").padEnd(val)}  ${r.note || r.from}`);
+  const lines = list.map((r) => `${r.own ? "*" : " "} ${r.name.padEnd(wide)}  ${say(r.value).replace(/\s*\n\s*/g, " / ").padEnd(val)}  ${r.note || r.from}${r.later ? ` · ${r.later}` : ""}`);
   const bad = problems(task);
   return [head, ...lines, ...(bad.length ? ["", "Not counted (the next place down is used for each):", ...bad.map((b) => `  ${b}`)] : [])].join("\n");
 }

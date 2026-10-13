@@ -116,6 +116,7 @@ the web UI's own chat input, built again and measured against it: [the web board
 | the list, its groups, marks, progress, review and pull request tags | the same list; a pull request's tag is a link. The agent at work is a full dot, its reviewer the right half of one and the board's own steps the lower half: all three are drawn, at one size (as text the two half discs came out a third the size of the dot). Every other mark is the terminal board's own character (one cross, `✗`; `◆` ready to approve; `@` a sign-in), and the headings are written as the terminal writes them |
 | moving between tasks | tap a task: it opens, whole. The selected row has a bar in its gutter as well as its tint, as on the terminal board |
 | the task panel: status, what it needs from you, description, reviews, evidence, what the agent said, settings, session | the open task, every part, evidence as links |
+| the settings page (`ctrl+e`): every work setting of the task by its plain name, its value and the place it comes from | **All settings**, under the open task (and under an open automation), folded until you open it or pick `this task's settings` in More…: each setting with its plain label, what it means where that needs saying (`Research only`), its value and the place it comes from. A switch or a choice is a list to pick from, anything else a box that saves on enter; **Put back** takes the task's own answer away. A value that is refused is refused in the board's own words and changes nothing; a device that only watches cannot change one; an archived task's are read-only |
 | the hint line: what can be done to the selected task now | the buttons at the top of the open task, in the same words |
 | the `?` menu | **More…** (and `⋯` in the header): only what applies now and is not a button already, in the buttons' own words (`Remove this task`, `Show every machine's tasks`). A key the page has no button for has no entry |
 | the chat, and who it talks to | the box at the foot; tap its first line to switch between the Coordinator and the task's agent |
@@ -128,8 +129,8 @@ the web UI's own chat input, built again and measured against it: [the web board
 | find, the archive, grouping by repo, all done tasks, other machines | the search button, and **Show** in More…; what is on shows as a chip under the header |
 | going into a task's agent | **Open this task's agent**: the web UI's own view of that pane (chat, or the terminal when no agent is in it) |
 
-**The page speaks web and fits a thumb.** No terminal key is named on it (a task's settings say the command that
-changes one, not `ctrl+e`; a setting that is the task's own says so in words, not with a star). There is one back
+**The page speaks web and fits a thumb.** No terminal key is named on it (a task's settings point to **All settings** below
+them, not to `ctrl+e`; a setting that is the task's own says so in words, not with a star). There is one back
 arrow at a time: on a phone the open task's stands for the Board's. Nothing that is read is under 13 px, and
 everything that is tapped is 40 px high at least (the chat box's two send controls are the web UI's own sizes: 32
 and 34 px with a mouse, 40 px on touch). The header names the repo, with no folder path.

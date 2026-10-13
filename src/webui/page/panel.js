@@ -1,6 +1,8 @@
 // One task, whole: its title, the buttons for what can be done to it now, and the task panel's parts (status, what
 // it needs from you, description, reviews, evidence, what the agent said, settings, session). The
 // parts and the buttons come from the board (webui/panel-model.js, webui/side-model.js); this file lays them out.
+// Under it, All settings: every work setting of the task (or automation) with its plain label, what it means, its
+// value and the place it comes from, each one changed right there (webui/settings-model.js).
 import { h, icon, ink } from "./dom.js";
 
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
@@ -36,4 +38,31 @@ export function panelEl(snap, handlers) {
     h("div.sw-parts", p.parts.map((part) => h("section.sw-part",
       h(`h4.sw-part-head${part.color ? `.sw-c-${part.color}` : ""}`, part.head),
       h("dl.sw-facts", part.items.map((x) => item(x, handlers.onGo)))))));
+}
+
+// ---- All settings ------------------------------------------------------------------------------------------------------
+// Folded until asked for; it stays as you left it while the page is kept fresh.
+let unfolded = false, shown = 0;
+function setRow(x, canSet, onSet) {
+  const pick = x.words && h("select.sw-set-pick", { "aria-label": x.label, disabled: !canSet, onchange: (e) => onSet(x.name, e.target.value) },
+    x.words.map((w) => h("option", { value: w.value, selected: w.now }, w.say)));
+  // Typed: saved when you press enter or leave the box, and only when it says something new.
+  const box = !x.words && h("input.sw-set-box", { type: "text", value: x.value, "aria-label": x.label, title: x.hint, placeholder: x.hint, disabled: !canSet, autocomplete: "off", spellcheck: false,
+    onchange: (e) => { const text = e.target.value.trim(); if (text && text !== x.value) onSet(x.name, text); else e.target.value = x.value; } });
+  return h(`div.sw-set${x.own ? ".is-own" : ""}`,
+    h("div.sw-set-top", h("span.sw-set-label", x.label), pick || box),
+    x.means ? h("p.sw-set-means", `On: ${x.means}.`) : null,
+    h("p.sw-set-from", `From ${x.from}`, h("span.sw-set-name", ` · ${x.name}`),
+      x.own && canSet ? h("button.sw-set-back", { type: "button", title: "Back to what it would be without its own answer", onclick: () => onSet(x.name, null) }, "Put back") : null));
+}
+export function settingsEl(snap, { onSet }) {
+  const s = snap.settings;
+  if (!s || !s.rows.length) return null;
+  if (s.show !== shown) { if (s.show > shown && shown >= 0) unfolded = true; shown = s.show; }
+  const set = (name, value) => onSet(s.id, name, value);
+  const el = h("details.sw-settings", { open: unfolded, ontoggle: (e) => { unfolded = e.target.open; } },
+    h("summary.sw-settings-head", "All settings", h("span.sw-settings-note", `${s.rows.filter((x) => x.own).length} of ${s.whose}'s own`)),
+    h("p.sw-set-means", s.canSet ? `Every setting, and the place its value comes from. A change here is ${s.whose}'s own.` : "Read-only here."),
+    s.rows.map((x) => setRow(x, s.canSet, set)));
+  return el;
 }

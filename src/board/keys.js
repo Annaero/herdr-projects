@@ -81,7 +81,7 @@ export const KEYS = [
     doc: "pin the selected task to the top, or unpin it",
     menu: (v, r) => (r?.pinned ? "unpin this task" : "pin this task to the top"),
     run: (v, r) => (r ? v.pinTask(r) : undefined) },
-  { id: "settings", keys: ["ctrl+e"], group: "ctrl",
+  { id: "settings", web: "Settings", keys: ["ctrl+e"], group: "ctrl",
     doc: "the selected task's settings, full screen: every work setting by its name, its value, and the place it comes from (this task, your entry for its repo, you, the repo's file, built in). {up} {down} move to a row; {enter} changes it (a switch or a choice goes to its next value, anything else is typed and saved with {enter}); rows that are this task's own are marked `*`. {putBack} puts the selected row back to what it would be without this task's own answer. {back} or {settings} again goes back ([settings.md](settings.md)). On an automation's row: the automation's own settings, the same page",
     menu: (v) => (v.editing ? "back from this task's settings" : "this task's settings: see and change each one"),
     run: (v, r) => v.editSettings(r) },

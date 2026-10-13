@@ -5,12 +5,15 @@ import fs from "node:fs";
 import path from "node:path";
 import * as S from "./store.js";
 import { name as keyName } from "./board/keys.js";
+import { isResearch } from "./research.js";
 
 const HELP = `herdr-superwork: a work board for herdr
 
   herdr-superwork                     open the board here (in herdr: bind a key to the plugin action "open")
-  herdr-superwork add <title> [--desc TEXT] [--repo NAME|PATH] [--delegate] [--research]
-                                      (--research: research only. Its agent changes nothing in the repo; the result is a report)
+  herdr-superwork add <title> [--desc TEXT] [--repo NAME|PATH] [--delegate] [--<setting> VALUE ...] [--research|--no-research]
+                                      (--research: research only, short for --research.only true. Its agent changes
+                                       nothing in the repo; the result is a report. --no-research: not research only,
+                                       where a default says it is)
   herdr-superwork list [--archived] [--all] [--query TEXT] [--json]
   herdr-superwork report <id> --state idle|working|blocked|done|error [--kind question|permission|auth] [--msg TEXT] [--title TEXT]
                          [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
@@ -100,8 +103,8 @@ function caller() {
   return null;
 }
 const callerTask = () => { const c = caller(); return c?.role === "agent" ? c.task : null; };
-const line = (t) => `${t.id.padEnd(14)} ${String(t.state).padEnd(8)}${t.kind ? ` ${t.kind}` : ""}${t.shownApp ? ` [${t.shownApp}]` : ""}  ${t.title}${t.note ? `  · ${t.note}` : ""}${t.archivedAt ? "  (archived)" : ""}`;
-const brief = (t) => ({ id: t.id, state: t.state, kind: t.kind, app: t.shownApp, title: t.title, msg: t.note, stage: t.stage, progress: t.progress, eta: t.eta, pr: t.pr || undefined, archivedAt: t.archivedAt || undefined, review: S.currentReview(t) || undefined, reviewRound: S.reviewRound(t) || undefined });
+const line = (t) => `${t.id.padEnd(14)} ${String(t.state).padEnd(8)}${t.kind ? ` ${t.kind}` : ""}${t.shownApp ? ` [${t.shownApp}]` : ""}  ${t.title}${t.research ? " [research]" : ""}${t.note ? `  · ${t.note}` : ""}${t.archivedAt ? "  (archived)" : ""}`;
+const brief = (t) => ({ id: t.id, state: t.state, kind: t.kind, app: t.shownApp, title: t.title, msg: t.note, stage: t.stage, progress: t.progress, eta: t.eta, pr: t.pr || undefined, research: t.research || undefined, archivedAt: t.archivedAt || undefined, review: S.currentReview(t) || undefined, reviewRound: S.reviewRound(t) || undefined });
 
 export async function main(argv) {
   const { pos, flags } = parse(argv);
@@ -154,12 +157,13 @@ export async function main(argv) {
   let result;
   switch (cmd) {
     case "add": case "new": {
-      const t = A.add(here, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "", repo: flags.repo, research: flags.research === true, from: caller()?.task });
+      const { research, ...settings } = pickChoices(flags); // the task's own from the start, an agent on it or not
+      const t = A.add(here, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "", repo: flags.repo, research, settings, from: caller()?.task });
       // Added by the Coordinator from a message the human sent with tab: delegated here, flag or no flag.
       let tab = false;
       if (!flags.delegate && process.env.HERDR_PANE_ID && !process.env.HERDR_PLUGIN_ID) { try { tab = (await import("./coordinator.js")).tabTurn(process.env.HERDR_PANE_ID); } catch {} }
-      if (flags.delegate || tab) A.delegate(t.id, pickChoices(flags));
-      result = [brief(shownOf(t.id)), `${t.id}: added${flags.research === true ? " as research only" : ""}${flags.delegate || tab ? `, an agent is on it${tab ? ` (the message was sent with ${keyName("delegate")})` : ""}` : ""}${S.titleNote(rest(1))}`];
+      if (flags.delegate || tab) A.delegate(t.id);
+      result = [brief(shownOf(t.id)), `${t.id}: added${isResearch(t) ? " as research only" : ""}${flags.delegate || tab ? `, an agent is on it${tab ? ` (the message was sent with ${keyName("delegate")})` : ""}` : ""}${S.titleNote(rest(1))}`];
       break;
     }
     case "list": case "ls": {
@@ -227,7 +231,8 @@ export async function main(argv) {
   try { housekeeping(); } catch {}
   return 0;
 }
-// A delegate's options: every --<setting> (a name with a dot), and --research. Any other option is refused there.
+// The options of add and delegate that are the task's own settings: every --<setting> (a name with a dot), and
+// --research / --no-research, the short form of research.only. Any other option is refused there.
 function pickChoices(flags) {
   const o = {};
   for (const [k, v] of Object.entries(flags)) if (k.includes(".")) o[k] = v;

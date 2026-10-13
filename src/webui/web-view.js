@@ -126,8 +126,22 @@ export class WebView extends View {
     this.panelTop = 0;
     this.load();
   }
-  // An automation's settings page is the terminal board's (as a task's is): here the command changes them.
-  autoSettings(a) { this.flash(`Its settings are changed on ${a.host ? a.host : "the terminal board"}, or with: herdr-superwork set <name> <value> --automation "${a.name}"`, "yellow"); }
+  // The settings page is a part of the open task or automation on the web (settings-model.js): no page of its own.
+  // Its key (More: this task's settings) opens the task with that part shown: the page goes to it (`showSettings`).
+  editSettings(r) { if (!r || r.title === undefined) return this.flash("Select a task first."); this.full = true; this.panelTop = 0; this.showSettings = (this.showSettings || 0) + 1; }
+  autoSettings() { this.autoOpen = true; this.showSettings = (this.showSettings || 0) + 1; }
+  // One setting of the open task or automation, changed from the page: a value, or none to put it back to what it
+  // would be without its own answer. The board's own save (view/panel-edit.js), so a task or an automation on
+  // another machine is changed there, and a refused value is refused in the same words.
+  setSetting(id, name, value) {
+    const a = this.autoOpen ? this.auto() : null, r = a || this.current();
+    if (!r || String(a ? a.row : r.id) !== String(id) || (!a && r.title === undefined)) return this.flash("That task is no longer the one that is open. Nothing was changed.", "yellow");
+    if (!S.entryOf(String(name))) throw new Error(`Unknown setting "${name}".`);
+    if (a && !this.autoCanSet(a)) return this.flash(`Its settings are changed on ${a.host}: herdr-superwork set <name> <value> --automation "${a.name}"`, "yellow");
+    const was = this.editing;
+    this.editing = a ? { id: a.id, auto: true, at: 0, typing: "" } : null; // whose settings the save is for
+    try { this.editSave(r, String(name), value === undefined || value === null ? undefined : String(value)); } finally { this.editing = was; }
+  }
   // The web UI's own machines, and the one it is on: the board follows it there (web-pcs.js).
   seeWeb(web) { try { followWeb(this, web); } catch {} }
   find(text) { this.filter = String(text ?? "").trim().slice(0, 200); this.mode = "new"; this.load(); }

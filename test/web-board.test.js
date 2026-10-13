@@ -187,8 +187,13 @@ test("the web board has the automations: the last group of its list, one of them
     // off and on: off, the button that fires it is gone
     s = CALLS.press.run(v, { id: "talk", ...drive }); assert.equal(S.automation(a.id).on, false); assert.deepEqual(s.actions.map((x) => x.label), ["turn this automation on", "remove it"]);
     CALLS.press.run(v, { id: "talk", ...drive }); assert.equal(S.automation(a.id).on, true);
-    // its settings are the terminal board's page: here the board says how they are changed, and no key is swallowed after
-    s = CALLS.press.run(v, { id: "settings", ...drive }); assert.match(s.msg.text, /Its settings are changed on the terminal board, or with: herdr-superwork set <name> <value> --automation "Look for old dependencies"/); assert.ok(!v.editing);
+    // its settings are a part of the page under it (All settings), which the key goes to: every setting its next task
+    // will have, changed there as a task's are, and no key is swallowed after
+    s = CALLS.press.run(v, { id: "settings", ...drive }); assert.ok(!v.editing); assert.ok(s.settings.show > 0);
+    assert.deepEqual([s.settings.whose, s.settings.canSet, s.settings.rows.find((x) => x.name === "merge.by").from], ["this automation", true, "this automation"]);
+    s = CALLS.set.run(v, { id: s.settings.id, name: "research.only", value: "true", ...drive });
+    assert.deepEqual(S.automation(a.id).settings, { "merge.by": "itself", "research.only": true }); assert.equal(s.settings.rows.find((x) => x.name === "research.only").from, "this automation");
+    s = CALLS.set.run(v, { id: s.settings.id, name: "research.only", value: null, ...drive }); assert.deepEqual(S.automation(a.id).settings, { "merge.by": "itself" });
     // words typed while it is open are for the Coordinator's place, never for a task: the selection is as it was after
     CALLS.send.run(v, { text: "Another one", to: { id: "", reply: false, scope: "" }, ...drive }); assert.equal(v.sel, one.id); assert.ok(S.list().some((t) => t.title === "Another one"));
     // the firing's link: to that task, in the same list, open
@@ -440,12 +445,12 @@ test("the web board: a draft goes to who it was typed for, a merge has no filled
     // More: only what applies, each a button's own words; nothing that names a terminal key, nothing for a key the page has no button for.
     s = snapshot(v);
     const ids = s.menu.map((i) => i.id);
-    assert.ok(!ids.includes("yes") && !ids.includes("sendBack") && !ids.includes("settings") && !ids.includes("undo") && !ids.includes("close") && !ids.includes("free"), ids.join(" "));
-    assert.ok(ids.includes("stop") && ids.includes("archive") && ids.includes("pin") && ids.includes("scope"));
+    assert.ok(!ids.includes("yes") && !ids.includes("sendBack") && !ids.includes("undo") && !ids.includes("close") && !ids.includes("free"), ids.join(" "));
+    assert.ok(ids.includes("stop") && ids.includes("archive") && ids.includes("pin") && ids.includes("scope") && ids.includes("settings"));
     assert.equal(s.menu.find((i) => i.id === "scope").label, "show every machine's tasks (now: this machine)");
     const said = JSON.stringify(s);
     assert.doesNotMatch(said, /ctrl\+|alt\+|\bshift\+/, "no terminal key anywhere on the page");
-    assert.match(said, /Change one with: herdr-superwork set <name> <value> --task proj\/3/); assert.doesNotMatch(said, /this task's own, not what it would be/);
+    assert.match(said, /All settings, below, has every one of them, and changes them/); assert.doesNotMatch(said, /this task's own, not what it would be/);
     // The header says the repo by its name: no folder path, nothing for the home folder.
     assert.equal(s.list.head.where, "proj");
     // The actions row: the review goes back first, and the yes says what it is.
@@ -464,4 +469,36 @@ test("the page's styles: nothing read under 13px, targets a thumb can hit, one h
   // The draft is kept with who it is for: a reload brings both back, so the words never go to whoever shows then.
   assert.match(chat, /sessionStorage\.setItem\(TO, JSON\.stringify\(to\)\)/); assert.match(chat, /if \(box\.value\.trim\(\)\) to = savedTo\(\);/); assert.match(chat, /keep\(box\.value, to\)/); assert.match(chat, /scope: to\.scope \|\| ""/); assert.match(chat, /scope: snap\.flags\?\.scope \|\| ""/);
   assert.match(chat, /`To: \$\{whom\.label\}/); assert.match(sheets, /!ask\.danger \? "\.btn-primary" : ""/);
+});
+
+test("the web board has the settings page: every setting of the open task with its plain label and what it means, changed and put back there", async () => {
+  const v = new WebView({ cwd: w.root });
+  try {
+    const t = A.add(w.root, "Look into the logs").id;
+    assert.equal(snapshot(v).settings, null); // no task open: nothing to set
+    let s = CALLS.pick.run(v, { id: t, open: true });
+    const row = (s, name = "research.only") => s.settings.rows.find((x) => x.name === name);
+    assert.deepEqual([s.settings.id, s.settings.whose, s.settings.canSet], [t, "this task", true]);
+    assert.deepEqual(s.settings.rows.map((x) => x.name), v.editRows(v.current()).map((x) => x.name)); // the terminal page's rows, in its order
+    assert.deepEqual(row(s), { name: "research.only", label: "Research only", means: "its agent changes nothing in the repo; the result is a report, and nothing is pushed, opened or merged", own: false, value: "off", from: "built in",
+      words: [{ value: "true", say: "on", now: false }, { value: "false", say: "off", now: true }], hint: "" });
+    assert.equal(row(s, "review.rounds").words, null); assert.match(row(s, "review.rounds").hint, /a whole number, 0 or more/);
+    // Changed from the page: the task's own, the label on its row follows, and the board says what it is now.
+    s = CALLS.set.run(v, { id: t, name: "research.only", value: "true", ...drive });
+    assert.deepEqual(S.get(t).settings, { "research.only": true }); assert.deepEqual([row(s).value, row(s).own, row(s).from], ["on", true, "this task"]);
+    assert.match(s.msg.text, /^Research only: on {2}\(this task\)$/); assert.match(rowsOf(s.list).find((x) => x.id === t).title, /Look into the logs \[research\]/);
+    // A typed value; a wrong one is refused in the board's words and changes nothing.
+    s = CALLS.set.run(v, { id: t, name: "review.rounds", value: "5", ...drive }); assert.deepEqual([row(s, "review.rounds").value, S.get(t).settings["review.rounds"]], ["5", 5]);
+    assert.throws(() => CALLS.set.run(v, { id: t, name: "review.rounds", value: "many", ...drive }), /review\.rounds must be a whole number/);
+    assert.throws(() => CALLS.set.run(v, { id: t, name: "board.agents", value: "9", ...drive }), /board\.agents is a board setting/);
+    // Put back: what it would be without the task's own answer.
+    s = CALLS.set.run(v, { id: t, name: "research.only", value: null, ...drive });
+    assert.deepEqual(S.get(t).settings, { "review.rounds": 5 }); assert.deepEqual([row(s).value, row(s).own], ["off", false]);
+    // A device that only watches changes nothing; nor does a change meant for a task that is no longer open.
+    assert.throws(() => CALLS.set.run(v, { id: t, name: "research.only", value: "true", role: "watch" }), /can only watch/);
+    s = CALLS.set.run(v, { id: "proj/999", name: "research.only", value: "true", ...drive }); assert.match(s.msg.text, /no longer the one that is open/); assert.equal(S.get(t).settings["research.only"], undefined);
+    // Its key in More goes there; an archived task's settings are read-only.
+    s = CALLS.press.run(v, { id: "settings", ...drive }); assert.equal(s.settings.show, 1); assert.ok(s.panel);
+    A.archive(t); v.press("archiveView"); s = CALLS.pick.run(v, { id: t, open: true }); assert.equal(s.settings.canSet, false);
+  } finally { v.dispose(); }
 });

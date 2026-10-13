@@ -12,7 +12,8 @@ Coordinator, the Watcher). One setting is neither: `repo.key`, a fact about one 
 2. A board setting is yours only: everything under `board.`, `coordinator.` and `watcher.`. Setting one on a task or
    for a repo is refused, and the answer says how to set it for yourself.
 3. A setting is read when its step starts, and a step under way is never changed: the agent's settings at its next
-   start, the review's at the next review, the merge's right before the merge.
+   start (whether the task is research only among them), the review's at the next review, the merge's right before
+   the merge.
 4. A repo's own fact (`repo.key`, the short key of its tasks) is said for that repo and nowhere else: **your entry
    for the repo → the repo's own file → built in.** It is refused on a task and for yourself. More:
    [task numbers and repo keys](task-numbers.md).
@@ -25,8 +26,8 @@ Coordinator, the Watcher). One setting is neither: `repo.key`, a fact about one 
 - **Your entry for a repo**: the `repos` section of that same file, keyed by the repo's name on the board.
 - **This task**: saved on the task, only the settings that differ. A task an [automation](automations.md) made
   starts with the automation's own settings here; an automation is no place of its own.
-- **The repo's own file**: `.herdr-superwork.json`, committed in that repo. It may hold six facts only:
-  `workspace.setup`, `workspace.include`, `workspace.teardown`, `check.command`, `check.timeout` and `repo.key`. Anything else in
+- **The repo's own file**: `.herdr-superwork.json`, committed in that repo. It may hold seven facts only:
+  `research.only`, `workspace.setup`, `workspace.include`, `workspace.teardown`, `check.command`, `check.timeout` and `repo.key`. Anything else in
   it is refused and said on the task (a `Note` in the task panel, and `show <id>`). It is read from the commit the
   worktree started from, so code written by agents can never loosen a guard: it cannot switch on merging by itself,
   drop the review, or change the rules its own branch is checked by.
@@ -106,6 +107,7 @@ the task (fast mode for a program that has none) is not offered ([the task panel
 | `coordinator.instructions` | `none` | you only | your own words for the Coordinator, the agent you talk to in the chat, added after the board's own fixed rules |
 | `watcher.agent` | `claude/claude-haiku-5-5` | you only | the Watcher: a small model behind the "doing now" line, the progress guess and the minutes left. `none`: none of the three. More: [the Watcher](watcher.md) |
 | `watcher.every` | `60s` | you only | the least time between two looks of the Watcher at one working agent. One hidden model call covers every agent whose look is due, one call runs at a time on the machine, a screen that has not changed costs none, and a busy machine is looked at up to five times less often |
+| `research.only` | `false` | task, repo entry, you, repo file | research only: the task's agent changes nothing in the repo and its result is a report, with a private link. Nothing is committed, pushed, opened as a pull request or merged for it, and its row says `[research]`. Read when the agent starts: a change counts from the task's next start, and turning it on is refused once the agent has changed the repo or a pull request is open. `--research` and `--no-research` on `add` and `delegate` are short for it. More: [reports and research-only tasks](research.md) |
 | `workspace.from` | `main` | task, repo entry, you | where a worktree starts: `main` (the remote's main branch, fetched first) or `here` (the commit your checkout is on) |
 | `workspace.setup` | `none` | task, repo entry, you, repo file | a command run in the fresh worktree before the agent starts |
 | `workspace.include` | `none` | task, repo entry, you, repo file | ignored files a fresh worktree lacks and gets a copy of (`.env`); `.worktreeinclude` in the repo names more |
@@ -142,8 +144,7 @@ board always keeps the size of its own pane; evidence links are shared privately
 installed and on 127.0.0.1 when it is not; the how-to for agents and the trust mark for a task's repo are written;
 a conflict with main goes back to the task's agent by itself (within `review.rounds`); a passed review still stands
 after a clean catch-up with main when the check passes; only your own comments on a pull request (the logged-in
-GitHub user's) wake its agent. A task being research only is a property of the task
-([research-only tasks](research.md)), not a setting.
+GitHub user's) wake its agent.
 
 ## Coming from the old names
 

@@ -96,7 +96,7 @@ export async function remoteMain([what, payload]) {
       // own "you" and its entry for the repo would. Board settings stay with each machine.
       const sent = () => { if (a.settings && typeof a.settings === "object") t = S.update(t.id, (t) => { t.carried = { from: String(a.from || "another machine").slice(0, 64), settings: S.checked(a.settings, {}) }; }); };
       // A change to one of its own settings, from the asking side's task panel.
-      if (a.action === "set") { const r = a.value === undefined ? S.unsetValue(String(a.name), { task: t }) : S.setValue(String(a.name), a.value, { task: t }); return say({ ok: true, msg: `${r.name}: ${S.say(r.value)} (${r.from})` }); }      const acts = {
+      if (a.action === "set") { const r = a.value === undefined ? S.unsetValue(String(a.name), { task: t }) : S.setValue(String(a.name), a.value, { task: t }); const later = S.settingRows({ task: S.get(t.id) }).find((x) => x.name === r.name)?.later; return say({ ok: true, msg: `${r.name}: ${S.say(r.value)} (${r.from})${later ? ` · ${later}` : ""}` }); }      const acts = {
         archive: () => { A.archive(t.id); return `${t.id}: archived. ? has undo, and the archive.`; },
         restore: () => { A.restore(t.id); return `${t.id}: restored`; },
         delegate: () => { sent(); A.delegate(t.id); return `${t.id}: an agent is on it`; },

@@ -37,7 +37,7 @@ export function sameOrigin(req) {
 }
 // A call the page makes with POST. It must come from the board's own page, whatever it does; one that changes a
 // task also needs someone who may drive. `who` has already said the caller is logged in.
-export const CHANGES = ["send"]; // what a watching device may not do
+export const CHANGES = ["send", "set"]; // what a watching device may not do
 // What a watching device may do too: its own selection and filter, and a key that only shows or hides (the worker
 // lets it press no other: worker.js).
 export const LOOKS = ["press", "pick", "find"];

@@ -69,6 +69,17 @@
 .sw-actions { display: flex; flex-wrap: wrap; gap: var(--space-2, 8px); padding: 0 var(--space-4, 16px) var(--space-3, 12px); }
 .sw-act { min-height: var(--touch-target, 40px); white-space: normal; text-align: left; height: auto; padding-top: var(--space-1, 4px); padding-bottom: var(--space-1, 4px); }
 .sw-parts { padding: 0 var(--space-4, 16px); }
+/* All settings, under the task: each row its label and its control, then what it means and where it comes from. */
+.sw-settings { max-width: var(--content-w, 820px); margin: var(--space-4, 16px) auto 0; padding: 0 var(--space-4, 16px); }
+.sw-settings-head { min-height: var(--touch-target, 40px); display: flex; align-items: center; cursor: pointer; border-bottom: var(--hairline, 1px) solid var(--sw-line); font-size: var(--fs-sm, 13px); font-weight: var(--fw-semibold, 600); color: var(--sw-strong); }
+.sw-settings-note, .sw-set-name { color: var(--sw-dim); font-weight: var(--fw-regular, 400); } .sw-settings-note { margin-left: 0.6em; }
+.sw-set { padding: var(--space-2, 8px) 0; border-bottom: var(--hairline, 1px) solid var(--sw-line); }
+.sw-set-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2, 8px); }
+.sw-set-label { color: var(--sw-text); } .sw-set.is-own .sw-set-label { color: var(--sw-strong); font-weight: var(--fw-semibold, 600); }
+.sw-set-pick, .sw-set-box { min-height: var(--touch-target, 40px); max-width: 100%; padding: 0 var(--space-3, 12px); border: var(--hairline, 1px) solid var(--border-strong, var(--sw-line)); border-radius: var(--radius-md, 8px); background: var(--sw-lift); color: var(--sw-text); font: inherit; }
+.sw-set-box { flex: 1 1 14em; min-width: 0; }
+.sw-set-means, .sw-set-from { margin: var(--space-1, 4px) 0 0; color: var(--sw-dim); font-size: var(--fs-sm, 13px); overflow-wrap: anywhere; }
+.sw-set-back { margin-left: var(--space-2, 8px); min-height: var(--touch-target, 40px); padding: 0 var(--space-2, 8px); border: 0; background: none; color: var(--accent, #f0a830); font: inherit; text-decoration: underline; cursor: pointer; }
 .sw-part { margin-top: var(--space-4, 16px); }
 .sw-part-head { margin: 0 0 var(--space-2, 8px); padding-bottom: var(--space-1, 4px); border-bottom: var(--hairline, 1px) solid var(--sw-line); font-size: var(--fs-sm, 13px); font-weight: var(--fw-semibold, 600); color: var(--sw-strong); }
 .sw-part-head[class*="sw-c-"] { border-bottom-color: currentColor; }

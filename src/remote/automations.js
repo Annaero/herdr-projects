@@ -11,9 +11,10 @@ const FIRINGS_SENT = 20;
 
 // Each automation as it is saved, with what the asking side cannot read from here: its latest firings, newest first,
 // the settings that are its own, and every work setting as its next task will have it here, each with the place it
-// comes from: the asking board's settings page for it (view/panel-edit.js).
+// comes from: the asking board's settings page for it (view/panel-edit.js). And whether its tasks are research only,
+// worked out here, where its settings are.
 const sent = (x) => ({ name: x.name, value: x.value, from: x.from, own: !!x.own, note: x.note || "" });
-export const automationsSent = () => S.automations().map((a) => { const rows = L.settingRows(a).map(sent); return { ...a, shown: { firings: firings(a).slice(0, FIRINGS_SENT), own: rows.filter((x) => x.own).map((x) => ({ name: x.name, value: x.value, own: true })), settings: rows } }; });
+export const automationsSent = () => S.automations().map((a) => { const rows = L.settingRows(a).map(sent); return { ...a, research: L.researchOnly(a), shown: { firings: firings(a).slice(0, FIRINGS_SENT), own: rows.filter((x) => x.own).map((x) => ({ name: x.name, value: x.value, own: true })), settings: rows } }; });
 export const isAutomationAction = (action) => ["auto-turn", "auto-run", "auto-remove", "auto-set"].includes(String(action));
 // One of the things a board does to an automation, answered as every action is: { ok, msg }.
 export function automationDo(req) {

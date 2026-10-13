@@ -13,9 +13,10 @@
 //   values   a choice's words
 //   none     true: an agent setting that may be `none`
 //   min      a count's smallest number
-//   repo     true: one of the six facts the repo's own committed file may hold
+//   repo     true: one of the seven facts the repo's own committed file may hold
 //   adds     true: its values add up across the places instead of the nearest one winning
 //   label    its plain name, as the settings page of a task shows it before the name itself
+//   means    a few words on what it does, said on the settings page beside what the selected row may be
 //   doc      what it means, for docs/settings.md
 
 // The five every role has. `who` is the role as a sentence names it.
@@ -37,6 +38,8 @@ export const SETTINGS = [
   // the Watcher
   { name: "watcher.agent", label: "Watcher's program", kind: "board", type: "agent", builtin: "claude/claude-haiku-5-5", none: true, doc: "the Watcher: a small model behind the \"doing now\" line, the progress guess and the minutes left. `none`: none of the three. More: [the Watcher](watcher.md)" },
   { name: "watcher.every", label: "Watcher looks every", kind: "board", type: "time", builtin: "60s", doc: "the least time between two looks of the Watcher at one working agent. One hidden model call covers every agent whose look is due, one call runs at a time on the machine, a screen that has not changed costs none, and a busy machine is looked at up to five times less often" },
+  // what the work is
+  { name: "research.only", label: "Research only", kind: "work", type: "switch", builtin: false, repo: true, means: "its agent changes nothing in the repo; the result is a report, and nothing is pushed, opened or merged", doc: "research only: the task's agent changes nothing in the repo and its result is a report, with a private link. Nothing is committed, pushed, opened as a pull request or merged for it, and its row says `[research]`. Read when the agent starts: a change counts from the task's next start, and turning it on is refused once the agent has changed the repo or a pull request is open. `--research` and `--no-research` on `add` and `delegate` are short for it. More: [reports and research-only tasks](research.md)" },
   // where it works
   { name: "workspace.from", label: "Worktree starts from", kind: "work", type: "choice", values: ["main", "here"], builtin: "main", doc: "where a worktree starts: `main` (the remote's main branch, fetched first) or `here` (the commit your checkout is on)" },
   { name: "workspace.setup", label: "Set-up command", kind: "work", type: "text", builtin: "none", repo: true, doc: "a command run in the fresh worktree before the agent starts" },
@@ -69,7 +72,7 @@ export const NAMES = SETTINGS.map((s) => s.name);
 export const entryOf = (name) => SETTINGS.find((s) => s.name === name) || null;
 export const WORK = SETTINGS.filter((s) => s.kind === "work").map((s) => s.name);
 export const BOARD = SETTINGS.filter((s) => s.kind === "board").map((s) => s.name);
-// The six facts a repo's own committed file may hold, and no more.
+// The seven facts a repo's own committed file may hold, and no more.
 export const REPO_FACTS = SETTINGS.filter((s) => s.repo).map((s) => s.name);
 // These mean nothing for a task in no repo.
 export const needsRepo = (name) => /^(workspace|check|merge)\./.test(name);

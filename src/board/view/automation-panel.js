@@ -23,7 +23,7 @@ export class AutomationPanel {
     part([head("Status"),
       ...fact("State", a.on ? t.fg("green", `${t.mark("done")} ${t.bold("on")}`) : t.fg("yellow", `${t.mark("idle")} ${t.bold("off")}`) + (a.offWhy ? dim(` · ${a.offWhy}`) : dim(" · it never fires, and keeps everything"))),
       ...fact("Trigger", r.trigger), ...(r.next ? fact("Next", `${r.next} · ${when(a.nextAt)}`) : []),
-      ...(a.host ? fact("Machine", clean(a.host)) : []), ...fact("Repo", `${a.repo} · ${short(a.root)}`), ...fact("Last firing", r.last), ...(a.research ? fact("Research", "only · its tasks change nothing in the repo") : [])]);
+      ...(a.host ? fact("Machine", clean(a.host)) : []), ...fact("Repo", `${a.repo} · ${short(a.root)}`), ...fact("Last firing", r.last), ...(this.autoResearch(a) ? fact("Research", "only · its tasks change nothing in the repo") : [])]);
     text("Prompt", wrap(a.prompt), 1);
     part([head("Settings"), ...(own.length ? own.flatMap((x) => wrap(`${x.name.padEnd(Math.max(...own.map((o) => o.name.length)))}  ${S.say(x.value).replace(/\s*\n\s*/g, " / ")} *`).map((l) => l.replace(/\*$/, t.fg("accent", "*")))) : wrap("None of its own: its tasks run on what any task would.").map(dim)),
       ...(full ? wrap(`${own.length ? "* this automation's own, put on each task it makes. " : ""}${!this.autoCanSet(a) || this.ctx.web ? `Changed ${a.host ? `on ${clean(a.host)}` : "with"}: herdr-superwork set <name> <value> --automation "${clean(a.name)}"` : `${keyName("settings")} changes them: every setting, and the place each one comes from`}`).map((l) => dim(l).replace("*", t.fg("accent", "*"))) : [])]);

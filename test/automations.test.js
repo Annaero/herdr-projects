@@ -12,6 +12,7 @@ import { open } from "./board-helpers.js";
 import { remoteList } from "../src/remote.js";
 import { automationDo } from "../src/remote/automations.js";
 import * as S from "../src/store.js";
+import { isResearch } from "../src/research.js";
 import * as A from "../src/actions.js";
 import * as L from "../src/automations/list.js";
 import { parseSchedule, parseEvent, sayTrigger, nextAfter } from "../src/automations/triggers.js";
@@ -57,12 +58,12 @@ test("a schedule makes a task and starts it with the board closed; its own setti
     const clock = fastClock(tt);
     S.setValue("review.rounds", 5);
     const a = L.add({ name: "Look for old dependencies", prompt: "Check what is out of date.\nChange nothing.", trigger: parseSchedule("every 2h"), folder: w.root, settings: { "reviewer.agent": "claude", "merge.by": "itself" }, research: true });
-    assert.deepEqual(a.settings, { "reviewer.agent": "claude", "merge.by": "itself" }); assert.equal(a.repo, "proj"); assert.equal(a.nextAt, Date.now() + 2 * HOUR);
+    assert.deepEqual(a.settings, { "reviewer.agent": "claude", "merge.by": "itself", "research.only": true }); assert.equal(a.repo, "proj"); assert.equal(a.nextAt, Date.now() + 2 * HOUR);
     tickOnce(w.socket); clock.tick(HOUR); tickOnce(w.socket);
     assert.deepEqual(S.list(), []); // not due yet
     clock.tick(HOUR + 1000); tickOnce(w.socket); // the keeper's tick: no board is open
     const [t] = S.list();
-    assert.deepEqual([t.title, t.description, t.research, t.settings], ["Look for old dependencies", "Check what is out of date.\nChange nothing.", true, { "reviewer.agent": "claude", "merge.by": "itself" }]);
+    assert.deepEqual([t.title, t.description, t.research, isResearch(t), t.settings], ["Look for old dependencies", "Check what is out of date.\nChange nothing.", undefined, true, { "reviewer.agent": "claude", "merge.by": "itself", "research.only": true }]);
     assert.equal(t.stage, "starting"); assert.deepEqual(globalThis.__swJobs.map((j) => j.slice(0, 2)), [["delegate", t.id]]); // an agent is put on it at once
     assert.deepEqual([t.automation.id, t.automation.name, t.automation.cause, t.automation.chain], [a.id, a.name, "schedule", [a.id]]);
     // `show <task>` says where each value came from: the automation's are the task's own, the rest by the one rule
@@ -80,7 +81,7 @@ test("a schedule makes a task and starts it with the board closed; its own setti
     assert.equal(S.list().length, 1); assert.equal(S.firingsOf(a.id).length, 1); assert.equal(S.automation(a.id).prompt, "New words.");
     L.turn(a.id, true); assert.equal(S.automation(a.id).nextAt, Date.now() + 2 * HOUR); tickOnce(w.socket); assert.equal(S.list().length, 1);
     clock.tick(2 * HOUR); tickOnce(w.socket);
-    assert.equal(S.list().length, 2); assert.equal(S.list()[0].description, "New words."); assert.deepEqual(S.list()[0].settings, { "reviewer.agent": "claude", "merge.by": "you" });
+    assert.equal(S.list().length, 2); assert.equal(S.list()[0].description, "New words."); assert.deepEqual(S.list()[0].settings, { "reviewer.agent": "claude", "merge.by": "you", "research.only": true });
   } finally { w.cleanup(); }
 });
 
@@ -204,9 +205,9 @@ test("the commands: add, list, show, change, set and unset with --automation, on
       assert.equal(await run("automations", "add", "Old dependencies", "--prompt", "Look for dependencies that are out of date.", "--schedule", "mon 09:00", "--reviewer.agent", "claude", "--research"),
         'Added the automation "Old dependencies": mon 09:00, in proj. Each firing adds a task and puts an agent on it.\n');
       const a = S.automation("old dependencies");
-      assert.deepEqual([a.trigger.cron, a.settings, a.research, a.on, a.repo], ["0 9 * * 1", { "reviewer.agent": "claude" }, true, true, "proj"]);
+      assert.deepEqual([a.trigger.cron, a.settings, a.research, a.on, a.repo], ["0 9 * * 1", { "reviewer.agent": "claude", "research.only": true }, undefined, true, "proj"]); // --research is short for the setting
       assert.match(await run("automations", "list"), /^on {3}Old dependencies {2}· {2}mon 09:00 {2}· {2}proj {2}· {2}never fired {2}· {2}next in \d+[smhd]\n$/);
-      const listed = JSON.parse(await run("automations", "--json")); assert.deepEqual([listed[0].name, listed[0].trigger, listed[0].on, listed[0].settings], ["Old dependencies", "mon 09:00", true, { "reviewer.agent": "claude" }]);
+      const listed = JSON.parse(await run("automations", "--json")); assert.deepEqual([listed[0].name, listed[0].trigger, listed[0].on, listed[0].settings, listed[0].research], ["Old dependencies", "mon 09:00", true, { "reviewer.agent": "claude", "research.only": true }, true]);
       // refused, and nothing is made: no trigger, two triggers, a board setting, a wrong value, a name that is taken
       assert.match(await fails("automations", "add", "X", "--prompt", "p"), /needs one trigger: --schedule "every 2h" or --when merged\./);
       assert.match(await fails("automations", "add", "X", "--prompt", "p", "--schedule", "every 2h", "--when", "merged"), /one trigger: --schedule or --when, not both/);
@@ -220,10 +221,14 @@ test("the commands: add, list, show, change, set and unset with --automation, on
       assert.match(await run("show", "--automation", "Old dependencies"), /^"Old dependencies": every setting its next task will have[\s\S]*\n\* reviewer\.agent +claude +this automation\n[\s\S]*\n\* merge\.by +itself +this automation\n[ ▌] {1}merge\.method +squash +built in\n/);
       assert.equal(await run("unset", "merge.by", "--automation", "Old dependencies"), 'merge.by for "Old dependencies": you  (built in)\nIt applies from its next firing.\n');
       assert.match(await fails("set", "board.agents", "2", "--automation", "Old dependencies"), /cannot be set on an automation/); assert.match(await fails("set", "merge.by", "you", "--automation", "Old dependencies", "--task", "1"), /one of --task, --repo and --automation/);
-      assert.match(await fails("set", "worker.effort", "ultra", "--automation", "Old dependencies"), /worker\.effort/); assert.deepEqual(S.automation(a.id).settings, { "reviewer.agent": "claude" });
+      assert.match(await fails("set", "worker.effort", "ultra", "--automation", "Old dependencies"), /worker\.effort/); assert.deepEqual(S.automation(a.id).settings, { "reviewer.agent": "claude", "research.only": true });
+      // research only is one of those settings: shown with its place, set and unset like the others
+      assert.match(await run("show", "--automation", "Old dependencies"), /\n\* research\.only +true +this automation\n/);
+      assert.equal(await run("unset", "research.only", "--automation", "Old dependencies"), 'research.only for "Old dependencies": false  (built in)\nIt applies from its next firing.\n');
+      assert.equal(await run("set", "research.only", "true", "--automation", "Old dependencies"), 'research.only for "Old dependencies": true  (this automation)\nIt applies from its next firing.\n');
       // change: name, prompt, trigger
       assert.match(await run("automations", "change", "Old dependencies", "--name", "Dependencies", "--when", "merged", "--every-repo", "--no-research"), /^Changed "Dependencies": when a task is merged, in every repo\. It applies from its next firing/);
-      assert.deepEqual([S.automation(a.id).trigger, S.automation(a.id).research, S.automation(a.id).nextAt], [{ kind: "event", event: "merged", everyRepo: true }, false, 0]);
+      assert.deepEqual([S.automation(a.id).trigger, S.automation(a.id).settings["research.only"], S.automation(a.id).nextAt], [{ kind: "event", event: "merged", everyRepo: true }, false, 0]);
       assert.match(await fails("automations", "change", "Dependencies"), /Nothing to change/);
       // run now, its firings, off and on
       assert.equal(await run("automations", "run", "Dependencies"), '"Dependencies" fired: proj/1 was added and an agent is on it.\n');
@@ -231,7 +236,7 @@ test("the commands: add, list, show, change, set and unset with --automation, on
       assert.match(await run("automations", "firings", "Dependencies"), /^\d+s ago +run now {2}→ {2}skipped: its last task, proj\/1, is still being worked on\n\d+s ago +run now {2}→ {2}made proj\/1\n$/);
       assert.deepEqual(JSON.parse(await run("automations", "firings", "Dependencies", "--json")).map((f) => f.task || "skipped"), ["skipped", "proj/1"]);
       const shown = await run("automations", "show", "Dependencies");
-      assert.match(shown, /^Dependencies {2}\(on\)\n[ ▌] {1}trigger {3}when a task is merged, in every repo\n[ ▌] {1}repo {6}proj /); assert.match(shown, /\n[ ▌] {1}settings {2}reviewer\.agent claude\n[ ▌] {1}prompt\n[ ▌] {3}Look for dependencies that are out of date\.\n[ ▌] {1}firings\n[ ▌] {3}\d+s ago/);
+      assert.match(shown, /^Dependencies {2}\(on\)\n[ ▌] {1}trigger {3}when a task is merged, in every repo\n[ ▌] {1}repo {6}proj /); assert.match(shown, /\n[ ▌] {1}settings {2}reviewer\.agent claude · research\.only false\n[ ▌] {1}prompt\n[ ▌] {3}Look for dependencies that are out of date\.\n[ ▌] {1}firings\n[ ▌] {3}\d+s ago/);
       assert.equal(await run("automations", "off", "Dependencies"), '"Dependencies" is off. It never fires while it is off, and keeps everything.\n');
       assert.match(await fails("automations", "run", "Dependencies"), /"Dependencies" is off, and off it never fires\. Turn it on first/);
       assert.equal(await run("automations", "on", "Dependencies"), '"Dependencies" is on.\n');

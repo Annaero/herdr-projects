@@ -4,14 +4,16 @@ import { herdr, currentSocket } from "../herdr.js";
 import * as F from "../flow.js";
 import { spawnRunner, runnerAlive } from "../runner.js";
 import { AGENT_STAGES } from "./shared.js";
+import { RESEARCH, turnRefusal } from "../research.js";
 
 // ---- delegate --------------------------------------------------------------------------------------------------------
 // Records the request (stage "queued") and lets the housekeeping pass start it when a slot is free.
 export function delegate(id, opts = {}) {
   const cur = S.find(id);
   // Its options are any work setting, for this task: all checked before anything is saved, so a refused delegate
-  // changes nothing on the task.
+  // changes nothing on the task. `research` is the short form (--research, --no-research) of the setting research.only.
   const { research, ...asked } = opts;
+  if (research !== undefined) asked[RESEARCH] = research === true;
   const values = S.checked(Object.fromEntries(Object.entries(asked).filter(([, v]) => v !== undefined && v !== null && v !== "")), { task: cur });
   const socket = currentSocket();
   let old = null; // the last round's space, when its clean-up had not managed to close it yet
@@ -22,13 +24,18 @@ export function delegate(id, opts = {}) {
     if (t.link?.socket && t.link.socket !== socket) throw new Error(`${t.id} lives in another herdr session. Open the board there.`);
     if (Object.keys(values).length) t.settings = { ...(t.settings || {}), ...values };
     if (values["merge.by"] === "itself") t.requireApproval = false;
-    if (research !== undefined) t.research = research === true;
     // Work that already landed and was cleaned up starts a new round in a fresh worktree, never in your checkout.
     if (F.cleanedUp(t)) {
       if (t.link?.workspace && t.link.ownsWorkspace) old = { socket: t.link.socket, workspace: t.link.workspace };
-      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "syncedTo", "syncSeen", "syncBranch", "syncRepairs", "syncRetryAt", "syncBlocked", "handled", "session", "said", "summary", "stat", "kept", "tidy", "exitedAt", "repoFile", "repoRefused"]) delete t[k];
+      for (const k of ["startedOnce", "startedAgentAt", "cleaned", "worktree", "branch", "from", "baseSha", "pr", "prMerged", "prState", "prHead", "prSeen", "prFeedbackSeen", "prFailure", "review", "reviewedHead", "syncedTo", "syncSeen", "syncBranch", "syncRepairs", "syncRetryAt", "syncBlocked", "handled", "session", "said", "summary", "stat", "kept", "tidy", "exitedAt", "repoFile", "repoRefused", "researchRun", "researchTurned"]) delete t[k];
       t.link = {};
     }
+    // Research only or not is decided when the agent starts (delegate.js: startsAs), not here: until then the task
+    // follows the setting (`researchOpen`), so a change while it waits for a slot counts for this start. A task that
+    // worked as an ordinary one and would start as research only is refused now, where you can read why.
+    const why = turnRefusal(t, S.setting(RESEARCH, t) === true);
+    if (why) throw new Error(`${why} To start it as it was: herdr-superwork set ${RESEARCH} false --task ${t.id}`);
+    t.researchOpen = true;
     t.agent = S.agentOf(S.setting("worker.agent", t)).kind;
     t.app = t.agent;
     t.stage = "queued"; t.queuedAt = Date.now(); t.msg = ""; t.kind = undefined; t.since = Date.now(); t.watch = null;

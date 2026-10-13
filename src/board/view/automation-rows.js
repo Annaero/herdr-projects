@@ -37,6 +37,8 @@ export class AutomationRows {
   onBoard(id) { return [...this.items, ...this.jobs].some((r) => r.id === id) || (this.autos || []).some((a) => a.row === id); }
   // What is read from this machine's files for one of its own was sent along with another machine's.
   autoFirings(a) { return a.host ? a.shown?.firings || [] : firings(a); }
+  // Are its tasks research only? As its next task would be here; another machine's, as that machine said.
+  autoResearch(a) { return a.host ? a.research === true : L.researchOnly(a); }
   autoOwn(a) { return a.host ? a.shown?.own || [] : L.settingRows(a).filter((x) => x.own); }
   // Every work setting as its next task will have it, for its settings page; and whether that page can be opened:
   // always for this machine's, and for another machine's when that machine sent the rows (an older version sends none).

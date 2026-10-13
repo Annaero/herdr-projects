@@ -1,4 +1,4 @@
-// The settings' one rule: the order of the places, the repo file's six facts, board settings refused on a task,
+// The settings' one rule: the order of the places, the repo file's seven facts, board settings refused on a task,
 // instructions adding up, `none` against unset, what a value may be, a mistake made by hand, and a refused delegate.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -43,12 +43,12 @@ test("one order for every work setting: this task, your entry for the repo, you,
   } finally { w.cleanup(); }
 });
 
-test("the repo's own file holds six facts and no more, read from the commit the worktree started from", async () => {
+test("the repo's own file holds seven facts and no more, read from the commit the worktree started from", async () => {
   const w = await world({ repoSettings: { workspace: { setup: "true", include: [".env"], teardown: "down" }, check: { command: "npm test", timeout: "5m" }, merge: { by: "itself" }, review: { when: "never" }, worker: { access: "full" }, setup: "old name" } });
   try {
     const f = S.repoFile(w.root, "HEAD");
     assert.deepEqual(f.facts, { "workspace.setup": "true", "workspace.include": [".env"], "workspace.teardown": "down", "check.command": "npm test", "check.timeout": "5m" });
-    assert.deepEqual(S.REPO_FACTS, ["workspace.setup", "workspace.include", "workspace.teardown", "check.command", "check.timeout", "repo.key"]);
+    assert.deepEqual(S.REPO_FACTS, ["research.only", "workspace.setup", "workspace.include", "workspace.teardown", "check.command", "check.timeout", "repo.key"]);
     assert.equal(f.refused.length, 4);
     for (const name of ["merge.by", "review.when", "worker.access"]) assert.ok(f.refused.some((r) => r.startsWith(`.herdr-superwork.json: ${name} is refused: the repo's file may only hold`)), name);
     assert.ok(f.refused.includes('.herdr-superwork.json: unknown setting "setup" (did you mean workspace.setup?)'));

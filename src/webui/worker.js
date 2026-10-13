@@ -9,6 +9,7 @@ import { listOf } from "./list-model.js";
 import { panelOf } from "./panel-model.js";
 import { sideOf } from "./side-model.js";
 import { autoPanelOf } from "./automations-model.js";
+import { settingsOf } from "./settings-model.js";
 
 // One board per browser that has it open; one nobody asked for in ten minutes is let go.
 const views = new Map();
@@ -26,7 +27,9 @@ export function snapshot(v, have = "") {
   const r = v.current() || v.job() || null;
   // An automation's row opens the automation, whole, where a task's opens the task (automations-model.js).
   const a = v.auto();
-  const data = { list: listOf(v), panel: a && v.autoOpen ? autoPanelOf(v, a) : v.full ? panelOf(v, r) : null, ...sideOf(v) };
+  const panel = a && v.autoOpen ? autoPanelOf(v, a) : v.full ? panelOf(v, r) : null;
+  // With a task or an automation open: every setting of it, to see and to change (settings-model.js).
+  const data = { list: listOf(v), panel, settings: panel ? settingsOf(v, a && v.autoOpen ? a : r, !!(a && v.autoOpen)) : null, ...sideOf(v) };
   const mark = createHash("sha1").update(JSON.stringify(data)).digest("base64url").slice(0, 16);
   return mark === have ? { same: true, mark } : { ...data, mark };
 }
@@ -36,6 +39,8 @@ export const CALLS = {
   // A key that does something is for someone who may drive; one that only shows or hides is for a watcher too.
   press: { run: (v, a) => { const id = String(a.id || ""); if (a.role !== "drive" && KEY[id]?.group !== "alt") throw new Error("This device can only watch."); const out = v.press(id); return { ...snapshot(v), draft: out.draft }; } },
   send: { run: (v, a) => { if (a.role !== "drive") throw new Error("This device can only watch."); const out = v.send(a.text, !!a.delegate, a.to && typeof a.to === "object" ? { id: String(a.to.id || ""), reply: !!a.to.reply, scope: typeof a.to.scope === "string" ? a.to.scope.slice(0, 80) : undefined } : null); return { ...snapshot(v), kept: out.kept }; } },
+  // One setting of the open task or automation: a value, or none to put it back.
+  set: { run: (v, a) => { if (a.role !== "drive") throw new Error("This device can only watch."); v.setSetting(String(a.id || ""), String(a.name || ""), a.value); return snapshot(v); } },
   // These two only change what this page looks at: its selection, its filter.
   pick: { run: (v, a) => { v.pick(String(a.id || ""), !!a.open); return snapshot(v); } },
   find: { run: (v, a) => { v.find(a.text); return snapshot(v); } },

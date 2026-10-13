@@ -17,6 +17,7 @@ export function settingsCommand(cmd, pos, flags, rest) {
   if (cmd === "set" && pos.length < 3) throw new Error(`set needs a value: herdr-superwork set ${pos[1]} <value>. To take your answer away: herdr-superwork unset ${pos[1]}`);
   const r = cmd === "set" ? S.setValue(pos[1], rest(2), scope) : S.unsetValue(pos[1], scope);
   const row = S.settingRows(scope.task ? { task: S.get(scope.task.id) } : scope).find((x) => x.name === r.name);
-  const text = `${r.name}${where}: ${S.say(r.value)}  (${r.from})${row?.note ? `\n${row.note}` : ""}`;
-  return [{ name: r.name, value: r.value, from: r.from, ...(row?.note ? { note: row.note } : {}) }, text];
+  const note = row?.note || (row?.later ? `It ${row.later}.` : ""); // research.only on a task that is under way
+  const text = `${r.name}${where}: ${S.say(r.value)}  (${r.from})${note ? `\n${note}` : ""}`;
+  return [{ name: r.name, value: r.value, from: r.from, ...(note ? { note } : {}) }, text];
 }

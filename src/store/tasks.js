@@ -5,6 +5,7 @@ import { STAGES, tasksDir, dirOf, me, readJson, writeJson, withLock, withTaskLoc
 import { repoOf } from "./repos.js";
 import { titled } from "./titles.js";
 import { movedOnRead } from "./settings/migrate.js";
+import { researchMoved } from "./old-research.js";
 import { idOfKey } from "./keys.js";
 
 // ---- tasks ----------------------------------------------------------------------------------------------------------
@@ -15,7 +16,7 @@ export const oneLine = (text, max = 2048) => { let t = String(text ?? "").replac
 const taskFile = (id) => path.join(dirOf(id), "task.json");
 export function get(id) {
   const t = readJson(taskFile(id));
-  return t && t.id ? movedOnRead(t) : null; // a task an older version saved reads in the new names (settings/migrate.js)
+  return t && t.id ? researchMoved(movedOnRead(t)) : null; // a task an older version saved reads in the new names (settings/migrate.js, old-research.js)
 }
 export function list({ includeArchived = false, archived = false } = {}) {
   const out = [];

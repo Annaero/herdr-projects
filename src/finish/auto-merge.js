@@ -7,6 +7,7 @@ import * as G from "../gate.js";
 import { liftOldHolds } from "./old-holds.js";
 import { runnerAlive, spawnRunner } from "../runner.js";
 import { approvalMessage } from "./shared.js";
+import { isResearch } from "../research.js";
 
 // Green to merge: checked, reviewed past the gate (or not to be reviewed at all), up to date with main, and nothing
 // that is yours to decide: no failure, no pull-request blocker, no approval you are owed after stepping in.
@@ -15,7 +16,7 @@ export const byItself = (t) => S.setting("merge.by", t) === "itself";
 // Is this task's work reviewed at all? `review.when`: never, always, or only work in a repo.
 export const reviewed = (t) => S.setting("review.when", t) !== "never";
 export function green(t) {
-  if (t.stage !== "approval" || t.archivedAt || !F.isAgentTask(t) || !t.reviewedHead || t.research === true) return false; // research only: never merged
+  if (t.stage !== "approval" || t.archivedAt || !F.isAgentTask(t) || !t.reviewedHead || isResearch(t)) return false; // research only: never merged
   if (t.failure || t.prFailure || t.syncBlocked || t.mergeFailed || t.requireApproval || t.mergeIntent || t.autoMerge) return false;
   return t.review ? G.passes(t.review) : !reviewed(t);
 }

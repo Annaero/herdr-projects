@@ -1,5 +1,5 @@
 // `herdr-superwork automations …`: the commands. List them, add one (a name, a prompt, one trigger, a repo, any work
-// setting, --research), show one, change its name, prompt or trigger, turn it on or off, run it now, read its
+// setting; --research is short for --research.only true), show one, change its name, prompt or trigger, turn it on or off, run it now, read its
 // firings, remove it. Its own settings are changed by the settings' own commands with --automation <name>
 // (`set`, `unset`, `show`: settingsFor below). Every command accepts --json: each returns [value, text].
 import { when } from "../board/view/words.js";
@@ -12,7 +12,7 @@ import { describe, listLine, firingLine, firings } from "./show.js";
 const HOW = `automations takes:
   automations                                   the list
   automations add "<name>" --prompt "<what its task is to do>" (--schedule "<when>" | --when <event> [--every-repo])
-                  [--repo NAME|PATH] [--<setting> VALUE ...] [--research]
+                  [--repo NAME|PATH] [--<setting> VALUE ...] [--research|--no-research]
       --schedule   every 2h · daily 09:00 · mon 09:00 · mon,thu 09:00 · cron "0 9 * * 1"   (this machine's time zone)
       --when       added · approval · review-failed · failed · needs-you · merged   (a task of its repo; --every-repo: of any)
   automations show <name>                       all of it: prompt, trigger, settings, last firings
@@ -27,7 +27,7 @@ const settingsOf = (flags) => Object.fromEntries(Object.entries(flags).filter(([
 const showText = (a, now = Date.now()) => {
   const d = describe(a, now), own = Object.entries(a.settings || {}), last = firings(a).slice(0, 5);
   return [`${a.name}  (${d.on ? "on" : "off"}${a.offWhy ? `: ${a.offWhy}` : ""})`, `  trigger   ${d.trigger}${d.next ? `  (next: ${when(d.next)})` : ""}`, `  repo      ${a.repo}  ${S.tilde(a.root)}`,
-    ...(a.research ? ["  research  only: its tasks change nothing in the repo"] : []),
+    ...(L.researchOnly(a) ? ["  research  only: its tasks change nothing in the repo"] : []),
     `  settings  ${own.length ? own.map(([k, v]) => `${k} ${S.say(v)}`).join(" · ") : "none of its own: its tasks run on what any task would"}`,
     "  prompt", ...String(a.prompt).split("\n").map((l) => `    ${l}`), "  firings", ...(last.length ? last.map((f) => `    ${firingLine(f, now)}`) : ["    none yet"])].join("\n");
 };
@@ -38,12 +38,12 @@ export function automationsCommand(pos, flags, here) {
   switch (cmd) {
     case "list": case "ls": { const all = S.automations(); return [all.map((a) => describe(a)), all.length ? all.map((a) => listLine(a)).join("\n") : "No automations. Make one: herdr-superwork automations add \"<name>\" --prompt \"<…>\" --schedule \"every 2h\""]; }
     case "add": case "new": {
-      const a = L.add({ name: need(), prompt: flags.prompt === true ? "" : flags.prompt ?? flags.desc ?? "", trigger: triggerOf(flags), repo: flags.repo, folder: here, settings: settingsOf(flags), research: flags.research === true });
+      const a = L.add({ name: need(), prompt: flags.prompt === true ? "" : flags.prompt ?? flags.desc ?? "", trigger: triggerOf(flags), repo: flags.repo, folder: here, settings: settingsOf(flags), research: flags.research === undefined ? undefined : flags.research === true });
       return [describe(a), `Added the automation "${a.name}": ${L.sayTrigger(a.trigger)}, in ${a.repo}. Each firing adds a task and puts an agent on it.`];
     }
     case "show": { const a = L.find(need()); return [{ ...describe(a), firings: firings(a) }, showText(a)]; }
     case "change": case "edit": {
-      const a = L.change(need(), { name: flags.name === true ? "" : flags.name, prompt: flags.prompt === true ? "" : flags.prompt, trigger: triggerOf(flags) || undefined, research: flags.research });
+      const a = L.change(need(), { name: flags.name === true ? "" : flags.name, prompt: flags.prompt === true ? "" : flags.prompt, trigger: triggerOf(flags) || undefined, research: flags.research === undefined ? undefined : flags.research === true });
       return [describe(a), `Changed "${a.name}": ${L.sayTrigger(a.trigger)}. It applies from its next firing; tasks already made keep what they had.`];
     }
     case "on": case "off": { const a = L.turn(need(), cmd === "on"); return [describe(a), `"${a.name}" is ${cmd}.${cmd === "off" ? " It never fires while it is off, and keeps everything." : ""}`]; }

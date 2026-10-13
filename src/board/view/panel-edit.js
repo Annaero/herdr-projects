@@ -10,11 +10,11 @@ import * as L from "../../automations/list.js";
 import { hasFast } from "../../agents/start.js";
 
 // A switch reads as on or off on the page, as the panel says it; every other value as `show` says it.
-const valueSay = (v) => (v === true ? "on" : v === false ? "off" : S.say(v));
+export const valueSay = (v) => (v === true ? "on" : v === false ? "off" : S.say(v));
 
 const READ_ONLY = () => `Archived tasks are read-only. ${K.name("archive")} restores.`;
 // Values that are one of a few words are changed by going to the next one; every other value is typed.
-const wordsOf = (e) => (e.type === "switch" ? [true, false] : e.type === "choice" ? e.values : e.type === "access" ? ["full", "ask"] : null);
+export const wordsOf = (e) => (e.type === "switch" ? [true, false] : e.type === "choice" ? e.values : e.type === "access" ? ["full", "ask"] : null);
 
 export class PanelEdit {
   // The rows of the page: a task's work settings. Board settings are yours only and are not here. A setting that
@@ -30,7 +30,7 @@ export class PanelEdit {
   // marked, or what to type.
   valueWords(row) {
     const e = S.entryOf(row.name), words = wordsOf(e);
-    if (words) return words.map((w) => (w === row.value ? `[${valueSay(w)}]` : valueSay(w))).join(" · ");
+    if (words) return words.map((w) => (w === row.value ? `[${valueSay(w)}]` : valueSay(w))).join(" · ") + (e.means ? `. On: ${e.means}` : "");
     return { time: "a time, such as 90s or 15m", count: `a whole number${e.min !== undefined ? `, ${e.min} or more` : ""}`, agent: `a program (claude, codex or pi), with a model after a slash if you like${e.none ? "; none for none" : ""}`, effort: "an effort level its program accepts, or default", text: "text; none for none", list: "names, with commas between them; none for none" }[e.type] || "typed";
   }
   // The page's own hints: only its keys act while it is open, so only they are named.
@@ -52,7 +52,8 @@ export class PanelEdit {
     if (r.host && this.editing?.auto) return this.autoFar(r, "auto-set", { name, value }); // another machine's automation: changed there too
     if (r.host) return this.act(r, "set", { name, value });
     const out = this.editing?.auto ? (value === undefined ? L.unsetSetting(r.id, name) : L.setSetting(r.id, name, value)) : value === undefined ? S.unsetValue(name, { task: S.get(r.id) }) : S.setValue(name, value, { task: S.get(r.id) });
-    this.flash(`${S.entryOf(name)?.label || name}: ${valueSay(out.value).split("\n")[0]}  (${out.from})`, "green");
+    const later = this.editing?.auto || r.host ? "" : S.settingRows({ task: S.get(r.id) }).find((x) => x.name === name)?.later; // research only, on a task under way
+    this.flash(`${S.entryOf(name)?.label || name}: ${valueSay(out.value).split("\n")[0]}  (${out.from})${later ? ` · ${later}` : ""}`, "green");
     this.load();
   }
   // A key while the settings page is open. Returns true when the page took it.
@@ -96,7 +97,8 @@ export class PanelEdit {
     e.at = Math.max(0, Math.min(rows.length - 1, e.at));
     const dim = (s) => t.muted(s), fit = (s) => truncateToWidth(s, width, "…");
     const label = (x) => S.entryOf(x.name)?.label || x.name;
-    const wide = Math.max(...rows.map((x) => label(x).length)), val = Math.min(24, Math.max(...rows.map((x) => valueSay(x.value).length))), from = Math.max(...rows.map((x) => (x.note || (x.own ? whose : x.from)).length));
+    const place = (x) => (x.note || (x.own ? whose : x.from)) + (x.later ? ` · ${x.later}` : "");
+    const wide = Math.max(...rows.map((x) => label(x).length)), val = Math.min(24, Math.max(...rows.map((x) => valueSay(x.value).length))), from = Math.max(...rows.map((x) => place(x).length));
     const now = rows[e.at], lines = [""];
     // Whole, on as many lines as it needs: what a value may be is never the part that is cut.
     const typed = rows.find((x) => x.name === e.typing) || now;
@@ -108,7 +110,7 @@ export class PanelEdit {
       if (group && g !== group) lines.push("");
       group = g;
       const here = n === e.at, value = valueSay(x.value).replace(/\s*\n\s*/g, " / ");
-      const line = ` ${here ? "›" : " "} ${x.own ? "*" : " "} ${label(x).padEnd(wide)}  ${value.padEnd(val)}  ${(x.note || (x.own ? whose : x.from)).padEnd(from)}  ${x.name}`;
+      const line = ` ${here ? "›" : " "} ${x.own ? "*" : " "} ${label(x).padEnd(wide)}  ${value.padEnd(val)}  ${place(x).padEnd(from)}  ${x.name}`;
       if (here) this.editLine = lines.length;
       lines.push(here ? this.hl(t.bold(fit(line)).replace("*", t.fg("accent", "*")), width) : x.own ? fit(line).replace("*", t.fg("accent", "*")) : dim(fit(line)));
     });

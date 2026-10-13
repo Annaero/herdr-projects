@@ -43,7 +43,7 @@ test("merge.by: yours for all tasks, your entry for a repo, one task's own; the 
     assert.equal(await quiet(["delegate", id, "--merge.by", "you"]), 0); assert.equal(S.get(id).settings["merge.by"], "you");
     const t = await settle(id, { max: 30 });
     assert.equal(t.stage, "approval", JSON.stringify(t.failure)); assert.ok(!merged(w)); // its own "you" beats your "itself"
-    assert.deepEqual(t.repoFile, {}); assert.equal(t.repoRefused.length, 2); assert.match(t.repoRefused.join("\n"), /merge\.by[^\n]*may only hold workspace\.setup, workspace\.include, workspace\.teardown, check\.command, check\.timeout/); assert.match(t.repoRefused.join("\n"), /unknown setting "land"/);
+    assert.deepEqual(t.repoFile, {}); assert.equal(t.repoRefused.length, 2); assert.match(t.repoRefused.join("\n"), /merge\.by[^\n]*may only hold research\.only, workspace\.setup, workspace\.include, workspace\.teardown, check\.command, check\.timeout/); assert.match(t.repoRefused.join("\n"), /unknown setting "land"/);
     assert.match(t.fallbacks.repoFile, /merge\.by/);
   } finally { w.cleanup(); }
 });

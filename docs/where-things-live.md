@@ -221,6 +221,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `keys.js` | A repo's short key (`repo.key`: `HSW` for herdr-superwork) and what it does to a task's name: its tag reads `HSW-134` instead of `#134`, and `HSW-134` names the task wherever its id does |
 | `marks.js` | Small shared files: stamps, hook tokens, turn-ended events, marks |
 | `move-home.js` | The one-time move into the one home folder: what an older version kept in ~/.local/state, ~/.config and ~/.local/share is moved into ~/.herdr-superwork by the first run of this code, by itself, and each old place… |
+| `old-research.js` | "Research only" was a switch of its own on a task and on an automation (`research: true`) |
 | `old-suggestions.js` | Suggested tasks were taken out of the board |
 | `repos.js` | Git plumbing, and repos: the first part of a task's id |
 | `retries.js` | A turn cut off by a passing provider error: the board waits, then tries again by itself (docs/how-work-gets-done.md) |
@@ -266,6 +267,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `pcs.js` | The web UI's own machines (its "PCs": this one and the ones added in its Settings → Remote PCs) and the board's (herdr's saved machines, remote.js): which is which |
 | `phone.js` | The one answer of the web UI that the front door corrects: how a phone can reach it (`GET /api/access`, what its Settings → Phone shows) |
 | `proxy.js` | Passing a request through to the web UI untouched: the same method, address and headers in, the same status, headers and bytes out, as they come (a stream stays a stream, a ranged or ready-compressed answer is not… |
+| `settings-model.js` | The settings page for the web board: every work setting of the open task (or automation) as a row the page can change |
 | `shell.js` | The one thing the front door changes in what the web UI sends: its page (the HTML shell) gets one line more, a script of ours that adds the Board to its menu |
 | `side-model.js` | What stands beside the list on the web board: who the chat talks to and their latest message, the question the board asks, its message to you, the buttons for the selected task and the entries of its More menu |
 | `web-pcs.js` | The web board and the web UI's machines: opening an agent that runs on another machine in the web UI's own view of that machine's pane, and showing the board of the machine the web UI is on |
@@ -409,7 +411,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `research.test.js` | Reports and research-only tasks: a report never goes into the repo, a research-only task that changed the repo is sent back and never pushed or merged, one that changed nothing ends as done with its report's link, and… |
 | `retry.test.js` | A turn cut off by the model's provider: recognised from the agent's own conversation file, retried by the board when the error is one that passes, and never taken for a finished turn or a review |
 | `settings-move.test.js` | The one-time move from the old settings: your config.json, each task's own settings and what it took from its repo's file become the new names, once; the old file is kept beside the new one; tasks under way keep their… |
-| `settings.test.js` | The settings' one rule: the order of the places, the repo file's six facts, board settings refused on a task, instructions adding up, `none` against unset, what a value may be, a mistake made by hand, and a refused… |
+| `settings.test.js` | The settings' one rule: the order of the places, the repo file's seven facts, board settings refused on a task, instructions adding up, `none` against unset, what a value may be, a mistake made by hand, and a refused… |
 | `status-kept.test.js` | A working task's line before the Watcher's first look of a run: the last sentence kept with its age, or "Just started", never a bare "…" |
 | `store.test.js` |  |
 | `submit.test.js` | Text handed to an agent is really submitted: nothing is typed before a slow-starting program has drawn its screen, an enter that was lost is pressed again (the text is never typed twice), and an agent that still does… |

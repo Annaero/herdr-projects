@@ -45,7 +45,9 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
   (a title is a few words, ${S.TITLE_RULE}: a longer one is cut short and its full text kept in the description;
   \`--repo <name or path>\` for another). Adding starts nothing. Add \`--delegate\` only if the human asked for an agent.
   Add \`--research\` when the human plainly asked for research, a review or a report with nothing changed: the task's agent
-  then changes nothing in the repo and its result is a report (later: \`delegate <id> --research\`).
+  then changes nothing in the repo and its result is a report (later: \`delegate <id> --research\`). It is short for
+  the setting \`research.only\`: \`--research.only true\`, or \`set research.only true --task <id>\` (\`--repo <name>\`
+  for every new task of a repo; \`--no-research\` on one task says otherwise).
   Add a task only when the human asked for it: nothing adds tasks by itself.
 - \`herdr-superwork delegate <id>\`: put an agent on a task. It works in its own git worktree, as an ordinary herdr
   agent in its own herdr space. Any work setting can be chosen for this one task as \`--<name> <value>\`:
