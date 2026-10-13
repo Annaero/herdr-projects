@@ -78,7 +78,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     // green of "ready to approve" and of a review that passed, never the agent's amber
     const blue = theme.fg("review", "\0").split("\0")[0], reviewed = v.row({ ...working, stage: "reviewing", reviewRound: 1, eta: 12 }, 120);
     assert.notEqual(blue, green); assert.notEqual(blue, yellow); assert.notEqual(blue, theme.fg("teal", "\0").split("\0")[0]); assert.notEqual(blue, theme.fg("subtext0", "\0").split("\0")[0]);
-    assert.ok(reviewed.includes(`${blue}◑`) && !reviewed.includes("◐") && reviewed.includes(`${blue} 50%`) && reviewed.includes(`${blue}12m`) && reviewed.includes(`${blue}█`) && reviewed.includes(`${blue}R#1`) && !reviewed.includes(green) && !reviewed.includes(yellow) && !reviewed.includes(mauve));
+    assert.ok(reviewed.includes(`${blue}◑`) && !reviewed.includes("◐") && reviewed.includes(`${blue}50%`) && reviewed.includes(`${blue}12m`) && reviewed.includes(`${blue}█`) && reviewed.includes(`${blue}R#1`) && !reviewed.includes(green) && !reviewed.includes(yellow) && !reviewed.includes(mauve));
     // the review over: its tag is green when it passed and red when it failed, and stays red while the agent fixes it
     assert.ok(v.row({ ...pr, review: { ...review, recommend: true } }, 120).includes(`${green}R#1`) && v.row(pr, 120).includes(`${red}R#1`) && !v.row(pr, 120).includes(blue));
     { const fixing = v.row({ ...working, reviewRound: 1, review: { ...review, stale: true } }, 120); assert.ok(fixing.includes(`${red}R#1`) && fixing.includes(`${yellow}◐`) && !fixing.includes("◑") && !fixing.includes(blue)); }

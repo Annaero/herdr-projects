@@ -30,8 +30,8 @@ test("the board: one header line, the five groups, a symbol for each state, the 
       assert.ok(raw.some((l) => l.includes(`${yellow}◐\x1b[39m${text0} \x1b[1mMy own task\x1b[22m `)), "a working task's mark is the working colour, its title plain text");
       assert.ok(raw.some((l) => l.includes(`${grey}○\x1b[39m${text0} Write the docs `)), "a task nobody started is grey, not green");
       assert.ok(raw.some((l) => l.includes(`${yellow}working\x1b[39m`)) && raw.some((l) => l.includes(`${grey}to do\x1b[39m`)), "the headings are in their group's colour");
-      assert.ok(raw.some((l) => l.includes(`${yellow} 50%`)), "progress is in the working colour while working");
-      assert.ok(raw.some((l) => l.includes(`${yellow} 50%\x1b[39m${text0} ${yellow}12m\x1b[39m`)), "the minutes left sit right of the percent, in the same colour");
+      assert.ok(raw.some((l) => l.includes(`${yellow}50%`)), "progress is in the working colour while working");
+      assert.ok(raw.some((l) => l.includes(`${yellow}50%\x1b[39m${text0} ${yellow}12m\x1b[39m`)), "the minutes left sit right of the percent, in the same colour");
     }
     // A row does not repeat its heading ("idle" under "to do"), and its time says which kind it is.
     assert.match(text, /\n working +│/); assert.match(text, /\n to do +│/);

@@ -42,8 +42,8 @@ test("narrow screen: a live row's third line has the bar, the percent, the minut
     assert.deepEqual(rows.map((lines) => lines.at(-2).trimEnd()), ["   Reading the panel and its tests.", "   Running the tests", "   Pass · 1 minor", "   Just started"]);
     for (const lines of rows) lines[2] = lines.at(-1);
     // Line 3, in order. The bar takes the room the others leave, so it is as long on every row.
-    const bar = width - 34;
-    assert.match(rows[0][2], new RegExp(`^ {3}█+░+ {3}40% {2}12m +2h$`), note); assert.match(rows[1][2], new RegExp(`^ {3}█+░+ {3}70% {3}3m {2}R#1 PR#17 +2h$`), note);
+    const bar = width - 30;
+    assert.match(rows[0][2], new RegExp(`^ {3}█+░+ 40% 12m +2h$`), note); assert.match(rows[1][2], new RegExp(`^ {3}█+░+ 70% {2}3m {2}R#1 PR#17 +2h$`), note);
     for (const n of [0, 1]) assert.equal(/[█░]+/.exec(rows[n][2])[0].length, bar, note);
     assert.equal(/█+/.exec(rows[0][2])[0].length, Math.round(0.4 * bar), note);
     assert.match(rows[2][2], /^ +R#1 PR#18 +2h ago$/, note); // no progress: the bar's room is empty
@@ -52,7 +52,7 @@ test("narrow screen: a live row's third line has the bar, the percent, the minut
   }
   if (!process.env.NO_COLOR) { // their usual colours: the agent's amber, the reviewer's blue, a passed review's green, the time greyed
     const ink = (c) => theme.fg(c, "\0").split("\0")[0], layout = v.rowLayout(LIVE, 48), third = (r) => v.rowLines(r, 48, layout).at(-1);
-    assert.ok(third(agent).includes(`${ink("yellow")}█`) && third(agent).includes(`${ink("yellow")} 40%`) && third(agent).includes(`${ink("yellow")}12m`));
+    assert.ok(third(agent).includes(`${ink("yellow")}█`) && third(agent).includes(`${ink("yellow")}40%`) && third(agent).includes(`${ink("yellow")}12m`));
     assert.ok(third(review).includes(`${ink("review")}█`) && third(review).includes(`${ink("review")}R#1`));
     assert.ok(third(waits).includes(`${ink("green")}R#1`)); assert.ok(third(fresh).includes(`${ink("overlay0")}2h`));
   }
@@ -75,9 +75,10 @@ test("the third line is there under 80 columns of screen and gone from 80 on, fo
   assert.equal(narrow.filter((l) => l.trim()).length - wide.filter((l) => l.trim()).length, 4, "one more line for each of the four live rows");
   assert.match(narrow.find((l) => /Finished/.test(l)), /^ ✓ Finished +R#1 PR#3$/); assert.match(narrow.find((l) => /Not begun/.test(l)), /^ ○ Not begun *$/);
   assert.match(wide.find((l) => /Finished/.test(l)), /^ ✓ Finished +R#1 PR#3 +2h$/); assert.match(wide.find((l) => /Not begun/.test(l)), /^ ○ Not begun +2h$/);
-  // At 80 the columns sit beside a name of 40 cells: the widest of each kind, bar and all.
+  // At 80 the columns sit beside a name of 40 cells: the widest of each kind, bar and all (the percent is counted at
+  // the four cells of "100%", so a cell is left over).
   const full = [{ ...agent, title: "A".repeat(40), eta: 120, reviewRound: 12, stage: "reviewing", pr: 123 }];
-  assert.match(plain(v.rowLines(full[0], 80, v.rowLayout(full, 80)))[0], /^ ◑ A{40} {2}[█░]{8} {2}40% 120m {2}R#12 PR#123 {2}2h$/);
+  assert.match(plain(v.rowLines(full[0], 80, v.rowLayout(full, 80)))[0], /^ ◑ A{40} {3}[█░]{8} 40% 120m {2}R#12 PR#123 {2}2h$/);
 });
 
 test("in a width too small for all of the third line the time stays and nothing runs off the edge", () => {
@@ -87,9 +88,9 @@ test("in a width too small for all of the third line the time stays and nothing 
     for (const r of LIVE) { const lines = plain(v.rowLines(r, width, layout)); assert.ok(lines.every((l) => l.length <= width), `at ${width}`); assert.match(lines.at(-1), / 2h( ago)?$/, `at ${width}: ${lines.at(-1)}`); }
   }
   const third = (width) => plain(v.rowLines(review, width, v.rowLayout(LIVE, width))).at(-1);
-  assert.match(third(36), /^ {3}[█░]+ {3}70% {3}3m {2}R#1 PR#17 {3}2h$/); // the word "ago" goes for a bar that can be read
-  assert.match(third(30), /^ +70% {3}3m {2}R#1 PR#17 {3}2h$/); // then the bar
-  assert.match(third(20), /^ +70% {3}3m +2h$/); // then the tags, the percent and the minutes last
+  assert.match(third(33), /^ {3}[█░]+ 70% {2}3m {2}R#1 PR#17 {2}2h$/); // the word "ago" goes for a bar that can be read
+  assert.match(third(26), /^ +70% {2}3m {2}R#1 PR#17 {2}2h$/); // then the bar
+  assert.match(third(20), /^ {3}[█░]{4} 70% {2}3m {3}2h$/); // then the tags (which leaves a short bar its room), the percent and the minutes last
   assert.match(third(14), /^ {3}[█░]+ {3}2h$/); // the bar alone says the progress, in the room the numbers left
 });
 
@@ -102,7 +103,7 @@ test("all machines, narrow screen: a machine's name, however long, takes nothing
     const note = `at ${width}:\n${rows.flat().join("\n")}`;
     for (const lines of rows) { assert.equal(lines.length, 3, note); assert.ok(lines.every((l) => l.length <= width), note); }
     // Every field is there, the same line on each row whatever its machine: the bar as long, the time at the edge.
-    assert.match(rows[0][2], /^ {3}█+░+ {3}50% {2}12m {2}R#12 PR#123 {3}2h$/, note); assert.equal(rows[0][2].length, width, note);
+    assert.match(rows[0][2], /^ {3}█+░+ 50% 12m {2}R#12 PR#123 {2}2h$/, note); assert.equal(rows[0][2].length, width, note);
     assert.equal(rows[1][2], rows[0][2], note); assert.equal(rows[2][2], rows[0][2], note);
     assert.match(rows[0][0], /Fix login/, note); // the name wins over the machine's on line 1
   }
@@ -112,7 +113,7 @@ test("narrow screen: the highlight covers all three lines of the selected row, a
   const v = board([agent, fresh, { ...done, id: "p/9", title: "Finished" }], { sel: "p/1" });
   const mark = theme.selected("\0").split("\0")[0], lit = () => v.listLines(50, 20).filter((l) => l.startsWith(mark)).map((l) => stripVTControlCharacters(l));
   if (!process.env.NO_COLOR) {
-    assert.deepEqual(lit().map((l) => l.trimEnd().replace(/ {2,}/g, "  ").replace(/[█░]+/, "bar")), [" ◐ Agent at work", "  Reading the panel and its tests.", "  bar  40%  12m  2h"]);
+    assert.deepEqual(lit().map((l) => l.trimEnd().replace(/ {2,}/g, "  ").replace(/[█░]+/, "bar")), [" ◐ Agent at work", "  Reading the panel and its tests.", "  bar 40% 12m  2h"]);
     assert.ok(lit().every((l) => l.length === 50)); // each to the screen's edge
   }
   v.move(1); assert.equal(v.sel, "p/4"); // one press, one task: never onto a row's second or third line

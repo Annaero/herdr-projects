@@ -4,7 +4,7 @@ import * as G from "../../gate.js";
 import { herdr } from "../../herdr.js";
 import { short, clean, age, prTag, bar, left } from "./words.js";
 import { MARK_STATES, failureFor, inReview, isLive, needsYou, statusColor, reviewerMark, boardStep, waitOf } from "./states.js";
-import { ETA_STEADY, labelRoom, shownFrom } from "./row-fit.js";
+import { ETA_STEADY, PERCENT_MIN, PERCENT_STEADY, labelRoom, shownFrom } from "./row-fit.js";
 import { tallAt } from "./row-tall.js";
 import { isResearch } from "../../research.js";
 import { resultColor, reviewTagInk, currentReview, reviewNote, verdict } from "./review-words.js";
@@ -35,7 +35,7 @@ export class Row {
     const paint = (c, s) => (s ? t.fg(c, s) : "");
     const live = r.state !== "done", has = live && r.progress !== undefined;
     // The time is "working for" on a working row and "ago" on every other: the word says which.
-    return { bar: has ? paint(color, bar(r.progress)) : "", percent: has ? paint(color, `${String(r.progress).padStart(3)}%`) : "", eta: live && r.eta !== undefined ? paint(color, left(r.eta)) : "", // minutes left show with no percent too
+    return { bar: has ? paint(color, bar(r.progress)) : "", percent: has ? paint(color, `${r.progress}%`) : "", eta: live && r.eta !== undefined ? paint(color, left(r.eta)) : "", // minutes left show with no percent too
       review: reviewTagInk(t, r), pr: prTag(t, r), elapsed: age(now - (r.at || now)), ago: r.state !== "working" };
   }
   // What a row says: under its name on a live task's row, after its name on any other. Never what its heading
@@ -80,8 +80,9 @@ export class Row {
   // The columns on the right are laid out first, once for the whole list: which there are and how wide each is. Every
   // row draws them at those widths, so each column starts at the same place on every row. What is shown of them is
   // decided one section at a time (row-fit.js): a section's rows give the same things up together, from the left.
-  // They are two groups, the progress and then the review, the pull request and the time, with a wider gap between
-  // the two than inside either.
+  // The spacing is one rule: one cell between two columns, and one wider gap, of two cells, on a row: right of the
+  // progress (bar, percent, minutes left), before the review, the pull request and the time. A column is as wide as
+  // its widest value on the list and no wider, so the only other blank cells are those that line a shorter value up.
   // On a narrow screen (`screen`: the whole board's width, which is the list's unless the task panel is beside it) a
   // live task's columns are on its third line: its first line has none, and they take no part in what is decided here.
   // Neither do the selected row's there, which gives them up for its whole name (row-wrap.js), and no row has its
@@ -93,14 +94,16 @@ export class Row {
     const elapsed = Math.max(3, max("elapsed"));
     // Extremely long PR identifiers may shorten, but must never push time off-screen.
     const pr = Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), review = max("review");
-    const cols = [["bar", max("bar")], ["percent", max("percent")], ["eta", max("eta")], ["review", review], ["pr", pr], ["time", tall ? 0 : elapsed]].filter(([, w]) => w);
-    // The wider gap is a column with nothing in it, left of the review tag: the cell on each side of it makes two.
+    const cols = [["bar", max("bar")], ["percent", max("percent") && Math.max(PERCENT_MIN, max("percent"))], ["eta", max("eta")], ["review", review], ["pr", pr], ["time", tall ? 0 : elapsed]].filter(([, w]) => w);
+    // The wider gap is a column with nothing in it, right of the progress: the cell on each side of it makes two.
     const group = cols.findIndex(([key]) => !PROGRESS.includes(key));
     if (group > 0) cols.splice(group, 0, ["gap", 0]);
     const layout = { now, review, pr, elapsed, cols, ago: !tall && [...fields.values()].some((f) => f.ago), show: new Map(), tall };
     if (tall) layout.third = this.tallLayout(records.filter(below).map((r) => this.rowFields(r, now)), width);
-    // Decided at widths that do not move as the numbers tick: the minutes left count as their widest (words.js: left).
-    const cells = (ago) => cols.map(([key, w]) => ({ key, w: key === "eta" ? Math.max(w, ETA_STEADY) : w + (key === "time" && ago ? 4 : 0) }));
+    // Decided at widths that do not move as the numbers tick: the percent and the minutes left count as their widest
+    // ("100%", and words.js: left).
+    const steady = { percent: PERCENT_STEADY, eta: ETA_STEADY };
+    const cells = (ago) => cols.map(([key, w]) => ({ key, w: steady[key] ? Math.max(w, steady[key]) : w + (key === "time" && ago ? 4 : 0) }));
     const fit = (r) => { const f = fields.get(r) || {}; return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, time: !tall } }; };
     const parts = sections.map((recs) => recs.map(fit));
     // The word "ago" sits right of everything, so one section cannot give it up without moving its columns: the

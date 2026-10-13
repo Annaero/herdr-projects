@@ -61,7 +61,7 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
       for (const width of [200, 120, 90, 72, 64, 50, 40, 30, 20]) assert.ok(lines(width).every((l) => l.length <= width), `fits ${width}`);
       let e = lines(200);
       assert.match(e[0], /█+ +95% {3}3m {8}6m {4}$/); assert.equal(e[0].indexOf("3m"), e[1].indexOf("130m") + 2); assert.match(e[1], /█+░+ +55% 130m {2}PR#3 {2}6m {4}$/);
-      assert.match(e[2], /sidebar +PR#2 {2}6m ago$/); assert.match(e[3], /No guess yet +░+ {3}0% {13}6m {4}$/); // no guess: no "m", the percent stays in line
+      assert.match(e[2], /sidebar +PR#2 {2}6m ago$/); assert.match(e[3], /No guess yet +░+ {2}0% {13}6m {4}$/); // no guess: no "m", the percent stays in line
       assert.equal(e[0].indexOf("95%"), e[1].indexOf("55%"));
       e = lines(57); // no bars: the minutes left stay beside the percent
       assert.match(e[0], /Remove notification pop-ups +95% {3}3m +6m$/); assert.match(e[1], /Fix ugly blocked row on the board +55% 130m {2}PR#3 +6m$/);
@@ -71,9 +71,9 @@ test("a tight row keeps the task's name, then the columns on the right; what a l
       assert.equal(e[1].indexOf("PR#3"), e[2].indexOf("PR#2")); assert.ok(e.every((l) => !/%|\dm .*\dm/.test(l)));
       if (!process.env.NO_COLOR) { // the same colour as the percent, whatever the state: green under review
         const paint = (r) => s.v.row(r, 120, s.v.rowLayout([r], 120)), yellow = "\x1b[38;2;249;226;175m";
-        assert.ok(paint(eta[1]).includes(`${yellow} 55%\x1b[39m`) && paint(eta[1]).includes(`${yellow}130m\x1b[39m`));
+        assert.ok(paint(eta[1]).includes(`${yellow}55%\x1b[39m`) && paint(eta[1]).includes(`${yellow}130m\x1b[39m`));
         const under = paint({ ...eta[1], stage: "reviewing", agent: "claude" }), colour = (s, word) => s.slice(0, s.indexOf(word)).match(/\x1b\[38;2;[\d;]+m(?!.*\x1b\[38)/s)?.[0];
-        assert.ok(colour(under, "130m") && colour(under, "130m") === colour(under, " 55%") && colour(under, "130m") !== yellow);
+        assert.ok(colour(under, "130m") && colour(under, "130m") === colour(under, "55%") && colour(under, "130m") !== yellow);
       }
       { // minutes left with no percent still show
         const only = { id: "proj/7", state: "working", title: "Only minutes", eta: 7, at };

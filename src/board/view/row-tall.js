@@ -2,7 +2,7 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { bar } from "./words.js";
 import { statusColor } from "./states.js";
-import { ETA_STEADY } from "./row-fit.js";
+import { PERCENT_MIN } from "./row-fit.js";
 
 // Below this many columns every live row has the third line; from it on, none has. It is the width at which a name
 // of 40 cells (NAME_OWED: what a name keeps before a column goes) sits beside every column: the mark (3), the name
@@ -13,6 +13,12 @@ import { ETA_STEADY } from "./row-fit.js";
 export const TALL_BELOW = 80;
 // A bar shorter than this says nothing: the percent beside it does.
 const BAR_MIN = 4;
+// The minutes left are this wide at least ("10m"), so that the bar keeps its length when "9m" turns "10m".
+const ETA_MIN = 3;
+// The gap left of a group: one cell, and two right of the progress (the bar, the percent, the minutes left), which is
+// the one wider gap of a row.
+const progress = (g) => ["percent", "eta"].includes(g[0][0]);
+const before = (g, n, all) => (n === all.findIndex((x) => !progress(x)) ? 2 : 1);
 
 export const tallAt = (screen) => screen < TALL_BELOW;
 
@@ -23,15 +29,16 @@ export class RowTall {
   tallLayout(fields, width) {
     const max = (key) => Math.max(0, ...fields.map((f) => visibleWidth(f[key])));
     const elapsed = Math.max(3, max("elapsed"));
-    const w = { percent: max("percent"), eta: max("eta") && Math.max(max("eta"), ETA_STEADY), review: max("review"), pr: Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), elapsed, ago: fields.some((f) => f.ago) };
-    const right = () => this.tallGroups(w).reduce((n, g) => n + 2 + g.reduce((m, [, cells]) => m + cells + 1, -1), 0);
+    const w = { percent: max("percent") && Math.max(max("percent"), PERCENT_MIN), eta: max("eta") && Math.max(max("eta"), ETA_MIN), review: max("review"), pr: Math.min(max("pr"), Math.max(0, width - 3 - elapsed - 3)), elapsed, ago: fields.some((f) => f.ago) };
+    const right = () => this.tallGroups(w).reduce((n, g, at, all) => n + before(g, at, all) + g.reduce((m, [, cells]) => m + cells + 1, -1), 0);
     for (const drop of [["ago"], ["review", "pr"], ["percent", "eta"]]) if (3 + right() > width) for (const key of drop) w[key] = 0;
     // The bar takes what the columns leave: it is why the line fills the width. Too short to read, it gives its
     // room to the word "ago" before it goes.
     if (w.ago && fields.some((f) => f.bar) && width - 3 - right() < BAR_MIN) w.ago = false;
     return { ...w, right: right() };
   }
-  // Left to right: the progress, the review with its pull request, the time. One cell inside a group, two between.
+  // Left to right: the progress, the review with its pull request, the time. One cell between them and two right of
+  // the progress, as on a wide screen's first line (row.js): the bar is part of the progress, so one cell is right of it.
   tallGroups(w) {
     return [[["percent", w.percent], ["eta", w.eta]], [["review", w.review], ["pr", w.pr]], [["time", w.elapsed + (w.ago ? 4 : 0)]]].map((g) => g.filter(([, cells]) => cells)).filter((g) => g.length);
   }
@@ -48,7 +55,7 @@ export class RowTall {
       // The time ends at the right edge on every row, with the word "ago" or without: the line fills the width.
       time: t.fg("overlay0", f.elapsed + (w.ago && f.ago ? " ago" : "")),
     };
-    const right = this.tallGroups(w).map((g) => "  " + g.map(([key, cells]) => fill(text[key], cells, key === "pr")).join(" ")).join("");
+    const right = this.tallGroups(w).map((g, n, all) => " ".repeat(before(g, n, all)) + g.map(([key, cells]) => fill(text[key], cells, key === "pr")).join(" ")).join("");
     const lead = " ".repeat(Math.min(width, visibleWidth(this.mark(r)) + 2)), room = width - visibleWidth(lead) - w.right;
     const drawn = f.bar && room >= BAR_MIN ? t.fg(statusColor(r), bar(r.progress, room)) : "";
     return truncateToWidth(lead + fill(drawn, Math.max(0, room), true) + right, width, "");

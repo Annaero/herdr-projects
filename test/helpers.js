@@ -16,6 +16,15 @@ import { run as ghRun } from "./fake-gh.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 
+// A repo's start: one file, one commit on main.
+const firstCommit = (root) => { git(root, "init", "-q", "-b", "main"); fs.writeFileSync(path.join(root, "a.txt"), "one\n"); git(root, "add", "-A"); git(root, "commit", "-qm", "init"); };
+// Every world starts from the same repo, so it is made once in a test file's process and copied after that: three
+// git programs for each test were a good part of the suite's processor time.
+let seed = null;
+const seedRepo = () => {
+  if (!seed) { seed = fs.mkdtempSync(path.join(os.tmpdir(), "sw-seed-")); firstCommit(seed); const made = seed; process.on("exit", () => fs.rmSync(made, { recursive: true, force: true })); }
+  return seed;
+};
 // A fresh world. Call at the top of each test; returns handles and a cleanup function.
 export async function world({ repo = true, settings = {}, repoSettings = null, origin = false, program = false, locks = !program } = {}) {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), "sw-test-"));
@@ -52,10 +61,8 @@ export async function world({ repo = true, settings = {}, repoSettings = null, o
   let root = path.join(base, "proj");
   fs.mkdirSync(root);
   if (repo) {
-    git(root, "init", "-q", "-b", "main");
-    fs.writeFileSync(path.join(root, "a.txt"), "one\n");
-    if (repoSettings) fs.writeFileSync(path.join(root, ".herdr-superwork.json"), JSON.stringify(repoSettings));
-    git(root, "add", "-A"); git(root, "commit", "-qm", "init");
+    if (repoSettings) { fs.writeFileSync(path.join(root, ".herdr-superwork.json"), JSON.stringify(repoSettings)); firstCommit(root); }
+    else fs.cpSync(seedRepo(), root, { recursive: true });
     if (origin) { const bare = path.join(base, "origin.git"); git(base, "init", "-q", "--bare", "-b", "main", bare); git(root, "remote", "add", "origin", bare); git(root, "push", "-q", "-u", "origin", "main"); }
   }
   root = fs.realpathSync(root);

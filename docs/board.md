@@ -26,14 +26,21 @@ left), and then the review, the pull request and the time:
 
 ```
  ready to approve
- ✓ Add an undo for clear                                             R#2 PR#18 12m ago
+ ✓ Add an undo for clear                                              R#2 PR#18 12m ago
    Fail · 1 critical, 1 major
  working
- ◐ Tidy the first-run questions                           ███░░░░░  40% 12m    R#1 PR#17    5m
+ ◐ Tidy the first-run questions                      ███░░░░░ 40% 12m  R#1 PR#17  5m
    Running the tests
  done
- ✓ Blue while the reviewer works                                     R#1 PR#76  1h ago
+ ✓ Blue while the reviewer works                                      R#1 PR#76  1h ago
 ```
+
+**The spacing is one rule: one cell between two things, and one wider gap of two cells on a row, right of the
+progress.** So the wider gap says where the progress ends, and no other gap competes with it. Each thing is a column down the whole list, as
+wide as its widest value in view and no wider (the percent three cells at least, `45%`, so it does not move when
+`9%` turns `10%`). The numbers end under each other, so the only other blank cells are those before a shorter one:
+`5m` under `12m`, `R#1` under `R#12`. A pull request starts under the others, and a column a row has nothing for is
+left blank. The last line of a row on a narrow screen (below) follows the same rule.
 
 **A live task's row is two lines.** Live is every task under `needs you`, `ready to approve` and `working`: an agent,
 the reviewer or the board's own check is on it, or it waits for you. The first line is the mark, the name and the
@@ -61,10 +68,10 @@ columns they have a line of their own, the last of the row:
  working
  ◐ Third row line on narrow screens for progress
    Writing the tests for the third line
-   █████░░░░░░░░░░░░░   35%  14m              9m
+   ████████░░░░░░░░░░░░░░ 35% 14m             9m
  ◐ Show progress while the board runs the check
    Reviewing progress display fix against earli…
-   ███████████░░░░░░░   62%   4m  R#2 PR#82  38m
+   ██████████████░░░░░░░░ 62%  4m  R#2 PR#82 38m
  ◐ Grey out review tag and time once merged
    …
                                              20s
@@ -117,8 +124,8 @@ there with `…` often does not say which task it is. So under 80 columns:
 From 80 columns on, nothing wraps and every row is as it was.
 
 **Where it switches: 80 columns of screen.** At 80 a name of 40 cells (what a name keeps before a column goes,
-below) sits beside every column at its widest: the mark (3), the name (40), the bar (8), the percent (4), the minutes
-left (4), `R#12` (4), `PR#123` (6), the time (3) and the gaps between them (8). Narrower than that, line 1 always
+below) sits beside every column at its widest: the mark (3), the name (40), the bar (8), the percent (4, `100%`), the
+minutes left (4), `R#12` (4), `PR#123` (6), the time (3) and the gaps between them (8). Narrower than that, line 1 always
 goes without something, so the columns move down; from 80 on the row is the two lines it was, and nothing changes.
 It is the screen's width that is counted, never the names or the numbers on it: all live rows switch together, and
 no row gets or loses that line when a task is renamed or gets a pull request. And it is the whole screen, not the list: a
