@@ -86,4 +86,5 @@ provider that passes by itself is retried first: [A turn cut off by the provider
 the task "Needs a login", and that comes first: older failure details are not sent and pull-request feedback does not
 wake the agent until you have logged in and then replied, pressed `Ctrl+R` or typed in the agent's terminal. A turn
 only blocks on you when the agent ran `report … --state blocked`; a final message that merely ends in a question
-goes on to check and review, and you still approve at the end.
+goes on to check and review, and you still approve at the end
+([An agent that waits for you is not finished](waiting-for-you.md)).

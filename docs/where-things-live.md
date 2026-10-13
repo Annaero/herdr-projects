@@ -175,6 +175,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `shared.js` | The finish line's shared pieces: the approval question's words, and marking a task as failed |
 | `sync-job.js` | Main moved while a task waits for approval: bring its branch up to date and check it again |
 | `turn-ended.js` | The finish runner: an agent's turn ended |
+| `waiting.js` | An agent that stopped to wait for the human: the end of that turn is not a finish, so no check, no review, no push and no merge follow it |
 
 ## `src/flow/`
 
@@ -304,6 +305,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [task-panel.md](task-panel.md) | The task panel |
 | [testing.md](testing.md) | Tests |
 | [titles.md](titles.md) | Titles |
+| [waiting-for-you.md](waiting-for-you.md) | An agent that waits for you is not finished |
 | [watcher.md](watcher.md) | The Watcher: how often it looks, and what it costs |
 | [web-ui.md](web-ui.md) | The board in the herdr web UI |
 | [where-things-live.md](where-things-live.md) | Where things live |
@@ -391,6 +393,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `theme.test.js` | The board takes its colours and status marks from herdr's own config, resolved the way herdr resolves them |
 | `titles.test.js` | A title's length limit: one number, the same for a task typed, renamed, suggested, or made from a reviewer's finding |
 | `turns.test.js` |  |
+| `waiting.test.js` | An agent that stopped to wait for the human is waiting, not finished: no check, no review, no merge follow |
 | `watcher-pace.test.js` | The Watcher's pace: how often it looks, what it skips, one call at a time, and giving way on a busy machine |
 | `watcher.test.js` | The hidden helper: the watcher's line and guess |
 | `web-board.test.js` | The web board's data: the same list, panel, buttons, questions and words the terminal board has, read from the board's own code, and a button that presses the board's own key |

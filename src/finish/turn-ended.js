@@ -12,6 +12,7 @@ import { pipeline } from "./pipeline.js";
 import { closeReviewer } from "./review.js";
 import { name as keyName } from "../board/keys.js";
 import { pendingSent } from "../submit.js";
+import { waits, stay } from "./waiting.js";
 
 // ---- job: the agent's turn ended ----------------------------------------------------------------------------------------
 // Started two ways. By the agent's own turn-end hook (`turn-ended`): a definite stop, judged here from the saved
@@ -84,10 +85,8 @@ async function finishOnce(id, { force = false } = {}) {
       if (adapter(kind).readTurn) S.countMark(`reader:${kind}`, ver, !!turn);
       S.countMark(`hook:${kind}`, ver, true);
       if (turn && !(newer(turn, t) && ((turn.finished && turn.id !== t.handled?.msg) || turn.error))) return true; // a repeat, or an earlier turn
-      if (t.selfBlocked && t.stage === "asks") { // it reported itself blocked, then stopped: that is not a finish
-        S.update(id, (t) => { t.handled = { ...(t.handled || {}), comp, seq, term, at: Date.now(), msg: turn?.id ?? t.handled?.msg ?? null, pos: turn?.pos ?? t.handled?.pos ?? 0 }; t.selfBlocked = null; t.turnOpen = false; if (turn?.said) t.said = turn.said; if (ev.session) t.session = ev.session; }, { waitMs: 10000 });
-        return true;
-      }
+      // It said that it waits for the human, then stopped: that is not a finish, whichever signal of the stop came first.
+      if (waits(t, turn)) { stay(id, t, turn, { comp, seq, term }, ev.session); return true; }
       // A turn that ended in a stage other than "working" was the human's, typed in the agent's own terminal.
       if (t.stage !== "working") { t = S.update(id, (t) => { humanTurn(t); }, { waitMs: 10000 }); F.labelPane(t, null); await closeReviewer(id); }
     } else {
@@ -112,6 +111,7 @@ async function finishOnce(id, { force = false } = {}) {
         if (!again || again.id !== turn.id || again.pos !== turn.pos) return true;
         if (t.hooked) S.countMark(`hook:${kind}`, ver, false);
       }
+      if (waits(t, turn)) { stay(id, t, turn, { comp, seq, term }); return true; } // the same, seen through herdr alone
     }
     g.expect(t);
     // 3. What the agent said, and why it stopped.

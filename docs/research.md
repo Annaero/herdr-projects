@@ -44,6 +44,10 @@ Change nothing in the repo: add, edit and delete no file, commit nothing. The re
 plus a suggestion on the task for each piece of work that should follow from it
 ([suggested tasks](suggestions.md)). The repo's check is not named to it: there is no change to check.
 
+Saving the report finishes nothing: the agent may save it early and add to it while it still waits for your
+answers, and you can open it meanwhile. The task is finished when its agent stops without saying that it waits
+([An agent that waits for you is not finished](waiting-for-you.md)).
+
 A task marked research only after its agent started is not told again by itself; the finish line below is what
 holds either way, and its message says what to do.
 

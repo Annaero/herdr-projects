@@ -30,10 +30,10 @@ export function hookUsable(kind) {
 // Does a finished turn still need the closing note? Yes unless the hook and the reader both work for this kind.
 export const needsNote = (kind) => !adapter(kind).readTurn || !hookUsable(kind) || !!mark(`reader:${kind}`, versionOf(kind));
 // The end of a task's (or its reviewer's) saved conversation, or null. Never throws.
-export function readTurnOf(kind, { file, session, cwd } = {}) {
+export function readTurnOf(kind, { file, session, cwd, whole = false } = {}) {
   const a = adapter(kind);
   if (!a.readTurn) return null;
-  try { const f = file && fs.existsSync(file) ? file : session && a.transcript ? a.transcript(session, cwd) : null; if (!f) return null; const t = a.readTurn(f); return t ? { ...t, file: f } : null; } catch { return null; }
+  try { const f = file && fs.existsSync(file) ? file : session && a.transcript ? a.transcript(session, cwd) : null; if (!f) return null; const t = a.readTurn(f, whole ? Infinity : undefined); return t ? { ...t, file: f } : null; } catch { return null; }
 }
 // Was this text submitted to the agent since a moment: do the words stand in its saved conversation? null: nothing to read.
 export function saidTo(kind, { file, session, cwd } = {}, text, since) {

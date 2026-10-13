@@ -27,6 +27,9 @@ export { baseRef, freeBranch, excludeRuleDir, copyIncludes, slugOf } from "./del
 import { baseRef, freeBranch, excludeRuleDir, copyIncludes } from "./delegate/worktree.js";
 
 // ---- the first prompt ------------------------------------------------------------------------------------------------
+// How "I am waiting" and "I am finished" are told apart: by that command alone. The board cannot read a question out
+// of a last message, a report or a closing note, and an agent that asked in plain words was reviewed as finished.
+export const WAIT_RULE = "That command is the only way to say that you are waiting, and it holds for one stop: run it every time you stop for the human's answer, also for each question of an interview or a consultation and also when you ran it before. Their answer arrives as your next message, and then you carry on. A stop without it means you are finished, whatever your last message, your report or your closing note says: the work is then checked and reviewed as it stands. Never run it to put off the review of finished work.";
 // The board's own rules are fixed. Your own words for the worker (`worker.instructions`) come after them.
 export function rules(t) {
   const cmd = F.shim(), research = R.isResearch(t);
@@ -38,6 +41,7 @@ export function rules(t) {
     check && !research ? `Your work only counts as done when this passes: ${check}` : "",
     "Do not stop until the work is finished and you have checked that it works. Stopping means it is finished and goes to review. End with a short summary of what you did.",
     `If you cannot continue without the human, run this and then stop: ${cmd} report ${t.id} --state blocked --kind <question|permission|auth> --msg "<why, in one line>"  (question: the human must type an answer; permission: you need approval to do something; auth: a login, token or credential is missing). Write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data". Do not end with a question otherwise.`,
+    WAIT_RULE,
     `If you come across unrelated work that should be done (a bug elsewhere, a follow-up), do not do it and do not add it as a task: suggest it to the human with ${cmd} suggest "<short title: a few words, ${S.TITLE_RULE}>" --desc "<what and why, and the file it is in>" --from ${t.id} and carry on. It becomes a task only if they accept it. Suggest a thing once: ${cmd} suggestions lists what is suggested already and ${cmd} list the tasks, and what the board knows already is not added again.`,
     AGENT_BOARD_RULE,
     automationRule(t),

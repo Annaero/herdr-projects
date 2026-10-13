@@ -29,7 +29,7 @@ export function deliver(t, text, wake = null, { first = false } = {}) {
 // The closing-note rule. With a working hook the note is only the fallback, so it is repeated on plugin-sent prompts
 // only for kinds without one; kinds with no launch flag for standing rules also get a two-line short form of the rules.
 export const promptTail = (t) => [
-  adapter(t.agent).standing ? "" : `Rules still apply: do the work yourself on your own branch, never push or merge.${isResearch(t) ? " This task is research only: change nothing in the repo, and keep your report out of it." : ""}\nIf you cannot continue without the human, run: ${shim()} report ${t.id} --state blocked --msg "<why>" and stop. Write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data".`,
+  adapter(t.agent).standing ? "" : `Rules still apply: do the work yourself on your own branch, never push or merge.${isResearch(t) ? " This task is research only: change nothing in the repo, and keep your report out of it." : ""}\nIf you cannot continue without the human, run: ${shim()} report ${t.id} --state blocked --msg "<why>" and stop (every time you stop to wait for their answer: a stop without it means finished, and is reviewed). Write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data".`,
   needsNote(t.agent) || t.hooked === false ? noteRule(t) : "",
 ].filter(Boolean).join("\n\n");
 export const withTail = (t, text) => [text, promptTail(t)].filter(Boolean).join("\n\n");

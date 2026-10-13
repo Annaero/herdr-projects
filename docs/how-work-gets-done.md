@@ -27,6 +27,10 @@ login error, token use. With the board open or closed it then:
    review of the task;
 4. waits for your approval (`Ctrl+L`).
 
+None of this happens when the agent stopped to wait for you (a question, a permission, a sign-in): that is not a
+finish, however often it asks. How an agent says so, and what the board does then:
+[An agent that waits for you is not finished](waiting-for-you.md).
+
 **Without a hook** (a crash, a program older than the adapter's minimum version, another agent kind, Codex when you
 have your own `notify` configured, or a hook that failed three turns in a row) herdr's
 status is only a guess from the screen, so "idle" alone never finishes a task. The turn counts as ended when the

@@ -39,7 +39,9 @@ export function report(id, { state, kind, msg, title, progress, eta, asAgent = f
     if (title) retitle(t, title);
     if (state === "blocked") {
       t.stage = "asks"; t.kind = S.KINDS.includes(kind) ? kind : "question"; t.msg = S.oneLine(msg) || "Needs you"; t.turnOpen = false;
-      if (asAgent) t.selfBlocked = Date.now(); // the turn that follows this report is not a finish
+      // The end of the turn it says this in is not a finish. `selfBlocked`: until that end is seen. `blocked`: kept
+      // until the human answers, so the turn is still known when two signals of its end arrive (finish/waiting.js).
+      if (asAgent) { t.selfBlocked = Date.now(); t.blocked = { at: t.selfBlocked, kind: t.kind, msg: t.msg }; }
       return;
     }
     if (delegated && runnerAlive(t)) throw new Error(`${t.id} is in the middle of a workflow step. Stop it first.`);

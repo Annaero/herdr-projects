@@ -38,6 +38,7 @@ One page per topic, in [docs/](docs/):
 - [The Coordinator](docs/coordinator.md)
 - [Roles and commands](docs/roles-and-commands.md)
 - [How work gets done](docs/how-work-gets-done.md)
+- [An agent that waits for you is not finished](docs/waiting-for-you.md)
 - [The Watcher: how often it looks, and what it costs](docs/watcher.md)
 - [The check's progress: what the board shows, and how a check reports it](docs/check-progress.md)
 - [A task's tabs in herdr: Agent, Reviewer #1](docs/tabs.md)

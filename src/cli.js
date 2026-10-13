@@ -191,7 +191,7 @@ export async function main(argv) {
       const target = S.find(id);
       const t = A.report(target.id, { state: flags.state, kind: flags.kind, msg: flags.msg, title: flags.title, progress: flags.progress, eta: flags.eta, asAgent: !!me && me.id === target.id });
       const what = [flags.title && "title", flags.state].filter(Boolean).join(", "); // what changed: "proj/1: updated (title, done)"
-      result = [brief(shownOf(t.id)), me && me.id === t.id && flags.state === "blocked" ? "Reported. Stop now; the human's answer arrives as your next message." : `${t.id}: updated${what ? ` (${what})` : ""}${flags.title ? S.titleNote(flags.title) : ""}`];
+      result = [brief(shownOf(t.id)), me && me.id === t.id && flags.state === "blocked" ? "Reported: you are waiting, not finished, so no check and no review follow this stop. Stop now; the human's answer arrives as your next message." : `${t.id}: updated${what ? ` (${what})` : ""}${flags.title ? S.titleNote(flags.title) : ""}`];
       break;
     }
     case "describe": { const t = A.describe(need(1, "an id"), rest(2)); result = [brief(shownOf(t.id)), `${t.id}: updated (description)`]; break; }

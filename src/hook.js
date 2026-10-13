@@ -126,7 +126,7 @@ export function apply(id, a, api) {
       // with no sign of work for that answer (finish/turn-ended.js).
       if (S.pendingText(id).length) { if (comp != null) t.handled = { ...(t.handled || {}), comp }; t.owedTurn = comp == null || comp === (prev?.comp ?? null) ? t.startedAgentAt || 1 : undefined; then = "inbox"; return; }
       if (t.selfBlocked && t.stage === "asks") { // it said it is blocked, then stopped: that is not a finish
-        t.handled = { ...(t.handled || {}), comp, seq: a.state_change_seq ?? null, term: a.terminal_id ?? null, note: F.noteStat(t)?.mtime ?? t.handled?.note ?? null, at: Date.now() }; t.selfBlocked = null; t.turnOpen = false;
+        t.handled = { ...(t.handled || {}), comp, seq: a.state_change_seq ?? null, term: a.terminal_id ?? null, note: F.noteStat(t)?.mtime ?? t.handled?.note ?? null, at: Date.now() }; t.selfBlocked = null; t.turnOpen = false; t.expectedWake = null;
         return;
       }
       if (t.stage === "working") {
