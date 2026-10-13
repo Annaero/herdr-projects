@@ -59,7 +59,7 @@ test("a terminal held at another size than herdr shows: the board draws inside w
     assert.ok([49, 50, 51, 52].every((n) => lines[n].length === 411));
     const row = lines.find((l) => /Pin the chat/.test(l));
     assert.match(row, /Pin the chat to the bottom +█+░+ +55% 12m {2}PR#3 {2}6m {4}$/); assert.equal(row.length, 411); // the columns are back in view
-    assert.equal(lines.find((l) => /^ ○ Coordinator/.test(l)).trimEnd(), " ○ Coordinator  idle"); assert.match(lines[55], /alt\+c hide the chat · \? more *$/); // the chat's key is on the hint line, whole
+    assert.equal(lines.find((l) => /^ ○ Coordinator/.test(l)).trimEnd(), " ○ Coordinator  idle"); assert.match(lines[55], /alt\+c hide the latest message · \? all keys *$/); // the chat's key is on the hint line, whole
     // Held at 435x58 while a taller, narrower window shows it: the width is cut down, the rows are all there are.
     s.v.shown = { cols: 184, rows: 78, split: false };
     lines = s.screen(435);

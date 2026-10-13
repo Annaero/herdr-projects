@@ -231,7 +231,7 @@ to a neighbour's agent.
 │                                                                                            │
 │ ❯ ask or tell it anything                                                                  │
 ╰────────────────────────────────────────────────────────────────────────────────────────────╯
-  type what needs doing · alt+c hide the chat · ? more
+  alt+c hide the latest message · ? all keys
 ```
 
 The chat is three things, and looks the same for the Coordinator and for a task's agent, at every window width:
@@ -250,8 +250,9 @@ The chat is three things, and looks the same for the Coordinator and for a task'
   themselves, the message keeps to a third of the window.) While a dialog is up on their screen, the box shows that
   screen instead.
 - **One greyed hint line under the box**, with only the keys that do something right now. While you type, it says
-  what the keys do with your words (`enter send · tab send, and put an agent on it · esc put away · shift+enter new
-  line`). In a narrow window the keys between the first and the last go first, the chat's own key last of them.
+  what the keys do with your words (`enter send to the Coordinator · tab send, and put an agent on what it adds ·
+  shift+enter new line · esc put away`). What each hint says, and what gives way in a narrow window, is in
+  [the hint line](keys.md#the-hint-line).
 
 **A message longer than its box scrolls.** `Alt+U` scrolls it up and `Alt+J` down, half a box at a time (U sits
 above J on the keyboard); the mouse wheel does the same with the pointer over the chat ([the mouse](mouse.md)). Both
@@ -288,7 +289,7 @@ closed and opened again; for a task's agent, for as long as the board stays open
 ──────────────────────────────────────────────────────────────────────────────────────────────
 ❯ ask or tell it anything
 ──────────────────────────────────────────────────────────────────────────────────────────────
-  type what needs doing · alt+c show the chat · ? more
+  alt+c show the latest message · ? all keys
 ```
 
 One key shows and hides the message, the same key both ways and the same for the Coordinator and a task's agent:

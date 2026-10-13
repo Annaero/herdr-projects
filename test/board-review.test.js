@@ -29,7 +29,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   assert.match(page(redPr), /\n State {8}× needs you · 0s ago\n On it {8}claude\n Change {7}PR#12\n Task {9}proj\/1\n\n Went wrong ─+\n Pull request checks failed\n The agent can fix this: ctrl\+r sends it\.\n Next step {4}Fix the checks\.\n Details {6}test: failure\n/); assert.doesNotMatch(page(redPr), /ready to approve/);
   v.reply = false; v.full = false; v.menu = null; v.ask = null; v.mode = "new"; v.chatOpen = true; v.input = { getText: () => "" }; v.jobs = []; v.sel = "";
   assert.deepEqual(v.hints(redPr).map(([k]) => k), ["ctrl+r", "ctrl+l", "space", "?"]); assert.ok(!v.hints(redPr).some(([, d]) => /approve/.test(d)));
-  assert.equal(v.hints(pr)[0][1], "approve and merge");
+  assert.equal(v.hints(pr)[0][1], "approve and merge this task");
   if (!process.env.NO_COLOR) assert.ok(v.row(redPr, 120).includes("\x1b[38;2;243;139;168m\x1b[1m×") || /243;139;168m[^m]*×/.test(v.row(redPr, 120)), "its mark is the needs-you red, not the ready green");
   assert.match(row(plain, 120), /^ ✓ Build a flying game +R#1 {2}0s ago\n {3}3\/5 reviewer says no$/);
   assert.match(row({ ...pr, review: { ...review, recommend: true, score: 5 } }, 120), / R#1 PR#12 {2}0s ago\n {3}5\/5 reviewer says yes$/);

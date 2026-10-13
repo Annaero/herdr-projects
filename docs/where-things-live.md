@@ -235,6 +235,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `board-chat.test.js` | The chat's box: the latest message, an empty line, the line you type on |
 | `board-evidence.test.js` | The task details of a reviewed task with evidence, and what the board shows when a part of it fails to draw |
 | `board-helpers.js` | Shared by the board's tests (test/board-*.test.js): the keys, and a board opened on a test world |
+| `board-hints.test.js` | The hint line: each hint says what the key does and to what, a key shows only where it does something, and what gives way in a narrow window |
 | `board-keys.test.js` | The board's keys, and the text box owning the keyboard |
 | `board-layout.test.js` | The whole screen: the chat pinned to the bottom, through a resize |
 | `board-list.test.js` | The task list: the header, the groups, the done list |

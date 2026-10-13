@@ -24,7 +24,7 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, remove
     assert.match(text, /│ {2}State {8}✓ ready to approve · \d+s ago *\n/);
     assert.match(text, /│ {2}Review ─+ *\n[^\n]*│ {2}Review 1 {5}✓ Pass · 1 minor · \d+s ago *\n[^\n]*│ {15}Good\./); assert.match(text, /│ {2}Change {7}1 file, \+1 −0/);
     assert.equal(S.get(id).reviews.length, 1); assert.deepEqual([S.get(id).reviews[0].round, S.get(id).reviews[0].pass, S.get(id).reviews[0].findings.length, S.get(id).reviews[0].text], [1, true, 1, "Good."]); // the task keeps every review it had assert.match(text, /│ {2}The agent said *\n[^\n]*│ {2}Made f\./);
-    assert.match(text, /\n {2}ctrl\+l approve and merge · ctrl\+r send back · space reply · \? more/);
+    assert.match(text, /\n {2}ctrl\+l approve and merge this task · ctrl\+r send the review to the agent · space talk to the agent · \? all keys/);
     // ctrl+l asks once before the merge; esc says no and nothing happened
     s.press("ctrl+l");
     assert.match(s.text(), /\n \? Merge "Make f"\? {2}y = yes · n = no/); assert.equal(S.get(id).stage, "approval");
@@ -63,16 +63,16 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, remove
     assert.deepEqual(text.split("\n").filter((l) => /^ (❯| ) \S/.test(l)).map((l) => l.slice(3, 11).trim()).filter((k) => k !== "R#2"),
       ["↑ ↓", "enter", "space", "tab", "esc", "?", "y  n", "ctrl+l", "ctrl+r", "ctrl+x", "ctrl+a", "ctrl+p", "ctrl+n", "ctrl+z", "ctrl+f", "ctrl+c", "alt+c", "alt+u", "alt+j", "alt+p", "alt+t", "alt+a", "alt+s", "alt+d", "alt+m"]);
     assert.match(text, /\n plain keys *\n {3}↑ ↓ {5}move between tasks/); assert.match(text, /\n ctrl: does something *\n ❯ ctrl\+l {2}yes: approve the merge, say yes, retry, take it as it is/); assert.match(text, /\n alt: only shows or hides *\n {3}alt\+c {3}hide the chat's latest message/);
-    for (const line of [/ctrl\+r {2}send it back to the agent/, /ctrl\+x {2}remove the task/, /ctrl\+a {2}archive the task/, /ctrl\+p {2}pin to the top/, /ctrl\+z {2}undo/, /ctrl\+f {2}find/, /ctrl\+c {2}twice: close the board/, /alt\+p {3}hide the side panel/, /alt\+t {3}the whole task, full screen/, /alt\+a {3}show the archive/, /alt\+s {3}group by repo/, /alt\+d {3}show all done/, /alt\+m {3}other machines \(now: this machine only\)/]) assert.match(text, line);
+    for (const line of [/ctrl\+r {2}send it back: tell the agent to fix it, or to continue/, /ctrl\+x {2}remove this task/, /ctrl\+a {2}archive this task/, /ctrl\+p {2}pin this task to the top/, /ctrl\+z {2}undo/, /ctrl\+f {2}find: show only the tasks that match/, /ctrl\+c {2}twice: close the board/, /alt\+p {3}hide the side panel/, /alt\+t {3}show the whole task, full screen/, /alt\+a {3}show the archive/, /alt\+s {3}group by repo/, /alt\+d {3}show all done/, /alt\+m {3}other machines \(now: this machine only\)/]) assert.match(text, line);
     assert.match(text, /\n {3}y {2}n {4}answer a question: y yes, n or esc no \(enter never confirms\)/); // the menu says how a question is answered
-    assert.doesNotMatch(text, /Coordinator's chat|restart|new Coordinator|ctrl\+[estdog]\b|alt\+[vhrn]\b|delete {2}/); assert.match(text, /↑↓ pick · enter do it · esc close/);
+    assert.doesNotMatch(text, /Coordinator's chat|restart|new Coordinator|ctrl\+[estdog]\b|alt\+[vhrn]\b|delete {2}/); assert.match(text, /↑↓ pick a key · enter press it · esc close the menu/);
     s.press("x", "ctrl+l"); assert.ok(s.v.menu, "a stray key neither acts nor closes the menu");
     // a ctrl or alt line is picked with ↑ ↓ and enter, and does what its key does
     s.press("down", "down", "down", "enter"); assert.ok(S.get("proj/2").archivedAt); assert.equal(s.v.menu, null); assert.ok(!/Other/.test(s.screen().slice(0, 12).join("\n")));
     assert.match(s.text(), /proj\/2: archived\. ctrl\+z undoes it; alt\+a shows the archive\./);
     s.v.tui.terminal.rows = 34;
     // the keys themselves: alt+a shows and hides the archive, where ctrl+a restores; ctrl+z undoes; ctrl+p pins; ctrl+f finds
-    s.press("alt+a"); assert.match(s.text(), /^ herdr-superwork {2}archive/); assert.match(s.text(), /Other \[archived\]/); assert.match(s.text(), /\n {2}ctrl\+a restore · ctrl\+x remove · esc back to the board/);
+    s.press("alt+a"); assert.match(s.text(), /^ herdr-superwork {2}archive/); assert.match(s.text(), /Other \[archived\]/); assert.match(s.text(), /\n {2}ctrl\+a restore this task · ctrl\+x remove this task · esc back to the board/);
     s.press("ctrl+a"); assert.ok(!S.get("proj/2").archivedAt); A.archive("proj/2"); s.v.archiveUndo = S.get("proj/2");
     s.press("alt+a", "ctrl+z"); assert.equal(s.v.archiveView, false); assert.ok(!S.get("proj/2").archivedAt);
     s.v.sel = "proj/2"; s.v.load(); s.press("ctrl+p"); assert.equal(S.get("proj/2").pinned, true); assert.match(s.text(80), /\n pinned +\n/);
@@ -95,12 +95,12 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, remove
     s.press("esc"); A.rename("proj/2", "Other"); s.v.load();
     // from the menu it is the same question
     s.press("?");
-    const at = s.v.menuItems().findIndex((i) => i.key === "ctrl+x"); assert.equal(s.v.menuItems()[at].label, "remove the task"); for (let i = 0; i < at; i++) s.press("down");
+    const at = s.v.menuItems().findIndex((i) => i.key === "ctrl+x"); assert.equal(s.v.menuItems()[at].label, "remove this task"); for (let i = 0; i < at; i++) s.press("down");
     s.press("enter", "enter"); assert.ok(s.v.ask); assert.ok(S.get("proj/2")); s.press("y");
     await until(() => !S.get("proj/2"));
     assert.equal(S.get("proj/2"), null);
     // an error stays until esc dismisses it; other keys leave it where it is
-    s.v.flash("It broke.", "red"); s.press("down", "up"); assert.match(s.text(), /It broke\. {2}\(esc\)/);
+    s.v.flash("It broke.", "red"); s.press("down", "up"); assert.match(s.text(), /It broke\. {2}\(esc dismisses\)/);
     s.press("esc"); assert.doesNotMatch(s.text(), /It broke/); assert.equal(s.v.ask, null);
     assert.equal(osc({ state: "blocked", kind: "question", id: "proj/1", title: "T", msg: "m", app: "claude" }), "\x1b]7501;state=blocked:id=proj/1:kind=question:app=claude:title=VA==:msg=bQ==\x1b\\");
   } finally { w.cleanup(); }
@@ -116,7 +116,7 @@ test("ctrl+l on something that went wrong retries it as it stands; the focused-p
     assert.equal(t.stage, "failed"); assert.match(t.failure.title, /Check failed after 3 tries/);
     const s = open(w);
     s.v.sel = id; s.v.load();
-    assert.match(s.text(), /\n {2}ctrl\+r send it to the agent to fix · ctrl\+l retry · space reply · \? more/);
+    assert.match(s.text(), /\n {2}ctrl\+r tell this task's agent to fix it · ctrl\+l retry as it is · space talk to the agent · \? all keys/);
     // You fixed the cause yourself: yes runs the same step again, with nothing sent to the agent.
     const prompts = () => w.state().panes.find((p) => p.pane_id === t.link.pane).agent.prompts.length;
     const sent = prompts();
@@ -131,7 +131,7 @@ test("ctrl+l on something that went wrong retries it as it stands; the focused-p
       const lid = A.add(w.root, "Needs a login").id; A.delegate(lid); const lt = await settle(lid);
       S.update(lid, (x) => { x.stage = "asks"; x.kind = "auth"; x.msg = "Please log in to the registry."; });
       const l = open(w); l.v.sel = lid; l.v.load();
-      assert.match(l.text(), /│ {2}Needs a login/); assert.match(l.text(), /press ctrl\+l to tell the agent to try\s+[^\n]*│?\s*again|ctrl\+l/); assert.match(l.text(), /\n {2}ctrl\+l retry · space reply · enter open the agent · \? more/);
+      assert.match(l.text(), /│ {2}Needs a login/); assert.match(l.text(), /press ctrl\+l to tell the agent to try\s+[^\n]*│?\s*again|ctrl\+l/); assert.match(l.text(), /\n {2}ctrl\+l tell this task's agent to try again · space talk to the agent · enter open the agent · \? all keys/);
       const n = w.state().panes.find((p) => p.pane_id === lt.link.pane).agent.prompts.length;
       l.press("ctrl+l");
       assert.match(l.text(), /told the agent to continue/); assert.doesNotMatch(l.text(), /Nothing here waits for a yes/);

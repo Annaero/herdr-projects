@@ -32,10 +32,10 @@ test("a task agent's chat: its message, then your just-sent words in its place, 
       assert.deepEqual(c.box, ["Made f, with one line in it.", "", "❯ your reply"]); // nothing else is in it
       assert.match(c.hints, /space back to the Coordinator$/); // whole at every width: the key is never the part that is cut
     }
-    assert.match(chat(s).hints, /alt\+c hide the chat · space back to the Coordinator$/);
+    assert.match(chat(s).hints, /alt\+c hide the latest message · space back to the Coordinator$/);
     // While you type: your words on the line, and the hints say what the keys do now.
     s.type("yes, g too");
-    assert.deepEqual(chat(s).box, ["Made f, with one line in it.", "", "❯ yes, g too"]); assert.equal(chat(s).hints, "enter send to its agent · esc put away · shift+enter new line");
+    assert.deepEqual(chat(s).box, ["Made f, with one line in it.", "", "❯ yes, g too"]); assert.equal(chat(s).hints, "enter send to this task's agent · shift+enter new line · esc put away");
     // Sent: your words stand where the agent's message was. The old message is never under them.
     s.press("enter");
     assert.deepEqual(chat(s).box, ["yes, g too", "", "❯ your reply"]); assert.doesNotMatch(s.text(), /Sent to the agent/);
@@ -46,7 +46,7 @@ test("a task agent's chat: its message, then your just-sent words in its place, 
     // Hidden: who you talk to and the line you type on, between two rules. alt+c is the key both ways.
     s.press("\x1bc");
     let c = chat(s);
-    assert.equal(c.framed, false); assert.match(c.who, /^ \S Make f {2}\S/); assert.deepEqual(c.box, ["❯ your reply"]); assert.match(c.hints, /alt\+c show the chat · space back to the Coordinator$/);
+    assert.equal(c.framed, false); assert.match(c.who, /^ \S Make f {2}\S/); assert.deepEqual(c.box, ["❯ your reply"]); assert.match(c.hints, /alt\+c show the latest message · space back to the Coordinator$/);
     assert.doesNotMatch(s.text(), /│ Made g\./);
     // With the chat hidden nothing shows your words, so one line says they went.
     s.type("thanks"); s.press("enter"); assert.match(s.text(), /Sent to the agent/);

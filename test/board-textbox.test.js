@@ -31,7 +31,7 @@ test("a draft longer than the text box wraps onto further lines, between words, 
       assert.equal(d.rows.join(" "), words, "the whole draft is in view, cut only between words");
       assert.equal(d.above + d.below, 0);
       assert.equal(d.lines.length, 30); assert.ok(d.lines.every((l) => l.length <= width), "no line runs past the window");
-      assert.match(d.lines.at(-1), /enter add a task/); // the hints stay under a tall box
+      assert.match(d.lines.at(-1), /enter add it as a task/); // the hints stay under a tall box
       assert.deepEqual(d.cursor, [d.rows.length - 1, d.rows.at(-1).length], "the cursor is after the last word");
     }
     // More lines than pi-tui shows on its own (5, or 30% of the window): the box takes them, the list above gives way.
@@ -52,7 +52,7 @@ test("the text box stops growing at half the window: a longer draft scrolls insi
       s.type(words);
       let d = draft(s, 40);
       assert.ok(d.rows.length <= most && d.rows.length >= Math.min(most, rows - 6), `${d.rows.length} rows of text in a window of ${rows}`);
-      assert.equal(d.lines.length, rows); assert.match(d.lines.at(-1), /enter add a task/);
+      assert.equal(d.lines.length, rows); assert.match(d.lines.at(-1), /enter add it as a task/);
       assert.ok(d.above > 0, "the top border says how many lines are above"); assert.equal(d.below, 0);
       assert.match(d.rows.at(-1), /word200$/); assert.equal(d.cursor[0], d.rows.length - 1);
       // Walking up past the top of the box scrolls it; the cursor never leaves it.
@@ -124,7 +124,7 @@ test("a word longer than the text box is cut at its edge, and a long paste wraps
     // A paste taller than the box scrolls inside it: the window keeps its size and its hints.
     s.press(`\x1b[200~${"line\n".repeat(60)}\x1b[201~`);
     d = draft(s, 40);
-    assert.equal(d.rows.length, 15); assert.ok(d.above > 40); assert.equal(d.lines.length, 30); assert.match(d.lines.at(-1), /enter add a task/);
+    assert.equal(d.rows.length, 15); assert.ok(d.above > 40); assert.equal(d.lines.length, 30); assert.match(d.lines.at(-1), /enter add it as a task/);
   } finally { w.cleanup(); }
 });
 
@@ -147,6 +147,6 @@ test("a reply to a task's agent wraps in the same box, under the agent's latest 
     // A draft taller than the box scrolls inside it, and the box's own lines say how much is off it.
     s.type(" " + words + " " + words);
     const e = draft(s, 50);
-    assert.equal(e.lines.length, 24); assert.ok(e.above > 0); assert.equal(e.below, 0); assert.match(e.lines.at(-1), /enter send to its agent/);
+    assert.equal(e.lines.length, 24); assert.ok(e.above > 0); assert.equal(e.below, 0); assert.match(e.lines.at(-1), /enter send to this task's agent/);
   } finally { w.cleanup(); }
 });

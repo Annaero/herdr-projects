@@ -49,7 +49,7 @@ export class Layout {
       const framed = calm(() => !this.ask && this.chatUp(who) && !!who.said && width >= 8, false); // a frame only where there can be a message in it (and room for its two edges)
       // What just happened, on a line of its own: the hints below it stay readable.
       const stale = !this.stale ? "" : this.ctx.canReload === false ? "herdr-superwork was updated: close the board and open it again for the new version." : "herdr-superwork was updated: the new version loads when nothing is half typed.";
-      const said = this.msg && !(this.offNote && this.msgKind !== "red") ? wrapTextWithAnsi(t.fg(this.msgKind, this.msg) + (this.msgKind === "red" ? t.fg("overlay0", `  (${keyName("back")})`) : ""), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : this.offNote ? wrapTextWithAnsi(t.fg("yellow", this.offNote), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : stale ? ["  " + t.fg("overlay0", stale)] : [];
+      const said = this.msg && !(this.offNote && this.msgKind !== "red") ? wrapTextWithAnsi(t.fg(this.msgKind, this.msg) + (this.msgKind === "red" ? t.fg("overlay0", `  (${keyName("back")} dismisses)`) : ""), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : this.offNote ? wrapTextWithAnsi(t.fg("yellow", this.offNote), Math.max(10, width - 4)).slice(0, 3).map((l) => "  " + l) : stale ? ["  " + t.fg("overlay0", stale)] : [];
       // The text box grows with a draft that wraps, up to half the window (and never past what the line that says who
       // you talk to leaves): a longer draft scrolls inside it, never off-screen.
       const boxRows = Math.min(rowsN - 4 - headN - (selectedJob >= 0 ? 1 : 0), Math.max(5, Math.floor(rowsN / 2)));
@@ -79,17 +79,22 @@ export class Layout {
       this.jobTop = Math.max(0, Math.min(this.jobTop, lastJobTop));
       const jobs = extraRows ? safe("What is on its way", width, () => this.jobs.slice(this.jobTop, this.jobTop + extraRows).map(jobLine)) : [];
       // One greyed line that never runs off the screen: the main thing and the last one stay, what is between them
-      // goes first, and of those the chat's own key last.
-      const hintList = calm(() => this.hints(r).filter(Boolean).slice(0, 5), [["", "the hints could not be shown"]]);
-      const hintText = () => t.fg("overlay0", hintList.map(([k, d]) => [k, d].filter(Boolean).join(" ")).join(" · "));
-      const giveUp = () => { const at = hintList.length - 2; return at > 1 && hintList[at] === this.chatKey ? at - 1 : at; };
-      while (hintList.length > 2 && visibleWidth(hintText()) > width - 2) hintList.splice(giveUp(), 1);
-      // Still too wide with two left: words that name no key ("type your reply") go before a key is cut.
-      if (hintList.length === 2 && !hintList[0][0] && visibleWidth(hintText()) > width - 2) hintList.shift();
-      const hints = hintText();
+      // goes first, from the last of them back; the chat's own key, while the message is hidden, outlasts them.
+      // It is made after the page above it, which decides what the arrows do (they scroll a task longer than its place).
+      const hintLine = () => {
+        const hintList = calm(() => this.hints(r).filter(Boolean).slice(0, 5), [["", "the hints could not be shown"]]);
+        const hintText = () => t.fg("overlay0", hintList.map(([k, d]) => [k, d].filter(Boolean).join(" ")).join(" · "));
+        const giveUp = () => { const at = hintList.length - 2; return at > 1 && hintList[at] === this.chatKey ? at - 1 : at; };
+        while (hintList.length > 2 && visibleWidth(hintText()) > width - 2) hintList.splice(giveUp(), 1);
+        // Still too wide with two left: the main thing stays, unless the other is the one way back (hints.js marks it).
+        if (hintList.length === 2 && visibleWidth(hintText()) > width - 2) hintList.splice(hintList[1][2] ? 0 : 1, 1);
+        // The one that is left is said shorter where even that is too wide: it is never cut in the middle.
+        if (hintList.length === 1 && visibleWidth(hintText()) > width - 2) { const [k, d, , short] = hintList[0]; hintList[0] = short ? [short.startsWith(k) ? "" : k, short] : [k, d.replace("this task's agent", "its agent")]; }
+        return "  " + hintText();
+      };
       // Whatever the window, the text box and its hints are whole: the chat, then the rows above it, give way.
       while (jobs.length + chat.length + inputLines.length + said.length + 1 > rowsN && (chat.length || jobs.length || said.length)) (chat.length ? chat.shift() : (jobs.length ? jobs : said).pop());
-      const bottom = [...jobs, ...chat, ...inputLines, ...said, "  " + hints];
+      const bottom = [...jobs, ...chat, ...inputLines, ...said, ""];
       // Top left, where a cut-out of the board still shows it.
       const held = rowsN - bottom.length > 3 ? safe("Who holds the terminal", width, () => this.heldLines(width)) : [];
       const h = Math.max(1, rowsN - bottom.length - held.length);
@@ -108,6 +113,7 @@ export class Layout {
         const right = shown ? safe("The task panel", paneW, () => this.panel(shown, paneW, false, h), [""]) : ["", " " + t.fg("overlay0", "nothing selected.")];
         top = Array.from({ length: h }, (_, i) => truncateToWidth(left[i] ?? "", listW, "…", true) + " " + t.fg("surface_dim", "│") + t.under("sidebar_bg", truncateToWidth(" " + (right[i] ?? ""), paneW + 1, "…", true)));
       } else top = safe("The list", width, () => [...this.headLines(width), ...this.listLines(width, Math.max(1, h - 1))], [""]);
+      bottom[bottom.length - 1] = hintLine();
       return this.pad([...held, ...this.pad(top, h), ...bottom].slice(0, rowsN), rowsN).map(fit);
     } catch (e) {
       const out = [fit(" herdr-superwork view error: " + clean(e?.message)), fit(` press ${keyName("back")} to close`)];

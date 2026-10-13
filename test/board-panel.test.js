@@ -85,8 +85,8 @@ test("the task panel never opens full screen by itself: something going wrong on
     assert.match(text, /\n needs you *\n ✗ Match the colors [^\n]*\n {3}Merge conflict with main/);
     assert.doesNotMatch(text, /Conflicting files/);
     // The hint line: what matters now, the main thing first, never more than four.
-    assert.match(text, /\n {2}ctrl\+r send it to the agent to fix · ctrl\+l retry · space reply · \? more *$/);
-    assert.match(s.text(60), /\n {2}ctrl\+r send it to the agent to fix · ctrl\+l retry · \? more *$/); assert.match(s.text(50), /\n {2}ctrl\+r send it to the agent to fix · \? more *$/); // and it never runs off a narrow screen
+    assert.match(s.text(120), /\n {2}ctrl\+r tell this task's agent to fix it · ctrl\+l retry as it is · space talk about this task · \? all keys *$/);
+    assert.match(text, /\n {2}ctrl\+r tell this task's agent to fix it · ctrl\+l retry as it is · \? all keys *$/); assert.match(s.text(60), /\n {2}ctrl\+r tell this task's agent to fix it · \? all keys *$/); assert.match(s.text(50), /\n {2}ctrl\+r tell this task's agent to fix it *$/); // and it never runs off a narrow screen: the main thing is the last to go
     // Wide, the panel beside the list already says it, in order: where it stands, then what it needs from you.
     text = s.text(120);
     assert.match(text, /│ {2}State {8}✗ needs you · \ds ago *\n[^\n]*│ {2}Task {9}proj\/1 *\n[^\n]*│ *\n[^\n]*│ {2}Went wrong ─+ *\n[^\n]*│ {2}Merge conflict with main *\n[^\n]*│ {2}The agent can fix this: ctrl\+r sends it\. *\n[^\n]*│ {2}Next step {4}Resolve the conflict\. *\n[^\n]*│ {2}Details {6}Conflicting files: *\n[^\n]*│ {15}src\/board\/view\.js/);

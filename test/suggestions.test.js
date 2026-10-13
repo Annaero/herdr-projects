@@ -107,7 +107,7 @@ test("the board shows a task's suggestions in its panel and asks about them only
     assert.equal(s.v.sel, one.id);
     text = s.text(140);
     assert.match(text, /│ {2}Suggested tasks · 2 ─+ *\n[^\n]*│ {2}• The importer drops the last row *\n[^\n]*│ {4}from the reviewer · \d+[smh] ago *\n[^\n]*│ {4}Where: import\.js:12 *\n[^\n]*│ {4}Severity: major *\n[^\n]*│ {4}What the reviewer saw: a file of three rows came ?… *\n[^\n]*│ {2}• Dates are parsed as text *\n[^\n]*│ {4}from the agent · \d+[smh] ago *\n[^\n]*│ {2}ctrl\+n makes one a task, or dismisses it *\n/);
-    s.press("esc"); assert.match(s.text(140).split("\n").at(-1), /^ {2}tab put an agent on it · space reply · ctrl\+n suggested task · \? more *$/); s.press(ASK); // the hint line names the key too
+    s.press("esc"); assert.match(s.text(140).split("\n").at(-1), /^ {2}tab put an agent on this task · space talk about this task · ctrl\+n see this task's suggestion · \? all keys *$/); s.press(ASK); // the hint line names the key too
     // The question shows what it is about, not only its title: what you decide on is in front of you.
     assert.match(text, /\n \? Suggested by the reviewer \(1 of 2\): "The importer drops the last row"\. Make it a task\? *\n {3}Where: import\.js:12 *\n {3}Severity: major *\n {3}What the reviewer saw: a file of three rows came back with two\. *\n *\n {3}It was there before proj\/2 \(Add a column\), so it was not fixed there\. *\n {3}y = make it a task · n = dismiss · esc = later *\n/);
     assert.match(text, /│ {2}alt\+t shows the whole task/); // the panel beside the list cut the details short, and says where the rest is

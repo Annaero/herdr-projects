@@ -18,14 +18,14 @@ test("the keys list: a key moved in its entry is moved everywhere, and its old c
     s.type("First"); s.press("enter"); s.type("Second"); s.press("enter");
     move("enter", ["alt+e"]); move("down", ["alt+j"]); move("up", ["alt+k"]); move("yes", ["ctrl+q"]); move("delegate", ["alt+d"]); move("back", ["alt+b"]); move("menu", ["alt+m"]); KEY.menu.raw = undefined;
     // typing and sending: the old enter is typed text's business now, the new one sends
-    s.type("Third"); assert.match(s.text(), /alt\+e add a task · alt\+d add it and start an agent · alt\+b put away/);
+    s.type("Third"); assert.match(s.text(), /alt\+e add it as a task · alt\+d add it and put an agent on it · shift\+enter new line · alt\+b put away/);
     s.press("\x1be"); assert.equal(S.list().length, 3); assert.equal(s.v.value(), "");
     // moving in the list
     const at = s.v.sel; s.press("down", "up"); assert.equal(s.v.sel, at, "the old chords no longer move");
     s.press("\x1bj"); const lower = s.v.sel; s.press("\x1bk", "\x1bk"); assert.notEqual(s.v.sel, lower, "the new ones do");
     // the menu: opened, moved in and picked from with the moved keys
     s.press("?"); assert.equal(s.v.menu, null); s.v.setValue("");
-    s.press("\x1bm"); assert.ok(s.v.menu); assert.match(s.text(), /alt\+k alt\+j  move between tasks/); assert.match(s.text(), /alt\+k alt\+j pick · alt\+e do it · alt\+b close/);
+    s.press("\x1bm"); assert.ok(s.v.menu); assert.match(s.text(), /alt\+k alt\+j  move between tasks/); assert.match(s.text(), /alt\+k alt\+j pick a key · alt\+e press it · alt\+b close the menu/);
     s.press("down"); assert.equal(s.v.menu.at, 0); s.press("\x1bj"); assert.equal(s.v.menu.at, 1);
     s.press("enter"); assert.ok(s.v.menu, "the old enter picks nothing"); s.press("\x1bb"); assert.equal(s.v.menu, null);
     // a message written outside the view names the moved key too

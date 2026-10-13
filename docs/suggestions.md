@@ -22,7 +22,7 @@ Quietly, and only when you look. Nothing opens, asks or moves by itself, and no 
 - The board's top line counts them: `2 suggested tasks (ctrl+n)`.
 - The task that raised them lists them in its panel, under **Suggested tasks**, each with who raised it and what
   it says (where it is, what was seen): its first lines beside the list, all of it full screen (`Alt+T`).
-- When the selected task has one and the hint line has room, it shows `ctrl+n suggested task`.
+- When the selected task has one and the hint line has room, it shows `ctrl+n see this task's suggestion`.
 
 ```
  Suggested tasks · 2 ────────────────────────

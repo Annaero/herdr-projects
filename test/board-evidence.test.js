@@ -72,11 +72,11 @@ test("a part of the board that fails to draw says so in its place: the rest of t
     s.press("alt+t");
     text = s.text(120);
     assert.match(text, /✗ The task details could not be shown: nope/);
-    assert.match(text, /\n❯ what's next\? *\n─+\n {2}tab put an agent on it · [^\n]*esc back *$/);
+    assert.match(text, /\n❯ what's next\? *\n─+\n {2}tab put an agent on this task · [^\n]*esc back to the list *$/);
     s.press("esc"); assert.equal(s.v.full, false);
     tc.mock.restoreAll();
     // Any one section of the screen fails (the chat among them): never the error screen, and the others are there.
-    const marks = { list: /○ Build a flying game/, panel: /Settings ─/, box: /❯ what's next\?/, hints: /tab put an agent on it/ };
+    const marks = { list: /○ Build a flying game/, panel: /Settings ─/, box: /❯ what's next\?/, hints: /tab put an agent on this task/ };
     for (const [method, gone] of [["chatOf", ["hints"]], ["chatLines", []], ["chatUp", []], ["boxLines", ["box"]], ["hints", ["hints"]], ["listLines", ["list"]], ["headLines", ["list"]], ["heldLines", []]]) {
       const m = tc.mock.method(s.v, method, () => { throw new Error("nope"); });
       const page = s.text(120);
