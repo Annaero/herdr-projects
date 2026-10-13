@@ -11,12 +11,12 @@ import * as L from "../../automations/list.js";
 import { rowOf, firings } from "../../automations/show.js";
 import { clean, repoLabel } from "./words.js";
 
-// The group's heading, and the mark its rows start with: a square, where every task's mark is round, a diamond or a
-// sign, so the two are told apart by shape. Filled while it is on, empty while it is off, as ● and ○ are. Both are
-// among the few shapes every common font has (WGL4: Consolas, Menlo, DejaVu, Liberation, Courier New), one cell
-// wide, as tall as the tasks' marks, and neither is ever drawn as an emoji.
+// The group's heading, and the mark its rows start with: an arrow going round (U+27F3), where every task's mark is
+// round, a diamond or a sign, so the two are told apart by shape. The same one on and off: off, it is drawn quietly.
+// One cell wide, as the board measures it and as terminals draw it, and never drawn as an emoji. A font without it
+// shows the terminal's own fallback: nothing here looks for that.
 export const AUTOMATIONS = "automations";
-export const AUTO_MARK = "■", AUTO_OFF = "□";
+export const AUTO_MARK = "⟳";
 // An automation's row in the selection: never a task's id (`repo/12`, or `machine:repo/12`).
 const rowId = (a, host = "") => `${host ? `${host}:` : ""}auto:${a.id}`;
 
@@ -56,7 +56,7 @@ export class AutomationRows {
   // An automation as the row code takes it: a record of its own kind (`auto`), one for each automation.
   autoRec(a) { let r = this.autoRecs.get(a); if (!r) this.autoRecs.set(a, (r = { id: a.row, auto: a })); return r; }
   // Its mark: in the automations' colour, and quiet while it is off, as a done task's is.
-  autoMark(a) { const t = this.theme; return a.on ? t.fg("auto", AUTO_MARK) : t.quiet("auto", AUTO_OFF); }
+  autoMark(a) { const t = this.theme; return a.on ? t.fg("auto", AUTO_MARK) : t.quiet("auto", AUTO_MARK); }
   // What its row says: its trigger, then its repo where that is not the one the board shows, and its machine on the
   // board of every machine (one machine's own board names it in its header); and why the board turned it off. `part`:
   // "beside" its name (the first three), "why" (the last, under its name), or "all" of it under its name, where the

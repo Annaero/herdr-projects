@@ -40,9 +40,9 @@ export function ink(pieces, cls = "") {
 }
 // A status mark. The three round ones (an agent, its reviewer, the board at work) are drawn, all at one size: as
 // text the two half discs came out a third the size of the dot. Every other mark is its character.
-// So are an automation's two squares (on: filled in; off: empty), at the size of the round ones in any font.
-const ROUND = { "●": "full", "◑": "right", "◒": "bottom" }, SQUARE = { "■": "on", "□": "off" };
-export const markEl = (mark, color = "", dim = false) => h(`span.sw-mark${color ? `.sw-c-${color}` : ""}${dim ? ".sw-d" : ""}`, { "aria-hidden": "true" }, ROUND[mark] ? h(`span.sw-dot.sw-dot-${ROUND[mark]}`) : SQUARE[mark] ? h(`span.sw-sq.sw-sq-${SQUARE[mark]}`) : mark);
+// So is an automation's arrow going round (⟳), at the size of the round ones in any font; off, it is the same one, quiet.
+const ROUND = { "●": "full", "◑": "right", "◒": "bottom" }, TURN = "⟳";
+export const markEl = (mark, color = "", dim = false) => h(`span.sw-mark${color ? `.sw-c-${color}` : ""}${dim ? ".sw-d" : ""}`, { "aria-hidden": "true" }, ROUND[mark] ? h(`span.sw-dot.sw-dot-${ROUND[mark]}`) : mark === TURN ? h("span.sw-turn") : mark);
 export const said = (pieces) => (pieces || []).map((p) => p.t).join("");
 
 // This browser tab's own board (its selection, its question): a name of its own, kept while the tab lives.

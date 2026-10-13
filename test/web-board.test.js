@@ -163,8 +163,8 @@ test("the web board has the automations: the last group of its list, one of them
     assert.deepEqual(s.list.groups.map((g) => [g.name, g.rows.length, !!g.automations]), [["to do", 1, false], ["automations", 2, true]]); assert.equal(s.list.selected, "proj/1"); assert.equal(s.flags.automations, undefined); assert.equal(s.flags.onTask, true);
     const [one, two] = s.list.groups[1].rows;
     // a task row's places: on or off where a task has its number, the trigger where it says something, the firing where it has its time
-    assert.deepEqual([one.id, one.title, one.mark, one.color, one.quiet, one.tag, said(one), one.time], [`auto:${a.id}`, "Look for old dependencies", "■", "auto", false, "on", "every 2h", "next in 2h"]);
-    assert.deepEqual([two.title, two.mark, two.markDim, two.quiet, two.tag, said(two), two.time], ["Release note", "□", true, true, "off", "when a task is merged", "never fired"]); // off: quiet, an empty mark, and the word
+    assert.deepEqual([one.id, one.title, one.mark, one.color, one.quiet, one.tag, said(one), one.time], [`auto:${a.id}`, "Look for old dependencies", "⟳", "auto", false, "on", "every 2h", "next in 2h"]);
+    assert.deepEqual([two.title, two.mark, two.markDim, two.quiet, two.tag, said(two), two.time], ["Release note", "⟳", true, true, "off", "when a task is merged", "never fired"]); // off: quiet, the same mark dimmed, and the word
     assert.equal(s.list.groups[1].color, "auto"); // the heading has the automations' own colour
     assert.deepEqual([one.tagWidth, two.tagWidth, s.list.groups[0].rows[0].tagWidth], [3, 3, 3]); // one column: the names start where the task's title does
     // on the page its row shows all of what it says, on any width, and its word (on, off) stays when the tasks' numbers give way
@@ -258,9 +258,9 @@ test("the web page's rows: the tag has a column of its own, so what a task says 
     assert.deepEqual(names(rowEl({ ...r, tag: "" }, { selected: false, onPick() {} }).kids[1]), ["sw-line", "sw-says"]);
     // an automation's row is marked as one, so the styles show all of what it says; a task's row is not
     assert.match(rowEl({ ...r, tag: "", automation: true }, { selected: false, onPick() {} }).className, /\bis-automation\b/); assert.doesNotMatch(rowEl(r, { selected: false, onPick() {} }).className, /is-automation/);
-    // a task an automation made: its [auto] tag is in the automations' colour; an automation's mark is a square drawn at the round marks' size
+    // a task an automation made: its [auto] tag is in the automations' colour; an automation's mark is an arrow going round, drawn at the round marks' size, the same one quiet while it is off
     { const title = rowEl({ ...r, title: "Fix it [auto]", made: true }, { selected: false, onPick() {} }).kids[1].kids[1].kids[0]; assert.deepEqual(title.kids.map((k) => (typeof k === "string" ? k : [k.className, k.textContent])), ["Fix it ", ["sw-c-auto", "[auto]"], ""]);
-      const { markEl } = await import("../src/webui/page/dom.js"); assert.deepEqual([markEl("■", "auto").kids[0].className, markEl("□", "auto", true).kids[0].className, markEl("□", "auto", true).className], ["sw-sq sw-sq-on", "sw-sq sw-sq-off", "sw-mark sw-c-auto sw-d"]); }
+      const { markEl } = await import("../src/webui/page/dom.js"); assert.deepEqual([markEl("⟳", "auto").kids[0].className, markEl("⟳", "auto").className, markEl("⟳", "auto", true).kids[0].className, markEl("⟳", "auto", true).className], ["sw-turn", "sw-mark sw-c-auto", "sw-turn", "sw-mark sw-c-auto sw-d"]); }
     const css = fs.readFileSync(new URL("../src/webui/page/board.css", import.meta.url), "utf8");
     assert.match(css, /\.sw-main \{ display: grid; grid-template-columns: auto minmax\(0, 1fr\)/); assert.match(css, /\.sw-main > \* \{ grid-column: 2; \}/); assert.match(css, /\.sw-no-tags \.sw-main > \.sw-id \{ display: none; \}/); assert.match(css, /\.sw-word \{ display: none; \} \.sw-no-tags \.sw-word \{ display: inline; \}/);
     // a narrow list: an automation's word goes with the tags (every title at one left edge) and is the first word of what its row says

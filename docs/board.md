@@ -36,15 +36,15 @@ drawn by the code that draws a task's row:
  ○ #1  Fix the footer on the pricing page                                                     3h ago
 
  automations
- ■ on  Look for old dependencies  every 2h                                      ✓ #4 next in  4m
- ■ on  Release note after a merge  when a task is merged, in every repo              skipped  5h ago
- □ off Nightly audit  daily 03:00                                                        never fired
+ ⟳ on  Look for old dependencies  every 2h                                      ✓ #4 next in  4m
+ ⟳ on  Release note after a merge  when a task is merged, in every repo              skipped  5h ago
+ ⟳ off Nightly audit  daily 03:00                                                        never fired
        it fired 30 times in an hour
 ```
 
 | Where a task's row has | An automation's row has |
 |---|---|
-| its mark | `■` while it is on, `□` while it is off: a square, where every task's mark is round, a diamond or a sign |
+| its mark | `⟳` (U+27F3), in the automations' colour while it is on and the same one dimmed while it is off: an arrow going round, where every task's mark is round, a diamond or a sign |
 | its number (`#12`) | the word `on` or `off`, in the same grey. It fills the numbers' column, so every name starts where the titles start |
 | its title | its name, plain as a to-do's title; greyed while it is off |
 | what it says, after the title | its trigger in plain words (`every 2h`, `when a task is merged, in every repo`), in the same grey; then its repo when that is not the one the board shows, and its machine (`on otherbox`) on the board of every machine |
@@ -71,7 +71,7 @@ kept, and 20 are sent from another machine, so a count would not be true). All o
 `↑` and `↓` go from the last task on to them. On such a row no task is selected, so the keys that act on a task do
 nothing and the row has keys of its own (open it, turn it on or off, fire it now, remove it, its settings), which
 the hint line shows: [automations](automations.md). One that is off is drawn as quietly as a done task: its mark
-dimmed and empty, its words greyed. Find (`Ctrl+F`) matches them too, by name, trigger or repo; the archive has
+dimmed, its words greyed. Find (`Ctrl+F`) matches them too, by name, trigger or repo; the archive has
 none. No task gives way for them: where the list is longer than its room, the tasks fold as they always do and the
 automations are what is below.
 

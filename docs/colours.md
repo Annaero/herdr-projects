@@ -55,7 +55,7 @@ mark is a plain light grey, the theme's `subtext0` ([the check's progress](check
 ## An automation is purple
 
 The automations are no tasks, so nothing of theirs may be taken for a status. They have one colour of their own,
-used for the heading `automations` in the list, the mark of each of their rows (`■`, and `□` dimmed while it is
+used for the heading `automations` in the list, the mark of each of their rows (`⟳`, the same one dimmed while it is
 off), the `[auto]` tag of a task one made, and the automation's line in the `?` menu.
 
 It is **herdr's own `mauve`**, the one colour of herdr's theme that no status uses (red needs you, green is ready,
@@ -71,9 +71,9 @@ from both greys of greyed words and from the background; the tests measure that 
 | `terminal` | the terminal's own magenta, so it follows the terminal as the rest of that theme does |
 
 A `mauve` of your own (`[theme.custom]`) is held to the same rule. **Colour is not the only clue**: the heading is
-a heading by its place and its word, the mark is a square where every task's mark is another shape, and `on` or
+a heading by its place and its word, the mark is an arrow going round where every task's mark is another shape, and `on` or
 `off` is a word on every row. With `NO_COLOR` all of that still stands. One that is off is quiet as a done task is:
-its mark dimmed and empty, its words greyed.
+its mark dimmed, its words greyed.
 
 On the web Board it is a purple of the board's own (`#a855f7`, pulled towards the page's text colour so it reads on
 light and dark), as the web UI has no purple among its status colours.
