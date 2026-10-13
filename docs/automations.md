@@ -114,31 +114,45 @@ no two automations share one. A refused command changes nothing. The last 200 fi
 
 ## On the board
 
-`Alt+O` shows the automations, a list of their own, and goes back to the board ([keys](keys.md)).
+The automations are in the main list: a group of their own under the heading `automations`, below the task groups
+([the board](board.md)). There is no list of their own behind a key any more (`Alt+O` is no key of the board), and
+no heading while there is no automation.
 
-- **One row per automation**: a mark for on (`✓`) or off (`○`, and the word `[off]`: never colour alone), its name,
-  its trigger in plain words (`every 2h`, `when a task is merged`), its repo, the last firing (how long ago, and the
-  task it made or `skipped`), and the next one for a schedule. In a window too narrow for one line each, every row
-  has two.
-- **Keys there**: `↑` `↓` move, `Enter` opens the selected one, `Space` turns it on or off, `Tab` fires it now,
-  `Ctrl+X` removes it (it asks first, as removing a task does), `Ctrl+E` opens its settings, `Esc` goes back. The
-  `?` menu lists them. A key that acts on a task (approve, archive, pin, find) does nothing here.
+- **One row per automation**: its mark (`↻`), its name, its trigger in plain words (`every 2h`, `when a task is
+  merged, in every repo`), the word `on` or `off` (never colour alone), and when it fires next or fired last:
+  `next in 4m` for a schedule that is on, else `fired 2h ago` (`skipped 2h ago` when the last firing made no task),
+  else `never fired`. One that turned itself off says why on a line under its row. One that is off is drawn as
+  quietly as a done task. In a window too narrow for one line each, every row has two.
+- **Selected and acted on as a task's row is**: `↑` `↓` reach it from the tasks, a click selects it. Then `Enter`
+  opens it, `Space` turns it on or off, `Tab` fires it now, `Ctrl+X` removes it (it asks first, as removing a task
+  does; the tasks it made stay) and `Ctrl+E` opens its settings. The hint line shows these keys while such a row
+  is selected, and only the ones that act (off, an automation never fires, so `Tab` is not offered). The `?` menu
+  lists them in the same words. A key that acts on a task (approve, send back, archive, pin) does nothing on it.
 - **One automation, whole** (`Enter`, or `Alt+T`; beside the list with `Alt+P` on a wide screen): its state, its
   trigger, when it is next due, its repo, its prompt, the settings that are its own (marked `*`), and its firings,
   newest first, each with the task it made or why it was skipped. `↑` `↓` pick a firing; `Enter` on one goes to that
-  task on the board.
+  task in the list (in the archive, when it was archived since). `Esc` goes back to the list.
 - **Its settings** (`Ctrl+E`) are the page a task has ([the task panel](task-panel.md)): every work setting as its
   next task will have it, the place each one comes from, `*` on the rows that are the automation's own, `Enter`
   changes a row and `Ctrl+U` puts it back.
-- **Making and rewording one** is done through the Coordinator's text box, which stays where it is; its grey words
-  say so in this list (`Tell the Coordinator what to automate, and when`). With no Coordinator on, what you type
-  there makes nothing, and the board says the command instead.
-- **A task an automation made says so**: `[auto]` after its name on its row, and `Made by` in its panel's Status.
+- **Making and rewording one** is done through the Coordinator's text box, which stays where it is: on an
+  automation's row no task is selected, so what you type goes where it goes with no task selected (to the
+  Coordinator; with none on, it is added as a task, word for word, and an automation is made with the command).
+- **A task an automation made says so**: `[auto]` after its name on its row, and `Made by` in its panel's Status,
+  which names the automation.
+- **Other machines' automations** show with their tasks ([other machines](other-machines.md)): on the board of
+  every machine each row names its machine (`on otherbox`), and one machine's own board shows only its own. They
+  are turned on and off, fired and removed there, on the machine that has them; the whole automation is drawn from
+  what that machine sent (its latest twenty firings). `Ctrl+E` opens its settings as it does this machine's: the
+  rows are that machine's own (every work setting as its next task will have it there, and the place each comes
+  from), and a row changed or put back is changed on that machine. Only a machine on a version that sends no such
+  rows has no page: there the board says the command instead.
 
-The [web board](web-ui.md) has the same list, the same automation whole and the same actions, drawn from the same
-code: **Show the automations** in More…, a row tapped open, buttons to turn it on or off, run it now and remove it,
-and each firing that made a task as a link to it. An automation's settings page is the terminal board's; on the web
-they are changed with the command.
+The [web board](web-ui.md) has the same group at the foot of its list, the same automation whole and the same
+actions, drawn from the same code: a row tapped open, buttons to turn it on or off, fire it now and remove it, and
+each firing that made a task as a link to it. A row shows all of what it says however narrow the page is (a
+task's row keeps to two lines): whether it is on or off and when it fires are never cut away. An automation's settings page is the terminal board's; on the web
+they are changed with the command. The popup is the same board, so it has all of this too.
 
 ## Where it is kept
 

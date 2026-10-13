@@ -110,26 +110,24 @@ export class WebView extends View {
     this.handleInput(bytesOf(delegate ? "delegate" : "enter"));
     const kept = this.value().trim() === words.trim();
     this.setValue("");
-    if (back) { if (this.scope !== back.scope) { this.scope = back.scope; try { this.load(); } catch {} } if ([...this.items, ...this.jobs].some((r) => r.id === back.sel)) this.sel = back.sel; this.reply = back.reply; this.replyId = back.reply ? this.sel : ""; this.full = back.full && !!(this.current() || this.job()); try { this.load(); } catch {} }
+    if (back) { if (this.scope !== back.scope) { this.scope = back.scope; try { this.load(); } catch {} } if (this.onBoard(back.sel)) this.sel = back.sel; this.reply = back.reply; this.replyId = back.reply ? this.sel : ""; this.full = back.full && !!(this.current() || this.job()); try { this.load(); } catch {} }
     return { kept };
   }
   // Tapping a row selects it; `open`: the page shows the whole task, so the selection stays on it while you read.
   pick(id, open = false) {
-    // In the list of automations: one of them, or (from a firing) the task it made, which is on the board.
-    if (this.automationsView) {
-      const a = S.automation(id);
-      if (a || !String(id).includes("/")) { if (a) this.autoSel = a.id; this.autoOpen = !!open && !!a; this.autoAt = -1; this.editing = null; return; }
-      this.autoGo(String(id));
-      if (this.automationsView) return; // that task is gone: the board said so
-    }
-    this.stick = ""; this.full = false;
+    // From a firing of the automation that is open: to the task it made, which may be in the archive (autoGo).
+    const fromFiring = this.autoOpen && !!this.auto() && !this.autos.some((a) => a.row === id);
+    if (fromFiring) { this.autoGo(String(id)); if (this.autoOpen) return; } // still open: that task is gone, and the board said so
+    this.stick = ""; this.full = false; this.autoOpen = false; this.autoAt = -1; this.editing = null;
     this.load(); // the task may be newer than the last look
-    if ([...this.items, ...this.jobs].some((r) => r.id === id)) this.sel = String(id);
-    this.full = !!open && !!(this.current() || this.job()); this.panelTop = 0;
+    if (this.onBoard(id)) this.sel = String(id);
+    // An automation's row opens the automation, whole; a task's row the task.
+    if (this.auto()) this.autoOpen = !!open; else this.full = !!open && !!(this.current() || this.job());
+    this.panelTop = 0;
     this.load();
   }
   // An automation's settings page is the terminal board's (as a task's is): here the command changes them.
-  autoSettings(a) { this.flash(`Its settings are changed on the terminal board, or with: herdr-superwork set <name> <value> --automation "${a.name}"`, "yellow"); }
+  autoSettings(a) { this.flash(`Its settings are changed on ${a.host ? a.host : "the terminal board"}, or with: herdr-superwork set <name> <value> --automation "${a.name}"`, "yellow"); }
   // The web UI's own machines, and the one it is on: the board follows it there (web-pcs.js).
   seeWeb(web) { try { followWeb(this, web); } catch {} }
   find(text) { this.filter = String(text ?? "").trim().slice(0, 200); this.mode = "new"; this.load(); }

@@ -25,12 +25,35 @@ counts the rest (`↓ 73 more done (alt+d shows them)`) is under them, at the bo
 and `↓` follow the order shown (`PgUp` and `PgDn` go ten tasks at a time), and changing the grouping keeps the
 selected task selected. The archive (`Alt+A`) is a list of its own, newest first, and no part of this order.
 
+**The automations are the last group**, under the heading `automations`, below every task group (also when the
+list is grouped by repo); with none there is no heading. One row per automation: its mark (`↻`, no task's mark),
+its name, its trigger in plain words, the word `on` or `off`, and when it fires next or fired last:
+
+```
+ automations
+ ↻ Look for old dependencies    every 2h                               on    next in 2h
+ ↻ Release note after a merge   when a task is merged, in every repo   on    fired 2h ago
+ ↻ Nightly audit                daily 03:00                            off   never fired
+```
+
+`↑` and `↓` go from the last task on to them, and a click selects one. On such a row no task is selected, so the
+keys that act on a task do nothing and the row has keys of its own (open it, turn it on or off, fire it now, remove
+it, its settings), which the hint line shows: [automations](automations.md). One that is off is drawn as quietly
+as a done task, and says `off` in a word. Their columns stand under each other; in a window too narrow for one line
+each, every row of the group has two (the name, and under it the rest), as a narrow task row wraps instead of being
+cut. The repo is named on each row when the automations are not all in the repo the board is in, and the machine
+(`on otherbox`) on the board of every machine. Find (`Ctrl+F`) matches them too, by name, trigger or repo; the
+archive has none. No task gives way for them: where the list is longer than its room, the tasks fold as they
+always do and the automations are what is below.
+
 **The list says what it hides.** A list longer than its room keeps its last line to say how many tasks are not on
-the screen, folded ones included: `↓ 11 more`, and `↑ 4 more` once you have scrolled. A heading never stands with
+the screen, folded ones included: `↓ 11 more`, and `↑ 4 more` once you have scrolled. Automations that do not
+show are counted apart and by their name, so the line says what it is that is hidden: `↓ 3 more, 2 automations`,
+`↓ 7 automations`, `↑ 4 more, 1 automation`. A heading never stands with
 nothing under it at the bottom of the screen. (A list of fewer than eight lines keeps every line for tasks.)
 
-**The selected row has a mark.** Every line of it starts with a bar in the gutter (`▌`), in every list (tasks, the
-archive, the automations, the settings page, the `?` menu), on the theme's own tint. Where no background can be
+**The selected row has a mark.** Every line of it starts with a bar in the gutter (`▌`), in every list (tasks and
+automations, the archive, the settings page, the `?` menu), on the theme's own tint. Where no background can be
 painted (`NO_COLOR`, or a theme with none for it) the row is in inverse video instead, so which task the keys act on
 never hangs on colour. A click on a row selects it ([the mouse](mouse.md)). After you act on a task (put an agent on
 it, say yes, send it back, pin it) the selection follows that task to wherever it moves; when it leaves the list

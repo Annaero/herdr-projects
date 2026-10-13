@@ -1,5 +1,5 @@
 // The web board's data: the same list, panel, buttons, questions and words the terminal board has, read from the
-// board's own code, and a button that presses the board's own key. The automations too: their list, one of them
+// board's own code, and a button that presses the board's own key. The automations too: their group in the list, one of them
 // whole, the same actions, and a firing as a link to the task it made. And other machines: the web UI's PCs (below).
 // Last, what the second UI/UX check asked of the page: a draft that keeps who it is for, a merge with no filled yes,
 // a More menu of only what applies, no terminal key on the page, and sizes a thumb can hit.
@@ -151,52 +151,58 @@ test("other machines on the web board: their tasks show with the machine's name,
 const said = (r) => r.says.map((p) => p.t).join("");
 const texts = (part) => part.items.filter((x) => x.k === "text").map((x) => x.value.map((p) => p.t).join(""));
 
-test("the web board has the automations: the list, one of them whole, the buttons that turn it off, fire it and remove it, and a firing that goes to its task", async () => {
+test("the web board has the automations: the last group of its list, one of them whole, the buttons that turn it off, fire it and remove it, and a firing that goes to its task", async () => {
   const w = await world(); // a board of its own, after the shared one: the last test of this file
   try {
+    const v = new WebView({ cwd: w.root });
+    assert.deepEqual(snapshot(v).list.groups, []); assert.ok(!snapshot(v).menu.some((i) => /automation/.test(i.label))); // none: no group, and no key that shows a list of them
     const a = L.add({ name: "Look for old dependencies", prompt: "Check what is out of date.", trigger: parseSchedule("every 2h"), folder: w.root, settings: { "merge.by": "itself" } });
     const b = L.add({ name: "Release note", prompt: "Write it.", trigger: parseEvent("merged"), folder: w.root });
-    L.turn(b.id, false);
-    const v = new WebView({ cwd: w.root });
-    assert.ok(snapshot(v).menu.some((i) => i.id === "automations" && i.label === "show the automations"));
-    let s = CALLS.press.run(v, { id: "automations", role: "watch" }); // it only shows a list: a watching device may
-    assert.equal(s.flags.automations, true); assert.equal(s.list.head.where, "automations"); assert.equal(s.panel, null);
-    assert.deepEqual(s.list.groups.map((g) => [g.name, g.rows.length]), [["automations", 2]]);
-    const [one, two] = s.list.groups[0].rows;
-    assert.deepEqual([one.id, one.title, one.mark, one.color, one.strong, said(one)], [a.id, "Look for old dependencies", "✓", "green", true, "every 2h · proj · never fired · next in 2h"]);
-    assert.deepEqual([two.title, two.mark, two.quiet, said(two)], ["Release note  [off]", "○", true, "when a task is merged · proj · never fired"]); // off: its mark and the word
-    assert.equal(s.chat.name, "No Coordinator"); assert.match(s.send.place, /no Coordinator: nothing to type here/);
-    // tap one: it opens, whole, with its buttons
-    s = CALLS.pick.run(v, { id: a.id, open: true });
-    assert.deepEqual([s.panel.title, s.panel.automation, s.panel.task, s.flags.open], ["Look for old dependencies", true, false, true]);
+    L.turn(b.id, false); A.add(w.root, "Mine");
+    let s = CALLS.board.run(v, {});
+    assert.deepEqual(s.list.groups.map((g) => [g.name, g.rows.length, !!g.automations]), [["to do", 1, false], ["automations", 2, true]]); assert.equal(s.list.selected, "proj/1"); assert.equal(s.flags.automations, undefined); assert.equal(s.flags.onTask, true);
+    const [one, two] = s.list.groups[1].rows;
+    assert.deepEqual([one.id, one.title, one.mark, one.color, one.quiet, one.tag, said(one)], [`auto:${a.id}`, "Look for old dependencies", "↻", "green", false, "", "every 2h · on · next in 2h"]);
+    assert.deepEqual([two.title, two.mark, two.quiet, said(two)], ["Release note", "↻", true, "when a task is merged · off · never fired"]); // off: quiet, and the word
+    // on the page its row shows all of what it says, on any width: on or off and the firing are never in a clamped part
+    assert.deepEqual([one.automation, two.automation, s.list.groups[0].rows[0].automation], [true, true, undefined]);
+    assert.match(fs.readFileSync(new URL("../src/webui/page/board.css", import.meta.url), "utf8"), /\.sw-row\.is-automation \.sw-says \{ display: block; overflow: visible; -webkit-line-clamp: none; \}/);
+    // tap one: it opens, whole, with its buttons; a watching device may look
+    s = CALLS.pick.run(v, { id: one.id, open: true });
+    assert.deepEqual([s.list.selected, s.panel.title, s.panel.automation, s.panel.task, s.flags.open, s.canOpen], [one.id, "Look for old dependencies", true, false, true, false]);
     assert.deepEqual(s.panel.parts.map((p) => p.head), ["Status", "Prompt", "Settings", "Firings"]);
+    assert.equal(s.flags.onTask, false); // the chat's first line is no switch here: that key is the automation's own
+    assert.match(texts(s.panel.parts[2]).join(" "), /Changed with: herdr-superwork set <name> <value> --automation "Look for old dependencies"/); assert.doesNotMatch(JSON.stringify(s.panel), /ctrl\+/); // no terminal key on the page
     assert.deepEqual(s.panel.parts[0].items.filter((x) => x.k === "fact").map((x) => x.label), ["State", "Trigger", "Next", "Repo", "Last firing"]);
     assert.deepEqual(texts(s.panel.parts[1]), ["Check what is out of date."]); assert.equal(texts(s.panel.parts[2])[0], "merge.by  itself *");
-    assert.deepEqual(s.actions, [{ id: "talk", label: "turn this automation off" }, { id: "delegate", label: "run it now" }, { id: "stop", label: "remove it" }]);
+    assert.deepEqual(s.actions, [{ id: "talk", label: "turn this automation off" }, { id: "delegate", label: "fire it now" }, { id: "stop", label: "remove it" }]);
+    assert.ok(!s.menu.some((i) => ["archive", "pin", "stop"].includes(i.id))); // More has no entry that acts on a task
     assert.throws(() => CALLS.press.run(v, { id: "delegate", role: "watch" }), /This device can only watch/);
-    // run it now: a task is made and started, and the firing is a link to it
+    // fire it now: a task is made and started, and the firing is a link to it
     s = CALLS.press.run(v, { id: "delegate", ...drive });
-    assert.match(s.msg.text, /"Look for old dependencies" fired: #1 was added and an agent is on it\./); assert.equal(S.get("proj/1").stage, "starting");
+    assert.match(s.msg.text, /"Look for old dependencies" fired: #2 was added and an agent is on it\./); assert.equal(S.get("proj/2").stage, "starting"); assert.equal(s.list.selected, one.id);
     fire(a, { kind: "schedule" }); s = snapshot(v);
     const lines = s.panel.parts.find((p) => p.head === "Firings").items;
-    assert.deepEqual(lines.map((x) => x.go || ""), ["", "proj/1"]); assert.match(texts({ items: lines })[0], /skipped: its last task, proj\/1, is still being worked on/);
-    // off and on
-    s = CALLS.press.run(v, { id: "talk", ...drive }); assert.equal(S.automation(a.id).on, false); assert.equal(s.actions[0].label, "turn this automation on");
+    assert.deepEqual(lines.map((x) => x.go || ""), ["", "proj/2"]); assert.match(texts({ items: lines })[0], /skipped: its last task, proj\/2, is still being worked on/);
+    // off and on: off, the button that fires it is gone
+    s = CALLS.press.run(v, { id: "talk", ...drive }); assert.equal(S.automation(a.id).on, false); assert.deepEqual(s.actions.map((x) => x.label), ["turn this automation on", "remove it"]);
     CALLS.press.run(v, { id: "talk", ...drive }); assert.equal(S.automation(a.id).on, true);
     // its settings are the terminal board's page: here the board says how they are changed, and no key is swallowed after
-    s = CALLS.press.run(v, { id: "settings", ...drive }); assert.match(s.msg.text, /Its settings are changed on the terminal board, or with: herdr-superwork set <name> <value> --automation "Look for old dependencies"/); assert.equal(v.editing, null);
-    // the firing's link: to that task, on the board, open
-    s = CALLS.pick.run(v, { id: "proj/1", open: true });
-    assert.deepEqual([s.flags.automations, s.list.selected, s.panel.title, s.panel.task], [false, "proj/1", "Look for old dependencies", true]);
-    assert.ok(s.list.groups.flatMap((g) => g.rows).find((r) => r.id === "proj/1").title.endsWith("[auto]"));
+    s = CALLS.press.run(v, { id: "settings", ...drive }); assert.match(s.msg.text, /Its settings are changed on the terminal board, or with: herdr-superwork set <name> <value> --automation "Look for old dependencies"/); assert.ok(!v.editing);
+    // words typed while it is open are for the Coordinator's place, never for a task: the selection is as it was after
+    CALLS.send.run(v, { text: "Another one", to: { id: "", reply: false, scope: "" }, ...drive }); assert.equal(v.sel, one.id); assert.ok(S.list().some((t) => t.title === "Another one"));
+    // the firing's link: to that task, in the same list, open
+    s = CALLS.pick.run(v, { id: "proj/2", open: true });
+    assert.deepEqual([s.list.selected, s.panel.title, s.panel.task, s.panel.automation], ["proj/2", "Look for old dependencies", true, undefined]);
+    assert.ok(s.list.groups.flatMap((g) => g.rows).find((r) => r.id === "proj/2").title.endsWith("[auto]"));
     assert.ok(s.panel.parts[0].items.some((x) => x.k === "fact" && x.label === "Made by"));
     // remove: the same question, the same answers
-    CALLS.pick.run(v, { id: "proj/1", open: false }); CALLS.press.run(v, { id: "automations", ...drive }); CALLS.pick.run(v, { id: b.id, open: true });
+    CALLS.pick.run(v, { id: "proj/2", open: false }); CALLS.pick.run(v, { id: `auto:${b.id}`, open: true });
     s = CALLS.press.run(v, { id: "stop", ...drive }); assert.equal(s.ask.q, 'Remove the automation "Release note"? The tasks it made stay.');
     s = CALLS.press.run(v, { id: "sayYes", ...drive }); assert.deepEqual(S.automations().map((x) => x.name), ["Look for old dependencies"]); assert.equal(s.panel, null);
-    // closing an open one, and back to the board
-    CALLS.pick.run(v, { id: a.id, open: true }); s = CALLS.pick.run(v, { id: a.id, open: false }); assert.equal(s.panel, null); assert.equal(s.flags.automations, true);
-    s = CALLS.press.run(v, { id: "automations", role: "watch" }); assert.equal(s.flags.automations, false); assert.notEqual(s.list.head.where, "automations");
+    // closing an open one leaves it selected in the list; the last one removed takes the group with it
+    CALLS.pick.run(v, { id: one.id, open: true }); s = CALLS.pick.run(v, { id: one.id, open: false }); assert.equal(s.panel, null); assert.equal(s.flags.open, false); assert.equal(s.list.selected, one.id);
+    L.remove(a.id); s = CALLS.board.run(v, {}); assert.deepEqual(s.list.groups.map((g) => g.name).filter((n) => n === "automations"), []);
   } finally { w.cleanup(); }
 });
 
@@ -241,6 +247,8 @@ test("the web page's rows: the tag has a column of its own, so what a task says 
     assert.deepEqual(names(main), ["sw-id", "sw-line", "sw-says"]); // the tag beside the lines, never inside the first one
     assert.deepEqual(names(main.kids[1]), ["sw-title", "sw-time"]); assert.equal(main.kids[0].style, "min-width:4ch");
     assert.deepEqual(names(rowEl({ ...r, tag: "" }, { selected: false, onPick() {} }).kids[1]), ["sw-line", "sw-says"]);
+    // an automation's row is marked as one, so the styles show all of what it says; a task's row is not
+    assert.match(rowEl({ ...r, tag: "", automation: true }, { selected: false, onPick() {} }).className, /\bis-automation\b/); assert.doesNotMatch(rowEl(r, { selected: false, onPick() {} }).className, /is-automation/);
     const css = fs.readFileSync(new URL("../src/webui/page/board.css", import.meta.url), "utf8");
     assert.match(css, /\.sw-main \{ display: grid; grid-template-columns: auto minmax\(0, 1fr\)/); assert.match(css, /\.sw-main > \* \{ grid-column: 2; \}/); assert.match(css, /\.sw-no-tags \.sw-main > \.sw-id \{ display: none; \}/);
     // The tags give way together where the widest would leave a title fewer than 16 letters; a wider tag goes sooner.

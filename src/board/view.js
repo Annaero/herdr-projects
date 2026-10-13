@@ -42,6 +42,7 @@ import { PanelReport } from "./view/panel-report.js";
 import { PanelSettings } from "./view/panel-settings.js";
 import { PanelEdit } from "./view/panel-edit.js";
 import { WebUi } from "./view/web-ui.js";
+import { AutomationRows } from "./view/automation-rows.js";
 import { Automations } from "./view/automations.js";
 import { AutomationPanel } from "./view/automation-panel.js";
 
@@ -59,9 +60,9 @@ export class View {
   // as you move), the Coordinator otherwise.
   reply = false; replyId = ""; side = false; full = false; panelTop = 0; panelHeight = 1; panelLength = 0; width = 120;
   mode = "new"; menu = null; ask = null; byRepo = false; draftAway = null;
-  // The automations, a list of their own (view/automations.js): while it shows no task is selected, so what you type
-  // goes to the Coordinator. `autoOpen`: one automation, whole; `autoAt`: the firing picked there (-1: none).
-  automationsView = false; autoSel = ""; autoOpen = false; autoAt = -1; autoTop = 0;
+  // The automations, a group of the list (view/automation-rows.js): `autos` are the ones that show. On one's row no
+  // task is selected. `autoOpen`: the selected one, whole; `autoAt`: the firing picked there (-1: none).
+  autos = []; autoOpen = false; autoAt = -1;
   scope = ""; // whose board you see: "" this machine, "*" every machine, or one other machine by name
   remotes = {}; machinesAt = 0;
   filter = ""; msg = ""; msgKind = "overlay0";
@@ -144,7 +145,7 @@ export class View {
   flash(text, kind = "overlay0") { let said = clean(text); try { if (!/herdr-superwork \w/.test(said)) said = S.tagIds(said, Object.keys(S.knownRepos())); } catch {} this.msg = said; this.msgKind = kind; }
   value() { return this.input.getText(); }
   setValue(v) { this.input.setText(v); }
-  current() { return this.automationsView ? undefined : this.items.find((r) => r.id === this.sel); }
+  current() { return this.items.find((r) => r.id === this.sel); }
   job() { return this.jobs.find((j) => j.id === this.sel); }
   try(fn) { let ok = true; try { fn(); } catch (e) { ok = false; this.flash(e.message, "red"); } this.load(); return ok; }
 }
@@ -182,6 +183,7 @@ const PARTS = [
   PanelReport,
   PanelSettings,
   PanelEdit,
+  AutomationRows,
   Automations,
   AutomationPanel,
   WebUi,

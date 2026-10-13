@@ -71,7 +71,7 @@ export class Keys {
     }
     if (this.menu) return this.menuKey(data);
     if (this.editing && this.editKey(data)) return; // the settings page takes its own keys (panel-edit.js)
-    if (this.automationsView && this.autoKey(data)) return; // and so does the list of automations (automations.js)
+    if (this.auto() && this.autoKey(data)) return; // and so does an automation's row (automations.js)
     this.stick = "";
     if (this.input.isPasting || data.includes("\x1b[200~")) { this.input.handleInput(data); if (this.mode === "find") this.load(); return; }
     const text = this.value().trim();

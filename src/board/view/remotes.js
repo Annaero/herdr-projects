@@ -26,8 +26,8 @@ export class Remotes {
         m.busy = false;
         // One that did not answer is never an empty one: why it could not be read is kept, and shown where its tasks
         // would be (list.js: unreadLines).
-        if (j && Array.isArray(j.tasks)) { m.ok = true; m.why = null; m.version = j.version || ""; m.items = j.tasks.map((x) => ({ ...asRow(x), id: `${m.label}:${x.id}`, rid: x.id, host: m.label, machine: m })); }
-        else { m.ok = false; m.failAt = Date.now(); m.items = []; m.why = j ? R.notList(j, m) : why || R.unknown(m); }
+        if (j && Array.isArray(j.tasks)) { m.ok = true; m.why = null; m.version = j.version || ""; m.items = j.tasks.map((x) => ({ ...asRow(x), id: `${m.label}:${x.id}`, rid: x.id, host: m.label, machine: m })); m.autos = this.farAutos(m, j.automations); }
+        else { m.ok = false; m.failAt = Date.now(); m.items = []; m.autos = []; m.why = j ? R.notList(j, m) : why || R.unknown(m); }
         try { this.load(); } catch {} this.tui.requestRender();
       });
     }

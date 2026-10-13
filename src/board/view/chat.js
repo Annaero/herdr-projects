@@ -72,7 +72,6 @@ export class Chat {
     const far = this.scope && this.scope !== "*" && this.remotes[this.scope] ? this.scope : "";
     if (far) return { mark: t.fg("overlay0", t.mark("unknown")), color: "overlay0", name: `Coordinator on ${far}`, status: t.muted(`what you type goes to ${far}`), text: "" };
     // No Coordinator (it is off, its program is not installed, or herdr is not running): the same box adds tasks.
-    if (!this.canDispatch && this.automationsView) return { mark: t.fg("overlay0", t.mark("unknown")), color: "overlay0", name: "No Coordinator", status: t.muted("an automation is made from a shell: herdr-superwork automations add"), text: "" };
     if (!this.canDispatch) return { mark: t.fg("overlay0", "+"), color: "overlay0", name: "New task", status: t.muted("added word for word"), text: "" };
     const v = this.coord;
     const fresh = !!v.unseen && !this.chatOpen;

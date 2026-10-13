@@ -1,6 +1,7 @@
 // The settings page: every work setting of the selected task by its name, its value and the place it comes from.
 // Move to a row and change it; one key puts a row back to what it would be without this task's own answer.
 // An automation's settings are the same page (`editing.auto`): what its next task will have, and which rows are its own.
+// One on another machine is read from what that machine sent and changed there (remote/automations.js).
 import { truncateToWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import * as S from "../../store.js";
 import * as K from "../keys.js";
@@ -20,7 +21,7 @@ export class PanelEdit {
   // cannot apply to this task is not offered (fast mode for a program that has none, a repo's setting for a task
   // in no repo); one that is this task's own all the same still shows, so it can be put back.
   editRows(r) {
-    const all = this.editing?.auto ? L.settingRows(r) : settingsOf(r).filter((x) => x.kind === "work");
+    const all = this.editing?.auto ? this.autoSettingRows(r) : settingsOf(r).filter((x) => x.kind === "work");
     const program = (role) => S.agentOf(all.find((x) => x.name === `${role}.agent`)?.value).kind;
     const noFast = (x) => x.name.endsWith(".fast") && !hasFast(program(x.name.split(".")[0]));
     return all.filter((x) => x.own || !(noFast(x) || /^does (nothing|not apply)/.test(x.note || "")));
@@ -48,6 +49,7 @@ export class PanelEdit {
   // Save one row: a value, or undefined to put it back. A task on another machine is changed there.
   editSave(r, name, value) {
     if (r.archivedAt) return this.flash(READ_ONLY(), "yellow");
+    if (r.host && this.editing?.auto) return this.autoFar(r, "auto-set", { name, value }); // another machine's automation: changed there too
     if (r.host) return this.act(r, "set", { name, value });
     const out = this.editing?.auto ? (value === undefined ? L.unsetSetting(r.id, name) : L.setSetting(r.id, name, value)) : value === undefined ? S.unsetValue(name, { task: S.get(r.id) }) : S.setValue(name, value, { task: S.get(r.id) });
     this.flash(`${S.entryOf(name)?.label || name}: ${valueSay(out.value).split("\n")[0]}  (${out.from})`, "green");
@@ -55,8 +57,8 @@ export class PanelEdit {
   }
   // A key while the settings page is open. Returns true when the page took it.
   editKey(data) {
-    const e = this.editing, r = e.auto ? this.autoCurrent() : this.current();
-    if (!r || r.id !== e.id || !(e.auto ? this.autoOpen : this.full)) { this.editing = null; return false; }
+    const e = this.editing, r = e.auto ? this.auto() : this.current();
+    if (!r || (e.auto ? r.row : r.id) !== e.id || !(e.auto ? this.autoOpen : this.full)) { this.editing = null; return false; }
     const rows = this.editRows(r), row = rows[Math.min(e.at, rows.length - 1)];
     const esc = K.is(data, "back"), enter = data !== "\n" && K.is(data, "enter");
     if (e.typing) {

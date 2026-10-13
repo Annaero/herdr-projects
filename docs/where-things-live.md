@@ -111,7 +111,8 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `agent-pane.js` | A task's agent: what its pane shows, and going into its real herdr pane |
 | `ask.js` | The one question box: asking, what a merge question is about, and how it is drawn |
 | `automation-panel.js` | One automation, whole: beside the list and full screen |
-| `automations.js` | The automations, a list of their own behind its key, as the archive is: one row per automation (on or off, its name, its trigger in plain words, its repo, the last firing, the next one for a schedule), and what the… |
+| `automation-rows.js` | The automations in the main list: a group of their own below the task groups, under the heading `automations`, one row per automation: its name, its trigger in plain words, the word on or off, and when it fires next or… |
+| `automations.js` | What the keys do on an automation's row in the main list (automation-rows.js), and the hints and the ? menu's lines there: enter opens it (and, on a firing in an open one, goes to the task it made), space turns it on… |
 | `chat-scroll.js` | Scrolling the chat's message: which of its lines show while it is longer than its box, and the words that say so |
 | `chat-text.js` | A conversation's text as the lines of a box: each thing said under a line that names who said it, wrapped to the box, with markdown read as text (a list item's next lines stand under its words, code keeps its lines,… |
 | `chat.js` | The chat at the bottom: who it talks to, the line that names them, and their latest message |
@@ -121,7 +122,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `layout.js` | The whole screen: what goes where, and what gives way when the window is small |
 | `list.js` | The task list: which rows there are, which one is selected, the header line, and the list as drawn |
 | `menu.js` | The ? menu: every key of the board in its three groups, plain, ctrl and alt, each line with its key |
-| `mouse.js` | The mouse wheel and the click: the wheel scrolls the chat's message under the pointer and the whole-task page, and moves between tasks over the list; a click on a task's row selects it |
+| `mouse.js` | The mouse wheel and the click: the wheel scrolls the chat's message under the pointer and the whole-task page, and moves between tasks over the list; a click on a row (a task's, an automation's) selects it |
 | `osc.js` | The same tasks, told to the terminal (OSC 7501) |
 | `panel-edit.js` | The settings page: every work setting of the selected task by its name, its value and the place it comes from |
 | `panel-kit.js` | What every part of the task panel is drawn with: wrapped text, headlines, label-and-value rows, and the list of parts |
@@ -200,6 +201,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | File | Holds |
 |---|---|
+| `automations.js` | Another machine's automations: what this machine sends of its own when a board elsewhere asks for its list, and what it does when that board turns one on or off, fires it, removes it or changes one of its settings |
 | `check.js` | `herdr-superwork machines`: the check you can run |
 | `why.js` | Why another machine's tasks could not be read, and what to do about it |
 
@@ -248,7 +250,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | File | Holds |
 |---|---|
 | `access.js` | Who may use the board through the front door: only someone the web UI itself lets in |
-| `automations-model.js` | The automations for the web board: the list and one automation, whole, in the shapes the page already draws a task list and a task in (list-model.js, panel-model.js) |
+| `automations-model.js` | The automations for the web board: one's row in the list's last group, and one automation, whole, in the shapes the page already draws a task's row and a task in (list-model.js, panel-model.js) |
 | `command.js` | `herdr-superwork web-ui`: how the board in the herdr web UI stands, and the one setup step by hand |
 | `door.js` | The front door: a small server in front of the herdr web UI |
 | `find.js` | The herdr web UI plugin (devswha.herdr-web-ui): whether it is installed in this herdr, and the address its server listens on |

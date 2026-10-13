@@ -168,6 +168,8 @@
 .sw-host { color: var(--sw-dim); font-weight: var(--fw-regular, 400); }
 .sw-time { flex: none; color: var(--sw-dim); font-size: var(--fs-xs, 12px); font-variant-numeric: tabular-nums; }
 .sw-says { color: var(--sw-dim); font-size: var(--fs-sm, 13px); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* An automation's row says whether it is on and when it fires: all of it shows on any width, never two clamped lines. */
+.sw-row.is-automation .sw-says { display: block; overflow: visible; -webkit-line-clamp: none; }
 .sw-under { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1, 4px) var(--space-3, 12px); font-size: var(--fs-xs, 12px); margin-top: 2px; }
 .sw-meter { display: inline-flex; align-items: center; gap: var(--space-2, 8px); }
 .sw-bar { width: 72px; height: 4px; border-radius: var(--radius-pill, 999px); background: var(--sw-line); overflow: hidden; }

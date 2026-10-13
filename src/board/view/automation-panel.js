@@ -1,10 +1,10 @@
 // One automation, whole: beside the list and full screen. Its prompt, its trigger, where its tasks go, its settings
 // (the rows that are its own marked, as on a task), and its firings, newest first, each with the task it made. The
 // arrows pick a firing there, and enter on one goes to its task. Drawn with the task panel's own kit (panel-kit.js).
+// Another machine's automation is drawn from what that machine sent (automation-rows.js), with the machine named.
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import * as S from "../../store.js";
-import * as L from "../../automations/list.js";
-import { rowOf, firings, firingWords } from "../../automations/show.js";
+import { firingWords } from "../../automations/show.js";
 import { clean, short, when } from "./words.js";
 import { panelKit } from "./panel-kit.js";
 import { name as keyName } from "../keys.js";
@@ -18,15 +18,15 @@ export class AutomationPanel {
   // and one of them picked (`autoAt`).
   autoPanel(a, width, full = false) {
     const p = panelKit(this.theme, width), { t, dim, wrap, out, head, fact, parts, part, text } = p;
-    const r = rowOf(a), all = firings(a), own = L.settingRows(a).filter((x) => x.own);
+    const r = this.autoRow(a), all = this.autoFirings(a), own = this.autoOwn(a);
     part(wrap(clean(a.name)).map((l) => t.bold(l)));
     part([head("Status"),
       ...fact("State", a.on ? t.fg("green", `${t.mark("done")} ${t.bold("on")}`) : t.fg("yellow", `${t.mark("idle")} ${t.bold("off")}`) + (a.offWhy ? dim(` · ${a.offWhy}`) : dim(" · it never fires, and keeps everything"))),
       ...fact("Trigger", r.trigger), ...(r.next ? fact("Next", `${r.next} · ${when(a.nextAt)}`) : []),
-      ...fact("Repo", `${a.repo} · ${short(a.root)}`), ...fact("Last firing", r.last), ...(a.research ? fact("Research", "only · its tasks change nothing in the repo") : [])]);
+      ...(a.host ? fact("Machine", clean(a.host)) : []), ...fact("Repo", `${a.repo} · ${short(a.root)}`), ...fact("Last firing", r.last), ...(a.research ? fact("Research", "only · its tasks change nothing in the repo") : [])]);
     text("Prompt", wrap(a.prompt), 1);
     part([head("Settings"), ...(own.length ? own.flatMap((x) => wrap(`${x.name.padEnd(Math.max(...own.map((o) => o.name.length)))}  ${S.say(x.value).replace(/\s*\n\s*/g, " / ")} *`).map((l) => l.replace(/\*$/, t.fg("accent", "*")))) : wrap("None of its own: its tasks run on what any task would.").map(dim)),
-      ...(full ? wrap(`${own.length ? "* this automation's own, put on each task it makes. " : ""}${keyName("settings")} changes them: every setting, and the place each one comes from`).map((l) => dim(l).replace("*", t.fg("accent", "*"))) : [])]);
+      ...(full ? wrap(`${own.length ? "* this automation's own, put on each task it makes. " : ""}${!this.autoCanSet(a) || this.ctx.web ? `Changed ${a.host ? `on ${clean(a.host)}` : "with"}: herdr-superwork set <name> <value> --automation "${clean(a.name)}"` : `${keyName("settings")} changes them: every setting, and the place each one comes from`}`).map((l) => dim(l).replace("*", t.fg("accent", "*"))) : [])]);
     const shown = all.slice(0, full ? SHOWN : 5), lines = [head("Firings")], at = [];
     if (full) this.autoAt = Math.max(-1, Math.min(shown.length - 1, this.autoAt ?? -1));
     shown.forEach((f, n) => {
@@ -37,7 +37,7 @@ export class AutomationPanel {
       lines.push(...rows.map((l) => (here ? t.bold(l) : f.task ? l : dim(l))));
     });
     if (!all.length) lines.push(dim("None yet."));
-    if (all.length > shown.length) lines.push(...wrap(`… ${all.length - shown.length} more: herdr-superwork automations firings "${a.name}"`).map(dim));
+    if (all.length > shown.length || (a.host && all.length >= SHOWN)) lines.push(...wrap(`… ${a.host ? "every one" : `${all.length - shown.length} more`}: herdr-superwork automations firings "${a.name}"${a.host ? ` (on ${clean(a.host)})` : ""}`).map(dim));
     const firingsPart = part(lines);
     const body = ["", ...parts.filter((s) => s.lines.length).flatMap((s, n) => (n ? ["", ...s.lines] : s.lines))];
     const from = body.length - firingsPart.lines.length;
@@ -45,7 +45,7 @@ export class AutomationPanel {
   }
   // The whole automation, full screen, or its settings page (panel-edit.js) in its place.
   autoFull(a, width, h) {
-    const t = this.theme, editing = this.editing?.auto && this.editing.id === a.id;
+    const t = this.theme, editing = this.editing?.auto && this.editing.id === a.row;
     const drawn = editing ? null : this.autoPanel(a, Math.min(width, READ), true), lines = editing ? this.settingsPage(a, Math.min(width, READ)) : drawn.lines;
     this.panelHeight = Math.max(1, h - 2); this.panelLength = lines.length;
     const keep = editing ? this.editLine : this.autoAt >= 0 ? drawn.at[this.autoAt] : -1; // the picked row stays on screen

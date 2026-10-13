@@ -36,7 +36,6 @@ function note(text) { const n = part("note"); n.textContent = text || ""; n.hidd
 function chips() {
   const f = snap.flags, head = snap.list.head, out = [];
   const chip = (text, title, fn) => h("button.sw-chip", { type: "button", title, onclick: fn }, text, h("span.sw-chip-x", { "aria-hidden": "true" }, "×"));
-  if (f.automations) out.push(chip("Automations", "Back to the board", () => press("automations")));
   if (f.archive) out.push(chip("Archive", "Back to the board", () => press("archiveView")));
   if (f.filter) out.push(chip(`Find: ${f.filter}`, "Clear the filter", () => call("find", { text: "" })));
   if (head.machines) out.push(chip(`All machines: ${head.machines}`, "Change whose board you see", () => press("scope")));

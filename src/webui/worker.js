@@ -8,7 +8,7 @@ import { WebView } from "./web-view.js";
 import { listOf } from "./list-model.js";
 import { panelOf } from "./panel-model.js";
 import { sideOf } from "./side-model.js";
-import { autoListOf, autoPanelOf } from "./automations-model.js";
+import { autoPanelOf } from "./automations-model.js";
 
 // One board per browser that has it open; one nobody asked for in ten minutes is let go.
 const views = new Map();
@@ -24,8 +24,9 @@ export function viewOf(client, make = () => new WebView()) {
 // Everything the page shows, and a short mark of it: a page that already has this one is told only that.
 export function snapshot(v, have = "") {
   const r = v.current() || v.job() || null;
-  // The automations are a list of their own, in the task list's place (automations-model.js).
-  const data = v.automationsView ? { list: autoListOf(v), panel: v.autoOpen ? autoPanelOf(v) : null, ...sideOf(v) } : { list: listOf(v), panel: v.full ? panelOf(v, r) : null, ...sideOf(v) };
+  // An automation's row opens the automation, whole, where a task's opens the task (automations-model.js).
+  const a = v.auto();
+  const data = { list: listOf(v), panel: a && v.autoOpen ? autoPanelOf(v, a) : v.full ? panelOf(v, r) : null, ...sideOf(v) };
   const mark = createHash("sha1").update(JSON.stringify(data)).digest("base64url").slice(0, 16);
   return mark === have ? { same: true, mark } : { ...data, mark };
 }

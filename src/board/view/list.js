@@ -1,4 +1,5 @@
-// The task list: which rows there are, which one is selected, the header line, and the list as drawn.
+// The task list: which rows there are, which one is selected, the header line, and the list as drawn. The automations
+// are its last group (automation-rows.js).
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import os from "node:os";
 import * as S from "../../store.js";
@@ -9,6 +10,7 @@ import { short, repoLabel } from "./words.js";
 import { GROUPS, GROUP_COLOR, groupOf, asRow, isLive } from "./states.js";
 import { name as keyName } from "../keys.js";
 import { tallAt } from "./row-tall.js";
+import { AUTOMATIONS } from "./automation-rows.js";
 
 // A long done list folds to its latest few. A list taller than its room shows fewer still, down to one.
 const DONE_SHOWN = 5;
@@ -42,8 +44,9 @@ export class List {
     this.grouped = { groups, whole: this.allDone || !!f };
     // What is typed is a task's own number or tag: the selection goes to that task, among whatever else matches.
     if (f && layout !== this.selectionLayout) { const exact = shown.find((r) => tags(r).includes(f)); if (exact) this.sel = exact.id; }
+    this.autos = this.autosShown(f); // the automations, a group of their own under the tasks (automation-rows.js)
     const rows = this.rows = this.foldRows();
-    const selectable = [...rows.filter((r) => r.rec).map((r) => r.rec), ...this.jobs];
+    const selectable = [...rows.filter((r) => r.rec).map((r) => r.rec), ...this.autos.map((a) => ({ id: a.row, state: "automation", created: a.created })), ...this.jobs];
     // Only the selected task's ordering data matters. New rows, progress updates and other tasks moving must not
     // steal selection.
     const base = new Map(this.items.map((r, n) => [r.id, n]));
@@ -142,10 +145,12 @@ export class List {
     // Only for live rows: a list with none has nothing to keep in view, and scrolls as it always did.
     const live = rows.some((row) => row.rec && isLive(row.rec));
     while (live && todos > 1 && over(rows)) rows = lay(keep, --todos);
-    return rows;
+    // The automations come last and fold nothing: no task gives way for them. Where the list is longer than its
+    // room they are what is below it, and its last line says how many (listLines).
+    return this.autos?.length ? [...rows, { header: AUTOMATIONS, autos: true }, ...this.autos.map((a) => ({ auto: a }))] : rows;
   }
   move(d) {
-    const ids = [...(this.steps || this.rows.filter((r) => r.rec).map((r) => r.rec.id)), ...this.jobs.map((j) => j.id)]; // the dispatcher's rows sit below the list
+    const ids = [...(this.steps || this.rows.filter((r) => r.rec).map((r) => r.rec.id)), ...(this.autos || []).map((a) => a.row), ...this.jobs.map((j) => j.id)]; // the automations are under the tasks, the dispatcher's rows below the list
     // No task to move to: what the list says instead (why a machine does not answer) scrolls. Words on their way
     // to that machine have rows below it: down reaches them after the last line, up leaves them from the first.
     const at = ids.indexOf(this.sel), top = this.unreadTop || 0, max = this.unreadMax || 0;
@@ -210,11 +215,12 @@ export class List {
     // One layout for the displayed list, across groups and outside the scroll viewport: the columns line up down the
     // whole list. What is shown of them is decided one group at a time, under each heading.
     const sections = [];
-    for (const row of this.rows) { if (row.header || !sections.length) sections.push([]); if (row.rec) sections.at(-1).push(row.rec); }
-    const layout = this.rowLayout(sections.flat(), width, sections, screen);
+    for (const row of this.rows) { if ((row.header && !row.autos) || !sections.length) sections.push([]); if (row.rec) sections.at(-1).push(row.rec); }
+    const layout = this.rowLayout(sections.flat(), width, sections, screen), autoLay = this.autos?.length ? this.autoLayout(width) : null;
     this.rows.forEach((row) => {
-      if (row.header) lines.push({ text: "", sel: false, head: true }, { text: " " + (this.byRepo ? t.bold(t.fg("subtext0", repoLabel(row.header))) : t.fg(GROUP_COLOR[row.header] || "subtext0", row.header)), sel: false, head: true });
+      if (row.header) lines.push({ text: "", sel: false, head: true }, { text: " " + (row.autos ? t.fg("subtext0", row.header) : this.byRepo ? t.bold(t.fg("subtext0", repoLabel(row.header))) : t.fg(GROUP_COLOR[row.header] || "subtext0", row.header)), sel: false, head: true });
       else if (row.note) lines.push({ text: "   " + t.fg("overlay0", row.note), sel: false });
+      else if (row.auto) this.autoRowLines(row.auto, width, autoLay).forEach((text, n, all) => lines.push({ text, sel: row.auto.row === this.sel, n, rest: all.length - n, id: row.auto.row, auto: true }));
       // A row of more than one line (a live task's, a wrapped name) is the selected row's in all of them: the highlight covers them.
       else this.rowLines(row.rec, width, layout).forEach((text, n, all) => lines.push({ text, sel: row.rec.id === this.sel, n, rest: all.length - n, id: row.rec.id }));
     });
@@ -241,11 +247,15 @@ export class List {
     const out = shown.map((l) => (l.sel ? this.hl(l.text, width) : l.text));
     while (out.length < h) out.push("");
     if (cutAny) {
-      const all = [...new Set(lines.filter((l) => l.id).map((l) => l.id))], seen = all.filter((id) => this.listIds.includes(id));
-      // Counted in tasks, the folded ones too: every task of the list that is not on the screen.
+      const ids = (auto) => [...new Set(lines.filter((l) => l.id && !!l.auto === auto).map((l) => l.id))], on = (list) => list.filter((id) => this.listIds.includes(id));
+      const all = ids(false), seen = on(all), autos = ids(true), autosSeen = on(autos);
+      // Counted in tasks, the folded ones too: every task of the list that is not on the screen. The automations are
+      // counted apart and by their name, so the line says what it is that does not show.
       const total = this.grouped ? this.grouped.groups.reduce((sum, [, recs]) => sum + recs.length, 0) : all.length;
-      const above = seen.length ? all.indexOf(seen[0]) : 0, below = Math.max(0, total - seen.length - above);
-      const note = [below && `↓ ${below} more`, above && `↑ ${above} more`].filter(Boolean).join(" · ");
+      const above = seen.length ? all.indexOf(seen[0]) : autosSeen.length ? total : 0, below = Math.max(0, total - seen.length - above);
+      const autosAbove = autosSeen.length ? autos.indexOf(autosSeen[0]) : 0, autosBelow = autos.length - autosSeen.length - autosAbove;
+      const said = (arrow, n, a) => (n || a ? `${arrow} ${[n && `${n} more`, a && `${a} automation${a === 1 ? "" : "s"}`].filter(Boolean).join(", ")}` : "");
+      const note = [said("↓", below, autosBelow), said("↑", above, autosAbove)].filter(Boolean).join(" · ");
       out[h - 1] = note ? " " + t.fg("overlay0", truncateToWidth(note, Math.max(1, width - 1), "…")) : "";
     }
     return out;

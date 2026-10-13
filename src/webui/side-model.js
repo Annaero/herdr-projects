@@ -35,7 +35,7 @@ export function sideOf(v) {
     // More: only what applies now and is not a button already, in the buttons' own words. A key with no button on
     // the page (the settings page, the terminal's size) has no entry; yes and send back are buttons when they apply.
     menu: (() => { try { return v.menuItems().filter((i) => !TERMINAL_ONLY.includes(i.id) && !!K.KEY[i.id]?.web && !["yes", "sendBack"].includes(i.id) && (i.id !== "undo" || !!v.draftAway || !!v.archiveUndo) && (!["stop", "archive", "pin"].includes(i.id) || !!r)).map((i) => ({ id: i.id, group: i.group, label: String(i.label || "") })); } catch { return []; } })(),
-    flags: { automations: !!v.automationsView, archive: !!v.archiveView, byRepo: !!v.byRepo, allDone: !!v.allDone, scope: v.scope || "", reply: !!v.reply, open: !!(v.automationsView ? v.autoOpen : v.full), filter: v.filter || "" },
+    flags: { onTask: !!r, archive: !!v.archiveView, byRepo: !!v.byRepo, allDone: !!v.allDone, scope: v.scope || "", reply: !!v.reply, open: !!(v.full || v.autoOpen), filter: v.filter || "" },
     // The selected task has an agent whose pane the web UI can show: on this machine, or on another of its PCs.
     canOpen: !!r && r.title !== undefined && !r.archivedAt && (r.host ? !!r.link?.pane : isAgent(r)),
     go: v.go || null,

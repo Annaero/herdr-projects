@@ -81,8 +81,8 @@ The bottom line shows only what matters right now, the main thing first, at most
 | Typing to the Coordinator | `enter send to the Coordinator · tab send, and put an agent on what it adds · shift+enter new line · esc put away` |
 | The whole task | `… · ↑↓ scroll the task · esc back to the list` |
 | The archive | `ctrl+a restore this task · ctrl+x remove this task · esc back to the board · ? all keys` |
-| The automations | `space turn this automation off · tab run it now · ctrl+x remove it · enter open it · esc back to the board` |
-| One automation, whole | `↑↓ pick a firing · enter go to its task · space turn this automation off · tab run it now · esc back to the list` |
+| An automation's row | `enter open this automation · space turn this automation off · tab fire it now · ctrl+x remove it · ctrl+e its settings · ? all keys` (off: `space turn this automation on`, and no `tab`, which would fire nothing) |
+| One automation, whole | `↑↓ pick a firing · enter go to its task · space turn this automation off · tab fire it now · esc back to the list` (`enter` only on a firing that made a task) |
 | Find | `enter keep the filter · esc cancel` |
 | The `?` menu | `↑↓ pick a key · enter press it · esc close the menu` |
 | Words on their way to another machine | `ctrl+x stop sending this · enter take the words back to change · ? all keys` |
@@ -114,11 +114,11 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 
 | Key | Does |
 |---|---|
-| `↑` `↓` | move between tasks |
+| `↑` `↓` | move between tasks, and on to the automations under them |
 | `Pgup` `Pgdn` | a page up or down: ten tasks in the list, a page of text in the whole task |
-| `Enter` | send what you typed; with nothing typed, open the task's agent: its real herdr pane. The board keeps running in its own tab and is there as you left it; your key goes back to it (as a popup it closes, and your key opens it again where it was) |
-| `Space` | flip who you talk to: the selected task's agent, and back to the Coordinator. The chat says who. Nothing else changes it: while it is a task's agent, moving with `↑` `↓` makes it the agent of the task you moved to. On a task with no agent, your message puts one on it |
-| `Tab` | put an agent on the task. With text typed for the Coordinator: send it, and every task it adds from that message gets an agent at once, with nothing more to confirm (a message that adds no task delegates nothing) |
+| `Enter` | send what you typed; with nothing typed, open the task's agent: its real herdr pane. The board keeps running in its own tab and is there as you left it; your key goes back to it (as a popup it closes, and your key opens it again where it was). On an automation's row: open the automation, whole ([automations.md](automations.md)) |
+| `Space` | flip who you talk to: the selected task's agent, and back to the Coordinator. The chat says who. Nothing else changes it: while it is a task's agent, moving with `↑` `↓` makes it the agent of the task you moved to. On a task with no agent, your message puts one on it. On an automation's row: turn the automation on or off |
+| `Tab` | put an agent on the task. With text typed for the Coordinator: send it, and every task it adds from that message gets an agent at once, with nothing more to confirm (a message that adds no task delegates nothing). On an automation's row: fire the automation now |
 | `Esc` | back, one step at a time, and nothing else: find is left, a draft is put away, then the whole task, the filter and the archive close. With none of those left it shows the same hint as `Ctrl+C`; the board as a popup (`board.open`) closes on it. It never shows or hides the chat and never changes who you talk to |
 | `?` | the menu: every key in these three groups, each line with its key. A ctrl or alt line can be picked with `↑` `↓` and `Enter`, which does what its key does. It opens with no line picked. Under the keys, what a row shows: each mark with its word, the numbers on the right, and what the colour of a review tag and of a pull request say. Every line is whole (a long one wraps); where the window is too short for all of it the last line says how many lines are below, and `↓` on the last key scrolls on down, `↑` on the first scrolls up |
 | `y` `n` | answer a question the board asks: `y` yes, `n` or `Esc` no. Only while a question is up; `Enter` never confirms |
@@ -129,10 +129,10 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 |---|---|
 | `Ctrl+L` | yes, to whatever the task waits for: approve the merge (it asks first), say yes to the agent, retry the step that went wrong as it stands, or take work that stopped without a summary as it is |
 | `Ctrl+R` | send it back: whatever went wrong (a failed check, a conflict, an error, a review with findings) goes to the task's agent to fix; a stopped agent is told to continue |
-| `Ctrl+X` | stop the agent, when one is running (working, starting, checking, under review, or waiting for your answer); the selection stays on that row. On a task with no agent running (idle, never started, stopped, finished, archived) it asks to remove the task instead: `y` removes it, its worktree too. A task you marked as your own work in progress has no agent to stop: there the key puts it back in to do. A stop never goes on to that question by itself: removing takes a second `Ctrl+X`, and a `y` |
+| `Ctrl+X` | stop the agent, when one is running (working, starting, checking, under review, or waiting for your answer); the selection stays on that row. On a task with no agent running (idle, never started, stopped, finished, archived) it asks to remove the task instead: `y` removes it, its worktree too. A task you marked as your own work in progress has no agent to stop: there the key puts it back in to do. A stop never goes on to that question by itself: removing takes a second `Ctrl+X`, and a `y`. On an automation's row: remove the automation (it asks first; the tasks it made stay) |
 | `Ctrl+A` | archive the selected task, or restore it from the archive |
 | `Ctrl+P` | pin the selected task to the top, or unpin it |
-| `Ctrl+E` `Ctrl+U` | the selected task's settings, full screen: every work setting by its name, its value, and the place it comes from (this task, your entry for its repo, you, the repo's file, built in). `↑` `↓` move to a row; `Enter` changes it (a switch or a choice goes to its next value, anything else is typed and saved with `Enter`); rows that are this task's own are marked `*`. `Ctrl+U` puts the selected row back to what it would be without this task's own answer. `Esc` or `Ctrl+E` again goes back ([settings.md](settings.md)) |
+| `Ctrl+E` `Ctrl+U` | the selected task's settings, full screen: every work setting by its name, its value, and the place it comes from (this task, your entry for its repo, you, the repo's file, built in). `↑` `↓` move to a row; `Enter` changes it (a switch or a choice goes to its next value, anything else is typed and saved with `Enter`); rows that are this task's own are marked `*`. `Ctrl+U` puts the selected row back to what it would be without this task's own answer. `Esc` or `Ctrl+E` again goes back ([settings.md](settings.md)). On an automation's row: the automation's own settings, the same page |
 | `Ctrl+Z` | undo: bring back a draft that was put away, or take the last archiving back |
 | `Ctrl+F` | find: type, and the list shows only the tasks that match, archived ones too. `Enter` keeps the filter, `Esc` leaves find; `Esc` on the list clears a filter that is kept |
 | `Ctrl+K` | only while a remote view holds the board's terminal at another size than herdr shows it (the line at the top says so): end that view, so the board has its own size again ([board-size.md](board-size.md)) |
@@ -144,10 +144,9 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 |---|---|
 | `Alt+C` | the chat's latest message, the Coordinator's or a task agent's. The one key for it, both ways |
 | `Alt+U` `Alt+J` | more of a chat message that is longer than its box: `Alt+U` scrolls it up, `Alt+J` down, half a box at a time, also while you type. The box says where there is more, and names the key (`alt+u more ↑`, `alt+j more ↓`). The mouse wheel does the same with the pointer over the chat ([mouse.md](mouse.md)) |
-| `Alt+P` | the side panel: the selected task, beside the list |
-| `Alt+T` | the whole task, full screen, and back to the list |
+| `Alt+P` | the side panel: the selected task or automation, beside the list |
+| `Alt+T` | the whole task (on an automation's row: the whole automation), full screen, and back to the list |
 | `Alt+A` | the archive, and back to the board |
-| `Alt+O` | the automations, and back to the board: tasks made on a schedule or when something happens on the board, in a list of their own. There `↑` `↓` move between them, `Enter` opens the selected one (its prompt, its trigger, its settings, its firings: `↑` `↓` pick a firing and `Enter` goes to the task it made), `Space` turns it on or off, `Tab` fires it now, `Ctrl+X` removes it (it asks first) and `Ctrl+E` opens its settings, as a task's. What you type goes to the Coordinator, which makes and rewords them ([automations.md](automations.md)) |
 | `Alt+S` | the list grouped by repo, each group under its repo's name (a row's tag never names a repo), or by status |
 | `Alt+D` | every done task, or only the latest |
 | `Alt+M` | other machines: this machine only, every machine, then each machine by itself |

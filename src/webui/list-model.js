@@ -1,6 +1,6 @@
 // The task list for the web board: the groups and rows the terminal board shows, in its order, each row with the
 // mark, the words, the columns and the colours the board's own row code gives it (view/row.js through a web theme).
-// The page draws what is here and works nothing out.
+// The automations are its last group, one row each. The page draws what is here and works nothing out.
 import os from "node:os";
 import * as S from "../store.js";
 import { currentSocket, sessionName } from "../herdr.js";
@@ -9,6 +9,7 @@ import { idLabel, repoLabel } from "../board/view/words.js";
 import { tagCells } from "../board/view/row-number.js";
 import { webURL } from "../review-page.js";
 import { pieces, plain } from "./ink.js";
+import { autoRowOf } from "./automations-model.js";
 
 export function rowOf(v, r, now = Date.now()) {
   const f = v.rowFields(r, now), mark = pieces(v.mark(r))[0] || { t: "·" };
@@ -25,9 +26,11 @@ export function rowOf(v, r, now = Date.now()) {
 }
 
 export function listOf(v) {
-  const now = Date.now(), groups = [];
+  const now = Date.now(), groups = [], repos = v.autos.length ? v.autoLayout(4000).repos : false;
   for (const row of v.rows) {
-    if (row.header) groups.push({ name: v.byRepo ? repoLabel(row.header) : row.header, color: v.byRepo ? "subtext0" : GROUP_COLOR[row.header] || "subtext0", repo: !!v.byRepo, rows: [], more: 0 });
+    if (row.autos) groups.push({ name: row.header, color: "subtext0", repo: false, automations: true, rows: [], more: 0 }); // the last group (automations-model.js)
+    else if (row.auto) groups.at(-1)?.rows.push(autoRowOf(v, row.auto, now, repos));
+    else if (row.header) groups.push({ name: v.byRepo ? repoLabel(row.header) : row.header, color: v.byRepo ? "subtext0" : GROUP_COLOR[row.header] || "subtext0", repo: !!v.byRepo, rows: [], more: 0 });
     else if (row.rec) groups.at(-1)?.rows.push(rowOf(v, row.rec, now));
     else if (row.note && groups.length) groups.at(-1).more = Number((/(\d+) more/.exec(row.note) || [])[1]) || 0;
   }

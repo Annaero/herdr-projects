@@ -45,7 +45,7 @@ export class TextBox {
     if (this.value()) { if (!this.input.above) lines[0] = this.toEdge(r, width, (s) => t.fg(tone, s)) || lines[0]; return lines; }
     const place = this.editing ? (this.editing.typing ? "type the new value" : "pick a setting above") : this.mode === "find" ? "type to filter, archived tasks too"
       : replying ? (r.archivedAt ? "archived: read-only" : isAgent(r) ? sendTo(AGENT_TAB) + (reviewing(r) ? ": it stops the review" : "") : !r.host && ["todo", "progress"].includes(r.stage) ? "your message starts an agent on it" : this.canDispatch || r.host ? sendTo(COORDINATOR_TAB) : "what should change?")
-      : this.automationsView ? this.autoPlace() : this.talksToCoord ? sendTo(COORDINATOR_TAB) : "Add a task";
+      : this.talksToCoord ? sendTo(COORDINATOR_TAB) : "Add a task";
     // The placeholder never runs past the box: it is cut with … like any other greyed line.
     const shown = truncateToWidth(place, Math.max(1, width - visibleWidth(label) - 1), "…");
     lines[1] = `${label} ${this.focused ? CURSOR_MARKER : ""}${t.inverse(shown[0])}${t.muted(shown.slice(1))}`;

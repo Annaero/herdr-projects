@@ -76,10 +76,13 @@ export function chatEl({ onSend, onPress }) {
       const c = snap.chat;
       el.hidden = !c;
       if (!c) return;
+      // The first line switches who you talk to only on a task's row: on an automation's row that key is the
+      // automation's own (it turns it on or off), so the line is no button there.
+      const onTask = !!snap.list.selected && snap.flags?.onTask !== false;
       // Only what there is: replaceChildren would write a missing part out as the word "null".
       who.replaceChildren(...[markEl(c.mark.t, c.mark.c), c.tag ? h("span.sw-id", c.tag) : null, h("span.sw-who-name", c.name), h("span.sw-who-status", [c.status, c.progress].filter(Boolean).join("  ")),
-        snap.list.selected && snap.panel?.task !== false ? h("span.sw-who-flip", c.toAgent ? "Talk to the Coordinator" : "Talk to this task's agent") : null].filter(Boolean));
-      who.disabled = !snap.list.selected;
+        onTask && snap.panel?.task !== false ? h("span.sw-who-flip", c.toAgent ? "Talk to the Coordinator" : "Talk to this task's agent") : null].filter(Boolean));
+      who.disabled = !onTask;
       note.hidden = !c.note; note.textContent = c.note;
       const fresh = c.text !== last;
       if (fresh) { last = c.text; open = false; parts = c.parts && c.parts.length ? c.parts : c.text ? [{ by: "", text: c.text, mine: c.mine, raw: c.raw, tone: c.tone }] : []; }

@@ -50,7 +50,8 @@ export class Layout {
       // On a page that is read (the whole task, the settings, the menu) and in a window of only a few lines the chat
       // folds to its head line, as its own key folds it, so the page or the list has the lines. A start that failed
       // still says why.
-      const fold = this.chatFolded = (!!this.full || !!this.menu || rowsN < 14) && !who?.always;
+      const auto = calm(() => this.auto(), null); // the selected row is an automation's (automation-rows.js)
+      const fold = this.chatFolded = (!!this.full || !!this.autoOpen || !!this.menu || rowsN < 14) && !who?.always;
       const framed = calm(() => !fold && !this.ask && this.chatUp(who) && !!who.said && width >= 8, false); // a frame only where there can be a message in it (and room for its two edges)
       // What just happened, on a line of its own: the hints below it stay readable.
       const stale = !this.stale ? "" : this.ctx.canReload === false ? "herdr-superwork was updated: close the board and open it again for the new version." : "herdr-superwork was updated: the new version loads when nothing is half typed.";
@@ -112,14 +113,14 @@ export class Layout {
       let top;
       this.listAt = null; // where the list is on the screen, for a click: only while it shows
       if (this.menu) top = safe("The menu", width, () => this.menuLines(width, h), [""]);
-      else if (this.automationsView) top = safe("The automations", width, () => this.autoScreen(width, h), [""]);
+      else if (auto && this.autoOpen) top = safe("The automation", width, () => this.autoFull(auto, width, h), [""]);
       else if (this.full && shown) top = safe("The task details", width, () => this.fullPanel(shown, width, h), [""]);
       else if (width >= WIDE && this.side) {
         // The task panel on the right, while you have it open, on herdr's sidebar colour when the theme gives it one.
         const paneW = Math.max(38, Math.min(70, Math.floor(width * 0.38)));
         const listW = width - paneW - 3;
         const left = safe("The list", listW, () => { const head = this.headLines(listW); this.listAt = [held.length + head.length, listW]; return [...head, ...this.listLines(listW, Math.max(1, h - head.length), width)]; }, [""]);
-        const right = shown ? safe("The task panel", paneW, () => this.panel(shown, paneW, false, h), [""]) : ["", " " + t.fg("overlay0", "Nothing selected.")];
+        const right = shown ? safe("The task panel", paneW, () => this.panel(shown, paneW, false, h), [""]) : auto ? safe("The automation", paneW, () => this.autoPanel(auto, paneW, false).lines, [""]) : ["", " " + t.fg("overlay0", "Nothing selected.")];
         top = Array.from({ length: h }, (_, i) => truncateToWidth(left[i] ?? "", listW, "…", true) + " " + t.fg("surface_dim", "│") + t.under("sidebar_bg", truncateToWidth(" " + (right[i] ?? ""), paneW + 1, "…", true)));
       } else top = safe("The list", width, () => { const head = this.headLines(width); this.listAt = [held.length + head.length, width]; return [...head, ...this.listLines(width, Math.max(1, h - head.length))]; }, [""]);
       bottom[bottom.length - 1] = hintLine();

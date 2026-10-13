@@ -2,12 +2,15 @@
 // comes from ../keys.js. A ctrl or alt line can be picked, which does what its key does.
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import * as K from "../keys.js";
+import { AUTO_HELP } from "./automations.js";
+import { AUTO_MARK } from "./automation-rows.js";
 
 export class Menu {
   // The lines that can be picked: every ctrl and alt key, as it stands for the selected task right now.
   menuItems() {
     const r = this.current();
-    if (this.automationsView) return this.autoMenuItems(); // the keys that do something in that list (automations.js)
+    const a = this.auto();
+    if (a) return this.autoMenuItems(a); // the keys that do something on an automation's row (automations.js)
     return K.KEYS.filter((k) => k.menu).map((k) => ({ id: k.id, group: k.group, key: K.name(k.id), label: k.menu(this, r), run: () => k.run(this, r) })).filter((i) => i.label); // a key that does nothing right now has no line
   }
   menuKey(data) {
@@ -36,12 +39,13 @@ export class Menu {
   menuLines(width, h) {
     const t = this.theme, items = this.menuItems(), r = this.current(), m = this.menu;
     m.at = Math.max(-1, Math.min(m.at, items.length - 1));
-    const plain = this.automationsView ? this.autoPlainHelp() : K.KEYS.filter((k) => k.group === "plain" && k.help).map((k) => [K.name(k.id, true), K.say(k.help)]);
+    const auto = this.auto(); // on an automation's row a few plain keys do something else (automations.js)
+    const plain = K.KEYS.filter((k) => k.group === "plain" && k.help).map((k) => [K.name(k.id, true), K.say((auto && AUTO_HELP[k.id]) || k.help)]);
     const col = Math.max(8, ...[...plain.map(([k]) => k), ...items.map((i) => i.key), "65% 2m left"].map((k) => visibleWidth(k) + 2)); // the widest key, or what stands in its place under "on a row"
     const room = Math.max(8, width - col - 4);
     // A key and what it does: the words wrap under their own start.
     const entry = (key, words, lead = "   ") => wrapTextWithAnsi(words, room).map((l, n) => lead + (n ? " ".repeat(col) : t.fg("text", key.padEnd(col))) + t.fg("overlay0", l));
-    const title = " " + t.bold("Menu") + (r ? t.fg("overlay0", `  for ${truncateToWidth(this.nameSay(r, 60), Math.max(8, width - 12), "…")}`) : "");
+    const title = " " + t.bold("Menu") + (r || auto ? t.fg("overlay0", `  for ${truncateToWidth(r ? this.nameSay(r, 60) : `the automation "${auto.name}"`, Math.max(8, width - 12), "…")}`) : "");
     const L = [];
     let picked = [0, 0];
     for (const [group, name] of K.GROUPS) {
@@ -58,17 +62,18 @@ export class Menu {
     }
     // What a row shows: each mark in its colour with its word, the numbers on the right, and the tags.
     const marks = [["yellow", t.mark("working"), "an agent works"], ["review", t.mark("review"), "its reviewer works"], ["check", t.mark("board"), "the board works on it (starts, checks, merges)"], ["red", t.mark("blocked", "question"), "asks you"], ["red", t.mark("blocked", "permission"), "asks for your OK"], ["red", t.mark("blocked", "auth"), "needs a login"], ["red", t.mark("error"), "went wrong"], ["green", t.mark("ready"), "ready to approve"], ["teal", t.mark("done"), "done"], ["todo", t.mark("idle"), "to do"]];
-    const legend = [], rows = !this.automationsView; // (the list of automations has no task rows to explain)
-    if (rows) L.push("", " " + t.fg("subtext0", "on a row"));
-    if (rows) for (const [c, mark, words] of marks) L.push(`   ${t.fg(c, mark.padEnd(col))}${t.fg("overlay0", words)}`);
-    if (rows) L.push(...entry("65% 2m left", "how far it is, and the time left; the time after it is how long it has worked, or how long ago it stopped"));
+    const legend = [];
+    L.push("", " " + t.fg("subtext0", "on a row"));
+    for (const [c, mark, words] of marks) L.push(`   ${t.fg(c, mark.padEnd(col))}${t.fg("overlay0", words)}`);
+    L.push(`   ${t.fg("green", AUTO_MARK.padEnd(col))}${t.fg("overlay0", "an automation (the word after it: on or off)")}`);
+    L.push(...entry("65% 2m left", "how far it is, and the time left; the time after it is how long it has worked, or how long ago it stopped"));
     // What a row's review tag says: each state is named in its colour, the tag's own.
     const words = [["overlay0", "the review it is on or last had, coloured by where it stands:"], ["green", "passed,"], ["red", "failed,"], ["review", "the reviewer working"]].flatMap(([c, x]) => x.split(" ").map((w) => [c, w]));
     const lineW = (l) => l.reduce((n, [, w]) => n + w.length + 1, -1), pad = col + 3;
     legend.push([]);
     for (const w of words) { const l = legend.at(-1); if (l.length && pad + lineW(l) + 1 + w[1].length > width) legend.push([w]); else l.push(w); }
-    if (rows) L.push(...legend.map((l, n) => (n ? " ".repeat(pad) : `   ${t.fg("text", "R#2".padEnd(col))}`) + l.map(([c, w]) => t.fg(c, w)).join(" ")));
-    if (rows) L.push(...entry("PR#16", "its pull request: green when its checks pass, red when they fail"), ...entry("[auto]", "made by an automation; [research]: research only, nothing is merged"));
+    L.push(...legend.map((l, n) => (n ? " ".repeat(pad) : `   ${t.fg("text", "R#2".padEnd(col))}`) + l.map(([c, w]) => t.fg(c, w)).join(" ")));
+    L.push(...entry("PR#16", "its pull request: green when its checks pass, red when they fail"), ...entry("[auto]", "made by an automation; [research]: research only, nothing is merged"));
     // The window: the title stays, and the picked line stays in view while the pick moves.
     const space = Math.max(1, h - 1), cut = L.length > space, view = cut ? Math.max(1, space - 1) : space;
     let top = Math.max(0, Math.min(m.top || 0, L.length - view));

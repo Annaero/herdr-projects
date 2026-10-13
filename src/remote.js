@@ -14,6 +14,7 @@ import * as F from "./flow.js";
 import { herdr } from "./herdr.js";
 import { landsOn } from "./sync.js";
 import { readAnswer, whyNot } from "./remote/why.js";
+import { automationsSent, isAutomationAction, automationDo } from "./remote/automations.js";
 export * from "./remote/why.js";
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
@@ -79,13 +80,15 @@ const snapshot = (t) => {
 // `said`, `usage` and `agentVersion` ride along on each task; `version` is this side's plugin version (a machine on
 // an older plugin sends none, and the asking side then knows which requests it would not understand). Pending
 // hook events are this machine's own and are not sent (nor is `announced`, a marker older versions left on tasks).
-export const remoteList = () => { const keys = S.repoKeys(); return { host: os.hostname(), version: S.VERSION, tasks: F.board({ includeArchived: true }).map((t) => { const { live, announced, events, ...rest } = t; return { ...rest, ...(keys[t.repo] ? { key: keys[t.repo] } : {}), snap: snapshot(t) }; }) }; };
+// `automations`: this machine's own, for the asking board's list (remote/automations.js).
+export const remoteList = () => { const keys = S.repoKeys(); return { host: os.hostname(), version: S.VERSION, automations: (() => { try { return automationsSent(); } catch { return []; } })(), tasks: F.board({ includeArchived: true }).map((t) => { const { live, announced, events, ...rest } = t; return { ...rest, ...(keys[t.repo] ? { key: keys[t.repo] } : {}), snap: snapshot(t) }; }) }; };
 export async function remoteMain([what, payload]) {
   const a = payload ? JSON.parse(Buffer.from(payload, "base64").toString("utf8")) : {};
   const say = (o) => process.stdout.write(JSON.stringify(o) + "\n");
   try {
     if (what === "list") return say(remoteList());
     if (what === "hello") return say({ ok: true, host: os.hostname(), version: S.VERSION }); // the check a machine runs on itself (remote/check.js)
+    if (what === "do" && isAutomationAction(a.action)) return say(automationDo(a)); // an automation of this machine, not a task
     if (what === "do") {
       const A = await import("./actions.js");
       let t = S.find(a.id);

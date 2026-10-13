@@ -7,7 +7,7 @@ import { hint, name } from "../keys.js";
 export class Hints {
   // What esc goes back from right now, with nothing typed: the whole task, then the filter, then the archive.
   // Nothing, where it would only show how the board closes.
-  escStep() { return this.full ? "back to the list" : this.filter ? "clear the filter" : this.archiveView ? "back to the board" : ""; }
+  escStep() { return this.full || this.autoOpen ? "back to the list" : this.filter ? "clear the filter" : this.archiveView ? "back to the board" : ""; }
   // The hint line: what matters right now, the main thing first, at most four. Each one says what the key does and
   // to what: "this task" is the selected one. A hint is [key, words], and may go on: whether it stays when only one
   // fits, and shorter words for a window too narrow for the usual ones (layout.js). What the screen already says is not said again here (the text
@@ -25,7 +25,6 @@ export class Hints {
     if (this.menu) return [[arrows, "pick a key"], [enter, "press it"], [esc, "close the menu"]];
     if (this.editing) return this.editHints(); // the settings page owns its keys, and its hints (panel-edit.js)
     if (this.mode === "find") return [[enter, "keep the filter"], [esc, "cancel"]];
-    if (this.automationsView) { const own = this.autoHints(); if (own) return own; } // the list of automations has its own (automations.js)
     const agentOn = !!r && isAgent(r);
     // While you type: what the keys do with your words. In a narrow window the new line goes first, and esc stays.
     if (this.value()) {
@@ -40,6 +39,8 @@ export class Hints {
     const leave = this.full ? [...(this.panelLength > this.panelHeight ? [[arrows, "scroll the task", true]] : []), ...back] : null;
     // Words on their way to another machine.
     if (this.job()) return [hint("stop", "stop sending this"), [enter, "take the words back to change"], ...(leave || [more])];
+    const auto = this.auto(); // an automation's row has its own keys, and its own hints (automations.js)
+    if (auto) return this.autoHints(auto, back, more);
     if (!r) return [...back, ...key, more];
     // Who you talk to is space's to flip back, never esc's. That hint is marked: it is the one way back, so in a
     // window too narrow for two hints it stays and the main thing goes (layout.js).

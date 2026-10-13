@@ -1,5 +1,5 @@
 // The mouse wheel and the click: the wheel scrolls the chat's message under the pointer and the whole-task page, and
-// moves between tasks over the list; a click on a task's row selects it. Nothing else of the mouse is the board's:
+// moves between tasks over the list; a click on a row (a task's, an automation's) selects it. Nothing else of the mouse is the board's:
 // selecting text and copying it are pi-tui's (main.js).
 
 // Lines of text one step of the wheel scrolls.
@@ -23,7 +23,7 @@ export class Mouse {
     const d = by < 0 ? -1 : 1, [from, to] = this.chatRows || [0, 0];
     if (y >= from && y < to) return this.scrollChat(by * WHEEL);
     if (this.menu) return this.menuStep(d);
-    if (this.full) return this.scrollPanelBy(by * WHEEL);
+    if (this.full || this.autoOpen) return this.scrollPanelBy(by * WHEEL);
     if (this.locked()) { this.topFree = true; this.top = Math.max(0, this.top + d * WHEEL); return; }
     this.stick = ""; this.move(d); this.syncReply();
   }
@@ -32,7 +32,7 @@ export class Mouse {
   // A click on a row of the list selects that task; on the selected one it does nothing more. Never while words
   // are in the box, a question is up, or another page shows. Answers whether the click was the board's.
   click(x, y) {
-    if (this.leaving || this.setup || this.ask || this.pasteText || this.menu || this.full || this.automationsView || !this.listAt) return false;
+    if (this.leaving || this.setup || this.ask || this.pasteText || this.menu || this.full || this.autoOpen || !this.listAt) return false;
     const [top, wide] = this.listAt, id = x < wide ? (this.listIds || [])[y - top] : "";
     if (!id) return false;
     if (this.locked()) { if (id !== this.sel) this.flash("Send or put away what you typed first: a click does not change who gets it."); return true; }
