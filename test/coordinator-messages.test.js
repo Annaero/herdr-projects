@@ -131,21 +131,24 @@ test("turning the Coordinator on while the board is open takes effect at once, a
 test("a start that fails loses nothing: a restart asked for meanwhile still happens, and a long launch line never reaches the shell", async () => {
   const w = await coordWorld({ coordinator: "codex" });
   try {
-    // Codex's flag for standing rules carries the text itself. The whole launch line must stay well under what a
-    // terminal takes on one line (4096 bytes): the flag points at a file, and your words go in as they are.
+    // The whole launch line must stay well under what a terminal takes on one line (4096 bytes): the rules ride on
+    // no flag (Codex's would carry the text itself), they are a file in its folder, and your words go in as they are.
     C.send(w.root, "hello"); await drainJobs(runJob);
     const agent = w.agents()[0].agent;
     assert.ok(["codex", ...agent.args].join(" ").length < 2000, "the launch line is short");
-    const flag = agent.args.at(-1);
-    assert.match(flag, /^developer_instructions="You are the Coordinator of the human's work board in herdr\. Your standing rules are in the file .*rules\.md: read it/);
-    assert.match(fs.readFileSync(/in the file (\S+rules\.md):/.exec(flag)[1], "utf8"), /board add "<short title/);
+    assert.ok(!agent.args.some((a) => /developer_instructions/.test(a)));
+    assert.match(fs.readFileSync(path.join(C.home(), "AGENTS.md"), "utf8"), /board add "<short title/);
     assert.equal(agent.prompts[0], "hello", "the rules are never put on what you say");
     C.send(w.root, "again"); await drainJobs(runJob);
     assert.equal(w.agents()[0].agent.prompts[1], "again");
     // A start that fails while you ask for a new one: the failure is said, and your request is still carried out.
-    const real = process.env.HERDR_BIN_PATH, failing = path.join(w.base, "herdr-failing");
-    fs.writeFileSync(failing, `#!/bin/sh\nif [ "$1 $2" = "agent start" ] && [ ! -e "${w.base}/ok" ]; then node -e 'const C = await import("${path.resolve("src/coordinator.js")}"); C.fresh(C.pickOf({ agent: "claude" }));' --input-type=module 2>/dev/null; touch "${w.base}/ok"; echo '{"error":{"code":"timeout","message":"the agent did not become ready"}}' >&2; exit 1; fi\nexec "${real}" "$@"\n`, { mode: 0o755 });
-    process.env.HERDR_BIN_PATH = failing;
+    // (Answered in this process, as every other herdr call of the tests is: the one start fails, and the "new" is asked for while it runs.)
+    const own = globalThis.__swHerdr, real = own.run; let failed = false;
+    own.run = (args, env) => {
+      if (failed || args[0] !== "agent" || args[1] !== "start") return real(args, env);
+      failed = true; C.fresh(C.pickOf({ agent: "claude" }));
+      return { status: 1, stdout: "", stderr: '{"error":{"code":"timeout","message":"the agent did not become ready"}}\n' };
+    };
     try {
       C.restart();
       const { pump } = C; globalThis.__swJobs.length = 0; pump(w.socket); // the restart's start fails; a "new" was asked for while it ran
@@ -153,7 +156,7 @@ test("a start that fails loses nothing: a restart asked for meanwhile still happ
       assert.equal(C.get().want?.what, "new", "the newer request survives the failure");
       assert.equal(C.get().pane, null, "the half-started pane is not reused");
       await drainJobs(runJob);
-    } finally { process.env.HERDR_BIN_PATH = real; }
+    } finally { own.run = real; }
     assert.equal(w.agents().length, 1); assert.equal(w.agents()[0].agent.kind, "claude"); assert.ok(!C.get().want); assert.equal(C.look().state, "idle");
     assert.equal(C.look().error, "", "the failure of the start it replaced is not shown over a Coordinator that is there");
     const s = open(w); assert.doesNotMatch(s.text(), /could not be started/); assert.match(s.text(), /Coordinator {2}idle/);
@@ -190,21 +193,20 @@ test("stop leaves it stopped, also with words still waiting: they go in with you
 
 test("a stop asked for while a message is going in holds back the ones still waiting", async () => {
   const w = await coordWorld();
-  const real = process.env.HERDR_BIN_PATH, stopping = path.join(w.base, "herdr-stopping");
+  const own = globalThis.__swHerdr, real = own.run; let asked = false;
   try {
     C.send(w.root, "hello"); await drainJobs(runJob);
     // herdr as it is, except that the stop is asked for in the middle of the first of two deliveries.
-    fs.writeFileSync(stopping, `#!/bin/sh\nif [ "$1 $2" = "agent prompt" ] && [ ! -e "${w.base}/asked" ]; then touch "${w.base}/asked"; node -e 'const C = await import("${path.resolve("src/coordinator.js")}"); C.stop();' --input-type=module 2>/dev/null; fi\nexec "${real}" "$@"\n`, { mode: 0o755 });
-    process.env.HERDR_BIN_PATH = stopping;
+    own.run = (args, env) => { if (!asked && args[0] === "agent" && args[1] === "prompt") { asked = true; C.stop(); } return real(args, env); };
     C.send(w.root, "one"); await new Promise((r) => setTimeout(r, 5)); C.send(w.root, "two");
     globalThis.__swJobs.length = 0; C.pump(w.socket);
-    assert.ok(fs.existsSync(path.join(w.base, "asked")));
+    assert.ok(asked);
     assert.equal(w.agents().length, 0, "it is stopped");
     assert.deepEqual(C.get().queue.map((m) => m.said), ["two"], "the second message was not sent ahead of the stop");
     assert.equal(C.get().stopped, true); assert.equal(C.look().state, "exited");
     globalThis.__swJobs.length = 0; C.tick(w.socket); await drainJobs(runJob); assert.equal(w.agents().length, 0);
-    process.env.HERDR_BIN_PATH = real;
+    own.run = real;
     await new Promise((r) => setTimeout(r, 5)); C.send(w.root, "three"); await drainJobs(runJob);
     assert.deepEqual(w.agents()[0].agent.prompts.map((p) => p.split("\n").at(-1)), ["two", "three"]);
-  } finally { process.env.HERDR_BIN_PATH = real; w.cleanup(); }
+  } finally { own.run = real; w.cleanup(); }
 });

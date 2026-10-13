@@ -1,8 +1,10 @@
-// The Coordinator's standing rules: what it is told once, for the whole conversation.
+// The Coordinator's standing rules: what they say, and the files in its folder that every conversation reads them from.
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import * as F from "../flow.js";
 import { herdr } from "../herdr.js";
+import { adapter } from "../agents.js";
 import { get, change, home } from "./state.js";
 import { describe } from "./who.js";
 import { where, send, restart, fresh, stop, open } from "./requests.js";
@@ -28,3 +30,36 @@ The board's command is: ${cmd}  (written "board" below; always run it by that fu
 - A task's title: board report <id> --title "<new title>" (${TITLE_RULE} too; a longer title is cut short at a word and its full text put in the description, so write one that fits). Its description: board describe <id> "<the full new text>".
 When you acted on the board, end with one short line saying what you did, naming the ids, in these words: added a task, updated one (its title, description or settings), removed one, started an agent on one, approved, archived, restored. For example: "Added proj/12", "Added proj/12 and started an agent on it", "Updated proj/4 (description)", "Removed proj/7".`;
 }
+
+// ---- where they are kept -----------------------------------------------------------------------------------------------
+// One way for every kind of program: the rules are AGENTS.md in the folder the Coordinator starts in, which the
+// program reads by itself at the start of every conversation. So it still knows them after its own "new chat"
+// command (/new, /clear), after `coordinator restart` and `coordinator new`, after a switch to another program in
+// the same folder, and when you start the program there by hand. A launch flag does less (it is gone with the
+// process, and Codex's cannot carry this much text on one launch line), so the Coordinator gets none: told once.
+// What a program reads is in the table of kinds (`rulesFile`): Codex and pi read AGENTS.md; Claude Code reads
+// CLAUDE.md, which here only passes on to AGENTS.md (verified on claude 2.1.296: read once). A program of a kind the
+// table does not know gets AGENTS.md too, and one line before its first message that points at it.
+export const RULES_FILE = "AGENTS.md";
+const OPEN = "<!-- herdr-superwork: the Coordinator's standing rules. The board writes what is between this line and the closing one, at every start: your own notes go outside them. -->";
+const CLOSE = "<!-- /herdr-superwork -->";
+// Only the marked block is the board's: whatever else the file holds is kept as it is.
+function put(file, text) {
+  let have = "";
+  try { have = fs.readFileSync(file, "utf8"); } catch {}
+  const a = have.indexOf(OPEN), b = have.indexOf(CLOSE, a + 1);
+  const block = `${OPEN}\n${text}\n${CLOSE}`;
+  const next = a >= 0 && b > a ? have.slice(0, a) + block + have.slice(b + CLOSE.length) : `${have}${have && !have.endsWith("\n") ? "\n" : ""}${have ? "\n" : ""}${block}\n`;
+  if (next === have) return;
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, next); fs.renameSync(tmp, file);
+}
+// Brought up to date in `dir`. `reads`: this kind of program is known to read them from there by itself.
+export function writeRules(dir, kind, text = rules()) {
+  fs.mkdirSync(dir, { recursive: true });
+  const own = adapter(kind).rulesFile;
+  put(path.join(dir, RULES_FILE), text);
+  if (own && own !== RULES_FILE) put(path.join(dir, own), `@${RULES_FILE}`);
+  return { file: path.join(dir, RULES_FILE), reads: !!own };
+}
+export const introLine = (dir) => `[Your standing rules as the Coordinator of the human's work board are in the file ${path.join(dir, RULES_FILE)}: read it first.]`;

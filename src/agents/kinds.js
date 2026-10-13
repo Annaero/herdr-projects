@@ -13,6 +13,7 @@
 //   hookArgs    launch arguments that make it call `turn-ended` at every turn end   none: the closing note and herdr's status
 //   sessionArgs launch arguments that choose the conversation's id                  none: the id comes from the hook or the file
 //   standing    launch arguments that keep the rules in force for the whole session none: rules ride on every prompt
+//   rulesFile   the file in its start folder it reads at every new conversation      none: not known to read one (the Coordinator's rules)
 //   transcript  where a conversation is saved                                       none: nothing is read
 //   latestSession the newest conversation saved in a folder since a time (the agent's own   none: the id chosen at launch
 //               "new chat" command starts another one)
@@ -43,6 +44,7 @@ export const AGENTS = {
     },
     newSession: () => randomUUID(),
     sessionArgs: (id) => ["--session-id", id],
+    rulesFile: "CLAUDE.md", // older versions read only this one; 2.1.296 reads an AGENTS.md beside it too, once when CLAUDE.md passes on to it
     // From a file: herdr refuses launch arguments that hold line breaks.
     standing: (text, dir) => { const f = path.join(dir, "rules.md"); fs.writeFileSync(f, text); return ["--append-system-prompt-file", f]; },
     transcript(session, cwd) {
@@ -51,13 +53,14 @@ export const AGENTS = {
       return fs.existsSync(direct) ? direct : findFile(path.join(claudeHome(), "projects"), (n) => n === `${session}.jsonl`, 1)[0] || null;
     },
     // /clear starts a new conversation file beside the old one (verified on 2.1.296).
-    latestSession(cwd, since) {
+    latestSession(cwd, since, was) {
       const real = (() => { try { return fs.realpathSync(cwd); } catch { return cwd; } })();
       // Only a chat of the interactive program itself: not a helper's side conversation (older versions kept those
       // as agent-*.jsonl beside it; now they sit in a subfolder) and not a headless run the agent made in its folder.
       const own = (f) => { try { const head = headOf(f, 65536); const entry = /"entrypoint":"([^"]*)"/.exec(head); return (!entry || entry[1] === "cli") && !/"isSidechain":true/.test(head.slice(0, head.indexOf("\n") < 0 ? undefined : head.indexOf("\n"))); } catch { return false; } };
-      for (const f of findFile(path.join(claudeHome(), "projects", real.replace(/[^A-Za-z0-9]/g, "-")), (n) => /^[0-9a-f]{8}-[0-9a-f-]{27}\.jsonl$/.test(n), 0)) {
-        try { if (fs.statSync(f).mtimeMs < since) return null; } catch { continue; } // newest first: nothing older counts
+      // `was`: the path this folder had before it was moved; a program started back then still saves under that one.
+      for (const dir of [real, was].filter(Boolean)) for (const f of findFile(path.join(claudeHome(), "projects", dir.replace(/[^A-Za-z0-9]/g, "-")), (n) => /^[0-9a-f]{8}-[0-9a-f-]{27}\.jsonl$/.test(n), 0)) {
+        try { if (fs.statSync(f).mtimeMs < since) break; } catch { continue; } // newest first: nothing older counts
         if (own(f)) return path.basename(f, ".jsonl");
       }
       return null;
@@ -96,6 +99,7 @@ export const AGENTS = {
       return ["-c", `notify=${JSON.stringify(hookCommand(h))}`];
     },
     standing: (text) => ["-c", `developer_instructions=${JSON.stringify(text)}`],
+    rulesFile: "AGENTS.md", // verified on 0.160.0
     transcript: (session) => findFile(path.join(codexHome(), "sessions"), (n) => n.endsWith(`${session}.jsonl`))[0] || null,
     // Codex names its own conversations: without a hook, the one for this task is the file made after launch, in this
     // folder, whose prompts name this task and role. No match, or more than one: no session.
@@ -108,7 +112,7 @@ export const AGENTS = {
       try { return JSON.parse(fs.readFileSync(hits[0], "utf8").split("\n")[0]).payload.id; } catch { return null; }
     },
     // /new starts a new conversation file (verified on 0.160.0). Newest first: the first one in this folder wins.
-    latestSession(cwd, since) {
+    latestSession(cwd, since, was) {
       const real = (() => { try { return fs.realpathSync(cwd); } catch { return cwd; } })();
       for (const f of findFile(path.join(codexHome(), "sessions"), (n) => n.endsWith(".jsonl"))) {
         try {
@@ -118,7 +122,7 @@ export const AGENTS = {
           // own in the same folder (verified on 0.160.0: "source" is then {"subagent": …} and "parent_thread_id" names
           // the main one), and so has a headless `codex exec` run there ("source": "exec").
           const p = meta.payload || {};
-          if (p.cwd === real && p.id && !p.parent_thread_id && typeof (p.source ?? "cli") === "string" && p.source !== "exec") return p.id;
+          if ((p.cwd === real || (was && p.cwd === was)) && p.id && !p.parent_thread_id && typeof (p.source ?? "cli") === "string" && p.source !== "exec") return p.id;
         } catch {}
       }
       return null;
@@ -175,17 +179,18 @@ export default function (pi: any) {
     },
     newSession: () => `sw-${randomUUID().slice(0, 13)}`,
     sessionArgs: (id) => ["--session-id", id],
+    rulesFile: "AGENTS.md", // verified on 1.1.0
     standing: (text, dir) => { const f = path.join(dir, "rules.md"); fs.writeFileSync(f, text); return ["--append-system-prompt", f]; }, // pi reads a file given here
     transcript: (session) => findFile(path.join(piHome(), "sessions"), (n) => n.endsWith(`_${session}.jsonl`), 1)[0] || null,
     // /new starts another session file in the same folder of sessions (verified on 1.1.0); its first line names the
     // working folder and the id. Newest first: the first one of this folder wins.
-    latestSession(cwd, since) {
+    latestSession(cwd, since, was) {
       const real = (() => { try { return fs.realpathSync(cwd); } catch { return cwd; } })();
       for (const f of findFile(path.join(piHome(), "sessions"), (n) => n.endsWith(".jsonl"), 1)) {
         try {
           if (fs.statSync(f).mtimeMs < since) return null;
           const head = headOf(f, 8192); const meta = JSON.parse(head.slice(0, head.indexOf("\n") < 0 ? undefined : head.indexOf("\n")));
-          if (meta.type === "session" && meta.id && !meta.parentSession && (meta.cwd === real || meta.cwd === cwd)) return meta.id;
+          if (meta.type === "session" && meta.id && !meta.parentSession && (meta.cwd === real || meta.cwd === cwd || (was && meta.cwd === was))) return meta.id;
         } catch {}
       }
       return null;

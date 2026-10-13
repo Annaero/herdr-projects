@@ -47,6 +47,7 @@ One page per topic, in [docs/](docs/):
 - [Suggested tasks](docs/suggestions.md)
 - [Titles and their length limit](docs/titles.md)
 - [Settings](docs/settings.md)
+- [The home folder: where the board keeps its files](docs/home-folder.md)
 - [Other machines](docs/other-machines.md)
 - [What was checked on herdr 0.9.3](docs/checked-on-herdr.md)
 - [Compared with pi-work](docs/compared-with-pi-work.md)

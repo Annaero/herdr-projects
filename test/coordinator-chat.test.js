@@ -43,9 +43,9 @@ test("the box talks to one long-lived Coordinator: an ordinary agent, started on
     assert.equal(w.agents().length, 1);
     const agent = w.agents()[0].agent;
     assert.equal(agent.name, "sw-coordinator"); assert.equal(agent.kind, "claude");
-    assert.ok(agent.args.includes("--dangerously-skip-permissions")); assert.ok(agent.args.includes("--session-id")); assert.ok(agent.args.includes("--append-system-prompt-file"));
+    assert.ok(agent.args.includes("--dangerously-skip-permissions")); assert.ok(agent.args.includes("--session-id")); assert.ok(!agent.args.includes("--append-system-prompt-file"), "its rules ride on no flag");
     assert.ok(!agent.args.some((a) => /allowedTools|--tools/.test(a)), "nothing is held back from it");
-    assert.match(fs.readFileSync(agent.args[agent.args.indexOf("--append-system-prompt-file") + 1], "utf8"), /You are the Coordinator of the human's work board/);
+    assert.match(fs.readFileSync(path.join(C.home(), "AGENTS.md"), "utf8"), /You are the Coordinator of the human's work board/); // read from its folder (coordinator-restart.test.js)
     assert.equal(agent.prompts[0], "build a login page", "your words go in exactly as typed");
     assert.match(C.where(), /^The human's last message from the board:\n- "build a login page" was sent from the repo "proj" \(.*\)\. No task was open\. It was sent with enter: delegate only what the human asked you to\.$/);
     assert.equal(C.get().queue.length, 0);

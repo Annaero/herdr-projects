@@ -10,7 +10,7 @@ started from, so an agent's branch cannot change the rules it is checked by:
 `land` (`"ask"` or `"auto"`) is only that repo's default for the `autoMerge` setting below: it counts where you have
 chosen nothing yourself, for the task or as a whole ([merging by itself](gate.md#merging-by-itself)).
 
-Your own preferences live in `~/.config/herdr-superwork/config.json`; change them with
+Your own preferences live in `~/.herdr-superwork/settings/config.json` ([the home folder](home-folder.md)); change them with
 `herdr-superwork config <key> <value>` or by saying so in the text box.
 
 <!-- made:settings Made by `node scripts/docs.js` from src/store/settings-list.js. Do not edit between these two lines. -->
@@ -56,5 +56,6 @@ Your own preferences live in `~/.config/herdr-superwork/config.json`; change the
 
 "Per task": one task can have its own, with `--id <id>` or as an option to `delegate`; "only" exists per task only.
 
-Data lives in `~/.local/state/herdr-superwork` (`HERDR_SUPERWORK_DATA_DIR` overrides it): one folder per task with
-`task.json`, `inbox.jsonl` and `artifacts/`.
+Data lives in `~/.herdr-superwork/data` (`HERDR_SUPERWORK_DATA_DIR` overrides it): one folder per task with
+`task.json`, `inbox.jsonl` and `artifacts/`. Everything the board keeps, and how an older version's folders are
+moved there by themselves: [the home folder](home-folder.md).

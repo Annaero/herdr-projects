@@ -52,4 +52,8 @@ that task with the merge question up (`y` = yes, `n` or `esc` = no), and does no
 **Before unlinking the plugin** run `herdr-superwork remove-extras`: herdr gives a plugin no uninstall hook, so this
 is what takes the marked blocks out of `config.toml` and removes the how-to files (below).
 
+Everything the board keeps for you is in one folder, `~/.herdr-superwork/`: [the home folder](home-folder.md).
+Updating from a version that kept its files in `~/.local/state`, `~/.config` and `~/.local/share` needs nothing from
+you: the first run moves them there and says so in one line.
+
 Your running herdr server must be 0.9.3 or newer: an older server refuses the plugin until it is restarted.

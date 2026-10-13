@@ -7,7 +7,7 @@ import { adapter, installed, startArgs, preTrust, versionOf } from "../agents.js
 import { dirOf, get, change, home, pumping } from "./state.js";
 import { openTab, moveOver, closePlace, nowhere } from "./place.js";
 import { choice } from "./who.js";
-import { rules } from "./rules.js";
+import { writeRules, introLine } from "./rules.js";
 import { restMs, trimmed, where, kick, send, stop, open, seen } from "./requests.js";
 import { turns, look as lookNow } from "./look.js";
 import { settle, hand, confirm, look, shown } from "../submit.js";
@@ -40,15 +40,18 @@ export function tick(socket = currentSocket()) {
 export function active(socket, c) {
   if (!c?.run) return c?.session || null;
   let id = null;
-  try { id = adapter(c.run.kind).latestSession?.(home(socket), c.since || c.startedAt || 0) || null; } catch {}
+  try { id = adapter(c.run.kind).latestSession?.(home(socket), c.since || c.startedAt || 0, S.movedFrom(home(socket))) || null; } catch {}
   if (id && id !== c.session) { try { change(socket, (x) => { if (x.since !== c.since || x.session === id) return false; x.session = id; }); } catch {} }
   return id || c.session || null;
 }
-const LAUNCH_MAX = 1500;
 function ensure(api, socket) {
   let c = get(socket);
   if (c.run) { active(socket, c); c = get(socket); }
   fs.mkdirSync(home(socket), { recursive: true });
+  // Its standing rules are files in its folder, brought up to date here: before every message, so also when the
+  // rules changed under a Coordinator that is running (it reads them at its next new chat).
+  const who = c.run || c.pick || choice();
+  if (who) { try { writeRules(home(socket), who.kind); } catch {} }
   let pane = c.pane ? api.paneGet(c.pane) : null;
   // From before it lived in a tab: moved over with its program running. A herdr that will not move it: its pane there
   // is closed (and with it the old space, unless panes of yours are in it) and it starts again in its tab, in the
@@ -65,15 +68,11 @@ function ensure(api, socket) {
   const a = adapter(run.kind);
   const resume = c.run && c.session && a.resume && (() => { try { return !a.transcript || !!a.transcript(c.session, home(socket)); } catch { return false; } })() ? c.session : null;
   const session = !resume && a.newSession ? a.newSession() : null;
-  fs.mkdirSync(dirOf(socket), { recursive: true });
-  // herdr types the launch command into the pane's shell, and a terminal takes at most 4096 bytes on one line: a
-  // longer one arrives cut off (seen with Codex, whose flag for standing rules carries the text itself, as an
-  // unfinished quote at a shell continuation prompt). So where the rules would ride on the command line they are put
-  // in a file and the flag only points at it. What the human says is never made to carry them.
-  const rulesFile = path.join(dirOf(socket), "rules.md");
-  fs.writeFileSync(rulesFile, rules());
-  let standing = a.standing ? a.standing(rules(), dirOf(socket)) : [], pointer = false;
-  if (standing.join(" ").length > LAUNCH_MAX) { pointer = true; standing = a.standing(`You are the Coordinator of the human's work board in herdr. Your standing rules are in the file ${rulesFile}: read it before your first reply, and again whenever you are unsure of them.`, dirOf(socket)); }
+  // The rules ride on no launch flag: the program reads them from its folder (rules.js says why), so they are told
+  // once, and the launch line stays short (herdr types it into the pane's shell, and a terminal takes at most 4096
+  // bytes on one line). The file an older version pointed its flag at is gone with the flag.
+  const { reads } = writeRules(home(socket), run.kind);
+  try { fs.rmSync(path.join(dirOf(socket), "rules.md"), { force: true }); } catch {}
   preTrust(run.kind, home(socket));
   const taken = api.agents().filter((x) => x.pane_id !== pane.pane_id).map((x) => x.name);
   let name = "sw-coordinator";
@@ -81,7 +80,7 @@ function ensure(api, socket) {
   let blocked = false;
   const began = Date.now();
   change(socket, (c) => { c.starting = began; });
-  const args = startArgs(run.kind, { model: run.model, effort: run.effort, resume, session, extra: standing });
+  const args = startArgs(run.kind, { model: run.model, effort: run.effort, resume, session });
   try { api.agentStart(name, run.kind, pane.pane_id, args); settle(api, pane.pane_id, [run.kind, ...args].join(" ")); } // up before anything is typed (submit.js)
   catch (e) {
     // A dialog is in the way (folder trust, first run): what you said waits. Anything else: the pane may hold half a
@@ -91,7 +90,7 @@ function ensure(api, socket) {
   }
   c = change(socket, (c) => {
     c.run = run; c.pick = null; c.agent = name; c.startedAt = Date.now(); c.version = versionOf(run.kind) || ""; c.starting = 0;
-    c.intro = !a.standing && !resume; // no launch flag for the rules at all: one line before the first message points at them
+    c.intro = !reads && !resume; // a program not known to read a rules file: one line before the first message points at it
     if (!resume) { c.session = session; c.transcript = null; c.since = began; c.seen = null; }
   });
   return { c, blocked };
@@ -158,7 +157,7 @@ export function pump(socket = currentSocket()) {
         // (Its turn's id too: an answer in the very same words is still a new one.)
         let over = "", overId = ""; try { const now = lookNow(socket); over = now.said; overId = now.turn?.finished ? String(now.turn.id || "") : ""; } catch {}
         let typed = null;
-        try { typed = hand(api, c.pane, c.intro ? `[Your standing rules as the Coordinator of the human's work board are in the file ${path.join(dirOf(socket), "rules.md")}: read it first.]\n\n${m.text}` : m.text); }
+        try { typed = hand(api, c.pane, c.intro ? `${introLine(home(socket))}\n\n${m.text}` : m.text); }
         catch (e) {
           if (["agent_blocked", "agent_not_ready"].includes(e.code)) { unsay(); stuck = true; break; }
           unsay(); throw e;

@@ -18,16 +18,18 @@ export const SLOT_STAGES = ["starting", "setup", "working", "checking", "pushing
 export const RUNNER_STAGES = ["starting", "setup", "checking", "pushing", "reviewing", "merging"];
 export const KINDS = ["permission", "question", "auth"];
 
-export function dataDir() {
-  if (process.env.HERDR_SUPERWORK_DATA_DIR) return process.env.HERDR_SUPERWORK_DATA_DIR;
-  return path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state"), "herdr-superwork");
-}
-export function configDir() {
-  if (process.env.HERDR_SUPERWORK_CONFIG_DIR) return process.env.HERDR_SUPERWORK_CONFIG_DIR;
-  return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), "herdr-superwork");
-}
+// Everything the board keeps for a user is in one folder, the same on every machine: ~/.herdr-superwork, with a
+// sub-folder for each kind of thing (docs/home-folder.md). HERDR_SUPERWORK_HOME names another one; each sub-folder has
+// a variable of its own too. The XDG_* variables no longer choose a place: they only say where an older version kept
+// things, for the one-time move (store/move-home.js).
+export const HOME_NAME = ".herdr-superwork";
+export const homeDir = () => process.env.HERDR_SUPERWORK_HOME || path.join(os.homedir(), HOME_NAME);
+export const dataDir = () => process.env.HERDR_SUPERWORK_DATA_DIR || path.join(homeDir(), "data");
+export const configDir = () => process.env.HERDR_SUPERWORK_CONFIG_DIR || path.join(homeDir(), "settings");
+// Pages and reports an agent makes for the human that belong in no repo.
+export const reportsDir = () => process.env.HERDR_SUPERWORK_REPORTS_DIR || path.join(homeDir(), "reports");
 // The board's own folders as resolved here, for a process started somewhere that does not inherit this environment
-// (an agent's herdr space): both always, since either may come from XDG_* or the home folder rather than its variable.
+// (an agent's herdr space): both always, since either may come from the home folder rather than its own variable.
 export const boardEnv = () => ({ HERDR_SUPERWORK_DATA_DIR: path.resolve(dataDir()), HERDR_SUPERWORK_CONFIG_DIR: path.resolve(configDir()) });
 export const tasksDir = () => path.join(dataDir(), "tasks");
 export const hasTasks = () => fs.existsSync(tasksDir());
@@ -64,21 +66,29 @@ function takeLock(name, file, waitMs) {
   const own = globalThis.__swLocks;
   if (own) { if (own.has(file)) throw busy(name); own.add(file); return () => own.delete(file); }
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const fd = fs.openSync(file, "a");
-  try {
-    const until = Date.now() + Math.max(0, waitMs);
-    let lock;
-    for (;;) {
-      lock = spawnSync("flock", ["--exclusive", "--nonblock", "3"], { stdio: ["ignore", "pipe", "pipe", fd], timeout: 5000 });
-      if (lock.status !== 1 || Date.now() >= until) break;
-      sleepSync(15);
-    }
-    if (lock.error?.code === "ENOENT") throw new Error("herdr-superwork needs flock (util-linux) to change tasks safely.");
-    if (lock.status === 1) throw busy(name);
-    if (lock.status !== 0) throw new Error(`Could not lock ${name}: ${lock.error?.message || String(lock.stderr || "").trim()}`);
-    return () => fs.closeSync(fd);
-  } catch (e) { fs.closeSync(fd); throw e; }
+  const until = Date.now() + Math.max(0, waitMs);
+  for (;;) {
+    const fd = fs.openSync(file, "a");
+    try {
+      let lock;
+      for (;;) {
+        lock = spawnSync("flock", ["--exclusive", "--nonblock", "3"], { stdio: ["ignore", "pipe", "pipe", fd], timeout: 5000 });
+        if (lock.status !== 1 || Date.now() >= until || !sameFile(fd, file)) break;
+        sleepSync(15);
+      }
+      if (lock.error?.code === "ENOENT") throw new Error("herdr-superwork needs flock (util-linux) to change tasks safely.");
+      if (lock.status === 1 && !sameFile(fd, file) && Date.now() < until) { fs.closeSync(fd); continue; } // busy, and no longer the file at this path: the real one is asked for
+      if (lock.status === 1) throw busy(name);
+      if (lock.status !== 0) throw new Error(`Could not lock ${name}: ${lock.error?.message || String(lock.stderr || "").trim()}`);
+      // The file was opened before it was locked. If another file took its place at this path in between (the
+      // one-time move puts two folders of locks together), what is held is a lock nobody else will ever ask for:
+      // let go of it and take the one that is there now.
+      if (!sameFile(fd, file)) { fs.closeSync(fd); continue; }
+      return () => fs.closeSync(fd);
+    } catch (e) { try { fs.closeSync(fd); } catch {} throw e; }
+  }
 }
+const sameFile = (fd, file) => { try { const a = fs.fstatSync(fd), b = fs.statSync(file); return a.ino === b.ino && a.dev === b.dev; } catch { return false; } };
 export function withLock(name, fn, { waitMs = 2000 } = {}) {
   const file = lockFile(name);
   if (held.has(file)) return fn(); // nested in this process

@@ -122,7 +122,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `place.js` | Where the Coordinator lives in herdr: a tab of its own, named `Coordinator`, in the home space (`~`); one still in the space of its own it had before is moved there |
 | `pump.js` | The pump: the detached job that starts the Coordinator and types into it, one at a time per herdr session |
 | `requests.js` | Requests to the Coordinator: written down here (send, restart, new, stop, open), carried out by the pump |
-| `rules.js` | The Coordinator's standing rules: what it is told once, for the whole conversation |
+| `rules.js` | The Coordinator's standing rules: what they say, and the files in its folder that every conversation reads them from |
 | `state.js` | The Coordinator's saved state (one file per herdr session) and the folder it chats in |
 | `who.js` | Who the Coordinator is: the agent kind, model and effort chosen for it, and whether it can run here |
 
@@ -165,6 +165,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `files.js` | Where the board keeps things, reading and writing files, and locks |
 | `inbox.js` | Text on its way: an agent's inbox, and instructions for a Coordinator |
 | `marks.js` | Small shared files: stamps, hook tokens, turn-ended events, marks |
+| `move-home.js` | The one-time move into the one home folder: what an older version kept in ~/.local/state, ~/.config and ~/.local/share is moved into ~/.herdr-superwork by the first run of this code, by itself, and each old place… |
 | `repos.js` | Git plumbing, and repos: the first part of a task's id |
 | `retries.js` | A turn cut off by a passing provider error: the board waits, then tries again by itself (docs/how-work-gets-done.md) |
 | `reviews.js` | A task's reviews: the current one, which round, and every one it had |
@@ -209,6 +210,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | [coordinator.md](coordinator.md) | The Coordinator |
 | [gate.md](gate.md) | The gate |
 | [handing-over.md](handing-over.md) | Handing text to an agent |
+| [home-folder.md](home-folder.md) | The home folder: where the board keeps its files |
 | [how-work-gets-done.md](how-work-gets-done.md) | How work gets done |
 | [install.md](install.md) | Installing, the first run, and taking it out again |
 | [keys.md](keys.md) | Keys, questions and the ? menu |
@@ -268,7 +270,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `coordinator-helpers.js` | Shared by the Coordinator's tests (test/coordinator-*.test.js): a world with a Coordinator, and a board opened on it |
 | `coordinator-messages.test.js` | What you say to the Coordinator is never lost: dialogs, failed starts, stop, on and off |
 | `coordinator-place.test.js` | Where the Coordinator lives: a tab named Coordinator in the home space, found or started again, and moved over from the space of its own it had before |
-| `coordinator-restart.test.js` | The Coordinator's conversation: restart, new, the agent's own new-chat command, its default program |
+| `coordinator-restart.test.js` | The Coordinator's conversation: restart, new, the agent's own new-chat command, its default program, and its standing rules, read from its folder through all of them |
 | `fake-gh.js` | A stand-in for gh |
 | `fake-helper.js` | A stand-in for the hidden helper model |
 | `fake-herdr.js` | A stand-in for the herdr binary, for tests: no server, no terminals, no model calls |
@@ -279,6 +281,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | `guard.test.js` | The repo's own rules are part of the check: no source file past its size, no name used and never defined, no made page out of date (scripts/guard.js) |
 | `helpers.js` | Shared test setup: a temporary board, a fake herdr and scripted fake agents |
 | `herdr-keys.test.js` | The key that opens the board: prefix+a is offered, and a key herdr or the user's config already uses is never taken |
+| `home-folder.test.js` | The one home folder: where things are kept by default, and the one-time move of an older version's folders into it (old layout in, new layout out; twice; cut off; with new data there already) |
 | `keys-list.test.js` | The keys list is the one place a key is defined: moving a key there moves it in the handler, the ? menu, the hints and the messages, with no other file changed |
 | `lifecycle.test.js` |  |
 | `merge.test.js` |  |

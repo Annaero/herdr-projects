@@ -6,6 +6,7 @@ import { View } from "./view.js";
 import { theme, loadTheme, askTerminal, setTerminal } from "./theme.js";
 import { ensureKeeper } from "../keeper.js";
 import * as F from "../flow.js";
+import * as S from "../store.js";
 import { userEnv } from "../runner.js";
 import { boardPane, nameBoardTab, restoreBoardTab } from "./tab.js";
 import * as P from "./place.js";
@@ -45,6 +46,7 @@ export async function openBoard({ folder }) {
       setTimeout(() => process.exit(0), 20);
     };
     view = new View(tui, theme, done, { cwd: folder, leaveMs: 700, settleMs: 1000, boardKey, canReload: reloads < 5, popup: P.inPopup(), pane: process.env.HERDR_ENV === "1" && !process.env.TMUX ? process.env.HERDR_PANE_ID || "" : "" });
+    { const moved = S.moveNote(); if (moved) { view.flash(moved, "green"); S.moveTold(); } } // the one-time move, said once
     tui.addChild(view);
     tui.setFocus(view);
     for (const sig of ["SIGTERM", "SIGHUP"]) process.on(sig, done);

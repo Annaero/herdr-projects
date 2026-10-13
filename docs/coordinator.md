@@ -17,10 +17,38 @@ adds nothing (a question, a status check, a word about an existing task) delegat
 last in: that pane's folder is nobody's repo. It is
 an ordinary herdr agent in a tab of its own, named `Coordinator`, in your home space (`~`; see below), in a folder
 of its own inside the board's data
-folder (`HERDR_SUPERWORK_COORDINATOR_DIR` names another, which should be used for nothing else), started with the same
+folder (`HERDR_SUPERWORK_COORDINATOR_DIR` names another, which should be used for nothing else: the board writes the Coordinator's rules there), started with the same
 arguments as any working agent: all its tools, nothing held back. It is started by your first message and stays; when
 its program exited or herdr restarted, your next message starts it again in the same conversation. The agent's own
 new-chat command (`/clear`, `/new`) is followed: the chat and a restart go with the conversation it is in now.
+
+**Its standing rules are a file in its folder.** What the Coordinator is and how it uses the board is written as
+`AGENTS.md` in the folder it starts in (`~/.herdr-superwork/data/coordinator/<session>/chat`, see
+[the home folder](home-folder.md)), and the program reads that file by itself at the start of every conversation.
+So it still knows its rules after its own `/new` or `/clear`, after `coordinator restart` and `coordinator new`,
+after `coordinator new --agent <another kind>` (the next program reads the same file), and when you start the
+program in that folder by hand.
+
+| Kind | Reads | So the board writes |
+|---|---|---|
+| Claude Code | `CLAUDE.md` (2.1.296 also reads an `AGENTS.md` beside it) | `AGENTS.md`, and a `CLAUDE.md` that only passes on to it (`@AGENTS.md`): the rules arrive once |
+| Codex | `AGENTS.md` | `AGENTS.md` |
+| pi | `AGENTS.md` | `AGENTS.md` |
+| any other kind | not known | `AGENTS.md`, and one line before its first message that points at the file |
+
+- **One way per kind, never two.** The Coordinator gets no launch flag for its rules any more (before: Claude's
+  and pi's appended system prompt, Codex's `developer_instructions`). The file is the one way that works the same
+  on every kind and outlives the program: a flag is gone when the process is, has to be passed again by whoever
+  starts the program, and Codex's could not carry this much text on one launch line, so it only pointed at a file
+  the Coordinator then had to remember to read. With the file in place a flag would tell it the same thing twice.
+  A kind the board does not know may or may not read `AGENTS.md`, so that one alone also gets the pointing line.
+- **Kept up to date.** The files are written again at every start and before every message, so new rules (a new
+  version of the board) are in place under a Coordinator that is running: it reads them at its next new chat or
+  restart.
+- **Your own notes are kept.** The board owns only the block between its two marker lines. What you write above
+  or below it in `AGENTS.md` or `CLAUDE.md` stays, and the Coordinator reads it too.
+- A working agent or a reviewer is not told this way: it works in your repo, whose `AGENTS.md` is yours, so its
+  rules still ride on its launch.
 
 **What it says it did.** When it acted on the board, its message ends with one short line that names the ids in
 plain words: added, updated (a title, a description, settings), removed, started an agent, approved, archived,

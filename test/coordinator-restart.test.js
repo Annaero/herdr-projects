@@ -1,4 +1,4 @@
-// The Coordinator's conversation: restart, new, the agent's own new-chat command, its default program.
+// The Coordinator's conversation: restart, new, the agent's own new-chat command, its default program, and its standing rules, read from its folder through all of them.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -10,6 +10,7 @@ import { main } from "../src/cli.js";
 import { runJob } from "../src/jobs.js";
 import { drainJobs } from "../src/runner.js";
 import { coordWorld, open } from "./coordinator-helpers.js";
+import { AGENTS } from "../src/agents.js";
 
 test("restart keeps the conversation, new starts a fresh one, and one Coordinator can be picked for a single use", async () => {
   const w = await coordWorld({ coordinatorModel: "claude-haiku-5-5" });
@@ -35,8 +36,8 @@ test("restart keeps the conversation, new starts a fresh one, and one Coordinato
     // New, for one use: codex, its own model and effort. The default is untouched.
     assert.match(await cli("coordinator", "new", "--agent", "codex", "--model", "gpt-x", "--effort", "high"), /a new Coordinator is starting/);
     let agent = w.agents()[0].agent;
-    assert.equal(agent.kind, "codex"); assert.deepEqual(agent.args.slice(-6, -2), ["-m", "gpt-x", "-c", 'model_reasoning_effort="high"']);
-    assert.match(agent.args.at(-1), /^developer_instructions=.*You are the Coordinator/);
+    assert.equal(agent.kind, "codex"); assert.deepEqual(agent.args.slice(-4), ["-m", "gpt-x", "-c", 'model_reasoning_effort="high"']);
+    assert.match(fs.readFileSync(path.join(C.home(), "AGENTS.md"), "utf8"), /You are the Coordinator/); // the other program finds the rules in the same folder
     assert.deepEqual(C.get().run, { kind: "codex", model: "gpt-x", effort: "high", oneOff: true }); assert.equal(C.get().session, null);
     assert.equal(S.config().coordinator, "claude"); assert.equal(C.look().stale, false);
     assert.match(await cli("coordinator"), /codex · gpt-x · high \(for this one only\) · default: claude · claude-haiku-5-5/);
@@ -178,5 +179,72 @@ test("out of the box the Coordinator is Claude Code on its defaults, whatever th
     assert.ok(!/--model|--effort|gpt-5\.5/.test(JSON.stringify(a.agent.args)), "the agent's model and effort are not passed on");
     S.setConfig("coordinatorModel", "claude-haiku-5-5");
     assert.deepEqual(C.choice(), { kind: "claude", model: "claude-haiku-5-5", effort: "" });
+  } finally { w.cleanup(); }
+});
+
+// ---- its standing rules: files in its folder ---------------------------------------------------------------------------
+const read = (name) => fs.readFileSync(path.join(C.home(), name), "utf8");
+const count = (text, re) => (text.match(re) || []).length;
+const HEAD = /You are the Coordinator of the human's work board/g;
+
+test("the rules are AGENTS.md in the folder it starts in, on no launch flag, and still there after a restart, a new Coordinator and a switch to another program", async () => {
+  const w = await coordWorld();
+  const before = { CODEX_HOME: process.env.CODEX_HOME, PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR };
+  process.env.CODEX_HOME = path.join(w.base, "codex"); process.env.PI_CODING_AGENT_DIR = path.join(w.base, "pi");
+  try {
+    w.script({ coordinator: [{ said: "Hello." }] });
+    C.send(w.root, "hello"); await drainJobs(runJob);
+    // What each supported program reads at every new conversation, by itself: that is what survives its own /new and /clear.
+    assert.deepEqual(Object.fromEntries(Object.entries(AGENTS).map(([k, a]) => [k, a.rulesFile])), { claude: "CLAUDE.md", codex: "AGENTS.md", pi: "AGENTS.md" });
+    const agent = w.agents()[0].agent;
+    assert.equal(count(read("AGENTS.md"), HEAD), 1); assert.match(read("AGENTS.md"), /board add "<short title/);
+    assert.match(read("AGENTS.md"), new RegExp(`The board's command is: ${S.dataDir()}/bin/herdr-superwork `));
+    // Claude Code reads CLAUDE.md: it only passes on to AGENTS.md, so the rules are there once.
+    assert.match(read("CLAUDE.md"), /^<!-- herdr-superwork[^\n]*-->\n@AGENTS\.md\n<!-- \/herdr-superwork -->\n$/);
+    // Told one way only: no flag carries them, no line is put before your words, and the old pointer file is gone.
+    assert.ok(!agent.args.some((a) => /append-system-prompt|developer_instructions|rules\.md/.test(a)));
+    assert.deepEqual(agent.prompts, ["hello"]); assert.equal(C.get().intro, false);
+    assert.ok(!fs.existsSync(path.join(path.dirname(C.home()), "rules.md")));
+    const noFlag = () => assert.ok(!w.agents()[0].agent.args.some((a) => /append-system-prompt|developer_instructions/.test(a)));
+    // Gone from its folder (or changed by hand): the next start puts them back as they should be.
+    for (const what of [() => C.restart(), () => C.fresh()]) {
+      fs.rmSync(path.join(C.home(), "AGENTS.md")); fs.writeFileSync(path.join(C.home(), "CLAUDE.md"), "something else\n");
+      what(); await drainJobs(runJob);
+      assert.equal(w.agents()[0].agent.kind, "claude"); noFlag();
+      assert.equal(count(read("AGENTS.md"), HEAD), 1); assert.match(read("CLAUDE.md"), /^something else\n\n<!-- herdr-superwork[^\n]*-->\n@AGENTS\.md\n/);
+    }
+    // Another program, in the same folder: it reads AGENTS.md itself, so nothing is put before the first message.
+    for (const kind of ["codex", "pi"]) {
+      S.writeJson(path.join(S.dataDir(), "versions.json"), Object.fromEntries(["claude", "codex", "pi"].map((k) => [k, { v: "9.9.9", at: Date.now(), found: true }])));
+      C.fresh(C.pickOf({ agent: kind })); await drainJobs(runJob);
+      C.send(w.root, `are you ${kind}?`); await drainJobs(runJob);
+      const agent = w.agents()[0].agent;
+      assert.equal(agent.kind, kind); noFlag(); assert.deepEqual(agent.prompts, [`are you ${kind}?`]);
+      assert.equal(count(read("AGENTS.md"), HEAD), 1);
+    }
+  } finally { for (const [k, v] of Object.entries(before)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } w.cleanup(); }
+});
+
+test("a program the board does not know gets AGENTS.md and one line that points at it; your own notes in the file are kept; changed rules reach a running one", async () => {
+  const w = await coordWorld({ coordinator: "amp" });
+  try {
+    S.writeJson(path.join(S.dataDir(), "versions.json"), { amp: { v: "1.0.0", at: Date.now(), found: true } });
+    fs.writeFileSync(path.join(C.home(), "AGENTS.md"), "# Mine\nAlways answer in Swedish.\n");
+    C.send(w.root, "hello"); await drainJobs(runJob);
+    const agent = () => w.agents()[0].agent;
+    assert.equal(agent().kind, "amp");
+    assert.equal(agent().prompts[0], `[Your standing rules as the Coordinator of the human's work board are in the file ${path.join(C.home(), "AGENTS.md")}: read it first.]\n\nhello`);
+    assert.match(read("AGENTS.md"), /^# Mine\nAlways answer in Swedish\.\n\n<!-- herdr-superwork/); assert.equal(count(read("AGENTS.md"), HEAD), 1);
+    assert.ok(!fs.existsSync(path.join(C.home(), "CLAUDE.md"))); // only what its kind reads
+    // The rules changed (a new version of the board, a note of yours): the block is brought up to date before the
+    // next message goes in, with the program still running, and the pointer is not said again.
+    const mine = read("AGENTS.md").replace(/You are the Coordinator[^\n]*/, "old words").replace("# Mine", "# Mine, edited");
+    fs.writeFileSync(path.join(C.home(), "AGENTS.md"), mine + "A note below.\n");
+    C.send(w.root, "again"); await drainJobs(runJob);
+    assert.equal(agent().prompts[1], "again");
+    assert.equal(count(read("AGENTS.md"), HEAD), 1); assert.doesNotMatch(read("AGENTS.md"), /old words/);
+    assert.match(read("AGENTS.md"), /^# Mine, edited\n/); assert.match(read("AGENTS.md"), /<!-- \/herdr-superwork -->\nA note below\.\n$/);
+    // Written the same way twice: nothing is added.
+    const before = read("AGENTS.md"); C.writeRules(C.home(), "amp"); assert.equal(read("AGENTS.md"), before);
   } finally { w.cleanup(); }
 });

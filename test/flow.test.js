@@ -127,22 +127,22 @@ test("a board kept in its own folder: the agent's command and its herdr space bo
     // the path in its rules, from its folder, with nothing in the environment pointing at this board.
     const cmd = F.shim();
     assert.ok(rules(S.get(t.id)).includes(`${cmd} suggest `));
-    const env = { ...process.env, XDG_STATE_HOME: path.join(w.base, "default-state"), XDG_CONFIG_HOME: path.join(w.base, "default-config") };
+    const env = { ...process.env, HERDR_SUPERWORK_HOME: path.join(w.base, "default-home") };
     delete env.HERDR_SUPERWORK_DATA_DIR; delete env.HERDR_SUPERWORK_CONFIG_DIR;
     execFileSync(cmd, ["add", "Found on the way", "--desc", "A follow-up."], { cwd: w.root, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
     assert.ok(F.board().some((x) => x.title === "Found on the way"));
-    assert.ok(!fs.existsSync(path.join(w.base, "default-state"))); // nothing went to the default board
-    // folders chosen through XDG_* rather than the board's own variables are carried just the same
-    const keep = { ...want, XDG_STATE_HOME: process.env.XDG_STATE_HOME, XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME };
+    assert.ok(!fs.existsSync(path.join(w.base, "default-home"))); // nothing went to the default board
+    // folders that come from the home folder rather than their own variables are carried just the same
+    const keep = { ...want, HERDR_SUPERWORK_HOME: process.env.HERDR_SUPERWORK_HOME };
     try {
       delete process.env.HERDR_SUPERWORK_DATA_DIR; delete process.env.HERDR_SUPERWORK_CONFIG_DIR;
-      process.env.XDG_STATE_HOME = path.join(w.base, "xdg-state"); process.env.XDG_CONFIG_HOME = path.join(w.base, "xdg-config");
-      fs.mkdirSync(path.join(w.base, "xdg-config", "herdr-superwork"), { recursive: true });
-      fs.writeFileSync(path.join(w.base, "xdg-config", "herdr-superwork", "config.json"), JSON.stringify({ max: 23 }));
-      const xdg = { HERDR_SUPERWORK_DATA_DIR: path.join(w.base, "xdg-state", "herdr-superwork"), HERDR_SUPERWORK_CONFIG_DIR: path.join(w.base, "xdg-config", "herdr-superwork") };
-      assert.deepEqual(S.boardEnv(), xdg);
-      const out = execFileSync(F.shim(), ["config", "max"], { cwd: w.root, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-      assert.match(out, /23/); // read with the agent's environment, which points XDG_* elsewhere
+      process.env.HERDR_SUPERWORK_HOME = path.join(w.base, "other-home");
+      fs.mkdirSync(path.join(w.base, "other-home", "settings"), { recursive: true });
+      fs.writeFileSync(path.join(w.base, "other-home", "settings", "config.json"), JSON.stringify({ max: 23 }));
+      const other = { HERDR_SUPERWORK_DATA_DIR: path.join(w.base, "other-home", "data"), HERDR_SUPERWORK_CONFIG_DIR: path.join(w.base, "other-home", "settings") };
+      assert.deepEqual(S.boardEnv(), other);
+      const text = fs.readFileSync(F.shim(), "utf8"); // the command names both, so the agent's own environment does not count (run for real above)
+      for (const [k, v] of Object.entries(other)) assert.ok(text.includes(`export ${k}='${v}'`));
     } finally { for (const [k, v] of Object.entries(keep)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } }
     // a shim an older version left as a link is replaced
     fs.rmSync(cmd); fs.symlinkSync(S.BIN, cmd);

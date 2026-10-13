@@ -109,6 +109,7 @@ export async function main(argv) {
   const out = (value, text) => process.stdout.write(flags.json ? JSON.stringify(value, null, 2) + "\n" : `${text ?? JSON.stringify(value, null, 2)}\n`);
   const need = (n, what) => { if (!pos[n]) throw new Error(`${cmd} needs ${what}. Try: herdr-superwork help`); return pos[n]; };
   const rest = (n) => pos.slice(n).join(" ");
+  S.homeAtStart(cmd); // an older version's folders move into the one home folder, once (store/move-home.js)
 
   // ---- entries herdr itself calls: keep them light, they run on every agent status change -------------------------
   if (cmd === "turn-ended") { const { turnEnded } = await import("./turn.js"); try { turnEnded({ id: flags.id, role: flags.role, token: flags.token, round: flags.round }, pos.slice(1)); } catch {} return 0; } // run by an agent's own hook: silent, always 0
