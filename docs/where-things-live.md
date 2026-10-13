@@ -68,6 +68,20 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `read-turn.js` | Reading the end of a saved conversation, one reader per agent program: last message, error, tokens |
 | `start.js` | The arguments an agent of a kind is started with, and whether it has a fast mode |
 
+## `src/automations/`
+
+| File | Holds |
+|---|---|
+| `command.js` | `herdr-superwork automations …`: the commands |
+| `cron.js` | A cron expression: five fields (minute, hour, day of the month, month, day of the week), read in this machine's time zone |
+| `events.js` | What happens on the board that an automation can be fired by, and telling that it happened: a task was added, finished and waits for approval, failed its review, went wrong, needs you, was merged |
+| `fire.js` | A firing: the board adds an ordinary task and puts an agent on it at once |
+| `list.js` | The automations themselves: making one, changing its name, prompt or trigger, its own settings, on and off, removing it |
+| `show.js` | An automation as it is shown, in the same words on the board's list, in its panel and on the command line: on or off, its trigger in plain words, its repo, the last firing (how long ago, and the task it made or… |
+| `tick.js` | Who fires the automations: the keeper and an open board, by this one pass, once a second (keeper.js: tickOnce), so it works with the board closed |
+| `told.js` | What a task an automation made is told |
+| `triggers.js` | An automation's trigger, one of two kinds: a schedule, or something that happened on the board |
+
 ## `src/board/`
 
 | File | Holds |
@@ -90,6 +104,8 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | `actions.js` | What you do to the selected task: yes, send back, stop, remove, undo, archive |
 | `agent-pane.js` | A task's agent: what its pane shows, what it last said, and going into its real herdr pane |
 | `ask.js` | The one question box: asking, what a merge question is about, and how it is drawn |
+| `automation-panel.js` | One automation, whole: beside the list and full screen |
+| `automations.js` | The automations, a list of their own behind its key, as the archive is: one row per automation (on or off, its name, its trigger in plain words, its repo, the last firing, the next one for a schedule), and what the… |
 | `chat-scroll.js` | Scrolling the chat's message: which of its lines show while it is longer than its box, and the words that say so |
 | `chat.js` | The chat at the bottom: who it talks to, the line that names them, and their latest message |
 | `coordinator.js` | The Coordinator from the board: sending it your words, and counting a reply you can see as seen |
@@ -174,6 +190,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | File | Holds |
 |---|---|
+| `automations.js` | Automations on disk: the list (a saved task plus a trigger, each), every firing written down, and which board events were seen already |
 | `check-runs.js` | How long a repo's check took the last few times it ran in full on this machine: what its minutes left are worked out from |
 | `failures.js` | Failures: workflow diagnostics that live beside the task |
 | `files.js` | Where the board keeps things, reading and writing files, and locks |
@@ -213,6 +230,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 | File | Holds |
 |---|---|
 | `access.js` | Who may use the board through the front door: only someone the web UI itself lets in |
+| `automations-model.js` | The automations for the web board: the list and one automation, whole, in the shapes the page already draws a task list and a task in (list-model.js, panel-model.js) |
 | `command.js` | `herdr-superwork web-ui`: how the board in the herdr web UI stands, and the one setup step by hand |
 | `door.js` | The front door: a small server in front of the herdr web UI |
 | `find.js` | The herdr web UI plugin (devswha.herdr-web-ui): whether it is installed in this herdr, and the address its server listens on |
@@ -259,6 +277,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 
 | Page | About |
 |---|---|
+| [automations.md](automations.md) | Automations: tasks made on a schedule, or when something happens on the board |
 | [board-size.md](board-size.md) | The board's size: what changes it, and how the board stands still |
 | [board.md](board.md) | The board: the list and the chat |
 | [check-progress.md](check-progress.md) | The check's progress: what the board shows, and how a check reports it |
@@ -293,6 +312,7 @@ One file per area, named after it; `npm run check <area>` runs every `test/<area
 | File | Tests |
 |---|---|
 | `auto-merge.test.js` | The merge.by setting: a green task merges by itself, the repo's own file can never switch that on, and a change counts for tasks already under way |
+| `automations.test.js` | Automations: a schedule read from plain words or cron, a board event, a firing that makes a task and starts it with the automation's own settings, and the guards: one at a time, no loops, a runaway turned off, a missed… |
 | `board-actions.test.js` | What you do to a task: approve and merge, the ? menu, stop or remove, retry |
 | `board-chat-scroll.test.js` | The chat's message when it is long: the box grows with it, it scrolls with two keys and the mouse wheel, and the box says where there is more |
 | `board-chat.test.js` | The chat's box: the latest message, an empty line, the line you type on |

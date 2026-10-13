@@ -131,7 +131,7 @@ async function pollOne(id, pr, j) {
     if (t.archivedAt || t.pr !== pr || runnerAlive(t)) return false; // archived or active since the request started: next poll
     if (j.state === "MERGED") {
       mode = covered(local(), j.headRefOid || t.prHead || "") ? "always" : "merged";
-      t.stage = "done"; t.tidy = F.tidyMark(t, mode); t.msg = `Merged: ${pr}`; t.failure = null; t.prFailure = null; t.prMerged = true; t.prState = "merged"; t.autoMerge = false; t.mergeIntent = null;
+      t.stage = "done"; t.mergedAt = Date.now(); t.tidy = F.tidyMark(t, mode); t.msg = `Merged: ${pr}`; t.failure = null; t.prFailure = null; t.prMerged = true; t.prState = "merged"; t.autoMerge = false; t.mergeIntent = null;
       then = "merged";
       return;
     }

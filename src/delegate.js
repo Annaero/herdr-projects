@@ -10,6 +10,7 @@ import { startArgs, preTrust, adapter, hookUsable, versionOf, roleOf, ownWords, 
 import { settle } from "./submit.js";
 import * as R from "./research.js";
 import { AGENT_BOARD_RULE } from "./board-rule.js";
+import { automationRule } from "./automations/told.js";
 
 // ---- names -----------------------------------------------------------------------------------------------------------
 // `sw-` + the repo name (lower-case, anything outside [a-z0-9] as `-`, 16 characters) + `-<n>`. Always matches herdr's
@@ -39,6 +40,7 @@ export function rules(t) {
     `If you cannot continue without the human, run this and then stop: ${cmd} report ${t.id} --state blocked --kind <question|permission|auth> --msg "<why, in one line>"  (question: the human must type an answer; permission: you need approval to do something; auth: a login, token or credential is missing). Write the reason like these: "Need a GitHub login to open the PR", "Should the old settings file be removed", "Need your OK to delete the test data". Do not end with a question otherwise.`,
     `If you come across unrelated work that should be done (a bug elsewhere, a follow-up), do not do it and do not add it as a task: suggest it to the human with ${cmd} suggest "<short title: a few words, ${S.TITLE_RULE}>" --desc "<what and why, and the file it is in>" --from ${t.id} and carry on. It becomes a task only if they accept it. Suggest a thing once: ${cmd} suggestions lists what is suggested already and ${cmd} list the tasks, and what the board knows already is not added again.`,
     AGENT_BOARD_RULE,
+    automationRule(t),
     R.reportRule(t),
     `Before you stop, also write your closing summary (or your question to the human) to ${F.noteFile(t)} (the board's own folder for this task, not the folder you work in). It is the board's fallback when it cannot read your last message.`,
   ].filter(Boolean);

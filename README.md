@@ -46,6 +46,7 @@ One page per topic, in [docs/](docs/):
 - [The gate](docs/gate.md)
 - [Suggested tasks](docs/suggestions.md)
 - [Reports, and research-only tasks](docs/research.md)
+- [Automations: tasks made on a schedule, or when something happens on the board](docs/automations.md)
 - [Titles and their length limit](docs/titles.md)
 - [Settings](docs/settings.md)
 - [The home folder: where the board keeps its files](docs/home-folder.md)

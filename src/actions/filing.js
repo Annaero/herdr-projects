@@ -7,13 +7,15 @@ import { AGENT_STAGES } from "./shared.js";
 import { delegate } from "./start.js";
 import { stop } from "./talk.js";
 import { details } from "./finish-line.js";
+import { inherited } from "../automations/told.js";
 
 // ---- adding and editing ----------------------------------------------------------------------------------------------
-// `research`: the task is research only from the start (research.js).
-export function add(folder, title, { description = "", repo, research = false } = {}) {
-  const t = S.create(S.folderFor(repo, folder), title, { description });
-  if (research) S.update(t.id, { research: true });
-  return research ? S.get(t.id) : t;
+// `research`: the task is research only from the start (research.js). `from`: the task whose agent adds it. A task
+// an automation made hands that on, so the new task's events never fire that automation (automations/told.js).
+export function add(folder, title, { description = "", repo, research = false, from = null } = {}) {
+  const t = S.create(S.folderFor(repo, folder), title, { description }), automation = inherited(from);
+  if (research || automation) S.update(t.id, { ...(research ? { research: true } : {}), ...(automation ? { automation } : {}) });
+  return research || automation ? S.get(t.id) : t;
 }
 // A new title follows the same limit as a first one: too long, it is shortened and its full text opens the description.
 const retitle = (t, title) => { const now = S.titled(title, t.description); if (now.title) { t.title = now.title; t.description = now.description; if (now.subject) t.subject = now.subject; else delete t.subject; } };

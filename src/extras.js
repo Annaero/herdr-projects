@@ -67,6 +67,12 @@ Every command accepts \`--json\`. Below, \`herdr-superwork\` stands for that pat
   the agent by itself; anything milder passes (\`Pass · 2 minor\`). \`review.rounds 0\`: nothing goes back by itself.
 - \`herdr-superwork review <id>\` sends the reviewer's findings back to the agent; \`retry <id>\` sends a saved error back;
   \`fix <id>\` sends failure details; \`details <id>\` reads them.
+- \`herdr-superwork automations\`: tasks made on a schedule or when something happens on the board. Each firing adds an
+  ordinary task (its title the automation's name, its description the automation's prompt) and puts an agent on it at once.
+  \`automations add "<name>" --prompt "<what each task is to do>" --schedule "<every 2h | daily 09:00 | mon 09:00 | cron "0 9 * * 1">"\`
+  or \`--when <added|approval|review-failed|failed|needs-you|merged> [--every-repo]\`; \`--repo\`, \`--research\` and any
+  work setting (\`--worker.agent codex\`) as on \`delegate\`. \`automations show|change|on|off|run|firings|remove <name>\`;
+  its settings later: \`set <name> <value> --automation <name>\`. There is no webhook trigger. Only when the human asks.
 - \`herdr-superwork archive <id>\` hides a task and keeps everything; \`restore <id>\` brings it back; \`clear <id>\` removes it
   (only when the human plainly asks).
 

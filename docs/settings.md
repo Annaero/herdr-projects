@@ -20,7 +20,8 @@ Coordinator, the Watcher).
 
 - **You**: `~/.herdr-superwork/settings/config.json` ([the home folder](home-folder.md)).
 - **Your entry for a repo**: the `repos` section of that same file, keyed by the repo's name on the board.
-- **This task**: saved on the task, only the settings that differ.
+- **This task**: saved on the task, only the settings that differ. A task an [automation](automations.md) made
+  starts with the automation's own settings here; an automation is no place of its own.
 - **The repo's own file**: `.herdr-superwork.json`, committed in that repo. It may hold five facts only:
   `workspace.setup`, `workspace.include`, `workspace.teardown`, `check.command` and `check.timeout`. Anything else in
   it is refused and said on the task (a `Note` in the task panel, and `show <id>`). It is read from the commit the
@@ -66,7 +67,8 @@ that one setting the next place down is used, and the board keeps running.
 herdr-superwork set <name> <value>                you
 herdr-superwork set <name> <value> --repo <name>  your entry for that repo
 herdr-superwork set <name> <value> --task <id>    one task
-herdr-superwork unset <name>  [--repo … | --task …]   back to what it would be
+herdr-superwork set <name> <value> --automation <name>   the tasks one automation makes (automations.md)
+herdr-superwork unset <name>  [--repo … | --task … | --automation …]   back to what it would be
 herdr-superwork show                              your settings, the changed ones marked
 herdr-superwork show <id>                         every value of one task, and the place it came from
 herdr-superwork delegate <id> --reviewer.agent claude --merge.by itself

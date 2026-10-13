@@ -4,10 +4,11 @@ import { clean, age, prNumber, prTag, merged, idLabel, bar } from "./words.js";
 import { reviewing, groupOf, waitOf, reviewerWord } from "./states.js";
 import { roundWords, reviewNote } from "./review-words.js";
 import { name as keyName } from "../keys.js";
+import { madeByWords } from "../../automations/told.js";
 
 const ASKS = { question: "Asks you", permission: "Asks for your OK", auth: "Needs a login" };
 // The facts under Status, in the order they are drawn. In a short window they go from the last of GIVE.
-const ORDER = ["head", "state", "progress", "now", "who", "change", "task"];
+const ORDER = ["head", "state", "progress", "now", "who", "made", "change", "task"];
 
 export class PanelStatus {
   // Returns the title's part, the status part (its facts by name in `rows`, redrawn by `draw`), and what the part
@@ -28,6 +29,7 @@ export class PanelStatus {
     if (r.state === "working" && note && !(failure && waitOf(r)?.who === "agent")) rows.now = fact("Now", wrap(note, room));
     const who = underReview ? "" : r.app ? (!agent && r.app === S.me() ? "you" : r.app) : "";
     if (who) rows.who = fact("On it", clean(who), quiet);
+    if (madeByWords(r)) rows.made = fact("Made by", wrap(madeByWords(r), room), quiet); // an automation's task says so
     const st = /(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?/.exec(String(r.stat || ""));
     const size = st ? `${st[1]} file${st[1] === "1" ? "" : "s"}, +${st[2] || 0} −${st[3] || 0}` : clean(r.stat || "").trim();
     const url = /^https?:\/\/\S+$/.test(String(r.pr || "")) ? String(r.pr) : "";

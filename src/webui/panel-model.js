@@ -25,11 +25,12 @@ export function readLine(line) {
   return { k: "text", value: ps };
 }
 
-export function panelOf(v, r) {
-  if (!r) return null;
+// Drawn lines as parts under their headlines. What stands above the first headline (the title) is left out: the page
+// has it from the task itself.
+export function partsOf(lines) {
   const parts = [];
   let part = null, fact = null;
-  for (const line of v.panel(r, WIDE, true)) {
+  for (const line of lines) {
     const x = readLine(line);
     if (x.k === "head") { part = { head: x.text, color: x.color, items: [] }; parts.push(part); fact = null; continue; }
     if (!part) continue; // the title: the page has it from the task itself
@@ -39,6 +40,12 @@ export function panelOf(v, r) {
     else { part.items.push({ k: "text", value: x.k === "more" ? x.value : x.value }); fact = null; }
   }
   for (const p of parts) while (p.items.length && p.items.at(-1).k === "gap") p.items.pop();
+  return parts;
+}
+
+export function panelOf(v, r) {
+  if (!r) return null;
+  const parts = partsOf(v.panel(r, WIDE, true));
   // The progress is a bar on the page, not a row of block characters.
   const bar = r.state !== "done" && r.progress !== undefined ? Math.max(0, Math.min(100, Number(r.progress) || 0)) : null;
   for (const p of parts) for (const f of p.items) if (f.k === "fact" && f.label === "Progress" && bar !== null) { f.bar = bar; f.lines = f.lines.map((l) => l.map((x) => ({ ...x, t: x.t.replace(/^[█░]+ ?/, "") })).filter((x) => x.t)); }

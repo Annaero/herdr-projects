@@ -6,6 +6,7 @@ import * as G from "../gate.js";
 import { reviewRule, isResearch } from "../research.js";
 import { linkMode } from "../review-page.js";
 import { REVIEWER_BOARD_RULE } from "../board-rule.js";
+import { automationRule } from "../automations/told.js";
 
 // `earlier`: the findings of the round before, when the agent was sent back with them (null on a first review).
 // `filed`: the faults from before the task that the board knows already, whichever task's review found them: what
@@ -25,6 +26,7 @@ export function reviewBrief(t, { text, change, toLand, ch, earlier = null, filed
     check ? `This repo's check is \`${check}\`; it passed on this commit. Run tests only through it.` : "",
     "You are here to review, not to fix. Do not change, commit, push or merge anything in the repository. Whatever you alter in the code is discarded when you finish.",
     REVIEWER_BOARD_RULE,
+    automationRule(t),
     ch["review.evidence"] ? `Curate evidence that genuinely helps the human judge this work. Choose a small set of distinct, useful items (aim for at most six); no duplicates, scratch files, exhaustive output dumps, or decorative reports. A single navigable review page will combine the work summary, your verdict and only the evidence you explicitly list in your verdict. Do not make your own wrapper page. Each caption should name what matters; each detail should explain what that item proves, or how to try it.\n- Something with a screen (a page, an app, a game, a chart): screenshots of it working, and of anything broken.\n- Something that moves or is interactive: a short screen recording, if you are able to make one.\n- Something a person can use: a link to try it themselves.\n- Logic, a library, a script: the output of the tests or commands you ran, saved as a text file.\n- A tiny or obvious change (a typo, a rename, a one-line fix): no artifact is needed. Do not manufacture any.\nSave evidence files in ${dir}/ (the board's own folder for this review, outside the folder you are in), using plain file names. Do not include secrets or private credentials in evidence.\n${share}` : "",
     `Task: ${t.title}`, t.description ? `Details:\n${t.description.slice(0, 3000)}` : "",
     `What the agent says it did:\n${String(text || "").slice(0, 2000)}`,

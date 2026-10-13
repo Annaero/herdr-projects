@@ -32,11 +32,14 @@ const HELP = `herdr-superwork: a work board for herdr
   herdr-superwork finish <id>                   finish anyway, when the agent stopped without a summary
   herdr-superwork details <id>                  failure details, review and next steps
   herdr-superwork pin|archive|restore|clear <id>
-  herdr-superwork set <name> <value> [--repo NAME | --task ID]
-                                      change a setting: for you, for your entry for one repo, or for one task
+  herdr-superwork set <name> <value> [--repo NAME | --task ID | --automation NAME]
+                                      change a setting: for you, for your entry for one repo, for one task, or for an automation
   herdr-superwork unset <name> [--repo NAME | --task ID]
                                       back to what it would be without that answer
   herdr-superwork show [<id>] [--repo NAME]     every setting and the place it came from; without an id, your own
+  herdr-superwork automations [add|show|change|on|off|run|firings|remove] …
+                                      tasks made on a schedule or when something happens on the board; each firing adds
+                                      a task and puts an agent on it. \`herdr-superwork automations help\` says how
   herdr-superwork coordinator                   the Coordinator (the agent behind the board's box): who it is, how it stands
   herdr-superwork coordinator tell <text> [--delegate]
                                                 say something to it (it is started when it is not running); --delegate is
@@ -54,7 +57,7 @@ const HELP = `herdr-superwork: a work board for herdr
 // positional arguments, --flag value, --flag (true), --no-flag (false)
 export function parse(argv) {
   const pos = [], flags = {};
-  const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "research"]);
+  const BOOL = new Set(["json", "archived", "all", "delegate", "force", "help", "skill", "research", "every-repo"]);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--") { pos.push(...argv.slice(i + 1)); break; }
@@ -158,7 +161,7 @@ export async function main(argv) {
         result = [{ suggestion: r.suggestion || null, on: r.on || null, known: r.known || null }, `${r.msg}${r.suggestion ? S.titleNote(rest(1)) : ""} Carry on with your own task.`];
         break;
       }
-      const t = A.add(here, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "", repo: flags.repo, research: flags.research === true });
+      const t = A.add(here, need(1, "a title") && rest(1), { description: flags.desc || flags.description || "", repo: flags.repo, research: flags.research === true, from: caller()?.task });
       // Added by the Coordinator from a message the human sent with tab: delegated here, flag or no flag.
       let tab = false;
       if (!flags.delegate && process.env.HERDR_PANE_ID && !process.env.HERDR_PLUGIN_ID) { try { tab = (await import("./coordinator.js")).tabTurn(process.env.HERDR_PANE_ID); } catch {} }
@@ -208,6 +211,7 @@ export async function main(argv) {
     case "restore": case "unarchive": { const t = A.restore(need(1, "an id")); result = [brief(shownOf(t.id)), `${t.id}: restored`]; break; }
     case "clear": { const r = await A.clear(need(1, "an id")); result = [r, r.kept.length ? `${r.id}: removed. Kept, so no work is lost: ${r.kept.join(", ")}` : `${r.id}: removed`]; break; }
     case "set": case "unset": case "show": { result = (await import("./actions/settings.js")).settingsCommand(cmd, pos, flags, rest); break; }
+    case "automations": case "automation": { result = (await import("./automations/command.js")).automationsCommand(pos.slice(1), flags, here); break; }
     case "coordinator": {
       const C = await import("./coordinator.js");
       const what = pos[1] || "status";

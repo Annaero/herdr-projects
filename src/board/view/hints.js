@@ -24,6 +24,7 @@ export class Hints {
     if (this.closing) return [["", `Press ${name("close")} again to close the board`, false, `${name("close")} again closes the board`]];
     if (this.menu) return [[arrows, "pick a key"], [enter, "press it"], [esc, "close the menu"]];
     if (this.mode === "find") return [[enter, "keep the filter"], [esc, "cancel"]];
+    if (this.automationsView) { const own = this.autoHints(); if (own) return own; } // the list of automations has its own (automations.js)
     const agentOn = !!r && isAgent(r);
     // While you type: what the keys do with your words. In a narrow window the new line goes first, and esc stays.
     if (this.value()) {

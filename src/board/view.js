@@ -40,6 +40,8 @@ import { PanelSettings } from "./view/panel-settings.js";
 import { PanelEdit } from "./view/panel-edit.js";
 import { Suggestions } from "./view/suggestions.js";
 import { WebUi } from "./view/web-ui.js";
+import { Automations } from "./view/automations.js";
+import { AutomationPanel } from "./view/automation-panel.js";
 
 export { asRow } from "./view/states.js";
 export { fitShown } from "./view/size.js";
@@ -55,6 +57,9 @@ export class View {
   // as you move), the Coordinator otherwise.
   reply = false; replyId = ""; side = false; full = false; panelTop = 0; panelHeight = 1; panelLength = 0; width = 120;
   mode = "new"; menu = null; ask = null; byRepo = false; draftAway = null;
+  // The automations, a list of their own (view/automations.js): while it shows no task is selected, so what you type
+  // goes to the Coordinator. `autoOpen`: one automation, whole; `autoAt`: the firing picked there (-1: none).
+  automationsView = false; autoSel = ""; autoOpen = false; autoAt = -1; autoTop = 0;
   scope = ""; // whose board you see: "" this machine, "*" every machine, or one other machine by name
   remotes = {}; machinesAt = 0;
   filter = ""; msg = ""; msgKind = "overlay0";
@@ -132,7 +137,7 @@ export class View {
   flash(text, kind = "overlay0") { this.msg = clean(text); this.msgKind = kind; }
   value() { return this.input.getText(); }
   setValue(v) { this.input.setText(v); }
-  current() { return this.items.find((r) => r.id === this.sel); }
+  current() { return this.automationsView ? undefined : this.items.find((r) => r.id === this.sel); }
   job() { return this.jobs.find((j) => j.id === this.sel); }
   try(fn) { let ok = true; try { fn(); } catch (e) { ok = false; this.flash(e.message, "red"); } this.load(); return ok; }
 }
@@ -168,6 +173,8 @@ const PARTS = [
   PanelSettings,
   PanelEdit,
   Suggestions,
+  Automations,
+  AutomationPanel,
   WebUi,
 ];
 for (const part of PARTS) {

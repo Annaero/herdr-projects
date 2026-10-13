@@ -104,6 +104,7 @@ export class Layout {
       const shown = r || this.job();
       let top;
       if (this.menu) top = safe("The menu", width, () => this.menuLines(width, h), [""]);
+      else if (this.automationsView) top = safe("The automations", width, () => this.autoScreen(width, h), [""]);
       else if (this.full && shown) top = safe("The task details", width, () => this.fullPanel(shown, width, h), [""]);
       else if (width >= WIDE && this.side) {
         // The task panel on the right, while you have it open, on herdr's sidebar colour when the theme gives it one.

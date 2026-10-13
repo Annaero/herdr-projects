@@ -7,8 +7,10 @@ const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 // Buttons that end something are not the ones to hit by mistake.
 const QUIET = ["stop", "archive", "back"];
 
-function item(x) {
+function item(x, onGo) {
   if (x.k === "gap") return h("div.sw-gap");
+  // A firing of an automation that made a task: the line goes to that task.
+  if (x.k === "text" && x.go) return h("button.sw-text.sw-go", { type: "button", title: `Open ${x.go}`, onclick: () => onGo?.(x.go) }, ink(x.value));
   // A line the board set in under another (a suggestion's words under its title) stays set in when it wraps.
   if (x.k === "text") { const lead = /^ */.exec(x.value[0]?.t || "")[0].length; return h("p.sw-text", lead ? { style: `padding-left:${lead * 0.5}em` } : null, ink(lead ? [{ ...x.value[0], t: x.value[0].t.slice(lead) }, ...x.value.slice(1)] : x.value)); }
   return h("div.sw-fact", h("dt.sw-label", x.label), h("dd.sw-value",
@@ -24,12 +26,12 @@ export function actionsEl(snap, { onPress, onMenu }) {
 export function panelEl(snap, handlers) {
   const p = snap.panel;
   if (!p) return null;
-  return h("article.sw-panel", { "aria-label": "Task" },
+  return h("article.sw-panel", { "aria-label": p.automation ? "Automation" : "Task" },
     h("header.sw-panel-head",
       h("button.icon-button.sw-panel-back", { type: "button", "aria-label": "Back to the list", title: "Back to the list", onclick: handlers.onClose }, icon("back")),
       h("h3.sw-panel-title", p.title || "(no title)")),
     actionsEl(snap, handlers),
     h("div.sw-parts", p.parts.map((part) => h("section.sw-part",
       h(`h4.sw-part-head${part.color ? `.sw-c-${part.color}` : ""}`, part.head),
-      h("dl.sw-facts", part.items.map(item))))));
+      h("dl.sw-facts", part.items.map((x) => item(x, handlers.onGo)))))));
 }

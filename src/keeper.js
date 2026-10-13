@@ -16,6 +16,7 @@ import { housekeeping, spawnLoose } from "./housekeeping.js";
 import { inline, userEnv } from "./runner.js";
 import { readTurnOf } from "./agents.js";
 import { tick as coordinatorTick } from "./coordinator.js";
+import { automationsTick } from "./automations/tick.js";
 
 const beatFile = () => path.join(S.dataDir(), "keeper.json");
 const log = (msg) => { try { fs.appendFileSync(path.join(S.dataDir(), "keeper.log"), `${new Date().toISOString()} ${process.pid} ${msg}\n`); } catch {} };
@@ -78,6 +79,7 @@ export function tickOnce(socket, { watch } = {}) {
   let rows = null;
   try {
     S.withLock("tick", () => {
+      try { if (socket === currentSocket()) automationsTick(); } catch {} // tasks made on a schedule or by a board event (automations/tick.js)
       try { housekeeping(socket); } catch {}
       rows = F.boardFor(socket);
       try { F.syncSidebar(rows); } catch {}

@@ -8,6 +8,7 @@ export class Menu {
   // The lines that can be picked: every ctrl and alt key, as it stands for the selected task right now.
   menuItems() {
     const r = this.current();
+    if (this.automationsView) return this.autoMenuItems(); // the keys that do something in that list (automations.js)
     return K.KEYS.filter((k) => k.menu).map((k) => ({ id: k.id, group: k.group, key: K.name(k.id), label: k.menu(this, r), run: () => k.run(this, r) }));
   }
   menuKey(data) {
@@ -30,7 +31,7 @@ export class Menu {
   menuLines(width, h) {
     const t = this.theme, items = this.menuItems(), r = this.current();
     this.menu.at = Math.max(0, Math.min(this.menu.at, items.length - 1));
-    const plain = K.KEYS.filter((k) => k.group === "plain" && k.help).map((k) => [K.name(k.id, true), K.say(k.help)]);
+    const plain = this.automationsView ? this.autoPlainHelp() : K.KEYS.filter((k) => k.group === "plain" && k.help).map((k) => [K.name(k.id, true), K.say(k.help)]);
     const col = Math.max(8, ...[...plain.map(([k]) => k), ...items.map((i) => i.key)].map((k) => visibleWidth(k) + 2)); // 8 with the usual keys
     const cutTo = (d) => truncateToWidth(d, Math.max(8, width - col - 4), "…");
     const L = [" " + t.bold("menu") + (r ? t.fg("overlay0", `  for "${truncateToWidth(clean(r.title || r.id), Math.max(8, width - 16), "…")}"`) : ""), ""];

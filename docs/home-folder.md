@@ -8,6 +8,7 @@ Everything the board keeps for you is in one folder, the same on every machine: 
   data/         everything the board writes while it runs
     tasks/<repo>/<n>/        one folder per task: task.json, inbox.jsonl, closing-note.md, artifacts/
     coordinator/<session>/   the Coordinator's saved state, and chat/, the folder it starts in
+    automations/             the automations, their firings, the board events counted already (docs/automations.md)
     bin/herdr-superwork      the command agents are handed, by its full path
     locks/ stamps/ *.json *.log   the board's own bookkeeping
   reports/      pages and reports an agent made for you that belong in no repo, one folder per task

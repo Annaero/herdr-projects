@@ -40,6 +40,7 @@ test("a merge conflict with your checkout is rolled back and saved; ctrl+r sends
     assert.match(paneOf(w, S.get(id)).agent.prompts.at(-1), /already approved this merge/);
     t = await settle(id, { max: 30 });
     assert.equal(t.stage, "done", JSON.stringify([t.stage, t.msg, t.failure?.title]));
+    assert.ok(t.mergedAt >= t.created); // when it was merged: what "a task was merged" fires an automation by (automations/events.js)
     assert.equal(fs.readFileSync(path.join(w.root, "a.txt"), "utf8"), "merged\n");
   } finally { w.cleanup(); }
 });

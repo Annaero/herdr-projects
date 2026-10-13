@@ -93,12 +93,21 @@ export class WebView extends View {
   }
   // Tapping a row selects it; `open`: the page shows the whole task, so the selection stays on it while you read.
   pick(id, open = false) {
+    // In the list of automations: one of them, or (from a firing) the task it made, which is on the board.
+    if (this.automationsView) {
+      const a = S.automation(id);
+      if (a || !String(id).includes("/")) { if (a) this.autoSel = a.id; this.autoOpen = !!open && !!a; this.autoAt = -1; this.editing = null; return; }
+      this.autoGo(String(id));
+      if (this.automationsView) return; // that task is gone: the board said so
+    }
     this.stick = ""; this.full = false;
     this.load(); // the task may be newer than the last look
     if ([...this.items, ...this.jobs].some((r) => r.id === id)) this.sel = String(id);
     this.full = !!open && !!(this.current() || this.job()); this.panelTop = 0;
     this.load();
   }
+  // An automation's settings page is the terminal board's (as a task's is): here the command changes them.
+  autoSettings(a) { this.flash(`Its settings are changed on the terminal board, or with: herdr-superwork set <name> <value> --automation "${a.name}"`, "yellow"); }
   find(text) { this.filter = String(text ?? "").trim().slice(0, 200); this.mode = "new"; this.load(); }
   // Into the agent: on the web that is the web UI's own view of its pane. The task's space is reopened first, as the
   // terminal board does; the page then goes to the link.

@@ -28,11 +28,11 @@ export function sideOf(v) {
     ask: v.ask ? { q: String(v.ask.q || ""), detail: String(v.ask.detail || ""), keys: (v.ask.keys || [["sayYes", "yes"], ["sayNo", "no"]]).map(([id, label]) => ({ id, label })) } : null,
     msg: v.msg ? { text: v.msg, kind: v.msgKind || "overlay0", n: v.msgN || 0 } : null,
     // With nothing typed: what can be done to the selected task now. `back` is the page's own Back while a task is open.
-    actions: buttonsOf(v, r).filter((b) => !TERMINAL_ONLY.includes(b.id) && !(b.id === "back" && v.full)),
+    actions: buttonsOf(v, r).filter((b) => !TERMINAL_ONLY.includes(b.id) && !(b.id === "back" && (v.full || v.autoOpen))),
     // With something typed: what enter and tab do with it.
     send: { enter: typing.find((b) => b.id === "enter")?.label || "", delegate: typing.find((b) => b.id === "delegate")?.label || "", place },
     menu: (() => { try { return v.menuItems().filter((i) => !TERMINAL_ONLY.includes(i.id)).map((i) => ({ id: i.id, group: i.group, label: String(i.label || "") })); } catch { return []; } })(),
-    flags: { archive: !!v.archiveView, byRepo: !!v.byRepo, allDone: !!v.allDone, scope: v.scope || "", reply: !!v.reply, open: !!v.full, filter: v.filter || "" },
+    flags: { automations: !!v.automationsView, archive: !!v.archiveView, byRepo: !!v.byRepo, allDone: !!v.allDone, scope: v.scope || "", reply: !!v.reply, open: !!(v.automationsView ? v.autoOpen : v.full), filter: v.filter || "" },
     // The selected task has an agent whose pane the web UI can show.
     canOpen: !!r && r.title !== undefined && !r.archivedAt && !r.host && isAgent(r),
     go: v.go || null,

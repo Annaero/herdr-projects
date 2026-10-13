@@ -18,7 +18,7 @@ export class TextBox {
     if (this.value()) return lines;
     const place = this.mode === "find" ? "type to filter, archived tasks too"
       : replying ? (r.archivedAt ? "archived: read-only" : isAgent(r) ? sendTo(AGENT_TAB) : !r.host && ["todo", "progress"].includes(r.stage) ? "your message starts an agent on it" : this.canDispatch || r.host ? sendTo(COORDINATOR_TAB) : "what should change?")
-      : this.talksToCoord ? sendTo(COORDINATOR_TAB) : "what's next?";
+      : this.automationsView ? this.autoPlace() : this.talksToCoord ? sendTo(COORDINATOR_TAB) : "what's next?";
     // The placeholder never runs past the box: it is cut with … like any other greyed line.
     const shown = truncateToWidth(place, Math.max(1, width - visibleWidth(label) - 1), "…");
     lines[1] = `${label} ${this.focused ? CURSOR_MARKER : ""}${t.inverse(shown[0])}${t.fg("overlay0", shown.slice(1))}`;

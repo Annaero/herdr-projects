@@ -74,7 +74,7 @@ export class Row {
   }
   // What a row says on its first line, after its name: nothing on a live task's row, which says it on its second.
   saysBeside(r) { return isLive(r) ? { text: "" } : this.sentence(r); }
-  rowTitle(r) { return clean(r.title || r.id) + (isResearch(r) ? " [research]" : "") + (r.archivedAt ? " [archived]" : ""); }
+  rowTitle(r) { return clean(r.title || r.id) + (isResearch(r) ? " [research]" : "") + (r.automation?.id ? " [auto]" : "") + (r.archivedAt ? " [archived]" : ""); }
   // The fewest cells a row needs to say something: a sentence cut to a few letters says nothing.
   sayNeed(said) { return Math.min(visibleWidth(said.text || ""), SENTENCE_MIN); }
   // The columns on the right are laid out first, once for the whole list: which there are and how wide each is. Every

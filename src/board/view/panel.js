@@ -109,7 +109,7 @@ export class Panel {
     if (over() > 0) lead = [];
     for (const s of flexible) if (over() > 0 && s.lines.length > s.min) s.lines = s.at(Math.max(s.min, s.lines.length - over()));
     for (const s of flexible) if (over() > 0 && !s.last) s.lines = s.at(0);
-    if (over() > 0) top.drop("task", "who", "next");
+    if (over() > 0) top.drop("task", "who", "made", "next");
     let kept = rows;
     const redraw = () => { settings.lines = kept.length ? [head("Settings"), ...table(kept)] : []; };
     if (over() > 0 && settings.lines.length) { kept = rows.filter(([k]) => !NOT_SETTINGS.includes(k)); redraw(); }

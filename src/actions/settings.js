@@ -1,9 +1,11 @@
 // The settings' commands: set, unset and show, for you, for your entry for a repo, or for one task.
 import * as S from "../store.js";
+import { settingsFor } from "../automations/command.js";
 
 // Returns what the command line prints: [value for --json, text].
 export function settingsCommand(cmd, pos, flags, rest) {
-  if (flags.task && flags.repo) throw new Error(`${cmd} takes --task or --repo, not both.`);
+  if ([flags.task, flags.repo, flags.automation].filter((x) => x !== undefined).length > 1) throw new Error(`${cmd} takes one of --task, --repo and --automation, not several.`);
+  if (flags.automation !== undefined) return settingsFor(cmd, pos, flags, rest); // an automation's own settings (automations/command.js)
   const id = cmd === "show" ? flags.task || pos[1] : flags.task;
   const scope = id ? { task: S.find(id) } : flags.repo ? { repo: String(flags.repo) } : {};
   const where = scope.task ? ` for ${scope.task.id}` : scope.repo ? ` for ${scope.repo}` : "";

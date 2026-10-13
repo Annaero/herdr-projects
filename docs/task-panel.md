@@ -49,7 +49,7 @@ Both have the same parts, in the same order, and **one form for every part**:
 - **The title** is on top, by itself.
 - **Status**, where it stands, one fact a row and always in this order: `State` (its mark and word, which review
   it is on, since when), `Progress` (the bar, its percent and the minutes left), `Now` (what the agent or the
-  reviewer is doing right now, wrapped whole), `On it` (who), `Change` (the pull request, in the colour of its
+  reviewer is doing right now, wrapped whole), `On it` (who), `Made by` (the [automation](automations.md) that made it, when one did), `Change` (the pull request, in the colour of its
   checks, and the size of the change; the number is a link, and full screen the address is printed too) and `Task`
   (its id). A task nobody is on says what puts an agent on it (`Next`).
 - **What it needs from you** is a part of its own right under Status, its headline in red: `Asks you`, `Asks for
@@ -115,7 +115,7 @@ what the task needs from you outlasts every setting:
    the description, then the review (its summary, then `History` and `Evidence`), each down to a few lines. A text
    that lost lines ends in ` …`.
 2. Those parts go, all but the review, which keeps its row and one line of its summary.
-3. The facts that are said elsewhere: `Task` and `On it`, and the rows among the settings that are not settings.
+3. The facts that are said elsewhere: `Task`, `On it` and `Made by`, and the rows among the settings that are not settings.
 4. The settings, from the last, each one whole. Their headline goes with the last of them.
 5. The review is down to its one row (`Review 3  ✓ Pass · 2 minor`), and what it needs from you gives up lines.
 6. The empty lines between the parts, the `Status` headline, the title's second line; then `Change`, the review's

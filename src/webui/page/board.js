@@ -35,6 +35,7 @@ function note(text) { const n = part("note"); n.textContent = text || ""; n.hidd
 function chips() {
   const f = snap.flags, head = snap.list.head, out = [];
   const chip = (text, title, fn) => h("button.sw-chip", { type: "button", title, onclick: fn }, text, h("span.sw-chip-x", { "aria-hidden": "true" }, "×"));
+  if (f.automations) out.push(chip("Automations", "Back to the board", () => press("automations")));
   if (f.archive) out.push(chip("Archive", "Back to the board", () => press("archiveView")));
   if (f.filter) out.push(chip(`Find: ${f.filter}`, "Clear the filter", () => call("find", { text: "" })));
   if (head.machines) out.push(chip(`All machines: ${head.machines}`, "Change whose board you see", () => press("scope")));
@@ -51,7 +52,7 @@ function draw() {
   const once = (key, value, fn) => { const text = JSON.stringify(value); if (drawn[key] !== text) { drawn[key] = text; fn(); } };
   once("chips", [snap.flags, snap.list.head], () => part("chips").replaceChildren(...chips()));
   once("list", snap.list, () => part("list-host").replaceChildren(listEl(snap.list, { onPick: (id) => call("pick", { id, open: true }), onMore: () => press("allDone") })));
-  once("panel", [snap.panel, snap.actions, snap.canOpen, snap.role], () => { const el = panelEl(snap, { onPress: press, onMenu: () => { menuOpen = true; draw(); }, onClose: () => call("pick", { id: snap.list.selected, open: false }) }); const host = part("task-host"), top = host.scrollTop; host.replaceChildren(...(el ? [el] : [])); host.scrollTop = top; });
+  once("panel", [snap.panel, snap.actions, snap.canOpen, snap.role], () => { const el = panelEl(snap, { onPress: press, onMenu: () => { menuOpen = true; draw(); }, onClose: () => call("pick", { id: snap.list.selected, open: false }), onGo: (id) => call("pick", { id, open: true }) }); const host = part("task-host"), top = host.scrollTop; host.replaceChildren(...(el ? [el] : [])); host.scrollTop = top; });
   once("ask", snap.ask, () => part("ask-host").replaceChildren(...[askEl(snap.ask, press)].filter(Boolean)));
   once("menu", menuOpen ? [snap.menu, snap.list.selected] : null, () => part("menu-host").replaceChildren(...(menuOpen ? [menuEl(snap, { onPress: press, onClose: () => { menuOpen = false; draw(); }, onFind: () => { finding = true; draw(); part("find").focus(); } })] : [])));
   part("find-row").hidden = !finding;

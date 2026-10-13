@@ -118,6 +118,7 @@ follows light and dark and every palette of the web UI by itself.
 | typing, then sending; sending and putting an agent on what is added | **Send**, and the second button beside it |
 | a question (approve a merge, remove a task, a suggested task) | a sheet with the same answers |
 | the board's message to you | a short notice above the chat; one that says something went wrong stays until dismissed |
+| the automations: their list, one of them whole, on and off, run now, remove | **Show the automations** in More…; a row tapped open, the same buttons, each firing a link to its task ([automations](automations.md)) |
 | find, the archive, grouping by repo, all done tasks, other machines | the search button, and **Show** in More…; what is on shows as a chip under the header |
 | going into a task's agent | **Open this task's agent**: the web UI's own view of that pane (chat, or the terminal when no agent is in it) |
 

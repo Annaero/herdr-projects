@@ -61,7 +61,7 @@ test("the board: ready to approve, the merge asks first, the ? menu acts, remove
     text = s.text();
     assert.match(text, /^ menu {2}for "Other"/);
     assert.deepEqual(text.split("\n").filter((l) => /^ (❯| ) \S/.test(l)).map((l) => l.slice(3, 11).trim()).filter((k) => k !== "R#2"),
-      ["↑ ↓", "enter", "space", "tab", "esc", "?", "y  n", "ctrl+l", "ctrl+r", "ctrl+x", "ctrl+a", "ctrl+p", "ctrl+e", "ctrl+n", "ctrl+z", "ctrl+f", "ctrl+c", "alt+c", "alt+u", "alt+j", "alt+p", "alt+t", "alt+a", "alt+s", "alt+d", "alt+m"]);
+      ["↑ ↓", "enter", "space", "tab", "esc", "?", "y  n", "ctrl+l", "ctrl+r", "ctrl+x", "ctrl+a", "ctrl+p", "ctrl+e", "ctrl+n", "ctrl+z", "ctrl+f", "ctrl+c", "alt+c", "alt+u", "alt+j", "alt+p", "alt+t", "alt+a", "alt+o", "alt+s", "alt+d", "alt+m"]);
     assert.match(text, /\n plain keys *\n {3}↑ ↓ {5}move between tasks/); assert.match(text, /\n ctrl: does something *\n ❯ ctrl\+l {2}yes: approve the merge, say yes, retry, take it as it is/); assert.match(text, /\n alt: only shows or hides *\n {3}alt\+c {3}hide the chat's latest message/);
     for (const line of [/ctrl\+r {2}send it back: tell the agent to fix it, or to continue/, /ctrl\+x {2}remove this task/, /ctrl\+a {2}archive this task/, /ctrl\+p {2}pin this task to the top/, /ctrl\+z {2}undo/, /ctrl\+f {2}find: show only the tasks that match/, /ctrl\+c {2}twice: close the board/, /alt\+p {3}hide the side panel/, /alt\+t {3}show the whole task, full screen/, /alt\+a {3}show the archive/, /alt\+s {3}group by repo/, /alt\+d {3}show all done/, /alt\+m {3}other machines \(now: this machine only\)/]) assert.match(text, line);
     assert.match(text, /\n {3}y {2}n {4}answer a question: y yes, n or esc no \(enter never confirms\)/); // the menu says how a question is answered
