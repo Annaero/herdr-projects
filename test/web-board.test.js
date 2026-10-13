@@ -3,6 +3,7 @@
 // whole, the same actions, and a firing as a link to the task it made. And other machines: the web UI's PCs (below).
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 import { world, settle } from "./helpers.js";
 import * as S from "../src/store.js";
@@ -200,11 +201,11 @@ test("the web board has each task's tag, as the terminal board's rows do: on its
   // On the board the tests above left: two more tasks, with numbers of one and of three digits.
   S.writeJson(path.join(S.tasksDir(), "proj", "seq"), 8); const nine = A.add(w.root, "Number nine").id;
   S.writeJson(path.join(S.tasksDir(), "proj", "seq"), 133); const big = A.add(w.root, "Number one three four").id;
-  const v = new WebView({ cwd: w.root }), tags = (s) => Object.fromEntries(rowsOf(s.list).map((r) => [r.id, r.tag]));
+  const v = new WebView({ cwd: w.root }), tags = (s) => Object.fromEntries(rowsOf(s.list).map((r) => [r.id, r.tag])), wide = (s) => Object.fromEntries(rowsOf(s.list).map((r) => [r.id, r.tagWidth]));
   let s = snapshot(v);
-  assert.equal(tags(s)[big], "#134"); assert.equal(tags(s)[nine], "#9"); assert.equal(s.list.tagWidth, 4);
+  assert.equal(tags(s)[big], "#134"); assert.equal(tags(s)[nine], "#9"); assert.equal(wide(s)[big], 4); assert.equal(wide(s)[nine], 4); // one column, within the limit on the space before a title
   S.setValue("repo.key", "hsw", { repo: "proj" }); v.look(); s = snapshot(v);
-  assert.equal(tags(s)[big], "HSW-134"); assert.equal(tags(s)[nine], "HSW-9"); assert.equal(s.list.tagWidth, 7);
+  assert.equal(tags(s)[big], "HSW-134"); assert.equal(tags(s)[nine], "HSW-9"); assert.equal(wide(s)[big], 7); assert.equal(wide(s)[nine], 7);
   v.pick(big, true); s = snapshot(v); assert.equal(s.panel.tag, "HSW-134"); assert.equal(s.panel.title, "Number one three four");
   v.press("talk"); s = snapshot(v); assert.equal(s.chat.tag, "HSW-134"); assert.equal(s.chat.name, "Number one three four");
   v.pick(big); v.find("hsw-9"); assert.equal(v.sel, nine); v.find("#134"); assert.equal(v.sel, big); v.find("");
@@ -220,9 +221,32 @@ class El {
   append(...xs) { for (const x of xs) this.kids.push(x && x.nodeType ? x : String(x)); }
   replaceChildren(...xs) { this.kids = []; this.append(...xs); }
   addEventListener() {} setAttribute() {} focus() {}
+  get childNodes() { return this.kids; }
   get textContent() { return this.kids.map((k) => (typeof k === "string" ? k : k.textContent)).join(""); }
   set textContent(v) { this.kids = [String(v)]; }
 }
+test("the web page's rows: the tag has a column of its own, so what a task says starts under its title; a narrow list drops every tag at once", async () => {
+  const had = { document: globalThis.document, ResizeObserver: globalThis.ResizeObserver };
+  const seen = [];
+  Object.assign(globalThis, { document: { createElement: (tag) => new El(tag) }, ResizeObserver: class { constructor(run) { this.run = run; } observe(el) { seen.push({ el, run: this.run }); } } });
+  try {
+    const { rowEl, listEl, tagsFit } = await import("../src/webui/page/list.js");
+    const r = { id: "p/2", tag: "#2", tagWidth: 4, mark: "●", color: "blue", title: "Two", time: "5m", says: [{ t: "Running the tests" }], progress: null, review: [], pr: [] };
+    const main = rowEl(r, { selected: false, onPick() {} }).kids[1], names = (el) => el.kids.map((k) => k.className);
+    assert.deepEqual(names(main), ["sw-id", "sw-line", "sw-says"]); // the tag beside the lines, never inside the first one
+    assert.deepEqual(names(main.kids[1]), ["sw-title", "sw-time"]); assert.equal(main.kids[0].style, "min-width:4ch");
+    assert.deepEqual(names(rowEl({ ...r, tag: "" }, { selected: false, onPick() {} }).kids[1]), ["sw-line", "sw-says"]);
+    const css = fs.readFileSync(new URL("../src/webui/page/board.css", import.meta.url), "utf8");
+    assert.match(css, /\.sw-main \{ display: grid; grid-template-columns: auto minmax\(0, 1fr\)/); assert.match(css, /\.sw-main > \* \{ grid-column: 2; \}/); assert.match(css, /\.sw-no-tags \.sw-main > \.sw-id \{ display: none; \}/);
+    // The tags give way together where the widest would leave a title fewer than 16 letters; a wider tag goes sooner.
+    assert.equal(tagsFit(400, 4, 6), true); assert.equal(tagsFit(200, 4, 6), false); assert.equal(tagsFit(270, 4, 6), true); assert.equal(tagsFit(270, 9, 6), false); assert.equal(tagsFit(100, 0), true); assert.equal(tagsFit(0, 4), true);
+    const list = { groups: [{ name: "working", color: "blue", rows: [r, { ...r, id: "p/140", tag: "HSW-140", tagWidth: 7 }], more: 0 }], jobs: [], selected: "", empty: "" };
+    const el = listEl(list, { onPick() {}, onMore() {} }), toggled = []; el.classList.toggle = (name, on) => toggled.push([name, on]);
+    assert.equal(seen.length, 1); assert.equal(seen[0].el, el);
+    el.clientWidth = 600; seen[0].run(); el.clientWidth = 200; seen[0].run();
+    assert.deepEqual(toggled, [["sw-no-tags", false], ["sw-no-tags", true]]);
+  } finally { Object.assign(globalThis, had); }
+});
 test("the web page's chat line shows only what there is: with no task's tag (the Coordinator, a new task) nothing stands in its place", async () => {
   const had = { document: globalThis.document, window: globalThis.window, sessionStorage: globalThis.sessionStorage, requestAnimationFrame: globalThis.requestAnimationFrame };
   Object.assign(globalThis, { document: { createElement: (tag) => new El(tag) }, window: { innerHeight: 800, matchMedia: () => ({ matches: true }) }, sessionStorage: { getItem: () => "", setItem() {} }, requestAnimationFrame() {} });

@@ -31,7 +31,7 @@ export class List {
     const held = (r) => r.id === this.stick && r.id === this.sel;
     const eligible = this.items.filter((r) => held(r) || (this.archiveView ? !!r.archivedAt : !!f || !r.archivedAt));
     // A task is found by its number and by its tag too: `134`, `#134`, `hsw-134` (row-number.js).
-    const keyed = { keys: (() => { try { return S.repoKeys(); } catch { return {}; } })(), mixed: false, names: {} };
+    const keyed = { keys: (() => { try { return S.repoKeys(); } catch { return {}; } })() };
     const tags = (r) => { const tag = this.numberTag(r, keyed).toLowerCase(), n = tag.replace(/^.*[#-]/, ""); return tag ? [tag, `#${n}`, n] : []; };
     const shown = f ? eligible.filter((r) => held(r) || `${tags(r).join(" ")} ${r.id} ${r.title} ${r.msg} ${r.state} ${r.app} ${r.archivedAt ? "archived" : ""} ${r.description || ""} ${r.failure?.title || ""} ${r.failure?.detail || ""}`.toLowerCase().includes(f)) : eligible;
     const layout = JSON.stringify([this.scope, this.byRepo, this.allDone, this.archiveView, f]);

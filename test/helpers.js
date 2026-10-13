@@ -32,7 +32,8 @@ export async function world({ repo = true, settings = {}, repoSettings = null, o
   const socket = path.join(base, "herdr.sock");
   const server = net.createServer(); await new Promise((r) => server.listen(socket, r));
   Object.assign(process.env, {
-    HERDR_SUPERWORK_DATA_DIR: path.join(base, "data"), HERDR_SUPERWORK_CONFIG_DIR: path.join(base, "config"), HERDR_FAKE_DIR: fake,
+    // The reports too: test files run at once and all name their tasks proj/1, so a shared folder would show one test another's report.
+    HERDR_SUPERWORK_DATA_DIR: path.join(base, "data"), HERDR_SUPERWORK_CONFIG_DIR: path.join(base, "config"), HERDR_SUPERWORK_REPORTS_DIR: path.join(base, "reports"), HERDR_FAKE_DIR: fake,
     HERDR_BIN_PATH: path.join(here, "bin", "herdr"), HERDR_SOCKET_PATH: socket, HERDR_SUPERWORK_INLINE: "1", HERDR_SUPERWORK_SETTLE_MS: "0", HERDR_SUPERWORK_PR_LAG_MS: "0", HERDR_SUPERWORK_READY_STEP_MS: "0",
     HERDR_SUPERWORK_POLL_MS: "20", HERDR_SUPERWORK_NO_KEEPER: "1", HERDR_SUPERWORK_NO_HOOK: "1", HERDR_SUPERWORK_READ_MS: "0", HERDR_SUPERWORK_REVIEW_MS: "120000", HERDR_SUPERWORK_NO_SERVER: "1", HERDR_SUPERWORK_LINKS: "local",
     HERDR_SUPERWORK_CLAUDE_JSON: path.join(base, "claude.json"), HERDR_SUPERWORK_CODEX_TOML: path.join(base, "codex.toml"),

@@ -19,23 +19,40 @@ shows the number on every row, and a repo can have a short key of its own so tha
 - **Where.** Right of the status mark, left of the title: `#134`. With a key set for its repo it reads `HSW-134`.
 - **Quiet.** It is in the theme's grey for greyed-out words, the same on every row and in every state, so the title
   is what you read first.
-- **One column.** The column is as wide as the widest tag on the list (all its tasks, also the ones folded away, so
-  it does not move as the list folds), and every title starts in the same place: `#9`, `#98` and `#134` above. What
-  a live task says, on its second line, starts under its title, not under the tag.
+- **One column, and never far from the title.** There are never more than **3 empty columns** between a tag and its
+  title: the one that parts them, and at most two more to line a shorter tag up. So the tags share one column and
+  every title starts in the same place wherever that costs no more than this: `#9`, `#98` and `#134` above. The
+  column is the tag width that lines up the most titles of the list (all its tasks, also the ones folded away, so it
+  does not move as the list folds). Tags are written from the left, never moved to the right.
+- **A tag that does not fit the column.** A rare longer tag runs on, and only its own title starts later. A tag more
+  than two cells shorter than the column stands right before its own title. No tag can push the whole list's titles
+  away:
+
+  ```
+   ○ #1   Tidy the first-run questions
+   ○ #2   Rename the hint line
+   ○ #140 Add an undo for clear
+   ○ GT-1 A task of a repo with a short key
+   ○ HSWXY-140 A task with a long key and a long number
+  ```
+
+  What a live task says, on its second line, starts under its own title, not under the tag.
 - **Not the tags on the right.** `R#2` is the review round and `PR#18` the pull request: they sit at the right edge,
   in the colour of how the review and the checks went. The task's tag is at the left, grey, and has no letter before
   its `#`; with a key it has no `#` at all, which is why a key is joined with a dash.
-- **Several repos in one list.** A list grouped by repo (the heading names the repo) shows the bare `#134`. In a
-  list that is not grouped by repo and holds tasks of several repos, a task of another repo than the board's own
-  carries its repo's name where it has no key: `pi-work#12` (a long name is cut to 12 cells). A task with a key says
-  it already. No key is ever made up by the board.
+- **Several repos in one list: the number, never the repo's name.** A tag is the number alone (`#12`), or the repo's
+  key with it (`PW-12`), in every list. So a list that holds tasks of several repos can show two `#1`: that is
+  accepted. To see which repo each task is in, group the list by repo (`Alt+S`, in the `?` menu as "group by repo:
+  see which repo each task is in"; the "Group by repo" button on the web board): each group's heading names its repo.
+  The task panel and the details page name the repo too, in their `Task` row (`pi-work/12`). No key is ever made up
+  by the board.
 - **Other machines.** A task of another machine has the tag its own machine gives it (that machine's keys), and the
   machine's name before its title as before.
 - **When space runs out.** The tag is the last thing to go before the rest of a name: after what a row says, the bar,
   the word `ago`, the end of a long name, the percent with the minutes left, the `R#` tag with the pull request, and
   the time ([the board](board.md) has the whole order). It goes for the whole list at once, so the titles stay in one
-  column: when a row's name would have fewer than 16 cells with nothing else beside it (a list under about 25
-  columns). Because the column takes a few cells from every row, each of the other things gives way that many
+  column: when the row with the widest tag would have fewer than 16 cells for its name with nothing else beside it
+  (a list under about 25 columns). Because the column takes a few cells from every row, each of the other things gives way that many
   columns earlier than it did.
 - **On a narrow screen** (under 80 columns), where a live row's name wraps, the lines of the name and of what the
   task says start under the title. The line of the bar still starts right of the mark and fills the width.
@@ -50,7 +67,7 @@ shows the number on every row, and a repo can have a short key of its own so tha
 | a suggestion that was made a task | `made a task: HSW-140` |
 | an automation's firings | `made HSW-140`, on the board and on the command line |
 | the board's own messages (`archived`, `restored`, `stopped`, `removed`) | `HSW-134: archived` |
-| the web board | the same tag on each row, in one column, before the task's title when one is open, and in the chat's line |
+| the web board | the same tag on each row, in the same column and with the same limit on the space before a title; what a task says and its bar start under the title, not under the tag; a list too narrow to leave the widest tag's title 16 letters shows no tags, on every row at once; before the task's title when one is open, and in the chat's line |
 
 **Short form or id.** With a key, everything that names a task in words says the short form, the same everywhere:
 

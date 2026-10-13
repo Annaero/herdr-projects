@@ -6,6 +6,7 @@ import * as S from "../store.js";
 import { currentSocket, sessionName } from "../herdr.js";
 import { GROUP_COLOR, isLive, statusColor } from "../board/view/states.js";
 import { idLabel, repoLabel, short } from "../board/view/words.js";
+import { tagCells } from "../board/view/row-number.js";
 import { webURL } from "../review-page.js";
 import { pieces, plain } from "./ink.js";
 
@@ -30,6 +31,10 @@ export function listOf(v) {
     else if (row.rec) groups.at(-1)?.rows.push(rowOf(v, row.rec, now));
     else if (row.note && groups.length) groups.at(-1).more = Number((/(\d+) more/.exec(row.note) || [])[1]) || 0;
   }
+  // The characters each task's tag (`#134`, `HSW-134`) fills: the terminal board's column and its limit on the space
+  // before a title (row-number.js), so the page lines the titles up the same way.
+  const column = v.numbering().cells;
+  for (const g of groups) for (const r of g.rows) r.tagWidth = tagCells(r.tag.length, column) || r.tag.length;
   const session = sessionName(currentSocket());
   const asked = v.archiveView ? 0 : v.suggestionCount();
   return {
@@ -40,8 +45,6 @@ export function listOf(v) {
       only: v.all && v.scope !== "*" ? v.scope : "", filter: v.filter || "", suggested: asked, host: os.hostname(), version: S.VERSION,
     },
     groups, selected: v.sel || "",
-    // The widest of the tasks' tags (`#134`, `HSW-134`), in characters: the page gives them one column, as the terminal board does.
-    tagWidth: Math.max(0, ...groups.flatMap((g) => g.rows.map((r) => r.tag.length))),
     // Words on their way to another machine: rows of their own under the list, until that machine has taken them.
     jobs: v.jobs.map((j) => ({ id: j.id, text: String(j.text || ""), failed: j.state === "error", msg: String(j.msg || "") })),
     empty: v.rows.length ? "" : v.filter ? "Nothing matches." : v.archiveView ? "No archived tasks." : "Nothing here yet. Type what needs doing.",

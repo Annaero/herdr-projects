@@ -13,7 +13,7 @@ import { main } from "../src/cli.js";
 import { View } from "../src/board/view.js";
 import { theme } from "../src/board/theme.js";
 import { GROUPS, groupOf } from "../src/board/view/states.js";
-import { NAME_LEFT } from "../src/board/view/row-number.js";
+import { GAP, NAME_LEFT, tagCells, tagColumn } from "../src/board/view/row-number.js";
 import { remoteList } from "../src/remote.js";
 import { rules } from "../src/delegate.js";
 
@@ -76,21 +76,47 @@ test("the number gives way last before the rest of the name, for the whole list 
   assert.deepEqual(plain(wordy.listLines(40, 30)).filter((l) => /name that|second line/.test(l)), [" ◐ #34  A name that is long enough to", "        need a second line on a narrow …"]);
 });
 
-test("several repos in one list: grouped by repo the number is bare; listed together, another repo's task carries its repo's name", () => {
+test("several repos in one list: the tag is the number or the key, never a repo's name; grouped by repo the heading names the repo", () => {
   const mix = [...LIST.slice(1, 3), { ...todo, id: "pi-work/9", title: "Same number, other repo" }, { ...todo, id: "a-repo-with-a-very-long-name/3", title: "Far away" }];
   const together = plain(board(mix).listLines(100, 30, 200)), row = (lines, title) => lines.find((l) => l.includes(title));
-  assert.match(row(together, "Rename the hint line"), /^ ○ #9 +Rename the hint line/); // the board's own repo: bare
-  assert.match(row(together, "Same number"), /^ ○ pi-work#9 +Same number, other repo/); // two `#9`: told apart
-  assert.match(row(together, "Far away"), /^ ○ a-repo-with…#3 Far away/); // a long name is cut, the number never
+  assert.match(row(together, "Rename the hint line"), /^ ○ #9 {2}Rename the hint line/);
+  assert.match(row(together, "Same number"), /^ ○ #9 {2}Same number, other repo/); // two `#9` in one list: accepted
+  assert.match(row(together, "Far away"), /^ ○ #3 {2}Far away/); // no long name pushes the titles away
+  assert.ok(together.every((l) => !/pi-work|a-repo/.test(l)));
   assert.equal(new Set(mix.map((r) => row(together, r.title).indexOf(r.title))).size, 1); // still one column
   const grouped = plain(board(mix, { byRepo: true }).listLines(100, 30, 200)); // its heading names the repo
-  assert.match(row(grouped, "Same number"), /^ ○ #9 +Same number, other repo/); assert.match(row(grouped, "Far away"), /^ ○ #3 +Far away/);
-  // Tasks of one repo only: bare, whichever repo the board was opened in.
-  assert.match(row(plain(board([mix[2]]).listLines(100, 30, 200)), "Same number"), /^ ○ #9 Same number/);
+  assert.match(row(grouped, "Same number"), /^ ○ #9 {2}Same number, other repo/); assert.match(row(grouped, "Far away"), /^ ○ #3 {2}Far away/);
+  assert.ok(grouped.includes(" pi-work") && grouped.includes(" a-repo-with-a-very-long-name"));
   // Another machine's task: its machine's name before its title as before, and the tag its own machine gave it.
   const far = [{ ...todo, id: "box:p/9", rid: "p/9", host: "box", title: "Over there" }, { ...todo, id: "box:q/12", rid: "q/12", host: "box", key: "QQ", title: "Keyed there" }, LIST[2]];
   const all = plain(board(far, { scope: "*" }).listLines(100, 30, 200));
-  assert.match(row(all, "Over there"), /^ ○ #9 +box Over there/); assert.match(row(all, "Keyed there"), /^ ○ QQ-12 box Keyed there/);
+  assert.match(row(all, "Over there"), /^ ○ #9 box Over there/); assert.match(row(all, "Keyed there"), /^ ○ QQ-12 box Keyed there/);
+});
+
+test("never more than GAP empty cells between a tag and its title: titles share a column where that costs no more, a long tag runs on", () => {
+  const t = (id, title, more = {}) => ({ ...todo, id, title, ...more });
+  // `#1`, `#2` and `#140` side by side with keys of different lengths (another machine's tasks carry their keys).
+  const mix = [t("p/1", "One"), t("q/1", "Other one"), t("p/2", "Two"), t("p/140", "Hundred forty"), t("b:g/1", "Short key", { rid: "g/1", host: "b", key: "GT" }), t("b:h/140", "Long key", { rid: "h/140", host: "b", key: "HSWXY" })];
+  const v = board(mix, { scope: "*" }), lines = plain(v.listLines(100, 30, 200)), row = (title, from = lines) => from.find((l) => l.includes(title));
+  assert.equal(GAP, 3);
+  assert.match(row("One"), /^ ○ #1 {3}One/); assert.match(row("Other one"), /^ ○ #1 {3}Other one/); assert.match(row("Two"), /^ ○ #2 {3}Two/); assert.match(row("Hundred forty"), /^ ○ #140 Hundred forty/);
+  assert.match(row("Short key"), /^ ○ GT-1 b Short key/); // as wide as the column
+  assert.match(row("Long key"), /^ ○ HSWXY-140 b Long key/); // wider: it runs on, and only its own title starts later
+  for (const l of lines.filter((x) => /^ ○ /.test(x))) assert.ok(/^ ○ \S+ {1,3}\S/.test(l), l);
+  // The column is the one that lines up the most titles; a tag too short for it stands right before its title.
+  assert.equal(tagColumn([2, 2, 4, 4, 9]), 4); assert.equal(tagColumn([2, 7, 7, 7]), 7); assert.equal(tagColumn([2, 5]), 2); assert.equal(tagColumn([]), 0);
+  assert.deepEqual([2, 4, 5, 7, 9].map((w) => tagCells(w, 7)), [2, 4, 7, 7, 9]); assert.equal(tagCells(4, 0), 0);
+  const keyed = board([t("p/2", "Two"), ...[7, 8, 140].map((n) => t(`b:h/${n}`, `Keyed ${n}`, { rid: `h/${n}`, host: "b", key: "HSW" }))], { scope: "*" }), kl = plain(keyed.listLines(100, 30, 200));
+  assert.match(row("Two", kl), /^ ○ #2 Two/); assert.match(row("Keyed 7", kl), /^ ○ HSW-7 {3}b Keyed 7/); assert.match(row("Keyed 140", kl), /^ ○ HSW-140 b Keyed 140/);
+  // A live task's second line starts under its own title, wherever that starts; so do a wrapped name's lines.
+  const live = board([{ ...work, id: "p/2", title: "Short tag", msg: "Busy here" }, { ...work, id: "b:h/1400", rid: "h/1400", host: "b", key: "HSWXY", title: "Long tag", msg: "Busy there" }, t("p/3", "Three")], { scope: "*" }), ll = plain(live.listLines(100, 30, 200));
+  assert.deepEqual(ll.slice(ll.indexOf(row("Short tag", ll)), ll.indexOf(row("Short tag", ll)) + 2).map((l) => l.slice(0, 20).trimEnd()), [" ◐ #2 Short tag", "      Busy here"]);
+  assert.equal(ll[ll.indexOf(row("Long tag", ll)) + 1], " ".repeat(16) + "Busy there"); assert.match(row("Long tag", ll), /^ ◐ HSWXY-1400 b Long tag/);
+  const tall = plain(live.listLines(40, 30)), at = tall.findIndex((l) => l.includes("Long tag"));
+  assert.deepEqual(tall.slice(at, at + 2), [" ◐ HSWXY-1400 b Long tag", "                Busy there"]);
+  for (const width of [200, 100, 60, 44, 30, 16, 10]) assert.ok(plain(live.listLines(width, 30, 200)).filter((l) => /^ [◐○] /.test(l)).every((l) => l.length <= width), `every row fits ${width}`);
+  // The tags give way together, by the widest of them: mark (3), `HSWXY-1400` (10), a cell.
+  const least = 3 + 10 + 1 + NAME_LEFT; assert.match(plain(live.listLines(least, 30, 200)).join("\n"), /#3/); assert.doesNotMatch(plain(live.listLines(least - 1, 30, 200)).join("\n"), /#\d|HSWXY-/);
 });
 
 // One board for the three tests below, in this order: each leaves no key behind for the next.

@@ -107,7 +107,7 @@ export class Row {
     // ("100%", and words.js: left).
     const steady = { percent: PERCENT_STEADY, eta: ETA_STEADY };
     const cells = (ago) => cols.map(([key, w]) => ({ key, w: steady[key] ? Math.max(w, steady[key]) : w + (key === "time" && ago ? 4 : 0) }));
-    const fit = (r) => { const f = fields.get(r) || {}; return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2 - (num ? num + 1 : 0)), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, time: !tall } }; };
+    const fit = (r) => { const f = fields.get(r) || {}; return { room: Math.max(0, width - visibleWidth(this.mark(r)) - 2 - this.numberWide(r, num, numbering)), name: visibleWidth(this.rowTitle(r)), has: { bar: f.bar, percent: f.percent, eta: f.eta, review: f.review, pr: f.pr, time: !tall } }; };
     const parts = sections.map((recs) => recs.map(fit));
     // The word "ago" sits right of everything, so one section cannot give it up without moving its columns: the
     // whole list gives it up, as soon as that lets some section show a column other than its bar, or cut a name less.

@@ -20,7 +20,7 @@ export class RowWrap {
   // height before it lays its columns out.
   wrapParts(r, width, cells = this.numberCells(width, this.numbering([r]))) {
     // The name starts right of the mark and of the task's number (row-number.js), and wraps under itself.
-    const lead = Math.min(width, visibleWidth(this.mark(r)) + 2), indent = Math.min(width, lead + (cells ? cells + 1 : 0)), room = Math.max(1, width - indent);
+    const lead = Math.min(width, visibleWidth(this.mark(r)) + 2), indent = Math.min(width, lead + this.numberWide(r, cells)), room = Math.max(1, width - indent);
     const name = upTo(wrapTextWithAnsi(this.rowTitle(r), room), r.id === this.sel ? Infinity : WRAP_LINES, room);
     if (!isLive(r)) return { indent, cells, name, says: [] };
     // What it says starts under the task's name: right of the machine's name too, when that shows before it.

@@ -127,7 +127,7 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 | `Alt+T` | the whole task, full screen, and back to the list |
 | `Alt+A` | the archive, and back to the board |
 | `Alt+O` | the automations, and back to the board: tasks made on a schedule or when something happens on the board, in a list of their own. There `↑` `↓` move between them, `Enter` opens the selected one (its prompt, its trigger, its settings, its firings: `↑` `↓` pick a firing and `Enter` goes to the task it made), `Space` turns it on or off, `Tab` fires it now, `Ctrl+X` removes it (it asks first) and `Ctrl+E` opens its settings, as a task's. What you type goes to the Coordinator, which makes and rewords them ([automations.md](automations.md)) |
-| `Alt+S` | the list grouped by repo, or by status |
+| `Alt+S` | the list grouped by repo, each group under its repo's name (a row's tag never names a repo), or by status |
 | `Alt+D` | every done task, or only the latest |
 | `Alt+M` | other machines: this machine only, every machine, then each machine by itself |
 
