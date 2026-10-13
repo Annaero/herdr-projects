@@ -47,7 +47,7 @@ test("the task panel beside the list cuts a long description short and says wher
     if (!process.env.NO_COLOR) {
       // A headline is bold and a label is greyed out. A setting chosen for this task is in the text colour; one that
       // is only your default is quieter.
-      const raw = s.v.render(120).join("\n"), grey = "\x1b[38;2;108;112;134m", ink = "\x1b[38;2;205;214;244m", quiet = "\x1b[38;2;166;173;200m";
+      const raw = s.v.render(120).join("\n"), grey = "\x1b[38;2;126;131;155m", ink = "\x1b[38;2;205;214;244m", quiet = "\x1b[38;2;166;173;200m";
       assert.ok(raw.includes("\x1b[1mDescription\x1b[22m") && raw.includes(`${grey}Agent        \x1b[39m${ink}`) && raw.includes(`${ink}  Line 1 of a very long`), "headlines are bold, labels grey, the text is neither");
       assert.ok(stripVTControlCharacters(raw).includes("the rest as usual"), "the usual settings are one quiet line beside the list");
       { const whole = s.v.panel(s.v.current(), 100, true).map((l) => s.v.theme.line(l)).join("\n"); assert.ok(whole.includes(`${grey}Reviewer     \x1b[39m${ink}${quiet}codex`), "on the whole task a default setting is quieter"); }
@@ -187,7 +187,7 @@ test("the task panel has one form for every part, in every state and at every wi
       // A result and a severity are said in words and marks; the colour only repeats them. A headline that needs you is in its state's colour.
       const raw = s.v.panel(STATES.done, 100, true).join("\n"), red = "\x1b[38;2;243;139;168m", green = "\x1b[38;2;166;227;161m", yellow = "\x1b[38;2;249;226;175m";
       // Merged, how its reviews went is quiet like its pull request; not merged, they keep their colours.
-      const open = s.v.panel({ ...STATES.done, state: "blocked", kind: "permission", stage: "approval", prState: "passing", prMerged: false }, 100, true).join("\n"), quietInk = "\x1b[38;2;108;112;134m";
+      const open = s.v.panel({ ...STATES.done, state: "blocked", kind: "permission", stage: "approval", prState: "passing", prMerged: false }, 100, true).join("\n"), quietInk = "\x1b[38;2;126;131;155m";
       assert.ok(open.includes(`${green}✓`) && open.includes(`${red}✗`) && raw.includes(`${red}critical  `) && raw.includes(`${yellow}minor     `), "marks and severities in their colours");
       assert.ok(raw.includes(`${quietInk}✓`) && raw.includes(`${quietInk}✗`) && !raw.includes(`${green}✓`) && !raw.includes(`${red}✗`), "merged: the marks of its reviews are quiet");
       assert.ok(s.v.panel(STATES.failed, 70, false).join("\n").includes(`${red}\x1b[1mWent wrong\x1b[22m`), "what went wrong has a red headline");

@@ -11,7 +11,8 @@ and its other names, `auto_switch` with `dark_name` and `light_name`, `[theme.cu
   to the terminal's own colours while herdr beside it shows its default.
 - **`auto_switch`**: the board asks its terminal whether it is light or dark, as herdr does, and takes the theme's
   light or dark one.
-- **The `terminal` theme** paints with the terminal's own sixteen colours, in herdr and on the board alike.
+- **The `terminal` theme** paints with the terminal's own sixteen colours, in herdr and on the board alike. Its
+  greys are the exception ([below](#the-greys-are-quiet-but-always-readable)).
 - A theme changed in herdr shows the next time the board opens. The popup, the task panel, the reply view and the
   review page take the same theme; another machine's tasks are drawn by this board, in this theme.
 
@@ -44,12 +45,73 @@ The board keeps a colour of its own only for what herdr has no state for:
 |---|---|---|
 | under review | blue | the theme's `blue` where that is told apart from all it sits beside, else the board's `#3b82f6` ([the board](board.md)) |
 | ready to approve | green | the theme's `green` |
-| to do | dim grey | the theme's grey for greyed-out words (`overlay0`) where that is told apart from plain text, the green, the blue and the background; else another grey. With the terminal's own colours it is the terminal's bright black, since its white is most terminals' text colour |
+| to do | dim grey | the theme's grey for greyed-out words (`overlay0`), made readable as said below, where that is told apart from the green and the blue; else another grey. With the terminal's own colours it is a grey mixed from the terminal's own background and text colour, measured |
 
-The three are told apart from each other and from the plain text colour in every built-in theme (the tests measure
-it). "To do" was once drawn in a colour that, with the terminal's own colours, looked like plain text: it is a dim
-grey now, in the list (the heading and the `○` mark) and in the box alike. While the board runs its own check the
+The three are told apart from each other in every built-in theme (the tests measure it). "To do" is a dim grey in
+the list (the heading, the `○` mark, the task's number) and in the box alike: dimmer than plain text, and always
+readable. While the board runs its own check the
 mark is a plain light grey, the theme's `subtext0` ([the check's progress](check-progress.md)).
+
+## The greys are quiet but always readable
+
+The board has three greys: the one for greyed-out words (a task's number, a time, a count in the header, "… more
+done", the words between two hints, a label), the brighter one for words that have to be read (what a row says, the
+keys on the hint line), and the dim grey of "to do". They are herdr's own (`overlay0`, `subtext0`), but herdr's
+themes do not all keep them readable: Nord's grey for greyed-out words is 1.7 to 1 against its background, and nine
+more themes are under 3 to 1. So each grey is held to a floor.
+
+- **The measure** is the WCAG 2 contrast ratio between the grey and the background it is drawn on: 1 to 1 is the
+  same colour, 21 to 1 black on white.
+- **The floor is 4.5 to 1**, what WCAG asks of text. Where a theme's own plain text is so quiet that 4.5 would
+  leave the grey less than 1.5 times dimmer than it, the floor comes down with the text, and **never under 3 to 1**
+  (One Dark 4.4, Kanagawa Lotus 4.1, Solarized 3.7, Tokyo Night Day and Solarized Light 3.0).
+- **A grey under its floor is pulled towards the theme's plain text colour, only as far as the floor.** So it keeps
+  the theme's tint, and a grey that already reads is left as it is.
+- **"To do" is also dimmer than plain text by the same measure**: plain text stands out from the background 1.3
+  times as much, or more. In every built-in theme it is between 1.4 and 3.7 times.
+- **The background is the real one where it is known.** The board paints no background: it is drawn on the
+  terminal's own. When it opens, the board asks the terminal for its text colour and its background (herdr answers
+  for its panes with those of the terminal you sit at) and measures against that background; with no answer it
+  measures against the theme's.
+- **On the selected row**, whose background is the theme's, a grey keeps 3 to 1, or as much of it as that row's own
+  text has to give (Tokyo Night Day and Solarized Light: 2.4 and 2.3, where plain text itself has 3.5 and 3.1).
+- **A finished task's mark** (`✓`) is its colour made quieter: halfway to the background, or as near to that as
+  keeps it 3 to 1, what WCAG asks of a mark, on the selected row too. It was the faint attribute once, which fell
+  to 1.7 to 1 on a light background.
+
+### In the `terminal` theme
+
+There the board does not know the colours behind the terminal's sixteen, and none of the terminal's own ways to grey
+a word can be trusted:
+
+- **"bright black"** is nearly the background on many dark schemes: on a dark navy one it made "to do" unreadable
+  (1.3 to 1);
+- **"white"** is nearly the background on light ones;
+- **the faint attribute** halves the text colour, and a quiet scheme has no contrast to spare: on Solarized light
+  (text 4.1 to 1) faint text is 1.9 to 1.
+
+So the board uses none of the three for words:
+
+- **The terminal told its text colour and its background** (most do, and herdr does for its panes): the greys are
+  mixed from those two and held to the same floor as any other, dimmer than the text they were mixed from. They are
+  the only true colours the board draws in this theme.
+- **It did not tell both**: greyed-out words and "to do" are the terminal's plain text colour, the one colour there
+  that is known to be readable. A grey that must be dimmer than text cannot be chosen without knowing the text: one
+  measured against the background alone came out stronger than the real text on Solarized light. Nothing is dimmer
+  than text then, and nothing is unreadable: "to do" is told from a task's own words by its heading and its `○`, as
+  with `NO_COLOR`.
+
+The selected row is the one place left to the terminal: its background in this theme is the terminal's "bright
+black", as in herdr's own sidebar, and what reads on that cannot be known.
+
+A colour you name yourself in `[theme.custom]` from the terminal's sixteen (`overlay0 = "gray"`) is kept as it is:
+it cannot be measured.
+
+### On the web Board
+
+The web Board is drawn with the web UI's own colours. Its "to do" and its greyed-out words are the web UI's dim
+text (`--text-dim`), which is 4.5 to 1 or more against the page, its panels and a hovered row on every palette of
+the web UI (measured on herdr-web-ui 0.4.8: 4.5 to 9.9). The board's own teal for done is 3.6 to 1 or more there.
 
 ## The box says who you type to
 

@@ -230,7 +230,8 @@ setting up, running the check, pushing, merging) share a third one, `◒`. A tas
 `◐`: for a free slot, to try again after a turn was cut off, for its check's turn or for its turn to merge. So a
 blue `◑` with a bar says a review is running, an amber `◐` that the agent is at work, and a green `!` that the task
 is ready for your yes. A group's heading keeps the colour of its group: a task under review is filed under `working`.
-A task nobody has started (`to do`: its heading and its `○`) is a dim grey of its own, never the plain text colour.
+A task nobody has started (`to do`: its heading and its `○`) is a dim grey of its own, never the plain text colour,
+and always readable: every grey on the board is held to a floor of contrast with the background.
 Which colours are herdr's and which the board's own, and how the board follows herdr's theme: [colours](colours.md).
 
 The blue is the theme's own `blue` where that one is told apart from everything it sits beside: the theme's green,
@@ -301,8 +302,8 @@ three are told apart in the light themes and the dark ones alike. The task panel
 the same way. A bare time is how long it has been working; `ago` is
 since it stopped. On a finished task the time is quiet like its merged tags, in the very same grey: a done task has
 nothing live about it, so its whole right-hand side (review tag, pull request, time) is quiet, and a bright colour
-on the board means "this is happening now". That grey is the theme's own for greyed-out words, easy to read in the
-light themes and the dark ones. The time of a task that is not done is drawn as it always was. A row never repeats what its heading says.
+on the board means "this is happening now". That grey is the theme's own for greyed-out words, made readable where the
+theme's is too near the background ([colours](colours.md)). The time of a task that is not done is drawn as it always was. A row never repeats what its heading says.
 
 **While the board runs the check itself** (at the finish line, and again after a catch-up with main), the row shows
 real progress, not the Watcher's guess: the bar and the percent are the count the check reports, the minutes left

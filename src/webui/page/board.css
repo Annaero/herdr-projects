@@ -7,9 +7,12 @@
   /* The board's colour names (src/board/view/states.js), as the web UI's own status colours. */
   --sw-red: var(--status-blocked, #ff7b70); --sw-green: var(--status-done, #93c36b); --sw-yellow: var(--accent, #f0a830);
   /* Done is herdr's teal. The web UI has one colour for done, which is the green of "ready to approve" here: so the
-     teal is the board's own, pulled towards the page's text colour to read on its light and dark palettes alike. */
-  --sw-teal: color-mix(in srgb, #14b8a6 78%, var(--text, #d8d0c3)); --sw-review: var(--status-working, #6cb8d6); --sw-check: var(--text, #d8d0c3);
-  /* A task nobody has started: the web UI's dim text, never its plain text colour. */
+     teal is the board's own, pulled towards the page's text colour to read on its light and dark palettes alike:
+     3.6 to 1 or more against the page on every palette of the web UI (at 78% it was under 3 on the light ones). */
+  --sw-teal: color-mix(in srgb, #14b8a6 55%, var(--text, #d8d0c3)); --sw-review: var(--status-working, #6cb8d6); --sw-check: var(--text, #d8d0c3);
+  /* A task nobody has started: the web UI's dim text, never its plain text colour. It is 4.5 to 1 or more against
+     the page, its panels and a hovered row on every palette of the web UI (herdr-web-ui 0.4.8), the board's floor
+     for a grey (docs/colours.md). */
   --sw-todo: var(--text-dim, #9b9183);
   /* Nothing that is read is under 13px on the board, whatever the web UI's two smallest sizes are elsewhere. */
   --fs-2xs: 13px; --fs-xs: 13px;
@@ -185,7 +188,7 @@ a.sw-tag:hover { text-decoration: underline; }
 .sw-c-red { color: var(--sw-red); } .sw-c-green { color: var(--sw-green); } .sw-c-yellow { color: var(--sw-yellow); }
 .sw-c-teal { color: var(--sw-teal); } .sw-c-review, .sw-c-blue { color: var(--sw-review); } .sw-c-check, .sw-c-text { color: var(--sw-check); }
 .sw-c-overlay0, .sw-c-subtext0, .sw-c-surface_dim { color: var(--sw-dim); } .sw-c-todo { color: var(--sw-todo); } .sw-c-accent, .sw-c-peach { color: var(--accent, #f0a830); }
-.sw-b { font-weight: var(--fw-semibold, 600); } .sw-d { opacity: 0.6; }
+.sw-b { font-weight: var(--fw-semibold, 600); } .sw-d { opacity: 0.9; } /* a quiet mark: no fainter, or it falls under 3 to 1 on the light palettes */
 
 /* When the web UI's menu is not found: the Board, floating. */
 .sw-float {

@@ -6,7 +6,9 @@ import os from "node:os";
 import path from "node:path";
 import { parseToml } from "../src/toml.js";
 import { readHerdrConfig, resolve, parseColor, loadTheme, setTerminal, readAnswers, theme, pageTheme, apart, REVIEW_BLUE, REVIEW_APART, REVIEW_BESIDE, TODO_APART, TODO_BESIDE, isBlue } from "../src/board/theme.js";
+import { contrast, floorOn, readable, quieter, FLOOR, LEAST, TODO_DIMMER } from "../src/board/greys.js";
 import { THEME_NAMES } from "../src/board/palettes.js";
+import { webTheme, pieces } from "../src/webui/ink.js";
 import { entryOf } from "../src/store/settings-list.js";
 
 const cfg = (text) => { const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "hsw-theme-")), "config.toml"); fs.writeFileSync(f, text); return f; };
@@ -38,30 +40,72 @@ test("the board's own setting: herdr's theme as herdr shows it, Catppuccin with 
 });
 
 test("a task nobody started is a dim grey of its own in every theme: never the plain text colour, the green of ready or the blue of a review", () => {
-  for (const name of THEME_NAMES) {
+  for (const name of THEME_NAMES.filter((n) => n !== "terminal")) {
     const p = resolve({ theme: { name } }, null, "herdr").palette, three = { "to do": p.todo, "ready to approve": p.green, "under review": p.review };
-    // The board's own three colours are told apart from each other and from plain text, and the grey from the background.
-    for (const [a, c] of Object.entries(three)) { assert.ok(apart(c, p.text) >= 50, `${name}: ${a} and plain text are ${Math.round(apart(c, p.text))} apart`); for (const [b, d] of Object.entries(three)) if (a !== b) assert.ok(apart(c, d) >= TODO_APART, `${name}: ${a} and ${b} are ${Math.round(apart(c, d))} apart`); }
-    for (const k of TODO_BESIDE) assert.ok(apart(p.todo, p[k]) >= TODO_APART, `${name}: to do and ${k}`);
-    // It is a grey, and a dim one: nearer the background than plain text is, where both are known.
-    if (p.todo >= 0) { const [r, g, b] = [p.todo >> 16, (p.todo >> 8) & 255, p.todo & 255]; assert.ok(Math.max(r, g, b) - Math.min(r, g, b) <= 70, `${name}: a grey`); assert.ok(apart(p.todo, p.panel_bg) < apart(p.text, p.panel_bg), `${name}: dimmer than text`); }
+    // The board's own three colours are told apart from each other; the green and the blue from plain text too.
+    for (const [a, c] of Object.entries(three)) { if (a !== "to do") assert.ok(apart(c, p.text) >= 50, `${name}: ${a} and plain text are ${Math.round(apart(c, p.text))} apart`); for (const [b, d] of Object.entries(three)) if (a !== b) assert.ok(apart(c, d) >= 45, `${name}: ${a} and ${b} are ${Math.round(apart(c, d))} apart`); }
+    // It is a grey, and a dim one: by the contrast ratio, plain text stands out from the background 1.3 times as much or more.
+    const [r, g, b] = [p.todo >> 16, (p.todo >> 8) & 255, p.todo & 255]; assert.ok(Math.max(r, g, b) - Math.min(r, g, b) <= 80, `${name}: a grey`);
+    assert.ok(contrast(p.text, p.panel_bg) / contrast(p.todo, p.panel_bg) >= TODO_DIMMER, `${name}: dimmer than text`);
   }
-  // The terminal's own colours: its white is most terminals' text colour, so the grey is its bright black, in the list and in the box alike.
-  { const p = resolve({}, null, "terminal").palette; assert.equal(p.todo, -16 + 8); assert.notEqual(p.todo, p.overlay0); assert.equal(p.text, null); }
-  assert.equal(resolve({}, null, "herdr").palette.todo, 0x6c7086); // the theme's own grey where it fits
   // Colours of your own cannot take it away: a grey that is your text colour, or your green, gives way to another grey.
   for (const custom of [{ overlay0: "#cdd6f4" }, { overlay0: "#a6e3a1", overlay1: "#a6e3a1" }, { overlay0: "white" }, { overlay0: "#3b82f6", overlay1: "#cdd6f4" }]) {
     const p = resolve({ theme: { custom } }, null, "herdr").palette;
     for (const k of TODO_BESIDE) assert.ok(apart(p.todo, p[k]) >= TODO_APART, `${JSON.stringify(custom)}: to do and ${k}`);
+    assert.ok(contrast(p.todo, p.panel_bg) >= FLOOR && contrast(p.text, p.panel_bg) / contrast(p.todo, p.panel_bg) >= TODO_DIMMER, JSON.stringify(custom));
   }
   if (!process.env.NO_COLOR) { loadTheme(); assert.notEqual(theme.fg("todo", "to do"), theme.fg("text", "to do")); assert.notEqual(theme.fg("todo", "x"), theme.fg("green", "x")); assert.notEqual(theme.fg("todo", "x"), theme.fg("review", "x")); }
+});
+
+test("the greys are quiet but always readable: each stands out from the background by the floor, in every theme", () => {
+  // The measure is the WCAG contrast ratio; the floor 4.5 to 1, lower only where the theme's own text is quiet, never under 3.
+  assert.equal(contrast(0x000000, 0xffffff), 21); assert.equal(contrast(0x777777, 0x777777), 1); assert.equal(FLOOR, 4.5); assert.equal(LEAST, 3);
+  assert.equal(floorOn(0x2e3440, 0xeceff4), 4.5); assert.ok(Math.abs(floorOn(0x002b36, 0x93a1a1) - 3.74) < 0.01); assert.equal(floorOn(0xfdf6e3, 0x657b83), 3);
+  for (const name of THEME_NAMES.filter((n) => n !== "terminal")) {
+    const p = resolve({}, null, name).palette, floor = floorOn(p.panel_bg, p.text);
+    for (const k of ["todo", "overlay0", "subtext0", "check"]) assert.ok(contrast(p[k], p.panel_bg) >= floor, `${name}: ${k} is ${contrast(p[k], p.panel_bg).toFixed(2)} to 1, under ${floor.toFixed(2)}`);
+    assert.ok(contrast(p.todo, p.panel_bg) >= LEAST && contrast(p.todo, p.panel_bg) <= contrast(p.text, p.panel_bg) / TODO_DIMMER, `${name}: to do is quiet`);
+  }
+  // Nord's grey was 1.7 to 1, nearly its background: it is pulled towards its text colour, as far as the floor and no further.
+  assert.ok(contrast(0x4c566a, 0x2e3440) < 2); { const c = resolve({}, null, "nord").palette.overlay0; assert.ok(contrast(c, 0x2e3440) >= 4.5 && contrast(c, 0x2e3440) < 4.8); }
+  assert.equal(readable(0x9d8e7c, 0x282828, 0xebdbb2), 0x9d8e7c); // a grey that reads is left as it is
+  // The terminal's own colours cannot be measured unasked, and none of its greys can be trusted: bright black is nearly
+  // the background on a dark navy, white on a light one, and faint text falls to 1.9 to 1 on Solarized light. With
+  // nothing told, greyed words and "to do" are the plain text colour, the one colour known to read there.
+  { const p = resolve({}, null, "terminal").palette; for (const k of ["todo", "overlay0", "overlay1", "subtext0", "text"]) assert.equal(p[k], null, k); }
+  assert.ok(contrast(0xb1b9b3, 0xfdf6e3) < 2); // what faint made of Solarized light's text colour
+  // Told only its background, the text colour is still not known, and a grey measured beside a guess can come out
+  // stronger than the real text (on Solarized light, 4.6 to 1 beside text of 4.1): the plain text colour then too.
+  for (const bg of [0x0b1a33, 0xfdf6e3, 0xffffff, 0x002b36]) { const p = resolve({}, null, "terminal", { fg: null, bg }).palette; for (const k of ["todo", "overlay0", "overlay1", "subtext0"]) assert.equal(p[k], null, `${k} on ${bg.toString(16)}`); }
+  // Another theme knows its own text colour: told only the background, its greys are measured on it and stay dimmer than its text.
+  for (const [name, bg] of [["nord", 0x0b1a33], ["catppuccin-latte", 0xfdf6e3], ["solarized-light", 0xffffff]]) { const p = resolve({}, null, name, { fg: null, bg }).palette; assert.ok(contrast(p.todo, bg) >= floorOn(bg, p.text), name); assert.ok(contrast(p.text, bg) / contrast(p.todo, bg) >= TODO_DIMMER, name); }
+  // Where the terminal told its colours, the greys are mixed from those two and measured: on a dark navy and on white.
+  for (const [fg, bg] of [[0xd0d7e5, 0x0b1a33], [0x000000, 0xffffff], [0x839496, 0x002b36], [0x657b83, 0xfdf6e3]]) {
+    const p = resolve({}, null, "terminal", { fg, bg }).palette, floor = floorOn(bg, fg);
+    for (const k of ["todo", "overlay0", "subtext0"]) assert.ok(contrast(p[k], bg) >= floor, `${k} on ${bg.toString(16)}: ${contrast(p[k], bg)}`);
+    for (const k of ["todo", "overlay0"]) assert.ok(contrast(fg, bg) / contrast(p[k], bg) >= TODO_DIMMER, `${k} is dimmer than text on ${bg.toString(16)}`);
+  }
+  // Another theme on a terminal whose background is not the theme's: measured against the one it is really drawn on.
+  { const bg = 0x0b1a33, p = resolve({}, null, "nord", { fg: 0xd0d7e5, bg }).palette; assert.ok(contrast(p.todo, bg) >= 4.5); assert.ok(contrast(p.overlay0, bg) >= 4.5); }
+  // On the selected row, whose background is the theme's own, a grey keeps 3 to 1 where that row's text has it to give.
+  for (const name of ["catppuccin", "nord", "gruvbox", "solarized", "catppuccin-latte"]) { const p = resolve({}, null, name).palette; assert.ok(contrast(p.overlay0, p.selection_bg) >= 3, `${name}: ${contrast(p.overlay0, p.selection_bg)}`); }
+  // A finished task's mark is its colour made quieter, measured: never under 3 to 1, and no faint attribute, whose
+  // strength is the terminal's to say. A colour that cannot be measured stays as it is.
+  for (const [c, bg] of [[0x94e2d5, 0x181825], [0x179299, 0xeff1f5], [0x427b58, 0xfbf1c7]]) { const q = quieter(c, bg); assert.ok(contrast(q, bg) >= 3 && contrast(q, bg) < contrast(c, bg), `${c.toString(16)}: ${contrast(q, bg)}`); }
+  assert.equal(quieter(-16 + 6, null), -16 + 6); assert.equal(quieter(0x777777, 0x808080), 0x777777);
+  if (!process.env.NO_COLOR) { loadTheme(); assert.equal(theme.quiet("teal", "x"), "\x1b[38;2;94;138;136mx\x1b[39m"); assert.notEqual(theme.quiet("teal", "x"), theme.fg("teal", "x")); }
+  assert.deepEqual(pieces(webTheme.quiet("teal", "✓")), [{ t: "✓", c: "teal", d: true }]); // the web Board draws it quieter itself
+  // A colour you named from the terminal's 16 is kept: it cannot be measured.
+  assert.equal(resolve({ theme: { custom: { overlay0: "gray" } } }, null, "herdr").palette.overlay0, -16 + 7);
 });
 
 test("the terminal says whether it is light or dark", () => {
   const said = readAnswers("\x1b]11;rgb:0d0d/1616/1c1c\x1b\\\x1b[?62;22c");
   assert.equal(said.light, false); assert.equal(said.done, true);
-  assert.deepEqual(readAnswers("\x1b]11;rgb:ffff/ffff/ffff\x07"), { light: true, done: false });
-  assert.deepEqual(readAnswers("\x1b]11;rgb:aa"), { light: null, done: false });
+  assert.deepEqual(readAnswers("\x1b]11;rgb:ffff/ffff/ffff\x07"), { light: true, fg: null, bg: 0xffffff, done: false });
+  assert.deepEqual(readAnswers("\x1b]11;rgb:aa"), { light: null, fg: null, bg: null, done: false });
+  // Its text colour and its background, for the greys: each answer by its own number.
+  assert.deepEqual(readAnswers("\x1b]10;rgb:d0d0/d7d7/e5e5\x1b\\\x1b]11;rgb:0b/1a/33\x1b\\\x1b[?62c"), { light: false, fg: 0xd0d7e5, bg: 0x0b1a33, done: true });
 });
 
 test("herdr's theme name, aliases, custom colours, old accent setting and symbol marks are followed", () => {
@@ -192,7 +236,8 @@ test("the board paints with what it read: true colour, the terminal's 16 colours
     assert.equal(loadTheme(), true);
     assert.equal(theme.fg("red", "x"), "\x1b[91mx\x1b[39m"); assert.equal(theme.fg("green", "x"), "\x1b[32mx\x1b[39m"); assert.equal(theme.fg("text", "x"), "x");
     assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.line("a"), "a");
-    assert.equal(theme.muted("x"), "\x1b[2m\x1b[37mx\x1b[39m\x1b[22m"); // this theme's grey is most terminals' text colour: greyed-out words are faint too
+    assert.equal(theme.muted("x"), "x"); // this theme's greys cannot be trusted, nor can faint: untold, greyed-out words are the text colour
+    assert.equal(theme.soft("x"), "x"); // and words that have to be read the text colour itself
     assert.equal(theme.selected("x"), "\x1b[100mx\x1b[49m"); // no selection colour in this theme: herdr's active row colour
     assert.deepEqual(["working", "review", "board", "blocked", "done", "idle", "error"].map((s) => theme.mark(s)), ["◐", "◑", "◒", "!", "✓", "○", "✗"]);
     setTerminal(true);
@@ -212,12 +257,15 @@ test("the board paints with what it read: true colour, the terminal's 16 colours
     process.env.HERDR_CONFIG_PATH = cfg(""); loadTheme();
     assert.equal(theme.fg("yellow", "x"), "\x1b[38;2;249;226;175mx\x1b[39m"); // no theme set here: herdr's default, as herdr shows it
     process.env.HERDR_CONFIG_PATH = cfg(`[theme]\nname = "terminal"\n`); loadTheme();
-    // The terminal theme: the terminal's colours and its own text colour; a task nobody started is its bright black.
-    assert.equal(theme.fg("todo", "x"), "\x1b[90mx\x1b[39m");
+    // The terminal theme: the terminal's colours and its own text colour; a task nobody started is that text colour too, until the terminal tells its colours.
+    assert.equal(theme.fg("todo", "x"), "x");
+    setTerminal(null, { fg: 0xd0d7e5, bg: 0x0b1a33 }); // the terminal told its colours: a grey mixed from the two, measured
+    assert.equal(theme.fg("todo", "x"), "\x1b[38;2;122;133;151mx\x1b[39m"); assert.equal(theme.muted("x"), theme.fg("todo", "x")); assert.equal(theme.fg("text", "x"), "x");
+    setTerminal(null);
     assert.equal(theme.fg("yellow", "x"), "\x1b[33mx\x1b[39m"); assert.equal(theme.fg("teal", "x"), "\x1b[36mx\x1b[39m"); assert.equal(theme.line("a b"), "a b");
     process.env.HERDR_CONFIG_PATH = cfg(`[theme]\nname = "catppuccin"\n`);
     assert.equal(loadTheme(), false); // no auto_switch: nothing to ask
-    assert.equal(theme.muted("x"), "\x1b[38;2;108;112;134mx\x1b[39m"); // a theme with a grey of its own: that grey
+    assert.equal(theme.muted("x"), "\x1b[38;2;126;131;155mx\x1b[39m"); // a theme with a grey of its own: that grey, made readable
     assert.equal(theme.fg("nonesuch", "x"), "x"); assert.equal(theme.dim("x"), "\x1b[2mx\x1b[22m");
     assert.equal(theme.fg("yellow", "x"), "\x1b[38;2;249;226;175mx\x1b[39m");
     // Uncoloured text is herdr's text colour, and stays so after a coloured word; a background survives resets too.

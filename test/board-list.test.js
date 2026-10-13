@@ -29,7 +29,7 @@ test("the board: one header line, the five groups, a symbol for each state, the 
     assert.match(text, /^ herdr-superwork {2}proj · 1 working · 1 to do +│ *\n +│/); // where you are and how many tasks stand where: no folder path assert.doesNotMatch(text, /work board for herdr|\d (blocked|idle|working)/);
     // Every line is in herdr's text colour (Catppuccin's here), unless colours are switched off. Each task's mark is
     // a symbol of its own in its group's colour (working yellow, to do grey), and its title stays plain text.
-    const raw = s.v.render(120), text0 = "\x1b[38;2;205;214;244m", yellow = "\x1b[38;2;249;226;175m", grey = "\x1b[38;2;108;112;134m";
+    const raw = s.v.render(120), text0 = "\x1b[38;2;205;214;244m", yellow = "\x1b[38;2;249;226;175m", grey = "\x1b[38;2;126;131;155m";
     assert.ok(raw.every((l) => (process.env.NO_COLOR ? !l.includes("\x1b[38;2;") : l.startsWith(text0))));
     if (!process.env.NO_COLOR) {
       assert.ok(raw.some((l) => l.includes(`${yellow}◐\x1b[39m${text0} ${grey}#2\x1b[39m${text0} \x1b[1mMy own task\x1b[22m `)), "a working task's mark is the working colour, its title plain text");

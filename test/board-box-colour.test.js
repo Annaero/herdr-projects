@@ -45,7 +45,7 @@ test("the box is the task's status colour when it sends to that task's agent, an
         v.reply = true;
         if (!host) { assert.equal(statusColor(r), colour, name); if (name !== "archived" && !["review", "check"].includes(colour)) assert.equal(GROUP_COLOR[groupOf(r)], colour, name); }
         assert.equal(v.boxColor(r), want, what);
-        if (want !== "text") assert.ok(stripVTControlCharacters(v.mark(r)).length && v.mark(r).includes(on(want)), `${what}: the mark in the list is that colour too`);
+        if (want !== "text") assert.ok(stripVTControlCharacters(v.mark(r)).length && v.mark(r).includes(name === "done" ? theme.quiet(want, "\0").split("\0")[0] : on(want)), `${what}: the mark in the list is that colour too (a finished task's the same one made quieter)`);
         // The plain box: its two rules and its prompt mark.
         const lines = v.boxLines(60, 3, r);
         starts(lines[0], want, what); starts(lines.at(-1), want, what); starts(lines[1], want, what); assert.match(stripVTControlCharacters(lines[1]), /^❯ /);

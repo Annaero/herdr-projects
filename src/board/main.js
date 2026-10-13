@@ -14,7 +14,9 @@ import * as Popup from "./popup.js";
 
 export async function openBoard({ folder }) {
   userEnv(); // the popup starts with herdr's server environment: helpers and git need the user's PATH
-  try { if (loadTheme()) { const t = await askTerminal(); setTerminal(t.light); } } catch {} // herdr's theme; the terminal is asked only when the theme follows its appearance
+  // herdr's theme. The terminal is asked for its own text and background colours: the greys are made readable on
+  // them (greys.js), and a theme that follows the terminal's appearance takes its light or dark one.
+  try { loadTheme(); const t = await askTerminal(); setTerminal(t.light, t); } catch {}
   // The board opening is one of the keeper's starters; the how-to files are refreshed here too.
   try { ensureKeeper(); } catch {}
   let boardKey = "", ownKey = null;

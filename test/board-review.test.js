@@ -45,7 +45,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
     assert.ok(both(pr).includes(`${red}Review failed`)); assert.ok(both({ ...pr, review: { ...review, recommend: true } }).includes(`${green}3/5`));
     // the PR's colour says how its checks went, and nothing else does: green they pass, red they fail, plain while there
     // is no result (running, or none), and quiet once it is merged; the same in the task panel
-    const plainInk = "\x1b[38;2;166;173;200m", quietInk = "\x1b[38;2;108;112;134m", shown = (r) => [v.row(r, 120), v.panel({ owner: "me", ...r }, 80, false).join("\n")];
+    const plainInk = "\x1b[38;2;166;173;200m", quietInk = "\x1b[38;2;126;131;155m", shown = (r) => [v.row(r, 120), v.panel({ owner: "me", ...r }, 80, false).join("\n")];
     for (const [state, ink] of [["passing", green], ["failing", red], ["waiting", plainInk], ["", plainInk], ["closed", plainInk], ["merged", quietInk]]) for (const out of shown({ ...pr, prState: state })) assert.match(out.replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, ""), new RegExp(`${ink.replace("[", "\\[")}PR#12`), `PR tag when ${state || "unknown"}`);
     for (const out of shown({ ...pr, state: "done", stage: "done", kind: undefined, prState: "passing", prMerged: true })) assert.ok(out.replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, "").includes(`${quietInk}PR#12`), "merged and done: quiet, not green");
     // merged, the review tag goes quiet with the PR's: on the row, in the task panel and on the details page, in the
@@ -184,7 +184,7 @@ test("the board: a row waiting for approval says the reviewer's advice in words,
   if (!process.env.NO_COLOR) {
     // what a row says is greyed out, never bold like its title: in the brighter of the two greys, since it has to be
     // read; what a task asks of you is in the plain text colour
-    const grey = "\x1b[38;2;166;173;200m", faint = "\x1b[38;2;108;112;134m", ink = "\x1b[38;2;205;214;244m";
+    const grey = "\x1b[38;2;166;173;200m", faint = "\x1b[38;2;126;131;155m", ink = "\x1b[38;2;205;214;244m";
     assert.ok(v.rowLines(working, 120)[1].includes(`${grey}A long sentence about what the other agent`), "a working row's status line is the brighter grey");
     assert.ok(!v.rowLines(working, 120)[1].includes(faint), "not the faint one, which is for what may be missed");
     assert.ok(v.rowLines({ ...working, state: "blocked", kind: "question", stage: "asks", msg: "Which colour?" }, 120)[1].includes(`${ink}Which colour?`), "a question to you is in the text colour");

@@ -91,6 +91,7 @@ thing goes is in [AGENTS.md](../AGENTS.md).
 |---|---|
 | `artifact-lines.js` | The evidence a review brought: which files and links count, and the lines each gets in the task panel |
 | `editor.js` | The box at the bottom |
+| `greys.js` | The grey inks, quiet but always readable: the grey of greyed-out words, the grey of words that have to be read and the dim grey of "to do" each stand out from the background they are drawn on by a stated floor |
 | `held.js` | Is the board's terminal sized by something other than herdr's own window? |
 | `keys.js` | The board's keys, each one defined once: the ? menu, the hint line, the words that name a key and docs/keys.md are all made from this list |
 | `main.js` | Opens the board: full screen in the current terminal, which in herdr is a pane, the plugin's own tab included |

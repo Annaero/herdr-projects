@@ -7,12 +7,15 @@
 // another machine (`herdr --remote`) whose config names another theme therefore shows that theme around a board in
 // this machine's. The board's `theme` setting says the theme by hand then: any of herdr's themes by its name.
 // The board's own colours are only those for what herdr has no state for: "review" (a blue), "todo" (a dim grey) and
-// the green of finished work that waits for a yes, which is the theme's own green.
+// the green of finished work that waits for a yes, which is the theme's own green. The greys are herdr's, made
+// readable where they are too near the background (greys.js).
 import fs from "node:fs";
 import { setting } from "../store.js";
 import { herdrConfig } from "../extras.js";
 import { parseToml } from "../toml.js";
 import { TOKENS, R, A, table, PALETTES, canonical, siblings } from "./palettes.js";
+import { XTERM, apart, readableGreys, todoGrey, groundOf, rowOf, quieter } from "./greys.js";
+export { apart, TODO_APART, TODO_BESIDE } from "./greys.js";
 
 const NAMED = table({ black: 0, red: 1, green: 2, yellow: 3, blue: 4, magenta: 5, purple: 5, cyan: 6, gray: 7, grey: 7, darkgray: 8, darkgrey: 8, lightred: 9, lightgreen: 10, lightyellow: 11, lightblue: 12, lightmagenta: 13, lightcyan: 14, white: 15 });
 // A colour as herdr's config writes it: #rrggbb, #rgb, rgb(r,g,b), a name, or reset. An unknown one is cyan, as in herdr.
@@ -25,16 +28,15 @@ export function parseColor(value) {
   if ((m = /^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/.exec(s)) && m.slice(1).every((n) => Number(n) < 256)) return (Number(m[1]) << 16) | (Number(m[2]) << 8) | Number(m[3]);
   return A + (NAMED[s] ?? 6);
 }
-// The terminal's 16 colours as xterm shows them: what a colour given by name looks like, as near as can be known.
-const XTERM = [0x000000, 0xcd0000, 0x00cd00, 0xcdcd00, 0x0000ee, 0xcd00cd, 0x00cdcd, 0xe5e5e5, 0x7f7f7f, 0xff0000, 0x00ff00, 0xffff00, 0x5c5cff, 0xff00ff, 0x00ffff, 0xffffff];
 // herdr's config.toml. A file herdr could not read either gives herdr's defaults.
 export function readHerdrConfig(file = herdrConfig()) { try { return parseToml(fs.readFileSync(file, "utf8")); } catch { return {}; } }
 // The palette and status marks herdr would use with this config. `light` is the terminal's appearance (true, false or
 // null when unknown); `want` is the board's own `theme` setting: "herdr" resolves the config exactly as herdr does
 // ("auto", its name before, is the same), "dark" and "light" pick herdr's dark or light theme by hand, and the name
 // of one of herdr's themes ("nord", "terminal" for the terminal's own colours) is that theme whatever the config names.
+// `seen` is what the terminal told of its own colours ({ fg, bg }, askTerminal): the greys are measured against them.
 const named = (want) => (["herdr", "auto", "dark", "light"].includes(want) ? null : canonical(want));
-export function resolve(cfg = {}, light = null, want = "herdr") {
+export function resolve(cfg = {}, light = null, want = "herdr", seen = null) {
   const th = cfg.theme || {}, ui = cfg.ui || {};
   const manual = named(want) || (typeof th.name === "string" ? th.name : "catppuccin");
   const [dark0, light0] = siblings(manual);
@@ -46,12 +48,13 @@ export function resolve(cfg = {}, light = null, want = "herdr") {
   over(th.custom);
   if (typeof ui.accent === "string" && ui.accent !== "cyan" && typeof th.custom?.accent !== "string") palette.accent = parseColor(ui.accent); // herdr's older accent setting
   if (mode && th.auto_switch === true) over(th.custom?.[mode]);
+  readableGreys(palette, canonical(name), seen);
   palette.review = reviewBlue(palette);
   // The board's own check is neither the agent's nor the reviewer's: a neutral light grey, herdr's subtext0, brighter
   // than the greyed words beside it and with no hue of its own.
   palette.check = palette.subtext0;
-  palette.todo = todoGrey(palette);
-  return { name: canonical(name) || name, palette, symbols: ui.status_indicators === "symbols", dots: ui.status_indicators === "dots" };
+  palette.todo = todoGrey(palette, seen);
+  return { name: canonical(name) || name, palette, ground: groundOf(palette, seen), symbols: ui.status_indicators === "symbols", dots: ui.status_indicators === "dots" };
 }
 
 // "review" is the colour of a review that is running: a blue, so that green says only "passed" or "ready" and amber
@@ -66,10 +69,7 @@ export const REVIEW_BLUE = 0x3b82f6, REVIEW_APART = 60;
 const REVIEW_BLUES = [REVIEW_BLUE, 0x1d4ed8, 0x93c5fd, 0x0000ff, 0x6366f1, 0x0ea5e9];
 export const REVIEW_BESIDE = ["green", "red", "yellow", "teal", "subtext0", "overlay0", "text", "panel_bg"];
 const rgb = (c) => [c >> 16, (c >> 8) & 255, c & 255];
-// How far apart two colours look. One of the terminal's 16 is measured as xterm draws it; the terminal's own colour
-// (text or background with none set) cannot be known, and counts as far.
 const drawn = (c) => (c < 0 ? XTERM[c - A] : c);
-export const apart = (a, b) => (a === b ? 0 : typeof a !== "number" || typeof b !== "number" ? Infinity : Math.hypot(...rgb(drawn(a)).map((x, i) => x - rgb(drawn(b))[i])));
 // Is it a blue at all? By its hue, from the blue-green side of cyan to the edge of violet, and not a grey: a `blue`
 // of your own that is really a green, a purple or a grey is not what "the reviewer is working" may be painted in.
 export function isBlue(c) {
@@ -84,53 +84,38 @@ function reviewBlue(p) {
   return [p.blue, ...REVIEW_BLUES].find(fits) ?? any().reduce((best, c) => (least(c) > least(best) ? c : best));
 }
 
-// "todo" is the colour of a task nobody has started: a dim grey, so that it is never taken for plain text (a task's
-// own words) nor for a state that has a colour. It is the theme's own grey for greyed-out words (`overlay0`) where
-// that one is told apart from plain text, from the green of "ready to approve", from the blue of "under review" and
-// from the background; else the theme's other grey, else the first of the board's greys that is. Among the
-// terminal's own 16 colours its white is most terminals' text colour, so the grey is its "bright black" there.
-export const TODO_APART = 60, TODO_BESIDE = ["text", "green", "review", "panel_bg"];
-const GREYS = [0x808080, 0x6b7280, 0x555555, 0x9ca3af, 0xaaaaaa];
-function todoGrey(p) {
-  const least = (c) => Math.min(...TODO_BESIDE.map((k) => apart(c, p[k])));
-  const fits = (c) => typeof c === "number" && ![A + 7, A + 15].includes(c) && least(c) >= TODO_APART;
-  const own = [p.overlay0, p.overlay1].find(fits);
-  if (own !== undefined) return own;
-  if ([p.overlay0, p.text].some((c) => typeof c !== "number" || c < 0) && fits(A + 8)) return A + 8;
-  return GREYS.find(fits) ?? GREYS.reduce((best, c) => (least(c) > least(best) ? c : best));
-}
-
 // The board marks each state with its own symbol (◐ ✗ ✓ ○, ◑ while the reviewer works, ◒ for the board's own steps; a task that waits for you says what it needs: ? ! @, and finished work that is ready for your yes is ◆), so no two states are told apart by colour alone. Only a
 // herdr config that asks for "dots" by name gets herdr's dots.
-let cfg = {}, P = resolve().palette, symbols = true;
+let cfg = {}, P = resolve().palette, ground = resolve().ground, symbols = true, told = null;
 const marksOf = (r) => !r.dots;
 const want = () => String(setting("board.theme"));
 // Read herdr's theme. Answers whether the terminal has to be asked to finish it: for its appearance (herdr's auto_switch).
 export function loadTheme(light = null) {
   cfg = readHerdrConfig();
-  { const r = resolve(cfg, light, want()); P = r.palette; symbols = marksOf(r); }
+  { const r = resolve(cfg, light, want(), told); P = r.palette; ground = r.ground; symbols = marksOf(r); }
   return !named(want()) && !["dark", "light"].includes(want()) && cfg.theme?.auto_switch === true;
 }
-// What the terminal answered: its appearance.
-export const setTerminal = (light) => { const r = resolve(cfg, light, want()); P = r.palette; symbols = marksOf(r); };
-// Ask the terminal for its background (light, dark or null when it does not say). herdr answers for its panes with the
+// What the terminal answered: its appearance, and its own text and background colours where it told them.
+export const setTerminal = (light, seen = null) => { told = seen; const r = resolve(cfg, light, want(), seen); P = r.palette; ground = r.ground; symbols = marksOf(r); };
+// Ask the terminal for its text colour and its background (light, dark or null when it does not say). herdr answers for its panes with the
 // colours of the terminal the client runs in. The question for the terminal's kind goes last: every terminal answers
 // it, so no answer is waited for longer than the terminal takes to say that it has none.
 const byte = (x) => parseInt(x.slice(0, 2).padEnd(2, x[0]), 16);
 export function readAnswers(buf) {
-  const bg = /\]11;rgb:([0-9a-f]+)\/([0-9a-f]+)\/([0-9a-f]+)/i.exec(buf);
-  return { light: bg ? isLight((byte(bg[1]) << 16) | (byte(bg[2]) << 8) | byte(bg[3])) : null, done: /\x1b\[\?[\d;]*c/.test(buf) };
+  const said = (n) => { const m = new RegExp(`\\]${n};rgb:([0-9a-f]+)/([0-9a-f]+)/([0-9a-f]+)`, "i").exec(buf); return m ? (byte(m[1]) << 16) | (byte(m[2]) << 8) | byte(m[3]) : null; };
+  const fg = said(10), bg = said(11);
+  return { light: bg === null ? null : isLight(bg), fg, bg, done: /\x1b\[\?[\d;]*c/.test(buf) };
 }
 export function askTerminal(ms = 250) {
   const fgbg = /;(\d+)$/.exec(process.env.COLORFGBG || "");
   const guess = fgbg ? [7, 15].includes(Number(fgbg[1])) : null;
-  if (!process.stdin.isTTY || !process.stdout.isTTY) return Promise.resolve({ light: guess });
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return Promise.resolve({ light: guess, fg: null, bg: null });
   return new Promise((resolve) => {
     let buf = "", done = false;
-    const end = () => { if (done) return; done = true; clearTimeout(timer); process.stdin.off("data", on); try { process.stdin.setRawMode(false); } catch {} process.stdin.pause(); resolve({ light: readAnswers(buf).light ?? guess }); };
+    const end = () => { if (done) return; done = true; clearTimeout(timer); process.stdin.off("data", on); try { process.stdin.setRawMode(false); } catch {} process.stdin.pause(); const a = readAnswers(buf); resolve({ light: a.light ?? guess, fg: a.fg, bg: a.bg }); };
     const on = (d) => { buf += d; if (readAnswers(buf).done) end(); };
     const timer = setTimeout(end, ms);
-    try { process.stdin.setRawMode(true); process.stdin.resume(); process.stdin.on("data", on); process.stdout.write("\x1b]11;?\x1b\\\x1b[c"); } catch { end(); }
+    try { process.stdin.setRawMode(true); process.stdin.resume(); process.stdin.on("data", on); process.stdout.write("\x1b]10;?\x1b\\\x1b]11;?\x1b\\\x1b[c"); } catch { end(); }
   });
 }
 const plain = () => process.env.NO_COLOR !== undefined && process.env.NO_COLOR !== "";
@@ -156,14 +141,16 @@ export const theme = {
   under(token, s) { const on = this.bg(token, "\0").split("\0")[0]; return on ? this.bg(token, String(s).replace(/\x1b\[(?:0|49)?m/g, (m) => m + on)) : String(s); },
   // One finished line in herdr's text colour: whatever the board leaves uncoloured is herdr's `text`, not the terminal's.
   line(s) { const on = this.fg("text", "\0").split("\0")[0]; return on ? this.fg("text", String(s).replace(/\x1b\[(?:0|39)?m/g, (m) => m + on)) : String(s); },
-  // Greyed-out words: a heading, a label, a row's status line. herdr's overlay0; where that is one of the terminal's
-  // own 16 colours (the "terminal" theme, whose grey is most terminals' text colour) it is faint as well, so it never
-  // reads as the text beside it.
-  muted(s) { const c = P.overlay0; return typeof c === "number" && c >= 0 ? this.fg("overlay0", s) : this.dim(this.fg("overlay0", s)); },
+  // Greyed-out words: a heading, a label, a row's status line. herdr's overlay0, made readable (greys.js). Never the
+  // faint attribute: how faint that is, and whether it still reads, is the terminal's to say.
+  muted(s) { return this.fg("overlay0", s); },
   // The second grey, for words that have to be read: a live row's second line, the chat's message, the keys on the
   // hint line. herdr's subtext0, brighter than `muted` (overlay0), which is kept for what may be missed: times,
   // counts, tags, the words between two hints. Both are herdr's own.
   soft(s) { return this.fg("subtext0", s); },
+  // A colour made quieter, for a mark that is finished with: measured, so it is still seen (greys.js: quieter). The
+  // faint attribute is not used for it: how faint that is, is the terminal's to say.
+  quiet(token, s) { const c = quieter(P[token], ground, rowOf(P)); return plain() || typeof c !== "number" || c === P[token] ? this.fg(token, s) : `\x1b[${sgr(c, false)}m${s}\x1b[39m`; },
   mark: (state, kind) => ((state === "blocked" && NEEDS[kind]) || MARKS[state] || MARKS.unknown)[symbols ? 1 : 0],
   bold: (s) => (plain() ? String(s) : `\x1b[1m${s}\x1b[22m`),
   dim: (s) => (plain() ? String(s) : `\x1b[2m${s}\x1b[22m`),
@@ -178,7 +165,7 @@ const isLight = (c) => 0.2126 * (c >> 16) + 0.7152 * ((c >> 8) & 255) + 0.0722 *
 function pageVars({ name, palette }, light) {
   // A named colour the user chose is kept. The "terminal" theme's own colours, and "reset", mean whatever the
   // terminal shows, which a page cannot know: those take Catppuccin's, dark or light.
-  const own = (k) => { const c = palette[k]; return c === R || (name === "terminal" && c === PALETTES.terminal[TOKENS.indexOf(k)]) ? null : c < 0 ? XTERM[c - A] : c; };
+  const own = (k) => { const c = palette[k]; return typeof c !== "number" || (name === "terminal" && c === PALETTES.terminal[TOKENS.indexOf(k)]) ? null : c < 0 ? XTERM[c - A] : c; };
   if (light === null) light = own("panel_bg") !== null ? isLight(own("panel_bg")) : own("text") !== null ? !isLight(own("text")) : false;
   const base = PALETTES[light ? "catppuccin-latte" : "catppuccin"];
   const v = (k) => hex(own(k) ?? base[TOKENS.indexOf(k)]);

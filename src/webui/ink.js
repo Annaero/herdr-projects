@@ -19,6 +19,7 @@ export const webTheme = {
   line: (s) => String(s ?? ""),
   muted: (s) => webTheme.fg("overlay0", s),
   soft: (s) => webTheme.fg("subtext0", s),
+  quiet: (token, s) => webTheme.dim(webTheme.fg(token, s)), // a finished task's mark: the page draws it quieter itself (.sw-d)
   // The page draws each state's mark itself (the web UI's own shapes); the word is what travels.
   mark: (state, kind) => (state === "blocked" && NEEDS[kind]) || MARKS[state] || MARKS.unknown,
   bold: (s) => `\x1b[1m${s}\x1b[22m`,

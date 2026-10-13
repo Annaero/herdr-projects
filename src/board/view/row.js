@@ -25,7 +25,7 @@ export class Row {
     if (reviewerMark(r)) return t.fg(c, t.mark("review")); // the reviewer at work: the working mark, facing the other way
     if (boardStep(r)) return t.fg(c, t.mark("board")); // a step of the board's own: one mark for all of them
     if (r.state === "blocked") return t.fg(c, t.bold(t.mark("blocked", r.kind))); // what it needs from you: ? an answer, ! a yes or no, @ a sign-in
-    if (r.state === "done") return t.dim(t.fg(c, t.mark("done"))); // finished: the same mark, only quieter
+    if (r.state === "done") return t.quiet(c, t.mark("done")); // finished: the same mark, only quieter
     return t.fg(c, t.mark(MARK_STATES.includes(r.state) ? r.state : "idle"));
   }
   // What a row has for each column on the right: the bar, the percent, the minutes left, the review tag in the
