@@ -98,7 +98,11 @@ for the tests is one file at one place there, which two tasks would overwrite un
 A task's build and tests take the machine's cores divided by `board.agents` (how many agents work at once; 4 when it
 is not set), rounded up: `scripts/share-cores.sh` sets `CARGO_BUILD_JOBS` and `RUST_TEST_THREADS`, for the check and
 the setup. Tasks working at once then share the machine instead of each asking for all of it. Set either yourself
-to use another number.
+to use another number. A machine with no settings file (CI, a fresh clone) takes the 4.
+
+A check that stops early says why on stderr (`The check stopped while building the program (exit 101).`), also
+when the step that stopped it said nothing. `tests/check_script.rs` starts the check in an empty home, with no
+settings and no build cache, so that a fresh machine always gets past its start.
 
 ### It tells the board where it is
 

@@ -6,6 +6,10 @@
 # passed is remembered for the exact code it passed on (every file of the folder, committed or not, and the compiler): asked again, it answers at
 # once. How it works: docs/testing.md.
 set -e
+# A check that stops says why, also when a step stopped it with no word of its own (`set -e`).
+step="starting"
+trap 'st=$?; [ "$st" = 0 ] || echo "The check stopped while $step (exit $st)." >&2' EXIT
+quit() { echo "$1" >&2; trap - EXIT; exit 2; }
 here=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$here"
 fresh=0; names=""
@@ -13,15 +17,15 @@ for a in "$@"; do
   case "$a" in
     --all) ;;
     --fresh) fresh=1 ;;
-    --*) echo "check does not know $a. It takes: --all, --fresh, and names of tests." >&2; exit 2 ;;
+    --*) quit "check does not know $a. It takes: --all, --fresh, and names of tests." ;;
     *) names="$names $a" ;;
   esac
 done
 say() { [ -n "$HERDR_SUPERWORK_PROGRESS" ] && printf '%s\n' "$1" > "$HERDR_SUPERWORK_PROGRESS" || true; }
 if ! command -v cargo >/dev/null 2>&1; then
-  for d in "$HOME/.cargo/bin"; do [ -x "$d/cargo" ] && PATH="$d:$PATH"; done
+  for d in "$HOME/.cargo/bin"; do [ ! -x "$d/cargo" ] || PATH="$d:$PATH"; done
 fi
-command -v cargo >/dev/null 2>&1 || { echo "The check needs Rust (cargo): https://rustup.rs" >&2; exit 2; }
+command -v cargo >/dev/null 2>&1 || quit "The check needs Rust (cargo): https://rustup.rs"
 # Compiles through the build cache every worktree shares, when the workspace setup installed it, on this task's share
 # of the cores (docs/testing.md).
 . scripts/build-cache.sh
@@ -41,15 +45,19 @@ if [ "$fresh" = 0 ] && [ -n "$stamp" ] && [ -f "$cache/$stamp" ]; then
 fi
 started=$(date +%s)
 say "0/3 steps"
+step="building the program"
 cargo build --profile quick --quiet
 say "1/3 steps"
 # The made tables, written when out of date; then the rules (tests/guard.rs runs them too).
+step="writing the made tables"
 ./target/quick/herdr-superwork docs
+step="checking the repo's rules"
 ./target/quick/herdr-superwork docs --guard
 say "2/3 steps"
 # A name that is an area (a test file `tests/<name>.rs`, or several `tests/<name>_*.rs`; `-` stands for `_`) runs
 # those files, which are modules of the one test program (tests/main.rs); any other name runs the tests whose own
 # names hold it.
+step="running the tests"
 mods=""; words=""
 for n in $names; do
   f=$(printf '%s' "$n" | tr - _); found=""
@@ -68,5 +76,5 @@ fi
 # shellcheck disable=SC2086
 if [ -z "$mods" ] || [ -n "$words" ]; then cargo test --profile quick --quiet --no-fail-fast -- $words; fi
 say "3/3 steps"
-if [ -n "$stamp" ]; then mkdir -p "$cache" && echo "passed in $(( $(date +%s) - started ))s" > "$cache/$stamp"; fi
+if [ -n "$stamp" ]; then { mkdir -p "$cache" && echo "passed in $(( $(date +%s) - started ))s" > "$cache/$stamp"; } || true; fi
 echo "The check passed in $(( $(date +%s) - started ))s."

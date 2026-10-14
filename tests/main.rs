@@ -77,6 +77,7 @@ mod board_widths_rest;
 mod check_progress;
 mod check_progress_rest;
 mod check_progress_run;
+mod check_script;
 mod cleanup_late;
 mod cleanup_owed;
 mod cleanup_retry;
