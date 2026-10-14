@@ -41,7 +41,7 @@ fn the_row_and_the_task_panel_say_research_only_and_the_panel_shows_the_reports_
     let text = s.screen(120).join("\n");
     assert!(text.contains("Look into the build [research]") && !text.contains("Fix the page [research]"), "{text}");
     assert!(re(r"│ {2}Research only ─+", &text) && re(r"│ {2}Changes nothing in the repo\. No report yet\.", &text), "{text}");
-    assert!(re(r"│ {2}Research {5}only · no change to the repo *(\n|$)", &text) && !re(r"│ {2}Merge ", &text), "{text}");
+    assert!(re(r"│ {2}Research {5}only · no change to the repo \* *(\n|$)", &text) && !re(r"│ {2}Merge ", &text), "{text}");
     put(&id, "report", json!({ "file": "index.html", "link": "https://box.tail.ts.net:8750/proj/2/report/index.html", "at": sw::clock::now() }));
     s.load();
     let text = s.screen(120).join("\n");
@@ -127,10 +127,10 @@ fn the_settings_page_has_it_with_its_plain_label_and_a_row_from_another_machine_
     let text = s.screen(120).join("\n");
     let flat = regex::Regex::new(r"\n *").unwrap().replace_all(&text, " ").to_string();
     assert!(flat.contains("Research only: on · [off]. On: its agent changes nothing in the repo; the result is a report, and"), "{text}");
-    assert!(re(r"› {3}Research only +off +built in +research\.only", &text), "{text}");
+    assert!(re(r"› {3}Research only +off +research\.only", &text), "{text}");
     s.press(&["enter"]);
     assert_eq!(task(&id).at("settings"), &json!({ NAME: true }));
-    assert!(re(r"› \* Research only +on +this task +research\.only", &s.screen(120).join("\n")), "{}", s.screen(120).join("\n"));
+    assert!(re(r"› \* Research only +on +research\.only", &s.screen(120).join("\n")), "{}", s.screen(120).join("\n"));
     s.press(&["esc"]); s.s.full = false; s.load();
     assert!(s.screen(120).join("\n").contains("Fix the page [research]"));
     // Another machine's task: its own machine worked it out, and nothing here is asked.

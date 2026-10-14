@@ -89,7 +89,7 @@ fn done_comes_last_below_to_do_with_its_fold_line_at_the_bottom() {
 fn row_of(text: &str, name: &str) -> String { text.lines().find(|l| has(l, &format!(r" {} *$", regex::escape(name)))).unwrap_or("").to_string() }
 
 #[test]
-fn the_settings_page_every_work_setting_where_each_comes_from_and_a_mark_on_this_tasks_own() {
+fn the_settings_page_every_work_setting_plain_and_a_mark_on_this_tasks_own() {
     let w = world_with(Opts { repo: true, repo_settings: Some(json!({ "check": { "command": "npm test" } })), ..Default::default() });
     let id = w.add("One");
     use sw::store::settings::{change::set_value, lookup::Scope};
@@ -104,20 +104,21 @@ fn the_settings_page_every_work_setting_where_each_comes_from_and_a_mark_on_this
     assert!(!has(&text, "Coordinator|put an agent|all keys"));
     for name in sw::store::settings_list::work() { assert_eq!(!row_of(&text, name).is_empty(), !["worker.fast", "reviewer.fast"].contains(&name), "{name}"); }
     for name in sw::store::settings_list::board() { assert_eq!(row_of(&text, name), "", "{name}"); }
-    assert!(has(&row_of(&text, "worker.agent"), r"^▌›   Agent's program +claude +built in +worker\.agent *$"), "{}", row_of(&text, "worker.agent"));
-    assert!(has(&row_of(&text, "reviewer.agent"), r"^   \* Reviewer's program +claude +this task +reviewer\.agent *$"));
-    assert!(has(&row_of(&text, "review.rounds"), r"^     Rounds by itself +5 +you +review\.rounds *$"));
-    assert!(has(&row_of(&text, "merge.by"), r"^     Merged by +itself +your entry for proj +merge\.by *$"));
-    assert!(has(&row_of(&text, "check.command"), r"^     Check command +npm test +the repo's file +check\.command *$"));
-    assert!(has(&row_of(&text, "workspace.cleanup"), r"^     Clean up when done +on +built in +workspace\.cleanup *$"));
+    assert!(has(&row_of(&text, "worker.agent"), r"^▌›   Agent's program +claude +worker\.agent *$"), "{}", row_of(&text, "worker.agent"));
+    assert!(has(&row_of(&text, "reviewer.agent"), r"^   \* Reviewer's program +claude +reviewer\.agent *$"));
+    assert!(has(&row_of(&text, "review.rounds"), r"^     Rounds by itself +5 +review\.rounds *$"));
+    assert!(has(&row_of(&text, "merge.by"), r"^     Merged by +itself +merge\.by *$"));
+    assert!(has(&row_of(&text, "check.command"), r"^     Check command +npm test +check\.command *$"));
+    assert!(has(&row_of(&text, "workspace.cleanup"), r"^     Clean up when done +on +workspace\.cleanup *$"));
     assert!(has(&text, r"\n Agent's program: a program \(claude, codex or pi\), with a model after a slash if you like *\n"));
     s.press(&["down", "down"]); assert!(has(&s.screen(120).join("\n"), r"\n Agent's access: \[full\] · ask *\n")); s.press(&["up", "up"]);
-    assert!(text.contains("* this task's own. Every other row says the place its value comes from.") && text.contains("Board settings are yours only: herdr-superwork show"));
+    assert!(text.contains("\n * this task only\n") && text.contains("Board settings are yours only: herdr-superwork show"));
+    assert!(!has(&text, "built in|your entry for|the repo's file"), "no row says where its value comes from: {text}");
     s.press(&["esc"]); assert!(s.s.editing.is_none() && s.s.full, "back to the whole task, one step");
     s.s.panel_top = 1_000_000;
     let whole = s.screen(120).join("\n");
-    assert!(has(&whole, r"\n Reviewer +claude · default model \(this task\) · default effort · no fast mode in claude *"), "{whole}");
-    assert!(whole.contains(&format!("{} changes them: every setting, and the place each one comes from", key_name("settings"))));
+    assert!(has(&whole, r"\n Reviewer +claude · default model \* · default effort · no fast mode in claude *\n"), "{whole}");
+    assert!(has(&whole, &format!(r"\n \* this task only\n {} changes them *\n", regex::escape(&key_name("settings")))), "{whole}");
 }
 
 #[test]
@@ -134,7 +135,7 @@ fn the_settings_page_move_change_and_put_back() {
     assert_eq!(s.s.sel, id);
     go(&mut s, "workspace.cleanup"); s.press(&["enter"]); assert_eq!(mine(), json!({ "workspace.cleanup": false }));
     let text = s.screen(120).join("\n");
-    assert!(has(&row_of(&text, "workspace.cleanup"), r"^▌› \* Clean up when done +off +this task +workspace\.cleanup *$"));
+    assert!(has(&row_of(&text, "workspace.cleanup"), r"^▌› \* Clean up when done +off +workspace\.cleanup *$"));
     assert!(has(&text, r"\n Clean up when done: on · \[off\] *\n"));
     for k in ["ctrl+a", "ctrl+l", "ctrl+x", "ctrl+r", "ctrl+p", "tab", "space", "?", "alt+a", "alt+m", "x"] {
         s.press(&[k]); assert!(s.s.editing.is_some() && s.s.ask.is_none() && s.s.menu.is_none() && s.s.value().is_empty() && !s.s.archive_view, "{k}");
@@ -148,7 +149,7 @@ fn the_settings_page_move_change_and_put_back() {
     assert!(s.screen(120).join("\n").ends_with("  enter save this value · esc leave it as it is"));
     s.typed("codex/gpt-5.5"); s.press(&["enter"]);
     assert_eq!(mine().s("worker.agent"), "codex/gpt-5.5"); assert_eq!(s.s.editing.as_ref().unwrap().typing, ""); assert_eq!(s.s.value(), "");
-    assert!(has(&row_of(&s.screen(120).join("\n"), "worker.agent"), r"^▌› \* Agent's program +codex/gpt-5\.5 +this task +worker\.agent *$"));
+    assert!(has(&row_of(&s.screen(120).join("\n"), "worker.agent"), r"^▌› \* Agent's program +codex/gpt-5\.5 +worker\.agent *$"));
     assert!(names(&s).contains(&"worker.fast".to_string()), "codex has a fast mode: its row is offered now");
     assert_eq!(sw::store::tasks::list(Default::default()).len(), 2, "typed words never became a task");
     go(&mut s, "check.timeout"); s.press(&["enter"]); s.typed("20m"); s.press(&["esc"]);
@@ -158,8 +159,8 @@ fn the_settings_page_move_change_and_put_back() {
     assert!(mine().at("check.timeout").is_null()); assert_eq!(s.s.value(), "20");
     s.press(&["esc"]); s.typed("m"); assert_eq!(s.s.value(), "20m"); s.press(&["enter"]); assert_eq!(mine().s("check.timeout"), "20m");
     s.press(&["ctrl+u"]); assert!(mine().at("check.timeout").is_null());
-    assert!(has(&row_of(&s.screen(120).join("\n"), "check.timeout"), r"^▌›   Check may run for +15m +built in +check\.timeout *$"));
-    s.press(&["ctrl+u"]); assert!(s.screen(120).join("\n").contains("check.timeout is not this task's own: it comes from built in."));
+    assert!(has(&row_of(&s.screen(120).join("\n"), "check.timeout"), r"^▌›   Check may run for +15m +check\.timeout *$"));
+    s.press(&["ctrl+u"]); assert!(s.screen(120).join("\n").contains("check.timeout is not this task's own: there is nothing to put back."));
     go(&mut s, "merge.by"); s.press(&["ctrl+u"]);
     assert_eq!(mine(), json!({ "workspace.cleanup": false, "review.when": "always", "worker.agent": "codex/gpt-5.5" }));
     s.press(&["esc"]); assert!(s.s.editing.is_none());

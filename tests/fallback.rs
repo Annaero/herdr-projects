@@ -35,7 +35,7 @@ fn out_of_allowance_the_next_agent_takes_over_in_the_same_worktree_and_is_told_w
     b.press(&["alt+t"]);
     let panel = b.text();
     assert!(regex::Regex::new(r" On it +codex\n Took over +codex took over from claude: out of allowance until 17:00 · \d+s ago\n").unwrap().is_match(&panel), "{panel}");
-    assert!(regex::Regex::new(r" Agent +codex 9\.9\.9 · default model · default effort\n Takes over +codex, then pi · when the agent cannot go on \(you\)\n").unwrap().is_match(&panel), "{panel}");
+    assert!(regex::Regex::new(r" Agent +codex 9\.9\.9 · default model · default effort\n Takes over +codex, then pi · when the agent cannot go on\n").unwrap().is_match(&panel), "{panel}");
 }
 
 #[test]

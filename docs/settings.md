@@ -83,8 +83,8 @@ herdr-superwork delegate <id> --reviewer.agent claude --merge.by itself
 `delegate` takes any work setting for that task. A refused option changes nothing on the task.
 
 In the board, `Ctrl+E` opens the selected task's settings: each row has the setting's plain label first and its name
-last, the line on top says what the selected row may be, `Enter` changes it, `*` marks the rows that are this task's
-own and every other row names the place its value comes from, and `Ctrl+U` puts a row back. What cannot apply to
+last, the line on top says what the selected row may be, `Enter` changes it, `*` marks the rows set for this task only
+(every other row is plain: where its value comes from is `show <id>`'s), and `Ctrl+U` puts a row back. What cannot apply to
 the task (fast mode for a program that has none) is not offered ([the task panel](task-panel.md)).
 
 ## The list

@@ -49,7 +49,7 @@ fn the_panel_beside_the_list_cuts_a_long_description_short_and_the_whole_panel_s
     for fact in SETTINGS { assert!(whole.contains(&format!("\n {fact} ")), "{fact}"); assert!(text.contains(&format!("│  {fact} ")), "{fact}"); }
     for fact in ["Project", "Worktree", "Branch"] { assert!(whole.contains(&format!("\n {fact} ")), "{fact}"); assert!(!text.contains(&format!("│  {fact} ")), "{fact}"); }
     assert!(has(&whole, r"\n Review when {2}in a repo · with evidence\n Send back {4}major or worse · 3 rounds max\n Check {8}no command · 15m at most\n Merge {8}after your yes · squash · opens a pull request(\n {14}| · )waits for GitHub's checks\n Workspace {4}from main · removed when done\n Also {9}one attempt · not research only · no limits · no fallback\n"), "{whole}");
-    assert!(!has(&whole, r"\((this task|you|this repo)\)"), "a built-in value names no place");
+    assert!(!has(&whole, r"\((this task|you|this repo)\)|\*"), "no value names a place, and none is marked: none is this task's own");
     // A short window gives the settings its lines before the description: cut further, then the one line that says
     // where to read it, then gone, and only then a setting. With no room for all, a line counts the rest.
     { let side = beside(&w, &big, 33); every(&side, "33 rows");
@@ -63,11 +63,13 @@ fn the_panel_beside_the_list_cuts_a_long_description_short_and_the_whole_panel_s
     // With too little room for all, a value somebody chose comes before the built-in ones.
     set("limit.time", "2h", &big);
     let t = beside(&w, &big, 21).join("\n");
-    assert!(has(&t, r"\n {2}Settings ─+\n {2}Limits {7}2h a run \(this task\)\n {15}no token limit\n {2}Agent {8}claude · default model\n"), "{t}");
+    assert!(has(&t, r"\n {2}Settings ─+\n {2}Limits {7}2h a run \* · no token limit\n {2}Agent {8}claude · default model\n"), "{t}");
+    assert!(!t.contains("this task only"), "squeezed, the line that says what * means goes first: {t}");
     unset_value("limit.time", &Scope::task(&task(&big))).unwrap();
     set("worker.agent", "claude/opus", &big); s.load();
     let text = s.screen(120).join("\n");
-    assert!(has(&text, r"│ {2}Agent {8}\S+ · opus \(this task\) *\n[^\n]*│ {15}default effort *\n") && has(&text, r"│ {2}Reviewer {5}codex · default model") && !text.contains("as usual"), "{text}");
+    assert!(has(&text, r"│ {2}Agent {8}\S+ · opus \* *\n[^\n]*│ {15}default effort *\n") && has(&text, r"│ {2}Reviewer {5}codex · default model") && !text.contains("as usual"), "{text}");
+    assert!(has(&text, r"│ {2}\* this task only *\n"), "with room, one line says what * means: {text}");
     // A long text with no line breaks is cut between words after a few hundred characters.
     let prose = add(&w, "Prose", &vec!["word"; 400].join(" "));
     s.s.sel = prose; s.load();
@@ -75,20 +77,20 @@ fn the_panel_beside_the_list_cuts_a_long_description_short_and_the_whole_panel_s
     let shown = regex::Regex::new(r"Description ─+\s+((?:word\s+)+)…").unwrap().captures(&side).map(|c| regex::Regex::new(r"\s+").unwrap().replace_all(&c[1], " ").len()).unwrap_or(0);
     assert!((280..=400).contains(&shown), "a description beside the list keeps to 280 to 400 characters: {shown}");
     s.s.sel = big.clone(); s.load();
-    // A headline is bold and a label is greyed out. A setting chosen for this task is in the text colour; one that is
-    // only your default is quieter, and the place a value came from is in the accent colour.
+    // A headline is bold and a label is greyed out. Every value is in the text colour, wherever it comes from; one
+    // set for this task only has a `*` after it, in the accent colour.
     let lines = panel_of(&mut s, 58, false);
     let piece = |lines: &[Inked], f: &dyn Fn(&sw::shown::ink::Piece) -> bool| lines.iter().flat_map(|l| l.0.iter()).any(f);
     assert!(piece(&lines, &|p| p.t == "Description" && p.bold), "headlines are bold");
     let agent = lines.iter().find(|l| l.text().starts_with(" Agent ")).unwrap();
     assert_eq!(agent.0.iter().find(|p| p.t.starts_with("Agent")).map(|p| p.c), Some(Ink::Muted), "labels grey: {agent:?}");
     assert!(agent.0.iter().any(|p| p.t.contains("opus") && matches!(p.c, Ink::Text | Ink::Plain)), "a value chosen for this task is in the text colour (Plain is drawn in the text colour): {agent:?}");
-    assert!(piece(&lines, &|p| p.t.contains("(this task)") && p.c == Ink::Accent), "the place is in the accent colour");
-    assert!(piece(&lines, &|p| p.t.contains("codex · default model") && p.c == Ink::Soft), "a built-in value is quieter");
+    assert!(piece(&lines, &|p| p.t == "*" && p.c == Ink::Accent), "the * is in the accent colour");
+    assert!(piece(&lines, &|p| p.t.contains("codex · default model") && matches!(p.c, Ink::Text | Ink::Plain)), "a built-in value looks as any other");
     assert!(lines.iter().find(|l| l.text().contains("Line 1 of a very long")).map(|l| l.0.iter().all(|p| p.c == Ink::Plain && !p.bold)).unwrap_or(false), "the text is neither");
     let whole = panel_of(&mut s, 100, true);
     let reviewer = whole.iter().find(|l| l.text().starts_with(" Reviewer ")).unwrap();
-    assert!(reviewer.0.iter().any(|p| p.t.starts_with("codex") && p.c == Ink::Soft), "on the whole task a default setting is quieter: {reviewer:?}");
+    assert!(reviewer.0.iter().any(|p| p.t.starts_with("codex") && matches!(p.c, Ink::Text | Ink::Plain)), "on the whole task a default setting looks as any other: {reviewer:?}");
     // The task details: the same parts full screen, scrolled, with every setting.
     s.press(&["alt+t"]);
     assert!(s.s.full);
@@ -96,15 +98,15 @@ fn the_panel_beside_the_list_cuts_a_long_description_short_and_the_whole_panel_s
     s.s.panel_top = usize::MAX / 2; let text = s.screen(120).join("\n");
     assert!(text.contains("Line 80 of"));
     for fact in SETTINGS { assert!(text.contains(&format!("\n {fact} ")), "{fact}"); }
-    // A choice made for this task alone says so after its value, in both.
+    // A choice made for this task alone has a `*` after its value, in both, and one line under them says what it means.
     for (k, v) in [("review.when", "always"), ("review.mustFix", "minor"), ("review.rounds", "5"), ("review.evidence", "false")] { set(k, v, &big); }
     s.load(); s.s.panel_top = usize::MAX / 2; let text = s.screen(120).join("\n");
-    assert!(has(&text, r"\n Review when {2}always \(this task\) · no evidence \(this task\) *\n") && has(&text, r"\n Send back {4}minor or worse \(this task\) · 5 rounds max \(this task\) *\n"), "{text}");
-    assert!(has(&text, r"opus \(this task\) · default effort *\n") && !text.contains("* this task's own"), "{text}");
-    // A value from your own settings, or from the repo's file, names that place instead.
+    assert!(has(&text, r"\n Review when {2}always \* · no evidence \* *\n") && has(&text, r"\n Send back {4}minor or worse \* · 5 rounds max \* *\n"), "{text}");
+    assert!(has(&text, r"opus \* · default effort *\n") && has(&text, r"\n \* this task only *\n"), "{text}");
+    // A value from your own settings, or from the repo's file, is plain: the panel never says where it comes from.
     set_value("merge.method", &json!("rebase"), &Scope::default()).unwrap(); set_value("merge.by", &json!("itself"), &Scope::repo("proj")).unwrap();
     s.load(); s.s.panel_top = usize::MAX / 2;
-    assert!(has(&s.screen(120).join("\n"), r"\n Merge {8}by itself, once it passes \(you, for this repo\) · rebase \(you\) · opens a pull request( · |\s*│?\n[ │]*)waits for GitHub's checks *\n"), "{}", s.screen(120).join("\n"));
+    assert!(has(&s.screen(120).join("\n"), r"\n Merge {8}by itself, once it passes · rebase · opens a pull request( · |\s*│?\n[ │]*)waits for GitHub's checks *\n"), "{}", s.screen(120).join("\n"));
     unset_value("merge.method", &Scope::default()).unwrap(); unset_value("merge.by", &Scope::repo("proj")).unwrap(); s.load();
     s.press(&["up"]); assert!(s.s.panel_top < s.s.panel_length); assert_eq!(s.s.sel, big, "the arrows scroll the panel, they do not move the selection");
     s.press(&["esc"]); assert!(!s.s.full);

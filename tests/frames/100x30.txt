@@ -80,7 +80,7 @@
 
  Settings ─────────────────────────────────────────────────────────────────────────────────────────
  Reading its settings…
- ctrl+e changes them: every setting, and the place each one comes from
+ ctrl+e changes them
 
  Session ──────────────────────────────────────────────────────────────────────────────────────────
  Task id      proj/5

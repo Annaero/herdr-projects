@@ -39,17 +39,18 @@ Both have the same parts, in the same order, and **one form for every part**:
  Titles longer than 80 characters are cut between words.
 
  Settings ───────────────────────────────────────────
- Agent        claude · opus (this task) · default effort
+ Agent        claude · opus * · default effort
  Plan first   off
  Reviewer     codex · default model · default effort · fast
  Review when  in a repo · with evidence
- Send back    major or worse · 5 rounds max (you)
- Check        npm test (this repo) · 15m at most
+ Send back    major or worse · 5 rounds max
+ Check        npm test · 15m at most
  Merge        after your yes · squash · opens a pull request
               waits for GitHub's checks
  Workspace    from main · removed when done
  Also         one attempt · not research only · no limits
               no fallback
+ * this task only
 ```
 
 - **The title** is on top, by itself.
@@ -96,10 +97,11 @@ Both have the same parts, in the same order, and **one form for every part**:
   | `Workspace` | what the worktree starts from, what sets it up, is copied in and tears it down, and whether it is removed when done | `workspace.*` |
   | `Also` | in a word each, what has no row of its own while it is nothing: `one attempt`, `not research only`, `no limits`, `no fallback` | |
 
-  **A value that is not the built-in one says where it came from**, in words after it: `(this task)`, `(this repo)`
-  for the repo's own file, `(you)` for your settings, `(you, for this repo)` for your entry for the repo. Such a value
-  is in the text colour and the place in the accent colour; a built-in value is quieter and names no place. So
-  every setting somebody chose is there with its place, also one that says `none`, or one that does nothing now. A task
+  **Only a value set for this task alone is marked**: a `*` after it, in the accent colour, and one dim line under
+  the rows, `* this task only`, where any is marked (it is the first line to go where room is short). Every other
+  value looks the same, whether it is your settings, the repo's or built in: the panel never says where a value
+  comes from. `herdr-superwork show <id>` does ([settings](settings.md)). Every setting somebody chose is there all
+  the same, also one that says `none`, or one that does nothing now. A task
   in no repo has no `Check` and no `Workspace` row. The whole task adds where the task is (`Project`, `Worktree`
   with its folder, `Branch`); beside the list only a project that is not this board's, and another machine's name
   (`Machine`), have a row. A `Note` row says what the board could not use: a program that is not installed,
@@ -110,21 +112,24 @@ Both have the same parts, in the same order, and **one form for every part**:
 
 ## The settings page
 
-`Ctrl+E` on a task opens its settings full screen: every work [setting](settings.md) by its plain label, its value,
-the place the value comes from, and its name as a command takes it.
+`Ctrl+E` on a task opens its settings full screen: every work [setting](settings.md) by its plain label, its value
+and its name as a command takes it, `*` on the ones set for this task only. Where any other value comes from is not
+said here either: `herdr-superwork show <id>` says it.
 
 ```
  Settings  #12 "Tidy the first-run questions"
  ────────────────────────────────────────────────────────────────────────────────
  Send back from: critical · [major] · minor · trivial
 
-     Agent's program       claude    built in             worker.agent
-   * Agent's effort        high      this task            worker.effort
+     Agent's program       claude    worker.agent
+   * Agent's effort        high      worker.effort
      …
-▌›   Send back from        major     built in             review.mustFix
-     Rounds by itself      5         you                  review.rounds
-     Merged by             itself    your entry for proj  merge.by
-     Check command         npm test  the repo's file      check.command
+▌›   Send back from        major     review.mustFix
+     Rounds by itself      5         review.rounds
+     Merged by             itself    merge.by
+     Check command         npm test  check.command
+
+ * this task only
 ```
 
 - The line on top is the selected row's: what it may be. A choice lists its words with the one it is now marked; a
@@ -139,8 +144,8 @@ the place the value comes from, and its name as a command takes it.
   anything else is typed in the box at the bottom (it starts empty; the page says the value it has now) and saved
   with `Enter` (`Esc` leaves it as it was). A value that
   is refused says why, with the nearest right one, and changes nothing.
-- `*` marks the rows that are this task's own. Every other row names the place its value comes from: your entry
-  for the repo, you, the repo's file, or built in.
+- `*` marks the rows set for this task only. Every other row is plain, wherever its value comes from. A row that
+  does nothing for this task, or counts only from its next start, says so before its name.
 - `Ctrl+U` puts the selected row back to what it would be without this task's own answer.
 - `Esc`, or `Ctrl+E` again, goes back to the task.
 

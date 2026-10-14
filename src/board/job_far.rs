@@ -62,7 +62,7 @@ pub fn set(id: &str, name: &str, value: Option<String>, auto: bool) -> crate::er
     };
     let label = entry_of(name).map(|e| e.label.to_string()).unwrap_or_else(|| name.to_string());
     let shown = match &value { Value::Bool(true) => "on".to_string(), Value::Bool(false) => "off".to_string(), v => say(v).lines().next().unwrap_or("").to_string() };
-    Ok(Done::say(format!("{label}: {shown}  ({from}){}", if later.is_empty() { String::new() } else { format!(" · {later}") }), Ink::Green).and(Then::Saved(name.to_string())))
+    Ok(Done::say(format!("{}{}", crate::store::settings::show::saved_words(&label, &shown, &from), if later.is_empty() { String::new() } else { format!(" · {later}") }), Ink::Green).and(Then::Saved(name.to_string())))
 }
 /// Into a task's agent: its real herdr pane. Its space may have been closed (archive closes it): it is reopened from
 /// the worktree first. Outside a herdr client (plain SSH) this terminal attaches to that one agent instead.

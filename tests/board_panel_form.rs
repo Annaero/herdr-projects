@@ -97,7 +97,7 @@ fn one_form_for_every_part_in_every_state_and_at_every_width() {
     assert!(ls.iter().any(|l| l.ends_with(" …")), "the summary is shortened"); assert_eq!(ls.last().unwrap(), &format!(" {} shows the whole task", key_name("panel")));
     let fine = with(&Value::Object(wordy.into_iter().collect()), json!({ "review": { "score": 4, "recommend": true, "text": "Fine." } }));
     assert!(!lines(&mut s, &fine, 60, false).join("\n").contains("shows the whole task"));
-    // The place a task's own setting came from is wrapped with its value: it never runs over the edge.
+    // The `*` of a task's own setting is wrapped with its value: it never runs over the edge.
     set_value("reviewer.agent", &json!("claude"), &Scope::task(&task(&id))).unwrap(); set_value("reviewer.fast", &json!("on"), &Scope::task(&task(&id))).unwrap();
     for width in [40, 56, 70, 71, 72, 100] {
         let mut mine = Value::Object(task(&id).into_iter().collect()); mine["owner"] = json!("me");
@@ -106,12 +106,13 @@ fn one_form_for_every_part_in_every_state_and_at_every_width() {
         let end = page.iter().enumerate().position(|(n, l)| n > from && has(l, r"^ \S")).unwrap();
         let row = &page[from..end];
         assert!(page.iter().all(|l| wd(l) <= width), "{width} columns: no setting runs over");
-        assert!(row.last().unwrap().ends_with("(this task)"), "{width} columns: the place is there: {row:?}");
+        assert!(row.last().unwrap().ends_with(" *"), "{width} columns: the mark is there: {row:?}");
         // (A dot between two facts is left out where the second starts a line: read without the dots.)
         let said = row.iter().map(|l| l.chars().skip(14).collect::<String>().trim().to_string()).collect::<Vec<_>>().join(" ").replace(" ·", "");
-        assert_eq!(said, "claude default model (this task) default effort no fast mode in claude (this task)", "{width} columns: the whole value");
+        assert_eq!(said, "claude default model * default effort no fast mode in claude *", "{width} columns: the whole value");
+        assert!(page[end..].iter().any(|l| l == " * this task only"), "{width} columns: the line that says what * means: {page:?}");
     }
-    // One of a pair set and the other not: both are said, each with its value and the place it came from. The same
+    // One of a pair set and the other not: both are said, each with its value, a `*` on this task's own. The same
     // holds for what is moot: a reviewer's own choices where nothing is reviewed, a planner where no plan is asked for.
     let pair = w.add("A pair");
     let set = |k: &str, v: &str| { set_value(k, &json!(v), &Scope::task(&task(&pair))).unwrap(); };
@@ -119,23 +120,24 @@ fn one_form_for_every_part_in_every_state_and_at_every_width() {
     let mut whole = || { let mut p = Value::Object(task(&pair).into_iter().collect()); p["owner"] = json!("me"); lines(&mut s, &with(&p, json!({ "state": "idle", "at": now })), 100, true).join("\n") };
     set("worker.fallback", "codex"); set("reviewer.fallback", "none"); set("limit.time", "2h"); set("limit.tokens", "none");
     let t = whole();
-    assert!(has(&t, r"\n Takes over {3}codex · when the agent cannot go on \(this task\)\n") && has(&t, r"\n Takes over {3}nobody · when the reviewer cannot go on \(this task\)\n"), "{t}");
-    assert!(has(&t, r"\n Limits {7}2h a run \(this task\) · no token limit \(this task\)\n") && !has(&t, "no limits|no fallback"), "{t}");
+    assert!(has(&t, r"\n Takes over {3}codex · when the agent cannot go on \*\n") && has(&t, r"\n Takes over {3}nobody · when the reviewer cannot go on \*\n"), "{t}");
+    assert!(has(&t, r"\n Limits {7}2h a run \* · no token limit \*\n") && !has(&t, "no limits|no fallback"), "{t}");
     set("limit.time", "none"); unset("limit.tokens"); unset("worker.fallback");
     let t = whole();
-    assert!(has(&t, r"\n Limits {7}no time limit \(this task\) · no token limit\n") && has(&t, r"\n Also {9}one attempt · not research only · no fallback \(this task\)\n"), "{t}");
+    assert!(has(&t, r"\n Limits {7}no time limit \* · no token limit\n") && has(&t, r"\n Also {9}one attempt · not research only · no fallback \*\n"), "{t}");
     set("review.when", "never"); set("reviewer.effort", "high"); set("plan.agent", "codex");
     let t = whole();
-    assert!(has(&t, r"\n Plan first {3}off · would be written by codex \(this task\)\n") && has(&t, r"\n Reviewer {5}off \(this task\) · high effort \(this task\)\n"), "{t}");
-    // Every work setting this task has an answer of its own for is named as this task's somewhere in the part.
-    assert_eq!(t.matches("(this task)").count(), 6, "{t}");
-    // Another machine's task: the same rows, from the settings that machine sent, each with its place there.
+    assert!(has(&t, r"\n Plan first {3}off · would be written by codex \*\n") && has(&t, r"\n Reviewer {5}off \* · high effort \*\n"), "{t}");
+    // Every work setting this task has an answer of its own for is marked somewhere in the part, and the line under
+    // the rows says what the mark means.
+    assert_eq!(regex::Regex::new(r"\S \*").unwrap().find_iter(&t).count(), 6, "{t}"); assert!(t.contains("\n * this task only\n"), "{t}");
+    // Another machine's task: the same rows, from the settings that machine sent; only that task's own are marked.
     let sent: Vec<Value> = sw::store::settings::show::rows(&Scope::task(&task(&id))).iter().map(|x| { let mut j = x.json(); if x.name == "review.rounds" { j["value"] = json!(1); j["place"] = json!("you"); j["from"] = json!("you"); } else if x.name == "check.command" { j["value"] = json!("npm test"); j["place"] = json!("file"); j["from"] = json!("the repo's file"); } j }).collect();
     let far = with(&me, json!({ "id": format!("vm-a:{id}"), "rid": id, "host": "vm-a", "state": "idle", "at": now, "snap": { "folder": "~/far", "settings": sent, "canWorktree": true } }));
     let t = lines(&mut s, &far, 70, false).join("\n");
     assert!(has(&t, r"\n Settings ─+\n Machine {6}vm-a\n Agent {8}claude · default model · default effort\n"), "{t}");
-    assert!(has(&t, r"\n Send back {4}major or worse · 1 round max \(you\)\n Check {8}npm test \(this repo\) · 15m at most\n"), "{t}");
-    assert!(has(&t, r"\n Reviewer {5}claude · default model \(this task\) · default effort\n {14}no fast mode in claude \(this task\)\n"), "{t}");
+    assert!(has(&t, r"\n Send back {4}major or worse · 1 round max\n Check {8}npm test · 15m at most\n"), "{t}");
+    assert!(has(&t, r"\n Reviewer {5}claude · default model \* · default effort\n {14}no fast mode in claude \*\n"), "{t}");
     // A result and a severity are said in words and marks; the colour only repeats them. A headline that needs you is
     // in its state's colour. Merged, how its reviews went is quiet like its pull request; not merged, they keep their colours.
     let pieces = |ls: Vec<Inked>| ls.into_iter().flat_map(|l| l.0.into_iter()).collect::<Vec<_>>();

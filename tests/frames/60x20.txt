@@ -41,7 +41,7 @@
   Side panel on. alt+p hides it.
   enter open this task's agent · ? all keys
 == the whole task
- Task details  #5 "Max length for …        lines 1–12 of 25
+ Task details  #5 "Max length for …        lines 1–12 of 24
 ────────────────────────────────────────────────────────────
 
  #5 Max length for task titles

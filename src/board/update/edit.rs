@@ -1,5 +1,5 @@
-//! The settings page: every work setting of the selected task (or automation) by its name, its value and the place it
-//! comes from. Move to a row and change it: a switch or a choice goes to its next value, anything else is typed and
+//! The settings page: every work setting of the selected task (or automation) by its name and its value, `*` on the
+//! ones that are its own. Move to a row and change it: a switch or a choice goes to its next value, anything else is typed and
 //! saved with enter; one key puts a row back to what it would be without this task's own answer. Only the page's own
 //! keys act while it is open: no key of the list archives, merges or removes the task from here.
 use super::keys::read_only;
@@ -78,7 +78,7 @@ pub fn key(s: &mut State, p: &Press, fx: &mut Vec<Effect>) -> bool {
     if is(p, K::Up) || is(p, K::Down) { let at = (e.at as i64 + if is(p, K::Up) { -1 } else { 1 }).clamp(0, all.len() as i64 - 1).max(0) as usize; s.editing.as_mut().unwrap().at = at; return true; }
     let Some(row) = row else { return true };
     let whose = if e.auto { "automation" } else { "task" };
-    if is(p, K::PutBack) { if !row.b("own") { s.flash(format!("{} is not this {whose}'s own: it comes from {}.", row.s("name"), row.s("from")), Ink::Muted); } else { save(s, row.s("name"), None, fx); } return true; }
+    if is(p, K::PutBack) { if !row.b("own") { s.flash(format!("{} is not this {whose}'s own: there is nothing to put back.", row.s("name")), Ink::Muted); } else { save(s, row.s("name"), None, fx); } return true; }
     if enter {
         if s.current().map(|r| r.b("archivedAt")).unwrap_or(false) && !e.auto { s.flash(read_only(), Ink::Yellow); return true; }
         if row.s("note").starts_with("does not apply") { s.flash(format!("{} {}.", row.s("name"), row.s("note")), Ink::Yellow); return true; }

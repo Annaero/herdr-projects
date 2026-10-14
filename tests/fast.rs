@@ -124,15 +124,15 @@ fn fast_mode_the_command_and_the_task_panel_say_where_it_does_nothing() {
         out.extend(all[from + 1..].iter().take_while(|l| l.starts_with(&" ".repeat(14))).map(|l| l.trim().to_string())); // a row and the lines it runs on to
         out.join(" · ")
     };
-    let r = row(&id, "Reviewer"); assert!(has(&r, r"claude · default model \(this task\) · default effort · no fast mode in claude( \(this task\))?$"), "{r}");
+    let r = row(&id, "Reviewer"); assert!(has(&r, r"claude · default model \* · default effort · no fast mode in claude( \*)?$"), "{r}");
     let r = row(&id, "Agent"); assert!(has(&r, r"^ Agent +claude · default model · default effort$"), "{r}");
     let other = w.add("Other");
-    let r = row(&other, "Reviewer"); assert!(has(&r, r"codex · default model · default effort · fast \(you\)$"), "{r}");
+    let r = row(&other, "Reviewer"); assert!(has(&r, r"codex · default model · default effort · fast$"), "{r}");
     set_value("reviewer.agent", &json!("pi"), &Scope::task(&task(&other))).unwrap();
-    let r = row(&other, "Reviewer"); assert!(has(&r, r"pi · default model \(this task\) · default effort · no fast mode in pi \(you\)$"), "{r}");
+    let r = row(&other, "Reviewer"); assert!(has(&r, r"pi · default model \* · default effort · no fast mode in pi$"), "{r}");
     set_value("reviewer.fast", &json!("off"), &Scope::you()).unwrap();
-    let r = row(&other, "Reviewer"); assert!(has(&r, r"pi · default model \(this task\) · default effort$"), "{r}");
+    let r = row(&other, "Reviewer"); assert!(has(&r, r"pi · default model \* · default effort$"), "{r}");
     unset_value("reviewer.fast", &Scope::you()).unwrap();
     set_value("worker.agent", &json!("codex"), &Scope::task(&task(&other))).unwrap(); set_value("worker.fast", &json!("on"), &Scope::task(&task(&other))).unwrap();
-    let r = row(&other, "Agent"); assert!(has(&r, r"codex · default model \(this task\) · default effort · fast \(this task\)$"), "{r}");
+    let r = row(&other, "Agent"); assert!(has(&r, r"codex · default model \* · default effort · fast \*$"), "{r}");
 }

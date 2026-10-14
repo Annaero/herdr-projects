@@ -86,8 +86,8 @@ fn the_settings_page_and_the_coordinators_rules_say_it_and_the_words_for_why_an_
     for _ in 0..at { b.press(&["down"]); }
     let page = b.screen(140).join("\n");
     assert!(has(&regex::Regex::new(r"\n *").unwrap().replace_all(&page, " "), r"Agent's fallback: programs \(claude, codex or pi\), each with a model after a slash if you like, in the order they are tried, with commas between them; none for none"), "{page}");
-    assert!(has(&page, r"› {3}Agent's fallback +none +built in +worker\.fallback *\n"), "{page}");
-    assert!(has(&page, r"Reviewer's fallback +none +built in +reviewer\.fallback *\n"), "{page}");
+    assert!(has(&page, r"› {3}Agent's fallback +none +worker\.fallback *\n"), "{page}");
+    assert!(has(&page, r"Reviewer's fallback +none +reviewer\.fallback *\n"), "{page}");
     b.press(&["enter"]); b.typed("codex, pi"); b.press(&["enter"]);
     assert_eq!(task(&id).at("settings").at("worker.fallback"), &json!(["codex", "pi"]));
     b.press(&["enter"]); b.typed("codex, nobody"); b.press(&["enter"]);

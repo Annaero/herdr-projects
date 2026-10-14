@@ -137,7 +137,7 @@ pub fn door(what: &str, req: &Value) -> Res<Value> {
                 "set" => {
                     let r = if req.at("value").is_null() { unset_value(req.s("name"), &Scope::task(&t))? } else { set_value(req.s("name"), req.at("value"), &Scope::task(&t))? };
                     let later = get(&id).and_then(|c| rows(&Scope::task(&c)).into_iter().find(|x| x.name == r.name)).map(|x| x.later).unwrap_or_default();
-                    ok(format!("{}: {} ({}){}", r.name, say(&r.value), r.from, if later.is_empty() { String::new() } else { format!(" · {later}") }))
+                    ok(format!("{}{}", crate::store::settings::show::saved_words(&r.name, &say(&r.value), &r.from), if later.is_empty() { String::new() } else { format!(" · {later}") }))
                 }
                 "archive" => { archive::archive(&id)?; ok(format!("{id}: archived. ? has undo, and the archive.")) }
                 "restore" => { archive::restore(&id)?; ok(format!("{id}: restored")) }

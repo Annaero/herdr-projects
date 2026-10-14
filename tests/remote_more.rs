@@ -27,8 +27,8 @@ fn the_asking_machines_settings_arrive_with_the_task_it_starts_and_a_row_is_chan
     let row = list.arr("tasks").iter().find(|x| x.s("id") == t).unwrap().at("snap").arr("settings").iter().find(|r| r.s("name") == "review.rounds").cloned().unwrap();
     assert_eq!((row.at("value"), row.s("from"), row.at("own")), (&json!(5), "sent from laptop", &json!(false)));
     // a row changed, and put back, from the asking side's settings page
-    assert_eq!(door("do", json!({ "action": "set", "id": t, "name": "review.rounds", "value": "2" })), json!({ "ok": true, "msg": "review.rounds: 2 (this task)" }));
-    assert_eq!(door("do", json!({ "action": "set", "id": t, "name": "review.rounds" })), json!({ "ok": true, "msg": "review.rounds: 5 (sent from laptop)" }));
+    assert_eq!(door("do", json!({ "action": "set", "id": t, "name": "review.rounds", "value": "2" })), json!({ "ok": true, "msg": "review.rounds: 2, for this task only" }));
+    assert_eq!(door("do", json!({ "action": "set", "id": t, "name": "review.rounds" })), json!({ "ok": true, "msg": "review.rounds: 5" }));
     // what is sent is checked like anything else: a wrong value is refused, and nothing starts
     let u = w.add("Refused");
     let no = door("do", json!({ "action": "delegate", "id": u, "settings": { "merge.by": "sometimes" }, "from": "laptop" }));

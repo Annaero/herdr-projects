@@ -70,10 +70,10 @@ fn the_web_board_has_the_automations_one_whole_with_its_buttons_and_a_firing_tha
     { let c = sw::webui::web::client("test"); assert!(c.lock().unwrap().s.editing.is_none()); }
     assert!(s.at("settings").i("show") > 0);
     let st = s.at("settings");
-    assert_eq!((st.s("whose"), st.at("canSet"), st.arr("rows").iter().find(|x| x.s("name") == "merge.by").unwrap().s("from")), ("this automation", &json!(true), "this automation"));
+    assert_eq!((st.s("whose"), st.at("canSet"), st.arr("rows").iter().find(|x| x.s("name") == "merge.by").unwrap().at("own")), ("this automation", &json!(true), &json!(true)));
     let s = web(&w, "set", json!({ "id": st.s("id"), "name": "research.only", "value": "true" }));
     assert_eq!(sw::store::automations::automation(a.s("id")).unwrap().at("settings"), &json!({ "merge.by": "itself", "research.only": true }));
-    assert_eq!(s.at("settings").arr("rows").iter().find(|x| x.s("name") == "research.only").unwrap().s("from"), "this automation");
+    assert_eq!(s.at("settings").arr("rows").iter().find(|x| x.s("name") == "research.only").unwrap().at("own"), &json!(true));
     web(&w, "set", json!({ "id": st.s("id"), "name": "research.only", "value": null }));
     assert_eq!(sw::store::automations::automation(a.s("id")).unwrap().at("settings"), &json!({ "merge.by": "itself" }));
     // words typed while it is open are for the Coordinator's place, never for a task: the selection is as it was after

@@ -64,10 +64,10 @@ fn the_machine_that_has_an_automation_answers_for_it() {
     assert_eq!(fired.at("ok"), &json!(true)); assert!(fired.s("msg").contains("\"Release note after a merge\" fired: proj/2 was added and an agent is on it."), "{fired}");
     assert_eq!(automation_do(&json!({ "action": "auto-run", "id": a.s("id") })).unwrap().at("ok"), &json!(false), "its last task is still worked on: skipped, and said");
     // one of its own settings: set, refused when wrong, and put back; the rows the asking board's page shows ride along
-    assert_eq!(automation_do(&json!({ "action": "auto-set", "id": a.s("id"), "name": "review.when", "value": "never" })).unwrap(), json!({ "ok": true, "msg": "Review when: never  (this automation)" }));
+    assert_eq!(automation_do(&json!({ "action": "auto-set", "id": a.s("id"), "name": "review.when", "value": "never" })).unwrap(), json!({ "ok": true, "msg": "Review when: never, for this automation only" }));
     assert_eq!(automation(a.s("id")).unwrap().at("settings").s("review.when"), "never");
     assert!(automation_do(&json!({ "action": "auto-set", "id": a.s("id"), "name": "check.timeout", "value": "20" })).unwrap_err().msg.contains("check.timeout is a time with a unit"));
-    like(automation_do(&json!({ "action": "auto-set", "id": a.s("id"), "name": "review.when" })).unwrap().s("msg"), r"^Review when: \w+ {2}\(");
+    like(automation_do(&json!({ "action": "auto-set", "id": a.s("id"), "name": "review.when" })).unwrap().s("msg"), r"^Review when: \w+$");
     assert!(!automation_do(&json!({ "action": "auto-set", "id": a.s("id"), "name": "review.when" })).unwrap().s("msg").contains("this automation"));
     assert!(automation(a.s("id")).unwrap().at("settings").at("review.when").is_null());
     let rows = sw::remote::remote_list().arr("automations")[0].at("shown").arr("settings").to_vec();
@@ -103,7 +103,7 @@ fn other_machines_automations_are_in_the_list_with_their_machine_named_and_are_c
     s.press(&["ctrl+e"]);
     let e = s.s.editing.clone().unwrap(); assert_eq!((e.id.as_str(), e.auto, s.s.auto_open), ("vm-b:auto:0a1b2c3d", true, true));
     let text = t(&mut s, 120);
-    like(&text, r"^ Settings {2}Theirs nightly"); like(&text, r"\n▌› {3}Agent's program +claude +built in +worker\.agent\n"); like(&text, r"\n {3}\* Merged by +itself +this automation +merge\.by\n"); like(&text, r"\n {5}Review when +always +you +review\.when\n");
+    like(&text, r"^ Settings {2}Theirs nightly"); like(&text, r"\n▌› {3}Agent's program +claude +worker\.agent\n"); like(&text, r"\n {3}\* Merged by +itself +merge\.by\n"); like(&text, r"\n {5}Review when +always +review\.when\n");
     assert_eq!(s.screen(120).last().unwrap(), "  ↑ ↓ move · enter change · ctrl+u put back · esc back to the task");
     s.press(&["down", "enter"]); assert_eq!(asked(&f), json!({ "action": "auto-set", "id": "0a1b2c3d", "name": "review.when", "value": "repos" })); assert!(t(&mut s, 120).contains("done there"));
     s.press(&["down", "ctrl+u"]); assert_eq!(asked(&f), json!({ "action": "auto-set", "id": "0a1b2c3d", "name": "merge.by", "value": null }));
@@ -117,7 +117,7 @@ fn other_machines_automations_are_in_the_list_with_their_machine_named_and_are_c
     s.press(&["enter"]);
     let text = t(&mut s, 100);
     for line in [r"^ Automation {2}Theirs nightly", r"\n Machine {6}vm-b\n", r"\n Repo {9}far · /home/x/far\n", r"\n Last firing {2}2h ago · far/7\n", r"\n merge\.by {2}itself \*\n", r"\n {3}2h ago {3}every 5m {2}→ made far/7\n"] { like(&text, line); }
-    like(&regex::Regex::new(r"\s+").unwrap().replace_all(&text, " "), &format!("{} changes them: every setting, and the place each one comes from", regex::escape(&key_name("settings")))); assert!(!text.contains("Changed on vm-b"));
+    like(&regex::Regex::new(r"\s+").unwrap().replace_all(&text, " "), &format!("{} changes them", regex::escape(&key_name("settings")))); assert!(!text.contains("Changed on vm-b"));
     s.press(&["down", "enter"]); assert_eq!(s.s.sel, "vm-b:far/7"); assert!(!s.s.auto_open);
     // that machine's own board: only its automations, no machine on the row (the header names it)
     s.press(&["alt+m"]); assert_eq!(s.s.scope, "vm-b");

@@ -46,7 +46,7 @@ fn plan_ready_is_said_everywhere_the_worktree_stays_untouched_and_the_work_is_re
     let whole = b.text();
     assert!(has(&whole, r"Stands\s+waits for your yes"), "{whole}");
     assert!(has(&whole, r"Written by\s+the working agent"), "{whole}");
-    assert!(has(&whole, r"Plan first\s+you approve it \((this task|you)\) · written by the agent"), "{whole}");
+    assert!(has(&whole, r"Plan first\s+you approve it( \*)? · written by the agent"), "{whole}");
     assert!(sw::actions::finish_line::details(&id).unwrap().at("plan").to_string().contains("Add f.txt with one line"));
     // The web board: the plan's part comes after the first, and the row stands with what waits for you.
     let page = web(&w, "pick", json!({ "id": id, "open": true }));

@@ -90,7 +90,7 @@ fn plan_agent_a_planner_in_a_tab_of_its_own_and_after_the_yes_the_worker_builds_
     let mut b = open(&w.root, 90); b.press(&["alt+t"]);
     let text = b.text();
     assert!(has(&text, r"Written by\s+codex · gpt-5\.5"), "{text}");
-    assert!(has(&text, r"Plan first\s+you approve it \((this task|you)\) · written by codex · gpt-5\.5 \((this task|you)\)"), "{text}");
+    assert!(has(&text, r"Plan first\s+you approve it( \*)? · written by codex · gpt-5\.5( \*)?"), "{text}");
     let (home, planner_pane) = (t.at("plan").at("home").t("pane"), t.at("link").t("pane"));
     approve(&id);
     let t = started(&id);

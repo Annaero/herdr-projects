@@ -34,7 +34,7 @@ pub fn automation_do(req: &Value) -> Res<Value> {
             let r = if req.at("value").is_null() { l::unset_setting(a.s("id"), &name)? } else { l::set_setting(a.s("id"), &name, req.at("value"))? };
             let Some(r) = r else { return Ok(json!({ "ok": true, "msg": name })) };
             let label = entry_of(&r.name).map(|e| e.label.to_string()).unwrap_or_else(|| r.name.clone());
-            Ok(json!({ "ok": true, "msg": format!("{label}: {}  ({})", say(&r.value).lines().next().unwrap_or(""), r.from) }))
+            Ok(json!({ "ok": true, "msg": crate::store::settings::show::saved_words(&label, say(&r.value).lines().next().unwrap_or(""), &r.from) }))
         }
         "auto-remove" => { l::remove(a.s("id"))?; Ok(json!({ "ok": true, "msg": format!("Removed the automation \"{}\".", a.s("name")) })) }
         _ => {

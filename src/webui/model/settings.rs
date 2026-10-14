@@ -1,6 +1,6 @@
 //! The settings for the web board: every work setting of the open task (or automation) as a row the page can change.
 //! The rows are the terminal board's settings page (board/update/edit.rs): the same settings, in the same order, each
-//! with its plain label, what it means, its value, the place it comes from and what it may be. Nothing is decided
+//! with its plain label, what it means, its value, whether it is set for this task only, and what it may be. Nothing is decided
 //! here: a change goes back through the board's own save (webui/web.rs: set_setting).
 use crate::board::state::{Editing, State};
 use crate::board::update::edit::{rows, value_say, words_of};
@@ -21,11 +21,11 @@ pub fn settings_of(s: &mut State, r: &Obj, auto: bool) -> Value {
     let rows: Vec<Value> = list.iter().map(|x| {
         let e = entry_of(x.s("name"));
         let words = words_of(x.s("name"));
-        let from = [if x.b("note") { x.t("note") } else if x.b("own") { whose.to_string() } else { x.t("from") }, x.t("later")].into_iter().filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" · ");
+        let from = [x.t("note"), x.t("later")].into_iter().filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" · ");
         json!({
             "name": x.s("name"), "label": e.map(|e| e.label.to_string()).filter(|l| !l.is_empty()).unwrap_or_else(|| x.t("name")), "means": e.map(|e| e.means.to_string()).unwrap_or_default(), "own": x.b("own"),
             "value": crate::re!(r"\s*\n\s*").replace_all(&value_say(x.at("value")), " / "),
-            // Where it comes from, and what a reader must know of it: why it does nothing here, or that it counts later.
+            // What a reader must know of it: why it does nothing here, or that it counts later. Never where it comes from.
             "from": from,
             // One of a few words: the page offers them. Anything else is typed, and `hint` says what it may be.
             "words": words.as_ref().map(|ws| ws.iter().map(|w| json!({ "value": text(w), "say": value_say(w), "now": w == x.at("value") })).collect::<Vec<_>>()),

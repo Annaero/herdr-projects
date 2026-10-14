@@ -138,7 +138,8 @@ no heading while there is no automation.
   newest first, each with the task it made or why it was skipped. `↑` `↓` pick a firing; `Enter` on one goes to that
   task in the list (in the archive, when it was archived since). `Esc` goes back to the list.
 - **Its settings** (`Ctrl+E`) are the page a task has ([the task panel](task-panel.md)): every work setting as its
-  next task will have it, the place each one comes from, `*` on the rows that are the automation's own, `Enter`
+  next task will have it, `*` on the rows that are the automation's own (where the others come from is `show
+  --automation`'s), `Enter`
   changes a row and `Ctrl+U` puts it back.
 - **Making and rewording one** is done through the Coordinator's text box, which stays where it is: on an
   automation's row no task is selected, so what you type goes where it goes with no task selected (to the
@@ -149,8 +150,7 @@ no heading while there is no automation.
   every machine each row names its machine (`on otherbox`), and one machine's own board shows only its own. They
   are turned on and off, fired and removed there, on the machine that has them; the whole automation is drawn from
   what that machine sent (its latest twenty firings). `Ctrl+E` opens its settings as it does this machine's: the
-  rows are that machine's own (every work setting as its next task will have it there, and the place each comes
-  from), and a row changed or put back is changed on that machine. Only a machine on a version that sends no such
+  rows are that machine's own (every work setting as its next task will have it there), and a row changed or put back is changed on that machine. Only a machine on a version that sends no such
   rows has no page: there the board says the command instead.
 
 The [web board](web-ui.md) has the same group at the foot of its list, the same automation whole and the same

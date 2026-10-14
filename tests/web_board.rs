@@ -137,7 +137,7 @@ fn every_colour_name_has_a_colour_on_the_page_every_state_a_mark_and_every_setti
     for e in sw::store::settings_list::SETTINGS.iter().filter(|e| e.kind == sw::store::settings_list::Kind::Work) {
         let Some(r) = rows.get(&e.name) else { assert!(e.name.ends_with(".fast"), "no row for \"{}\"", e.name); left += 1; continue };
         assert!(!r.s("label").is_empty() && r.s("label") != e.name, "{}: no plain label", e.name);
-        assert!(!r.s("value").is_empty() && !r.s("from").is_empty(), "{}: no value or place", e.name);
+        assert!(!r.s("value").is_empty() && r.has("from") && r.has("own"), "{}: no value, or no own mark", e.name);
         assert!(if r.at("words").is_array() { r.arr("words").len() >= 2 && r.arr("words").iter().any(|x| x.at("now") == &json!(true)) } else { !r.s("hint").is_empty() }, "{}: neither words nor a hint", e.name);
     }
     assert!(left <= 3); assert_eq!(s.at("settings").at("canSet"), &json!(true));

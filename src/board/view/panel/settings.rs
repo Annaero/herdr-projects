@@ -1,6 +1,6 @@
-//! The settings in the task panel: every setting this task runs with, a few to a row, each one that is not the
-//! built-in value marked with the place it came from; and its agent's session. Every setting by its name, each one
-//! changeable, is the settings page (page.rs). Read from the task's `snap`: this machine's lookup, or what the task's
+//! The settings in the task panel: every setting this task runs with, a few to a row, a value set for this task only
+//! marked `*` (where any value comes from is `herdr-superwork show`'s, never the panel's); and its agent's session.
+//! Every setting by its name, each one changeable, is the settings page (page.rs). Read from the task's `snap`: this machine's lookup, or what the task's
 //! machine sent.
 use super::kit::Kit;
 use super::Ctx;
@@ -13,10 +13,8 @@ use crate::store::settings::values::{agent_of, say};
 
 /// The rows that stay longest where there is no room for all of them, after the ones with a value of their own.
 const MAIN: [&str; 6] = ["Agent", "Reviewer", "Review when", "Send back", "Merge", "Research"];
-fn came_from(x: &Value) -> String {
-    if !x.is_object() || x.s("place") == "builtin" || x.s("from") == "built in" { return String::new(); }
-    match x.s("place") { "task" => "this task".into(), "repo" => "you, for this repo".into(), "you" => "you".into(), "file" => "this repo".into(), _ => x.t("from") }
-}
+/// Somebody chose this value: it is not the built-in one. It is never said where it came from.
+fn chosen(x: &Value) -> bool { x.is_object() && x.s("place") != "builtin" && x.s("from") != "built in" }
 /// One row: a label and what it says, each item with the settings it says.
 #[derive(Clone, Debug, Default)]
 pub struct SRow { pub label: String, pub items: Vec<(String, Vec<String>)>, pub fact: bool, pub mark: bool, pub rank: i32 }
@@ -26,7 +24,7 @@ pub fn settings(k: &mut Kit, c: &Ctx, r: &Obj) -> Drawn {
     let all: std::collections::HashMap<String, Value> = snap.arr("settings").iter().map(|x| (x.t("name"), x.clone())).collect();
     let val = |n: &str| all.get(n).map(|x| x.at("value").clone()).unwrap_or(Value::Null);
     let sval = |n: &str| text(&val(n));
-    let from = |names: &[&str]| { let mut v: Vec<String> = vec![]; for n in names { let f = came_from(all.get(*n).unwrap_or(&Value::Null)); if !f.is_empty() && !v.contains(&f) { v.push(f); } } v.join(", ") };
+    let from = |names: &[&str]| names.iter().any(|n| all.get(*n).map(chosen).unwrap_or(false));
     let applies = |n: &str| all.get(n).map(|x| !x.s("note").starts_with("does not apply")).unwrap_or(false);
     let it = |t: String, names: &[&str]| if t.is_empty() { None } else { Some((t, names.iter().map(|x| x.to_string()).collect::<Vec<_>>())) };
     let mut rows: Vec<SRow> = vec![];
@@ -48,9 +46,9 @@ pub fn settings(k: &mut Kit, c: &Ctx, r: &Obj) -> Drawn {
         let model = if k == who.kind { who.model.clone() } else { String::new() };
         let effort = if sval(&format!("{name}.effort")) == "default" { String::new() } else { sval(&format!("{name}.effort")) };
         let fastn = format!("{name}.fast");
-        let fast = if val(&fastn) == json!(true) { if all.get(&fastn).map(|x| x.b("note")).unwrap_or(false) || !has_fast(&k) { format!("no fast mode in {k}") } else { "fast".into() } } else if !from(&[&fastn]).is_empty() && has_fast(&k) { "fast mode off".into() } else { String::new() };
+        let fast = if val(&fastn) == json!(true) { if all.get(&fastn).map(|x| x.b("note")).unwrap_or(false) || !has_fast(&k) { format!("no fast mode in {k}") } else { "fast".into() } } else if from(&[&fastn]) && has_fast(&k) { "fast mode off".into() } else { String::new() };
         let accn = format!("{name}.access");
-        let access = if sval(&accn) == "ask" { "asks before acting".to_string() } else if !from(&[&accn]).is_empty() { "acts without asking".into() } else { String::new() };
+        let access = if sval(&accn) == "ask" { "asks before acting".to_string() } else if from(&[&accn]) { "acts without asking".into() } else { String::new() };
         let instr = format!("{name}.instructions");
         let own_words = if !val(&instr).is_null() && sval(&instr) != "none" { "words of your own".to_string() } else { String::new() };
         let an = format!("{name}.agent"); let en = format!("{name}.effort");
@@ -65,16 +63,16 @@ pub fn settings(k: &mut Kit, c: &Ctx, r: &Obj) -> Drawn {
     let plan_by = sval("plan.approve");
     let planner = agent_of(&sval("plan.agent"));
     let writer = if planner.kind.is_empty() { "the agent".to_string() } else { format!("{}{}", planner.kind, if planner.model.is_empty() { String::new() } else { format!(" · {}", planner.model) }) };
-    if plan_by.is_empty() || plan_by == "none" { row("Plan first", vec![it("off".into(), &["plan.approve"]), if from(&["plan.agent"]).is_empty() { None } else { it(format!("would be written by {writer}"), &["plan.agent"]) }], false, false); }
+    if plan_by.is_empty() || plan_by == "none" { row("Plan first", vec![it("off".into(), &["plan.approve"]), if !from(&["plan.agent"]) { None } else { it(format!("would be written by {writer}"), &["plan.agent"]) }], false, false); }
     else { row("Plan first", vec![it(if plan_by == "reviewer" { "the reviewer approves it".into() } else { "you approve it".into() }, &["plan.approve"]), it(format!("written by {writer}"), &["plan.agent"])], false, false); }
     // Done several times at once: how many and by whom, and who picks.
     let many = r.arr("attempts").len() > 1 || crate::store::attempts::attempt_count(&val("attempts.by")) > 1;
     if many { row("Attempts", vec![it(if r.arr("attempts").len() > 1 { r.arr("attempts").iter().map(|a| format!("{} {}", a.s("letter"), a.s("agent"))).collect::<Vec<_>>().join(", ") } else { say(&val("attempts.by")) }, &["attempts.by"]), it(if r.at("picked").is_object() { format!("{} was chosen", r.at("picked").s("letter")) } else if sval("attempts.pick") == "reviewer" { "the reviewer picks".into() } else { "you pick".into() }, &["attempts.pick"])], false, false); }
     let no_review = sval("review.when") == "never";
-    let reviewer = if no_review { let mut v = vec![it("off".into(), &["review.when"])]; v.extend(role("reviewer", "", "").into_iter().filter(|i| i.as_ref().map(|i| !from(&i.1.iter().map(|s| s.as_str()).collect::<Vec<_>>()).is_empty()).unwrap_or(false))); v } else { role("reviewer", "", "") };
+    let reviewer = if no_review { let mut v = vec![it("off".into(), &["review.when"])]; v.extend(role("reviewer", "", "").into_iter().filter(|i| i.as_ref().map(|i| from(&i.1.iter().map(|s| s.as_str()).collect::<Vec<_>>())).unwrap_or(false))); v } else { role("reviewer", "", "") };
     row("Reviewer", reviewer, false, false);
     if let Some(t) = takes("reviewer.fallback") { row("Takes over", t, false, false); }
-    row("Review when", vec![it(if no_review { "never".into() } else if sval("review.when") == "always" { "always".into() } else { "in a repo".into() }, &["review.when"]), if !no_review || !from(&["review.evidence"]).is_empty() { it(if val("review.evidence") == json!(false) { "no evidence".into() } else { "with evidence".into() }, &["review.evidence"]) } else { None }], false, false);
+    row("Review when", vec![it(if no_review { "never".into() } else if sval("review.when") == "always" { "always".into() } else { "in a repo".into() }, &["review.when"]), if !no_review || from(&["review.evidence"]) { it(if val("review.evidence") == json!(false) { "no evidence".into() } else { "with evidence".into() }, &["review.evidence"]) } else { None }], false, false);
     let bar = sval("review.mustFix");
     let rounds = val("review.rounds");
     row("Send back", vec![it(match bar.as_str() { "trivial" => "any finding".into(), "critical" => "critical only".into(), b => format!("{b} or worse") }, &["review.mustFix"]), it(if rounds == json!(0) { "by hand".into() } else { format!("{} round{} max", if rounds.is_null() { "?".into() } else { text(&rounds) }, if rounds == json!(1) { "" } else { "s" }) }, &["review.rounds"])], false, false);
@@ -85,7 +83,7 @@ pub fn settings(k: &mut Kit, c: &Ctx, r: &Obj) -> Drawn {
     else { row("Merge", vec![it(if sval("merge.by") == "itself" { "by itself, once it passes".into() } else { "after your yes".into() }, &["merge.by"]), if applies("merge.method") { it(sval("merge.method"), &["merge.method"]) } else { None }, if applies("merge.pr") { it(if val("merge.pr") == json!(false) { "no pull request".into() } else { "opens a pull request".into() }, &["merge.pr"]) } else { None }, if applies("merge.checks") && applies("merge.pr") && val("merge.pr") != json!(false) { it(if sval("merge.checks") == "none" { "GitHub's checks ignored".into() } else { "waits for GitHub's checks".into() }, &["merge.checks"]) } else { None }], false, false); }
     let time = if val("limit.time").is_null() { "none".to_string() } else { sval("limit.time") };
     let most = if val("limit.tokens").is_null() { "none".to_string() } else { sval("limit.tokens") };
-    let limited = time != "none" || most != "none" || !from(&["limit.time", "limit.tokens"]).is_empty();
+    let limited = time != "none" || most != "none" || from(&["limit.time", "limit.tokens"]);
     if limited { row("Limits", vec![it(if time != "none" { format!("{time} a run") } else { "no time limit".into() }, &["limit.time"]), it(if most == "none" { "no token limit".into() } else if all.get("limit.tokens").map(|x| x.b("note")).unwrap_or(false) { format!("{most} tokens, not counted") } else { format!("{most} tokens") }, &["limit.tokens"])], false, false); }
     let said = |n: &str| { let v = val(n); if v.is_null() || text(&v) == "none" { String::new() } else { crate::re!(r"\s*\n\s*").replace_all(&say(&v), " / ").into_owned() } };
     if applies("workspace.from") { row("Workspace", vec![it(format!("from {}", if sval("workspace.from") == "here" { "your checkout" } else { "main" }), &["workspace.from"]), it(if said("workspace.setup").is_empty() { String::new() } else { format!("set up with {}", said("workspace.setup")) }, &["workspace.setup"]), it(if said("workspace.include").is_empty() { String::new() } else { format!("copies {}", said("workspace.include")) }, &["workspace.include"]), it(if said("workspace.teardown").is_empty() { String::new() } else { format!("torn down with {}", said("workspace.teardown")) }, &["workspace.teardown"]), it(if val("workspace.cleanup") == json!(false) { "kept when done".into() } else { "removed when done".into() }, &["workspace.cleanup"])], false, false); }
@@ -95,7 +93,7 @@ pub fn settings(k: &mut Kit, c: &Ctx, r: &Obj) -> Drawn {
     if !notes.is_empty() { row("Note", vec![it(notes.join("\n"), &[])], true, true); }
     // Where room is short the rows go from the last of this order: a value somebody chose, then who works, who
     // reviews, the review and the merge, then the rest.
-    for x in rows.iter_mut() { x.rank = if x.fact { 3 } else if x.items.iter().any(|i| !from(&i.1.iter().map(|s| s.as_str()).collect::<Vec<_>>()).is_empty()) { 0 } else if MAIN.contains(&x.label.as_str()) { 1 } else { 2 }; }
+    for x in rows.iter_mut() { x.rank = if x.fact { 3 } else if x.items.iter().any(|i| from(&i.1.iter().map(|s| s.as_str()).collect::<Vec<_>>())) { 0 } else if MAIN.contains(&x.label.as_str()) { 1 } else { 2 }; }
     // The agent's session, full screen only.
     let mut session = vec![];
     let fixed = |session: &mut Vec<SRow>, label: &str, t: String| session.push(SRow { label: label.into(), items: vec![(t, vec![])], fact: true, mark: false, rank: 3 });
@@ -109,30 +107,33 @@ pub fn settings(k: &mut Kit, c: &Ctx, r: &Obj) -> Drawn {
     // Not read yet (the board's first frame is drawn from the files alone): it says so, never a row of blanks.
     let known = snap.at("settings").is_array();
     let shown: Vec<SRow> = if !known { vec![] } else if c.full { rows.clone() } else { rows.iter().filter(|x| !x.fact || x.mark).cloned().collect() };
-    let lines = if known { draw_rows(k, &shown, 0, &from_owned(&all)) } else { k.wrap("Reading its settings…").into_iter().map(|l| l.recolor(Ink::Muted)).collect() };
+    let lines = if known { draw_rows(k, &shown, 0, &own_of(&all), true) } else { k.wrap("Reading its settings…").into_iter().map(|l| l.recolor(Ink::Muted)).collect() };
     let mut part_lines = vec![k.head("Settings", None)];
     part_lines.extend(lines);
-    if c.full && !r.b("archivedAt") { let change = if c.web { "All settings, below, has every one of them, and changes them".to_string() } else { format!("{} changes them: every setting, and the place each one comes from", key_name("settings")) }; part_lines.extend(k.wrap(&change).into_iter().map(|l| l.recolor(Ink::Muted))); }
+    if c.full && !r.b("archivedAt") { let change = if c.web { "All settings, below, has every one of them, and changes them".to_string() } else { format!("{} changes them", key_name("settings")) }; part_lines.extend(k.wrap(&change).into_iter().map(|l| l.recolor(Ink::Muted))); }
     let part = k.part(part_lines);
     k.parts[part].name = "settings";
-    if c.full && !session.is_empty() { let mut sl = vec![k.head("Session", None)]; sl.extend(draw_rows(k, &session, 0, &from_owned(&all))); k.part(sl); }
+    if c.full && !session.is_empty() { let mut sl = vec![k.head("Session", None)]; sl.extend(draw_rows(k, &session, 0, &own_of(&all), false)); k.part(sl); }
     Drawn { rows: shown, part, cut: !c.full && !tree.is_empty(), session }
 }
-pub fn from_owned(all: &std::collections::HashMap<String, Value>) -> std::collections::HashMap<String, String> { all.iter().map(|(k, v)| (k.clone(), came_from(v))).collect() }
-/// A table of labels and what they say. A value somebody chose is in the text colour, with the place it came from
-/// after it in words; one that is the built-in value is quieter. `more`: how many settings have no room.
-pub fn draw_rows(k: &Kit, list: &[SRow], more: usize, from: &std::collections::HashMap<String, String>) -> Vec<Inked> {
-    let places = |names: &[String]| { let mut v: Vec<String> = vec![]; for n in names { if let Some(f) = from.get(n).filter(|f| !f.is_empty()) { if !v.contains(f) { v.push(f.clone()); } } } v.join(", ") };
+/// The settings set for this task only: the ones marked `*`.
+pub fn own_of(all: &std::collections::HashMap<String, Value>) -> std::collections::HashSet<String> { all.iter().filter(|(_, v)| v.s("place") == "task").map(|(k, _)| k.clone()).collect() }
+/// A table of labels and what they say, every value alike: one set for this task only has a `*` after it, and
+/// nothing says where any other comes from. `more`: how many settings have no room. `legend`: the line that says
+/// what `*` means, under them, where one is marked.
+pub fn draw_rows(k: &Kit, list: &[SRow], more: usize, own: &std::collections::HashSet<String>, legend: bool) -> Vec<Inked> {
     let mut out = vec![];
+    let mut marked = false;
     for x in list {
         let items: Vec<Inked> = x.items.iter().map(|(t, names)| {
-            let where_ = if x.fact { String::new() } else { places(names) };
-            let on = if x.fact { x.mark } else { !where_.is_empty() };
-            let body = Inked::join(t.split('\n').enumerate().map(|(n, l)| { let p = if on { Inked::plain(l) } else { Inked::of(l, Ink::Soft) }; if n > 0 { Inked::plain("\n").add(p) } else { p } }));
-            if where_.is_empty() { body } else { body.add(Inked::plain(" ")).add(Inked::of(format!("({where_})"), Ink::Accent)) }
+            let star = !x.fact && names.iter().any(|n| own.contains(n));
+            marked |= star;
+            let body = Inked::join(t.split('\n').enumerate().map(|(n, l)| { let p = if !x.fact || x.mark { Inked::plain(l) } else { Inked::of(l, Ink::Soft) }; if n > 0 { Inked::plain("\n").add(p) } else { p } }));
+            if star { body.add(Inked::plain(" ")).add(Inked::of("*", Ink::Accent)) } else { body }
         }).collect();
         out.extend(k.fact(&x.label, k.flow(items, None, " · ")));
     }
+    if legend && marked { out.push(Inked::of("*", Ink::Accent).add(Inked::of(" this task only", Ink::Muted)).cut(k.w)); }
     if more > 0 { out.extend(k.wrap(&format!("{more} more setting{} · {} shows {}", if more == 1 { "" } else { "s" }, key_name("settings"), if more == 1 { "it" } else { "them" })).into_iter().map(|l| l.recolor(Ink::Muted))); }
     out
 }

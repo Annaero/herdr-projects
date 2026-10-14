@@ -99,3 +99,8 @@ pub fn show_text(scope: &Scope) -> String {
     if !bad.is_empty() { out.push(String::new()); out.push("Not counted (the next place down is used for each):".into()); out.extend(bad.iter().map(|b| format!("  {b}"))); }
     out.join("\n")
 }
+/// How a board says a value just saved or put back: plain, and `, for this task only` where it is that one's own now.
+/// Where any other value comes from is `show`'s alone.
+pub fn saved_words(label: &str, value: &str, from: &str) -> String {
+    if from == "this task" || from == "this automation" { format!("{label}: {value}, for {from} only") } else { format!("{label}: {value}") }
+}

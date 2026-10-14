@@ -40,7 +40,7 @@ fn one_automation_whole_its_prompt_trigger_own_settings_and_firings_and_enter_on
     let text = t(&mut s, 100);
     like(&text, r"^ Automation {2}Look for old dependencies");
     for line in [r"\n State {8}✓ on\n", r"\n Trigger {6}every 2h\n", r"\n Next {9}in 2h · ", r"\n Repo {9}proj · ", r"\n Prompt ─+\n Check which dependencies are out of date\.\n Open one pull request per major bump\.\n",
-        &format!(r"\n Settings ─+\n reviewer\.agent {{2}}claude \*\n merge\.by {{8}}itself \*\n \* this automation's own, put on each task it makes\. {} changes them: every setting, and the\n place each one comes from\n", regex::escape(&key_name("settings")))] { like(&text, line); }
+        &format!(r"\n Settings ─+\n reviewer\.agent {{2}}claude \*\n merge\.by {{8}}itself \*\n \* this automation's own, put on each task it makes\. {} changes them\n", regex::escape(&key_name("settings")))] { like(&text, line); }
     like(&text, r"\n Firings ─+\n[ ▌] {2}\d+s ago {3}every 2h {2}→ made proj/2\n[ ▌] {2}\d+s ago {3}every 2h {2}skipped: its last task, proj/1, is still being worked on\n[ ▌] {2}\d+s ago {3}run now {2}→ made proj/1\n");
     assert_eq!(last(&mut s), "  ↑↓ pick a firing · space turn this automation off · tab fire it now · esc back to the list");
     // the arrows pick a firing; enter on a skipped one says so, on one that made a task goes to that task in the list
@@ -86,13 +86,13 @@ fn an_automations_settings_are_the_page_a_task_has_its_own_rows_marked_a_row_cha
     for name in &work { assert_eq!(!row_of(&mut s, name).is_empty(), names(&s).iter().any(|x| x == name), "{name}"); }
     assert!(names(&s).len() >= work.len() - 2, "every work setting, but fast mode for a program that has none");
     for e in SETTINGS.iter().filter(|e| e.kind == Kind::Board) { assert_eq!(row_of(&mut s, &e.name), "", "{}", e.name); }
-    like(&row_of(&mut s, "worker.agent"), r"^▌› {3}Agent's program +claude +built in +worker\.agent *$");
-    like(&row_of(&mut s, "reviewer.agent"), r"^ {3}\* Reviewer's program +claude +this automation +reviewer\.agent *$");
-    like(&row_of(&mut s, "review.rounds"), r"^ {5}Rounds by itself +5 +you +review\.rounds *$");
-    assert!(t(&mut s, 120).contains("* this automation's own. Every other row says the place its value comes from."));
+    like(&row_of(&mut s, "worker.agent"), r"^▌› {3}Agent's program +claude +worker\.agent *$");
+    like(&row_of(&mut s, "reviewer.agent"), r"^ {3}\* Reviewer's program +claude +reviewer\.agent *$");
+    like(&row_of(&mut s, "review.rounds"), r"^ {5}Rounds by itself +5 +review\.rounds *$");
+    assert!(t(&mut s, 120).contains("\n * this automation only\n"));
     go(&mut s, "review.when"); s.press(&["enter"]);
     assert_eq!(automation(a.s("id")).unwrap().at("settings").s("review.when"), "never");
-    like(&row_of(&mut s, "review.when"), r"^▌› \* Review when +never +this automation +review\.when *$");
+    like(&row_of(&mut s, "review.when"), r"^▌› \* Review when +never +review\.when *$");
     go(&mut s, "check.timeout"); s.press(&["enter"]); s.typed("20"); s.press(&["enter"]);
     assert!(t(&mut s, 120).contains("check.timeout is a time with a unit")); assert!(automation(a.s("id")).unwrap().at("settings").at("check.timeout").is_null());
     s.typed("m"); s.press(&["enter"]); assert_eq!(automation(a.s("id")).unwrap().at("settings").s("check.timeout"), "20m");
@@ -100,7 +100,7 @@ fn an_automations_settings_are_the_page_a_task_has_its_own_rows_marked_a_row_cha
     s.press(&["ctrl+u"]); assert!(automation(a.s("id")).unwrap().at("settings").at("check.timeout").is_null());
     go(&mut s, "merge.by"); s.press(&["ctrl+u"]);
     assert_eq!(automation(a.s("id")).unwrap().at("settings"), &json!({ "reviewer.agent": "claude", "review.when": "never" }));
-    s.press(&["ctrl+u"]); assert!(t(&mut s, 120).contains("merge.by is not this automation's own: it comes from built in."), "{}", t(&mut s, 120));
+    s.press(&["ctrl+u"]); assert!(t(&mut s, 120).contains("merge.by is not this automation's own: there is nothing to put back."), "{}", t(&mut s, 120));
     // esc: back to the whole automation, then the list
     s.press(&["esc"]); assert!(s.s.editing.is_none()); like(&t(&mut s, 120), r"^ Automation {2}Look for old dependencies"); s.press(&["esc"]); assert!(!s.s.auto_open);
     // the next task has them as its own

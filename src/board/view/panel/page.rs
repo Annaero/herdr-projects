@@ -1,6 +1,7 @@
-//! The settings page, drawn: each row the setting's plain label, its value, the place it comes from, and its name as a
-//! command takes it, greyed. The line on top says what the selected row may be. Rows that are this task's own are
-//! marked `*`.
+//! The settings page, drawn: each row the setting's plain label, its value, what a reader must know of it (that it
+//! does nothing here, or counts later) and its name as a command takes it, greyed. The line on top says what the
+//! selected row may be. Rows set for this task only are marked `*`; where any other comes from is not said here
+//! (`herdr-superwork show` says it).
 use crate::board::view::list::hl;
 use crate::board::state::State;
 use crate::board::theme::Theme;
@@ -35,7 +36,7 @@ pub fn settings_page(s: &mut State, t: &Theme, r: &Obj, width: usize) -> Vec<Ink
     let at = s.editing.as_ref().unwrap().at;
     let whose = if auto { "this automation" } else { "this task" };
     let label = |x: &Obj| entry_of(x.s("name")).map(|e| e.label.clone()).unwrap_or_else(|| x.t("name"));
-    let place = |x: &Obj| format!("{}{}", if x.b("note") { x.t("note") } else if x.b("own") { whose.to_string() } else { x.t("from") }, if x.b("later") { format!(" · {}", x.s("later")) } else { String::new() });
+    let place = |x: &Obj| [x.t("note"), x.t("later")].into_iter().filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" · ");
     let one = |v: &Value| crate::re!(r"\s*\n\s*").replace_all(&value_say(v), " / ").into_owned();
     let wide = all.iter().map(|x| crate::text::width(&label(x))).max().unwrap_or(0);
     let val = all.iter().map(|x| crate::text::width(&value_say(x.at("value")))).max().unwrap_or(0).min(24);
@@ -53,13 +54,14 @@ pub fn settings_page(s: &mut State, t: &Theme, r: &Obj, width: usize) -> Vec<Ink
         if !group.is_empty() && g != group { lines.push(Inked::new()); }
         group = g;
         let here = n == at;
-        let line = format!(" {} {} {}  {}  {}  {}", if here { "›" } else { " " }, if x.b("own") { "*" } else { " " }, crate::text::pad(&label(x), wide), crate::text::pad(&one(x.at("value")), val), crate::text::pad(&place(x), from), x.s("name"));
+        let note = if from == 0 { String::new() } else { format!("{}  ", crate::text::pad(&place(x), from)) };
+        let line = format!(" {} {} {}  {}  {note}{}", if here { "›" } else { " " }, if x.b("own") { "*" } else { " " }, crate::text::pad(&label(x), wide), crate::text::pad(&one(x.at("value")), val), x.s("name"));
         let fit = crate::text::cut(&line, width);
         if here { s.edit_line = lines.len(); lines.push(hl(t, &star(&fit, x.b("own")).bold(), width)); }
         else if x.b("own") { lines.push(star(&fit, true)); } else { lines.push(Inked::of(fit, Ink::Muted)); }
     }
     lines.push(Inked::new());
-    lines.push(Inked::plain(" ").add(Inked::of("*", Ink::Accent)).add(Inked::of(format!(" {whose}'s own. Every other row says the place its value comes from."), Ink::Muted)).cut(width));
+    lines.push(Inked::plain(" ").add(Inked::of("*", Ink::Accent)).add(Inked::of(format!(" {whose} only"), Ink::Muted)).cut(width));
     lines.push(Inked::of(" Board settings are yours only: herdr-superwork show", Ink::Muted).cut(width));
     if !auto { for bad in r.at("snap").arr("problems") { lines.push(Inked::of(format!(" Not counted: {}", text(bad)), Ink::Yellow).cut(width)); } }
     lines

@@ -21,7 +21,7 @@ fn every_setting_of_the_open_task_with_its_label_and_meaning_changed_and_put_bac
     // the terminal page's rows, in its order
     let want: Vec<String> = { let c = sw::webui::web::client("test"); let mut g = c.lock().unwrap(); let was = g.s.editing.replace(sw::board::state::Editing { id: t.clone(), ..Default::default() }); let r = sw::board::update::edit::rows(&g.s); g.s.editing = was; r.iter().map(|x| x.t("name")).collect() };
     assert_eq!(s.at("settings").arr("rows").iter().map(|x| x.t("name")).collect::<Vec<_>>(), want);
-    assert_eq!(row(&s, "research.only"), json!({ "name": "research.only", "label": "Research only", "means": "its agent changes nothing in the repo; the result is a report, and nothing is pushed, opened or merged", "own": false, "value": "off", "from": "built in",
+    assert_eq!(row(&s, "research.only"), json!({ "name": "research.only", "label": "Research only", "means": "its agent changes nothing in the repo; the result is a report, and nothing is pushed, opened or merged", "own": false, "value": "off", "from": "",
         "words": [{ "value": "true", "say": "on", "now": false }, { "value": "false", "say": "off", "now": true }], "hint": "" }));
     assert!(row(&s, "review.rounds").at("words").is_null()); assert!(row(&s, "review.rounds").s("hint").contains("a whole number, 0 or more"));
     // The two limits are there like every setting: the plain label, what the value may be, and what it means.
@@ -40,16 +40,16 @@ fn every_setting_of_the_open_task_with_its_label_and_meaning_changed_and_put_bac
     // Changed from the page: the task's own, the label on its row follows, and the board says what it is now.
     let s = set(&w, &t, "research.only", json!("true"));
     assert_eq!(task(&t).at("settings"), &json!({ "research.only": true }));
-    assert_eq!((row(&s, "research.only").s("value"), row(&s, "research.only").at("own"), row(&s, "research.only").s("from")), ("on", &json!(true), "this task"));
-    assert!(regex::Regex::new(r"^Research only: on {2}\(this task\)$").unwrap().is_match(s.at("msg").s("text")), "{}", s.at("msg"));
+    assert_eq!((row(&s, "research.only").s("value"), row(&s, "research.only").at("own"), row(&s, "research.only").s("from")), ("on", &json!(true), ""));
+    assert!(regex::Regex::new(r"^Research only: on, for this task only$").unwrap().is_match(s.at("msg").s("text")), "{}", s.at("msg"));
     assert!(rows_of(&s).iter().find(|x| x.s("id") == t).unwrap().s("title").contains("Look into the logs [research]"));
-    // The task's own panel says the same, in words: every setting it runs with, and after a value somebody chose the
-    // place it came from. A built-in value names none.
+    // The task's own panel says the same, in words: every setting it runs with, a `*` after a value set for this task
+    // only. No value says where it comes from.
     {
         let facts: Vec<Value> = s.at("panel").arr("parts").iter().find(|p| p.s("head") == "Settings").unwrap().arr("items").iter().filter(|x| x.s("k") == "fact").cloned().collect();
         let said = |label: &str| facts.iter().find(|x| x.s("label") == label).map(|x| x.arr("lines").iter().flat_map(|l| l.as_array().cloned().unwrap_or_default()).map(|p| p.t("t")).collect::<String>()).unwrap_or_default();
         assert_eq!(facts.iter().map(|x| x.t("label")).filter(|k| !["Project", "Worktree", "Branch", "Note"].contains(&k.as_str())).collect::<Vec<_>>(), vec!["Agent", "Plan first", "Reviewer", "Review when", "Send back", "Check", "Research", "Workspace", "Also"]);
-        assert_eq!(said("Research"), "only · no change to the repo (this task)"); assert_eq!(said("Send back"), "major or worse · 3 rounds max");
+        assert_eq!(said("Research"), "only · no change to the repo *"); assert_eq!(said("Send back"), "major or worse · 3 rounds max");
         assert!(!s.at("panel").to_string().contains("as usual"));
     }
     // A long description never pushes them down the page: they stand right under the status, and under what the task needs from you.

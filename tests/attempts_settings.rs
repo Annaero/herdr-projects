@@ -106,9 +106,9 @@ fn delegate_an_automation_the_coordinator_and_the_settings_page() {
     let has = |t: &str, re: &str| regex::Regex::new(re).unwrap().is_match(t);
     let text = b.text();
     assert!(has(&regex::Regex::new(r"\n *").unwrap().replace_all(&text, " "), r"Attempts by: a count from 1 to 5, or programs with commas between them \(claude, codex, pi\)"), "{text}");
-    assert!(has(&text, r"Attempts by +1 +built in +attempts\.by"), "{text}");
+    assert!(has(&text, r"Attempts by +1 +attempts\.by"), "{text}");
     go(&mut b, n + 1); // the row under it: the page keeps the selected row on screen
-    assert!(has(&b.text(), r"Attempt picked by +you +built in +attempts\.pick"), "{}", b.text());
+    assert!(has(&b.text(), r"Attempt picked by +you +attempts\.pick"), "{}", b.text());
     go(&mut b, n);
     b.press(&["enter"]); b.typed("claude, pi"); b.press(&["enter"]);
     assert_eq!(task(&id).at("settings").s("attempts.by"), "claude, pi");

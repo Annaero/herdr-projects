@@ -43,7 +43,7 @@ export function panelEl(snap, handlers) {
 // ---- All settings ------------------------------------------------------------------------------------------------------
 // Folded until asked for; it stays as you left it while the page is kept fresh.
 let unfolded = false, shown = 0;
-function setRow(x, canSet, onSet) {
+function setRow(x, whose, canSet, onSet) {
   const pick = x.words && h("select.sw-set-pick", { "aria-label": x.label, disabled: !canSet, onchange: (e) => onSet(x.name, e.target.value) },
     x.words.map((w) => h("option", { value: w.value, selected: w.now }, w.say)));
   // Typed: saved when you press enter or leave the box, and only when it says something new.
@@ -52,7 +52,7 @@ function setRow(x, canSet, onSet) {
   return h(`div.sw-set${x.own ? ".is-own" : ""}`,
     h("div.sw-set-top", h("span.sw-set-label", x.label), pick || box),
     x.means ? h("p.sw-set-means", x.words ? `On: ${x.means}.` : `Means: ${x.means}.`) : null, // a typed value has no "on": what it is
-    h("p.sw-set-from", `From ${x.from}`, h("span.sw-set-name", ` · ${x.name}`),
+    h("p.sw-set-from", [x.own ? `* ${whose} only` : "", x.from].filter(Boolean).join(" · "), h("span.sw-set-name", `${x.own || x.from ? " · " : ""}${x.name}`),
       x.own && canSet ? h("button.sw-set-back", { type: "button", title: "Back to what it would be without its own answer", onclick: () => onSet(x.name, null) }, "Put back") : null));
 }
 export function settingsEl(snap, { onSet }) {
@@ -62,7 +62,7 @@ export function settingsEl(snap, { onSet }) {
   const set = (name, value) => onSet(s.id, name, value);
   const el = h("details.sw-settings", { open: unfolded, ontoggle: (e) => { unfolded = e.target.open; } },
     h("summary.sw-settings-head", "All settings", h("span.sw-settings-note", `${s.rows.filter((x) => x.own).length} of ${s.whose}'s own`)),
-    h("p.sw-set-means", s.canSet ? `Every setting, and the place its value comes from. A change here is ${s.whose}'s own.` : "Read-only here."),
-    s.rows.map((x) => setRow(x, s.canSet, set)));
+    h("p.sw-set-means", s.canSet ? `Every setting. A change here is for ${s.whose} only, and marked *.` : "Read-only here."),
+    s.rows.map((x) => setRow(x, s.whose, s.canSet, set)));
   return el;
 }

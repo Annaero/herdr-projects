@@ -96,9 +96,10 @@ pub fn panel(s: &mut State, t: &Theme, r: &Obj, width: usize, full: bool, fit: u
     let over = |k: &Kit, lead: bool, gap: bool| render(k, lead, gap).len() as i64 - space as i64;
     let flexible: Vec<usize> = { let mut v: Vec<usize> = (0..k.parts.len()).filter(|n| k.parts[*n].at.is_some() && Some(*n) != about).collect(); v.sort_by_key(|n| k.parts[*n].pri); v };
     let names = |list: &[settings::SRow]| { let mut v: Vec<String> = vec![]; for x in list { for (_, ns) in &x.items { for n in ns { if !v.contains(n) { v.push(n.clone()); } } } } v.len() };
-    let from_all = settings::from_owned(&r.at("snap").arr("settings").iter().map(|x| (x.t("name"), x.clone())).collect());
+    let own = settings::own_of(&r.at("snap").arr("settings").iter().map(|x| (x.t("name"), x.clone())).collect());
     let mut kept = rows.clone();
-    let redraw = |k: &mut Kit, kept: &[settings::SRow]| { let mut l = vec![]; if !kept.is_empty() { l.push(k.head("Settings", None)); l.extend(settings::draw_rows(k, kept, names(&rows) - names(kept), &from_all)); } k.parts[settings_part].lines = l; };
+    // Squeezed, the line that says what `*` means is the first to go.
+    let redraw = |k: &mut Kit, kept: &[settings::SRow]| { let mut l = vec![]; if !kept.is_empty() { l.push(k.head("Settings", None)); l.extend(settings::draw_rows(k, kept, names(&rows) - names(kept), &own, false)); } k.parts[settings_part].lines = l; };
     let tail = |k: &mut Kit, lead: bool, gap: bool| { for &n in &flexible { if over(k, lead, gap) > 0 { if let Some(last) = k.parts[n].last { let l = (k.parts[n].at.as_ref().unwrap())(last); k.parts[n].lines = l; } } } };
     let needs = |k: &mut Kit, lead: bool, gap: bool| { for n in 0..k.parts.len() { let o = over(k, lead, gap); if o > 0 { if let Some(a) = &k.parts[n].alert { let l = a((k.parts[n].lines.len() as i64 - o).max(2) as usize); k.parts[n].lines = l; } } } };
     if over(&k, lead, gap) > 0 { lead = false; }
@@ -112,6 +113,7 @@ pub fn panel(s: &mut State, t: &Theme, r: &Obj, width: usize, full: bool, fit: u
         if keep { needs(k, lead, gap); }
         if let Some(a) = about { if over(k, lead, gap) > 0 { k.parts[a].lines.clear(); } }
         if !keep { return; }
+        if over(k, lead, gap) > 0 && !k.parts[settings_part].lines.is_empty() { redraw(k, kept); }
         if over(k, lead, gap) > 0 && !k.parts[settings_part].lines.is_empty() { *kept = rows.iter().filter(|x| !x.fact).cloned().collect(); redraw(k, kept); }
         if over(k, lead, gap) > 0 { kept.sort_by_key(|x| x.rank); }
         while over(k, lead, gap) > 0 && !kept.is_empty() { kept.pop(); redraw(k, kept); }
