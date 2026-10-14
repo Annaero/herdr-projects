@@ -6,11 +6,11 @@ use crate::clock::now;
 use crate::finish::shared::approval_message;
 use crate::flow::{git::{board_comment, drop_remote_branch, gh, gh_user, pr_number, remote_head, CHECK_BAD, CHECK_GOOD}, sidebar::tell_sidebar, spaces::tidy_mark};
 use crate::json::*;
+use crate::land::checks;
 use crate::runner::{runner_alive, spawn_runner};
 use crate::store::{failures::failure_patch, repos::{folder_of, git_out}, settings::lookup::setting, tasks::{get, list, update_wait, Change, ListOpts, Task}};
 
 fn needs_login(t: &Task) -> bool { t.at("failure").b("auth") || (t.s("stage") == "asks" && t.s("kind") == "auth") }
-fn word(c: &Value) -> String { (if c.b("conclusion") { c.t("conclusion") } else { c.t("state") }).to_uppercase() }
 
 pub fn poll_prs() {
     super::fetch_mains();
@@ -40,6 +40,14 @@ fn poll_one(id: &str, pr: &str, j: &Value) {
     let head = j.t("headRefOid");
     let late_for = if was.as_ref().map(|w| w.b("autoMerge")).unwrap_or(false) && !mine.is_empty() && !head.is_empty() && head != mine && remote_head(&root, was.as_ref().unwrap().s("branch")) == mine { mine.clone() } else { String::new() };
     let checks: Vec<Value> = j.arr("statusCheckRollup").to_vec();
+    // With `merge.checks` at `none` a failed check on GitHub blocks nothing (land/checks.rs).
+    let ignored = was.as_ref().map(|w| !checks::looked_at(w)).unwrap_or(false);
+    let bad: Vec<Value> = if ignored { vec![] } else { checks.iter().filter(|c| CHECK_BAD.contains(&checks::word(c).as_str())).cloned().collect() };
+    let failed: Vec<String> = bad.iter().map(checks::name).filter(|s| !s.is_empty()).collect();
+    // Each failing check with the end of its log, read once for each commit and set of checks, not on every poll.
+    let prev = was.as_ref().map(|w| w.at("prFailure").clone()).unwrap_or(Value::Null);
+    let same = |p: &Value| p.s("remoteKind") == "checks" && p.s("head") == head && strings(p.at("checks")) == failed;
+    let detail = if failed.is_empty() { String::new() } else if same(&prev) { prev.t("detail") } else { checks::failed_detail(&root, pr, &bad) };
     let res = update_wait(id, 10000, |t| {
         if t.b("archivedAt") || t.s("pr") != pr || runner_alive(t) { return Ok(Change::Keep); } // archived or active since the request started: next poll
         if j.s("state") == "MERGED" {
@@ -61,6 +69,7 @@ fn poll_one(id: &str, pr: &str, j: &Value) {
             return Ok(Change::Write);
         }
         if j.s("state") != "OPEN" || (t.s("stage") == "working" && !t.b("autoMerge")) || needs_login(t) { return Ok(Change::Keep); }
+        if !checks.is_empty() { t.put("prChecksSeen", true); } // this pull request has checks: a later empty list is not "none"
         // A remembered merge is for the commit that was reviewed. The pull request has moved on (someone pushed to it):
         // the approval is withdrawn, and nothing merges until that has been checked and reviewed here.
         let reviewed = if t.at("mergeIntent").b("verifiedHead") { t.at("mergeIntent").t("verifiedHead") } else { t.t("prHead") };
@@ -77,7 +86,6 @@ fn poll_one(id: &str, pr: &str, j: &Value) {
             return Ok(Change::Write);
         }
         if t.b("prHead") && head != t.s("prHead") { return Ok(Change::Keep); } // stale or unknown-head CI cannot resolve a pushed repair
-        let failed: Vec<String> = checks.iter().filter(|c| CHECK_BAD.contains(&word(c).as_str())).map(|c| if c.b("name") { c.t("name") } else { c.t("context") }).filter(|s| !s.is_empty()).collect();
         // Only what the human wrote on it wakes the agent: the comments of the logged-in GitHub user, never anyone
         // else's (other people, review bots) and never the board's own review comments, which that same user posts.
         let human = { let u = gh_user(&root); if u.is_empty() { j.at("author").t("login") } else { u } };
@@ -93,12 +101,29 @@ fn poll_one(id: &str, pr: &str, j: &Value) {
         let new_feedback = !others.is_empty() && feedback != (if t.has("prFeedbackSeen") { t.t("prFeedbackSeen") } else { "[]".into() });
         t.put("prFeedbackSeen", feedback);
         let decision = j.s("reviewDecision");
-        let reason = if !failed.is_empty() { format!("Checks failed on the pull request {pr}: {}. Look at them (gh pr checks) and fix them on your branch.", failed.join(", ")) }
+        let reason = if !failed.is_empty() { checks::failed_why(pr, &failed) }
             else if decision == "CHANGES_REQUESTED" { format!("A reviewer asked for changes on the pull request {pr}. Read the review (gh pr view --comments) and address it on your branch.") } else { String::new() };
         let why = if !reason.is_empty() { format!("{reason}{}", if others.is_empty() { "" } else { " Comments are also available for context (gh pr view --comments)." }) }
             else if new_feedback { format!("New feedback on the pull request {pr}. Read the comments (gh pr view --comments) and address what they ask for on your branch; if nothing needs changing, say so and finish.") } else { String::new() };
         let blocking = !failed.is_empty() || decision == "CHANGES_REQUESTED";
-        let all_good = checks.iter().all(|c| CHECK_GOOD.contains(&word(c).as_str()));
+        let all_good = checks.iter().all(|c| CHECK_GOOD.contains(&checks::word(c).as_str()));
+        // The board's own wait for GitHub's checks (land/checks.rs): none is still running, one failed, or it waited
+        // longer than `check.timeout`. The land step looks again and decides.
+        if t.b("autoMerge") && t.b("checksWait") {
+            // An empty list is not a pass: they have not started yet, or went from the list (checks::none_listed).
+            let gone = checks::missing(t, &head, &checks);
+            if !failed.is_empty() || (!checks.is_empty() && all_good && gone.is_empty()) || ignored || checks::overdue(t) { t.put("autoMerge", false); t.put("autoMergeLocal", false); t.put("msg", "Merging"); then = Then::Land; }
+            else if !checks.is_empty() && t.at("checksWait").s("head") == head {
+                // Still running: which ones is kept, so that one gone from the list later is still waited for.
+                let mut names: Vec<String> = checks.iter().filter(|c| !CHECK_GOOD.contains(&checks::word(c).as_str())).map(checks::name).collect();
+                names.extend(gone);
+                let mut seen = strings(t.at("checksWait").at("seen")); for n in checks.iter().map(checks::name) { if !seen.contains(&n) { seen.push(n); } }
+                t.obj_mut("checksWait").put("names", json!(names)); t.obj_mut("checksWait").put("seen", json!(seen));
+                for f in strings(t.at("checksWait").at("flows")) { if !names.contains(&f) { names.push(f); } } // the workflows not through, by name
+                t.put("msg", format!("Waiting for GitHub checks: {}", names.join(", ")));
+            }
+            return Ok(Change::Write);
+        }
         if t.b("autoMerge") && !blocking && !t.b("prFailure") {
             // The checks have passed (and a required review is there): the remembered merge is carried out now.
             if t.b("autoMergeLocal") && all_good && decision != "REVIEW_REQUIRED" { t.put("autoMerge", false); t.put("autoMergeLocal", false); t.put("msg", "Merging"); then = Then::Land; }
@@ -110,9 +135,12 @@ fn poll_one(id: &str, pr: &str, j: &Value) {
         if blocking {
             let kind = if failed.is_empty() { "review" } else { "checks" };
             let prev = t.at("prFailure");
-            if !(prev.s("detail") == why && prev.s("remoteKind") == kind && prev.s("head") == head) {
-                t.put("prFailure", json!({ "stage": "pr", "remote": true, "remoteKind": kind, "head": head, "title": if failed.is_empty() { "Pull request changes requested" } else { "Pull request checks failed" }, "detail": why,
-                    "next": "Address this on your own branch and finish again. Local checks do not prove remote CI passed; wait for a fresh remote result.", "agentCanFix": true, "at": now(), "sentAt": null }));
+            let known = if kind == "checks" { same(prev) } else { prev.s("detail") == why && prev.s("remoteKind") == kind && prev.s("head") == head };
+            if !known {
+                let f = if kind == "checks" { checks::blocker(pr, &head, &failed, &format!("{detail}{}", if why.len() > reason.len() { format!("\n\n{}", why[reason.len()..].trim()) } else { String::new() })) }
+                    else { json!({ "stage": "pr", "remote": true, "remoteKind": kind, "head": head, "title": "Pull request changes requested", "detail": why,
+                    "next": "Address this on your own branch and finish again. Local checks do not prove remote CI passed; wait for a fresh remote result.", "agentCanFix": true, "at": now(), "sentAt": null }) };
+                t.put("prFailure", f);
             }
             if t.s("stage") == "approval" && !t.b("failure") { let m = format!("{}: {why} Send details to the agent, or wait for remote confirmation", t.at("prFailure").s("title")); t.put("msg", m); }
         } else if t.b("prFailure") {
@@ -124,7 +152,8 @@ fn poll_one(id: &str, pr: &str, j: &Value) {
                 }
             }
         }
-        let seen = if blocking { format!("{}|{decision}", failed.join(",")) } else { String::new() };
+        // A new commit failing again is news too: the agent hears of it, within its rounds.
+        let seen = if blocking { format!("{head}|{}|{decision}", failed.join(",")) } else { String::new() };
         if seen == t.s("prSeen") && !new_feedback { return Ok(Change::Write); }
         t.put("prSeen", seen);
         // Wakes the agent, in the background. Capped like the review loop, so the two cannot go round forever.

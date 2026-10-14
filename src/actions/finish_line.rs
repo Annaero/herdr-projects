@@ -24,7 +24,7 @@ use crate::store::tasks::{assert_unarchived, find, get, update, Change, Task};
 
 /// Approve: the one decision that ships finished work. An agent's own request for permission gets a yes instead.
 /// `seen`: what the human was shown when they said yes (pr, head): if the pull request or the reviewed commit is
-/// another one by now, nothing is merged. `anyway`: work whose last review failed is merged only when asked for so.
+/// another one by now, nothing is merged. `anyway`: work whose last review failed, or whose GitHub checks failed, is merged only when asked for so.
 pub fn approve(id: &str, seen: Option<(Value, Value)>, anyway: bool) -> Res<Said> {
     let cur = find(id)?;
     assert_unarchived(&cur)?;
@@ -44,12 +44,17 @@ pub fn approve(id: &str, seen: Option<(Value, Value)>, anyway: bool) -> Res<Said
             let tally = review_tally(t);
             crate::fail!("{0} was not merged: its last review failed{1}. Send the review back with: herdr-superwork review {0}. To merge it all the same: herdr-superwork approve {0} --anyway", t.s("id"), if tally.is_empty() { tally } else { format!(" ({tally})") });
         }
+        // GitHub's checks failed on the commit that would merge (land/checks.rs): refused the same way.
+        let checks = crate::land::checks::failed_on(t).filter(|_| crate::land::checks::looked_at(t));
+        if let Some(why) = checks.as_ref().filter(|_| !anyway) { crate::fail!("{0} was not merged: {why}. Send the failure to the agent with: herdr-superwork fix {0}. To merge it all the same: herdr-superwork approve {0} --anyway", t.s("id")); }
         // Main moved and the board could not bring this branch up to date yet: what was reviewed is not what would land.
         if t.b("syncBlocked") { crate::fail!("{} is behind main and cannot be approved yet: {}. The board keeps trying to bring it up to date.", t.s("id"), t.at("syncBlocked").s("why")); }
         if runner_alive(t) { crate::fail!("{} is busy. Try again in a moment.", t.s("id")); }
         t.put("stage", "merging"); t.put("msg", "Merging"); t.put("requireApproval", false); t.put("since", now()); t.put("mergeFailed", false);
-        let mi = json!({ "approvedAt": now(), "repairs": t.at("mergeIntent").i("repairs"), "verifiedHead": t.at("reviewedHead") });
-        t.put("mergeIntent", mi);
+        let mut mi = json!({ "approvedAt": now(), "repairs": t.at("mergeIntent").i("repairs"), "verifiedHead": t.at("reviewedHead") });
+        // Merged in spite of GitHub's failed checks: they are not looked at again for this merge.
+        if checks.is_some() { mi["anyway"] = json!(true); t.put("prFailure", Value::Null); }
+        t.put("mergeIntent", mi); t.put("checksWait", Value::Null);
         Ok(Change::Write)
     })?;
     flow::sidebar::tell_sidebar(&t);
@@ -185,7 +190,8 @@ pub fn retry(id: &str) -> Res<Said> {
     let cur = find(id)?;
     assert_unarchived(&cur)?;
     let cid = cur.t("id");
-    if cur.s("stage") == "approval" { return approve(&cid, None, cur.b("mergeFailed")); } // a merge that failed: the yes was given before it
+    // A merge that failed: the yes was given before it. Not one GitHub's failed checks stopped: that takes `--anyway`.
+    if cur.s("stage") == "approval" { return approve(&cid, None, cur.b("mergeFailed") && crate::land::checks::failed_on(&cur).is_none()); }
     if stopped_at_limit(&cur) { return carry_on(&cid, false); }
     // The agent said it needs a login: you have signed in, and it is told to carry on.
     if cur.s("stage") == "asks" && cur.s("kind") == "auth" { return go_on(&cur); }

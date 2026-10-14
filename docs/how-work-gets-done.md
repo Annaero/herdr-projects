@@ -107,12 +107,29 @@ row keeps showing the review that passed (`Pass · 2nd review`), and `details` l
 `kept`. This is fixed behaviour, not a setting.
 
 **Approving** makes that last sync, re-checks (and re-reviews, by the same rules) if it changed anything, then merges
-through the pull request, only at the commit that was reviewed (when GitHub's checks are still running the board
-remembers the approval and merges it itself once they pass; a commit pushed to the pull request meanwhile withdraws
-it; on a repo with a merge queue the task waits until GitHub says the pull request is merged) or locally, squashed
-by default. A
-conflict found here goes back to the agent the same way, and the merge you approved is retried after its repair. A
-checkout with unsaved files is never forced.
+through the pull request, only at the commit that was reviewed (a commit pushed to the pull request meanwhile
+withdraws the approval; on a repo with a merge queue the task waits until GitHub says the pull request is merged) or
+locally, squashed by default. A conflict found here goes back to the agent the same way, and the merge you approved is
+retried after its repair. A checkout with unsaved files is never forced.
+
+**A pull request merges only once its checks on GitHub pass** (`merge.checks`: `github`), by itself or on your yes,
+in every repo the board merges in. Before the merge the board looks at them: still running, the task says
+`Waiting for GitHub checks: <names>` and merges by itself once they pass; failed, nothing merges, and the failure goes
+back to the agent like a failed check of the board's own, with the failing check's name and the end of its log, within
+`review.rounds` (the merge you approved goes on once GitHub's checks pass on the repair); after that it waits for you,
+and `approve <id>` says why and refuses, as for a failed review, until `approve <id> --anyway`. Checks that never
+report, still running after `check.timeout`, leave it waiting for you with that reason. Passed, or no checks at all:
+it merges as before. The board decides from what the repo expects, not only from what GitHub lists so far. Each
+GitHub workflow of the branch that runs for this pull request (`.github/workflows`, its triggers read as GitHub reads
+them: `push` and `pull_request`, their `branches` against the branch, `paths` against the files the pull request
+changes, `types`) must have its run on the commit, and that run must be through and passed: every job of it, every
+member of a matrix, also one GitHub has not listed yet (`Waiting for GitHub checks: CI`). A workflow that cannot run
+for it (only for other paths, only into another branch, only on tags) is not waited for. Each check the branch it
+merges into requires (its protection or rulesets) must be listed and pass, and a check listed on the commit before and
+gone from the list now has not passed. With nothing listed at all, the task says `Waiting for GitHub checks to start`
+where an outside CI reports in the repo (on the newest commit of the branch it merges into, or on its other pull
+requests); a question GitHub cannot answer counts as yes. All of these wait at most `check.timeout`, then for you,
+with the reason. A repo with no checks at all merges with none listed. `merge.checks: none` does not look at GitHub's checks.
 
 **When a task is done** (merged here or on GitHub, finished with nothing to merge, or called done by you) its space
 leaves herdr's sidebar by itself, and its worktree and branch are removed. Work is never lost for it: a checkout

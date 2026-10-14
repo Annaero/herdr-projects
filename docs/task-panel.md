@@ -46,6 +46,7 @@ Both have the same parts, in the same order, and **one form for every part**:
  Send back    major or worse · 5 rounds max (you)
  Check        npm test (this repo) · 15m at most
  Merge        after your yes · squash · opens a pull request
+              waits for GitHub's checks
  Workspace    from main · removed when done
  Also         one attempt · not research only · no limits
               no fallback

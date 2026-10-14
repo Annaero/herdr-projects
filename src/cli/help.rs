@@ -21,7 +21,8 @@ pub const HELP: &str = r#"herdr-superwork: a work board for herdr
   herdr-superwork after <id> [ID[,ID…] | --clear]   what a task waits for: shown, changed, or dropped (it starts then)
   herdr-superwork tell <id> <text>              send a message to the task's agent
   herdr-superwork stop <id>                     stop its agent
-  herdr-superwork approve <id> [--anyway]       merge finished work that waits for approval (--anyway: also when its review failed);
+  herdr-superwork approve <id> [--anyway]       merge finished work that waits for approval (--anyway: also when its review
+                                                or its pull request's checks on GitHub failed);
                                                 on a task whose plan is ready (plan.approve you): yes to the plan, the build starts.
                                                 tell <id> <text> there sends the plan back with those words
   herdr-superwork pick <id> <letter>            keep one of a task's several attempts (attempts.by); the others' tabs close

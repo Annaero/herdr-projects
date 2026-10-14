@@ -7,7 +7,9 @@ use sw::json::*;
 
 /// What gh answers, as the old test/fake-gh.js: `user`, `createFail`, `head`, `disableFail`, `autoOk`, `mergeFail`,
 /// `queue` (accepted, only lined up to merge later), `view` (what `pr view` gives), `late: { head, times }` (the first
-/// `times` looks at the pull request still name `head`, the commit before a push).
+/// `times` looks at the pull request still name `head`, the commit before a push), `log` (what `run view --log-failed`
+/// prints of a failed job), `base` and `baseFail` (the checks of the branch it merges into, asked through `api`), `required` (the checks it requires), `runs` (a commit's workflow runs), `others`
+/// (how many of the repo's last pull requests had checks).
 #[derive(Default)]
 pub struct FakeGh { pub cfg: RefCell<Value>, pub log: RefCell<Vec<String>>, pub merged: Cell<bool>, late: Cell<i64> }
 fn ok(out: &str) -> GhOut { GhOut { status: 0, stdout: if out.is_empty() { String::new() } else { format!("{out}\n") }, stderr: String::new() } }
@@ -37,6 +39,16 @@ impl FakeGh {
                 if self.merged.get() { v["state"] = json!("MERGED"); }
                 ok(&v.to_string())
             }
+            // Does the branch a pull request merges into have checks: `base: { "check-runs": n, "status": n }`, or
+            // `baseFail` (GitHub cannot say). None by default.
+            // A commit's workflow runs: `runs: [[path, status, conclusion, url], …]`.
+            ("api", p) if p.contains("/actions/runs") => ok(&c.arr("runs").iter().map(|r| r.as_array().map(|x| x.iter().map(text).collect::<Vec<_>>().join("\t")).unwrap_or_default()).collect::<Vec<_>>().join("\n")),
+            // The checks the branch it merges into requires: `required: [names]`.
+            ("api", p) if p.contains("/branches/") => ok(&strings(c.at("required")).join("\n")),
+            ("api", p) if p.starts_with("repos/") => if c.b("baseFail") { fail("HTTP 403") } else { let k = p.rsplit('/').next().unwrap_or(""); ok(&c.at("base").i(k).to_string()) },
+            // How many of the repo's last pull requests had checks: `others`.
+            ("pr", "list") => ok(&c.i("others").to_string()),
+            ("run", "view") => if c.b("log") { ok(c.s("log")) } else { fail("log not found") },
             _ => fail(&format!("fake gh: unknown {}", a.join(" "))),
         }
     }

@@ -29,10 +29,10 @@ pub fn land_job(id: &str) {
     }
     release(id, false);
 }
-struct Fail { agent_can_fix: bool, auth: Option<bool>, keep_intent: bool }
+pub(super) struct Fail { pub agent_can_fix: bool, pub auth: Option<bool>, pub keep_intent: bool }
 impl Default for Fail { fn default() -> Self { Fail { agent_can_fix: true, auth: None, keep_intent: false } } }
 /// A failed merge waits for you again, as plain "permission": the row, panel and details show the blocker.
-fn fail(g: &mut Guard, title: &str, detail: &str, next: &str, f: Fail) -> Res<()> {
+pub(super) fn fail(g: &mut Guard, title: &str, detail: &str, next: &str, f: Fail) -> Res<()> {
     let auth = f.auth.unwrap_or_else(|| is_auth_failure(detail));
     let t = g.set(|t| {
         t.put("stage", if auth { "failed" } else { "approval" }); t.put("mergeFailed", true); t.put("msg", title);
@@ -42,7 +42,7 @@ fn fail(g: &mut Guard, title: &str, detail: &str, next: &str, f: Fail) -> Res<()
     flow::sidebar::tell_sidebar(&t);
     Ok(())
 }
-fn no_fix() -> Fail { Fail { agent_can_fix: false, auth: Some(false), keep_intent: false } }
+pub(super) fn no_fix() -> Fail { Fail { agent_can_fix: false, auth: Some(false), keep_intent: false } }
 /// `head`: the commit that was merged. Nothing newer on the branch is taken for merged. `commit`: the commit it made on
 /// the branch it landed on, what a task that waited for it is told (after/handed.rs).
 fn landed(id: &str, g: &mut Guard, t: &Task, msg: &str, head: &str, commit: &str) -> Res<()> {
@@ -50,7 +50,7 @@ fn landed(id: &str, g: &mut Guard, t: &Task, msg: &str, head: &str, commit: &str
     let d = g.set(|t| {
         if !commit.is_empty() { t.put("mergeCommit", commit); }
         t.put("stage", "done"); t.put("mergedAt", now()); t.put("tidy", mark.clone().unwrap_or(Value::Null)); t.put("msg", msg);
-        for k in ["failure", "prFailure", "mergeIntent", "lineAt", "lineTurn"] { t.put(k, Value::Null); }
+        for k in ["failure", "prFailure", "mergeIntent", "lineAt", "lineTurn", "checksWait"] { t.put(k, Value::Null); }
         for k in ["autoMerge", "autoMergeLocal", "mergeFailed", "requireApproval"] { t.put(k, false); }
         if t.b("pr") { t.put("prMerged", true); t.put("prState", "merged"); }
     })?;
@@ -126,6 +126,8 @@ pub fn land_core(id: &str, g: &mut Guard) -> Res<()> {
         }
         if called_off(g) { return Ok(()); }
         gh(&["pr", "ready", &pr], &root, 60000);
+        // GitHub's own checks on it (`merge.checks`): still running it waits, failed it goes back (checks.rs).
+        if !super::checks::before_merge(id, g, &t, &root)? { return Ok(()); }
         let mut a = vec!["pr", "merge", pr.as_str()];
         let how_flag = format!("--{how}");
         a.push(&how_flag);

@@ -58,7 +58,8 @@ it is green:
   `Waiting to merge: <id> goes first`; it is not brought up to date before its turn, so it catches up once, not
   once for every merge ahead of it. A task that must be reviewed again leaves the line for that and joins it again.
   The line moves with the board closed too.
-- **What needs you still stops and asks**: a review that fails the gate after its rounds, a merge that failed, a
+- **What needs you still stops and asks**: a review that fails the gate after its rounds, checks on GitHub that
+  still fail after the rounds or never finish (`merge.checks`), a merge that failed, a
   login, a question or a request for permission from the agent, a checkout of yours on another branch. A task you
   stepped into after it asked you (a reply to its agent, a turn in its terminal, delegating it again) asks you
   again too, once; `set merge.by itself --task <id>` on that task says you do not need to be asked. Sending the

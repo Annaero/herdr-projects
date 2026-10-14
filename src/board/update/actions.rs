@@ -122,8 +122,11 @@ pub fn yes(s: &mut State, r: &Obj, fx: &mut Vec<Effect>) {
     let st = |x: &str| r.s("stage") == x;
     if st("approval") && r.s("state") == "blocked" {
         if r.b("syncBlocked") { return s.flash(format!("Behind main, so it cannot be approved yet: {}. The board keeps trying to bring it up to date.", r.at("syncBlocked").s("why")), Ink::Yellow); }
-        let failed = failed_review(r);
-        let tally = if failed { crate::status_words::review_tally(r) } else { String::new() };
+        let bad_review = failed_review(r);
+        let tally = if bad_review { crate::status_words::review_tally(r) } else { String::new() };
+        // GitHub's checks failed on what would merge (land/checks.rs): a yes is a merge anyway, and asks as one.
+        let checks = crate::land::checks::failed_on(r);
+        let failed = bad_review || checks.is_some();
         let onto = if r.b("host") { format!("{} on {}", if r.at("snap").b("landsOn") { r.at("snap").t("landsOn") } else { "its main branch".into() }, clean(r.s("host"))) } else if r.at("snap").b("landsOn") { r.at("snap").t("landsOn") } else { "main".into() };
         let tag = number_tag(r, &s.data.keys, &s.scope, true);
         let what = [tag, format!("\"{}\"", clean(if r.b("title") { r.s("title") } else { r.s("id") }))].into_iter().filter(|x| !x.is_empty()).collect::<Vec<_>>().join(" ");
@@ -131,7 +134,7 @@ pub fn yes(s: &mut State, r: &Obj, fx: &mut Vec<Effect>) {
         let seen = (r.at("pr").clone(), r.at("reviewedHead").clone());
         let job = if r.b("host") { far(s, r, "approve", json!({ "seen": [seen.0, seen.1], "anyway": failed }), false) } else { Job::Approve { id: id.clone(), seen: Some(seen), anyway: failed } };
         let mark = merge_mark(s, &id);
-        let detail = format!("{}A merge cannot be undone.", if failed { format!("Its last review failed{}. ", if tally.is_empty() { String::new() } else { format!(": {tally}") }) } else { String::new() });
+        let detail = format!("{}{}A merge cannot be undone.", if bad_review { format!("Its last review failed{}. ", if tally.is_empty() { String::new() } else { format!(": {tally}") }) } else { String::new() }, checks.map(|c| format!("{}{}. ", c[..1].to_uppercase(), &c[1..])).unwrap_or_default());
         return confirm(s, format!("Merge {what}{} into {onto}?", if pr.is_empty() { String::new() } else { format!(" ({pr})") }), job, Valid::Mark(id, mark),
             vec![("sayYes", if failed { "merge anyway" } else { "merge" }.into()), ("sayNo", "do not merge".into())], detail, true);
     }

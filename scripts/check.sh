@@ -12,6 +12,10 @@ trap 'st=$?; [ "$st" = 0 ] || echo "The check stopped while $step (exit $st)." >
 quit() { echo "$1" >&2; trap - EXIT; exit 2; }
 here=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$here"
+# The folder checked is this one. The board runs a task's check with HERDR_SUPERWORK_REPO set to your own checkout
+# (finish/pipeline.rs), and the program's made pages and rules follow that variable (docs.rs): taken along, the check
+# would read and write your checkout, not the task's.
+unset HERDR_SUPERWORK_REPO
 fresh=0; names=""
 for a in "$@"; do
   case "$a" in

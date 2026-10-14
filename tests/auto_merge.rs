@@ -82,12 +82,12 @@ fn auto_merge_turned_off_while_a_task_waits_to_merge_by_itself_it_waits_for_your
     assert_eq!((t.t("stage"), t.b("autoMerge"), t.at("mergeIntent").clone(), t.b("requireApproval")), ("approval".into(), false, Value::Null, false));
     assert!(t.s("msg").starts_with("Approve to merge?"), "{}", t.s("msg"));
     let merges = || gh_log(&w).lines().filter(|l| l.starts_with("pr merge ")).count();
-    assert_eq!(merges(), 1, "the one try that found the checks pending: none since");
+    assert_eq!(merges(), 0, "GitHub's checks were found running before any try to merge (merge.checks)");
     assert!(!merged(&w, "f.txt"));
     // an approval the human gave is not the board's own: turning the setting off leaves it alone
     finish_line::approve(&id, None, false).unwrap(); let t = settle(&id);
     assert_eq!((t.t("stage"), t.at("autoMerge").clone(), t.at("mergeIntent").b("auto")), ("merging".into(), json!(true), false));
-    pass(&w); assert_eq!(task(&id).s("stage"), "merging"); assert_eq!(merges(), 2);
+    pass(&w); assert_eq!(task(&id).s("stage"), "merging"); assert_eq!(merges(), 0);
 }
 
 #[test]

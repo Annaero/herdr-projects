@@ -32,7 +32,7 @@ fn pull_requests_pushed_as_a_draft_merged_through_gh_on_approval_remembered_when
     finish_line::approve(&id, None, false).unwrap();
     let t = settle(&id);
     assert_eq!(t.s("stage"), "merging"); assert_eq!(t.at("autoMerge"), &json!(true));
-    assert!(t.s("msg").contains("merges when GitHub's checks pass"), "{}", t.s("msg"));
+    assert_eq!(t.s("msg"), "Waiting for GitHub checks: build");
     assert!(!regex::Regex::new("--auto|--delete-branch").unwrap().is_match(&gh_log(&w)), "remembered here, not handed to GitHub; gh never deletes local work");
     assert!(archive::archive(&id).unwrap_err().msg.contains("still active"));
     poll_prs();

@@ -1,0 +1,160 @@
+//! GitHub's checks on a pull request, looked at right before it merges (`merge.checks`): still running, the merge
+//! waits for them (at most `check.timeout`, then for you); failed, nothing merges and the failure goes back to the
+//! agent with each failing check's name and the end of its log, as a failed check of the board's own does, within
+//! `review.rounds`, then waits for you; passed, or none at all, it merges (none listed where checks are coming is
+//! waited for, and so is one that is gone from the list, or a workflow's run not through: judge). `approve --anyway` merges without them.
+use super::expected;
+use super::merge::{fail, no_fix};
+use crate::clock::now;
+use crate::err::Res;
+use crate::flow;
+use crate::flow::git::{gh, pr_number, CHECK_BAD, CHECK_GOOD};
+use crate::json::*;
+use crate::runner::Guard;
+use crate::store::failures::{bound_detail, is_auth_failure};
+use crate::store::settings::lookup::{setting, setting_text};
+use crate::store::settings::values::ms;
+use crate::store::tasks::Task;
+use std::path::Path;
+
+/// How GitHub words one check's result (a check run's conclusion, else a status's state, else how far it got).
+pub fn word(c: &Value) -> String { [c.s("conclusion"), c.s("state"), c.s("status")].into_iter().find(|s| !s.is_empty()).unwrap_or("").to_uppercase() }
+pub fn name(c: &Value) -> String { if c.b("name") { c.t("name") } else { c.t("context") } }
+pub enum Look { Passed, Running(Vec<String>), Failed(Vec<Value>) }
+/// One failed check is enough: the others are not waited for.
+pub fn sort(checks: &[Value]) -> Look {
+    let failed: Vec<Value> = checks.iter().filter(|c| CHECK_BAD.contains(&word(c).as_str())).cloned().collect();
+    if !failed.is_empty() { return Look::Failed(failed); }
+    let running: Vec<String> = checks.iter().filter(|c| !CHECK_GOOD.contains(&word(c).as_str())).map(name).collect();
+    if running.is_empty() { Look::Passed } else { Look::Running(running) }
+}
+/// Every check GitHub listed on this commit while the board waited for it (`checksWait.seen`), and every one it waited
+/// for (`checksWait.names`).
+fn known(t: &Obj, head: &str) -> Vec<String> { let w = t.at("checksWait"); if w.s("head") != head { return vec![]; } let mut k = strings(w.at("seen")); for n in strings(w.at("names")) { if !k.contains(&n) { k.push(n); } } k }
+/// Those that no check listed now is: not passed, so still waited for.
+pub fn missing(t: &Obj, head: &str, listed: &[Value]) -> Vec<String> { let now: Vec<String> = listed.iter().map(name).collect(); known(t, head).into_iter().filter(|n| !now.contains(n)).collect() }
+/// What is listed, against what is to be listed (expected.rs), and the workflows still waited for, by name (they are
+/// not checks: GitHub lists their jobs). Still running: a check listed on this commit before and gone now, a check the
+/// branch it merges into requires and not listed, a workflow that runs for this pull request with its run on the commit
+/// not there yet or not through (all of its jobs, every member of a matrix). Failed: a check, or such a run. None
+/// listed and nothing of that: "none to wait for", unless an outside CI reports in this repo, or the pull request had
+/// checks before (`prChecksSeen`).
+pub fn judge(t: &Obj, head: &str, listed: &[Value], root: &Path, base: &str) -> (Look, Vec<String>) {
+    let look = sort(listed);
+    if let Look::Failed(_) = look { return (look, vec![]); }
+    let flows = expected::flows_state(t, root, base, head);
+    if !flows.failed.is_empty() { return (Look::Failed(flows.failed), vec![]); }
+    let names: Vec<String> = listed.iter().map(name).collect();
+    let mut wait = missing(t, head, listed);
+    for n in expected::required(root, base) { if !names.contains(&n) && !wait.contains(&n) { wait.push(n); } }
+    let look = match look {
+        Look::Running(mut r) => { for n in wait { if !r.contains(&n) { r.push(n); } } Look::Running(r) }
+        Look::Passed if !wait.is_empty() => Look::Running(wait),
+        Look::Passed if !flows.waiting.is_empty() || (listed.is_empty() && (t.b("prChecksSeen") || expected::outside_ci(root, base))) => Look::Running(vec![]),
+        x => x,
+    };
+    (look, flows.waiting)
+}
+/// Are GitHub's checks looked at for this task?
+pub fn looked_at(t: &Obj) -> bool { setting_text("merge.checks", Some(t)) != "none" }
+/// The short reason, the same from the land step and from the pull requests' watch (housekeeping/prs.rs).
+pub fn failed_why(pr: &str, names: &[String]) -> String { format!("Checks failed on the pull request {pr}: {}. Look at them (gh pr checks) and fix them on your branch.", names.join(", ")) }
+const LOG_LINES: usize = 40;
+/// The end of a failing check's log, where GitHub Actions ran it (`gh run view --job <id> --log-failed`).
+fn log_of(root: &Path, c: &Value) -> String {
+    let url = [c.s("detailsUrl"), c.s("targetUrl")].into_iter().find(|s| !s.is_empty()).unwrap_or("").to_string();
+    let job: String = url.split("/job/").nth(1).map(|r| r.chars().take_while(|c| c.is_ascii_digit()).collect()).unwrap_or_default();
+    if job.is_empty() || !url.contains("/actions/runs/") { return if url.is_empty() { "GitHub gave no link to its log.".into() } else { format!("Its log is not one gh can read: {url}") }; }
+    let r = gh(&["run", "view", "--job", &job, "--log-failed"], root, 60000);
+    // A line reads `<job>\t<step>\t<time> <text>`: only the text is kept.
+    let lines: Vec<String> = r.stdout.lines().map(|l| {
+        let l = l.splitn(3, '\t').last().unwrap_or(l);
+        let l = crate::re!(r"\x1b\[[0-9;]*[A-Za-z]").replace_all(l, "");
+        crate::re!(r"^\d{4}-\d\d-\d\dT[0-9:.]+Z ?").replace(&l, "").trim_end().to_string()
+    }).filter(|l| !l.trim().is_empty()).collect();
+    if r.status != 0 || lines.is_empty() { return format!("Its log could not be read here ({}): {url}", r.stderr.trim().lines().last().unwrap_or("no output")); }
+    format!("The end of its log ({url}):\n{}", lines[lines.len().saturating_sub(LOG_LINES)..].join("\n"))
+}
+/// What failed, each check with the end of its log: what the agent is sent, and what the task shows.
+pub fn failed_detail(root: &Path, pr: &str, failed: &[Value]) -> String {
+    let names: Vec<String> = failed.iter().map(name).collect();
+    let mut s = format!("{}\n\nPull request: {pr}", failed_why(pr, &names));
+    for c in failed { s.push_str(&format!("\n\n{} ({}):\n{}", name(c), word(c).to_lowercase(), log_of(root, c))); }
+    s
+}
+/// The pull request blocker GitHub's failed checks make: the same from the land step and the watch.
+pub fn blocker(pr: &str, head: &str, names: &[String], detail: &str) -> Value {
+    json!({ "stage": "pr", "remote": true, "remoteKind": "checks", "head": head, "checks": names, "why": failed_why(pr, names), "title": "Pull request checks failed", "detail": detail,
+        "next": "Address this on your own branch and finish again. Local checks do not prove remote CI passed; wait for a fresh remote result.", "agentCanFix": true, "at": now(), "sentAt": null })
+}
+/// The checks that failed on the commit that would merge, by name: what `approve` refuses without `--anyway`.
+pub fn failed_on(t: &Obj) -> Option<String> {
+    let f = t.at("prFailure");
+    if f.s("remoteKind") != "checks" || (t.b("prHead") && f.b("head") && f.s("head") != t.s("prHead")) { return None; }
+    let names = strings(f.at("checks"));
+    Some(if names.is_empty() { "its pull request's checks failed on GitHub".into() } else { format!("GitHub's checks failed on its pull request: {}", names.join(", ")) })
+}
+/// The board has waited for GitHub's checks longer than `check.timeout`.
+pub fn overdue(t: &Obj) -> bool { let l = ms(&setting_text("check.timeout", Some(t))); l > 0 && now() - t.at("checksWait").i("since") >= l }
+
+/// Asked by the land step right before a pull request merges. True: it may merge now. False: it waits for the
+/// checks, or they failed, and that was dealt with here.
+pub fn before_merge(id: &str, g: &mut Guard, t: &Task, root: &Path) -> Res<bool> {
+    if !looked_at(t) || t.at("mergeIntent").b("anyway") { return Ok(true); }
+    let pr = t.t("pr");
+    let r = gh(&["pr", "view", &pr_number(&pr), "--json", "headRefOid,baseRefName,statusCheckRollup"], root, 60000);
+    let Ok(v) = serde_json::from_str::<Value>(&r.stdout) else {
+        let said = [r.stdout.trim(), r.stderr.trim()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("\n");
+        fail(g, "Could not read GitHub's checks", &format!("Pull request: {pr}\n\ngh pr view:\n{said}\n\nNothing was merged."), "Make sure gh is logged in and reaches GitHub (gh auth status), then approve again.", super::merge::Fail { agent_can_fix: false, auth: Some(is_auth_failure(&said)), keep_intent: false })?;
+        return Ok(false);
+    };
+    let head = v.t("headRefOid");
+    let listed = v.arr("statusCheckRollup");
+    if !listed.is_empty() && !t.b("prChecksSeen") { g.set(|t| t.put("prChecksSeen", true))?; }
+    let base = if v.b("baseRefName") { v.t("baseRefName") } else { crate::sync::main_branch(root, t) };
+    let (look, flows) = judge(t, &head, listed, root, &base);
+    match look {
+        Look::Passed => { if t.b("checksWait") { g.set(|t| t.put("checksWait", Value::Null))?; } Ok(true) }
+        Look::Running(checks) => {
+            let mut names = checks.clone();
+            for f in &flows { if !names.contains(f) { names.push(f.clone()); } }
+            // One wait per approval and commit: it counts from when the board first found them running.
+            let (w, approved) = (t.at("checksWait"), t.at("mergeIntent").i("approvedAt"));
+            let since = if w.s("head") == head && w.i("for") == approved { w.i("since") } else { now() };
+            let stuck = { let mut x = t.clone(); x.put("checksWait", json!({ "since": since })); overdue(&x) };
+            if stuck {
+                g.set(|t| { t.put("checksWait", Value::Null); t.put("autoMerge", false); t.put("autoMergeLocal", false); })?;
+                let timeout = setting_text("check.timeout", Some(t));
+                let which = if names.is_empty() { "none has started (an outside CI reports in this repo: on the branch it merges into, or on its other pull requests)".to_string() } else { names.join(", ") };
+                fail(g, "GitHub's checks did not finish", &format!("Pull request: {pr}\nStill not finished after {timeout} (check.timeout): {which}\n\nNothing was merged."),
+                    &format!("Look at the pull request's checks on GitHub (gh pr checks {}): one may be stuck, or wait for a runner. Approve again to wait for them again, or merge without them: herdr-superwork approve {id} --anyway.", pr_number(&pr)), no_fix())?;
+                return Ok(false);
+            }
+            let msg = if names.is_empty() { "Waiting for GitHub checks to start".to_string() } else { format!("Waiting for GitHub checks: {}", names.join(", ")) };
+            let d = g.set(|t| { t.put("failure", Value::Null); t.put("autoMerge", true); t.put("autoMergeLocal", true); let mut seen = known(t, &head); for n in listed.iter().map(name) { if !seen.contains(&n) { seen.push(n); } } t.put("checksWait", json!({ "since": since, "head": head, "for": approved, "names": checks, "flows": flows, "seen": seen })); t.put("msg", msg.clone()); })?;
+            flow::sidebar::tell_sidebar(&d);
+            Ok(false)
+        }
+        Look::Failed(list) => {
+            let names: Vec<String> = list.iter().map(name).collect();
+            let detail = failed_detail(root, &pr, &list);
+            let pf = blocker(&pr, &head, &names, &detail);
+            let seen = format!("{head}|{}|{}", names.join(","), v.s("reviewDecision"));
+            let went = t.i("prRounds");
+            let off = json!({ "checksWait": null, "autoMerge": false, "autoMergeLocal": false, "prState": "failing", "prSeen": seen });
+            if (went as f64) < number(&setting("review.rounds", Some(t))) {
+                // Straight back to the agent, as a failed check of the board's own: the turn it causes is the board's,
+                // so the merge that was approved survives it, and goes on once GitHub's checks pass on the repair.
+                let mut sent = pf.clone(); sent["sentAt"] = json!(now());
+                let mut patch = obj(off); patch.put("prFailure", sent); patch.put("prRounds", went + 1);
+                flow::send::send_own(id, &format!("GitHub's checks failed on the pull request, so this is not merged yet.\n\n{}\n\nFix it on your branch, run the checks and finish again.", bound_detail(&detail)), "checks", true, patch, 0)?;
+                return Ok(false);
+            }
+            // Its rounds are spent: it waits for you, and `approve` says why until `--anyway`.
+            let msg = format!("GitHub's checks failed: {}. Send the details to the agent, or merge it anyway", names.join(", "));
+            let d = g.set(|t| { for (k, v) in obj(off.clone()) { t.insert(k, v); } t.put("prFailure", pf.clone()); t.put("stage", "approval"); t.put("mergeFailed", true); t.put("mergeIntent", Value::Null); t.put("msg", msg.clone()); })?;
+            flow::sidebar::tell_sidebar(&d);
+            Ok(false)
+        }
+    }
+}
