@@ -6,7 +6,8 @@ use super::row_tall::tall_at;
 use crate::board::keys::key_name;
 use crate::board::state::{Mode, Rec, Row, State};
 use crate::board::theme::Theme;
-use crate::board::update::list::{counts, fold_rows};
+use crate::board::update::heads::is_head;
+use crate::board::update::list::{counts, fold_rows, heading_height};
 use crate::json::*;
 use crate::shown::ink::{Ink, Inked};
 use crate::shown::states::group_ink;
@@ -69,6 +70,16 @@ pub fn unread_lines(s: &State, width: usize) -> Vec<Inked> {
     }
     out
 }
+/// A heading's line. A machine's in bold accent, a rule after it to the edge; a repo's in bold, a status group's in its
+/// colour; folded, a `▸` in the marks' column and how many tasks it holds.
+fn heading(s: &State, r: &Row, width: usize) -> Inked {
+    let Row::Head { name, autos, machine, folded, .. } = r else { return Inked::new() };
+    let named = if *autos { Inked::of(name.clone(), Ink::Auto) } else if *machine { Inked::of(name.clone(), Ink::Accent).bold() } else if s.by_repo { Inked::of(repo_label(name), Ink::Soft).bold() } else { Inked::of(name.clone(), group_ink(name)) };
+    let mut out = if *folded > 0 { Inked::plain(" ").add(Inked::of("▸ ", Ink::Muted)).add(named).add(Inked::of(format!("  {folded} task{}", if *folded == 1 { "" } else { "s" }), Ink::Muted)) } else { Inked::plain(" ").add(named) };
+    if *machine { let rest = width.saturating_sub(out.width() + 2); if rest > 0 { out = out.add(Inked::of(format!(" {}", "─".repeat(rest)), Ink::Muted)); } }
+    if out.width() > width { out = out.fit(width); }
+    out
+}
 struct L { text: Inked, sel: bool, head: bool, n: usize, rest: usize, id: String, auto: bool }
 fn line(text: Inked) -> L { L { text, sel: false, head: false, n: 0, rest: 0, id: String::new(), auto: false } }
 /// The list in `h` lines. `screen`: the whole board's width, which decides whether live rows have their third line.
@@ -105,12 +116,12 @@ pub fn list_lines(s: &mut State, t: &Theme, width: usize, h: usize, screen: usiz
     let flat: Vec<Rec> = sections.iter().flatten().cloned().collect();
     let lay = row_layout(s, t, &flat, width, &sections, screen);
     let rows = s.rows.clone();
-    for r in &rows {
+    for (k, r) in rows.iter().enumerate() {
         match r {
-            Row::Head { name, autos } => {
-                lines.push(L { head: true, ..line(Inked::new()) });
-                let ink = if *autos { Inked::of(name.clone(), Ink::Auto) } else if s.by_repo { Inked::of(repo_label(name), Ink::Soft).bold() } else { Inked::of(name.clone(), group_ink(name)) };
-                lines.push(L { head: true, ..line(Inked::plain(" ").add(ink)) });
+            Row::Head { id, folded, .. } => {
+                if heading_height(&rows, k) > 1 { lines.push(L { head: true, ..line(Inked::new()) }); }
+                // An open heading at the foot of what shows goes with the empty line above it; a folded one is a row.
+                lines.push(L { head: *folded == 0, sel: !id.is_empty() && *id == s.sel, id: id.clone(), ..line(heading(s, r, width)) });
             }
             Row::Note(n) => lines.push(line(Inked::plain("   ").add(Inked::of(n.clone(), Ink::Muted)))),
             Row::Rec(_) | Row::Auto(_) => {
@@ -135,16 +146,18 @@ pub fn list_lines(s: &mut State, t: &Theme, width: usize, h: usize, screen: usiz
     if let Some(first) = lines.get(s.top) { if first.n > 0 && !first.sel { if end.map(|e| (e as i64) < s.top as i64 - first.n as i64 + room as i64).unwrap_or(true) { s.top -= first.n; } else { s.top += first.rest; } } }
     let mut shown: Vec<L> = lines.iter().skip(s.top).take(room).map(|l| L { text: l.text.clone(), sel: l.sel, head: l.head, n: l.n, rest: l.rest, id: l.id.clone(), auto: l.auto }).collect();
     if let Some(cut) = lines.get(s.top + room) { if shown.len() == room && cut.n > 0 { for n in 1..=cut.n.min(room) { let k = room - n; if !shown[k].sel { shown[k] = line(Inked::new()); } } } }
-    for k in (0..shown.len()).rev() { if shown[k].head || shown[k].text.is_empty() { shown[k] = line(Inked::new()); } else { break; } }
+    for k in (0..shown.len()).rev() { if (shown[k].head && !shown[k].sel) || shown[k].text.is_empty() { shown[k] = line(Inked::new()); } else { break; } }
     s.list_ids = shown.iter().map(|l| l.id.clone()).collect();
     let mut out: Vec<Inked> = shown.iter().map(|l| if l.sel { hl(t, &l.text, width) } else { l.text.clone() }).collect();
     while out.len() < h { out.push(Inked::new()); }
     if cut_any {
-        let ids = |auto: bool| { let mut v: Vec<String> = vec![]; for l in &lines { if !l.id.is_empty() && l.auto == auto && !v.contains(&l.id) { v.push(l.id.clone()); } } v };
+        let ids = |auto: bool| { let mut v: Vec<String> = vec![]; for l in &lines { if !l.id.is_empty() && !is_head(&l.id) && l.auto == auto && !v.contains(&l.id) { v.push(l.id.clone()); } } v };
         let on = |list: &[String]| list.iter().filter(|id| s.list_ids.contains(id)).cloned().collect::<Vec<_>>();
         let (all, autos) = (ids(false), ids(true));
         let (seen, autos_seen) = (on(&all), on(&autos));
-        let total: usize = s.grouped.iter().map(|(_, r)| r.len()).sum();
+        // Tasks under a folded heading are not counted: the heading says how many it holds.
+        let shut: usize = s.rows.iter().map(|r| if let Row::Head { folded, .. } = r { *folded } else { 0 }).sum();
+        let total: usize = s.grouped.iter().map(|(_, r)| r.len()).sum::<usize>().saturating_sub(shut);
         let above = if let Some(f) = seen.first() { all.iter().position(|x| x == f).unwrap_or(0) } else if !autos_seen.is_empty() { total } else { 0 };
         let below = total.saturating_sub(seen.len() + above);
         let autos_above = autos_seen.first().and_then(|f| autos.iter().position(|x| x == f)).unwrap_or(0);

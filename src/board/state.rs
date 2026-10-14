@@ -49,9 +49,11 @@ pub struct Sent { pub text: String, pub over: (String, Value, Value) }
 pub struct ChatAt { pub key: String, pub top: Option<usize> }
 #[derive(Clone, Debug, Default)]
 pub struct ChatFit { pub total: usize, pub rows: usize, pub top: usize, pub above: usize, pub below: usize, pub latest: usize }
-/// One row of the folded list: a group's heading, a task, a note ("↓ 3 more done"), or an automation.
+/// One row of the folded list: a heading, a task, a note ("↓ 3 more done"), or an automation. A heading is a machine's
+/// (`machine`, with every machine shown) or a group's (a repo, a status), selectable by its `id` (update/heads.rs), and
+/// folded holds how many tasks it hides (0: open); the automations' heading has no id.
 #[derive(Clone, Debug)]
-pub enum Row { Head { name: String, autos: bool }, Rec(Rec), Note(String), Auto(Obj) }
+pub enum Row { Head { name: String, autos: bool, id: String, machine: bool, folded: usize }, Rec(Rec), Note(String), Auto(Obj) }
 /// The selection's row in the list as last laid out, to keep the selection steady when rows move.
 #[derive(Clone, Debug, Default)]
 pub struct SelRow { pub id: String, pub order: String, pub at: i64, pub done: bool, pub base: i64 }
@@ -79,6 +81,8 @@ pub struct State {
     pub side: bool, pub full: bool, pub panel_top: usize, pub panel_height: usize, pub panel_length: usize, pub width: usize,
     pub mode: Mode, pub menu: Option<Menu>, pub ask: Option<Ask>, pub by_repo: bool, pub draft_away: Option<Away>,
     pub auto_open: bool, pub auto_at: i64,
+    /// The headings folded to their one line, by id (update/heads.rs): kept with the view when the board closes.
+    pub folded: std::collections::BTreeSet<String>,
     /// Whose board you see: "" this machine, "*" every machine, or one machine by name.
     pub scope: String,
     pub filter: String, pub msg: String, pub msg_kind: Ink,
@@ -116,7 +120,7 @@ impl State {
             selection_rows: vec![], selection_layout: String::new(), sel: String::new(), top: 0, stick: String::new(), top_free: false,
             all_done: false, archive_view: false, archive_back: None, archive_undo: None, reply: false, reply_id: String::new(),
             side: false, full: false, panel_top: 0, panel_height: 1, panel_length: 0, width: 120,
-            mode: Mode::New, menu: None, ask: None, by_repo: false, draft_away: None, auto_open: false, auto_at: -1, scope: String::new(),
+            mode: Mode::New, menu: None, ask: None, by_repo: false, draft_away: None, auto_open: false, auto_at: -1, folded: Default::default(), scope: String::new(),
             filter: String::new(), msg: String::new(), msg_kind: Ink::Muted, chat_open: true, chat_folded: false, just_sent: HashMap::new(), chat_at: None, chat_fit: None, chat_rows: None,
             input: TextBox::default(), editing: None, edit_line: 0, setup: None, paste_text: String::new(), closing: None, leaving: false, leave_at: 0,
             attempt_at: HashMap::new(), list_room: 0, list_tall: false, list_width: 0, fold_sel: String::new(), unread_top: 0, unread_max: 0, list_at: None, list_ids: vec![],

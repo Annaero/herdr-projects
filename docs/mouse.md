@@ -1,6 +1,6 @@
 # The mouse
 
-The board asks the terminal for the mouse, for two things: the wheel, and a click on a task's row.
+The board asks the terminal for the mouse, for two things: the wheel, and a click on a task's row or a heading.
 
 **The wheel.** With the pointer over the chat (the line that says who you talk to, and its box) it scrolls a message
 that is longer than its box, two lines a step, faster when you spin it. It does so while you type too, and never
@@ -14,7 +14,8 @@ task's agent. The next key brings the view back to the selected task.
 
 **A click on a task's row selects it**, as `↑` and `↓` would; on the selected one it does nothing more, and every
 action is still a key. With words in the box a click selects nothing and the board says why (`Send or put away what
-you typed first`). A click anywhere else (the header, the chat, the task panel) is not the board's.
+you typed first`). **A click on a heading folds it**, or unfolds it, as `Enter` on it does ([list
+headings](list-headings.md)). A click anywhere else (the header, the chat, the task panel) is not the board's.
 
 **Selecting and copying.** A program that asks for the mouse gets all of it: herdr, and a terminal outside herdr,
 then no longer select text in the board themselves. So the board does it (its own selection, `src/board/run/mouse.rs`, the same on

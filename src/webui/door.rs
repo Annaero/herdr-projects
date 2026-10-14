@@ -113,7 +113,7 @@ pub fn same_origin(h: &Head) -> bool {
 }
 /// What a watching device may not do; and what it may (its own selection and filter, a key that only shows).
 pub const CHANGES: [&str; 2] = ["send", "set"];
-pub const LOOKS: [&str; 3] = ["press", "pick", "find"];
+pub const LOOKS: [&str; 4] = ["press", "pick", "find", "fold"];
 fn ours(mut client: TcpStream, head: &Head, rest: Vec<u8>, up: &dyn Upstream) {
     let path = head.path().to_string();
     let rel = path.get(BASE.len() + 1..).unwrap_or("").to_string();

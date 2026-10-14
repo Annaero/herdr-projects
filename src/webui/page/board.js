@@ -51,7 +51,7 @@ function draw() {
   part("where").textContent = [snap.list.head.where, snap.list.head.session && `session ${snap.list.head.session}`].filter(Boolean).join(" · ");
   const once = (key, value, fn) => { const text = JSON.stringify(value); if (drawn[key] !== text) { drawn[key] = text; fn(); } };
   once("chips", [snap.flags, snap.list.head], () => part("chips").replaceChildren(...chips()));
-  once("list", snap.list, () => part("list-host").replaceChildren(listEl(snap.list, { onPick: (id) => call("pick", { id, open: true }), onMore: () => press("allDone") })));
+  once("list", snap.list, () => part("list-host").replaceChildren(listEl(snap.list, { onPick: (id) => call("pick", { id, open: true }), onMore: () => press("allDone"), onFold: (id) => call("fold", { id }) })));
   once("panel", [snap.panel, snap.actions, snap.canOpen, snap.role], () => { const el = panelEl(snap, { onPress: press, onMenu: () => { menuOpen = true; draw(); }, onClose: () => call("pick", { id: snap.list.selected, open: false }), onGo: (id) => call("pick", { id, open: true }) }); const host = part("task-host"), top = host.scrollTop; part("panel-host").replaceChildren(...(el ? [el] : [])); host.scrollTop = top; });
   // All settings stands under the task in a place of its own, drawn again only when a setting changed: what you
   // are typing into one of its boxes is not taken away by the task's status moving on.

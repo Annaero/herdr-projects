@@ -1,6 +1,6 @@
 //! A task's number as the board says it: the quiet tag of its row, `#134`, or `HSW-134` where its repo has a short key
-//! (store/keys.rs); with every machine shown, whose it is too (`otherbox#1`). Also how a message names a task: its tag
-//! and its title. On an automation's row the word on or off stands where a task has its number.
+//! (store/keys.rs). A row's tag never names its machine, which the heading above it does (update/heads.rs); a message
+//! with every machine shown does (`otherbox#1`). Also how a message names a task: its tag and its title. On an automation's row the word on or off stands where a task has its number.
 use crate::json::*;
 use crate::store::keys::Keys;
 use crate::text::{cut, width};
@@ -30,6 +30,8 @@ pub fn number_tag(r: &Obj, keys: &Keys, scope: &str, machine: bool) -> String {
     let sep = if key.is_empty() { "" } else { ":" };
     format!("{}{sep}{own}", cut(&far, 3.max(FAR_MAX.saturating_sub(width(&own) + sep.len()))))
 }
+/// The tag on a row of the list: never its machine, which the heading above it names.
+pub fn row_tag(r: &Obj, keys: &Keys) -> String { number_tag(r, keys, "", false) }
 /// The column for tags of these widths: the one that lines up the most titles within the limit, the narrower of two
 /// that line up as many. A tag wider than it runs on, and a tag too short for it stands right before its own title.
 pub fn tag_column(widths: &[usize]) -> usize {
@@ -44,8 +46,8 @@ pub fn tag_cells(w: usize, col: usize) -> usize { if col == 0 || w == 0 { 0 } el
 /// What the tags of a list are made from: the column, and the widest tag.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Numbering { pub cells: usize, pub widest: usize }
-pub fn numbering(recs: &[&Obj], keys: &Keys, scope: &str, autos: bool) -> Numbering {
-    let widths: Vec<usize> = recs.iter().map(|r| width(&number_tag(r, keys, scope, true))).filter(|w| *w > 0).collect();
+pub fn numbering(recs: &[&Obj], keys: &Keys, autos: bool) -> Numbering {
+    let widths: Vec<usize> = recs.iter().map(|r| width(&row_tag(r, keys))).filter(|w| *w > 0).collect();
     let mut n = Numbering { cells: tag_column(&widths), widest: widths.iter().copied().max().unwrap_or(0) };
     // An automation's row has the word on or off where a task has its number: the column is there for it too.
     if autos { n.cells = n.cells.max(3); n.widest = n.widest.max(3); }

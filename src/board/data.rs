@@ -28,6 +28,8 @@ pub struct Data {
     pub keys: Keys, pub repos: Vec<String>, pub roots: BTreeMap<String, String>, pub session: String, pub notify: String,
     /// The repo the board is in (where it was opened, or where a draft was typed), its folder, and the tasks' file.
     pub repo: String, pub repo_root: String,
+    /// This machine's name, for its heading on the board of every machine.
+    pub host: String,
     /// herdr's approve action asked this board to ask about a task; a line the board key left for this board.
     pub approve: String, pub heard: Option<(String, String)>,
     pub loaded: bool,
@@ -64,7 +66,7 @@ pub fn load(wants: &Wants) -> Data {
     Data {
         items, autos, jobs, coord, coord_screen, can_dispatch: crate::coordinator::who::ready(&socket), keys: repo_keys(), repos: roots.keys().cloned().collect(), roots,
         session: session_name(&socket), notify: setting("board.notify", None).as_str().unwrap_or("").to_string(),
-        repo: here.0, repo_root: here.1,
+        repo: here.0, repo_root: here.1, host: crate::remote::check::hostname(),
         // herdr's approve action and a line left by the board key are for a board in a terminal, never the web board.
         approve: if wants.web { String::new() } else { crate::actions::finish_line::take_approve(&socket, &wants.own_pane) }, heard: if wants.web { None } else { crate::board::run::say::heard(&wants.own_pane, &socket) }, loaded: true,
     }

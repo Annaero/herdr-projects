@@ -61,8 +61,9 @@ fn done_comes_last_below_to_do_with_its_fold_line_at_the_bottom() {
     by_status.extend(done[..5].iter().cloned()); by_status.push(more.clone());
     assert_eq!(shape(&s), by_status);
     s.s.sel = older.clone(); s.load();
+    s.press(&["down"]); assert_eq!(s.s.sel, "head:status\t\tdone", "the arrows stop on a heading too");
     s.press(&["down"]); assert_eq!(s.s.sel, done[0]);
-    s.press(&["up", "up", "up"]); assert_eq!(s.s.sel, working);
+    s.press(&["up", "up", "up", "up", "up"]); assert_eq!(s.s.sel, working);
     for _ in 0..12 { s.press(&["down"]); }
     assert_eq!(s.s.sel, done[4]);
     s.press(&["alt+s"]); assert!(s.s.by_repo); assert_eq!(s.s.sel, done[4]);

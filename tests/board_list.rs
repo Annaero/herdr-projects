@@ -56,7 +56,7 @@ fn one_header_line_five_groups_a_mark_for_each_state_and_the_task_panel_from_90_
     s.cols = 80; s.screen(80); s.press(&["alt+p", "alt+p"]);
     assert!(s.screen(80).join("\n").contains(&format!("The side panel needs a wider window. {} shows the task full screen.", key_name("panel"))), "{}", s.screen(80).join("\n"));
     s.cols = 120;
-    s.press(&["down", "alt+t"]);
+    s.press(&["down", "down", "alt+t"]); // past the heading of to do
     let text = s.screen(80).join("\n");
     assert!(text.starts_with(" Task details  #1 \"") && has(&text, r"\n State        ○ to do · \ds ago *\n") && has(&text, r"Description ─+ *\n All of them\."), "{text}");
     assert!(!text.split("Session ─").next().unwrap().contains("proj/1"), "the task is named as its row names it");
@@ -134,7 +134,7 @@ fn typed_words_keep_who_they_are_for_the_wheel_moves_the_view_and_a_click_select
     let first = s.s.sel.clone(); s.wheel(4, 1); assert_ne!(s.s.sel, first);
     let second = s.s.sel.clone();
     s.screen(120);
-    let at = s.s.list_ids.iter().position(|id| !id.is_empty() && *id != s.s.sel).unwrap();
+    let at = s.s.list_ids.iter().position(|id| !id.is_empty() && !id.starts_with("head:") && *id != s.s.sel).unwrap();
     let y = s.s.list_at.unwrap().0 + at;
     s.click(y as u16); assert_eq!(s.s.sel, s.s.list_ids[at]); assert_ne!(s.s.sel, second);
     let mine = s.s.sel.clone(); s.press(&["space"]); s.typed("pebbles please");
@@ -146,7 +146,7 @@ fn typed_words_keep_who_they_are_for_the_wheel_moves_the_view_and_a_click_select
     assert!(s.s.sel == mine && s.s.reply_id == mine && s.s.top > top && s.s.value() == "pebbles please", "the wheel moves the view only");
     assert!(s.text().contains(&format!("enter send, and start an agent on {tag}")), "the hint line still names who the words are for: {}", s.text());
     s.screen(120);
-    if let Some(other) = s.s.list_ids.iter().position(|id| !id.is_empty() && *id != mine) {
+    if let Some(other) = s.s.list_ids.iter().position(|id| !id.is_empty() && !id.starts_with("head:") && *id != mine) {
         let y = s.s.list_at.unwrap().0 + other; s.click(y as u16);
         assert_eq!(s.s.sel, mine); assert!(s.s.msg.contains("Send or put away what you typed first"), "{}", s.s.msg);
     }

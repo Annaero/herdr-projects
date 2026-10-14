@@ -1,7 +1,7 @@
 //! What the old board-list tests checked that tests/board_list.rs does not: the ? menu's legend under its keys, reached
 //! with ↓ in a short window and whole in a narrow one; the side panel closed on a board's first opening, and the list's
 //! whole width without it; looking at a done task changes nothing about it; and every machine's tasks: whose they are
-//! in the header, never cut, the tag that names the machine, find by number, and where a far task's merge lands; a
+//! in the header, never cut, a heading per machine, find by number, and where a far task's merge lands; a
 //! click on no row is not the board's.
 mod common;
 use common::board::open;
@@ -92,7 +92,8 @@ fn every_machines_tasks_say_whose_they_are_and_a_far_merge_says_where_it_lands()
     for width in [100, 40, 24] { assert!(s.screen(width)[0].contains("all machines: otherbox"), "at {width}: {}", s.screen(width)[0]); }
     s.s.sel = "otherbox:proj/1".into(); s.load();
     let t = s.screen(100).join("\n");
-    assert!(has(&t, r"\n[ ▌]○ otherbox#1 +Far away "), "{t}"); assert!(!t.contains("otherbox Far away"));
+    // Each machine under a heading of its own, its status groups under that: the row's tag is the number alone.
+    assert!(has(&t, r"\n otherbox ─+\n to do\n▌○ #1 +Far away "), "{t}"); assert!(!t.contains("otherbox#1") && !t.contains("otherbox Far away"));
     s.press(&["ctrl+f"]); s.typed("1");
     assert!(s.s.rows.iter().any(|r| matches!(r, sw::board::state::Row::Rec(o) if o.s("host") == "otherbox")), "find takes the number alone: no machine in it");
     s.press(&["esc"]);

@@ -1,7 +1,7 @@
 //! What the web page asks of its board (web.rs), each the terminal board's own way: a button presses the key it stands
 //! for, with the text box empty; what was typed is sent as enter (or tab) sends it, to whom it was typed for; a tap
-//! selects a row; find filters; a setting of the open task is saved by the settings page's own save. The board follows
-//! the web UI to the machine it is on (follow).
+//! selects a row, and folds or unfolds a heading; find filters; a setting of the open task is saved by the settings
+//! page's own save. The board follows the web UI to the machine it is on (follow).
 use super::model::side::TERMINAL_ONLY;
 use super::web::{effects, Client};
 use crate::board::keys::{by_name, Press};
@@ -82,6 +82,13 @@ pub fn pick(c: &mut Client, id: &str, open: bool) {
     if c.s.auto().is_some() { c.s.auto_open = open; } else { c.s.full = open && (c.s.current().is_some() || c.s.job().is_some()); }
     c.s.panel_top = 0;
     super::web::reload(c);
+}
+/// Tapping a heading folds it, or unfolds it, and selects it.
+pub fn fold(c: &mut Client, id: &str) {
+    if !c.s.rows.iter().any(|r| matches!(r, crate::board::state::Row::Head { id: h, .. } if h == id && !h.is_empty())) { return; }
+    c.s.full = false; c.s.auto_open = false; c.s.editing = None;
+    let fx = { let mut fx = vec![]; crate::board::update::heads::toggle(&mut c.s, id, &mut fx); fx };
+    effects(c, fx, false);
 }
 pub fn find(c: &mut Client, text: &str) {
     c.s.filter = text.trim().chars().take(200).collect();

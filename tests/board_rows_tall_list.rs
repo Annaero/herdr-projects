@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 use sw::board::state::{Rec, Row, State};
 use sw::board::theme::Theme;
-use sw::board::update::list::{fold_rows, step};
+use sw::board::update::list::{fold_rows, step as arrow};
 use sw::board::view::list::list_lines;
 use sw::json::*;
 use sw::shown::ink::{Ink, Inked};
@@ -15,6 +15,8 @@ use sw::shown::states::{group_of, GROUPS};
 const NOW: i64 = 1_800_000_000_000;
 const AT: i64 = NOW - 2 * 3600000;
 fn has(text: &str, re: &str) -> bool { Regex::new(re).unwrap().is_match(text) }
+/// One press of an arrow key, and on past a heading (the arrows stop on those too): these tests are about the rows.
+fn step(s: &mut State, d: i64) { for _ in 0..4 { arrow(s, d); if !s.sel.starts_with("head:") { return; } } arrow(s, -d); }
 fn rec(base: Value, more: Value) -> Rec { let mut o = obj(base); for (k, v) in more.as_object().unwrap() { o.insert(k.clone(), v.clone()); } Arc::new(o) }
 fn work(more: Value) -> Rec { rec(json!({ "state": "working", "stage": "working", "agent": "claude", "at": AT }), more) }
 fn done(more: Value) -> Rec { rec(json!({ "state": "done", "stage": "done", "at": AT }), more) }

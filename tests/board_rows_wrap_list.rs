@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 use sw::board::state::{Rec, State};
 use sw::board::theme::Theme;
-use sw::board::update::list::{fold_rows, step};
+use sw::board::update::list::{fold_rows, step as arrow};
 use sw::board::view::list::list_lines;
 use sw::board::view::row::{row_layout, row_lines};
 use sw::board::view::row_wrap::row_height;
@@ -17,6 +17,8 @@ use sw::shown::states::{group_of, GROUPS};
 const NOW: i64 = 1_800_000_000_000;
 const AT: i64 = NOW - 5 * 3600000;
 fn has(text: &str, re: &str) -> bool { Regex::new(re).unwrap().is_match(text) }
+/// One press of an arrow key, and on past a heading (the arrows stop on those too): these tests are about the rows.
+fn step(s: &mut State, d: i64) { for _ in 0..4 { arrow(s, d); if !s.sel.starts_with("head:") { return; } } arrow(s, -d); }
 fn rec(base: Value, more: Value) -> Rec { let mut o = obj(base); for (k, v) in more.as_object().unwrap() { o.insert(k.clone(), v.clone()); } Arc::new(o) }
 fn work(more: Value) -> Rec { rec(json!({ "state": "working", "stage": "working", "agent": "claude", "at": AT }), more) }
 fn done(more: Value) -> Rec { rec(json!({ "state": "done", "stage": "done", "at": AT }), more) }
@@ -93,15 +95,12 @@ fn narrow_screen_the_fold_counts_wrapped_lines_so_the_more_lines_still_keep_the_
 }
 
 #[test]
-fn all_machines_narrow_screen_a_wrapped_name_has_the_line_to_itself_and_what_a_task_says_never_wraps_in_a_few_cells_beside_a_long_machine_name() {
+fn all_machines_narrow_screen_a_row_never_names_its_machine_its_heading_does_and_a_long_name_wraps_as_on_one_machine() {
     let mut s = board(&[], "", "*");
     let far = with(&busy(), json!({ "host": "very-long-machine-name-on-the-tailnet", "title": "Fix login", "msg": "Running the tests one by one" }));
     let wordy = with(&busy(), json!({ "host": "box" }));
     let pair = [far.clone(), wordy.clone()];
-    // The machine stands in the task's tag (`box#1`), cut before the number is; behind a long one, what the task says
-    // starts right of the mark, with the row's width.
     let f = rows(&mut s, &far, &pair, 43);
-    assert!(has(&f[0], r"^[ ▌]◐ very-long-m…#1 Fix login *$"), "{f:?}"); assert_eq!(f[1], "   Running the tests one by one"); assert_eq!(f.len(), 3);
-    assert_eq!(rows(&mut s, &wordy, &pair, 43)[..2], [" ◐ box#1 Research capy.ai and other coding", "         agents for ideas we could use"]);
-    assert_eq!(rows(&mut s, &with(&far, json!({ "host": "box" })), &pair, 43)[..2], [" ◐ box#1 Fix login", "         Running the tests one by one"]);
+    assert!(has(&f[0], r"^[ ▌]◐ #1 Fix login *$"), "{f:?}"); assert_eq!(f[1], "      Running the tests one by one"); assert_eq!(f.len(), 3);
+    assert_eq!(rows(&mut s, &wordy, &pair, 43)[..2], [" ◐ #1 Research capy.ai and other coding", "      agents for ideas we could use"]);
 }

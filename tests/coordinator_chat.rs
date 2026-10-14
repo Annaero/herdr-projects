@@ -91,7 +91,7 @@ fn one_chat_for_everyone_space_on_a_task_talks_to_its_agent_otherwise_to_the_coo
     // Hidden, the chat still says who you talk to, and that follows the selection: a message is never sent blind.
     {
         let other = w.add("Somebody else"); e.load();
-        let order: Vec<String> = e.s.rows.iter().filter_map(|r| if let sw::board::state::Row::Rec(o) = r { Some(o.t("id")) } else { None }).collect();
+        let order: Vec<String> = e.s.rows.iter().filter_map(|r| match r { sw::board::state::Row::Rec(o) => Some(o.t("id")), sw::board::state::Row::Head { id, .. } => Some(id.clone()), _ => None }).collect(); // the arrows stop on headings too
         let d = order.iter().position(|x| *x == other).unwrap() as i64 - order.iter().position(|x| *x == t).unwrap() as i64;
         for _ in 0..d.abs() { e.press(&[if d > 0 { "down" } else { "up" }]); }
         assert_eq!(e.s.sel, other); assert!(e.s.reply && !e.s.chat_open);

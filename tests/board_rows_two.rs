@@ -7,7 +7,7 @@ use std::sync::Arc;
 use sw::board::keys::key_name;
 use sw::board::state::{Rec, Row, State};
 use sw::board::theme::Theme;
-use sw::board::update::list::{fold_rows, step};
+use sw::board::update::list::{fold_rows, step as arrow};
 use sw::board::view::list::list_lines;
 use sw::board::view::row::{row_layout, row_lines};
 use sw::json::*;
@@ -18,6 +18,8 @@ const NOW: i64 = 1_800_000_000_000;
 const SCREEN: usize = 120;
 const AT: i64 = NOW - 2 * 3600000;
 fn has(text: &str, re: &str) -> bool { Regex::new(re).unwrap().is_match(text) }
+/// One press of an arrow key, and on past a heading (the arrows stop on those too): these tests are about the rows.
+fn step(s: &mut State, d: i64) { for _ in 0..4 { arrow(s, d); if !s.sel.starts_with("head:") { return; } } arrow(s, -d); }
 fn rec(base: Value, more: Value) -> Rec { let mut o = obj(base); for (k, v) in more.as_object().unwrap() { o.insert(k.clone(), v.clone()); } Arc::new(o) }
 fn work(more: Value) -> Rec { rec(json!({ "state": "working", "stage": "working", "agent": "claude", "at": AT }), more) }
 fn ready(more: Value) -> Rec { rec(json!({ "state": "blocked", "kind": "permission", "stage": "approval", "agent": "claude", "at": AT }), more) }
@@ -80,7 +82,7 @@ fn a_live_tasks_row_is_two_lines_the_second_what_it_says_under_its_name_a_done_t
 }
 
 #[test]
-fn all_machines_a_remote_tasks_second_line_starts_under_its_tasks_name_right_of_the_machines_name_at_every_width() {
+fn all_machines_a_remote_tasks_second_line_starts_under_its_tasks_name_at_every_width() {
     let mut s = board(&[], "", "*");
     let far = work(json!({ "id": "p/1", "progress": 40, "eta": 12, "host": "other-machine", "title": "Remote task", "msg": "Checking the implementation" }));
     let near = rec(Value::Object((*far).clone()), json!({ "host": "" }));
@@ -96,8 +98,9 @@ fn all_machines_a_remote_tasks_second_line_starts_under_its_tasks_name_right_of_
         }
     }
     let head: Vec<String> = lines(&mut s, &far, 100).iter().map(|l| l.chars().take(47).collect::<String>().trim_end().to_string()).collect();
-    assert_eq!(head, [" ◐ other-machi…#1 Remote task".to_string(), format!("{}Checking the implementation", " ".repeat(18))]);
-    s.scope = String::new(); // one machine's board names no machine: under the name, right of the mark
+    // The machine is its heading's, never the row's: the row is as on one machine's board.
+    assert_eq!(head, [" ◐ #1 Remote task".to_string(), format!("{}Checking the implementation", " ".repeat(6))]);
+    s.scope = String::new(); // one machine's board: the same, under the name, right of the mark
     assert_eq!(lines(&mut s, &far, 100)[1], "      Checking the implementation");
 }
 

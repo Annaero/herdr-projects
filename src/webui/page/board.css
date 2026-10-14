@@ -153,6 +153,15 @@
   display: flex; align-items: baseline; gap: var(--space-2, 8px); margin: 0; padding: 0 var(--space-3, 12px) var(--space-1, 4px);
   font-size: var(--fs-sm, 13px); font-weight: var(--fw-semibold, 600);
 }
+.sw-machine-name {
+  margin: var(--space-5, 20px) var(--space-3, 12px) 0; padding-bottom: var(--space-1, 4px); border-bottom: var(--hairline, 1px) solid var(--sw-line);
+  font-size: var(--fs-md, 14px); font-weight: var(--fw-bold, 700);
+}
+/* A heading folds with a tap: the whole heading is the button, its caret says which way; selected, it has a row's tint. */
+.sw-fold { display: inline-flex; align-items: baseline; gap: var(--space-2, 8px); margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.sw-caret { width: 1em; color: var(--sw-dim); font-weight: var(--fw-regular, 400); }
+.sw-group-name.is-selected, .sw-machine-name.is-selected { background: var(--sw-lift); box-shadow: inset 3px 0 0 var(--accent, #f0a830); border-radius: var(--radius-md, 8px); }
+.sw-fold:focus-visible { outline: var(--ring, 2px solid var(--sw-yellow)); outline-offset: var(--ring-offset, 2px); }
 .sw-count { color: var(--sw-dim); font-weight: var(--fw-regular, 400); letter-spacing: 0; }
 .sw-rows { list-style: none; margin: 0; padding: 0; }
 .sw-row {

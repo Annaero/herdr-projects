@@ -102,10 +102,11 @@ fn several_repos_in_one_list_the_tag_is_the_number_or_the_key_never_a_repos_name
     let grouped = lines(&mut board(&mix, true, ""), 100, 200); // its heading names the repo
     assert!(has(&row(&grouped, "Same number"), r"^[ ▌]○ #9 {2}Same number, other repo")); assert!(has(&row(&grouped, "Far away"), r"^[ ▌]○ #3 {2}Far away"));
     assert!(grouped.contains(&" pi-work".to_string()) && grouped.contains(&" a-repo-with-a-very-long-name".to_string()), "{grouped:#?}");
-    // Another machine's task: its machine's name before its title, and the tag its own machine gave it.
+    // Another machine's task: the tag its own machine gave it, under that machine's heading; the row never names it.
     let far = vec![todo(json!({ "id": "box:p/9", "rid": "p/9", "host": "box", "title": "Over there" })), todo(json!({ "id": "box:q/12", "rid": "q/12", "host": "box", "key": "QQ", "title": "Keyed there" })), all[2].clone()];
     let l = lines(&mut board(&far, false, "*"), 100, 200);
-    assert!(has(&row(&l, "Over there"), r"^[ ▌]○ box#9 Over there"), "{l:#?}"); assert!(has(&row(&l, "Keyed there"), r"^[ ▌]○ box:QQ-12 Keyed there"));
+    assert!(l.iter().any(|x| has(x, r"^ box ─+$")) && l.iter().any(|x| has(x, r"^ this machine ─+$")), "{l:#?}");
+    assert!(has(&row(&l, "Over there"), r"^[ ▌]○ #9 Over there"), "{l:#?}"); assert!(has(&row(&l, "Keyed there"), r"^[ ▌]○ QQ-12 Keyed there"));
 }
 
 #[test]
@@ -116,15 +117,15 @@ fn never_more_than_gap_empty_cells_between_a_tag_and_its_title_titles_share_a_co
     let l = lines(&mut board(&mix, false, "*"), 100, 200);
     assert_eq!(GAP, 3);
     assert!(has(&row(&l, "One"), r"^[ ▌]○ #1 {3}One"), "{l:#?}"); assert!(has(&row(&l, "Other one"), r"^[ ▌]○ #1 {3}Other one")); assert!(has(&row(&l, "Two"), r"^[ ▌]○ #2 {3}Two")); assert!(has(&row(&l, "Hundred forty"), r"^[ ▌]○ #140 Hundred forty"));
-    assert!(has(&row(&l, "Short key"), r"^[ ▌]○ b:GT-1 Short key")); // as wide as the column
-    assert!(has(&row(&l, "Long key"), r"^[ ▌]○ b:HSWXY-140 Long key")); // wider: it runs on, and only its own title starts later
+    assert!(has(&row(&l, "Short key"), r"^[ ▌]○ GT-1 Short key")); // as wide as the column
+    assert!(has(&row(&l, "Long key"), r"^[ ▌]○ HSWXY-140 Long key")); // wider: it runs on, and only its own title starts later
     for x in l.iter().filter(|x| has(x, "^ ○ ")) { assert!(has(x, r"^[ ▌]○ \S+ {1,3}\S"), "{x}"); }
     // The column is the one that lines up the most titles; a tag too short for it stands right before its title.
     assert_eq!((tag_column(&[2, 2, 4, 4, 9]), tag_column(&[2, 7, 7, 7]), tag_column(&[2, 5]), tag_column(&[])), (4, 7, 2, 0));
     assert_eq!([2, 4, 5, 7, 9].map(|w| tag_cells(w, 7)), [2, 4, 7, 7, 9]); assert_eq!(tag_cells(4, 0), 0);
     let mut keyed = vec![t("p/2", "Two", json!({}))]; keyed.extend([7, 8, 140].map(|n| far(&format!("b:h/{n}"), &format!("Keyed {n}"), "HSW")));
     let kl = lines(&mut board(&keyed, false, "*"), 100, 200);
-    assert!(has(&row(&kl, "Two"), r"^[ ▌]○ #2 Two")); assert!(has(&row(&kl, "Keyed 7"), r"^[ ▌]○ b:HSW-7 {3}Keyed 7"), "{kl:#?}"); assert!(has(&row(&kl, "Keyed 140"), r"^[ ▌]○ b:HSW-140 Keyed 140"));
+    assert!(has(&row(&kl, "Two"), r"^[ ▌]○ #2 Two")); assert!(has(&row(&kl, "Keyed 7"), r"^[ ▌]○ HSW-7 {3}Keyed 7"), "{kl:#?}"); assert!(has(&row(&kl, "Keyed 140"), r"^[ ▌]○ HSW-140 Keyed 140"));
     // A live task's second line starts under its own title, wherever that starts; so do a wrapped name's lines.
     let live_list = vec![work(json!({ "id": "p/2", "title": "Short tag", "msg": "Busy here" })), work(json!({ "id": "b:h/1400", "rid": "h/1400", "host": "b", "key": "HSWXY", "title": "Long tag", "msg": "Busy there" })), t("p/3", "Three", json!({}))];
     let mut live = board(&live_list, false, "*");
@@ -132,12 +133,12 @@ fn never_more_than_gap_empty_cells_between_a_tag_and_its_title_titles_share_a_co
     let i = ll.iter().position(|x| x.contains("Short tag")).unwrap();
     assert_eq!(ll[i..i + 2].iter().map(|x| x.chars().take(20).collect::<String>().trim_end().to_string()).collect::<Vec<_>>(), vec![" ◐ #2 Short tag", "      Busy here"]);
     let j = ll.iter().position(|x| x.contains("Long tag")).unwrap();
-    assert_eq!(ll[j + 1], format!("{}Busy there", " ".repeat(16))); assert!(has(&ll[j], r"^[ ▌]◐ b:HSWXY-1400 Long tag"));
+    assert_eq!(ll[j + 1], format!("{}Busy there", " ".repeat(14))); assert!(has(&ll[j], r"^[ ▌]◐ HSWXY-1400 Long tag"));
     let tall = lines(&mut live, 40, 40);
     let k = tall.iter().position(|x| x.contains("Long tag")).unwrap();
-    assert_eq!(tall[k..k + 2].to_vec(), vec![" ◐ b:HSWXY-1400 Long tag", "                Busy there            2h"]);
+    assert_eq!(tall[k..k + 2].to_vec(), vec![" ◐ HSWXY-1400 Long tag", "              Busy there              2h"]);
     for width in [200, 100, 60, 44, 30, 16, 10] { assert!(lines(&mut live, width, 200).iter().filter(|x| has(x, "^ [◐○] ")).all(|x| x.chars().count() <= width), "every row fits {width}"); }
-    // The tags give way together, by the widest of them: mark (3), `b:HSWXY-1400` (12, with its machine), a cell.
-    let least = 3 + 12 + 1 + NAME_LEFT;
+    // The tags give way together, by the widest of them: mark (3), `HSWXY-1400` (10: never with its machine), a cell.
+    let least = 3 + 10 + 1 + NAME_LEFT;
     assert!(lines(&mut live, least, 200).join("\n").contains("#3")); assert!(!has(&lines(&mut live, least - 1, 200).join("\n"), r"#\d|HSWXY-"));
 }

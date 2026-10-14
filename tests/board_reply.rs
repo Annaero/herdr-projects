@@ -61,7 +61,7 @@ fn a_reply_put_away_comes_back_as_a_reply_to_the_same_task_never_as_a_new_task()
         s.press(&["esc"]); assert!(s.s.value().is_empty() && s.s.reply, "the first esc only puts the words away");
         s.press(&["esc"]); assert!(s.s.chat_open && s.s.reply);
         s.press(&["space"]); assert!(!s.s.reply);
-        s.press(&["down"]); assert_ne!(s.s.sel, id);
+        s.press(&["down", "down"]); assert_ne!(s.s.sel, id); // past the heading of to do
         let other = s.s.sel.clone();
         s.press(&["ctrl+z"]);
         assert!(s.s.sel == other && !s.s.reply && s.s.value().is_empty());
@@ -69,7 +69,7 @@ fn a_reply_put_away_comes_back_as_a_reply_to_the_same_task_never_as_a_new_task()
         assert!(flat(&s.text()).contains(&format!("Those words were for the agent on \"Add a greeting\". Select it and press space, then {} brings them back.", key_name("undo"))), "{}", s.text());
         s.press(&["space", "ctrl+z"]); assert!(s.s.sel == other && s.s.reply && s.s.reply_id == other && s.s.value().is_empty());
         assert!(flat(&s.text()).contains(&format!("Those words were for \"Add a greeting\". Move to it, then {} brings them back.", key_name("undo"))));
-        s.press(&["up"]); assert_eq!(s.s.sel, id);
+        s.press(&["up", "up"]); assert_eq!(s.s.sel, id);
         s.press(&["ctrl+z"]);
         assert!(s.s.sel == id && s.s.reply && !s.s.full && s.s.draft_away.is_none());
         assert!(has(&s.text(), r"\n *\n[ ▌]. #\d+ +Add a greeting  [^\n]*\n(?:[^\n]*\n)*?│ ❯ also say goodbye"), "{}", s.text());

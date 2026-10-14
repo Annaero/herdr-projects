@@ -2,8 +2,9 @@
 
 Every machine keeps its own tasks. `Alt+M` goes round: this machine, every machine, then each one by itself. Which
 of these you look at is the first thing in the board's header, in the accent colour, and is never cut: `all machines:
-otherbox`, or `only otherbox`. With every machine shown, a task's tag names its machine (`otherbox#1`: [task
-numbers](task-numbers.md)). A machine's [automations](automations.md) come with its tasks, in the list's last
+otherbox`, or `only otherbox`. With every machine shown, each machine is a heading of its own, with its repos (or
+its status groups) under it, and a row has its plain tag (`#1`): the heading above it names its machine ([list
+headings](list-headings.md)). A machine's [automations](automations.md) come with its tasks, in the list's last
 group: with every machine shown each row names its machine (`on otherbox`), and they are turned on and off, fired
 and removed, and their settings changed, on the machine that has them.
 Machines are found through herdr only: the ones you added with `herdr machine add` (or name them in `board.machines`);

@@ -32,6 +32,7 @@ fn open() -> Client {
     s.sel = crate::store::files::read_obj(&crate::store::files::data_dir().join("view.json")).map(|p| p.t("sel")).unwrap_or_default();
     let p = crate::store::files::read_obj(&prefs_file()).unwrap_or_default();
     s.by_repo = p.b("byRepo"); s.all_done = p.b("allDone"); s.scope = p.t("scope");
+    s.folded = p.arr("folded").iter().filter_map(|x| x.as_str()).map(String::from).collect();
     Client { s, inbox: Arc::new(Mutex::new(vec![])), at: 0, machines_at: 0 }
 }
 pub fn client(id: &str) -> Arc<Mutex<Client>> {
@@ -51,7 +52,7 @@ pub fn client(id: &str) -> Arc<Mutex<Client>> {
 pub fn save_prefs(s: &State) {
     // While it shows the machine the web UI is on (view.rs), what is kept is what it showed before it went there.
     let scope = s.web.followed.clone().unwrap_or_else(|| s.scope.clone());
-    let _ = crate::store::files::write_json(&prefs_file(), &json!({ "byRepo": s.by_repo, "allDone": s.all_done, "scope": scope }));
+    let _ = crate::store::files::write_json(&prefs_file(), &json!({ "byRepo": s.by_repo, "allDone": s.all_done, "scope": scope, "folded": s.folded }));
 }
 /// Everything read again: the tasks, the closer look at the selected one and the one the chat talks to.
 pub fn reload(c: &mut Client) {
@@ -147,9 +148,10 @@ pub fn call(client_id: &str, call: &str, args: Value, machine: &str, pcs: Option
             super::view::set_setting(c, args.s("id"), args.s("name"), if v.is_null() { None } else { Some(text(v)) })?;
             Ok(snapshot(c, ""))
         }
-        // These two only change what this page looks at: its selection, its filter.
+        // These only change what this page looks at: its selection, its filter, its folded headings.
         "pick" => { super::view::pick(c, args.s("id"), args.b("open")); Ok(snapshot(c, "")) }
         "find" => { super::view::find(c, args.s("text")); Ok(snapshot(c, "")) }
+        "fold" => { super::view::fold(c, args.s("id")); Ok(snapshot(c, "")) }
         other => Err(format!("Unknown call {other}")),
     }
 }

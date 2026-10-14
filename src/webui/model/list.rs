@@ -3,7 +3,7 @@
 //! its last group, one row each. The page draws what is here and works nothing out.
 use super::super::ink::{first, pieces};
 use crate::board::state::{Row, State};
-use crate::board::tags::{number_tag, tag_cells};
+use crate::board::tags::{row_tag, tag_cells};
 use crate::board::theme::Theme;
 use crate::board::view::fields::{fields, mark, row_title};
 use crate::board::view::row::list_numbering;
@@ -17,7 +17,7 @@ pub fn row_of(s: &State, t: &Theme, r: &Obj, now: i64) -> Value {
     let m = first(&mark(t, r));
     let live = r.s("state") != "done" && r.at("progress").is_number();
     json!({
-        "id": r.s("id"), "label": id_label(if r.b("rid") { r.s("rid") } else { r.s("id") }), "tag": number_tag(r, &s.data.keys, &s.scope, true), "host": r.s("host"), "title": row_title(s, r),
+        "id": r.s("id"), "label": id_label(if r.b("rid") { r.s("rid") } else { r.s("id") }), "tag": row_tag(r, &s.data.keys), "host": r.s("host"), "title": row_title(s, r),
         "strong": (["working", "blocked", "error"].contains(&r.s("state"))), "mark": m.s("t"), "markDim": m.b("d"), "markBold": m.b("b"), "color": status_ink(r).name(), "live": is_live(r),
         "says": pieces(&sentence(r)), "progress": if live { json!(r.f("progress").clamp(0.0, 100.0)) } else { Value::Null },
         "percent": f.percent.text().trim(), "eta": f.eta.text(), "review": pieces(&f.review), "pr": pieces(&f.pr), "prUrl": crate::review_page::render::web_url(r.s("pr")),
@@ -32,7 +32,7 @@ pub fn auto_row_of(s: &State, t: &Theme, a: &Obj, now: i64) -> Value {
     let rec = obj(json!({ "id": a.s("row"), "auto": a }));
     let f = fields(s, t, &rec, now);
     let m = first(&mark(t, &rec));
-    json!({ "id": a.s("row"), "label": "", "tag": number_tag(&rec, &s.data.keys, &s.scope, true), "host": a.s("host"), "title": row_title(s, &rec), "strong": false, "mark": m.s("t"), "markDim": !a.b("on"), "markBold": false, "color": "auto", "live": false,
+    json!({ "id": a.s("row"), "label": "", "tag": row_tag(&rec, &s.data.keys), "host": a.s("host"), "title": row_title(s, &rec), "strong": false, "mark": m.s("t"), "markDim": !a.b("on"), "markBold": false, "color": "auto", "live": false,
         "says": pieces(&crate::board::view::fields::auto_said(s, &rec, "all")), "progress": Value::Null, "percent": "", "eta": "", "review": pieces(&f.tag), "pr": [], "prUrl": "", "time": f.when, "quiet": !a.b("on"),
         "pinned": false, "archived": false, "app": "", "automation": true }) // `automation`: its word (on, off) never gives way, and what it says is never clamped (board.css)
 }
@@ -55,8 +55,10 @@ pub fn list_of(s: &State, t: &Theme) -> Value {
     let push = |groups: &mut Vec<Obj>, row: Value| { if let Some(g) = groups.last_mut() { if let Some(a) = g.get_mut("rows").and_then(|x| x.as_array_mut()) { a.push(row); } } };
     for row in &s.rows {
         match row {
-            Row::Head { name, autos: true } => groups.push(obj(json!({ "name": name, "color": "auto", "repo": false, "automations": true, "rows": [], "more": 0 }))),
-            Row::Head { name, .. } => groups.push(obj(json!({ "name": if s.by_repo { repo_label(name) } else { name.clone() }, "color": if s.by_repo || !["needs you", "ready to approve", "working", "to do", "done"].contains(&name.as_str()) { "subtext0" } else { group_ink(name).name() }, "repo": s.by_repo, "rows": [], "more": 0 }))),
+            Row::Head { name, autos: true, .. } => groups.push(obj(json!({ "name": name, "color": "auto", "repo": false, "automations": true, "rows": [], "more": 0 }))),
+            // A machine's heading stands over its groups: one with no rows, that a tap folds and unfolds as a group's.
+            Row::Head { name, id, machine: true, folded, .. } => groups.push(obj(json!({ "name": name, "id": id, "machine": true, "folded": *folded > 0, "count": folded, "color": "accent", "repo": false, "rows": [], "more": 0 }))),
+            Row::Head { name, id, folded, .. } => groups.push(obj(json!({ "name": if s.by_repo { repo_label(name) } else { name.clone() }, "id": id, "folded": *folded > 0, "count": folded, "color": if s.by_repo || !["needs you", "ready to approve", "working", "to do", "done"].contains(&name.as_str()) { "subtext0" } else { group_ink(name).name() }, "repo": s.by_repo, "rows": [], "more": 0 }))),
             Row::Auto(a) => push(&mut groups, auto_row_of(s, t, a, now)),
             Row::Rec(r) => push(&mut groups, row_of(s, t, r, now)),
             Row::Note(n) => if let Some(g) = groups.last_mut() { g.put("more", crate::re!(r"(\d+) more").captures(n).and_then(|c| c[1].parse::<i64>().ok()).unwrap_or(0)); },

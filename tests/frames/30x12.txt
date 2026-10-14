@@ -41,10 +41,10 @@
  Menu  for #5 "Max length fo…
  plain keys
    ↑ ↓          move between
-                tasks
+                tasks and
+                headings
    pgup pgdn    a page of
-                tasks up or
- ↓ 135 more
+ ↓ 136 more
  + New task  added word for w…
 ──────────────────────────────
 ❯ Add a task

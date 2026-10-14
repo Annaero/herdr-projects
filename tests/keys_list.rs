@@ -33,7 +33,7 @@ fn the_keys_list_every_place_names_a_key_as_its_entry_does_and_a_chord_not_in_it
     // the menu: opened, moved in and closed with the list's keys, and its lines and hints name them as the list does
     s.press(&[chord("menu")]); assert!(s.s.menu.is_some());
     let t = s.text();
-    assert!(regex::Regex::new(&format!(r"\n +{} +move between tasks\n", regex::escape(&pair(K::Up)))).unwrap().is_match(&t), "{t}");
+    assert!(regex::Regex::new(&format!(r"\n +{} +move between tasks and headings\n", regex::escape(&pair(K::Up)))).unwrap().is_match(&t), "{t}");
     let (u, d) = (key_name("up"), key_name("down"));
     let arrows = if u.chars().count() + d.chars().count() > 2 { format!("{u} {d}") } else { format!("{u}{d}") }; // two arrows stand together
     assert!(t.contains(&format!("{arrows} pick a key · {} press it · {} close the menu", key_name("enter"), key_name("back"))), "{t}");

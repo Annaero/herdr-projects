@@ -24,6 +24,8 @@ the same order, so a repo's done rows are below its to-dos. Only the latest five
 counts the rest (`↓ 73 more done (alt+d shows them)`) is under them, at the bottom, and `Alt+D` shows them all. `↑`
 and `↓` follow the order shown (`PgUp` and `PgDn` go ten tasks at a time), and changing the grouping keeps the
 selected task selected. The archive (`Alt+A`) is a list of its own, newest first, and no part of this order.
+The arrows stop on the headings too, and `Enter` on one folds it to its one line, and unfolds it; with every machine
+shown each machine has a heading of its own: [list headings](list-headings.md).
 
 **The automations are the last group**, under the heading `automations`, below every task group (also when the
 list is grouped by repo); with none there is no heading. The heading and the mark of each row are in a colour of
@@ -147,8 +149,8 @@ critical, 1 major`, the result in its own colour), or what it waits for. While t
 the reviewer is doing. It is in the brighter of the board's two greys, herdr's `subtext0`, because it has to be read
 (the fainter one, `overlay0`, is for what may be missed: times, counts, tags); what a task asks of you is in the plain
 text colour. The minutes left say what they are (`25h left`); the time after them is how long the task has worked,
-or how long ago it stopped. In the all-machines view the machine stands in the task's tag (`otherbox#1`: [task
-numbers](task-numbers.md)), so the second line starts under the task's name as everywhere. That line has the row's whole width, so it is rarely cut; one longer than the window is cut at its end with
+or how long ago it stopped. In the all-machines view the machine is the heading above its tasks, never in a row
+([list headings](list-headings.md)), so the second line starts under the task's name as everywhere. That line has the row's whole width, so it is rarely cut; one longer than the window is cut at its end with
 `…`, never wrapped (on a narrow screen it wraps: below).
 
 A done or to-do task has nothing to say and keeps one line, so that many of them show at once. (A to-do task that

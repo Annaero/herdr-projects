@@ -57,6 +57,7 @@ pub fn hints(s: &State, r: Option<&Obj>, who: Option<&Who>) -> (Vec<Hint>, Optio
     let leave: Option<Vec<Hint>> = if s.full { let mut v = vec![]; if s.panel_length > s.panel_height { v.push(Hint { key: arrows.clone(), words: "scroll the task".into(), stays: true, ..Default::default() }); } v.extend(back.clone()); Some(v) } else { None };
     if s.job().is_some() { let mut v = vec![hk(K::Stop, "stop sending this"), plain(enter, "take the words back to change")]; v.extend(leave.unwrap_or(vec![more])); return (v, chat_key); }
     if let Some(a) = s.auto() { return (auto_hints(s, a, &back, &more), chat_key); }
+    if let Some(w) = crate::board::update::heads::says(s) { let mut v = vec![hk(K::Enter, &w)]; v.extend(back); v.extend(key); v.push(more); return (v, chat_key); }
     let Some(r) = r else { let mut v = back; v.extend(key); v.push(more); return (v, chat_key); };
     let tail: Vec<Hint> = leave.clone().unwrap_or_else(|| vec![if s.reply { Hint { stays: true, ..hk(K::Talk, "back to the Coordinator") } } else { more.clone() }]);
     let mid: Vec<Hint> = if leave.is_some() { vec![] } else { back };

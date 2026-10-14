@@ -8,7 +8,7 @@ use super::row_fit::{label_room, shown_from, Cell, Fit, ETA_STEADY, PERCENT_MIN,
 use super::row_tall::{tall_at, tall_layout, Third};
 use super::row_wrap::{wrapped_lines, wraps};
 use crate::board::state::State;
-use crate::board::tags::{number_cells, number_tag, numbering, tag_cells, Numbering};
+use crate::board::tags::{number_cells, numbering, row_tag, tag_cells, Numbering};
 use crate::board::theme::Theme;
 use crate::json::*;
 use crate::shown::ink::{Ink, Inked};
@@ -28,13 +28,13 @@ pub struct Layout {
 fn say_need(said: &Inked, r: &Obj) -> usize { if is_auto(r) { said.width() } else { said.width().min(SENTENCE_MIN) } }
 pub fn number_wide(s: &State, r: &Obj, cells: usize) -> usize {
     if is_auto(r) { return if cells > 0 { cells + 1 } else { 0 }; }
-    let w = if cells > 0 { tag_cells(width(&number_tag(r, &s.data.keys, &s.scope, true)), cells) } else { 0 };
+    let w = if cells > 0 { tag_cells(width(&row_tag(r, &s.data.keys)), cells) } else { 0 };
     if w > 0 { w + 1 } else if cells > 0 { cells + 1 } else { 0 }
 }
 /// The tag as a row starts with it: greyed, filled out to the column, one cell before the name.
 pub fn number_lead(s: &State, r: &Obj, cells: usize) -> Inked {
     if cells == 0 { return Inked::new(); }
-    let tag = number_tag(r, &s.data.keys, &s.scope, true);
+    let tag = row_tag(r, &s.data.keys);
     let n = number_wide(s, r, cells);
     Inked::of(tag.clone(), Ink::Muted).add(Inked::spaces(n.saturating_sub(width(&tag))))
 }
@@ -42,7 +42,7 @@ pub fn number_lead(s: &State, r: &Obj, cells: usize) -> Inked {
 pub fn list_numbering(s: &State, recs: &[&Obj]) -> Numbering {
     let all: Vec<&Obj> = s.grouped.iter().flat_map(|(_, l)| l.iter().map(|r| &**r)).collect();
     let src: Vec<&Obj> = if all.is_empty() { recs.to_vec() } else { all };
-    numbering(&src, &s.data.keys, &s.scope, !s.autos.is_empty())
+    numbering(&src, &s.data.keys, !s.autos.is_empty())
 }
 /// The columns, once for the whole list, and what each section of it shows.
 pub fn row_layout(s: &mut State, t: &Theme, records: &[crate::board::state::Rec], width_: usize, sections: &[Vec<crate::board::state::Rec>], screen: usize) -> Layout {

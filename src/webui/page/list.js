@@ -44,14 +44,24 @@ export function listEl(list, opts) {
   }
   return el;
 }
-function drawList(list, { onPick, onMore }) {
+// A heading: a machine's (over its groups) or a group's (over its rows), as the terminal board has them. A tap folds it
+// to its one line, with how many tasks it holds, and unfolds it; the automations' heading has no id and does not fold.
+function headEl(g, selected, onFold) {
+  const count = g.folded ? g.count : g.machine ? null : g.rows.length + g.more;
+  const words = [g.name, count === null ? null : h("span.sw-count", String(count))];
+  const tag = g.machine ? "h2.sw-machine-name" : "h3.sw-group-name";
+  if (!g.id) return h(`${tag}.sw-c-${g.color}`, words);
+  return h(`${tag}.sw-c-${g.color}${selected ? ".is-selected" : ""}`,
+    h("button.sw-fold", { type: "button", "aria-expanded": g.folded ? "false" : "true", title: g.folded ? "Unfold" : "Fold", onclick: () => onFold(g.id) }, h("span.sw-caret", { "aria-hidden": "true" }, g.folded ? "▸" : "▾"), words));
+}
+function drawList(list, { onPick, onMore, onFold }) {
   // A machine whose tasks could not be read: one line, and behind it what happened and what to do.
   const unread = (list.unread || []).map((u) => h("div.sw-unread", { role: "status" }, h("p.sw-unread-line", u.line),
     u.detail.length ? h("details", h("summary", "Why, and what to do"), h("pre.sw-unread-detail", u.detail.join("\n"))) : null));
   if (!list.groups.length && !list.jobs.length) return unread.length ? h("div.sw-list", unread, list.empty ? h("p.sw-empty", list.empty) : null) : h("p.sw-empty", list.empty);
   const jobs = list.jobs.length ? h("section.sw-group", h("h3.sw-group-name.sw-c-overlay0", "on their way"), h("ul.sw-rows", list.jobs.map((j) => jobEl(j, { selected: j.id === list.selected, onPick })))) : null;
-  return h("div.sw-list", { role: "listbox", "aria-label": "Tasks" }, unread, jobs, list.groups.map((g) => h("section.sw-group",
-    h(`h3.sw-group-name.sw-c-${g.color}`, g.name, h("span.sw-count", String(g.rows.length + g.more))),
+  return h("div.sw-list", { role: "listbox", "aria-label": "Tasks" }, unread, jobs, list.groups.map((g) => g.machine ? headEl(g, g.id === list.selected, onFold) : h("section.sw-group",
+    headEl(g, g.id === list.selected, onFold),
     h("ul.sw-rows", g.rows.map((r) => rowEl(r, { selected: r.id === list.selected, onPick }))),
     g.more ? h("button.btn.btn-ghost.sw-more", { type: "button", onclick: () => onMore(g) }, `Show ${g.more} more`) : null)));
 }

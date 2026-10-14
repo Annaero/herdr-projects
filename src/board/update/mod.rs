@@ -2,6 +2,7 @@
 //! the loader read, what a job answered) and changes the state, and answers what the runtime is to do (effects): a job
 //! to run, the state to save, the board to close. It reads no file and asks nothing of herdr: a key press never waits.
 pub mod ask;
+pub mod heads;
 pub mod list;
 
 use super::data::Data;
@@ -63,7 +64,7 @@ pub fn update(s: &mut State, ev: Event) -> Vec<Effect> {
         Event::Key(p) => keys::handle(s, &p, &mut fx),
         Event::Paste(text) => paste(s, &text),
         Event::Wheel { y, by, .. } => mouse::wheel(s, y as usize, by, &mut fx),
-        Event::Click { x, y } => mouse::click(s, x as usize, y as usize),
+        Event::Click { x, y } => mouse::click(s, x as usize, y as usize, &mut fx),
         Event::Tick(now) => beat::tick(s, now, &mut fx),
         Event::Loaded(d) => beat::loaded(s, *d, &mut fx),
         Event::Done(d) => done::apply(s, d, &mut fx),

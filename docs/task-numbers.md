@@ -47,10 +47,10 @@ shows the number on every row, and a repo can have a short key of its own so tha
   The whole task names the repo too, in its `Task id` row (`pi-work/12`), with the session. No key is ever made up
   by the board.
 - **Other machines.** A task of another machine has the tag its own machine gives it (that machine's keys). Each
-  machine counts its own tasks, so with more than one machine shown the tag names the machine too: `otherbox#1`
-  (`otherbox:HSW-1` with a key), in the tags' column, never as a grey word before the title. A long machine name is
-  cut there, before the number is (fourteen cells at most). Only while more than one machine shows: one machine's
-  own board has the plain tag. Find takes the number alone, without the machine.
+  machine counts its own tasks, so two machines can each have a `#1`: with every machine shown, each machine is a
+  heading of its own and its tasks are under it ([list headings](list-headings.md)), so a row has the plain tag
+  (`#1`, `HSW-1`), never its machine's name. The board's messages, the chat and the whole task, which have no heading
+  above them, name it: `otherbox#1`. Find takes the number alone, without the machine.
 - **When space runs out.** The tag is the last thing to go before the rest of a name: after what a row says, the bar,
   the word `ago`, the end of a long name, the percent with the minutes left, the `R#` tag with the pull request, and
   the time ([the board](board.md) has the whole order). It goes for the whole list at once, so the titles stay in one
