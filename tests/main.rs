@@ -24,6 +24,7 @@ mod automations_rest;
 mod automations_triggers;
 mod board_actions;
 mod board_actions_rest;
+mod board_ask_bottom;
 mod board_chat;
 mod board_chat_rest;
 mod board_chat_scroll;

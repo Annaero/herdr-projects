@@ -102,7 +102,7 @@ fn draw_at(s: &mut State, t: &Theme, width: usize, rows: usize) -> Screen {
     let said: Vec<Inked> = broke.iter().map(|b| failed(b, width)).chain(said).collect();
     // The text box grows with a draft that wraps, up to half the window: a longer draft scrolls inside it.
     let box_rows = (rows_n as i64 - 4 - head_n as i64 - if selected_job.is_some() { 1 } else { 0 }).min((rows_n / 2).max(5) as i64).max(1) as usize;
-    let (mut input, mut cursor) = super::guard::part(|| if s.ask.is_some() { (super::ask::ask_lines(s, width), None) } else if framed { chat_box(s, width, box_rows, r.as_ref(), &[]) } else { box_lines(s, width, box_rows, r.as_ref()) })
+    let (mut input, mut cursor) = super::guard::part(|| if s.ask.is_some() { (super::ask::ask_lines(s, width, rows_n), None) } else if framed { chat_box(s, width, box_rows, r.as_ref(), &[]) } else { box_lines(s, width, box_rows, r.as_ref()) })
         .unwrap_or_else(|why| (vec![Inked::of("─".repeat(width), Ink::Rule), failed(&format!("The text box could not be shown: {why}"), width), Inked::of("─".repeat(width), Ink::Rule)], None));
     // The message takes the lines it needs: with its box up to two thirds of the window, and only rows the list can
     // spare. Under the whole task and the menu it keeps to a third. A longer one scrolls.
@@ -121,7 +121,9 @@ fn draw_at(s: &mut State, t: &Theme, width: usize, rows: usize) -> Screen {
         message_n = message.len();
         if message_n > 0 { let (l, c) = chat_box(s, width, draft_rows.max(1) as usize, r.as_ref(), &message); input = l; cursor = c; }
     }
-    let extra_rows = (rows_n as i64 - input.len() as i64 - 2 - said.len() as i64 - head_n as i64).max(0) as usize;
+    // A question has no hints: its box ends on the window's last line, with no empty hint line under it.
+    let hint_n = usize::from(s.ask.is_none());
+    let extra_rows = (rows_n as i64 - input.len() as i64 - 1 - hint_n as i64 - said.len() as i64 - head_n as i64).max(0) as usize;
     let last_job_top = s.jobs.len().saturating_sub(extra_rows);
     let mut job_top = last_job_top;
     if let Some(sj) = selected_job { job_top = sj.min(last_job_top); if sj >= job_top + extra_rows { job_top = sj + 1 - extra_rows; } }
@@ -132,7 +134,7 @@ fn draw_at(s: &mut State, t: &Theme, width: usize, rows: usize) -> Screen {
     }).collect() } else { vec![] };
     // Whatever the window, the text box and its hints are whole: the chat, then the rows above it, give way.
     let mut said = said;
-    while jobs.len() + chat.len() + input.len() + said.len() + 1 > rows_n && (!chat.is_empty() || !jobs.is_empty() || !said.is_empty()) {
+    while jobs.len() + chat.len() + input.len() + said.len() + hint_n > rows_n && (!chat.is_empty() || !jobs.is_empty() || !said.is_empty()) {
         if !chat.is_empty() { chat.remove(0); } else if !jobs.is_empty() { jobs.pop(); } else { said.pop(); }
     }
     let mut bottom: Vec<Inked> = vec![];
@@ -141,8 +143,8 @@ fn draw_at(s: &mut State, t: &Theme, width: usize, rows: usize) -> Screen {
     bottom.extend(input.iter().cloned()); bottom.extend(said.iter().cloned());
     // The hint line is one line, whatever it says: it is made once the rest is drawn (what the whole task has to
     // scroll is known only then).
-    let held = if rows_n as i64 - bottom.len() as i64 - 1 > 3 { super::held_lines(s, width) } else { vec![] };
-    let h = rows_n.saturating_sub(bottom.len() + 1 + held.len()).max(1);
+    let held = if rows_n as i64 - bottom.len() as i64 - hint_n as i64 > 3 { super::held_lines(s, width) } else { vec![] };
+    let h = rows_n.saturating_sub(bottom.len() + hint_n + held.len()).max(hint_n);
     // Where the chat is on the screen, for the wheel: from the line that says who you talk to, to its box's end.
     let chat_top = held.len() + h + jobs.len();
     s.chat_rows = if message_n > 0 { Some((chat_top, chat_top + chat.len() + input.len())) } else { None };
@@ -161,7 +163,7 @@ fn draw_at(s: &mut State, t: &Theme, width: usize, rows: usize) -> Screen {
             (0..h).map(|i| left.get(i).cloned().unwrap_or_default().fit(list_w).add(Inked::plain(" ")).add(Inked::of("│", Ink::Dim)).add(Inked::plain(" ").add(right.get(i).cloned().unwrap_or_default()).fit(pane_w + 1).on(Ink::Sidebar))).collect()
         } else { list_part(s, t, width, h, width, held.len()) };
     match super::guard::part(|| hints(s, r.as_ref(), who.as_ref())) {
-        Ok((hint_list, chat_key)) => { s.chat_key_shown = chat_key.is_some(); bottom.push(hint_line(hint_list, chat_key.as_ref(), width)); }
+        Ok((hint_list, chat_key)) => { s.chat_key_shown = chat_key.is_some(); if hint_n > 0 { bottom.push(hint_line(hint_list, chat_key.as_ref(), width)); } }
         Err(why) => bottom.push(failed(&format!("The hints could not be shown: {why}"), width)),
     }
     let mut out = held.clone();

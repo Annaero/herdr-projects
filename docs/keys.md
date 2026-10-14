@@ -7,7 +7,9 @@ yes reads `y = merge anyway`. A remove shows the task's whole title and what is 
 description and reviews, and its worktree only where it has one (work in it that is not saved or not merged is kept).
 The keys are in the box and say what they do (`y = merge · n = do not merge`, `y = remove · n = keep`): `y` says yes,
 `n` or `Esc` says no, in upper or lower case; `Enter` never confirms, and no other key answers: on any other key the
-box says `press y or n`. A question longer than the window wraps, and its keys are never cut. On the web Board
+box says `press y or n`. The box sits at the bottom of the board, in the text box's place, and its closing line is
+the window's last line, as the chat's box sits on its hints. A question longer than the window wraps, and its keys
+are never cut: in a short window its detail gives way first, then its rules. On the web Board
 neither answer to a merge or a remove is the filled button.
 
 **Work whose review failed is never merged by a plain yes.** It is not under `ready to approve` but under `needs
@@ -99,7 +101,7 @@ this task`, `its agent` for `this task's agent`. That holds down to about 34 col
 gets the words for as long as that fits (`enter send to #34`, `enter send to the Coordinator`, `enter send to vm-a`);
 only narrower than that is it `enter send`.
 
-A question the board asks has its keys in its own box (`y = merge · n = do not merge`), and the hint line is empty meanwhile. An
+A question the board asks has its keys in its own box (`y = merge · n = do not merge`), and there is no hint line meanwhile: the box takes its row. An
 error stays on screen with `(esc dismisses)` after it.
 
 **The key that opens the board is herdr's, not the board's**: it is a line in herdr's `config.toml`, offered at the
