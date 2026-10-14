@@ -30,7 +30,7 @@ Measured against **herdr-web-ui 0.4.8** (see [how](#how-it-was-measured)):
 - **Focus is the card's**, never a rectangle on the field inside it.
 - **No look of the browser's own** on the field in Chrome, Firefox or Safari: no frame, no focus ring, no inner
   shadow, no resize corner, no scroll arrows.
-- **Enter sends, shift+enter is a new line**, on a phone too. Where the web UI's Settings → Chat has "Enter sends"
+- **Enter sends, shift+enter is a new line**, on a phone too (tab is the board's own: below). Where the web UI's Settings → Chat has "Enter sends"
   turned off, ctrl or cmd with enter sends here as well. A keyboard that composes letters keeps its enter.
 - **Above a phone's keyboard**: the Board is as tall as the web UI's own shell, which follows the keyboard.
 - Light, dark and every palette of the web UI: they are its variables.
@@ -39,11 +39,11 @@ Measured against **herdr-web-ui 0.4.8** (see [how](#how-it-was-measured)):
 
 | The board's | Where it is in the box |
 |---|---|
-| who gets your words: the Coordinator (and on which machine, where another one's shows) or a task's agent, with the task named | always said, in the lower left where the web UI has its add button: quietly (`To: Coordinator`) while the box is empty, as a filled chip once words are locked to them |
-| the lock that keeps a draft with who it was typed for | the same chip: `To: #34 · not who is shown above` while the page shows somebody else |
+| who gets your words: the Coordinator (and on which machine, where another one's shows) or a task's agent, with the task named | said by the switch over the box ([the web UI](web-ui.md)), not in it: the box's own hint says it too while empty (`Send message to Coordinator`) |
+| the lock that keeps a draft with who it was typed for | a filled chip in the lower left, where the web UI has its add button, only while the page shows somebody else: `To: #34 agent · not who is shown above` |
 | the box's colour by who you type to ([colours](colours.md)) | the card's border: the plain text colour for the Coordinator, the task's status colour for its agent. The web UI's border is grey and turns to its accent on focus; here the border already says who, so focus draws a ring of that same colour round it |
-| the two ways to send | the round button sends; **Send + start** stands beside it while there are words and it applies, as a chip of the web UI's (the shape of its one-tap replies). Each says in its tooltip what it does with the words |
-| the switch between the Coordinator and the task's agent | the line above the box, as before: tap it |
+| the two ways to send | the round button and enter send; **Send + start** and tab, while there are words and it applies, send and put an agent on what it adds. **Send + start** is a chip of the web UI's (the shape of its one-tap replies). Each says in its tooltip what it does with the words |
+| the switch between the Coordinator and the task's agent, and the conversation | over the box, as wide as it: the web UI's segmented switch, Hide and Show, and the conversation in a panel of its own that scrolls back ([the web UI](web-ui.md)) |
 | the notice after sending | above the chat, as before |
 | a draft is never lost | it is kept with who it is for, also over a reload; while a message is on its way the words stay in the box and a second enter does nothing; words the board could not take stay in the box |
 | a device that may only watch | the box is faded and says so |

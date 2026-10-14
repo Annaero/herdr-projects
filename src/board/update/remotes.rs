@@ -29,7 +29,7 @@ pub fn answered(s: &mut State, label: &str, answer: Result<Value, Value>) {
     m.busy = false;
     match answer {
         Ok(j) if j.at("tasks").is_array() => {
-            m.ok = true; m.why = None; m.version = j.t("version");
+            m.ok = true; m.why = None; m.version = j.t("version"); m.coord = j.at("coordinator").clone();
             let mc = m.machine.clone();
             m.items = j.arr("tasks").iter().filter_map(|x| x.as_object()).map(|x| {
                 let mut r = crate::shown::states::as_row(x);
@@ -44,8 +44,8 @@ pub fn answered(s: &mut State, label: &str, answer: Result<Value, Value>) {
                 a
             }).collect();
         }
-        Ok(j) => { m.ok = false; m.fail_at = now; m.items.clear(); m.autos.clear(); m.why = Some(not_list(&j, &m.machine.label, &m.machine.target)); }
-        Err(why) => { m.ok = false; m.fail_at = now; m.items.clear(); m.autos.clear(); m.why = Some(if why.is_null() { unknown(&m.machine.label, &m.machine.target) } else { why }); }
+        Ok(j) => { m.ok = false; m.fail_at = now; m.items.clear(); m.autos.clear(); m.coord = Value::Null; m.why = Some(not_list(&j, &m.machine.label, &m.machine.target)); }
+        Err(why) => { m.ok = false; m.fail_at = now; m.items.clear(); m.autos.clear(); m.coord = Value::Null; m.why = Some(if why.is_null() { unknown(&m.machine.label, &m.machine.target) } else { why }); }
     }
     relist(s);
 }

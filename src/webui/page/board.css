@@ -100,29 +100,10 @@
 .sw-gap { height: var(--space-2, 8px); }
 .sw-bar-wide { display: inline-block; width: min(240px, 60%); height: 6px; vertical-align: middle; margin-right: var(--space-2, 8px); }
 .sw-vline:first-of-type { display: inline; }
-.sw-panel a, .sw-said a { color: var(--accent, #f0a830); text-underline-offset: 0.2em; }
+.sw-panel a { color: var(--accent, #f0a830); text-underline-offset: 0.2em; }
 @media (max-width: 420px) { .sw-fact { grid-template-columns: 1fr; } .sw-label { font-size: var(--fs-xs, 12px); } }
 
-/* The chat at the foot. */
-.sw-chat { flex: none; display: flex; flex-direction: column; gap: var(--space-2, 8px); padding: var(--space-2, 8px) var(--space-4, 16px) max(var(--space-4, 16px), calc(env(safe-area-inset-bottom, 0px) - var(--space-4, 16px))); border-top: var(--hairline, 1px) solid var(--sw-line); background: var(--sw-bg); }
-@media (max-width: 480px) { .sw-chat { padding-inline: var(--space-3, 12px); } }
-.sw-who { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 var(--space-2, 8px); padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-height: var(--touch-target, 40px); align-items: center; }
-.sw-who:disabled { cursor: default; }
-.sw-who-name { font-weight: var(--fw-semibold, 600); color: var(--sw-strong); overflow-wrap: anywhere; }
-.sw-who-status { color: var(--sw-dim); font-size: var(--fs-sm, 13px); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sw-who-flip { color: var(--accent, #f0a830); font-size: var(--fs-xs, 12px); white-space: nowrap; }
-.sw-who:disabled .sw-who-flip { display: none; }
-@media (max-width: 640px) { .sw-who-name { flex: 1; min-width: 0; } .sw-who-status { order: 3; flex-basis: 100%; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; } }
-.sw-chat-note { margin: 0; color: var(--sw-dim); font-size: var(--fs-xs, 12px); }
-.sw-said { color: var(--sw-dim); font-size: var(--fs-sm, 13px); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 6.2em; overflow: hidden; }
-.sw-said.has-more { -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
-.sw-said.is-open { max-height: 40vh; overflow-y: auto; -webkit-mask-image: none; mask-image: none; }
-.sw-turn + .sw-turn { margin-top: var(--space-2, 8px); }
-.sw-by { color: var(--sw-text); font-weight: 600; }
-.sw-turn.is-mine { color: var(--sw-text); }
-.sw-turn.is-raw .sw-turn-text { font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-xs, 12px); white-space: pre; overflow-x: auto; }
-.sw-said-more { align-self: flex-start; font-size: var(--fs-xs, 12px); color: var(--sw-dim); min-height: var(--touch-target, 40px); height: var(--touch-target, 40px); margin-top: calc(-1 * var(--space-1, 4px)); }
-/* The box you type in: compose.css. */
+/* The chat at the foot: chat.css; the box you type in: compose.css. */
 
 /* Over the board: the question, the More menu, the message. */
 .sw-scrim { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: center; background: var(--scrim, rgba(8, 6, 4, .55)); }

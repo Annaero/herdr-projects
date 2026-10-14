@@ -1,0 +1,71 @@
+// The conversation above the box, as the terminal board's chat box holds it: the newest thing said, each under a line
+// that names who said it, and the rest of the conversation above it. It opens on the newest and holds only that; going
+// up (the Earlier button, the wheel or a swipe at its top) opens it to the conversation and scrolls up through it, half
+// a box at a time with the buttons; Later goes down, and once more from the end closes it to the newest again. A new
+// message starts at its beginning; only a program's screen (one whose conversation cannot be read) at its end.
+/* global requestAnimationFrame, ResizeObserver */
+import { h, icon } from "./dom.js";
+
+// One thing said: who said it, in words, then the words.
+const partEl = (p) => h(`div.sw-said-turn${p.mine ? ".is-mine" : ""}${p.raw ? ".is-raw" : ""}${p.tone ? `.sw-c-${p.tone}` : ""}`, p.by ? h("div.sw-by", `${p.by}:`) : null, h("div.sw-said-text", p.text));
+
+export function saidEl() {
+  // `start`: a new message is to be placed at its beginning, once it can be laid out (it may come while hidden).
+  let parts = [], open = false, raw = false, swipe = null, start = false;
+  const text = h("div.sw-said", { role: "log", "aria-label": "The conversation", tabIndex: 0 });
+  const up = h("button.icon-button.sw-said-up", { type: "button", "aria-label": "Earlier messages", title: "Earlier messages" }, icon("up"));
+  const down = h("button.icon-button.sw-said-down", { type: "button", "aria-label": "Later messages", title: "Later messages" }, icon("down"));
+  const el = h("div.sw-said-box", text, h("div.sw-said-nav", up, down));
+  const half = () => Math.max(24, Math.round(text.clientHeight / 2));
+  const atEnd = () => text.scrollTop + text.clientHeight >= text.scrollHeight - 2;
+  // The buttons show only where there is more that way (down from the end of an opened conversation closes it).
+  // Hidden, nothing can be measured: it is measured again when it shows (and whenever its size changes).
+  const mark = () => {
+    if (el.hidden || !text.clientHeight) return;
+    up.hidden = !(text.scrollTop > 1 || (!open && parts.length > 1));
+    down.hidden = !(!atEnd() || open);
+    el.classList.toggle("is-open", open);
+  };
+  const draw = () => { text.replaceChildren(...(open ? parts : parts.slice(-1)).map(partEl)); };
+  // Open the conversation where the newest thing said stands now, so nothing jumps; then `by` up.
+  const opening = (by) => {
+    const was = text.scrollTop;
+    open = true; draw();
+    const newest = text.lastElementChild;
+    text.scrollTop = (newest ? newest.offsetTop - text.firstElementChild.offsetTop : 0) + was - by;
+    mark();
+  };
+  const close = () => { open = false; draw(); text.scrollTop = raw ? text.scrollHeight : 0; mark(); };
+  const scroll = (by) => { text.scrollBy({ top: by, behavior: "smooth" }); };
+  up.addEventListener("click", () => { if (!open && parts.length > 1 && text.scrollTop <= 1) opening(half()); else scroll(-half()); });
+  down.addEventListener("click", () => { if (open && atEnd()) close(); else scroll(half()); });
+  // A new message starts at its beginning (a screen at its end), once it can be laid out.
+  const begin = () => {
+    const place = () => { if (start && !el.hidden && text.clientHeight) { text.scrollTop = raw ? text.scrollHeight : 0; start = false; } mark(); };
+    place(); requestAnimationFrame(place);
+  };
+  text.addEventListener("scroll", mark, { passive: true });
+  // Its size changes (shown again, the window, the phone's keyboard): what there is more of is measured again.
+  if (typeof ResizeObserver === "function") new ResizeObserver(() => mark()).observe(text);
+  // At the top of the newest message, going further up opens the conversation: the wheel, or a finger moving down.
+  text.addEventListener("wheel", (e) => { if (e.deltaY < 0 && !open && parts.length > 1 && text.scrollTop <= 1) { e.preventDefault(); opening(Math.min(half(), -e.deltaY * 2)); } }, { passive: false });
+  text.addEventListener("touchstart", (e) => { swipe = e.touches[0]?.clientY ?? null; }, { passive: true });
+  text.addEventListener("touchmove", (e) => { const y = e.touches[0]?.clientY; if (swipe == null || y == null) return; if (y - swipe > 12 && !open && parts.length > 1 && text.scrollTop <= 1) { swipe = null; opening(24); } }, { passive: true });
+  // The keys the terminal has for it, here while the conversation has the focus: page up and down.
+  text.addEventListener("keydown", (e) => { if (e.key === "PageUp") { e.preventDefault(); up.click(); } else if (e.key === "PageDown") { e.preventDefault(); down.click(); } });
+  return {
+    el,
+    // A new conversation or a new message (also in the same words: `fresh`) starts over; otherwise where you are stays.
+    set(list, fresh, isRaw) {
+      if (!fresh) return;
+      parts = list; raw = isRaw; open = false;
+      draw(); start = true; begin();
+    },
+    // Shown or hidden (Hide and Show, or nothing to show): shown again, the buttons are measured again.
+    show(on) {
+      if (el.hidden === !on) return;
+      el.hidden = !on;
+      if (on) begin();
+    },
+  };
+}

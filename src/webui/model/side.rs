@@ -7,13 +7,17 @@ use super::super::ink::first;
 use crate::board::keys::{entry, name, KEYS, K};
 use crate::board::state::State;
 use crate::board::theme::Theme;
-use crate::board::view::chat::{chat_of, Who};
+use crate::board::tags::number_tag;
+use crate::board::view::chat::{chat_of, chat_up, coord_name, Who};
 use crate::json::*;
 use crate::shown::states::is_agent;
 
 /// Keys that are the terminal's own: closing the board's terminal, its menu overlay, its text box's editing, and the
 /// parts of the screen the page lays out itself (the page scrolls, and shows the chat and the task as it has room).
-pub const TERMINAL_ONLY: [&str; 14] = ["close", "menu", "newline", "find", "chatMessage", "chatScrollUp", "chatScrollDown", "side", "panel", "up", "down", "pageUp", "pageDown", "free"];
+pub const TERMINAL_ONLY: [&str; 13] = ["close", "menu", "newline", "find", "chatScrollUp", "chatScrollDown", "side", "panel", "up", "down", "pageUp", "pageDown", "free"];
+/// Keys the chat on the page has a control of its own for, beside the box, so they are no button of the task: showing
+/// and hiding the latest message.
+pub const CHAT_OWN: [&str; 1] = ["chatMessage"];
 /// The hint line as buttons: [{ id, label }]. A hint that names no single key of the board (the arrows) is left out.
 pub fn buttons_of(s: &mut State, r: Option<&Obj>, who: Option<&Who>, typing: bool) -> Vec<(String, String)> {
     let by_name: Vec<(String, &'static str)> = KEYS.iter().filter(|k| !matches!(k.id, K::SayYes | K::SayNo)).map(|k| (name(k.id), k.name)).collect();
@@ -34,6 +38,9 @@ pub fn side_of(s: &mut State, t: &Theme) -> Obj {
         "parts": w.parts.iter().map(|x| json!({ "by": x.by, "text": x.text, "mine": x.mine, "tone": x.tone, "raw": x.raw })).collect::<Vec<_>>(),
         "raw": w.raw, "mine": w.mine, "tone": if w.name == "Coordinator" && w.parts.first().map(|p| p.tone == "red").unwrap_or(false) { "red" } else { "" }, "note": w.note,
         "toAgent": s.reply && r.is_some(), "box": crate::board::view::textbox::box_ink(s, r.as_ref()).name(),
+        // Whether the latest message shows (alt+c), and the two you can talk to: the Coordinator, and the selected task's
+        // agent (only on a task's row: on an automation's the key is the automation's own).
+        "open": chat_up(s, Some(w)), "coord": coord_name(s), "task": r.as_ref().filter(|r| r.has("title")).map(|r| number_tag(r, &s.data.keys, &s.scope, true)).unwrap_or_default(),
     })).unwrap_or(Value::Null);
     let ask = s.ask.as_ref().map(|a| {
         let keys: Vec<Value> = if a.keys.is_empty() { vec![json!({ "id": "sayYes", "label": "yes" }), json!({ "id": "sayNo", "label": "no" })] } else { a.keys.iter().map(|(id, l)| json!({ "id": id, "label": l })).collect() };
@@ -41,7 +48,7 @@ pub fn side_of(s: &mut State, t: &Theme) -> Obj {
     }).unwrap_or(Value::Null);
     let msg = if s.msg.is_empty() { Value::Null } else { json!({ "text": s.msg, "kind": s.msg_kind.name(), "n": s.web.msg_n }) };
     let open = s.full || s.auto_open;
-    let actions: Vec<(String, String)> = buttons_of(s, r.as_ref(), who.as_ref(), false).into_iter().filter(|(id, _)| !TERMINAL_ONLY.contains(&id.as_str()) && !(id == "back" && open)).collect();
+    let actions: Vec<(String, String)> = buttons_of(s, r.as_ref(), who.as_ref(), false).into_iter().filter(|(id, _)| !TERMINAL_ONLY.contains(&id.as_str()) && !CHAT_OWN.contains(&id.as_str()) && !(id == "back" && open)).collect();
     let pick = |id: &str| typing.iter().find(|(i, _)| i == id).map(|(_, l)| l.clone()).unwrap_or_default();
     // More: only what applies now and is not a button already, in the buttons' own words. A key with no button on the
     // page (the settings page, the terminal's size) has no entry; yes and send back are buttons when they apply.

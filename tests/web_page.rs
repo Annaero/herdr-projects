@@ -38,7 +38,7 @@ fn a_rows_tag_has_a_column_of_its_own_and_a_narrow_list_drops_every_tag_at_once(
 #[test]
 fn the_chat_line_shows_only_what_there_is_and_the_boxs_frame_says_who_gets_the_words() {
     // Only what there is: replaceChildren would write a missing part out as the word "null".
-    assert!(CHAT.contains(r#"c.tag ? h("span.sw-id", c.tag) : null"#) && CHAT.contains(r#"h("span.sw-who-flip", c.toAgent ? "Talk to the Coordinator" : "Talk to this task's agent") : null].filter(Boolean)"#));
+    assert!(CHAT.contains(r#"c.toAgent ? h("span.sw-who-name", c.name) : null"#) && CHAT.contains(r#"[c.status, c.progress].filter(Boolean).join("  "))].filter(Boolean)"#));
     // The box's frame: the plain text colour for the Coordinator, the task's status colour for its agent.
     assert!(CHAT.contains("tone = c.box || \"text\";") && CHAT.contains("card.className = `sw-card sw-b-${to && (moved || !now) ? \"text\" : tone}`;"));
     for c in ["text", "red", "green", "yellow", "teal", "review", "check", "todo", "overlay0"] { assert!(COMPOSE_CSS.contains(&format!(".sw-card.sw-b-{c}")), "the page has a frame colour for {c}"); }
@@ -48,8 +48,7 @@ fn the_chat_line_shows_only_what_there_is_and_the_boxs_frame_says_who_gets_the_w
     assert_eq!(all.len(), 7, "each frame colour is a colour of its own: done is not the green of ready");
     // A reload: the saved words come back with who they were for, before the page knows who it shows; while another
     // task shows, the chip says so and the frame is the plain colour.
-    assert!(CHAT.contains("chip.textContent = whom ? `To: ${whom.label}${moved ? \" · not who is shown above\" : \"\"}` : \"\";"));
-    assert!(CHAT.contains("chip.className = `sw-to${to ? \" is-locked\" : \"\"}`;"));
+    assert!(CHAT.contains("chip.textContent = moved ? `To: ${to.label}${to.reply ? \" agent\" : \"\"} · not who is shown above` : \"\";"));
 }
 
 #[test]
@@ -61,7 +60,7 @@ fn the_pages_styles_nothing_under_13px_targets_a_thumb_can_hit_and_a_draft_kept_
     assert!(has(CSS, r"\.sw-row\.is-selected \{[^}]*box-shadow: inset 3px 0 0 var\(--accent"), "the selected row has a bar in its gutter, not a tint alone");
     // The draft is kept with who it is for: a reload brings both back, so the words never go to whoever shows then.
     for part in ["sessionStorage.setItem(TO, JSON.stringify(to))", "if (box.value.trim()) to = savedTo();", "keep(box.value, to)", "scope: to.scope || \"\"", "scope: snap.flags?.scope || \"\""] { assert!(CHAT.contains(part), "{part}"); }
-    assert!(CHAT.contains("`To: ${whom.label}"));
+    assert!(CHAT.contains("`To: ${to.label}"));
     // a merge has no filled yes: `danger` leaves both answers plain
     assert!(SHEETS.contains(r#"n === 0 && !ask.danger ? ".btn-primary" : """#));
 }

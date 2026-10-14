@@ -12,9 +12,10 @@ use crate::shown::states::as_row;
 use crate::store::{automations::automations, inbox::{clear_dispatch, dispatches}, keys::{repo_keys, Keys}, marks::tilde, repos::{branch_of, can_worktree, folder_of, known_repos, repo_of}, settings::{lookup::{in_repo, setting, Scope}, show::{problems, rows}}};
 use std::collections::BTreeMap;
 
-/// Another machine, as the board knows it: its tasks as rows, its automations, and why it did not answer.
+/// Another machine, as the board knows it: its tasks as rows, its automations, its Coordinator as it sent it
+/// (coordinator/far.rs), and why it did not answer.
 #[derive(Clone, Debug, Default)]
-pub struct Remote { pub machine: crate::remote::Machine, pub items: Vec<crate::board::state::Rec>, pub autos: Vec<Obj>, pub ok: bool, pub busy: bool, pub fail_at: i64, pub why: Option<Value>, pub version: String }
+pub struct Remote { pub machine: crate::remote::Machine, pub items: Vec<crate::board::state::Rec>, pub autos: Vec<Obj>, pub ok: bool, pub busy: bool, pub fail_at: i64, pub why: Option<Value>, pub version: String, pub coord: Value }
 
 #[derive(Clone, Debug, Default)]
 pub struct Data {

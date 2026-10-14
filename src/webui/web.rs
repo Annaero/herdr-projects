@@ -32,7 +32,7 @@ fn open() -> Client {
     // The selection is where the terminal board left it.
     s.sel = crate::store::files::read_obj(&crate::store::files::data_dir().join("view.json")).map(|p| p.t("sel")).unwrap_or_default();
     let p = crate::store::files::read_obj(&prefs_file()).unwrap_or_default();
-    s.by_repo = p.b("byRepo"); s.all_done = p.b("allDone"); s.scope = p.t("scope");
+    s.by_repo = p.b("byRepo"); s.all_done = p.b("allDone"); s.scope = p.t("scope"); s.chat_open = p.s("chat") != "closed";
     s.folded = p.arr("folded").iter().filter_map(|x| x.as_str()).map(String::from).collect();
     Client { s, inbox: Arc::new(Mutex::new(vec![])), at: 0, machines_at: 0, boards_at: 0 }
 }
@@ -53,7 +53,7 @@ pub fn client(id: &str) -> Arc<Mutex<Client>> {
 pub fn save_prefs(s: &State) {
     // While it shows the machine the web UI is on (view.rs), what is kept is what it showed before it went there.
     let scope = s.web.followed.clone().unwrap_or_else(|| s.scope.clone());
-    let _ = crate::store::files::write_json(&prefs_file(), &json!({ "byRepo": s.by_repo, "allDone": s.all_done, "scope": scope, "folded": s.folded }));
+    let _ = crate::store::files::write_json(&prefs_file(), &json!({ "byRepo": s.by_repo, "allDone": s.all_done, "scope": scope, "folded": s.folded, "chat": if s.chat_open { "open" } else { "closed" } }));
 }
 /// Everything read again: the tasks, the closer look at the selected one and the one the chat talks to.
 pub fn reload(c: &mut Client) {

@@ -89,7 +89,7 @@ fn snapshot(t: &Obj) -> Value {
     json!({ "talk": talk, "landsOn": onto, "folder": tilde(&folder.display().to_string()), "tree": tilde(&tree), "branch": branch_of(&at),
         "settings": rows(&Scope::task(t)).iter().map(|r| r.json()).collect::<Vec<_>>(), "problems": problems(Some(t)), "canWorktree": can_worktree(&folder), "repo": in_repo(t) })
 }
-/// `said`, `usage` and `agentVersion` ride along on each task; `version` is this side's version (a machine on an older
+/// `said`, `usage` and `agentVersion` ride along on each task; `coordinator`: this machine's (coordinator/far.rs); `version` is this side's version (a machine on an older
 /// one sends none). Pending hook events are this machine's own and are not sent. `automations`: this machine's own.
 pub fn remote_list() -> Value {
     let keys = repo_keys();
@@ -100,7 +100,10 @@ pub fn remote_list() -> Value {
         t.put("snap", snap);
         Value::Object(t)
     }).collect();
-    json!({ "host": check::hostname(), "version": VERSION, "automations": automations::automations_sent(), "tasks": tasks })
+    // This machine's Coordinator, which gets what the asking side types while it shows this machine's board.
+    let socket = crate::herdr::cli::current_socket();
+    let coordinator = crate::coordinator::far::sent(&crate::coordinator::look::look(&socket), crate::coordinator::who::ready(&socket));
+    json!({ "host": check::hostname(), "version": VERSION, "automations": automations::automations_sent(), "coordinator": coordinator, "tasks": tasks })
 }
 pub fn remote_main(a: &[String]) -> i32 {
     let what = a.first().cloned().unwrap_or_default();

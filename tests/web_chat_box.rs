@@ -1,6 +1,6 @@
 //! The web board's chat box (src/webui/page/compose.js, compose.css), read as text: built as the herdr web UI builds its
 //! own chat input, from its CSS variables; enter and shift+enter, the grip, both ways to send, no second send while one
-//! is on its way, who gets the words always said, and the version it was measured against. (The old tests drove the
+//! is on its way, who gets the words said when it is not who the switch shows, and the version it was measured against. (The old tests drove the
 //! page's code in node with a stand-in document; no browser or node runs here.)
 use regex::Regex;
 
@@ -45,7 +45,7 @@ fn who_gets_the_words_is_said_while_empty_too_and_a_second_enter_while_the_first
     assert!(CHAT.contains(r#"if (!kept) { box.value = ""; to = null; keep(""); grow(); }"#));
     assert!(CHAT.contains("send.disabled = !typing || busy;") && CHAT.contains("also.disabled = busy;") && CHAT.contains("also.hidden = !typing || !l.delegate;"));
     // who: always said, quietly while empty, locked once words are typed; the buttons say what they do
-    assert!(CHAT.contains("chip.hidden = !whom;") && CHAT.contains("send.title = cap(l.enter) || \"Send message\";") && CHAT.contains("also.title = cap(l.delegate);"));
+    assert!(CHAT.contains("chip.hidden = !moved;") && CHAT.contains("send.title = cap(l.enter) || \"Send message\";") && CHAT.contains("also.title = l.delegate ? `${cap(l.delegate)} (Tab)` : \"\";"));
     assert!(CHAT.contains("box.placeholder = cap(snap.send.place || \"\");"));
     // a device that can only watch types nothing
     assert!(CHAT.contains(r#"box.disabled = snap.role !== "drive";"#) && CHAT.contains(r#"if (snap.role !== "drive") box.placeholder = "This device can only watch";"#));
@@ -69,5 +69,5 @@ fn the_styles_are_the_web_uis_variables_hide_the_browsers_own_looks_and_name_the
     // The page says how it was measured, the moment of sending among it. (The measuring script was a node program and is
     // in the repo's history now, not in the repo: the page says so.)
     assert!(DOC.contains("chat-box-match.js") && DOC.contains("--sending"));
-    assert!(START.contains(r#"["board", "compose", "boards"]"#), "the page loads the box's styles");
+    assert!(START.contains(r#"["board", "chat", "compose", "boards"]"#), "the page loads the chat's, the box's and the boards' styles");
 }

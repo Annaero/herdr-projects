@@ -18,7 +18,8 @@ export const enterSends = () => { try { return JSON.parse(localStorage.getItem("
 export const sendsOn = (e, enter = enterSends()) => e.key === "Enter" && !e.isComposing && e.keyCode !== 229 && !e.shiftKey && (enter ? !e.metaKey && !e.ctrlKey : !!(e.metaKey || e.ctrlKey));
 
 // `onSend(delegate)`: send what the box holds (true: and put an agent on what it adds). `onInput()`: its words changed.
-export function composeEl({ onSend, onInput }) {
+// `onTab()`: tab was pressed with words in the box; true when it sent them (then the focus stays in the box).
+export function composeEl({ onSend, onInput, onTab = () => false }) {
   let manual = savedHeight(), tapped = 0;
   const box = h("textarea.sw-input", { rows: 1, maxLength: LONGEST, spellcheck: false, autocapitalize: "off", autocorrect: "off", "aria-label": "Message" });
   const grip = h("div.sw-grip", { tabIndex: 0, role: "separator", "aria-orientation": "horizontal", "aria-label": "Resize message box", title: "Drag to resize · double-click to reset" });
@@ -56,7 +57,11 @@ export function composeEl({ onSend, onInput }) {
     e.preventDefault();
   });
   box.addEventListener("input", () => { onInput(); grow(); });
-  box.addEventListener("keydown", (e) => { if (sendsOn(e)) { e.preventDefault(); onSend(false); } });
+  box.addEventListener("keydown", (e) => {
+    if (sendsOn(e)) { e.preventDefault(); onSend(false); return; }
+    // Tab sends as the terminal board's does; with nothing typed, or where it does not apply, it moves on as tab does.
+    if (e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing && box.value.trim() && onTab()) e.preventDefault();
+  });
   // The board takes no files: one dropped on the box is not opened by the browser in the board's place.
   for (const name of ["dragover", "drop"]) card.addEventListener(name, (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) e.preventDefault(); });
   send.addEventListener("click", () => onSend(false));

@@ -51,19 +51,44 @@ pub fn chat_of(s: &mut State, t: &Theme, r: Option<&Obj>) -> Option<Who> {
         return Some(Who { mark: mark(t, r), tag: number_tag(r, &s.data.keys, &s.scope, true), name: crate::shown::words::clean(if r.b("title") { r.s("title") } else { r.s("id") }), status: if echo { word } else { status }, progress, text, parts, mine: !mine.is_empty(), raw: raw && mine.is_empty(), said, turn: format!("{}|{}|{}", r.s("said"), crate::json::text(h.at("msg")), crate::json::text(h.at("comp"))), ..Default::default() });
     }
     let far = if !s.scope.is_empty() && s.scope != "*" && s.remotes.contains_key(&s.scope) { s.scope.clone() } else { String::new() };
-    if !far.is_empty() { return Some(Who { mark: Inked::of(t.mark("unknown", ""), Ink::Muted), name: format!("Coordinator on {far}"), status: format!("what you type goes to {far}"), ink: Ink::Muted, ..Default::default() }); }
+    if !far.is_empty() { return Some(far_who(s, t, &far)); }
     // No Coordinator (it is off, its program is not installed, or herdr is not running): the same box adds tasks.
     if !s.data.can_dispatch { return Some(Who { mark: Inked::of("+", Ink::Muted), name: "New task".into(), status: "added word for word".into(), ink: Ink::Muted, ..Default::default() }); }
     let v = s.data.coord.clone();
-    let fresh = !v.unseen.is_empty() && !s.chat_open;
+    let screen = s.data.coord_screen.clone();
+    let mut c = coord_who(t, &v, &screen, !v.unseen.is_empty() && !s.chat_open);
+    c.always = !v.error.is_empty() && s.err_hid != v.error;
+    Some(c)
+}
+/// A Coordinator as the chat shows it, this machine's or another's (`fresh`: it said something you have not seen).
+fn coord_who(t: &Theme, v: &crate::coordinator::look::Look, screen: &str, fresh: bool) -> Who {
     let color = if fresh { Ink::Green } else { match v.state.as_str() { "working" | "starting" => Ink::Yellow, "blocked" => Ink::Red, "idle" => Ink::Green, _ => Ink::Muted } };
     let err = !v.error.is_empty();
     let word = if !err && fresh { "new reply".to_string() } else { coordinator_stands(&v.state, err) };
     let m = t.mark(if err { "error" } else if ["working", "starting"].contains(&v.state.as_str()) { "working" } else if v.state == "blocked" { "blocked" } else if v.state == "idle" { "idle" } else { "unknown" }, "");
     let note = if v.stale { format!("your default is now {}: herdr-superwork coordinator new starts a new one on it", crate::coordinator::who::describe(v.def.as_ref())) } else { String::new() };
-    let (parts, raw, mine) = if err { (vec![Part { text: format!("It could not be started: {}", v.error), tone: "red".into(), ..Default::default() }], false, false) } else { let (p, raw, mine, _) = coord_talk(&v, &s.data.coord_screen); (p, raw, mine) };
-    Some(Who { mark: Inked::of(m, if err { Ink::Red } else { color }), name: "Coordinator".into(), status: coordinator_status(&word, v.queue), text: parts_text(&parts), parts, raw, mine, note, said: true,
-        turn: v.turn.as_ref().map(|x| x.id.clone()).unwrap_or_default(), always: err && s.err_hid != v.error, ink: if err { Ink::Red } else { color }, ..Default::default() })
+    let (parts, raw, mine) = if err { (vec![Part { text: format!("It could not be started: {}", v.error), tone: "red".into(), ..Default::default() }], false, false) } else { let (p, raw, mine, _) = coord_talk(v, screen); (p, raw, mine) };
+    Who { mark: Inked::of(m, if err { Ink::Red } else { color }), name: "Coordinator".into(), status: coordinator_status(&word, v.queue), text: parts_text(&parts), parts, raw, mine, note, said: true,
+        turn: v.turn.as_ref().map(|x| x.id.clone()).unwrap_or_default(), ink: if err { Ink::Red } else { color }, ..Default::default() }
+}
+/// The Coordinator of the machine whose board shows: what that machine sent of it with its tasks (coordinator/far.rs).
+fn far_who(s: &State, t: &Theme, far: &str) -> Who {
+    let m = &s.remotes[far];
+    let name = format!("Coordinator on {far}");
+    if let Some(v) = crate::coordinator::far::read(&m.coord) {
+        let turn = v.talk.last().map(|x| x.text.clone()).unwrap_or_default();
+        return Who { name, turn, ..coord_who(t, &v, "", false) };
+    }
+    // An older version there sends nothing of it; a machine with none adds what you type as a task.
+    let old = m.ok && m.coord.is_null();
+    let parts = if old { vec![Part { text: format!("{far} runs an older herdr-superwork, which does not send what its Coordinator says: update it there."), note: "old".into(), ..Default::default() }] } else { vec![] };
+    let status = if m.coord.b("off") { "no Coordinator there: what you type is added as a task".to_string() } else { format!("what you type goes to {far}") };
+    Who { mark: Inked::of(t.mark("unknown", ""), Ink::Muted), name, status, text: parts_text(&parts), parts, ink: Ink::Muted, ..Default::default() }
+}
+/// What the Coordinator is called where you would talk to it now: this machine's, the one of the machine whose board
+/// shows, or no Coordinator at all (the box then adds tasks).
+pub fn coord_name(s: &State) -> String {
+    if !s.scope.is_empty() && s.scope != "*" && s.remotes.contains_key(&s.scope) { format!("Coordinator on {}", s.scope) } else if s.data.can_dispatch { "Coordinator".into() } else { "New task".into() }
 }
 /// The line that says who you talk to: the mark, the name in bold, and what it is doing now, greyed. The name is never
 /// cut to make room: the status takes what is left.

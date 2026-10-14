@@ -84,6 +84,13 @@ saved conversation. The chat and the task panel show them as they show this mach
 name who said them ([the board](board.md)). A machine on an older plugin sends none: its agent's last message still
 shows, and for a reviewer the box says that the machine needs the update.
 
+**So has its Coordinator.** While the board shows one other machine by itself, what you type goes to that machine's
+Coordinator, and the chat shows that Coordinator's conversation: with its tasks the machine sends where its
+Coordinator stands (`idle`, `working`, how many of your messages wait) and the last dozen things said, read there as
+this machine's own are. The box shows them under the same lines (`Coordinator:`, `You:`) and scrolls back through them.
+A machine with no Coordinator to run says so (what you type there is added as a task), and one on an older plugin
+sends none: the box says that the machine needs the update.
+
 **A task's work settings travel with it.** When you put an agent on another machine's task (or send that machine
 words that add one), the machine you are on works out what you say for it, you and your entry for its repo, and
 sends that along (kept on the task as what it carried, apart from anything else the task tracks): there it stands where that machine's own "you" would, under the task's own settings and above
