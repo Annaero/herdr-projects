@@ -31,15 +31,14 @@ pub fn flows_for(t: &Obj, base: &str) -> Vec<(String, Flow)> {
 pub fn flows_state(t: &Obj, root: &Path, base: &str, head: &str) -> Flows {
     let flows = flows_for(t, base);
     if flows.is_empty() { return Flows::default(); }
-    let r = gh(&["api", &format!("repos/{{owner}}/{{repo}}/actions/runs?head_sha={head}&per_page=100"), "--jq", ".workflow_runs[] | [.path, .status, (.conclusion // \"\"), .html_url] | @tsv"], root, 30000);
-    let runs: Vec<Vec<String>> = if r.status == 0 { r.stdout.lines().map(|l| l.split('\t').map(String::from).collect()).collect() } else { vec![] };
+    let runs = super::readable::runs(root, head).unwrap_or_default();
     let mut out = Flows::default();
     for (file, flow) in flows {
-        let mine: Vec<&Vec<String>> = runs.iter().filter(|x| x.first().map(|p| p.split('@').next() == Some(file.as_str())).unwrap_or(false)).collect();
-        let at = |x: &Vec<String>, i: usize| x.get(i).cloned().unwrap_or_default().to_uppercase();
-        if let Some(bad) = mine.iter().find(|x| at(x, 1) == "COMPLETED" && CHECK_BAD.contains(&at(x, 2).as_str())) {
-            out.failed.push(json!({ "name": flow.name, "conclusion": at(bad, 2), "detailsUrl": bad.get(3).cloned().unwrap_or_default() }));
-        } else if mine.is_empty() || mine.iter().any(|x| at(x, 1) != "COMPLETED" || !CHECK_GOOD.contains(&at(x, 2).as_str())) {
+        let mine: Vec<&super::readable::Run> = runs.iter().filter(|x| x.path.split('@').next() == Some(file.as_str())).collect();
+        let up = |s: &str| s.to_uppercase();
+        if let Some(bad) = mine.iter().find(|x| up(&x.status) == "COMPLETED" && CHECK_BAD.contains(&up(&x.conclusion).as_str())) {
+            out.failed.push(json!({ "name": flow.name, "conclusion": up(&bad.conclusion), "detailsUrl": bad.url }));
+        } else if mine.is_empty() || mine.iter().any(|x| up(&x.status) != "COMPLETED" || !CHECK_GOOD.contains(&up(&x.conclusion).as_str())) {
             out.waiting.push(flow.name.clone());
         }
     }
@@ -60,7 +59,8 @@ pub fn required(root: &Path, base: &str) -> Vec<String> {
 }
 /// With nothing listed: an outside CI (one not of GitHub Actions, which flows_state decides exactly) that reports on
 /// the newest commit of the branch it merges into, or on one of the repo's last pull requests. A question GitHub cannot
-/// answer counts as yes, so nothing merges unchecked for it.
+/// answer counts as yes, so nothing merges unchecked for it; one the token may not ask (check runs, for a fine-grained
+/// token: readable.rs) counts as no, as it would never be answered.
 pub fn outside_ci(root: &Path, base: &str) -> bool {
     if base.is_empty() { return true; }
     let asks = [
@@ -70,6 +70,7 @@ pub fn outside_ci(root: &Path, base: &str) -> bool {
     ];
     asks.iter().any(|a| {
         let r = gh(&a.iter().map(String::as_str).collect::<Vec<_>>(), root, 30000);
+        if super::readable::refused(&r) { return false; }
         r.status != 0 || r.stdout.trim().parse::<i64>().map(|n| n > 0).unwrap_or(true)
     })
 }

@@ -131,6 +131,18 @@ where an outside CI reports in the repo (on the newest commit of the branch it m
 requests); a question GitHub cannot answer counts as yes. All of these wait at most `check.timeout`, then for you,
 with the reason. A repo with no checks at all merges with none listed. `merge.checks: none` does not look at GitHub's checks.
 
+**A fine-grained GitHub token is enough.** Such a token cannot have the Checks permission (GitHub offers it to GitHub
+Apps only), so GitHub refuses it its list of a pull request's checks. The board then reads them from what the token
+can read: **Actions** (the runs on the commit, each of their jobs and matrix members, and the log of a failed one) and
+**Commit statuses** (an outside CI, Vercel). Give the token read access to those two; nothing asks for Checks, and a
+refused list is no login problem. The same rules hold: running waits, a failure goes back with its log, a workflow
+not started is waited for, all within `check.timeout`. What such a token cannot read at all is the check runs of
+another app that posts no commit status: the task merges once everything it can read has passed and says what it
+could not read (`Merged: … Not read: check runs of apps other than GitHub Actions …`); a check the branch requires and
+no job or status of the commit answers is waited for while anything readable still runs, then named there too.
+GitHub itself still refuses a merge that a required check blocks. A token that may not read Actions or Commit statuses
+either leaves the task waiting for you with `Could not read GitHub's checks`, naming the two permissions to give it.
+
 **When a task is done** (merged here or on GitHub, finished with nothing to merge, or called done by you) its space
 leaves herdr's sidebar by itself, and its worktree and branch are removed. Work is never lost for it: a checkout
 with unsaved files, or with work that was never merged, stays on disk with its branch, the task says where, and a

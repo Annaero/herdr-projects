@@ -49,7 +49,9 @@ fn landed(id: &str, g: &mut Guard, t: &Task, msg: &str, head: &str, commit: &str
     let mark = flow::spaces::tidy_mark(t, "always", head);
     let d = g.set(|t| {
         if !commit.is_empty() { t.put("mergeCommit", commit); }
-        t.put("stage", "done"); t.put("mergedAt", now()); t.put("tidy", mark.clone().unwrap_or(Value::Null)); t.put("msg", msg);
+        // What GitHub's checks could not be read of (land/checks.rs) is said with it.
+        let said = if t.b("checksUnread") { format!("{msg}. {}", t.s("checksUnread")) } else { msg.to_string() };
+        t.put("stage", "done"); t.put("mergedAt", now()); t.put("tidy", mark.clone().unwrap_or(Value::Null)); t.put("msg", said);
         for k in ["failure", "prFailure", "mergeIntent", "lineAt", "lineTurn", "checksWait"] { t.put(k, Value::Null); }
         for k in ["autoMerge", "autoMergeLocal", "mergeFailed", "requireApproval"] { t.put(k, false); }
         if t.b("pr") { t.put("prMerged", true); t.put("prState", "merged"); }
@@ -135,7 +137,7 @@ pub fn land_core(id: &str, g: &mut Guard) -> Res<()> {
         let m = gh(&a, &root, 120000);
         if m.status != 0 {
             // GitHub's checks are still running, or a required review is missing: the approval is remembered.
-            let v: Value = serde_json::from_str(&gh(&["pr", "view", &pr, "--json", "statusCheckRollup,reviewDecision"], &root, 60000).stdout).unwrap_or(json!({}));
+            let v: Value = super::readable::pr_view(&root, &pr, "reviewDecision").map(|r| r.view).unwrap_or(json!({}));
             let states: Vec<String> = v.arr("statusCheckRollup").iter().map(|c| if c.b("conclusion") { c.t("conclusion") } else { c.t("state") }.to_uppercase()).collect();
             let waiting = !states.iter().any(|s| CHECK_BAD.contains(&s.as_str())) && v.s("reviewDecision") != "CHANGES_REQUESTED" && (states.iter().any(|s| !CHECK_GOOD.contains(&s.as_str())) || v.s("reviewDecision") == "REVIEW_REQUIRED");
             if waiting { g.set(|t| { t.put("failure", Value::Null); t.put("autoMerge", true); t.put("autoMergeLocal", true); let m = format!("Approved: merges when GitHub's checks pass ({})", t.s("pr")); t.put("msg", m); })?; return Ok(()); }

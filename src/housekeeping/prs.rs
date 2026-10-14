@@ -6,7 +6,7 @@ use crate::clock::now;
 use crate::finish::shared::approval_message;
 use crate::flow::{git::{board_comment, drop_remote_branch, gh, gh_user, pr_number, remote_head, CHECK_BAD, CHECK_GOOD}, sidebar::tell_sidebar, spaces::tidy_mark};
 use crate::json::*;
-use crate::land::checks;
+use crate::land::{checks, readable};
 use crate::runner::{runner_alive, spawn_runner};
 use crate::store::{failures::failure_patch, repos::{folder_of, git_out}, settings::lookup::setting, tasks::{get, list, update_wait, Change, ListOpts, Task}};
 
@@ -16,9 +16,9 @@ pub fn poll_prs() {
     super::fetch_mains();
     for first in list(ListOpts::default()) {
         if !first.b("pr") || first.b("prMerged") || runner_alive(&first) || (first.s("stage") == "working" && !first.b("autoMerge")) || needs_login(&first) { continue; }
-        let r = gh(&["pr", "view", &pr_number(first.s("pr")), "--json", "state,reviewDecision,statusCheckRollup,author,comments,reviews,headRefOid,mergeCommit"], &folder_of(first.s("id")), 60000);
-        let Ok(j) = serde_json::from_str::<Value>(&r.stdout) else { continue };
-        poll_one(first.s("id"), first.s("pr"), &j);
+        // Its checks as the token can read them (land/readable.rs): a fine-grained token cannot read GitHub's list.
+        let Ok(r) = readable::pr_view(&folder_of(first.s("id")), first.s("pr"), "state,reviewDecision,author,comments,reviews,headRefOid,mergeCommit") else { continue };
+        poll_one(first.s("id"), first.s("pr"), &r.view);
     }
 }
 #[derive(PartialEq)]

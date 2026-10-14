@@ -3,7 +3,9 @@
 //! agent with each failing check's name and the end of its log, as a failed check of the board's own does, within
 //! `review.rounds`, then waits for you; passed, or none at all, it merges (none listed where checks are coming is
 //! waited for, and so is one that is gone from the list, or a workflow's run not through: judge). `approve --anyway` merges without them.
-use super::expected;
+//! A token that may not read GitHub's list of them (a fine-grained one) has them read from GitHub Actions and commit
+//! statuses (readable.rs); what it cannot read is said on the task, never asked of you as a login.
+use super::{expected, readable};
 use super::merge::{fail, no_fix};
 use crate::clock::now;
 use crate::err::Res;
@@ -33,27 +35,44 @@ pub fn sort(checks: &[Value]) -> Look {
 fn known(t: &Obj, head: &str) -> Vec<String> { let w = t.at("checksWait"); if w.s("head") != head { return vec![]; } let mut k = strings(w.at("seen")); for n in strings(w.at("names")) { if !k.contains(&n) { k.push(n); } } k }
 /// Those that no check listed now is: not passed, so still waited for.
 pub fn missing(t: &Obj, head: &str, listed: &[Value]) -> Vec<String> { let now: Vec<String> = listed.iter().map(name).collect(); known(t, head).into_iter().filter(|n| !now.contains(n)).collect() }
-/// What is listed, against what is to be listed (expected.rs), and the workflows still waited for, by name (they are
-/// not checks: GitHub lists their jobs). Still running: a check listed on this commit before and gone now, a check the
-/// branch it merges into requires and not listed, a workflow that runs for this pull request with its run on the commit
-/// not there yet or not through (all of its jobs, every member of a matrix). Failed: a check, or such a run. None
-/// listed and nothing of that: "none to wait for", unless an outside CI reports in this repo, or the pull request had
-/// checks before (`prChecksSeen`).
-pub fn judge(t: &Obj, head: &str, listed: &[Value], root: &Path, base: &str) -> (Look, Vec<String>) {
+/// What judge decided: the look, the workflows still waited for by name (they are not checks: GitHub lists their
+/// jobs), and the checks the branch requires that this token cannot read (`blind`).
+pub struct Judged { pub look: Look, pub flows: Vec<String>, pub unread: Vec<String> }
+/// What is listed, against what is to be listed (expected.rs). Still running: a check listed on this commit before and
+/// gone now, a check the branch it merges into requires and not listed, a workflow that runs for this pull request
+/// with its run on the commit not there yet or not through (all of its jobs, every member of a matrix). Failed: a
+/// check, or such a run. None listed and nothing of that: "none to wait for", unless an outside CI reports in this
+/// repo, or the pull request had checks before (`prChecksSeen`). Read without the Checks permission (readable.rs),
+/// another app's check is never listed: a required check not listed is waited for while anything readable is still out, then it is one that could not be read, not one to wait for.
+pub fn judge(t: &Obj, head: &str, read: &readable::Read, root: &Path, base: &str) -> Judged {
+    let (listed, blind) = (read.listed(), !read.unread.is_empty());
     let look = sort(listed);
-    if let Look::Failed(_) = look { return (look, vec![]); }
-    let flows = expected::flows_state(t, root, base, head);
-    if !flows.failed.is_empty() { return (Look::Failed(flows.failed), vec![]); }
+    if let Look::Failed(_) = look { return Judged { look, flows: vec![], unread: vec![] }; }
+    let mut flows = expected::flows_state(t, root, base, head);
+    if !flows.failed.is_empty() { return Judged { look: Look::Failed(flows.failed), flows: vec![], unread: vec![] }; }
     let names: Vec<String> = listed.iter().map(name).collect();
     let mut wait = missing(t, head, listed);
-    for n in expected::required(root, base) { if !names.contains(&n) && !wait.contains(&n) { wait.push(n); } }
+    let required: Vec<String> = expected::required(root, base).into_iter().filter(|n| !names.contains(n) && !wait.contains(n)).collect();
+    let mut unread = vec![];
+    // Read blind, a required check waits beside the workflows (by name, not as one seen listed), so that what is
+    // readable passing is enough to look again.
+    if !blind { wait.extend(required); }
+    else if matches!(look, Look::Passed) && wait.is_empty() && flows.waiting.is_empty() { unread = required; }
+    else { for n in required { if !flows.waiting.contains(&n) { flows.waiting.push(n); } } }
     let look = match look {
         Look::Running(mut r) => { for n in wait { if !r.contains(&n) { r.push(n); } } Look::Running(r) }
         Look::Passed if !wait.is_empty() => Look::Running(wait),
         Look::Passed if !flows.waiting.is_empty() || (listed.is_empty() && (t.b("prChecksSeen") || expected::outside_ci(root, base))) => Look::Running(vec![]),
         x => x,
     };
-    (look, flows.waiting)
+    Judged { look, flows: flows.waiting, unread }
+}
+/// What was not looked at, said on the task that merges: what the token cannot read, and the required checks not found
+/// in what it read.
+pub fn unread_note(unread: &[String], required: &[String]) -> String {
+    let mut parts: Vec<String> = unread.to_vec();
+    if !required.is_empty() { parts.push(format!("the required {} {} (listed by no GitHub Actions job and no commit status)", if required.len() == 1 { "check" } else { "checks" }, required.join(", "))); }
+    if parts.is_empty() { String::new() } else { format!("Not read: {}", parts.join("; ")) }
 }
 /// Are GitHub's checks looked at for this task?
 pub fn looked_at(t: &Obj) -> bool { setting_text("merge.checks", Some(t)) != "none" }
@@ -79,7 +98,9 @@ fn log_of(root: &Path, c: &Value) -> String {
 pub fn failed_detail(root: &Path, pr: &str, failed: &[Value]) -> String {
     let names: Vec<String> = failed.iter().map(name).collect();
     let mut s = format!("{}\n\nPull request: {pr}", failed_why(pr, &names));
-    for c in failed { s.push_str(&format!("\n\n{} ({}):\n{}", name(c), word(c).to_lowercase(), log_of(root, c))); }
+    // A run read as itself (readable.rs) that failed with a failed job listed: the job's log says it.
+    let told = |c: &Value| c.b("run") && failed.iter().any(|o| !o.b("run") && o.s("workflowName") == c.s("name"));
+    for c in failed.iter().filter(|c| !told(c)) { s.push_str(&format!("\n\n{} ({}):\n{}", name(c), word(c).to_lowercase(), log_of(root, c))); }
     s
 }
 /// The pull request blocker GitHub's failed checks make: the same from the land step and the watch.
@@ -102,19 +123,32 @@ pub fn overdue(t: &Obj) -> bool { let l = ms(&setting_text("check.timeout", Some
 pub fn before_merge(id: &str, g: &mut Guard, t: &Task, root: &Path) -> Res<bool> {
     if !looked_at(t) || t.at("mergeIntent").b("anyway") { return Ok(true); }
     let pr = t.t("pr");
-    let r = gh(&["pr", "view", &pr_number(&pr), "--json", "headRefOid,baseRefName,statusCheckRollup"], root, 60000);
-    let Ok(v) = serde_json::from_str::<Value>(&r.stdout) else {
-        let said = [r.stdout.trim(), r.stderr.trim()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("\n");
-        fail(g, "Could not read GitHub's checks", &format!("Pull request: {pr}\n\ngh pr view:\n{said}\n\nNothing was merged."), "Make sure gh is logged in and reaches GitHub (gh auth status), then approve again.", super::merge::Fail { agent_can_fix: false, auth: Some(is_auth_failure(&said)), keep_intent: false })?;
-        return Ok(false);
+    let read = match readable::pr_view(root, &pr, "headRefOid,baseRefName") {
+        Ok(r) => r,
+        Err(said) => {
+            fail(g, "Could not read GitHub's checks", &format!("Pull request: {pr}\n\ngh pr view:\n{said}\n\nNothing was merged."), "Make sure gh is logged in and reaches GitHub (gh auth status), then approve again.", super::merge::Fail { agent_can_fix: false, auth: Some(is_auth_failure(&said)), keep_intent: false })?;
+            return Ok(false);
+        }
     };
+    if !read.fault.is_empty() {
+        // GitHub's list of checks is not for this token, and neither is what it is made of here.
+        fail(g, "Could not read GitHub's checks", &format!("Pull request: {pr}\n\nThis GitHub token may not read the pull request's checks list, so they are read from GitHub Actions and commit statuses, and GitHub refused those too:\n{}\n\nNothing was merged.", read.fault),
+            "Give the GitHub token read access to Actions and to Commit statuses (a fine-grained token cannot have the Checks permission, and needs none: these two are enough), then approve again.", no_fix())?;
+        return Ok(false);
+    }
+    let v = &read.view;
     let head = v.t("headRefOid");
-    let listed = v.arr("statusCheckRollup");
+    let listed = read.listed();
     if !listed.is_empty() && !t.b("prChecksSeen") { g.set(|t| t.put("prChecksSeen", true))?; }
     let base = if v.b("baseRefName") { v.t("baseRefName") } else { crate::sync::main_branch(root, t) };
-    let (look, flows) = judge(t, &head, listed, root, &base);
+    let Judged { look, flows, unread } = judge(t, &head, &read, root, &base);
     match look {
-        Look::Passed => { if t.b("checksWait") { g.set(|t| t.put("checksWait", Value::Null))?; } Ok(true) }
+        Look::Passed => {
+            // What could not be read is said on the task (merge.rs adds it to "Merged"), never asked of you as a login.
+            let note = unread_note(&read.unread, &unread);
+            if t.b("checksWait") || t.s("checksUnread") != note { g.set(|t| { t.put("checksWait", Value::Null); t.put("checksUnread", if note.is_empty() { Value::Null } else { json!(note) }); })?; }
+            Ok(true)
+        }
         Look::Running(checks) => {
             let mut names = checks.clone();
             for f in &flows { if !names.contains(f) { names.push(f.clone()); } }
