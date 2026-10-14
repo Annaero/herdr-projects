@@ -1,5 +1,5 @@
 == the list
- herdr-superwork  proj · 5 need you · 1 ready · 8 working · 3 to do · 1 done
+ herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
  ✗ #13 Max length for task titles                                             1m
        Conflict with main
  ✗ #14 Max length for task titles                                             1m
@@ -24,7 +24,7 @@
 ────────────────────────────────────────────────────────────────────────────────
   enter open this task's agent · space talk to the agent · ? all keys
 == the task beside it
- herdr-superwork  proj · 5 need you · 1 ready · 8 working · 3 to do · 1 done
+ herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
  ✗ #14 Max length for task titles                                             1m
        Stopped without a summary
 
@@ -91,7 +91,7 @@
  ctrl: does something
    ctrl+l       yes: approve the merge, say yes, retry, take it as it is
    ctrl+r       send it back: tell the agent to fix it, or to continue
- ↓ 39 more
+ ↓ 40 more
 
  + New task  added word for word
 ────────────────────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@
 ────────────────────────────────────────────────────────────────────────────────
   ↑↓ pick a key · enter press it · esc close the menu
 == a draft
- herdr-superwork  proj · 5 need you · 1 ready · 8 working · 3 to do · 1 done
+ herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
  ✗ #13 Max length for task titles                                             1m
        Conflict with main
  ✗ #14 Max length for task titles                                             1m

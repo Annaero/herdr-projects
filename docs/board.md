@@ -91,7 +91,8 @@ it, say yes, send it back, pin it) the selection follows that task to wherever i
 (archived), the message says which task the selection is on now.
 
 Each state has a mark of its own (`◐` the agent is working, `◑` the reviewer is working, `◒` the board
-itself is on it, `✗` went wrong, `◆` ready to approve, `✓` done, `○` to do; the `?` menu has the list), so no
+itself is on it, `◓` it waits for a free slot, `✗` went wrong, `◆` ready to approve, `✓` done, `○` to do; the `?`
+menu has the list), so no
 two are told apart by colour alone (herdr's `status_indicators = "dots"` brings its dots back for working and done;
 what a waiting task needs keeps its mark with dots too).
 
@@ -257,10 +258,12 @@ ready for you. Red: it failed, or it needs you. For as long as the reviewer work
 percent, the minutes left and the `R#` tag are blue, and so are the same things in the task panel, on the details
 screen and on the chat line. The mark says it without colour too: the half moon faces the other way, `◑`, while the
 reviewer works, and is the agent's `◐` again once the task goes back to its agent. The board's own steps (starting,
-setting up, running the check, pushing, merging) share a third one, `◒`. A task that only waits keeps the plain
-`◐`: for a free slot, to try again after a turn was cut off, for its check's turn or for its turn to merge. So a
-blue `◑` with a bar says a review is running, an amber `◐` that the agent is at work, and a green `!` that the task
-is ready for your yes. A group's heading keeps the colour of its group: a task under review is filed under `working`.
+setting up, running the check, pushing, merging) share a third one, `◒`. A task that waits for a free slot has the
+fourth, `◓`, in a pink of its own (below). A task that only waits for
+anything else keeps the plain `◐`: to try again after a turn was cut off, for its check's turn or for its turn to
+merge. So a blue `◑` with a bar says a review is running, an amber `◐` that the agent is at work, a pink `◓` that
+it has not started yet, and a green `!` that the task is ready for your yes. A group's heading keeps the colour of
+its group: a task under review is filed under `working`.
 A task nobody has started (`to do`: its heading and its `○`) is a dim grey of its own, never the plain text colour,
 and always readable: every grey on the board is held to a floor of contrast with the background.
 Which colours are herdr's and which the board's own, and how the board follows herdr's theme: [colours](colours.md).
@@ -273,6 +276,33 @@ alike. Colours you set yourself (`[theme.custom]`) are held to the same rule: a 
 blue at all (a green, a purple, a grey), is not used,
 and where the board's blue is too near one of your colours it takes another blue that is not. With the terminal's own
 colours it is the terminal's blue.
+
+**A task that waits for a free slot.** At most `board.agents` agents work at once. A task started while every slot is taken waits its turn: its row has the
+mark `◓` in pink, says `Waiting for a free slot` on its second line, and has its place in the queue where a task at
+work has its percent: `Q#1` gets the next free slot, `Q#2` the one after.
+
+```
+ working
+ ◐ #151 Rewrite the board in Rust on Ratatui              █████░░░  65%  3m       9m
+        Reading the list code
+ ◓ #152 Show automations in the main list                            Q#1           2m
+        Waiting for a free slot
+ ◓ #153 Fix the footer                                               Q#2          40s
+        Waiting for a free slot
+```
+
+- **The order is the one the board starts them in**: the first to wait first. When a slot frees, `Q#1` starts and
+  the others move up. A task's attempts each wait for a slot of their own and are counted the same way.
+- **They stand last under `working`, in that order**, not under a heading of their own. You started them and they
+  start by themselves, so `working` is where they belong; a heading of their own would hold one or two rows for a
+  minute and move them under another heading each time a slot frees. Their mark, their colour and their `Q#` tell
+  them from the tasks at work, and the order says which one is next. (Grouped by repo there is no status heading:
+  they stand among their repo's tasks.)
+- The same place is said everywhere: the task panel's State line (`◓ waiting for a free slot, Q#2`), `list`
+  (`· waiting for a free slot, Q#2`; `--json` has `queue: 2`), `details` (`queue: { place, words }`), the message
+  when you start it, herdr's sidebar ([sidebar](sidebar.md)) and the web Board.
+- A narrow board keeps it too: there `Q#2` stands with the time at the end of the row's second line, so a waiting
+  task's row is two lines, not three.
 
 `R#2` is the review the task is on, or the last one it had. It belongs to the pull request, not to the progress: it
 sits one cell left of the `PR#`, and the tags end under each other down the list. Its colour says how that review

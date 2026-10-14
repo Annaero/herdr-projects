@@ -26,6 +26,8 @@ pub enum Ink {
     Review,
     /// The board runs the check itself: a plain light grey.
     Check,
+    /// It waits for a free slot: a pink no other state has.
+    Queue,
     /// Nobody has started it: the dim grey of "to do".
     Todo,
     /// The automations' own purple.
@@ -42,7 +44,7 @@ impl Ink {
     pub fn name(self) -> &'static str {
         match self { Ink::Plain => "plain", Ink::Text => "text", Ink::Soft => "subtext0", Ink::Muted => "overlay0", Ink::Red => "red", Ink::Green => "green",
             Ink::Yellow => "yellow", Ink::Teal => "teal", Ink::Peach => "peach", Ink::Mauve => "mauve", Ink::Accent => "accent", Ink::Review => "review",
-            Ink::Check => "check", Ink::Todo => "todo", Ink::Auto => "auto", Ink::Rule => "surface1", Ink::Dim => "surface_dim",
+            Ink::Check => "check", Ink::Queue => "queue", Ink::Todo => "todo", Ink::Auto => "auto", Ink::Rule => "surface1", Ink::Dim => "surface_dim",
             Ink::Sidebar => "sidebar_bg", Ink::Selection => "selection" }
     }
 }

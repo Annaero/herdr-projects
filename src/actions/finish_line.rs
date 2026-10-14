@@ -251,6 +251,8 @@ pub fn details(id: &str) -> Res<Value> {
         "branch": if t.b("branch") { t.at("branch").clone() } else { Value::Null },
         "limits": limits_detail(&t, now()),
     }));
+    // Waiting for a free slot: its place in the queue, and in words ("waiting for a free slot, Q#2").
+    if let Some(n) = crate::flow::live::queue_place(&t) { let mut q = t.clone(); q.put("queuePlace", n); out.put("queue", json!({ "place": n, "words": crate::shown::queue::words(&q) })); }
     // What it waits for, or waited for (after.rs): each task as it stands now, and what was handed over when it started.
     if t.b("after") || t.b("afterDone") { out.put("after", json!({ "waitsFor": t.at("after"), "waiting": t.s("stage") == crate::after::STAGE, "left": t.at("afterLeft"), "waitsForYou": t.at("afterBlocked"), "tasks": crate::after::after_of(&t).iter().map(|i| crate::after::handed::of(i)).collect::<Vec<_>>(), "handedOver": t.at("afterDone"), "early": t.b("afterEarly") })); }
     // Done several times at once: each attempt, where it stands, and what the reviewer said of them.

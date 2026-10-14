@@ -2,6 +2,7 @@
 //! you. A row is a task as the board shows it (flow/live.rs: shown): the task's own fields, plus `state`, `kind`,
 //! `note`, `progress`, `eta` and the rest that herdr and the Watcher said.
 use super::ink::Ink;
+use super::queue::queued;
 use crate::json::*;
 use crate::status_words::{needs, review_failed, step, who, words, QUEUED};
 use crate::store::retries::waiting_of;
@@ -44,6 +45,7 @@ pub fn standing(r: &Obj) -> String {
     if !archived && r.s("stage") == "pick" { return words::PICK.into(); }
     if !archived && failed_review(r) { return words::REVIEW_FAILED.into(); }
     if r.s("state") == "blocked" && r.s("stage") != "approval" && !archived && (failure_for(r).is_none() || r.s("kind") == "auth") { if let Some(w) = needs(r.s("kind")) { return w.into(); } }
+    if queued(r) { return super::queue::words(r); }
     group_of(r).into()
 }
 /// Who is on a task and where it stands, for herdr's sidebar.
@@ -67,7 +69,7 @@ pub fn is_live(r: &Obj) -> bool { !r.b("archivedAt") && ["needs you", "ready to 
 pub fn checking(r: &Obj) -> bool { r.s("stage") == "checking" && r.s("state") == "working" && !r.b("archivedAt") }
 /// The colour of the mark, the bar and the percent.
 pub fn status_ink(r: &Obj) -> Ink {
-    if r.b("archivedAt") { Ink::Muted } else if under_review(r) { Ink::Review } else if checking(r) { Ink::Check } else { group_ink(group_of(r)) }
+    if r.b("archivedAt") { Ink::Muted } else if under_review(r) { Ink::Review } else if checking(r) { Ink::Check } else if queued(r) { Ink::Queue } else { group_ink(group_of(r)) }
 }
 /// A task as the screen reads it: `msg` is the line to show, `app` who is on it, `at` since when.
 pub fn as_row(t: &Obj) -> Obj {

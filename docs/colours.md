@@ -45,12 +45,40 @@ The board keeps a colour of its own only for what herdr has no state for:
 |---|---|---|
 | under review | blue | the theme's `blue` where that is told apart from all it sits beside, else the board's `#3b82f6` ([the board](board.md)) |
 | ready to approve | green | the theme's `green` |
+| waits for a free slot | pink | one of the board's own pinks, the first told apart from every other status colour, the automations' purple, the greys, text and background ([below](#a-task-that-waits-for-a-free-slot-is-pink)) |
 | to do | dim grey | the theme's grey for greyed-out words (`overlay0`), made readable as said below, where that is told apart from the green and the blue; else another grey. With the terminal's own colours it is a grey mixed from the terminal's own background and text colour, measured |
 
-The three are told apart from each other in every built-in theme (the tests measure it). "To do" is a dim grey in
+They are told apart from each other in every built-in theme (the tests measure it). "To do" is a dim grey in
 the list (the heading, the `○` mark, the task's number) and in the box alike: dimmer than plain text, and always
 readable. While the board runs its own check the
 mark is a plain light grey, the theme's `subtext0` ([the check's progress](check-progress.md)).
+
+## A task that waits for a free slot is pink
+
+A task started while every slot of `board.agents` is taken has a colour no other state has: a pink, for its `◓`, its
+place in the queue (`Q#2`), the State line in the task panel and its agent's text box. Pink is the colour furthest
+from all the others: amber works, red needs you, green is ready, teal is done, blue is under review, grey is to do
+and purple is an automation.
+
+herdr's themes have no pink of their own (only Dracula's `mauve` is one, and that is the automations' colour there),
+so it is one of the board's: the first of its pinks that is told apart from every colour above, from plain text,
+both greys and the background, and stands 3 to 1 or more against the background, what a mark needs. Its nearest
+neighbour is red, the colour of "needs you", so the measure keeps it well away from the theme's red.
+
+| Theme | The pink |
+|---|---|
+| Nord, One Dark, Solarized, Kanagawa, Vesper | `#f472b6`, the first of the pinks for a dark background |
+| Tokyo Night, Gruvbox, Rosé Pine | `#ff6ec7`: `#f472b6` is too near one of their colours |
+| Catppuccin (herdr's default), Dracula | `#ec4899`: the two brighter ones are too near their red, a pink-ish one |
+| Catppuccin Latte, Gruvbox light, One Light, Rosé Pine Dawn | `#db2777`, darker, for a light background |
+| Tokyo Night Day, Kanagawa Lotus | `#c2188b` |
+| Solarized Light | `#9d174d` |
+| `terminal` | `#ec4899`: the terminal's sixteen colours have no pink, and their magenta is the automations'. A middle pink reads on a dark terminal and a light one alike |
+
+**Colour is not the only clue**: the `◓` is a half moon of its own and `Q#2` and `Waiting for a free slot` are
+words. With `NO_COLOR` they still say it.
+
+On the web Board it is the board's own `#ec4899`, pulled towards the page's text colour as the purple is.
 
 ## An automation is purple
 
@@ -59,8 +87,9 @@ used for the heading `automations` in the list, the mark of each of their rows (
 off), the `[auto]` tag of a task one made, and the automation's line in the `?` menu.
 
 It is **herdr's own `mauve`**, the one colour of herdr's theme that no status uses (red needs you, green is ready,
-amber works, teal is done, blue is under review, grey is to do), so it changes with the theme as everything else
-does. It is used where it is a purple (from violet to pink) and told apart from all six of those, from plain text,
+amber works, teal is done, blue is under review, grey is to do, pink waits for a slot), so it changes with the theme
+as everything else does. It is used where it is a purple (from violet to pink) and told apart from the first six of
+those, from plain text,
 from both greys of greyed words and from the background; the tests measure that in every built-in theme.
 
 | Theme | The automations' colour |
@@ -150,7 +179,7 @@ rules of the plain one) and its prompt mark `❯` say which, at a glance:
 | a task's agent, or a task your message starts an agent on | that task's status colour, the very one its mark has in the list |
 
 So an agent's box also says how its task is doing: amber while the agent works, red when it needs you, green when
-it is ready to approve, blue under review, teal when done, dim grey for a task nobody started (and for an archived
+it is ready to approve, blue under review, pink while it waits for a free slot, teal when done, dim grey for a task nobody started (and for an archived
 one, which is read-only). It changes with the status, also while something is typed. It is the same wherever there
 is such a box: under the list, in the reply view, under the task panel and full screen, in the popup, for this
 machine's tasks and another machine's, and on the web Board, where the frame of the text field takes the colour.

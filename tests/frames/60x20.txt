@@ -1,5 +1,5 @@
 == the list
- herdr-superwork  proj · 5 need you · 1 ready · 8 working ·…
+ herdr-superwork  proj · 5 need you · 1 ready · 9 working ·…
 
  working
  ◐ #2  Max length for task titles
@@ -20,7 +20,7 @@
 ────────────────────────────────────────────────────────────
   enter open this task's agent · ? all keys
 == the task beside it
- herdr-superwork  proj · 5 need you · 1 ready · 8 working ·…
+ herdr-superwork  proj · 5 need you · 1 ready · 9 working ·…
 
  working
  ◐ #2  Max length for task titles
@@ -75,7 +75,7 @@
    esc          back, one step at a time (as a popup, the
                 board closes on the last one)
    ?            this menu
- ↓ 53 more
+ ↓ 54 more
 
  + New task  added word for word
 ────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@
 ────────────────────────────────────────────────────────────
   ↑↓ pick a key · enter press it · esc close the menu
 == a draft
- herdr-superwork  proj · 5 need you · 1 ready · 8 working ·…
+ herdr-superwork  proj · 5 need you · 1 ready · 9 working ·…
 
  working
  ◐ #2  Max length for task titles

@@ -23,6 +23,7 @@ nobody is on (to do, done and cleaned up) has no pane in herdr and so no entry.
    | `◐` the agent works | `agent · working` |
    | `◑` under review | `reviewer · under review` on the reviewer's entry, `agent · under review` on the agent's |
    | `◒` the board starts it, sets up, checks, pushes, merges | `board · starting`, `board · setting up`, `board · checking`, `board · pushing`, `board · merging` |
+   | `◓` waits for a free slot, `Q#2` | `queued`, and row 3 says `Waiting for a free slot · Q#2`: its place in the queue where a task at work has its percent |
    | `?` asks you | `asks you` |
    | `!` asks for your OK | `asks for your OK` |
    | the sign-in mark | `needs a login` |
@@ -107,7 +108,7 @@ herdr's own entry: its space, its tab, its name.
 - **The Coordinator's first row reads `~ · Coordinator`**, not `Coordinator` alone. It lives in a tab of the home
   space, and a sidebar row can hide a value only by that value itself: hiding `~` would hide it for every agent of
   yours in the home space.
-- **No mark of the board's own.** The row's `?`, `!`, `◑`, `◒` and `◆` cannot be drawn: the icon of an entry is
+- **No mark of the board's own.** The row's `?`, `!`, `◑`, `◒`, `◓` and `◆` cannot be drawn: the icon of an entry is
   herdr's state icon, which only herdr's own five states have. The words carry it.
 - **No colour by status.** herdr can colour a value by rules on its text, set in your config; the plugin's rows only
   dim the line, as the board greys it.

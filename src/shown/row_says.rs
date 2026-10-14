@@ -2,6 +2,7 @@
 //! and time. No drawing: herdr's sidebar says the same with these (flow/sidebar_entry.rs), and the board's rows draw
 //! them (board/describe/row.rs).
 use super::ink::{Ink, Inked};
+use super::queue::tag as queue_tag;
 use super::review_words::{result_ink, review_note, review_tag_inked};
 use super::states::{failed_review, failure_for, in_review, needs_you, status_ink};
 use super::words::{age, bar, clean, left, pr_tag};
@@ -25,7 +26,8 @@ pub fn row_fields(r: &Obj, now: i64) -> Fields {
     let p = r.f("progress");
     Fields {
         bar: if has { Inked::of(bar(p, 8), c) } else { Inked::new() },
-        percent: if has { Inked::of(format!("{}%", p as i64), c) } else { Inked::new() },
+        // A task that waits for a free slot has its place in the queue where a task at work has how far it is.
+        percent: if has { Inked::of(format!("{}%", p as i64), c) } else if live && !queue_tag(r).is_empty() { Inked::of(queue_tag(r), c) } else { Inked::new() },
         eta: if live && r.at("eta").is_number() { Inked::of(format!("{} left", left(r.i("eta"))), c) } else { Inked::new() },
         review: review_tag_inked(r), pr: pr_tag(r),
         elapsed: age(now - if r.b("at") { r.i("at") } else { now }), ago: r.s("state") != "working",

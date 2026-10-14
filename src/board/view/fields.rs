@@ -7,6 +7,7 @@ use crate::board::theme::Theme;
 use crate::json::*;
 use crate::research::is_research;
 use crate::shown::ink::{Ink, Inked};
+use crate::shown::queue::queued;
 use crate::shown::row_says::{row_fields, sentence};
 use crate::shown::states::{board_step, in_review, is_live, reviewer_mark, status_ink};
 
@@ -32,6 +33,7 @@ pub fn mark(t: &Theme, r: &Obj) -> Inked {
     if in_review(r) { return Inked::of(t.mark("ready", ""), c).bold(); } // passed and waits for your yes
     if reviewer_mark(r) { return Inked::of(t.mark("review", ""), c); } // the reviewer at work
     if board_step(r) { return Inked::of(t.mark("board", ""), c); } // a step of the board's own
+    if queued(r) { return Inked::of(t.mark("queue", ""), c); } // it waits for a free slot
     if r.s("state") == "blocked" { return Inked::of(t.mark("blocked", r.s("kind")), c).bold(); } // what it needs from you
     if r.s("state") == "done" { return Inked::of(t.mark("done", ""), c).quiet(); } // finished: the same mark, quieter
     let st = r.s("state");

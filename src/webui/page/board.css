@@ -18,6 +18,9 @@
   /* An automation: a purple, which no status of the web UI has. The board's own, pulled towards the page's text
      colour as the teal is, so it reads on light and dark alike. */
   --sw-auto: color-mix(in srgb, #a855f7 78%, var(--text, #d8d0c3));
+  /* A task that waits for a free slot: a pink, which no status of the web UI has either. The board's own, pulled
+     towards the page's text colour as the purple is. */
+  --sw-queue: color-mix(in srgb, #ec4899 80%, var(--text, #d8d0c3));
 }
 /* Nothing that is read is under 13px on the board, whatever the web UI's two smallest sizes are elsewhere. */
 .sw-board, .sw-float { --fs-2xs: 13px; --fs-xs: 13px; }
@@ -87,7 +90,7 @@
 .sw-part { margin-top: var(--space-4, 16px); }
 .sw-part-head { margin: 0 0 var(--space-2, 8px); padding-bottom: var(--space-1, 4px); border-bottom: var(--hairline, 1px) solid var(--sw-line); font-size: var(--fs-sm, 13px); font-weight: var(--fw-semibold, 600); color: var(--sw-strong); }
 .sw-part-head[class*="sw-c-"] { border-bottom-color: currentColor; }
-.sw-part-head.sw-c-red { color: var(--sw-red); } .sw-part-head.sw-c-yellow { color: var(--sw-yellow); } .sw-part-head.sw-c-green { color: var(--sw-green); } .sw-part-head.sw-c-peach { color: var(--sw-yellow); } .sw-part-head.sw-c-overlay0 { color: var(--sw-dim); } .sw-part-head.sw-c-todo { color: var(--sw-todo); } .sw-part-head.sw-c-review { color: var(--sw-review); }
+.sw-part-head.sw-c-red { color: var(--sw-red); } .sw-part-head.sw-c-yellow { color: var(--sw-yellow); } .sw-part-head.sw-c-green { color: var(--sw-green); } .sw-part-head.sw-c-peach { color: var(--sw-yellow); } .sw-part-head.sw-c-overlay0 { color: var(--sw-dim); } .sw-part-head.sw-c-todo { color: var(--sw-todo); } .sw-part-head.sw-c-review { color: var(--sw-review); } .sw-part-head.sw-c-queue { color: var(--sw-queue); }
 .sw-facts { margin: 0; }
 .sw-fact { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 0 var(--space-3, 12px); padding: 2px 0; }
 .sw-label { color: var(--sw-dim); font-size: var(--fs-sm, 13px); }
@@ -160,6 +163,7 @@
 .sw-dot-full { background: currentColor; }
 .sw-dot-right { background: linear-gradient(90deg, transparent 50%, currentColor 50%); }
 .sw-dot-bottom { background: linear-gradient(180deg, transparent 50%, currentColor 50%); }
+.sw-dot-top { background: linear-gradient(180deg, currentColor 50%, transparent 50%); }
 /* An automation's mark, an arrow going round (⟳), drawn at the round marks' size: a ring with a gap on its upper right, and the arrow's head where the ring ends. */
 .sw-turn { display: inline-block; position: relative; width: 0.72em; height: 0.72em; vertical-align: -0.04em; }
 .sw-turn::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 95deg, currentColor 310deg, transparent 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1px)); mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1px)); }
@@ -194,7 +198,7 @@ a.sw-tag:hover { text-decoration: underline; }
 /* The board's colour names. */
 .sw-c-red { color: var(--sw-red); } .sw-c-green { color: var(--sw-green); } .sw-c-yellow { color: var(--sw-yellow); }
 .sw-c-teal { color: var(--sw-teal); } .sw-c-review, .sw-c-blue { color: var(--sw-review); } .sw-c-check, .sw-c-text { color: var(--sw-check); }
-.sw-c-auto { color: var(--sw-auto); } .sw-c-overlay0, .sw-c-subtext0, .sw-c-surface_dim { color: var(--sw-dim); } .sw-c-surface1 { color: var(--sw-line); } .sw-c-todo { color: var(--sw-todo); } .sw-c-accent, .sw-c-peach { color: var(--accent, #f0a830); }
+.sw-c-auto { color: var(--sw-auto); } .sw-c-queue { color: var(--sw-queue); } .sw-c-overlay0, .sw-c-subtext0, .sw-c-surface_dim { color: var(--sw-dim); } .sw-c-surface1 { color: var(--sw-line); } .sw-c-todo { color: var(--sw-todo); } .sw-c-accent, .sw-c-peach { color: var(--accent, #f0a830); }
 .sw-b { font-weight: var(--fw-semibold, 600); } .sw-d { opacity: 0.9; } /* a quiet mark: no fainter, or it falls under 3 to 1 on the light palettes */
 
 /* When the web UI's menu is not found: the Board, floating. */

@@ -111,7 +111,7 @@ fn run_one(job: Job) -> Done {
             }
             Job::Delegate { id, name, now } => {
                 let t = start::delegate_with(&id, vec![], crate::after::Wait { now, ..Default::default() })?;
-                green(if let Some(w) = crate::after::waiting_words(&t) { format!("{name} {w}.") } else if t.s("stage") == "attempts" { format!("{} attempts are on {name}.", t.arr("attempts").len()) } else if t.s("stage") == "queued" { format!("{name} waits for a free slot.") } else { format!("An agent is on {name}.") })
+                green(if let Some(w) = crate::after::waiting_words(&t) { format!("{name} {w}.") } else if t.s("stage") == "attempts" { format!("{} attempts are on {name}.", t.arr("attempts").len()) } else if t.s("stage") == "queued" { format!("{name} is {}.", crate::shown::queue::words(&crate::flow::live::saved(&t))) } else { format!("An agent is on {name}.") })
             }
             Job::Approve { id, seen, anyway } => green(finish_line::approve(&id, seen, anyway)?.msg),
             Job::FinishAnyway { id } => green(finish_line::finish_anyway(&id)?.msg),

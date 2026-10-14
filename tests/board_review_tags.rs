@@ -24,9 +24,10 @@ fn the_boards_own_steps_share_one_mark_and_the_reviewer_says_only_what_it_is_doi
         let r = with(&working, json!({ "stage": stage, "msg": "x" }));
         m(&v.row(&r, 120), r"^[ ▌]◒ #\d+ Other "); m(&v.page(&r, false), r"\n State {8}◒ working ");
     }
-    // a task that only waits keeps the plain working mark: for a free slot, or the reviewer cut off and waiting to try again
+    // a task that waits for a free slot has a half moon of its own (board_queue.rs)
     let queued = with(&working, json!({ "stage": "queued", "msg": "x" }));
-    m(&v.row(&queued, 120), r"^[ ▌]◐ #\d+ Other "); m(&v.page(&queued, false), r"\n State {8}◐ working ");
+    m(&v.row(&queued, 120), r"^[ ▌]◓ #\d+ Other "); m(&v.page(&queued, false), r"\n State {8}◓ waiting for a free slot ");
+    // a task that only waits for anything else keeps the plain working mark: the reviewer cut off and waiting to try again
     m(&v.row(&with(&working, json!({ "stage": "merging", "lineAt": 1, "msg": "Waiting to merge: proj/1 goes first" })), 120), r"^[ ▌]◐ #\d+ Other "); // in the line to merge
     let cut = with(&working, json!({ "stage": "reviewing", "reviewRound": 1, "waiting": { "who": "reviewer", "reason": "model is at capacity", "until": v.now + 120000, "tries": 1 } }));
     m(&v.row(&cut, 120), r"^[ ▌]◐ #\d+ Other "); m(&v.page(&cut, false), r"\n State {8}◐ reviewer was cut off");

@@ -1,5 +1,5 @@
 == the list
- herdr-superwork  proj · 5 need you · 1 ready · 8 working · 3 to do · 1 done
+ herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
 
  needs you
  ? #9  Max length for task titles                                                                                                                                                                 1m ago
@@ -34,15 +34,15 @@
        Reading the logs
  ◐ #18 日本語のタイトルはとても長いので二倍の幅になります 🚀🚀 and then some more                                                                         ░░░░░░░░   5%                           1m
        幅の広い文字 🎉 の行
+ ◓ #3  Max length for task titles                                                                                                                                   Q#2                           1m
+       Waiting for a free slot
 
  to do
  ○ #1  Max length for task titles                                                                                                                                                                 1m ago
- ○ #3  Max length for task titles  Waiting for a free slot                                                                                                                                        1m ago
  ○ #19 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT                                                                                                                               1m ago
 
  done
  ✓ #15 Max length for task titles                                                                                                                                                 R#1 PR#60       1m ago
-
 
 
 
@@ -60,7 +60,7 @@
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   enter open this task's agent · space talk to the agent · ctrl+x stop the agent · ? all keys
 == the task beside it
- herdr-superwork  proj · 5 need you · 1 ready · 8 working · 3 to do · 1 done                                                    │
+ herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done                                                    │
                                                                                                                                 │  #5 Max length for task titles
  needs you                                                                                                                      │
  ? #9  Max length for task titles                                                                                        1m ago │  Status ─────────────────────────────────────────────────────────────
@@ -95,15 +95,15 @@
        Reading the logs                                                                                                         │
  ◐ #18 日本語のタイトルはとても長いので二倍の幅になります 🚀🚀 and then some more           5%                           1m     │
        幅の広い文字 🎉 の行                                                                                                     │
+ ◓ #3  Max length for task titles                                                          Q#2                           1m     │
+       Waiting for a free slot                                                                                                  │
                                                                                                                                 │
  to do                                                                                                                          │
  ○ #1  Max length for task titles                                                                                        1m ago │
- ○ #3  Max length for task titles  Waiting for a free slot                                                               1m ago │
  ○ #19 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT                                                      1m ago │
                                                                                                                                 │
  done                                                                                                                           │
  ✓ #15 Max length for task titles                                                                        R#1 PR#60       1m ago │
-                                                                                                                                │
                                                                                                                                 │
                                                                                                                                 │
                                                                                                                                 │
@@ -219,6 +219,7 @@
    ◐            an agent works
    ◑            its reviewer works
    ◒            the board works on it (starts, checks, merges)
+   ◓            waits for a free slot; Q#1 gets the next one
    ?            asks you
    !            asks for your OK
    @            needs a login
@@ -236,14 +237,13 @@
 
 
 
-
  + New task  added word for word
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ❯ Add a task
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   ↑↓ pick a key · enter press it · esc close the menu
 == a draft
- herdr-superwork  proj · 5 need you · 1 ready · 8 working · 3 to do · 1 done
+ herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
 
  needs you
  ? #9  Max length for task titles                                                                                                                                                                 1m ago
@@ -278,15 +278,15 @@
        Reading the logs
  ◐ #18 日本語のタイトルはとても長いので二倍の幅になります 🚀🚀 and then some more                                                                         ░░░░░░░░   5%                           1m
        幅の広い文字 🎉 の行
+ ◓ #3  Max length for task titles                                                                                                                                   Q#2                           1m
+       Waiting for a free slot
 
  to do
  ○ #1  Max length for task titles                                                                                                                                                                 1m ago
- ○ #3  Max length for task titles  Waiting for a free slot                                                                                                                                        1m ago
  ○ #19 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT                                                                                                                               1m ago
 
  done
  ✓ #15 Max length for task titles                                                                                                                                                 R#1 PR#60       1m ago
-
 
 
 

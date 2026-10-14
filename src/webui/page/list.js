@@ -9,7 +9,8 @@ const titleOf = (r) => { const at = r.made ? r.title.lastIndexOf("[auto]") : -1;
 export function rowEl(r, { selected, onPick }) {
   const tags = h("span.sw-tags", r.review?.length ? ink(r.review, "sw-tag") : null,
     r.pr?.length ? (r.prUrl ? h("a.sw-tag", { href: r.prUrl, target: "_blank", rel: "noopener noreferrer", onclick: (e) => e.stopPropagation() }, ink(r.pr)) : ink(r.pr, "sw-tag")) : null);
-  const meter = r.progress === null && !r.eta ? null : h("span.sw-meter", { className: `sw-meter sw-c-${r.color}` },
+  // A task that waits for a free slot has its place in the queue (Q#2) where a task at work has its percent.
+  const meter = r.progress === null && !r.eta && !r.percent ? null : h("span.sw-meter", { className: `sw-meter sw-c-${r.color}` },
     r.progress === null ? null : h("span.sw-bar", { role: "progressbar", "aria-valuenow": r.progress, "aria-valuemin": 0, "aria-valuemax": 100 }, h("span.sw-bar-fill", { style: `width:${r.progress}%` })),
     r.percent ? h("span.sw-num", r.percent) : null, r.eta ? h("span.sw-num", r.eta) : null);
   const says = said(r.says);

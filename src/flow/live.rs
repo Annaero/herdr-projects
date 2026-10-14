@@ -69,7 +69,14 @@ pub fn saved(t: &Task) -> Obj {
     let mut probe = t.clone();
     probe.put("pendingText", false);
     pick(&mut out, &show(&probe, &Value::Null, crate::clock::now()));
+    if let Some(n) = queue_place(t) { out.put("queuePlace", n); }
     out
+}
+/// A waiting task's place in the queue for a free slot, from every task saved (shown/queue.rs).
+pub fn queue_place(t: &Task) -> Option<i64> {
+    if !crate::shown::queue::queued(t) { return None; }
+    let all = list(ListOpts { attempts: true, ..Default::default() });
+    crate::shown::queue::places(all.iter()).into_iter().find(|(id, _)| id == t.s("id")).map(|(_, n)| n)
 }
 fn session_for(tasks: &[Task], socket: &str) -> Session {
     let needs = tasks.iter().any(|t| (is_agent_task(t) || !t.arr("attempts").is_empty()) && t.at("link").s("socket") == socket);
@@ -80,14 +87,18 @@ pub fn board_for(socket: &str) -> Vec<Obj> {
     let tasks = list(ListOpts::default());
     let session = session_for(&tasks, socket);
     let mut seen = BTreeMap::new();
-    tasks.iter().map(|t| shown(t, &session, socket, &mut seen)).collect()
+    let mut rows: Vec<Obj> = tasks.iter().map(|t| shown(t, &session, socket, &mut seen)).collect();
+    crate::shown::queue::number(&mut rows);
+    rows
 }
 pub fn board(include_archived: bool) -> Vec<Obj> {
     let here = current_socket();
     let tasks = list(ListOpts { include_archived, ..Default::default() });
     let session = session_for(&tasks, &here);
     let mut seen = BTreeMap::new();
-    tasks.iter().map(|t| shown(t, &session, &here, &mut seen)).collect()
+    let mut rows: Vec<Obj> = tasks.iter().map(|t| shown(t, &session, &here, &mut seen)).collect();
+    crate::shown::queue::number(&mut rows);
+    rows
 }
 /// Refuse a live action with the reason the board shows.
 pub fn assert_live(t: &Task) -> Res<()> {

@@ -8,6 +8,7 @@ use crate::board::tags::number_cells;
 use crate::board::theme::Theme;
 use crate::json::*;
 use crate::shown::ink::{Ink, Inked};
+use crate::shown::queue::queued;
 use crate::shown::states::is_live;
 
 /// The most lines a live task's name takes, and the most what it says takes.
@@ -41,10 +42,13 @@ pub fn wrap_parts(s: &State, r: &Obj, width: usize, cells: Option<usize>) -> Par
     let say_room = width.saturating_sub(say_lead).max(1);
     let f = fields(s, crate::board::theme::Theme::measure(), r, s.now);
     let said = if is_auto(r) { auto_said(s, r, "all") } else { says_under(s, r, false) };
-    // A row with nothing for its last line but a time has the time at the end of what it says instead.
-    let lone = if is_auto(r) { f.when.clone() } else if f.bar.is_empty() && f.percent.is_empty() && f.eta.is_empty() && f.review.is_empty() && f.pr.is_empty() { format!("{}{}", f.elapsed, if f.ago { " ago" } else { "" }) } else { String::new() };
+    // A row with nothing for its last line but a time has the time at the end of what it says instead; a task that
+    // waits for a free slot its place in the queue with it (`Q#2  2m`).
+    let time = Inked::of(format!("{}{}", f.elapsed, if f.ago { " ago" } else { "" }), Ink::Muted);
+    let bare = f.bar.is_empty() && f.eta.is_empty() && f.review.is_empty() && f.pr.is_empty();
+    let lone = if is_auto(r) { Inked::of(f.when.clone(), Ink::Muted) } else if bare && f.percent.is_empty() { time } else if bare && queued(r) { f.percent.clone().add(Inked::plain("  ")).add(time) } else { Inked::new() };
     let mut says = up_to(said.wrap(say_room), WRAP_LINES, say_room);
-    let lw = crate::text::width(&lone);
+    let lw = lone.width();
     if !lone.is_empty() && is_auto(r) && says.last().map(|l| l.width()).unwrap_or(0) as i64 > say_room as i64 - lw as i64 - 2 { says.push(Inked::new()); }
     if !lone.is_empty() {
         let last = says.len().saturating_sub(1);
@@ -52,7 +56,7 @@ pub fn wrap_parts(s: &State, r: &Obj, width: usize, cells: Option<usize>) -> Par
         let line = says.get(last).cloned().unwrap_or_default();
         let line = if line.width() > room2 { line.cut(room2) } else { line };
         let gap = say_room.saturating_sub(line.width() + lw).max(1);
-        let joined = line.add(Inked::spaces(gap)).add(Inked::of(lone.clone(), Ink::Muted));
+        let joined = line.add(Inked::spaces(gap)).add(lone.clone());
         if says.is_empty() { says.push(joined); } else { says[last] = joined; }
     }
     Parts { indent, cells, lead: say_lead, name, says, lone: !lone.is_empty() }

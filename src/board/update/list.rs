@@ -7,6 +7,7 @@ use crate::board::tags::number_tag;
 use crate::board::keys::key_name;
 use crate::json::*;
 use crate::shown::ink::Ink;
+use crate::shown::queue::queued;
 use crate::shown::states::{group_of, is_live, GROUPS};
 
 /// A long done list folds to its latest few. A list taller than its room shows fewer still, down to one.
@@ -59,7 +60,12 @@ pub fn relist(s: &mut State) {
         names.into_iter().map(|g| { let list = shown.iter().filter(|r| repo_name(r) == g).cloned().collect(); (g, list) }).collect()
     } else {
         let mut g: Vec<(String, Vec<Rec>)> = vec![("archived".to_string(), shown.iter().filter(|r| r.b("archivedAt")).cloned().collect::<Vec<_>>()), ("pinned".to_string(), shown.iter().filter(|r| r.b("pinned") && !r.b("archivedAt")).cloned().collect())];
-        for name in GROUPS { g.push((name.to_string(), shown.iter().filter(|r| group_of(r) == name && !r.b("pinned") && !r.b("archivedAt")).cloned().collect())); }
+        for name in GROUPS {
+            let mut rows: Vec<Rec> = shown.iter().filter(|r| group_of(r) == name && !r.b("pinned") && !r.b("archivedAt")).cloned().collect();
+            // The tasks that wait for a free slot stand last under `working`, in the order they get one (Q#1 first).
+            rows.sort_by_key(|r| if queued(r) { (1, r.i("queuePlace")) } else { (0, 0) });
+            g.push((name.to_string(), rows));
+        }
         g
     };
     s.whole = s.all_done || !f.is_empty();

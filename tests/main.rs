@@ -46,6 +46,7 @@ mod board_panel;
 mod board_panel_form;
 mod board_parts;
 mod board_parts_rest;
+mod board_queue;
 mod board_reply;
 mod board_resize;
 mod board_review;

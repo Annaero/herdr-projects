@@ -8,16 +8,18 @@ use crate::flow::live::board;
 use crate::herdr::cli::current_socket;
 use crate::json::*;
 use crate::research::is_research;
+use crate::shown::queue::{queued, tag as queue_tag, words as queue_words};
 use crate::store::{keys::{repo_keys, tag_of}, reviews::{current_review, review_round}, tasks::find, titles::title_note};
 
 fn line(t: &Obj) -> String {
     format!("{:<14} {:<8}{}{}  {}{}{}{}", t.s("id"), t.t("state"), if t.b("kind") { format!(" {}", t.s("kind")) } else { String::new() }, if t.b("shownApp") { format!(" [{}]", t.s("shownApp")) } else { String::new() },
-        t.s("title"), if t.b("research") { " [research]" } else { "" }, if t.b("note") { format!("  · {}", t.s("note")) } else { String::new() }, if t.b("archivedAt") { "  (archived)" } else { "" })
+        t.s("title"), if t.b("research") { " [research]" } else { "" }, if queued(t) { format!("  · {}", queue_words(t)) } else if t.b("note") { format!("  · {}", t.s("note")) } else { String::new() }, if t.b("archivedAt") { "  (archived)" } else { "" })
 }
 fn brief(t: &Obj) -> Value {
     let mut o = obj(json!({ "id": t.at("id"), "state": t.at("state"), "kind": t.at("kind"), "app": t.at("shownApp"), "title": t.at("title"), "msg": t.at("note"), "stage": t.at("stage"), "progress": t.at("progress"), "eta": t.at("eta") }));
     if t.b("pr") { o.put("pr", t.at("pr").clone()); }
     if t.b("research") { o.put("research", t.at("research").clone()); }
+    if !queue_tag(t).is_empty() { o.put("queue", t.i("queuePlace")); } // its place in the queue for a free slot: 1 gets the next
     if t.b("archivedAt") { o.put("archivedAt", t.at("archivedAt").clone()); }
     if let Some(rv) = current_review(t) { o.put("review", rv.clone()); }
     if review_round(t) > 0 { o.put("reviewRound", review_round(t)); }
@@ -87,7 +89,7 @@ pub fn command(cmd: &str, a: &Args) -> Res<(Value, String)> {
             let t = start::delegate_with(&need(1, "an id")?, settings, wait)?;
             let how = if let Some(w) = crate::after::waiting_words(&t) { format!("delegated, {w}") }
                 else if t.s("stage") == "attempts" { format!("started, {} attempts at once ({})", t.arr("attempts").len(), t.arr("attempts").iter().map(|x| format!("{} {}", x.s("letter"), x.s("agent"))).collect::<Vec<_>>().join(", ")) }
-                else if t.s("stage") == "queued" { "started, waiting for a free slot".into() } else { "started, an agent is on it".into() };
+                else if t.s("stage") == "queued" { format!("started, {}", queue_words(&crate::flow::live::saved(&t))) } else { "started, an agent is on it".into() };
             (shown_of(t.s("id")), format!("{}: {how}", t.s("id")))
         }
         "after" => {

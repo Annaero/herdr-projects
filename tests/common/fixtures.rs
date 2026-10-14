@@ -17,7 +17,7 @@ pub fn fixture_rows(task: &Obj, now: i64) -> Vec<(&'static str, Obj)> {
     vec![
         ("to do", with(1, json!({ "agent": null, "app": "", "state": "idle", "stage": "todo" }))),
         ("yours, in progress", with(2, json!({ "agent": null, "app": "me", "state": "working", "stage": "progress", "progress": 40, "eta": 90, "msg": "Drafting" }))),
-        ("queued", with(3, json!({ "state": "idle", "stage": "queued", "msg": "Waiting for a free slot" }))),
+        ("queued", with(3, json!({ "state": "working", "stage": "queued", "queuePlace": 2, "msg": "Waiting for a free slot" }))),
         ("starting", with(4, json!({ "state": "working", "stage": "starting", "msg": "Starting" }))),
         ("working", with(5, json!({ "state": "working", "stage": "working", "progress": 60, "eta": 11, "msg": "Found the cause; now checking every caller of the resize handler for the same mistake" }))),
         ("working, long numbers", with(12345, json!({ "state": "working", "stage": "working", "progress": 100, "eta": 1439, "msg": "x".repeat(300), "at": now - 400 * 24 * 60 * MIN }))),

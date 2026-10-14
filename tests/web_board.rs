@@ -121,7 +121,7 @@ fn a_button_presses_the_boards_own_key_a_merge_asks_first_and_typed_words_are_se
 fn every_colour_name_has_a_colour_on_the_page_every_state_a_mark_and_every_setting_a_row() {
     let css = include_str!("../src/webui/page/board.css");
     use sw::shown::ink::Ink::*;
-    for ink in [Text, Soft, Muted, Red, Green, Yellow, Teal, Peach, Accent, Review, Check, Todo, Auto, Rule, Dim] {
+    for ink in [Text, Soft, Muted, Red, Green, Yellow, Teal, Peach, Accent, Review, Check, Queue, Todo, Auto, Rule, Dim] {
         let name = ink.name();
         assert!(regex::Regex::new(&format!(r"\.sw-c-{name}(?:[^a-z0-9_-])[^{{}}]*\{{[^}}]*color:")).unwrap().is_match(css), "the web page has no colour for \"{name}\"");
     }
