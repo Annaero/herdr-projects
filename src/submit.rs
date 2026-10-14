@@ -120,6 +120,7 @@ pub fn confirm(api: &Herdr, pane: &str, mark: Option<Value>, said: Option<&dyn F
 /// A task's agent: the mark rides on the task, and the housekeeping pass looks again. `first`: the text is everything
 /// a freshly started program was given. Text typed earlier that the agent has not started on is still in its box.
 pub fn note_sent(id: &str, mark: Option<Value>, text: &str, first: bool) {
+    crate::store::said_by::note_board(id, text);
     let _ = update_wait(id, 10000, |t| {
         let was = mark.as_ref().map(|m| json!({ "agent_status": if m.b("busy") { "working" } else { "idle" }, "state_change_seq": m.at("seq"), "completion_seq": m.at("comp"), "terminal_id": m.at("term") }));
         let old = if t.at("unsent").is_object() { Some(t.at("unsent").clone()) }

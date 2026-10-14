@@ -441,8 +441,11 @@ panel.
 **The box scrolls through the conversation's words.** It opens on the newest thing said and holds only that. What
 was said and sent before is above it: `Alt+U` opens the box to the conversation and scrolls up through it, `Alt+J`
 down, half a box at a time (U sits above J on the keyboard), and down once more from its end closes it to the
-newest message again. The last dozen things said are there, each under the line that names who said it; what was
-sent to an agent or a reviewer (`To the agent:`, `To the reviewer:`) is a long brief, so only its beginning shows.
+newest message again. The last dozen things said are there, each under the line that names who said it, as in the
+Coordinator's chat: `You:` for your words (typed in the box, with `tell`, or in the agent's own pane), `Agent:` or
+`Reviewer:` for what it said, `Coordinator:` for what the Coordinator sent it, and `Board:` for what the board sent
+on its own (its brief, a review's findings, the word to go on). A long text sent, such as a brief, shows only its
+beginning.
 The mouse wheel does the same with the pointer over the chat ([the mouse](mouse.md)). Both work while you type, and
 neither touches the draft. The box says where there is more and names the key: `alt+u more ↑` on its top edge,
 `alt+j more ↓` at the right of the line under the message (in a narrow window only `more ↓`, then only the arrow).

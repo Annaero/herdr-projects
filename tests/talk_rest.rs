@@ -85,7 +85,7 @@ fn a_working_agents_chat_is_its_words_never_its_tool_calls_or_its_screen_where_i
     s.load();
     let b = boxed(&mut s); assert_eq!(b[..b.len() - 2].to_vec(), vec!["Agent:", "I am writing f now:", "- the file", "- its test"]);
     assert!(!regex::Regex::new(r"Bash\(|3 passed|Transmuting|bypass permissions|tokens\)").unwrap().is_match(&s.text()), "{}", s.text());
-    s.press(&["alt+u"]); assert_eq!(boxed(&mut s)[..2].to_vec(), vec!["To the agent:", "Work board task proj/1, role: agent."]);
+    s.press(&["alt+u"]); assert_eq!(boxed(&mut s)[..2].to_vec(), vec!["Board:", "Work board task proj/1, role: agent."]);
     // a dialog only its screen has: said plainly, with the key that goes there; not the screen
     let r = s.s.current().unwrap().clone();
     let mut live = r.at("live").clone(); if !live.is_object() { live = json!({}); } live["status"] = json!("blocked");

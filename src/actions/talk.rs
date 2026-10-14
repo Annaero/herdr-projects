@@ -16,6 +16,17 @@ use crate::store::handovers::fresh_list;
 use crate::store::inbox::queue_text;
 use crate::store::tasks::{assert_unarchived, find, get, update, Change, Task};
 
+/// Words a person typed for a task's agent (`by`: "you", or "coordinator"): noted as theirs, so its conversation says
+/// who said them, then told.
+pub fn reply(id: &str, text: &str, by: &str) -> Res<Said> {
+    if let Ok(t) = find(id) { crate::store::said_by::note_person(t.s("id"), by, text.trim()); }
+    tell(id, text, false)
+}
+/// Who runs this command: the Coordinator where it runs in the Coordinator's own folder, else you.
+pub fn asker() -> &'static str {
+    let home = crate::coordinator::state::home(&crate::herdr::cli::current_socket());
+    if std::env::current_dir().map(|d| d.starts_with(&home)).unwrap_or(false) { "coordinator" } else { crate::status_words::who::YOU }
+}
 /// A reply from the board is a human turn: it re-arms the pipeline, revokes an approval, cancels a pending
 /// auto-merge and marks the old review stale, exactly as typing in the agent's own terminal does.
 pub fn tell(id: &str, text: &str, keep_intent: bool) -> Res<Said> {
@@ -27,6 +38,7 @@ pub fn tell(id: &str, text: &str, keep_intent: bool) -> Res<Said> {
     // A reply to a plan that waits for you sends the plan back to its writer with these words.
     let back = awaits_plan(&cur);
     let words = if back { plan_reply(&cur, typed) } else { typed.to_string() };
+    if back { crate::store::said_by::carry(&cid, typed, &cid, &words); } // your words, inside the board's: still yours
     // A reply to a task that never had an agent starts one with that message, through the normal delegation path.
     if !flow::task::is_agent_task(&cur) && ["todo", "progress"].contains(&cur.s("stage")) {
         queue_text(&cid, &words, Obj::new())?;
@@ -39,7 +51,7 @@ pub fn tell(id: &str, text: &str, keep_intent: bool) -> Res<Said> {
         if live.is_empty() { crate::fail!("{cid}: none of its attempts can take a message right now."); }
         let asking: Vec<Task> = live.iter().filter(|c| standing_of(c, n) == "needs").cloned().collect(); // an answer is for the ones that asked
         if !asking.is_empty() { live = asking; }
-        for c in &live { tell(c.s("id"), &words, keep_intent)?; }
+        for c in &live { crate::store::said_by::carry(&cid, &words, c.s("id"), &words); tell(c.s("id"), &words, keep_intent)?; }
         let msg = if live.len() == 1 { format!("Sent to attempt {}", live[0].s("letter")) } else { format!("Sent to {} attempts ({})", live.len(), live.iter().map(|c| c.t("letter")).collect::<Vec<_>>().join(", ")) };
         return Ok(say(get(&cid).unwrap_or(cur), msg));
     }

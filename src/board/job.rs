@@ -103,7 +103,7 @@ fn run_one(job: Job) -> Done {
     let out = (|| -> crate::err::Res<Done> {
         Ok(match job {
             Job::Tell { id, text, fresh } => {
-                let out = talk::tell(&id, &text, false)?;
+                let out = talk::reply(&id, &text, crate::status_words::who::YOU)?;
                 let ink = if out.msg.starts_with("queued") { Ink::Yellow } else { Ink::Green };
                 let mut d = Done::say(out.msg.clone(), ink).and(Then::NoteSent { id, text });
                 if !fresh && out.msg == "Sent to the agent" { d.flash = Some((out.msg, Ink::Plain)); } // plainly sent: the box shows your words (said only with the chat hidden)

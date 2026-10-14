@@ -95,7 +95,7 @@ pub fn command(cmd: &str, a: &Args) -> Res<(Value, String)> {
             let (t, msg) = crate::after::change::change(&need(1, "an id")?, refs)?;
             (shown_of(t.s("id")), msg)
         }
-        "tell" => { let id = need(1, "an id")?; need(2, "the text")?; said(talk::tell(&id, &rest(2), false)?) }
+        "tell" => { let id = need(1, "an id")?; need(2, "the text")?; said(talk::reply(&id, &rest(2), talk::asker())?) }
         "stop" => { let t = talk::stop(&need(1, "an id")?)?; (shown_of(t.s("id")), format!("{}: stopped", t.s("id"))) }
         "start" => { let t = filing::start_human(&need(1, "an id")?)?; (shown_of(t.s("id")), format!("{}: in progress", t.s("id"))) }
         "pick" => said(crate::attempts::settle::pick(&need(1, "an id")?, &pos.get(2).cloned().unwrap_or_default())?),

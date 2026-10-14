@@ -117,7 +117,7 @@ fn a_review_under_way_shows_what_the_reviewer_says_never_its_screen_and_a_workin
     assert!(!regex::Regex::new("Bash|npm run check|76 test files|OpenAI Codex").unwrap().is_match(&s.text()));
     s.press(&["alt+u"]);
     let (_, b) = chat_box(&mut s);
-    assert_eq!(b[..b.len() - 2].to_vec(), vec!["To the reviewer:", "Work board task proj/1, role: reviewer, round 1.", "You are an adversarial reviewer.", "", "Reviewer:", "I will check the earlier faults first.", "", "Reviewer:", "The full check passes. Now the browser."]);
+    assert_eq!(b[..b.len() - 2].to_vec(), vec!["Board:", "Work board task proj/1, role: reviewer, round 1.", "You are an adversarial reviewer.", "", "Reviewer:", "I will check the earlier faults first.", "", "Reviewer:", "The full check passes. Now the browser."]);
     s.press(&["alt+j"]);
     let (_, b) = chat_box(&mut s); assert_eq!(b[..b.len() - 2].to_vec(), vec!["Reviewer:", "The full check passes. Now the browser."]);
     use std::io::Write;

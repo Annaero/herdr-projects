@@ -1,7 +1,8 @@
 //! What a chat shows of a conversation: only its words. What a task's agent said, or its reviewer while the task is
-//! under review, and what was sent to it, each under a line that names whose words they are. Never the program's
-//! screen (no tool call, no spinner, no input box), but for a program whose conversation cannot be read: then only the
-//! words on its screen. Read from the task's `snap` (data.rs), this machine's or another's.
+//! under review, and what was sent to it, each under a line that names whose words they are: the agent's or the
+//! reviewer's, yours, the Coordinator's or the board's. Never the program's screen (no tool call, no spinner, no
+//! input box), but for a program whose conversation cannot be read: then only the words on its screen. Read from the
+//! task's `snap` (data.rs), this machine's or another's.
 use crate::board::keys::key_name;
 use crate::json::*;
 use crate::shown::words::brief;
@@ -11,6 +12,9 @@ use crate::shown::words::brief;
 pub struct Part { pub by: String, pub text: String, pub mine: bool, pub sent: bool, pub raw: bool, pub note: String, pub tone: String, pub whole: String }
 #[derive(Clone, Debug, Default)]
 pub struct Talk { pub who: String, pub name: String, pub parts: Vec<Part>, pub dialog: bool, pub raw: bool }
+/// Who typed what was sent to the program, by the name the chat gives them; as the Coordinator's chat has it, your own
+/// words are "You". (A machine that does not say who typed it says "you" for all of it.)
+fn sender(who: &str) -> &'static str { match who { "board" => "Board", "coordinator" => "Coordinator", _ => "You" } }
 /// What was sent is a brief or a prompt, often long: its beginning stands for it.
 fn sent(text: &str) -> String { brief(text, 600, " …") }
 /// Your own words stand once: where the conversation already ends with them, that part is yours.
@@ -38,7 +42,7 @@ pub fn talk(r: &Obj) -> Talk {
         if who == "agent" && r.b("said") && !list.iter().any(|m| m.s("who") == "them") { list.push(json!({ "who": "them", "text": r.t("said") })); }
         for m in list {
             if m.s("who") == "them" { parts.push(Part { by: name.into(), text: m.t("text"), ..Default::default() }); }
-            else { parts.push(Part { by: format!("To the {who}"), text: sent(m.s("text")), whole: m.t("text"), sent: true, ..Default::default() }); }
+            else { parts.push(Part { by: sender(m.s("who")).into(), text: sent(m.s("text")), whole: m.t("text"), sent: true, ..Default::default() }); }
         }
     }
     let raw = parts.iter().any(|p| p.raw);

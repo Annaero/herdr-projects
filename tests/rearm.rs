@@ -15,12 +15,14 @@ fn api(w: &World) -> Herdr { Herdr::new(Some(w.socket.clone())) }
 fn get(w: &World, pane: &str) -> Value { api(w).agent_get(pane).unwrap().unwrap() }
 fn with(a: &Value, f: Value) -> Value { let mut a = a.clone(); for (k, v) in f.as_object().cloned().unwrap() { a[k] = v; } a }
 fn jobs() -> Vec<String> { sw::runner::JOBS.with(|j| j.borrow().iter().map(|x| x.0.clone()).collect()) }
-/// The closing note written now, and stamped a little later than now.
+/// The closing note written now, and stamped a little later than now. The board's clock stands still from here, so
+/// nothing it does next (a turn handled, re-armed) is later than the note, however slow the machine.
 fn note(t: &Obj, text: Option<&str>, later_ms: u64) {
+    let at = sw::clock::now(); sw::clock::set(Some(at));
     let p = sw::flow::task::note_file(t);
     std::fs::create_dir_all(p.parent().unwrap()).unwrap();
     if let Some(text) = text { std::fs::write(&p, text).unwrap(); }
-    std::fs::File::options().write(true).open(&p).unwrap().set_modified(std::time::SystemTime::now() + std::time::Duration::from_millis(later_ms)).unwrap();
+    std::fs::File::options().write(true).open(&p).unwrap().set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_millis(at as u64 + later_ms)).unwrap();
 }
 /// herdr sees the pane's agent at `status`; `done` also counts a finished turn.
 fn herdr_says(w: &World, pane: &str, status: &str, complete: bool, by: i64) {

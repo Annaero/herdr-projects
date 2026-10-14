@@ -81,7 +81,9 @@ fn more_than_the_merge_needed_is_reviewed_again_a_file_that_did_not_conflict_or_
             let note = sw::flow::task::note_file(&t);
             std::fs::create_dir_all(note.parent().unwrap()).unwrap();
             std::fs::write(&note, "Resolved, and more.").unwrap();
-            std::fs::File::options().write(true).open(&note).unwrap().set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(2)).unwrap();
+            // stamped later than anything the board does next: its clock stands still from here, however slow the machine
+            let at = sw::clock::now(); sw::clock::set(Some(at));
+            std::fs::File::options().write(true).open(&note).unwrap().set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_millis(at as u64 + 2000)).unwrap();
             let pane = t.at("link").t("pane");
             w.patch(|s| { let seq = s.i("seq") + 1; s["seq"] = json!(seq); for p in s["panes"].as_array_mut().unwrap() { if p.s("pane_id") == pane { p["agent"]["status"] = json!("done"); p["agent"]["seq"] = json!(seq); p["agent"]["completion"] = json!(seq); } } });
             t = settle(&id); for _ in 0..2 { t = settle(&id); }

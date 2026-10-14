@@ -18,6 +18,7 @@ pub mod repos;
 pub mod retries;
 pub mod reviews;
 pub mod runs;
+pub mod said_by;
 pub mod settings;
 pub mod settings_list;
 pub mod tasks;
