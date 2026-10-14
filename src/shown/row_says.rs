@@ -41,10 +41,12 @@ pub fn sentence(r: &Obj) -> Inked {
     // Cut off by its provider, and the board tries again by itself: the row says why and when.
     if waiting_of(r).is_some() { return quiet(words(r.s("msg"))); }
     if let Some(f) = failure_for(r) { if !f.b("sentAt") && (r.b("failure") || r.b("prFailure")) { return quiet(words(if f.b("msg") { f.s("msg") } else { f.s("title") })); } }
-    if failed_review(r) { let t = review_tally(r); return Inked::of("Review failed", Ink::Red).add(quiet(if t.is_empty() { t } else { format!(" · {t}") })); }
+    // A chat with its agent changed no code: the review's result, and that it still stands (flow/chat.rs).
+    let kept = |t: String| if r.b("chatKept") { [t, crate::flow::chat::KEPT_LINE.to_string()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ") } else { t };
+    if failed_review(r) { let t = kept(review_tally(r)); return Inked::of("Review failed", Ink::Red).add(quiet(if t.is_empty() { t } else { format!(" · {t}") })); }
     if in_review(r) {
         let rv = current_review(r);
-        if let Some(rv) = rv.filter(|rv| gate::is_tagged(rv)) { let t = gate::tally(rv); return Inked::of(gate::word(rv), result_ink(rv)).add(quiet(if t.is_empty() { t } else { format!(" · {t}") })); }
+        if let Some(rv) = rv.filter(|rv| gate::is_tagged(rv)) { let t = kept(gate::tally(rv)); return Inked::of(gate::word(rv), result_ink(rv)).add(quiet(if t.is_empty() { t } else { format!(" · {t}") })); }
         let Some(rv) = rv.filter(|rv| gate::is_int(rv.at("score"))) else { return if r.at("review").b("stale") { quiet("The work changed since its review".into()) } else { Inked::new() } };
         let adv = match rv.at("recommend").as_bool() { Some(true) => " reviewer says yes", Some(false) => " reviewer says no", None => "" };
         return Inked::of(format!("{}/5", rv.t("score")), result_ink(rv)).add(quiet(adv.into()));

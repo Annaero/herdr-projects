@@ -1,5 +1,5 @@
 //! What the old board-talk test checked that tests/talk.rs does not: under review the web board's chat has what the
-//! reviewer says and its text box says a message stops the review; another machine's task shows what its machine sent,
+//! reviewer says and its text box says the review goes on through a message; another machine's task shows what its machine sent,
 //! or says that machine is too old to send it; the reviewer's screen is read fresh; a dialog is said in words; and a
 //! working agent's chat is its words (markdown read as text), never its tool calls, or its screen where it cannot be read.
 use crate::common;
@@ -49,7 +49,7 @@ fn under_review_the_web_board_another_machine_and_a_dialog_say_what_the_reviewer
     let side = sw::webui::model::side::side_of(&mut s.s, &s.theme.clone());
     assert_eq!(side.at("chat").arr("parts").last().unwrap(), &json!({ "by": "Reviewer", "text": "One fault left: the header is cut.", "mine": false, "tone": "", "raw": false }));
     assert_eq!(side.at("chat").at("raw"), &json!(false));
-    assert_eq!(side.at("send").s("place"), "Send message to Agent: it stops the review");
+    assert_eq!(side.at("send").s("place"), "Send message to Agent: the review goes on unless the code changes");
     // another machine's task: what that machine sent; one on an older version sends none, and that is said
     let r = s.s.current().unwrap().clone();
     let sent = sw::remote::remote_list().at("tasks").as_array().unwrap().iter().find(|x| x.s("id") == id).unwrap().at("snap").at("talk").clone();

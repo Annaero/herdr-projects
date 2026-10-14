@@ -111,6 +111,8 @@ pub fn apply(id: &str, a: &Value, api: &Herdr) {
             // The turn is the human's: typing in the agent's own terminal re-arms the pipeline.
             if !t.b("turnOpen") || t.s("stage") != "working" {
                 if !after_handled(t, a, prev_same) { return Ok(Change::Write); } // still the turn the finish line handled, not a new one
+                // A review under way goes on while you chat, unless the code changes (flow/chat.rs).
+                if crate::flow::chat::begin(t, "terminal", runner_alive(t)) == crate::flow::chat::Began::During { granted(t); return Ok(Change::Write); }
                 then = if t.b("autoMerge") { Then::CancelAuto } else { Then::Unlabel };
                 if t.b("mergeIntent") || t.s("stage") == "approval" { t.put("requireApproval", true); }
                 t.put("mergeIntent", Value::Null);
@@ -233,6 +235,7 @@ fn missed_turn(t: &Task, comp: &Value) -> bool {
     false
 }
 pub fn human_turn_ended(t: &mut Task) {
+    crate::flow::chat::begin(t, "", false);
     if t.b("mergeIntent") || t.s("stage") == "approval" { t.put("requireApproval", true); }
     t.put("mergeIntent", Value::Null);
     stale_review(t);

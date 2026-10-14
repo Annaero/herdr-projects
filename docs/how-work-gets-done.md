@@ -39,7 +39,33 @@ saved conversation ends in a finished message or an error, or a closing note was
 rules still ask for one as the fallback). Otherwise the task is held as
 "Stopped without a summary": `Ctrl+R` tells the agent to continue, `Ctrl+L` takes the work as it is. Typing in the agent's own
 terminal, or replying from the board, re-arms all of this: an approval is revoked, a pending auto-merge cancelled (a
-cancellation that fails is saved as a visible failure), the old review marked stale.
+cancellation that fails is saved as a visible failure), the old review marked stale. A chat with reviewed work is
+the exception below: what it re-arms only counts once the code changed.
+
+**Chatting with a finished task re-reviews only what changed.** When you talk to the agent of a task that is under
+review, waits for your yes or is done (your own words, from the board, `tell` or typed in its own pane; the keys
+that send a review or a failure back are no chat), the board keeps what the last review
+covered: the commit it looked at, with nothing uncommitted on top. When the agent's turn ends it compares:
+
+- *No code changed* (a question answered, something explained, nothing committed or edited): the task goes back to
+  the stage it was in, with the same review, and no check, review or merge starts. Its row says so after the
+  review's result (`Pass · 1 minor · Chatting · no changes, review kept`), and the task panel lists it under that
+  review (`a chat changed no code, review 2 still stands`, with when and how often).
+- *A review was under way* when you wrote: it goes on (the box says `Send message to Agent: the review goes on unless
+  the code changes`), and what the reviewer changed is not put back while the agent may be at work in the same folder.
+  When the agent's turn changed nothing, the review's result stands as it ends; when it changed the code, the review
+  is stopped (or, if it is through by then, its result no longer covers the work) and the change waits as below.
+- *The code changed*: nothing is reviewed after each message. The row says `Changes made · review starts when you're
+  done`, and the board waits until you are: you left the chat (selected another task on the board, or herdr shows
+  another space than the agent's, for a chat in its own pane), or `review.afterChat` (60 seconds) passed with no new
+  message from you and the agent at rest. Then one review runs on the final state, through the whole finish line
+  (commit, main brought in, check, push, review). Another message before then starts the quiet time again, and a turn
+  that puts the code back as it was reviewed puts the task back too.
+
+Everything else stays as it was: what you ask for in a chat is still reviewed before any merge, a task that merges by
+itself never merges while a chat is open or with unreviewed changes, and an approval you gave is withdrawn when the
+code changes (a merge that waited for GitHub's checks is called off by any chat: its change waits for you to be done,
+like any chat's, and the task waits for your new yes after the review).
 
 **With the board closed** a small background process, the keeper (`herdr-superwork keeper`), does what the open
 board's tick does: it polls pull requests, starts queued tasks, runs the Watcher, keeps herdr's sidebar

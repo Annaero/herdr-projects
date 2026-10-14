@@ -1,6 +1,7 @@
-//! Typing in the agent's own terminal re-arms the pipeline (approval revoked, review stale, checked again), and the
-//! readings that must not: a late `working` of the turn already handled, one from the terminal herdr had before it
-//! restarted, one an older version saved, and a task an older version left stuck re-armed. A closing note is handled once.
+//! Typing in the agent's own terminal re-arms the pipeline (approval revoked, review stale, checked again once you
+//! are done with the chat), and the readings that must not: a late `working` of the turn already handled, one from the
+//! terminal herdr had before it restarted, one an older version saved, and a task an older version left stuck re-armed.
+//! A closing note is handled once.
 use crate::common;
 use common::*;
 use serde_json::{json, Value};
@@ -30,6 +31,15 @@ fn herdr_says(w: &World, pane: &str, status: &str, complete: bool, by: i64) {
 }
 fn new_terminal(w: &World, pane: &str, term: &str) { w.patch(|s| { for p in s["panes"].as_array_mut().unwrap() { if p.s("pane_id") == pane { p["terminal_id"] = json!(term); } } }); }
 fn head(t: &Obj) -> String { git(Path::new(t.s("worktree")), &["rev-parse", "HEAD"]) }
+/// A turn typed in the agent's own pane that changed the code waits for you to be done with the chat: the quiet time
+/// passes, and its one review runs.
+fn quiet_passes(w: &World, id: &str) -> Obj {
+    let t = task(id);
+    assert!(sw::flow::chat::held(&t), "waits for you: {} {}", t.s("stage"), t.at("chat"));
+    sw::clock::advance(61_000);
+    sw::housekeeping::housekeeping(&w.socket, sw::housekeeping::Force::Yes);
+    settle(id)
+}
 
 #[test]
 fn typing_in_the_agents_own_terminal_re_arms_the_pipeline_then_it_is_checked_again() {
@@ -45,7 +55,8 @@ fn typing_in_the_agents_own_terminal_re_arms_the_pipeline_then_it_is_checked_aga
     assert_eq!(row(&id).s("state"), "working");
     note(&t, Some("Did v2."), 50);
     herdr_says(&w, &pane, "done", true, 1);
-    let t = settle(&id);
+    settle(&id);
+    let t = quiet_passes(&w, &id);
     assert_eq!((t.s("stage"), t.s("summary"), t.at("review").b("stale")), ("approval", "Did v2.", false));
     assert_eq!(t.s("reviewedHead"), head(&t));
 }
@@ -69,7 +80,8 @@ fn a_closing_note_is_handled_once_its_time_reads_back_the_same_from_the_task_s_f
     let armed = t.at("armedAt").clone();
     // later readings of the same rest do not take that note for a new turn
     herdr_says(&w, &pane, "done", false, 1); on_pane(&w, &pane);
-    let t = settle(&id);
+    settle(&id);
+    let t = quiet_passes(&w, &id);
     assert_eq!((t.s("stage"), t.s("summary"), t.at("review").b("stale"), t.at("armedAt")), ("approval", "Did v2.", false, &armed));
     assert_eq!(t.s("reviewedHead"), head(&t));
 }
@@ -152,7 +164,8 @@ fn a_late_working_from_the_terminal_before_a_restart_does_not_re_open_work_finis
     assert_eq!((task(&id).t("stage"), task(&id).at("last").t("term"), jobs().len()), ("working".into(), "term_after_restart".into(), 0));
     note(&t, Some("Did v2."), 50);
     herdr_says(&w, &pane, "done", true, 1);
-    let t = settle(&id);
+    settle(&id);
+    let t = quiet_passes(&w, &id);
     assert_eq!(t.s("stage"), "approval", "{}", t.at("failure"));
     assert_eq!(t.at("handled").s("term"), "term_after_restart");
     assert!(old.i("state_change_seq") > t.at("handled").i("seq"));
@@ -213,7 +226,8 @@ fn a_turn_nobody_saw_start_still_counts_a_new_commit_behind_an_approval_is_check
     git(tree, &["commit", "-qam", "sneaky"]);
     note(&t, Some("Changed it again."), 2000);
     herdr_says(&w, t.at("link").s("pane"), "done", true, 2);
-    let t = settle(&id);
+    settle(&id);
+    let t = quiet_passes(&w, &id);
     assert_eq!((t.s("stage"), t.s("summary")), ("approval", "Changed it again."));
     assert_eq!(t.s("reviewedHead"), head(&t));
 }

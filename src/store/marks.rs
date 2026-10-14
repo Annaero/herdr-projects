@@ -13,6 +13,9 @@ pub fn due(name: &str, ms: i64) -> bool {
     if crate::clock::now() - last < ms { return false; }
     if let Some(d) = file.parent() { let _ = fs::create_dir_all(d); }
     let _ = fs::write(&file, std::process::id().to_string());
+    // Stamped with the board's own clock, which a test moves: the file's time and `now` are then the same clock.
+    let at = std::time::UNIX_EPOCH + std::time::Duration::from_millis(crate::clock::now().max(0) as u64);
+    if let Ok(f) = fs::File::options().write(true).open(&file) { let _ = f.set_modified(at); }
     true
 }
 /// A path as a person reads it: `~` for the home folder.

@@ -87,8 +87,9 @@ pub fn log_kept(t: &mut Task, k: &Value) {
     last.put("kept", kept);
     t.put("reviews", reviews);
 }
-/// "re-merged with main, tests pass, review 2 still stands"
+/// "re-merged with main, tests pass, review 2 still stands"; "a chat changed no code, review 2 still stands"
 pub fn kept_words(k: &Value, round: i64) -> String {
+    if k.b("chat") { return format!("a chat changed no code, review{} still stands", if round > 0 { format!(" {round}") } else { String::new() }); }
     let n = k.arr("resolved").len();
     format!("re-merged with main{}, {}, review{} still stands",
         if n > 0 { format!(" (conflicts resolved in {n} file{})", if n == 1 { "" } else { "s" }) } else { String::new() },

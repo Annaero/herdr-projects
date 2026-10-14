@@ -156,8 +156,9 @@ pub fn review_once(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, 
         if is_aborted(&e) { close_reviewer(id); if let Some((p, tb)) = &pane_tab { flow::tabs::close_reviewer_tab(&api, &json!({ "tab": tb, "pane": p })); } return Ok(Reviewed { aborted: true, ..Default::default() }); }
         error = crate::text::squash(&e.msg).chars().take(400).collect();
     }
-    // Put back anything the reviewer changed: what you approve is exactly what the agent committed.
-    if to_land && (flow::git::head_of(&folder) != head || !flow::git::dirty(&folder).is_empty()) { if git_out(&folder, &["reset", "--hard", &head]).is_ok() { let _ = git_out(&folder, &["clean", "-fd"]); } }
+    // Put back anything the reviewer changed: what you approve is exactly what the agent committed. Not while you chat
+    // with the agent: what changed may be its (flow/chat.rs), and the end of its turn decides.
+    if to_land && !get(id).map(|c| crate::flow::chat::during(&c)).unwrap_or(false) && (flow::git::head_of(&folder) != head || !flow::git::dirty(&folder).is_empty()) { if git_out(&folder, &["reset", "--hard", &head]).is_ok() { let _ = git_out(&folder, &["clean", "-fd"]); } }
     crate::limits::spent::count(id, "reviewer", 10000); // its tokens are the task's, read while the task still names its conversation
     close_reviewer(id);
     if get(id).map(|c| c.s("stage") == "reviewneeds").unwrap_or(false) { if let Err(e) = g.set(|t| { t.put("stage", "reviewing"); t.put("msg", "Review complete"); }) { if is_aborted(&e) { return Ok(Reviewed { aborted: true, ..Default::default() }); } } }

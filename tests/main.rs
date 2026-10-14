@@ -78,6 +78,7 @@ mod board_still_sight;
 mod board_textbox;
 mod board_widths;
 mod board_widths_rest;
+mod chat_review;
 mod check_progress;
 mod check_progress_rest;
 mod check_progress_run;

@@ -37,7 +37,7 @@ pub fn pipeline_job(id: &str) {
 pub fn pipeline(id: &str, g: &mut Guard, text: &str, keep_intent: bool, reason: &str, synced: Option<&sync::Synced>) -> Res<()> {
     // A task that starts with a plan, and the build has not started: this turn was the plan's (plan/written.rs).
     if crate::plan::pending(&g.check()?) { return crate::plan::written::plan_written(id, g, text); }
-    let mut t = g.set(|t| { t.put("stage", "checking"); t.put("syncBlocked", Value::Null); t.put("msg", if synced.is_some() { "Checking the branch updated with main" } else { "Checking the result" }); t.put("watch", Value::Null); t.put("check", Value::Null); t.put("summary", text.trim()); })?;
+    let mut t = g.set(|t| { t.del("chat"); t.del("chatKept"); t.put("stage", "checking"); t.put("syncBlocked", Value::Null); t.put("msg", if synced.is_some() { "Checking the branch updated with main" } else { "Checking the result" }); t.put("watch", Value::Null); t.put("check", Value::Null); t.put("summary", text.trim()); })?;
     let (folder, root) = (cwd_of(&t), folder_of(t.s("id")));
     let tree = if flow::task::is_agent_task(&t) && t.b("worktree") && Path::new(t.s("worktree")).exists() { t.t("worktree") } else { String::new() };
     let env = vec![("HERDR_SUPERWORK_ID".to_string(), t.t("id")), ("HERDR_SUPERWORK_WORKTREE".into(), folder.display().to_string()), ("HERDR_SUPERWORK_REPO".into(), root.display().to_string())];

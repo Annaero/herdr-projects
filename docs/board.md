@@ -462,8 +462,10 @@ are left out.
 **While a task is under review, the chat is its reviewer's.** From the moment the review starts until it ends, the
 box shows what the reviewer says (`Reviewer:`), kept fresh as it goes, for every program a reviewer can be. Before
 it has said anything: `The reviewer has just started: nothing to show yet.` A reviewer takes no messages (it judges
-the work as it is), so what you type still goes to the task's agent, and that ends the review, as typing in the
-agent's own pane does. The empty line says both: `Send message to Agent: it stops the review`. When the review
+the work as it is), so what you type still goes to the task's agent. The review goes on while you chat, as it does
+for typing in the agent's own pane, and stops only when the agent changes the code
+([chatting with a finished task](how-work-gets-done.md)). The empty line says both: `Send message to Agent: the review
+goes on unless the code changes`. When the review
 ends the chat is the agent's again, and the review's result is where it always is: on the row and in the task
 panel.
 - **One greyed hint line under the box**, with only the keys that do something right now. While you type, it says

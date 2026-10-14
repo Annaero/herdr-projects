@@ -20,7 +20,7 @@ use crate::store::tasks::{assert_unarchived, find, get, update, Change, Task};
 /// who said them, then told.
 pub fn reply(id: &str, text: &str, by: &str) -> Res<Said> {
     if let Ok(t) = find(id) { crate::store::said_by::note_person(t.s("id"), by, text.trim()); }
-    tell(id, text, false)
+    tell_as(id, text, false, true)
 }
 /// Who runs this command: the Coordinator where it runs in the Coordinator's own folder, else you.
 pub fn asker() -> &'static str {
@@ -29,7 +29,10 @@ pub fn asker() -> &'static str {
 }
 /// A reply from the board is a human turn: it re-arms the pipeline, revokes an approval, cancels a pending
 /// auto-merge and marks the old review stale, exactly as typing in the agent's own terminal does.
-pub fn tell(id: &str, text: &str, keep_intent: bool) -> Res<Said> {
+pub fn tell(id: &str, text: &str, keep_intent: bool) -> Res<Said> { tell_as(id, text, keep_intent, false) }
+/// `chat`: these are a person's own words (`reply`), so a chat with reviewed work re-reviews only what it changes
+/// (flow/chat.rs). The board's own messages on your key (send the review back, retry, carry on) are no chat.
+pub fn tell_as(id: &str, text: &str, keep_intent: bool, chat: bool) -> Res<Said> {
     let cur = find(id)?;
     assert_unarchived(&cur)?;
     let cid = cur.t("id");
@@ -68,14 +71,15 @@ pub fn tell(id: &str, text: &str, keep_intent: bool) -> Res<Said> {
     let live = flow::live::live_of(&cur, &flow::live::read_session(cur.at("link").s("socket")), &crate::herdr::cli::current_socket());
     if live.b("gone") || live.at("status").is_null() { // the agent has exited: start it again, with the words waiting for it
         queue_text(&cid, &words, Obj::new())?;
-        update(&cid, |t| { rearm(t, keep_intent)?; if back { sent_back(t); } Ok(Change::Write) })?;
+        update(&cid, |t| { rearm(t, keep_intent, false, chat)?; if back { sent_back(t); } Ok(Change::Write) })?;
         spawn_runner("restart", &cid, &[]);
         return Ok(say(get(&cid).unwrap_or(cur), "The agent had exited: starting it again with your message."));
     }
-    let t = update(&cid, |t| { rearm(t, keep_intent)?; if back { sent_back(t); } Ok(Change::Write) })?;
+    let t = update(&cid, |t| { rearm(t, keep_intent, true, chat)?; if back { sent_back(t); } Ok(Change::Write) })?;
     flow::sidebar::tell_sidebar(&t);
     let how = flow::send::deliver(&t, &words, None, false)?;
-    let msg = if how == "queued" { "queued: open the agent and answer its dialog first" } else if back { "The plan went back to its writer with your words" } else { "Sent to the agent" };
+    let goes_on = flow::chat::during(&t) && ["reviewing", "reviewneeds"].contains(&t.s("stage"));
+    let msg = if how == "queued" { "queued: open the agent and answer its dialog first" } else if back { "The plan went back to its writer with your words" } else if goes_on { "Sent to the agent: the review goes on unless the code changes" } else { "Sent to the agent" };
     Ok(say(get(&cid).unwrap_or(t), msg))
 }
 /// A task that just ended is being cleaned up: a reply waits for that, or its work would go with the worktree.
@@ -83,9 +87,12 @@ fn cleaning_up(t: &Task) -> Res<()> {
     if t.s("stage") == "done" && runner_alive(t) { return Err(Error::busy(format!("{} is cleaning up after it finished. Try again in a moment.", t.s("id")))); }
     Ok(())
 }
-/// What every human-started turn does to a task.
-pub fn rearm(t: &mut Task, keep_intent: bool) -> Res<()> {
+/// What every human-started turn does to a task. `chat` (your own words) with `live` (the agent is there to answer): a
+/// review under way goes on while you chat with it (flow/chat.rs), the stage stays and the turn is the chat's.
+pub fn rearm(t: &mut Task, keep_intent: bool, live: bool, chat: bool) -> Res<()> {
     cleaning_up(t)?;
+    if !chat { t.del("chat"); }
+    else if flow::chat::begin(t, "board", live && runner_alive(t)) == flow::chat::Began::During { granted(t); return Ok(()); }
     granted(t); // stopped at a limit: your word gives it the limit once more
     for k in ["tidy", "waiting", "cutRetry"] { t.put(k, Value::Null); }
     fresh_list(t);

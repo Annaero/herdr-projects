@@ -70,6 +70,7 @@ pub fn send_own(id: &str, text: &str, reason: &str, keep_intent: bool, patch: Ob
     let w2 = wake.clone();
     let t = update_wait(id, 10000, move |t| {
         for (k, v) in patch { t.insert(k, v); }
+        if w2.s("reason") != "retry" { t.del("chat"); } // the board's own turn is no chat of yours (flow/chat.rs)
         t.put("waiting", Value::Null); t.put("expectedWake", w2.clone()); t.put("armedAt", w2.at("at").clone()); t.put("stage", "working"); t.put("turnOpen", false); t.put("msg", ""); t.put("watch", Value::Null);
         let app = if t.b("agent") { t.at("agent").clone() } else { t.at("app").clone() };
         t.put("app", app);

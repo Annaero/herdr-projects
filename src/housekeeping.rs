@@ -50,6 +50,8 @@ pub fn housekeeping(socket: &str, force: Force) {
         }
         crate::notify::notify_pass(&list(ListOpts::default()));
         resync(&tasks, socket);
+        // A chat that changed the code, and you are done with it: its one review (finish/chat.rs).
+        crate::finish::chat::chat_pass(&tasks, socket);
         // `merge.by` changed under a task that waits: it merges now, or waits for your yes after all.
         auto_merge_pass(&tasks, socket);
         // Tasks that wait their turn to merge: the next one starts when the one before it is through.

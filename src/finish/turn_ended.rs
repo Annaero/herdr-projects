@@ -40,6 +40,7 @@ fn newer(turn: Option<&Turn>, t: &Task) -> bool { turn.map(|x| x.pos > t.at("han
 /// What the status hook does when the human's turn ended without it seeing the start: the old approval, review and
 /// counters no longer describe the work.
 fn human_turn(t: &mut Task) {
+    flow::chat::begin(t, "", false);
     if t.b("mergeIntent") || t.s("stage") == "approval" { t.put("requireApproval", true); }
     t.put("mergeIntent", Value::Null);
     if t.at("review").is_object() && !t.at("review").b("stale") { t.obj_mut("review").put("stale", true); }
@@ -233,5 +234,6 @@ fn finish_steps(id: &str, g: &mut Guard, mut t: Task, ev: Option<Value>, force: 
     // The task's tokens, counted now that the turn has ended: at its limit it stops here, with this turn's work kept.
     if let Some((limit, used)) = tokens_over(id, "agent") { stop_at(id, "tokens", &limit, used, StopHow::default()); return Ok(()); }
     let _ = &t;
+    if super::chat::after_turn(g)? { return Ok(()); } // a chat with reviewed work: kept as it was, or reviewed once you are done
     pipeline(id, g, &said, wake.b("keepIntent"), wake.s("reason"), None)
 }

@@ -107,12 +107,12 @@ fn a_review_under_way_shows_what_the_reviewer_says_never_its_screen_and_a_workin
     let mut s = common::board::open(&w.root, 34); s.s.side = false;
     s.s.sel = id.clone(); s.load(); s.press(&["space"]);
     let (_, b) = chat_box(&mut s);
-    assert_eq!(b, vec!["The reviewer has just started: nothing to show yet.", "", "❯ Send message to Agent: it stops the review"]);
+    assert_eq!(b, vec!["The reviewer has just started: nothing to show yet.", "", "❯ Send message to Agent: the review goes on unless the code changes"]);
     assert!(!regex::Regex::new("OpenAI Codex|Ask Codex|for shortcuts|⣿|Made f\\.").unwrap().is_match(&s.text()), "{}", s.text());
     let file = jsonl(&claude_dir.join("projects").join("x").join(format!("{}.jsonl", t.s("reviewSession"))), &claude_rows("Work board task proj/1, role: reviewer, round 1.\n\nYou are an adversarial reviewer.", &["I will check the earlier faults first.", "The full check passes. Now the browser."]));
     s.load();
     let (edge, b) = chat_box(&mut s);
-    assert_eq!(b, vec!["Reviewer:", "The full check passes. Now the browser.", "", "❯ Send message to Agent: it stops the review"]);
+    assert_eq!(b, vec!["Reviewer:", "The full check passes. Now the browser.", "", "❯ Send message to Agent: the review goes on unless the code changes"]);
     assert!(edge.contains(&format!("{} more ↑", key_name("chatScrollUp"))), "{edge}");
     assert!(!regex::Regex::new("Bash|npm run check|76 test files|OpenAI Codex").unwrap().is_match(&s.text()));
     s.press(&["alt+u"]);

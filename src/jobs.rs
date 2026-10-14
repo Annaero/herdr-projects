@@ -18,6 +18,7 @@ pub fn run_job(job: &str, id: &str, extra: &[String]) -> i32 {
         "restart" => crate::delegate::jobs::restart_job(&id),
         "finish" => crate::finish::turn_ended::finish_job(&id, has("--force")),
         "pipeline" => crate::finish::pipeline::pipeline_job(&id),
+        "chatreview" => crate::finish::chat::chat_review_job(&id),
         "sync" => crate::finish::sync_job::sync_job(&id, has("--force")),
         "compare" => crate::attempts::compare::compare_job(&id),
         "recover" => crate::finish::recover_job::recover_job(&id),

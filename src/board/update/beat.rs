@@ -33,8 +33,15 @@ pub fn loaded(s: &mut State, d: Data, fx: &mut Vec<Effect>) {
     if !approve.is_empty() { if let Some(r) = s.items.iter().find(|x| x.s("id") == approve && !x.b("archivedAt")).cloned() { s.menu = None; s.sel = r.t("id"); relist(s); super::actions::yes(s, &r, fx); } }
     if let Some((text, kind)) = heard { s.flash(text, ink_of(&kind)); }
     super::chat::sync_coord(s, fx);
+    left_chats(s, fx);
     ring(s, first, fx);
     announce(s, fx);
+}
+/// A task whose chat changed its code waits for you to be done: on this board, being done is selecting another task.
+fn left_chats(s: &State, fx: &mut Vec<Effect>) {
+    for r in s.data.items.iter().filter(|r| !r.b("host") && r.s("id") != s.sel && crate::flow::chat::held(r) && r.at("chat").s("via") == "board" && !r.at("chat").b("left")) {
+        fx.push(Effect::Run(crate::board::job::Job::ChatLeft { id: r.t("id") }));
+    }
 }
 pub fn ink_of(kind: &str) -> Ink { match kind { "red" => Ink::Red, "green" => Ink::Green, "yellow" => Ink::Yellow, "peach" => Ink::Peach, _ => Ink::Muted } }
 /// `board.notify: bell`: the terminal bell, once for each task that newly needs you, is ready to approve or failed.

@@ -32,6 +32,8 @@ pub enum Job {
     /// A setting of a task (or an automation, `auto`): a value, or none to put it back.
     Set { id: String, name: String, value: Option<String>, auto: bool },
     CoordSeen { unseen: String },
+    /// You left the chat with a task whose chat changed its code: its review need not wait the quiet time.
+    ChatLeft { id: String },
     /// Into a task's agent: its real herdr pane (`attempt`: the selected attempt's, not the task's).
     OpenAgent { id: String, popup: bool },
     FreeSize { pids: Vec<i64> },
@@ -154,6 +156,7 @@ fn run_one(job: Job) -> Done {
             Job::AutoRemove { id, name } => { crate::automations::list::remove(&id)?; Done::say(format!("Removed the automation \"{name}\"."), Ink::Muted).and(Then::AutoGone) }
             Job::Set { id, name, value, auto } => super::job_far::set(&id, &name, value, auto)?,
             Job::CoordSeen { unseen } => { crate::coordinator::requests::seen(&unseen, &crate::herdr::cli::current_socket()); Done::default() }
+            Job::ChatLeft { id } => { crate::finish::chat::left(&id); Done::default() }
             Job::OpenAgent { id, popup } => super::job_far::open_agent(&id, popup),
             Job::FreeSize { pids } => {
                 let ended = pids.iter().filter(|p| unsafe { libc::kill(**p as i32, libc::SIGTERM) } == 0).count();

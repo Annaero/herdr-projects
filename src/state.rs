@@ -97,6 +97,8 @@ pub fn show(t: &Obj, live: &Value, now: i64) -> Show {
     // The board's own check: the count its command reports and the minutes left, never the Watcher's guess.
     if t.s("stage") == "checking" && t.b("check") { let c = check_shown(t.at("check"), now); return out("working", &|s| { s.msg = c.msg.clone(); s.progress = c.progress.map(|p| p as f64); s.eta = c.eta; }); }
     if RUNNER_STAGES.contains(&t.s("stage")) { let line = stage_line(t.s("stage")); let p = pct(t.at("watch")); return out("working", &|s| { if s.msg.is_empty() { s.msg = line.into(); } s.progress = p; s.eta = eta; }); }
+    // A chat changed the code, and the board waits for you to be done before it reviews it (flow/chat.rs).
+    if crate::flow::chat::held(t) && live.at("status").as_str().map(|s| s == "idle" || s == "done").unwrap_or(live.is_null()) { return out("working", &|s| s.msg = crate::flow::chat::HELD.into()); }
     // stage "working": the agent's own turn. herdr decides.
     if !agent || live.is_null() { let p = pct(watch); return out("working", &|s| { s.progress = p; s.eta = eta; }); }
     if live.b("down") { return out(last_known(t), &|s| { s.msg = "The herdr server is not running".into(); s.stale = true; }); }
