@@ -2,7 +2,7 @@
 // to show, and sending it what you do. It is kept fresh while it is open: asked every two seconds, drawn again only
 // where something changed. Nothing about a task is worked out here: every word, colour and button comes from the
 // board (src/webui/*-model.js), and a button only says which key of the board it presses.
-/* global document, window, location, history, PopStateEvent */
+/* global document, window, location, history, PopStateEvent, CustomEvent */
 import { h, icon, get, post } from "./dom.js";
 import { listEl } from "./list.js";
 import { panelEl, settingsEl } from "./panel.js";
@@ -15,6 +15,8 @@ const drawn = { list: "", panel: "", settings: "", ask: "", menu: "", chips: "" 
 const part = (name) => root.querySelector(`.sw-${name}`);
 
 export const isOpen = () => !!root;
+// The sidebar's Boards section (boards.js) is told when the board opens, closes or shows another machine's board.
+const tell = (detail = {}) => window.dispatchEvent(new CustomEvent("sw-board", { detail }));
 // Beside the web UI's sidebar where it stands open on a wide screen; the whole screen on a phone.
 function fit() {
   if (!root) return;
@@ -71,9 +73,12 @@ function take(out) {
   if (out.same) return true;
   mark = out.mark; snap = out;
   draw();
+  tell({ scope: snap.flags.scope });
   return true;
 }
 async function refresh() { if (!root || busy) return; take(await get("board", { have: mark })); }
+// Asked again at once, whole: another machine's board was picked in the sidebar while the board is open.
+export function freshen() { if (root) { mark = ""; refresh(); } }
 // Something you did: sent, and drawn from the answer at once.
 async function call(what, body) {
   busy = true;
@@ -115,6 +120,7 @@ export function openBoard({ onClose }) {
   fit();
   window.addEventListener("resize", fit);
   refresh();
+  tell();
   timer = setInterval(() => { fit(); if (!document.hidden) refresh(); }, 2000);
 }
 export function closeBoard() {
@@ -123,4 +129,5 @@ export function closeBoard() {
   untrap?.(); untrap = null;
   window.removeEventListener("resize", fit);
   root.remove(); root = null;
+  tell();
 }

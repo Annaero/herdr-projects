@@ -1,7 +1,8 @@
 /* The web board's styles. It lives in the herdr web UI's own page, so it is drawn with that page's own colours,
    type, sizes and spacing (its CSS variables: DESIGN.md there), light and dark and every palette included. Each has a
    plain value behind it, used only if the web UI ever drops the name. */
-.sw-board, .sw-float {
+/* (The sidebar's Boards section, boards.css, takes the colours too, and keeps the web UI's own type.) */
+.sw-board, .sw-float, .sw-boards {
   --sw-bg: var(--bg, #12100e); --sw-panel: var(--bg-panel, #181613); --sw-lift: var(--bg-elevated, #211e1a); --sw-hover: var(--bg-hover, #2a2621);
   --sw-line: var(--border, #2d2924); --sw-text: var(--text, #d8d0c3); --sw-dim: var(--text-dim, #9b9183); --sw-strong: var(--text-strong, #f2ebdf);
   /* The board's colour names (src/board/view/states.js), as the web UI's own status colours. */
@@ -17,9 +18,9 @@
   /* An automation: a purple, which no status of the web UI has. The board's own, pulled towards the page's text
      colour as the teal is, so it reads on light and dark alike. */
   --sw-auto: color-mix(in srgb, #a855f7 78%, var(--text, #d8d0c3));
-  /* Nothing that is read is under 13px on the board, whatever the web UI's two smallest sizes are elsewhere. */
-  --fs-2xs: 13px; --fs-xs: 13px;
 }
+/* Nothing that is read is under 13px on the board, whatever the web UI's two smallest sizes are elsewhere. */
+.sw-board, .sw-float { --fs-2xs: 13px; --fs-xs: 13px; }
 .sw-board {
   position: fixed; inset: 0; z-index: 22; /* over the web UI's drawer (20), under its dialogs (30) */ display: flex; flex-direction: column; min-width: 0;
   background: var(--sw-bg); color: var(--sw-text); font: var(--fw-regular, 400) var(--fs-md, 14px)/var(--lh-base, 1.5) var(--font-ui, system-ui, sans-serif);

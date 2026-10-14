@@ -69,5 +69,5 @@ fn the_styles_are_the_web_uis_variables_hide_the_browsers_own_looks_and_name_the
     // The page says how it was measured, the moment of sending among it. (The measuring script was a node program and is
     // in the repo's history now, not in the repo: the page says so.)
     assert!(DOC.contains("chat-box-match.js") && DOC.contains("--sending"));
-    assert!(START.contains(r#"["board", "compose"]"#), "the page loads the box's styles");
+    assert!(START.contains(r#"["board", "compose", "boards"]"#), "the page loads the box's styles");
 }

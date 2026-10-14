@@ -113,7 +113,7 @@ pub fn same_origin(h: &Head) -> bool {
 }
 /// What a watching device may not do; and what it may (its own selection and filter, a key that only shows).
 pub const CHANGES: [&str; 2] = ["send", "set"];
-pub const LOOKS: [&str; 4] = ["press", "pick", "find", "fold"];
+pub const LOOKS: [&str; 5] = ["press", "pick", "find", "fold", "scope"];
 fn ours(mut client: TcpStream, head: &Head, rest: Vec<u8>, up: &dyn Upstream) {
     let path = head.path().to_string();
     let rel = path.get(BASE.len() + 1..).unwrap_or("").to_string();
@@ -124,9 +124,10 @@ fn ours(mut client: TcpStream, head: &Head, rest: Vec<u8>, up: &dyn Upstream) {
     let q: std::collections::HashMap<String, String> = head.target.split_once('?').map(|(_, q)| q.split('&').filter_map(|p| p.split_once('=').map(|(k, v)| (crate::util::url_decode(k), crate::util::url_decode(&v.replace('+', " "))))).collect()).unwrap_or_default();
     let client_id = q.get("client").cloned().unwrap_or_default();
     let machine: String = q.get("machine").cloned().unwrap_or_default().chars().take(80).collect();
-    let needs_pcs = |c: &str| c == "press" || !machine.is_empty();
+    let needs_pcs = |c: &str| c == "press" || c == "boards" || !machine.is_empty();
     if head.method == "GET" {
         if call == "hello" { return json_out(&mut client, 200, &json!({ "ok": true, "role": role })); }
+        if call == "boards" { let pcs = super::pcs::ask_pcs(head, &to); let out = super::web::call(&client_id, "boards", json!({ "role": role }), &machine, pcs); return answer(&mut client, out, &role); }
         if call == "board" { let pcs = if needs_pcs("board") { super::pcs::ask_pcs(head, &to) } else { None }; let out = super::web::call(&client_id, "board", json!({ "have": q.get("have").cloned().unwrap_or_default(), "role": role }), &machine, pcs); return answer(&mut client, out, &role); }
         return json_out(&mut client, 404, &json!({ "ok": false, "msg": "Not found" }));
     }

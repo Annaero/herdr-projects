@@ -12,7 +12,8 @@ use crate::json::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-pub struct Client { pub s: State, pub inbox: Arc<Mutex<Vec<Event>>>, pub at: i64, pub machines_at: i64 }
+/// `boards_at`: when the sidebar's Boards section last had the other machines asked (boards.rs).
+pub struct Client { pub s: State, pub inbox: Arc<Mutex<Vec<Event>>>, pub at: i64, pub machines_at: i64, pub boards_at: i64 }
 const IDLE: i64 = 10 * 60000;
 /// How long a call waits for what a button started (a merge, an agent started); longer, it answers on a later look.
 const WAIT: u64 = 25;
@@ -33,7 +34,7 @@ fn open() -> Client {
     let p = crate::store::files::read_obj(&prefs_file()).unwrap_or_default();
     s.by_repo = p.b("byRepo"); s.all_done = p.b("allDone"); s.scope = p.t("scope");
     s.folded = p.arr("folded").iter().filter_map(|x| x.as_str()).map(String::from).collect();
-    Client { s, inbox: Arc::new(Mutex::new(vec![])), at: 0, machines_at: 0 }
+    Client { s, inbox: Arc::new(Mutex::new(vec![])), at: 0, machines_at: 0, boards_at: 0 }
 }
 pub fn client(id: &str) -> Arc<Mutex<Client>> {
     let key: String = id.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-').take(40).collect();
@@ -152,8 +153,11 @@ pub fn call(client_id: &str, call: &str, args: Value, machine: &str, pcs: Option
         "pick" => { super::view::pick(c, args.s("id"), args.b("open")); Ok(snapshot(c, "")) }
         "find" => { super::view::find(c, args.s("text")); Ok(snapshot(c, "")) }
         "fold" => { super::view::fold(c, args.s("id")); Ok(snapshot(c, "")) }
+        // The sidebar's Boards section: every machine's board at a glance, and picking one of them.
+        "boards" => Ok(super::boards::boards(c)),
+        "scope" => { super::boards::choose(c, args.s("to"))?; Ok(snapshot(c, "")) }
         other => Err(format!("Unknown call {other}")),
     }
 }
-/// Every browser's board let go (a test's next world starts with none).
-pub fn forget() { *CLIENTS.lock().unwrap() = None; }
+/// Every browser's board let go, and the web UI's PCs as last asked (a test's next world starts with none).
+pub fn forget() { *CLIENTS.lock().unwrap() = None; super::pcs::forget(); }

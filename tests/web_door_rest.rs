@@ -75,6 +75,20 @@ fn the_web_uis_pcs_reach_the_board_with_only_what_it_needs_with_the_pc_the_page_
 }
 
 #[test]
+fn the_sidebars_boards_come_through_the_door_with_the_web_uis_names_and_picking_one_is_a_look_not_a_change() {
+    let w = world();
+    std::fs::write(sw::store::files::data_dir().join("view.json"), json!({ "cwd": w.root_str() }).to_string()).unwrap();
+    let up = Up { port: fake_ui(Arc::new(Mutex::new(vec![]))), link: String::new() };
+    assert_eq!(ask(&up, &get("/superwork/api/boards?client=side", "")).0, 401, "not logged in, nothing of the board");
+    let (st, _, body) = ask(&up, &get("/superwork/api/boards?client=side", "cookie: token=good\r\n"));
+    let j: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!((st, j.at("boards")[0].s("name")), (200, "home"), "this machine as the web UI names it: {body}");
+    let pick = r#"{"to":""}"#;
+    assert_eq!(ask(&up, &format!("POST /superwork/api/scope?client=side HTTP/1.1\r\nhost: 127.0.0.1\r\ncontent-length: {}\r\n{PAGE}\r\n{pick}", pick.len())).0, 200);
+    assert!(sw::webui::door::LOOKS.contains(&"scope"), "a device that only watches may pick a board");
+}
+
+#[test]
 fn the_phone_setup_gets_the_link_through_the_door_whole_and_what_the_web_ui_says_itself_goes_on_as_it_is() {
     let seen = Arc::new(Mutex::new(vec![]));
     let port = fake_ui(seen);

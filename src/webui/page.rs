@@ -5,6 +5,8 @@ use std::io::Write;
 const FILES: &[(&str, &str)] = &[
     ("board.css", include_str!("page/board.css")),
     ("board.js", include_str!("page/board.js")),
+    ("boards.css", include_str!("page/boards.css")),
+    ("boards.js", include_str!("page/boards.js")),
     ("chat.js", include_str!("page/chat.js")),
     ("compose.css", include_str!("page/compose.css")),
     ("compose.js", include_str!("page/compose.js")),

@@ -1,10 +1,12 @@
-// The script the front door adds to the herdr web UI's page. It puts a Board entry into the web UI's own menu (the
-// foot of its sidebar, above Settings) and opens the board over the page. When that place is not found (the web UI
-// was redesigned) a small floating Board button shows instead and says so once: the board is never just missing.
+// The script the front door adds to the herdr web UI's page. It puts a Boards section into the web UI's own sidebar
+// (boards.js: under Agents, above its foot with Settings) and opens the board over the page. When that place is not
+// found (the web UI was redesigned) a small floating Board button shows instead and says so once: the board is never
+// just missing.
 // Nothing shows until the web UI has let you in: the board's first call is refused before that, and is asked again.
 /* global document, window, location, history, MutationObserver, localStorage */
 import { h, icon, get } from "./dom.js";
-import { openBoard, closeBoard, isOpen } from "./board.js";
+import { openBoard, closeBoard, isOpen, freshen } from "./board.js";
+import { boardsEl } from "./boards.js";
 
 const HASH = "#board";
 const FOOT = ".sidebar-footer";
@@ -12,15 +14,22 @@ let allowed = false, floating = null;
 
 function styles() {
   if (document.querySelector("link[data-sw]")) return;
-  for (const name of ["board", "compose"]) document.head.append(h("link", { rel: "stylesheet", href: `/superwork/page/${name}.css`, "data-sw": true }));
+  for (const name of ["board", "compose", "boards"]) document.head.append(h("link", { rel: "stylesheet", href: `/superwork/page/${name}.css`, "data-sw": true }));
 }
 const entry = (cls) => { const b = h(`button.${cls}`, { type: "button", "data-sw-entry": true, title: "Work board", onclick: () => show(true) }); b.append(icon("board"), "Board"); return b; };
-// In the web UI's menu when it is there; the floating button otherwise.
+// A board picked in the sidebar: shown, and on a phone the web UI's drawer closes as it does when you pick a pane there.
+function picked(out) {
+  if (!out.ok) return;
+  if (isOpen()) freshen(); else show(true);
+  try { document.querySelector(".scrim.is-open")?.click(); } catch {}
+}
+// In the web UI's sidebar, right above its foot, when it is there; the floating button otherwise.
 function place() {
   if (!allowed) return;
   const foot = document.querySelector(FOOT);
   if (foot) {
-    if (!foot.querySelector("[data-sw-entry]")) foot.prepend(entry("btn.btn-ghost.sidebar-footer-action"));
+    const boards = boardsEl(picked);
+    if (boards.nextElementSibling !== foot) foot.before(boards);
     floating?.remove(); floating = null;
     return;
   }

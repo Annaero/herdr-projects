@@ -12,7 +12,8 @@ use crate::shown::ink::Ink;
 
 /// The machines herdr knows (or the `board.machines` setting names): new ones are added, gone ones dropped.
 pub fn machines(s: &mut State, list: Vec<Machine>, fx: &mut Vec<Effect>) {
-    if s.all() && list.is_empty() && s.remotes.is_empty() {
+    // (The web board keeps all machines: its sidebar offers that board also while this machine is the only one.)
+    if s.all() && !s.ctx.web && list.is_empty() && s.remotes.is_empty() {
         s.scope.clear(); fx.push(Effect::Save);
         let off = crate::store::settings::lookup::setting("board.machines", None) == json!("none");
         s.flash(if off { "Other machines are off (unset board.machines turns them on).".to_string() } else { "No other machines. Add one with: herdr machine add <name> <ssh target>  (or name them in the board.machines setting).".into() }, Ink::Yellow);

@@ -3,6 +3,7 @@
 //! the web UI's page. The board there is the terminal board's own state and update, one per browser (web.rs, view.rs),
 //! sent as data (model/). The front door runs in the page server's process and follows the web UI (keep.rs); the one
 //! setup step is the web UI's shared link (link.rs), by hand with `herdr-superwork web-ui` (command.rs).
+pub mod boards;
 pub mod command;
 pub mod door;
 pub mod find;

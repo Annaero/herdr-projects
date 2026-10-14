@@ -24,6 +24,7 @@ pub fn read_pcs(text: &str) -> Option<Vec<Pc>> {
     }).collect())
 }
 static KNOWN: std::sync::Mutex<(i64, Option<Vec<Pc>>)> = std::sync::Mutex::new((0, None));
+pub fn forget() { *KNOWN.lock().unwrap() = (0, None); }
 /// Asks the web UI (the answer carries every PC's whole list of panes, so it may be long), kept five seconds.
 pub fn ask_pcs(h: &Head, to: &(String, u16)) -> Option<Vec<Pc>> {
     let now = crate::clock::now();

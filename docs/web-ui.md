@@ -1,7 +1,8 @@
 # The board in the herdr web UI
 
 With the [herdr web UI](https://github.com/devswha/herdr-web-ui) plugin installed beside this one, the board is a
-part of that web UI: a **Board** entry at the foot of its sidebar, at the same link, behind the same login. It does
+part of that web UI: a **Boards** section in its sidebar, one entry for each machine's board
+([below](#the-boards-section)), at the same link, behind the same login. It does
 what the terminal board does, with buttons and touch instead of keys, on a phone and on a desktop. Without the web UI
 plugin nothing of this runs.
 
@@ -24,7 +25,7 @@ That one change is the whole setup. By hand, any time:
 the whole thing off and keep the rest: `herdr-superwork set board.webUi none` ([settings](settings.md)); the front door
 points the link back by itself and closes.
 
-On the machine itself the Board is also at the front door's own address, which `web-ui` prints
+On the machine itself the board is also at the front door's own address, which `web-ui` prints
 (`http://127.0.0.1:7327/` unless that port was taken).
 
 ## Why a front door
@@ -40,8 +41,8 @@ So the front door stands in front of it instead:
   files, the service worker. The same method, address and headers go in, in their own order and spelling; the same
   status, headers and bytes come out as they arrive. Only the two connection headers every HTTP hop writes for itself
   (`Connection`, `Keep-Alive`) are its own.
-- **It adds one line to the web UI's page**: a script, from the same address, that puts the Board entry into the
-  sidebar. Nothing else in the page changes, and its security policy stays as sent. A page that cannot be read is
+- **It adds one line to the web UI's page**: a script, from the same address, that puts the Boards section into
+  the sidebar. Nothing else in the page changes, and its security policy stays as sent. A page that cannot be read is
   passed on as it is.
 - **It corrects one answer**: what the web UI's Settings → Phone is told about its own link (`GET /api/access`).
   The web UI finds its link by looking for a `tailscale serve` entry that points at its own port. Through the front
@@ -102,6 +103,41 @@ A browser that saved the web UI's page while the link went through the front doo
 still has the one script line in it after the link was pointed back: the script is then not found, nothing shows,
 and the next load online replaces the copy.
 
+## The Boards section
+
+In the sidebar, under **Agents** and above its foot (Install app, Settings), the board has a section of its own,
+**Boards**. Its heading is the web UI's own Agents heading, built again from the web UI's own classes: the same type,
+spacing and caret, and it folds and unfolds the same way. As Agents does, it starts folded on a phone (the sidebar is
+a drawer there) and open on a wide screen, and a fold stays while the page is open; folded, the heading still shows
+the dot of all the boards together.
+
+Under it, one entry per machine that has a board, drawn as an agent's entry is:
+
+- **This machine**, then **each other machine the board knows** (the ones its Other machines goes round, herdr's
+  saved machines or `board.machines`), in the order of the web UI's own PCs, then **All machines** (also while this
+  machine is the only one: it then shows this machine's tasks, and stays picked). Each is named as the web UI names that machine (`Mac`, `elias-macbook-pro-m1`,
+  `vm-str`), matched to its PCs as below ([other machines](#other-machines)); one the web UI has no PC for keeps the
+  board's name for it, and a web UI that names this machine by no name of its own gives `This machine`.
+- **A dot in the board's status colours**, in the place where an agent's status stands: red when a task needs you,
+  green when one is ready to approve, the working colour when work goes on (it breathes as the web UI's working dot
+  does, where the web UI has that), the dim grey when all is quiet.
+- **A short second line**: `1 needs you · 2 working · 3 to do` (`to approve` for a task ready to approve), or `all
+  quiet`. Archived and done tasks are not counted.
+- **A machine that cannot be reached** says `not reachable`, dimmed as an agent on a PC that is away, with a ring for
+  a dot; pointing at it says why, in the board's words. All machines adds up the ones that answered and says how many
+  did not (`· 1 not reachable`). While a machine is asked for the first time its entry says `asking…`.
+
+**Picking an entry opens that machine's board** over the main area, its tasks and its Coordinator, and the entry is
+highlighted as a selected agent is. It does what choosing that machine in the board's **Other machines** does (the
+board then says so: `Only vm-str. What you type goes to vm-str.`), and the two stay in step: the board's own Other
+machines, and the board following the web UI to another PC, move the highlight too. On a phone the drawer closes, as it
+does when you pick a pane. The section asks every four seconds while the page is in view; the other machines are
+asked for their tasks every twenty seconds at most, as the board asks them.
+
+The section is the board's one place in the web UI's sidebar: the single Board entry at its foot is gone. The web UI
+draws its sidebar again whenever it likes (on a phone, each time the drawer opens): the script puts the same section
+back in its place.
+
 ## What the board looks like there
 
 It is drawn with the web UI's own colours, type, sizes and spacing (its CSS variables, `DESIGN.md` there), so it
@@ -119,6 +155,7 @@ the web UI's own chat input, built again and measured against it: [the web board
 | the settings page (`ctrl+e`): every work setting of the task by its plain name, its value and the place it comes from | **All settings**, under the open task (and under an open automation), folded until you open it or pick `this task's settings` in More…: each setting with its plain label, what it means where that needs saying (`Research only`), its value and the place it comes from. A switch or a choice is a list to pick from, anything else a box that saves on enter; **Put back** takes the task's own answer away. A value that is refused is refused in the board's own words and changes nothing; a device that only watches cannot change one; an archived task's are read-only |
 | the hint line: what can be done to the selected task now | the buttons at the top of the open task, in the same words |
 | the `?` menu | **More…** (and `⋯` in the header): only what applies now and is not a button already, in the buttons' own words (`Remove this task`, `Show every machine's tasks`). A key the page has no button for has no entry |
+| whose board you see (`Alt+M`) | an entry of the sidebar's **Boards** section, or **Other machines** in More… |
 | the chat, and who it talks to | the box at the foot; tap its first line to switch between the Coordinator and the task's agent |
 | the chat's box: the newest thing said, under a line that names who said it (the reviewer, while the task is under review) | the same words under the same line (`Reviewer:`, `Agent:`, `You:`), never the program's screen; **Show all of it** has the rest of the conversation, which `alt+u` scrolls to on the terminal |
 | typing, then sending; sending and putting an agent on what is added | the web UI's own chat input, built again ([the chat box](web-chat-box.md)): enter or its round button sends, and **Send + start** stands beside the button while there are words |
@@ -164,7 +201,8 @@ has herdr's saved machines ([other machines](other-machines.md)). The front door
 saved machine where the web UI names it, else by where they connect (the same host, port and herdr session, and the
 same user where both say one).
 
-- **Every machine, or one.** `More` → **Other machines** goes round as `Alt+M` does on the terminal board: this
+- **Every machine, or one.** An entry of the sidebar's **Boards** section ([above](#the-boards-section)) shows
+  that machine's board, or all of them. `More` → **Other machines** goes round as `Alt+M` does on the terminal board: this
   machine, every machine, each one by itself. A chip says which, and takes you on. Every button works on another
   machine's task as on the terminal board, and what you type while one machine shows goes to that machine's
   Coordinator.
@@ -219,10 +257,12 @@ inside the agent. The web Board's **Open this task's agent** is the way that wor
 ## When the web UI changes
 
 - **It updates itself**: nothing to do. The front door changes none of its files.
-- **It was redesigned and the sidebar's foot is gone**: a small floating **Board** button shows instead, and says
-  once why. The board itself is unchanged.
+- **It was redesigned and the sidebar's foot is gone**: a small floating **Board** button shows instead of the
+  Boards section, and says once why. The board itself is unchanged.
 - **It gets an add-on slot of its own**: the front door can go. Until then, check these on a new version of the web
-  UI: the sidebar foot (`.sidebar-footer`), the drawer's scrim (`.scrim.is-open`), its address parameters `ws`,
+  UI: the sidebar foot (`.sidebar-footer`), the Agents section's classes the Boards section is built of
+  (`AgentSidebar.tsx` and `.css` there: `agent-section-toggle`, `agent-section-caret`, `agent-list-contents`,
+  `agent-item`, `agent-row`, `agent-copy`, `agent-title`, `agent-context`), the drawer's scrim (`.scrim.is-open`), its address parameters `ws`,
   `pane` and `view` (`src/lib/deepLink.ts`), `/api/health?scope=bridge` saying who asks, and that `/superwork/` is
   still free, what `/api/access` says about its link (`server/tailscale.ts`), `/api/machines` naming each PC's
   `id`, `kind`, `target` and `state`, and its `machine` address parameter.
@@ -271,3 +311,18 @@ ones), a Mac's Option key, the wheel over the chat and the mouse on a phone, a p
 version (its message is covered by a test only), a machine with no web UI or front door of its own, a web UI newer
 than 0.4.8 that takes its PCs from herdr's own list, and real separate computers: everything above was two herdrs
 on one computer.
+
+Checked on 2026-10-14 for the Boards section, on herdr-web-ui's newest code then (0.4.8 and later, `38d6863`) with
+herdr 0.9.3: a scratch herdr with two agents, the web UI in front of it, the front door in front of that, a board
+with tasks on this machine, one other machine that answered with its tasks and one that refused the connection (a
+stand-in for SSH). In a real browser at a desktop's size (1280×800) and a phone's (390×800):
+
+| What | Result |
+|---|---|
+| The sidebar | Boards under Agents, above Install app and Settings, in the same type, spacing and caret as Agents; this machine, the two others and All machines, each with its dot and line |
+| The machine that refused | dimmed, `not reachable`, a ring for its dot; All machines says `· 1 not reachable` |
+| Picking the other machine's entry | its board opened (`Only vm-str`, its Coordinator in the box), the entry highlighted |
+| On the phone | folded at the start as Agents is, its dot beside the heading; unfolded, the same entries; a pick closed the drawer and opened that board over the page |
+
+Not checked: a web UI that serves real other PCs (the PCs' names were checked by a test), and the section through the
+web UI's own restart and update (the script and the place it goes are the ones the Board entry had).
