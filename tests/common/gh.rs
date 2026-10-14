@@ -12,6 +12,7 @@ use sw::json::*;
 /// (how many of the repo's last pull requests had checks). A fine-grained token: `noChecks` (GitHub refuses it the
 /// checks list, GraphQL's `statusCheckRollup` and the check-runs API, as it does a token with no Checks permission),
 /// `jobs` (each run's jobs), `statuses` (the commit's statuses), `actionsFail` (it may not read Actions either).
+/// `noLogin`: gh is not logged in where it runs (a keeper started without the login shell's GH_TOKEN): every call fails.
 #[derive(Default)]
 pub struct FakeGh { pub cfg: RefCell<Value>, pub log: RefCell<Vec<String>>, pub merged: Cell<bool>, late: Cell<i64> }
 fn ok(out: &str) -> GhOut { GhOut { status: 0, stdout: if out.is_empty() { String::new() } else { format!("{out}\n") }, stderr: String::new() } }
@@ -26,6 +27,7 @@ impl FakeGh {
         let (x, y) = (a.first().map(|s| s.as_str()).unwrap_or(""), a.get(1).map(|s| s.as_str()).unwrap_or(""));
         let has = |f: &str| a.iter().any(|s| s == f);
         let rollup = a.iter().any(|s| s.contains("statusCheckRollup"));
+        if c.b("noLogin") { return GhOut { status: 4, stdout: String::new(), stderr: "To get started with GitHub CLI, please run:  gh auth login\nAlternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.\n".into() }; }
         if c.b("noChecks") && (rollup || a.iter().any(|s| s.contains("/check-runs"))) {
             return fail(if x == "api" { "gh: Resource not accessible by personal access token (HTTP 403)" } else { "GraphQL: Resource not accessible by personal access token (repository.pullRequest.statusCheckRollup)" });
         }

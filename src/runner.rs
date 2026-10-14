@@ -1,7 +1,6 @@
 //! Long jobs (delegate, finish line, land, restart) run in a detached runner so the board stays responsive and hook
 //! commands never hold herdr up. A runner marks itself in task.json as `runner: {pid, start, started, job}`; a marker
 //! whose process is gone is ignored. Each turn is a separate runner, so counters live in task.json.
-use crate::clock::now;
 use crate::err::{Error, Res};
 use crate::json::*;
 use crate::store::files::*;
@@ -10,28 +9,7 @@ use crate::store::tasks::{get, update_wait, Change, Task};
 use std::cell::RefCell;
 use std::process::{Command, Stdio};
 
-/// herdr starts plugin commands with its server's environment, which may lack the user's PATH. A login shell is asked
-/// once and its answer remembered for a while; the PATH of this process takes it in.
-pub fn user_env() {
-    if crate::util::env_set("HERDR_SUPERWORK_ENV_OK") || !crate::util::env_set("HERDR_PLUGIN_ID") { return; }
-    let file = data_dir().join("env.json");
-    let mut cached = read_obj(&file);
-    let stale = cached.as_ref().map(|c| now() - c.i("at") > 600000 || !c.b("PATH")).unwrap_or(true);
-    if stale {
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
-        let out = Command::new(shell).args(["-lc", "printf \"%s\" \"$PATH\""]).stdin(Stdio::null()).stderr(Stdio::null()).output();
-        let path = out.ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).filter(|p| !p.is_empty()).unwrap_or_else(|| std::env::var("PATH").unwrap_or_default());
-        let c = obj(json!({ "at": now(), "PATH": path }));
-        let _ = write_json(&file, &Value::Object(c.clone()));
-        cached = Some(c);
-    }
-    let mut seen = std::collections::HashSet::new();
-    let mut all = vec![];
-    for p in cached.map(|c| c.t("PATH")).unwrap_or_default().split(':').chain(std::env::var("PATH").unwrap_or_default().split(':').map(|s| s.to_owned()).collect::<Vec<_>>().iter().map(|s| s.as_str())) {
-        if !p.is_empty() && seen.insert(p.to_string()) { all.push(p.to_string()); }
-    }
-    unsafe { std::env::set_var("PATH", all.join(":")); std::env::set_var("HERDR_SUPERWORK_ENV_OK", "1"); }
-}
+pub use crate::login_env::user_env;
 /// Tests run jobs in their own process: the jobs that would have been detached are kept here instead.
 pub fn inline() -> bool { std::env::var("HERDR_SUPERWORK_INLINE").as_deref() == Ok("1") }
 thread_local! { pub static JOBS: RefCell<Vec<(String, String, Vec<String>)>> = const { RefCell::new(vec![]) }; }

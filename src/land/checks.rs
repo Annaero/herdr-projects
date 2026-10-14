@@ -27,14 +27,25 @@ pub enum Look { Passed, Running(Vec<String>), Failed(Vec<Value>) }
 pub fn sort(checks: &[Value]) -> Look {
     let failed: Vec<Value> = checks.iter().filter(|c| CHECK_BAD.contains(&word(c).as_str())).cloned().collect();
     if !failed.is_empty() { return Look::Failed(failed); }
-    let running: Vec<String> = checks.iter().filter(|c| !CHECK_GOOD.contains(&word(c).as_str())).map(name).collect();
+    let running = unique(checks.iter().filter(|c| !CHECK_GOOD.contains(&word(c).as_str())).map(name));
     if running.is_empty() { Look::Passed } else { Look::Running(running) }
 }
+/// Names as said and remembered: each once, whatever its case (a workflow "Check" and its job "check", its runs for a
+/// push and for the pull request).
+pub fn unique(names: impl IntoIterator<Item = String>) -> Vec<String> {
+    let mut out: Vec<String> = vec![];
+    for n in names { if !out.iter().any(|o| o.eq_ignore_ascii_case(&n)) { out.push(n); } }
+    out
+}
 /// Every check GitHub listed on this commit while the board waited for it (`checksWait.seen`), and every one it waited
-/// for (`checksWait.names`).
-fn known(t: &Obj, head: &str) -> Vec<String> { let w = t.at("checksWait"); if w.s("head") != head { return vec![]; } let mut k = strings(w.at("seen")); for n in strings(w.at("names")) { if !k.contains(&n) { k.push(n); } } k }
-/// Those that no check listed now is: not passed, so still waited for.
-pub fn missing(t: &Obj, head: &str, listed: &[Value]) -> Vec<String> { let now: Vec<String> = listed.iter().map(name).collect(); known(t, head).into_iter().filter(|n| !now.contains(n)).collect() }
+/// for (`checksWait.names`), read the same way (`via`, readable.rs): what was listed for an earlier commit, or read
+/// another way (GitHub's list names jobs only, the one read from Actions names their runs too), is not looked for.
+fn known(t: &Obj, head: &str, via: &str) -> Vec<String> { let w = t.at("checksWait"); if w.s("head") != head || w.s("via") != via { return vec![]; } unique(strings(w.at("seen")).into_iter().chain(strings(w.at("names")))) }
+/// Those that no check listed now is, by its name or its workflow's, in any case: not passed, so still waited for.
+pub fn missing(t: &Obj, head: &str, via: &str, listed: &[Value]) -> Vec<String> {
+    let here = |n: &str| listed.iter().any(|c| name(c).eq_ignore_ascii_case(n) || c.s("workflowName").eq_ignore_ascii_case(n));
+    known(t, head, via).into_iter().filter(|n| !here(n)).collect()
+}
 /// What judge decided: the look, the workflows still waited for by name (they are not checks: GitHub lists their
 /// jobs), and the checks the branch requires that this token cannot read (`blind`).
 pub struct Judged { pub look: Look, pub flows: Vec<String>, pub unread: Vec<String> }
@@ -51,7 +62,7 @@ pub fn judge(t: &Obj, head: &str, read: &readable::Read, root: &Path, base: &str
     let mut flows = expected::flows_state(t, root, base, head);
     if !flows.failed.is_empty() { return Judged { look: Look::Failed(flows.failed), flows: vec![], unread: vec![] }; }
     let names: Vec<String> = listed.iter().map(name).collect();
-    let mut wait = missing(t, head, listed);
+    let mut wait = missing(t, head, read.via(), listed);
     let required: Vec<String> = expected::required(root, base).into_iter().filter(|n| !names.contains(n) && !wait.contains(n)).collect();
     let mut unread = vec![];
     // Read blind, a required check waits beside the workflows (by name, not as one seen listed), so that what is
@@ -60,7 +71,7 @@ pub fn judge(t: &Obj, head: &str, read: &readable::Read, root: &Path, base: &str
     else if matches!(look, Look::Passed) && wait.is_empty() && flows.waiting.is_empty() { unread = required; }
     else { for n in required { if !flows.waiting.contains(&n) { flows.waiting.push(n); } } }
     let look = match look {
-        Look::Running(mut r) => { for n in wait { if !r.contains(&n) { r.push(n); } } Look::Running(r) }
+        Look::Running(r) => Look::Running(unique(r.into_iter().chain(wait))),
         Look::Passed if !wait.is_empty() => Look::Running(wait),
         Look::Passed if !flows.waiting.is_empty() || (listed.is_empty() && (t.b("prChecksSeen") || expected::outside_ci(root, base))) => Look::Running(vec![]),
         x => x,
@@ -150,8 +161,7 @@ pub fn before_merge(id: &str, g: &mut Guard, t: &Task, root: &Path) -> Res<bool>
             Ok(true)
         }
         Look::Running(checks) => {
-            let mut names = checks.clone();
-            for f in &flows { if !names.contains(f) { names.push(f.clone()); } }
+            let names = unique(checks.iter().chain(&flows).cloned());
             // One wait per approval and commit: it counts from when the board first found them running.
             let (w, approved) = (t.at("checksWait"), t.at("mergeIntent").i("approvedAt"));
             let since = if w.s("head") == head && w.i("for") == approved { w.i("since") } else { now() };
@@ -165,7 +175,7 @@ pub fn before_merge(id: &str, g: &mut Guard, t: &Task, root: &Path) -> Res<bool>
                 return Ok(false);
             }
             let msg = if names.is_empty() { "Waiting for GitHub checks to start".to_string() } else { format!("Waiting for GitHub checks: {}", names.join(", ")) };
-            let d = g.set(|t| { t.put("failure", Value::Null); t.put("autoMerge", true); t.put("autoMergeLocal", true); let mut seen = known(t, &head); for n in listed.iter().map(name) { if !seen.contains(&n) { seen.push(n); } } t.put("checksWait", json!({ "since": since, "head": head, "for": approved, "names": checks, "flows": flows, "seen": seen })); t.put("msg", msg.clone()); })?;
+            let d = g.set(|t| { t.put("failure", Value::Null); t.put("autoMerge", true); t.put("autoMergeLocal", true); let seen = unique(known(t, &head, read.via()).into_iter().chain(listed.iter().map(name))); t.put("checksWait", json!({ "since": since, "head": head, "via": read.via(), "for": approved, "names": checks, "flows": flows, "seen": seen })); t.put("msg", msg.clone()); })?;
             flow::sidebar::tell_sidebar(&d);
             Ok(false)
         }

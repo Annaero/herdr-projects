@@ -142,6 +142,14 @@ could not read (`Merged: … Not read: check runs of apps other than GitHub Acti
 no job or status of the commit answers is waited for while anything readable still runs, then named there too.
 GitHub itself still refuses a merge that a required check blocks. A token that may not read Actions or Commit statuses
 either leaves the task waiting for you with `Could not read GitHub's checks`, naming the two permissions to give it.
+A check is named once whichever way it was read (a workflow `Check` and its job `check`, its runs for the push and for
+the pull request), and what was remembered for an earlier commit, or read the other way, is not looked for again.
+
+**When gh cannot read GitHub at all** (not logged in, the network), a merge that waits for its checks says so on its
+row (`Waiting for GitHub checks: could not read them (…)`) and goes on by itself once gh reads again; past
+`check.timeout` it waits for you with `Could not read GitHub's checks`. herdr may start the board's keeper (after a
+reboot) without your login shell's environment: the board takes your PATH and gh's login variables (`GH_TOKEN`,
+`GH_HOST`, `GH_ENTERPRISE_TOKEN`, …) from a login shell, never writing a token down.
 
 **When a task is done** (merged here or on GitHub, finished with nothing to merge, or called done by you) its space
 leaves herdr's sidebar by itself, and its worktree and branch are removed. Work is never lost for it: a checkout

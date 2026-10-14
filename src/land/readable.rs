@@ -16,7 +16,12 @@ pub const UNREAD: &str = "check runs of apps other than GitHub Actions (this Git
 /// read it). `fault`: why its checks could not be read at all (they are then none here).
 #[derive(Default)]
 pub struct Read { pub view: Value, pub unread: Vec<String>, pub fault: String }
-impl Read { pub fn listed(&self) -> &[Value] { self.view.arr("statusCheckRollup") } }
+impl Read {
+    pub fn listed(&self) -> &[Value] { self.view.arr("statusCheckRollup") }
+    /// How they were read: GitHub's own list (`checks`, jobs only), or made of Actions runs, their jobs and statuses
+    /// (`actions`). Names remembered one way are not looked for the other (checks.rs).
+    pub fn via(&self) -> &'static str { if self.unread.is_empty() { "checks" } else { "actions" } }
+}
 /// GitHub said no for want of a permission: not a login gone, not the network.
 pub fn refused(r: &GhOut) -> bool {
     let e = format!("{}\n{}", r.stderr, r.stdout).to_lowercase();
