@@ -36,7 +36,7 @@ pub fn world_with(o: Opts) -> World {
     std::fs::create_dir_all(base.join("home")).unwrap();
     let base = std::fs::canonicalize(&base).unwrap();
     let b = |p: &str| base.join(p).display().to_string();
-    for k in ["HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID", "HERDR_PLUGIN_ID", "HERDR_PLUGIN_CONTEXT_JSON", "HERDR_ENV", "HERDR_SESSION", "TMUX", "NO_COLOR", "HERDR_SUPERWORK_DATA_DIR", "HERDR_SUPERWORK_CONFIG_DIR", "HERDR_SUPERWORK_REPORTS_DIR", "HERDR_SUPERWORK_WEBUI", "HERDR_SUPERWORK_PROGRESS", "HERDR_SUPERWORK_SANDBOX", "HERDR_SUPERWORK_RETRY_MS", "HERDR_SUPERWORK_ENDED_MS", "HERDR_SUPERWORK_QUIET_MS", "HERDR_SUPERWORK_READY_MS", "HERDR_SUPERWORK_SUBMIT_MS"] { unsafe { std::env::remove_var(k) } }
+    for k in ["HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID", "HERDR_PLUGIN_ID", "HERDR_PLUGIN_CONTEXT_JSON", "HERDR_ENV", "HERDR_SESSION", "TMUX", "NO_COLOR", "HERDR_SUPERWORK_DATA_DIR", "HERDR_SUPERWORK_CONFIG_DIR", "HERDR_SUPERWORK_REPORTS_DIR", "HERDR_SUPERWORK_WEBUI", "HERDR_SUPERWORK_PROGRESS", "HERDR_SUPERWORK_SANDBOX", "HERDR_SUPERWORK_RETRY_MS", "HERDR_SUPERWORK_ENDED_MS", "HERDR_SUPERWORK_QUIET_MS", "HERDR_SUPERWORK_READY_MS", "HERDR_SUPERWORK_SUBMIT_MS", "HERDR_SUPERWORK_TICK_MS"] { unsafe { std::env::remove_var(k) } }
     let socket = b("herdr.sock");
     // herdr's socket is there (the fake answers for herdr itself): what looks for a running herdr finds one.
     let listen = std::os::unix::net::UnixListener::bind(&socket).unwrap();

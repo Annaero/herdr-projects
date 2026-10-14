@@ -180,6 +180,8 @@ pub fn sh(cmd: &str, cwd: &std::path::Path, env: &[(String, String)], timeout_mi
     let kill = || unsafe { libc::kill(-pid, libc::SIGKILL); };
     let until = std::time::Instant::now() + std::time::Duration::from_secs_f64(timeout_min * 60.0);
     let mut last_poll = std::time::Instant::now();
+    // The command is looked at every second (HERDR_SUPERWORK_TICK_MS: a test of what a long check shows looks sooner).
+    let every = std::time::Duration::from_millis(std::env::var("HERDR_SUPERWORK_TICK_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(1000));
     let mut tick = tick;
     let (ok, why) = loop {
         match child.try_wait() {
@@ -188,7 +190,7 @@ pub fn sh(cmd: &str, cwd: &std::path::Path, env: &[(String, String)], timeout_mi
             Err(e) => break (false, e.to_string()),
         }
         if std::time::Instant::now() >= until { kill(); let _ = child.wait(); break (false, format!("stopped after {} minutes", timeout_min)); }
-        if last_poll.elapsed() >= std::time::Duration::from_secs(1) {
+        if last_poll.elapsed() >= every {
             last_poll = std::time::Instant::now();
             let stop = alive.map(|a| !a()).unwrap_or(false) || tick.as_mut().map(|t| t().is_err()).unwrap_or(false);
             if stop { kill(); let _ = child.wait(); break (false, "aborted".into()); }

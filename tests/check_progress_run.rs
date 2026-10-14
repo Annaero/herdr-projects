@@ -88,7 +88,8 @@ fn the_runner_follows_a_check_and_remembers_how_long_a_full_run_took() {
     let id = w.add("Followed");
     let root = w.root.clone();
     // the command reports a count, works on, reports the end; once a file is there, it fails
-    let cmd = format!(r#"printf '{{"state":"running","done":2,"total":4,"unit":"tests"}}' > "${PROGRESS_ENV}"; sleep 1.2; printf '{{"state":"running","done":4,"total":4,"unit":"tests"}}' > "${PROGRESS_ENV}"; test ! -e fail"#);
+    let cmd = format!(r#"printf '{{"state":"running","done":2,"total":4,"unit":"tests"}}' > "${PROGRESS_ENV}"; sleep 0.3; printf '{{"state":"running","done":4,"total":4,"unit":"tests"}}' > "${PROGRESS_ENV}"; test ! -e fail"#);
+    unsafe { std::env::set_var("HERDR_SUPERWORK_TICK_MS", "50") }; // the runner looks at the command often enough to see the count
     note_check_run(&root, &cmd, 4 * MIN);
     assert_eq!(usual_check(&root, &cmd), 4 * MIN);
     let mut g = checking(&id);
@@ -105,7 +106,7 @@ fn the_runner_follows_a_check_and_remembers_how_long_a_full_run_took() {
     assert!(!progress_file(&id).exists());
     // it passed: how long the run took is remembered (the lower of the two in the middle)
     let ran = usual_check(&root, &cmd);
-    assert!(ran >= 1000 && ran < 4 * MIN, "{ran}");
+    assert!(ran >= 300 && ran < 4 * MIN, "{ran}");
     assert_eq!(usual_check(&root, "another check"), 0); assert_eq!(usual_check(&root.join("elsewhere"), &cmd), 0);
     // a run that failed is not what a run takes
     std::fs::write(root.join("fail"), "").unwrap();

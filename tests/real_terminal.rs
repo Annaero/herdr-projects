@@ -40,8 +40,10 @@ impl Term {
         got
     }
     fn until(&mut self, what: &str, ms: u64) -> bool { let end = Instant::now() + Duration::from_millis(ms); while Instant::now() < end { self.read(20); if plain(&self.out).contains(what) { return true; } } false }
-    fn keys(&mut self, b: &[u8]) -> Vec<u8> { self.master.write_all(b).unwrap(); self.read(150) }
-    fn resize(&mut self, cols: u16, rows: u16) -> Vec<u8> { use std::os::fd::AsRawFd; winsize(self.master.as_raw_fd(), cols, rows); self.read(300) }
+    /// What came out until a whole frame was drawn (its synchronized update ended), or `ms` passed with none.
+    fn frame(&mut self, ms: u64) -> Vec<u8> { let mut got = vec![]; let end = Instant::now() + Duration::from_millis(ms); while Instant::now() < end && !has(&got, "\x1b[?2026l") { got.extend(self.read(5)); } got }
+    fn keys(&mut self, b: &[u8]) -> Vec<u8> { self.master.write_all(b).unwrap(); self.frame(150) }
+    fn resize(&mut self, cols: u16, rows: u16) -> Vec<u8> { use std::os::fd::AsRawFd; winsize(self.master.as_raw_fd(), cols, rows); self.frame(300) }
 }
 fn plain(b: &[u8]) -> String { regex::Regex::new(r"\x1b\[[0-9;?<>=]*[A-Za-z]|\x1b\][^\x07\x1b]*(\x07|\x1b\\)").unwrap().replace_all(&String::from_utf8_lossy(b), "").into_owned() }
 fn has(b: &[u8], s: &str) -> bool { String::from_utf8_lossy(b).contains(s) }

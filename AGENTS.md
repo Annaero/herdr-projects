@@ -53,14 +53,15 @@ the one command that runs the tests.
 One command runs tests, for everyone: `npm run check` (`npm test` is the same; both run `scripts/check.sh`). It builds
 the program with the `quick` profile, writes the made tables when they are out of date, checks the repo's own rules
 (`herdr-superwork docs --guard`: file sizes, the comment at the top, chords only in the keys' table, no made table
-out of date) and runs `cargo test`. It remembers what passed for this exact code (every file of the folder,
+out of date) and runs the tests, in several processes at once (`scripts/run-tests.sh`). It remembers what passed for this exact code (every file of the folder,
 committed or not, and the compiler), and shares that with the reviewer and the board: asked again, it answers at once.
 
 - **Run cargo through the check**: it builds through the one build cache every worktree shares and takes this task's
   share of the cores, not all of them (`scripts/build-cache.sh`, `scripts/share-cores.sh`).
 - **While you work, run the tests of what you touched**: `npm run check board-panel` runs one area's test files
   (`tests/board_panel.rs` and `tests/board_panel_*.rs`), `npm run check gate sync` several. A name that is no area runs
-  the tests whose own names hold it (`npm run check textbox`). With no name it runs them all.
+  the tests whose own names hold it (`npm run check textbox`): a second or two after the build. With no name it runs
+  them all, about 15 seconds on a quiet machine.
 - **The board runs the whole check at the end**, when you finish: `npm run check -- --all`. Run that yourself at most
   once, last of all, when your task asks for it; never after each edit. The board's run then answers at once.
 - **Never wait in a loop for the machine to be quiet**, and never look at the load before a run. A busy machine fails

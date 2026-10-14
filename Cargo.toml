@@ -43,9 +43,14 @@ lto = true
 strip = true
 codegen-units = 1
 
-# What the check builds and tests with (scripts/check.sh): quick to build again after a small change. The release
-# build above is for the files people install.
+# What the check builds and tests with (scripts/check.sh): quick to build again after a small change. The program's
+# own code is not optimised (an optimised build of it took 15 to 30 seconds after an edit, this one 3 to 8, and the
+# tests run a few seconds longer); the libraries it uses are, once, from the build cache every worktree shares. The
+# release build above is for the files people install.
 [profile.quick]
 inherits = "dev"
-opt-level = 1
+opt-level = 0
 debug = false
+
+[profile.quick.package."*"]
+opt-level = 1

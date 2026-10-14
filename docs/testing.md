@@ -27,15 +27,16 @@ and passes.
 
 It does four things, in this order, and stops at the first that fails:
 
-1. **Builds the program** with the `quick` profile (`Cargo.toml`): a build with few optimisations and no debug data,
-   quick to build again after a small change. The release build, for the files people install, is another profile
+1. **Builds the program** with the `quick` profile (`Cargo.toml`): the program's own code with no optimisations and
+   no debug data, quick to build again after a small change, and the libraries it uses a little optimised (they are
+   built once, below). The release build, for the files people install, is another profile
    ([installing](install.md)).
 2. **Writes the made tables** when they are out of date (`herdr-superwork docs`): the keys in `docs/keys.md`, the
    settings in `docs/settings.md`, and the map in your own folder. It says which it wrote: commit the tables.
 3. **Checks the repo's own rules** (`herdr-superwork docs --guard`, which `tests/guard.rs` runs too): no source file
    past 300 lines, every source file starts with a comment that says what it holds, a key's chord written only in
    `src/board/keys.rs`, and no made table out of date.
-4. **Runs the tests**: `cargo test`, with the names you gave.
+4. **Runs the tests**, with the names you gave, in several processes at once (`scripts/run-tests.sh`, below).
 
 It compiles through the build cache every worktree shares, and takes this task's share of the cores, not all of them
 (both below).
@@ -69,11 +70,24 @@ All the tests run side by side in that one process, so whatever a test changes o
 environment (a world takes its turn, below; a test that sets it without a world takes the same turn,
 `common::one_at_a_time()`) and the working folder (a world leaves its folder before it is removed).
 
+### Several processes at once
+
+Most tests make a world, and in one process worlds take turns: one test program run as cargo runs it took about 90
+seconds, on 4 threads or on 16 alike. So the check runs it as several processes at once (`scripts/run-tests.sh`): it
+builds the test programs (`cargo test --no-run`), lists the tests each holds that the names pick, deals them out in
+turn to the processes, runs them all, and says how many passed. A process that failed is printed whole, as cargo test
+would have printed it. Each process has worlds of its own (a world's folder is named by the process), and the turns
+are only within it.
+
+How many: twice this task's share of the cores (below), as a process whose tests take turns uses about half a core.
+On 16 cores and five agents that is 8 processes, and the whole check about 15 seconds; five checks at once each
+take about 20. `HERDR_SUPERWORK_TEST_PROCS` sets another number (1: everything in one process, as before).
+
 ### Builds take turns
 
 Cargo lets one build at a time use a folder's `target/`: a second one says `Blocking waiting for file lock` and goes
 on when the first is done. Each worktree has a `target/` of its own, so this happens only within one folder. There
-are no other turns and no slots: one run is one build and one `cargo test`.
+are no other turns and no slots: one run is one build and one run of the tests.
 
 ### One build cache for every worktree
 
@@ -87,7 +101,9 @@ there, so another sccache of yours is left alone): outside every worktree, so re
 its own cache, another platform, no network) builds go on as before, each worktree alone. `HERDR_SUPERWORK_NO_CACHE=1`
 turns it off; a `RUSTC_WRAPPER` of your own wins.
 
-What it keeps is what a task does not change: the libraries. The program's own code is not shared: it is different in
+What it keeps is what a task does not change: the libraries. A fresh worktree finds most of them there; a few it
+builds again, because they write code into that worktree's own `target/` (their build scripts) or are macros of the
+compiler, which sccache never keeps: a few seconds. The program's own code is not shared: it is different in
 every task, and the compiler keeps its own notes on it in each `target/` (incremental compilation), which makes the
 next build after a small edit quick; a cache cannot take those. A shared `target/` instead of the cache was left
 out: cargo lets one build at a time into a `target/`, so tasks would wait on each other, and the program it builds
@@ -138,7 +154,13 @@ What makes a test slow is starting programs and waiting. A new test does neither
 - **git is the one program still started**, because the board's work is git work. Ask for each fact once.
 
 A world sets the process's environment, so the tests that make a world take turns, in all the files (a lock in
-`tests/common/mod.rs`); the others run beside them.
+`tests/common/mod.rs`); the others run beside them. The check runs several processes at once to get past that
+(above).
+
+A wait the board has to make is a number a test can make short: the board's own waits are zero in a world, and a test
+of a real program gives it the short one it needs (`HERDR_SUPERWORK_STAMP_MS`: how often an open board looks for a new
+version of itself; `HERDR_SUPERWORK_TICK_MS`: how often a running check is looked at). Never wait a fixed time for
+something that says when it is done: a real terminal is read until its frame is drawn.
 
 ### The stand-ins
 

@@ -20,7 +20,7 @@ fn start(exe: &Path, cwd: &Path) -> Term {
     let slave = unsafe { OwnedFd::from_raw_fd(s) };
     let mut c = std::process::Command::new(exe);
     c.current_dir(cwd).env("TERM", "xterm-256color").env("COLORTERM", "truecolor").env("LANG", "C.UTF-8").env_remove("NO_COLOR")
-        .env("HERDR_SOCKET_PATH", "/nonexistent").env("HERDR_BIN_PATH", "/bin/false")
+        .env("HERDR_SOCKET_PATH", "/nonexistent").env("HERDR_BIN_PATH", "/bin/false").env("HERDR_SUPERWORK_STAMP_MS", "100")
         .stdin(slave.try_clone().unwrap()).stdout(slave.try_clone().unwrap()).stderr(slave);
     unsafe { c.pre_exec(|| { libc::setsid(); libc::ioctl(0, libc::TIOCSCTTY, 0); Ok(()) }); }
     let child = c.spawn().unwrap();

@@ -110,8 +110,10 @@ pub fn threads(tx: &Sender<Msg>, wants: &Arc<Mutex<Wants>>, load: &Arc<(Mutex<bo
     std::thread::spawn(move || {
         let exe = std::env::current_exe().map(|p| std::path::PathBuf::from(p.display().to_string().trim_end_matches(" (deleted)"))).unwrap_or_default();
         let first = crate::keeper::code_stamp(&exe);
+        // Every five seconds (HERDR_SUPERWORK_STAMP_MS: the tests that load a new version look sooner).
+        let every = env("HERDR_SUPERWORK_STAMP_MS").parse().unwrap_or(5000u64);
         loop {
-            std::thread::sleep(std::time::Duration::from_millis(5000));
+            std::thread::sleep(std::time::Duration::from_millis(every));
             let now = crate::keeper::code_stamp(&exe);
             if t.send(Msg::Ev(Event::Stamp(if now == first { String::new() } else { now }))).is_err() { break; }
         }

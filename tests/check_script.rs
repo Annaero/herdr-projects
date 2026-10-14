@@ -14,7 +14,7 @@ impl Bench {
         std::fs::create_dir_all(proj.join("scripts")).unwrap();
         std::fs::create_dir_all(base.join("home")).unwrap();
         std::fs::create_dir_all(base.join("bin")).unwrap();
-        for f in ["check.sh", "build-cache.sh", "share-cores.sh"] {
+        for f in ["check.sh", "run-tests.sh", "build-cache.sh", "share-cores.sh"] {
             std::fs::copy(Path::new(env!("CARGO_MANIFEST_DIR")).join("scripts").join(f), proj.join("scripts").join(f)).unwrap();
         }
         let stub = |name: &str, body: &str| {

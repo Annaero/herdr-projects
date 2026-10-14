@@ -58,27 +58,10 @@ step="writing the made tables"
 step="checking the repo's rules"
 ./target/quick/herdr-superwork docs --guard
 say "2/3 steps"
-# A name that is an area (a test file `tests/<name>.rs`, or several `tests/<name>_*.rs`; `-` stands for `_`) runs
-# those files, which are modules of the one test program (tests/main.rs); any other name runs the tests whose own
-# names hold it.
+# The tests, split over several processes at once (scripts/run-tests.sh): every test, or those of the names given.
 step="running the tests"
-mods=""; words=""
-for n in $names; do
-  f=$(printf '%s' "$n" | tr - _); found=""
-  for t in tests/"$f".rs tests/"$f"_*.rs; do
-    [ -f "$t" ] && [ "$t" != tests/main.rs ] && { found=1; mods="$mods|$(basename "$t" .rs)"; }
-  done
-  [ -n "$found" ] || words="$words $n"
-done
-if [ -n "$mods" ]; then
-  # Exactly the tests of those modules: `settings::` as a filter would also run `web_settings::`.
-  all=$(cargo test --profile quick --quiet --test main -- --list)
-  picked=$(printf '%s\n' "$all" | sed -n 's/: test$//p' | grep -E "^(${mods#|})::" || true)
-  # shellcheck disable=SC2086
-  [ -z "$picked" ] || cargo test --profile quick --quiet --no-fail-fast --test main -- --exact $picked
-fi
 # shellcheck disable=SC2086
-if [ -z "$mods" ] || [ -n "$words" ]; then cargo test --profile quick --quiet --no-fail-fast -- $words; fi
+sh scripts/run-tests.sh $names
 say "3/3 steps"
 if [ -n "$stamp" ]; then { mkdir -p "$cache" && echo "passed in $(( $(date +%s) - started ))s" > "$cache/$stamp"; } || true; fi
 echo "The check passed in $(( $(date +%s) - started ))s."
