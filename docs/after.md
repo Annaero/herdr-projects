@@ -15,9 +15,10 @@ it was done still counts as done.
 
 ## While it waits
 
-- Its row is under **to do** and says so: `Waits for gtm-skills/12 to be done`, naming the ones that are not done
-  yet. The task panel has a `Waits for` line with each task (`(done)` beside those that are), `details` has an
-  `after` part, and `list` says it beside the title. The web Board and another machine's board show the same.
+- Its row is under **to do** and says so: `starts after AGT-2`, or `starts after SKL-4, SKL-5` for several, naming
+  the ones that are not done yet (by their key where the repo has one). The task panel has a `Starts after` line with
+  each task (`(done)` beside those that are), `details` has an `after` part, and `list` says it beside the title. The
+  web Board, another machine's board and the herdr sidebar show the same.
 - It holds no agent slot (`board.agents`) and nothing runs for it: no worktree, no space, no agent.
 - The ids may be tasks of **other repos**, any repo on this machine. A task of another machine cannot be waited for:
   `--after otherbox#4` is refused with that reason.

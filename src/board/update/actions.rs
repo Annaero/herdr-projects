@@ -61,7 +61,7 @@ pub fn tab(s: &mut State, text: &str, r: Option<&Obj>, fx: &mut Vec<Effect>) {
     // One that waits for other tasks to be done starts by itself: early only on a yes.
     if r.s("stage") == crate::after::STAGE {
         let job = if r.b("host") { far(s, r, "delegate", json!({ "now": true }), false) } else { Job::Delegate { id: r.t("id"), name: n.clone(), now: true } };
-        let why = if r.b("afterBlocked") { format!("It waits for you: {}.", r.s("afterBlocked")) } else { format!("{}: it starts by itself once that is so.", r.s("msg")) };
+        let why = if r.b("afterBlocked") { format!("It waits for you: {}.", r.s("afterBlocked")) } else { format!("It {} by itself.", r.s("msg")) };
         return confirm(s, format!("Start {n} now?"), job, Valid::Always, vec![("sayYes", "start now".into()), ("sayNo", "let it wait".into())], why, false);
     }
     act(s, r, "delegate", json!({}), Job::Delegate { id: r.t("id"), name: n, now: false }, fx);

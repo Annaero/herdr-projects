@@ -21,11 +21,11 @@ fn the_board_shows_what_a_task_waits_for_and_its_key_asks_before_it_starts_one_e
     let mut b = open(&w.root, 40);
     b.s.sel = id.clone(); b.load();
     let text = b.screen(120).join("\n");
-    assert!(has(&text, r"\n▌○ #2 +Take it in +Waits for proj/1 to be done +0s ago"), "{text}");
-    assert!(has(&text, r"│  State +○ to do · 0s ago *\n[^\n]*│  Waits for +proj/1 *\n"), "{text}");
+    assert!(has(&text, r"\n▌○ #2 +Take it in +starts after proj/1 +0s ago"), "{text}");
+    assert!(has(&text, r"│  State +○ to do · 0s ago *\n[^\n]*│  Starts after +proj/1 *\n"), "{text}");
     // The key that puts an agent on a task asks first: it starts by itself once the other is done.
     b.press(&["tab"]);
-    assert!(has(&b.text(), r#"\? Start #2 "Take it in" now\? *\n +Waits for proj/1 to be done: it starts by itself once that is so\. *\n +y = start now · n = let it wait"#), "{}", b.text());
+    assert!(has(&b.text(), r#"\? Start #2 "Take it in" now\? *\n +It starts after proj/1 by itself\. *\n +y = start now · n = let it wait"#), "{}", b.text());
     b.press(&["n"]);
     assert_eq!(task(&id).s("stage"), "after");
     assert!(starts(&w).is_empty());
@@ -36,7 +36,7 @@ fn the_board_shows_what_a_task_waits_for_and_its_key_asks_before_it_starts_one_e
     let told = prompts(&w, t.at("link").s("pane")).join("\n");
     assert!(told.contains("the human started it before they all were") && told.contains("- proj/1 \"Change the skill\" (repo proj): not done yet."), "{told}");
     let text = b.screen(120).join("\n");
-    assert!(!text.contains("Waits for proj/1"), "{text}");
+    assert!(!text.contains("starts after proj/1") && !text.contains("Starts after"), "{text}");
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn after_sets_shows_and_drops_a_wait_and_stop_stops_the_waiting() {
     // On a task nobody delegated yet: kept for when it is.
     assert_eq!(run(&["after", &id, &dep]).unwrap().1, format!("{id}: is to wait for {dep}, from when it is delegated"));
     assert_eq!(task(&id).s("stage"), "todo");
-    assert_eq!(run(&["delegate", &id]).unwrap().1, format!("{id}: delegated, waits for {dep} to be done and then starts by itself"));
+    assert_eq!(run(&["delegate", &id]).unwrap().1, format!("{id}: delegated, starts after {dep} by itself"));
     // Stop stops the waiting; what it is to wait for stays, for the next delegation.
     sw::actions::talk::stop(&id).unwrap();
     assert_eq!((task(&id).s("stage"), task(&id).at("after").clone()), ("todo".into(), json!([dep])));
@@ -84,9 +84,9 @@ fn another_machines_board_sees_the_wait_and_starts_one_early_only_when_asked() {
     run(&["delegate", &id, "--after", &dep]).unwrap();
     let sent = sw::remote::remote_list();
     let r = sent.arr("tasks").iter().find(|t| t.s("id") == id).cloned().unwrap_or_default();
-    assert_eq!((r.s("stage"), r.s("note")), ("after", "Waits for proj/1 to be done"));
+    assert_eq!((r.s("stage"), r.s("note")), ("after", "starts after proj/1"));
     let no = door("do", json!({ "action": "delegate", "id": id }));
-    assert!(no.s("msg").contains("still waits for proj/1"), "{no}");
+    assert!(no.s("msg").contains("still waits: it starts after proj/1 by itself"), "{no}");
     assert_eq!(door("do", json!({ "action": "delegate", "id": id, "now": true })), json!({ "ok": true, "msg": format!("{id}: an agent is on it") }));
     assert_ne!(settle(&id).s("stage"), "after");
 }
@@ -101,8 +101,8 @@ fn the_web_board_says_the_same_and_its_button_asks_before_it_starts_one_early() 
     let said = |p: &Value| p.as_array().map(|a| a.iter().map(|x| x.t("t")).collect::<String>()).unwrap_or_default();
     let s = common::board::web(&w, "pick", json!({ "id": id, "open": true }));
     let row = s.at("list").arr("groups").iter().flat_map(|g| g.arr("rows").to_vec()).find(|r| r.s("id") == id).unwrap();
-    assert_eq!(said(row.at("says")), "Waits for proj/1 to be done");
-    let fact = s.at("panel").arr("parts").iter().find(|p| p.s("head") == "Status").and_then(|p| p.arr("items").iter().find(|x| x.s("label") == "Waits for").cloned()).unwrap_or_default();
+    assert_eq!(said(row.at("says")), "starts after proj/1");
+    let fact = s.at("panel").arr("parts").iter().find(|p| p.s("head") == "Status").and_then(|p| p.arr("items").iter().find(|x| x.s("label") == "Starts after").cloned()).unwrap_or_default();
     assert_eq!(said(&fact.at("lines")[0]), "proj/1");
     let s = common::board::web(&w, "press", json!({ "id": "delegate" }));
     assert_eq!(s.at("ask").s("q"), "Start #2 \"Second\" now?");
@@ -129,7 +129,7 @@ fn stopping_a_task_that_waits_tells_the_tasks_that_wait_for_it_that_it_was_stopp
     // Delegated again, it waits once more, and so does the one after it.
     run(&["delegate", &b]).unwrap();
     sw::housekeeping::housekeeping(&w.socket, sw::housekeeping::Force::Yes);
-    assert_eq!((task(&c).s("msg"), task(&c).at("afterBlocked").clone()), ("Waits for proj/2 to be done".into(), Value::Null));
+    assert_eq!((task(&c).s("msg"), task(&c).at("afterBlocked").clone()), ("starts after proj/2".into(), Value::Null));
 }
 
 #[test]

@@ -34,7 +34,8 @@ pub fn names(ids: &[String]) -> String {
     let n: Vec<String> = ids.iter().map(|i| say(i)).collect();
     match n.len() { 0 => String::new(), 1 => n[0].clone(), k => format!("{} and {}", n[..k - 1].join(", "), n[k - 1]) }
 }
-pub fn waits_line(left: &[String]) -> String { format!("Waits for {} to be done", names(left)) }
+/// A waiting task's line: "starts after HSW-4, HSW-5", naming the tasks not done yet.
+pub fn waits_line(left: &[String]) -> String { format!("starts after {}", left.iter().map(|i| say(i)).collect::<Vec<_>>().join(", ")) }
 
 /// Where a task that is waited for stands: done, not yet, or never by itself, with the reason.
 #[derive(Debug, PartialEq)]
@@ -104,19 +105,19 @@ fn circle(me: &str, deps: &[String]) -> Option<Vec<String>> {
     walk(me, me, &edges, &mut vec![], &mut path).then_some(path)
 }
 
-/// What a delegated task that waits says it does: "waits for a to be done and then starts by itself", or why it waits
-/// for you. None for a task that does not wait.
+/// What a delegated task that waits says it does: "starts after a by itself", or why it waits for you. None for a task
+/// that does not wait.
 pub fn waiting_words(t: &Obj) -> Option<String> {
     if t.s("stage") != STAGE { return None; }
-    Some(match t.so("afterBlocked") { Some(w) => format!("waits for you: {w}"), None => format!("waits for {} to be done and then starts by itself", names(&strings(t.at("afterLeft")))) })
+    Some(match t.so("afterBlocked") { Some(w) => format!("waits for you: {w}"), None => format!("{} by itself", waits_line(&strings(t.at("afterLeft")))) })
 }
-/// The task panel's line about waiting, from the task alone: its label ("Waits for", "Waited for", "To wait for" on
+/// The task panel's line about waiting, from the task alone: its label ("Starts after", "Waited for", "To wait for" on
 /// one not delegated yet) and each task with whether it is done.
 pub fn panel_line(r: &Obj) -> Option<(&'static str, String)> {
     let all = after_of(r);
     if r.s("stage") == STAGE {
         let left = strings(r.at("afterLeft"));
-        return Some(("Waits for", all.iter().map(|i| if left.contains(i) || !r.has("afterLeft") { i.clone() } else { format!("{i} (done)") }).collect::<Vec<_>>().join(", ")));
+        return Some(("Starts after", all.iter().map(|i| if left.contains(i) || !r.has("afterLeft") { i.clone() } else { format!("{i} (done)") }).collect::<Vec<_>>().join(", ")));
     }
     let done = r.arr("afterDone");
     if !done.is_empty() { return Some(("Waited for", done.iter().map(|d| format!("{} ({})", d.s("id"), if d.b("done") { "done" } else { "not done" })).collect::<Vec<_>>().join(", "))); }
@@ -126,7 +127,7 @@ pub fn panel_line(r: &Obj) -> Option<(&'static str, String)> {
 pub fn still_waits(t: &Task) -> String {
     let id = t.t("id");
     let (left, broken) = standing(t);
-    let now = match broken { Some(w) => format!("{} waits for you: {w}.", say(&id)), None => format!("{} still waits for {} to be done, and starts by itself then.", say(&id), names(&left)) };
+    let now = match broken { Some(w) => format!("{} waits for you: {w}.", say(&id)), None => format!("{} still waits: it {} by itself.", say(&id), waits_line(&left)) };
     format!("{now} To start it now anyway: herdr-superwork delegate {id} --now. To stop it waiting: herdr-superwork after {id} --clear")
 }
 /// What a task's wait comes to as its delegation is recorded (actions/start.rs), with `t` already queued: it waits
