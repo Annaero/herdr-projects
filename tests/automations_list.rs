@@ -83,7 +83,7 @@ fn the_group_has_a_colour_of_its_own_narrow_rows_a_menu_of_its_own_and_stays_wit
     // with no task at all the group is still there
     for x in sw::store::tasks::list(Default::default()) { sw::store::tasks::patch(x.s("id"), |t| t.put("archivedAt", sw::clock::now())).unwrap(); }
     s.load();
-    like(&t(&mut s, 120), r"^ herdr-superwork {2}proj\n\n automations\n[ ▌]⟳ on {2}Look for old dependencies");
+    like(&t(&mut s, 120), r"^ herdr-superwork {2}proj\n\n   automations\n[ ▌]⟳ on {2}Look for old dependencies");
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn more_automations_than_fit_the_list_says_how_many_it_does_not_show_and_the_sel
     let note = |l: &[String]| l.iter().find(|x| regex::Regex::new(r"^ [↓↑] ").unwrap().is_match(x)).cloned().unwrap_or_default();
     let lines = s.screen(100);
     let l1 = list(&lines);
-    like(&lines[3], r"^▌○ #\d {2}Task \d"); assert!(l1.iter().any(|x| x == " automations"));
+    like(&lines[3], r"^▌○ #\d {2}Task \d"); assert!(l1.iter().any(|x| x == "   automations"));
     assert!(l1.iter().any(|x| regex::Regex::new(r"^ ⟳ on {2}Automation 01 {2}every 1h +next in {2}1h$").unwrap().is_match(x)), "{}", lines.join("\n"));
     assert_eq!(note(&l1), format!(" ↓ {} automations", 16 - shown(&l1))); assert!(shown(&l1) >= 2 && shown(&l1) < 16);
     // no task gives way for them: every task shows

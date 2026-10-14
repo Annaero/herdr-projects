@@ -1,7 +1,7 @@
 == the list
  herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
 
- needs you
+ ▾ needs you
  ? #9  Max length for task titles                                                                                     1m
        Should the old settings file be removed, or kept for one more version so that nobody loses what they set?
  @ #10 Max length for task titles                                                                                     1m
@@ -13,11 +13,11 @@
  ✗ #14 Max length for task titles                                                                                     1m
        Stopped without a summary
 
- ready to approve
+ ▾ ready to approve
  ◆ #11 Max length for task titles                                                                     R#1 PR#60       1m
        Pass
 
- working
+ ▾ working
  ◐ #2  Max length for task titles                                                       40% 90m left                  1m
        Drafting
  ◒ #4  Max length for task titles                                                                                     1m
@@ -42,7 +42,7 @@
 == the task beside it
  herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1… │
                                                                          │  #5 Max length for task titles
- needs you                                                               │
+ ▾ needs you                                                             │
  ? #9  Max length for task titles                                     1m │  Status ────────────────────────────────────
        Should the old settings file be removed, or kept for one more ve… │  State        ◐ working · for 1m
  @ #10 Max length for task titles                                     1m │  Progress     █████████░░░░░░ 60% · 11m left
@@ -54,11 +54,11 @@
  ✗ #14 Max length for task titles                                     1m │  Description ───────────────────────────────
        Stopped without a summary                                         │  A task title should have a maximum length.
                                                                          │  A longer one is cut between words.
- ready to approve                                                        │  Second paragraph, with
+ ▾ ready to approve                                                      │  Second paragraph, with
  ◆ #11 Max length for task titles                     R#1 PR#60       1m │  a/very/long/path/that/has/no/space/in/it/at
        Pass                                                              │  /all/src/board/view/row-wrap.js and more
                                                                          │  words after it.
- working                                                                 │
+ ▾ working                                                               │
  ◐ #2  Max length for task titles                                     1m │  Settings ──────────────────────────────────
        Drafting                                                          │  Reading its settings…
  ◒ #4  Max length for task titles                                     1m │
@@ -165,7 +165,7 @@
 == a draft
  herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
 
- needs you
+ ▾ needs you
  ? #9  Max length for task titles                                                                                     1m
        Should the old settings file be removed, or kept for one more version so that nobody loses what they set?
  @ #10 Max length for task titles                                                                                     1m
@@ -177,11 +177,11 @@
  ✗ #14 Max length for task titles                                                                                     1m
        Stopped without a summary
 
- ready to approve
+ ▾ ready to approve
  ◆ #11 Max length for task titles                                                                     R#1 PR#60       1m
        Pass
 
- working
+ ▾ working
  ◐ #2  Max length for task titles                                                       40% 90m left                  1m
        Drafting
  ◒ #4  Max length for task titles                                                                                     1m

@@ -98,5 +98,5 @@ fn with_no_color_the_board_has_the_same_words_and_no_colour() {
     } }
     assert!(painted > 0, "with colour on, something is painted");
     let shown = text(&plain).join("\n");
-    assert!(regex::Regex::new(r"(?m)^ to do\s").unwrap().is_match(&shown), "the heading says \"to do\" where the colour would: {shown}");
+    assert!(regex::Regex::new(r"(?m)^ ▾ to do\s").unwrap().is_match(&shown), "the heading says \"to do\" where the colour would: {shown}");
 }

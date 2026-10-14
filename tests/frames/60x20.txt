@@ -1,7 +1,7 @@
 == the list
  herdr-superwork  proj · 5 need you · 1 ready · 9 working ·…
 
- working
+ ▾ working
  ◐ #2  Max length for task titles
        Drafting
        ██████░░░░░░░░░  40% 90m left                      1m
@@ -22,7 +22,7 @@
 == the task beside it
  herdr-superwork  proj · 5 need you · 1 ready · 9 working ·…
 
- working
+ ▾ working
  ◐ #2  Max length for task titles
        Drafting
        ██████░░░░░░░░░  40% 90m left                      1m
@@ -85,7 +85,7 @@
 == a draft
  herdr-superwork  proj · 5 need you · 1 ready · 9 working ·…
 
- working
+ ▾ working
  ◐ #2  Max length for task titles
        Drafting
        ██████░░░░░░░░░  40% 90m left                      1m

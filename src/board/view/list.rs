@@ -71,11 +71,14 @@ pub fn unread_lines(s: &State, width: usize) -> Vec<Inked> {
     out
 }
 /// A heading's line. A machine's in bold accent, a rule after it to the edge; a repo's in bold, a status group's in its
-/// colour; folded, a `▸` in the marks' column and how many tasks it holds.
+/// colour. One that folds has a caret in the marks' column, `▾` open, `▸` folded (then with how many tasks it holds);
+/// one that does not (the automations') has a blank there, so every heading's name starts in the same column.
 fn heading(s: &State, r: &Row, width: usize) -> Inked {
-    let Row::Head { name, autos, machine, folded, .. } = r else { return Inked::new() };
+    let Row::Head { name, autos, machine, folded, id } = r else { return Inked::new() };
     let named = if *autos { Inked::of(name.clone(), Ink::Auto) } else if *machine { Inked::of(name.clone(), Ink::Accent).bold() } else if s.by_repo { Inked::of(repo_label(name), Ink::Soft).bold() } else { Inked::of(name.clone(), group_ink(name)) };
-    let mut out = if *folded > 0 { Inked::plain(" ").add(Inked::of("▸ ", Ink::Muted)).add(named).add(Inked::of(format!("  {folded} task{}", if *folded == 1 { "" } else { "s" }), Ink::Muted)) } else { Inked::plain(" ").add(named) };
+    let caret = if id.is_empty() { Inked::plain("  ") } else { Inked::of(if *folded > 0 { "▸ " } else { "▾ " }, Ink::Muted) };
+    let mut out = Inked::plain(" ").add(caret).add(named);
+    if *folded > 0 { out = out.add(Inked::of(format!("  {folded} task{}", if *folded == 1 { "" } else { "s" }), Ink::Muted)); }
     if *machine { let rest = width.saturating_sub(out.width() + 2); if rest > 0 { out = out.add(Inked::of(format!(" {}", "─".repeat(rest)), Ink::Muted)); } }
     if out.width() > width { out = out.fit(width); }
     out

@@ -14,7 +14,7 @@ fn report(id: &str, msg: &str, progress: Option<i64>, eta: Option<i64>) { sw::ac
 /// The ink a word is drawn in on a line, and whether it is bold.
 fn ink_of(lines: &[Inked], word: &str) -> Option<(Ink, bool)> { lines.iter().flat_map(|l| l.0.iter()).find(|p| p.t.contains(word)).map(|p| (p.c, p.bold)) }
 /// The ink of a heading: the line that says only this.
-fn heading(lines: &[Inked], word: &str) -> Option<Ink> { lines.iter().find(|l| l.text().split('│').next().unwrap_or("").trim() == word).and_then(|l| l.0.iter().find(|p| p.t.trim() == word).map(|p| p.c)) }
+fn heading(lines: &[Inked], word: &str) -> Option<Ink> { lines.iter().find(|l| l.text().split('│').next().unwrap_or("").trim().trim_start_matches(['▾', '▸']).trim() == word).and_then(|l| l.0.iter().find(|p| p.t.trim() == word).map(|p| p.c)) }
 
 #[test]
 fn one_header_line_five_groups_a_mark_for_each_state_and_the_task_panel_from_90_columns() {
@@ -35,7 +35,7 @@ fn one_header_line_five_groups_a_mark_for_each_state_and_the_task_panel_from_90_
     assert_eq!(ink_of(&inks, "Write the docs"), Some((Ink::Plain, false)));
     assert_eq!(heading(&inks, "working"), Some(Ink::Yellow)); assert_eq!(heading(&inks, "to do"), Some(Ink::Todo), "the headings are in their group's colour");
     assert_eq!(ink_of(&inks, "50%").map(|x| x.0), Some(Ink::Yellow)); assert_eq!(ink_of(&inks, "12m left").map(|x| x.0), Some(Ink::Yellow));
-    assert!(has(&text, r"\n working +│") && has(&text, r"\n to do +│"));
+    assert!(has(&text, r"\n ▾ working +│") && has(&text, r"\n ▾ to do +│"));
     assert!(has(&text, r"◐ #2 My own task +█+░+ +50% 12m left +\ds {5}│[^\n]*\n[ ▌] {5}half way +│"), "{text}");
     assert!(has(&text, r"│  Progress     █+░+ 50% · 12m left *\n"));
     assert!(has(&text, r"│  #2 My own task") && has(&text, r"│  State        ◐ working · for \ds *\n") && has(&text, r"│  On it        you *\n"), "{text}");
@@ -105,8 +105,8 @@ fn work_whose_review_failed_stands_under_needs_you_and_its_yes_is_merge_anyway()
     use sw::shown::states::{group_of, standing};
     assert_eq!((group_of(&rows[&bad]), standing(&rows[&bad]), group_of(&rows[&good]), standing(&rows[&good])), ("needs you", "review failed".to_string(), "ready to approve", "ready to approve".to_string()));
     let t = s.text();
-    assert!(has(&t, r"\n needs you *\n[ ▌]! #1 +Add an undo for clear +R#1 +\d+s ago *\n[ ▌] {5}Review failed · 1 critical, 1 major *\n"), "{t}");
-    assert!(has(&t, r"\n ready to approve *\n[ ▌]◆ #2 +Max length for titles +R#1 +\d+s ago *\n[ ▌] {5}Pass *\n"), "{t}");
+    assert!(has(&t, r"\n ▾ needs you *\n[ ▌]! #1 +Add an undo for clear +R#1 +\d+s ago *\n[ ▌] {5}Review failed · 1 critical, 1 major *\n"), "{t}");
+    assert!(has(&t, r"\n ▾ ready to approve *\n[ ▌]◆ #2 +Max length for titles +R#1 +\d+s ago *\n[ ▌] {5}Pass *\n"), "{t}");
     assert!(t.starts_with(" herdr-superwork  proj · 1 needs you · 1 ready"));
     s.s.sel = bad.clone(); s.load();
     assert!(s.text().contains(&format!("  {} send the review to this task's agent · {} merge this task anyway · ", key_name("sendBack"), key_name("yes"))), "{}", s.text());
@@ -180,7 +180,7 @@ fn the_list_says_what_it_hides_the_header_where_you_are_and_an_action_what_it_di
     let tag = format!("#{}", id.split('/').nth(1).unwrap());
     let title = task(&id).t("title");
     s.press(&["ctrl+p"]); assert_eq!(s.s.msg, format!("Pinned {tag} \"{title}\" to the top. {} unpins it.", key_name("pin")));
-    assert_eq!(s.s.sel, id); assert!(has(&s.screen(100).join("\n"), r"\n pinned *\n▌"));
+    assert_eq!(s.s.sel, id); assert!(has(&s.screen(100).join("\n"), r"\n ▾ pinned *\n▌"));
     s.press(&["ctrl+p"]); assert_eq!(s.s.msg, format!("Unpinned {tag} \"{title}\".")); assert_eq!(s.s.sel, id);
     s.s.flash("proj/7: started, an agent is on it", Ink::Muted); assert_eq!(s.s.msg, "#7: started, an agent is on it");
     s.s.flash("Run: herdr-superwork approve proj/7 --anyway", Ink::Muted); assert!(s.s.msg.contains("approve proj/7 --anyway"), "a command keeps the id it takes");

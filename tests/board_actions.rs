@@ -19,7 +19,7 @@ fn ready_to_approve_the_merge_asks_first_the_menu_acts_remove_asks_and_messages_
     let mut s = open(&w.root, 34);
     s.s.sel = id.clone(); s.load();
     let t80 = s.screen(80).join("\n");
-    assert!(has(&t80, r"\n ready to approve *\n[ ▌]◆ #\d+ +Make f +R#1 +\d+s ago *\n[ ▌]     Pass · 1 minor *\n") && !has(&t80, "blocked|approve to merge|r1"), "{t80}");
+    assert!(has(&t80, r"\n ▾ ready to approve *\n[ ▌]◆ #\d+ +Make f +R#1 +\d+s ago *\n[ ▌]     Pass · 1 minor *\n") && !has(&t80, "blocked|approve to merge|r1"), "{t80}");
     let text = s.screen(120).join("\n");
     assert!(has(&text, r"│  State        ◆ ready to approve · \d+s ago *\n"), "{text}");
     assert!(has(&text, r"│  Review ─+ *\n[^\n]*│  Review 1     ✓ Pass · 1 minor · \d+s ago *\n[^\n]*│               Good\."), "{text}");
@@ -53,7 +53,7 @@ fn ready_to_approve_the_merge_asks_first_the_menu_acts_remove_asks_and_messages_
     assert_eq!(task(&id).s("stage"), "merging");
     assert!(s.text().contains("#1: approved, merging"), "{}", s.text());
     settle(&id); s.load();
-    assert!(has(&s.screen(80).join("\n"), r"\n done *\n[ ▌]✓ #\d+ +Make f +R#1 +\d"));
+    assert!(has(&s.screen(80).join("\n"), r"\n ▾ done *\n[ ▌]✓ #\d+ +Make f +R#1 +\d"));
     // the ? menu: every key the board has, in three groups
     s.s.sel = "proj/2".into(); s.load(); s.rows = 60; s.press(&["?"]);
     let text = s.text();
@@ -71,7 +71,7 @@ fn ready_to_approve_the_merge_asks_first_the_menu_acts_remove_asks_and_messages_
     assert!(s.text().contains(&format!("Archived #2 \"Other\". {} undoes it; {} shows the archive. Now on #1 \"Make f\".", key_name("undo"), key_name("archiveView"))), "{}", s.text());
     s.rows = 34;
     s.press(&["alt+a"]);
-    assert!(s.text().starts_with(" herdr-superwork  archive · 1 archived") && has(&s.text(), r"\n archived [^\n]*\n[ ▌]. #2 +Other ") && !s.text().contains("[archived]"), "{}", s.text());
+    assert!(s.text().starts_with(" herdr-superwork  archive · 1 archived") && has(&s.text(), r"\n ▾ archived [^\n]*\n[ ▌]. #2 +Other ") && !s.text().contains("[archived]"), "{}", s.text());
     s.press(&["ctrl+a"]); assert!(!task("proj/2").b("archivedAt"));
     s.press(&["alt+a"]);
     s.s.sel = "proj/2".into(); s.load(); s.press(&["ctrl+p"]); assert_eq!(task("proj/2").at("pinned"), &json!(true));

@@ -37,6 +37,7 @@ mod board_keys_rest;
 mod board_layout;
 mod board_layout_rest;
 mod board_list;
+mod board_list_carets;
 mod board_list_headings;
 mod board_list_rest;
 mod board_more;

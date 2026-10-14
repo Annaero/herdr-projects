@@ -6,12 +6,12 @@ machines](other-machines.md)) there is one level more: **a heading per machine**
 status groups) under it, and their tasks under those.
 
 ```
- vm-str ───────────────────────────────────────────────────────────
- herdr-superwork
+ ▾ vm-str ─────────────────────────────────────────────────────────
+ ▾ herdr-superwork
  ◐ #151 Rewrite the board in Rust on Ratatui              47%   3h
  ○ #179 Remove the "To: Coordinator" label             1h ago
 
- open-crm
+ ▾ open-crm
  ○ #4   Explore Open CRM as the next-gen CRM            9h ago
 
  ▸ vm-ssa  1 task ─────────────────────────────────────────────────
@@ -28,9 +28,14 @@ status groups) under it, and their tasks under those.
 
 ## Folding
 
+Every heading that folds has a **caret** in the marks' column, in the muted colour: `▾` open, `▸` folded. Its name
+starts one cell after it, where a task's tag does. A heading that does not fold (the automations') has no caret, only
+a blank where it would be, so every heading's name starts in the same column. On a narrow list the caret stays and the
+heading is cut at the right edge.
+
 The arrow keys stop on every heading as on a row, and a selected heading has the same bar and tint as a selected row.
 
-- **`Enter` on a heading folds it**: its tasks hide and only the heading stays, with a `▸` before it and how many
+- **`Enter` on a heading folds it**: its tasks hide and only the heading stays, its caret turned to `▸`, with how many
   tasks it holds (`▸ open-crm  4 tasks`). `Enter` again unfolds it. The hint line says which (`enter fold this repo`,
   `enter unfold this machine`, `enter fold this group`), and the `?` menu has it on the line of `enter`.
 - **A machine folds whole**: all its repos and their tasks hide under its one line, which counts them all. Unfolded,

@@ -5,11 +5,11 @@
  ✗ #14 Max length for task titles                                             1m
        Stopped without a summary
 
- ready to approve
+ ▾ ready to approve
  ◆ #11 Max length for task titles                             R#1 PR#60       1m
        Pass
 
- working
+ ▾ working
  ◐ #2  Max length for task titles                                             1m
        Drafting
  ◒ #4  Max length for task titles                                             1m
@@ -28,11 +28,11 @@
  ✗ #14 Max length for task titles                                             1m
        Stopped without a summary
 
- ready to approve
+ ▾ ready to approve
  ◆ #11 Max length for task titles                             R#1 PR#60       1m
        Pass
 
- working
+ ▾ working
  ◐ #2  Max length for task titles                                             1m
        Drafting
  ◒ #4  Max length for task titles                                             1m
@@ -105,11 +105,11 @@
  ✗ #14 Max length for task titles                                             1m
        Stopped without a summary
 
- ready to approve
+ ▾ ready to approve
  ◆ #11 Max length for task titles                             R#1 PR#60       1m
        Pass
 
- working
+ ▾ working
  ◐ #2  Max length for task titles                                             1m
        Drafting
  ◒ #4  Max length for task titles                                             1m

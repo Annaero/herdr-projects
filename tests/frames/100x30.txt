@@ -11,11 +11,11 @@
  ✗ #14 Max length for task titles                                                                 1m
        Stopped without a summary
 
- ready to approve
+ ▾ ready to approve
  ◆ #11 Max length for task titles                                                 R#1 PR#60       1m
        Pass
 
- working
+ ▾ working
  ◐ #2  Max length for task titles                                   40% 90m left                  1m
        Drafting
  ◒ #4  Max length for task titles                                                                 1m
@@ -40,11 +40,11 @@
  ✗ #14 Max length for task titles                        1m │               of the resize handler
        Stopped without a summary                            │               for the same mistake
                                                             │  On it        claude
- ready to approve                                           │
+ ▾ ready to approve                                         │
  ◆ #11 Max length for task titles        R#1 PR#60       1m │  Description ────────────────────────
        Pass                                                 │  A task title should have a maximum
                                                             │  length. A longer one is cut between
- working                                                    │  words.
+ ▾ working                                                  │  words.
  ◐ #2  Max length for task titles                        1m │  Second paragraph, with
        Drafting                                             │  a/very/long/path/that/has/no/space/i
  ◒ #4  Max length for task titles                        1m │  n/it/at/all/src/board/view/row-wrap.
@@ -135,11 +135,11 @@
  ✗ #14 Max length for task titles                                                                 1m
        Stopped without a summary
 
- ready to approve
+ ▾ ready to approve
  ◆ #11 Max length for task titles                                                 R#1 PR#60       1m
        Pass
 
- working
+ ▾ working
  ◐ #2  Max length for task titles                                   40% 90m left                  1m
        Drafting
  ◒ #4  Max length for task titles                                                                 1m

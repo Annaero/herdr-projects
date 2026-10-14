@@ -21,7 +21,7 @@ fn two_machines() -> (World, Board) {
     update(&mut s.s, Event::Remote { label: "otherbox".into(), answer: Ok(json!({ "host": "otherbox", "version": "0.2.0", "tasks": [task("proj/151", "Theirs in proj"), task("crm/4", "Theirs in crm")] })) });
     (w, s)
 }
-fn head(name: &str) -> String { format!(r"\n {name} ─+\n") }
+fn head(name: &str) -> String { format!(r"\n ▾ {name} ─+\n") }
 /// Arrow down until the selection is on this heading (or on this task).
 fn go(s: &mut Board, id: &str) { for _ in 0..40 { if s.s.sel == id { return; } s.press(&["down"]); } for _ in 0..40 { if s.s.sel == id { return; } s.press(&["up"]); } panic!("{id} is not reached with the arrows"); }
 fn machine(host: &str) -> String { format!("head:machine\t{host}") }
@@ -33,18 +33,18 @@ fn every_machine_a_heading_its_repos_under_it_and_rows_with_the_number_alone() {
     s.press(&["alt+m", "alt+s"]); assert!(s.s.scope == "*" && s.s.by_repo);
     let t = s.screen(100).join("\n");
     let here = sw::shown::words::clean(&sw::remote::check::hostname());
-    assert!(has(&t, &format!(r"{} proj\n[ ▌]○ #\d+ +Mine", head(&regex::escape(&here)))), "this machine first, under its own name: {t}");
+    assert!(has(&t, &format!(r"{} ▾ proj\n[ ▌]○ #\d+ +Mine", head(&regex::escape(&here)))), "this machine first, under its own name: {t}");
     // The repo the board is in comes first on every machine, as on one.
-    assert!(has(&t, &format!(r"{} proj\n[ ▌]○ #151 Theirs in proj[^\n]*\n\n crm\n[ ▌]○ #4 +Theirs in crm", head("otherbox"))), "{t}");
+    assert!(has(&t, &format!(r"{} ▾ proj\n[ ▌]○ #151 Theirs in proj[^\n]*\n\n ▾ crm\n[ ▌]○ #4 +Theirs in crm", head("otherbox"))), "{t}");
     assert!(!t.contains("otherbox#") && !t.contains("otherbox:"), "a row never names its machine, nor a heading the repo's machine: {t}");
     // By status: the same machines, their status groups under them.
     s.press(&["alt+s"]);
     let t = s.screen(100).join("\n");
-    assert!(has(&t, &format!(r"{} to do\n[ ▌]○ #\d+ +Theirs in (crm|proj)[^\n]*\n[ ▌]○ #\d+ +Theirs", head("otherbox"))), "{t}");
+    assert!(has(&t, &format!(r"{} ▾ to do\n[ ▌]○ #\d+ +Theirs in (crm|proj)[^\n]*\n[ ▌]○ #\d+ +Theirs", head("otherbox"))), "{t}");
     // One machine's board has no machine heading, by repo or by status.
     s.press(&["alt+m"]); s.s.scope.clear(); sw::board::update::list::relist(&mut s.s);
     let t = s.screen(100).join("\n");
-    assert!(!t.contains(" ─────") && t.contains("\n to do\n"), "{t}");
+    assert!(!t.contains(" ─────") && t.contains("\n ▾ to do\n"), "{t}");
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn enter_on_a_heading_folds_it_to_one_line_with_how_many_it_holds_and_unfolds_it
     s.press(&["alt+m", "alt+s"]);
     // The arrows stop on each heading, which is selected as a row is.
     go(&mut s, &repo("otherbox", "crm"));
-    assert!(s.screen(100).iter().any(|l| l.starts_with("▌crm")), "{}", s.text());
+    assert!(s.screen(100).iter().any(|l| l.starts_with("▌▾ crm")), "{}", s.text());
     assert!(s.text().contains("enter fold this repo"), "the hint line says what enter does there: {}", s.text());
     s.press(&["enter"]);
     let t = s.screen(100).join("\n");
@@ -64,7 +64,7 @@ fn enter_on_a_heading_folds_it_to_one_line_with_how_many_it_holds_and_unfolds_it
     go(&mut s, &machine("otherbox"));
     s.press(&["enter"]);
     let t = s.screen(100).join("\n");
-    assert!(has(&t, r"\n▌▸ otherbox  2 tasks ─+\n") || has(&t, r"\n▌▸ otherbox  2 tasks"), "{t}"); assert!(!t.contains("Theirs") && !t.contains(" proj\n ○ #151"));
+    assert!(has(&t, r"\n▌▸ otherbox  2 tasks ─+\n") || has(&t, r"\n▌▸ otherbox  2 tasks"), "{t}"); assert!(!t.contains("Theirs") && !t.contains("▾ proj\n ○ #151"));
     assert!(t.contains("Mine 1"), "the other machine's tasks stay: {t}");
     s.press(&["enter"]);
     let t = s.screen(100).join("\n");
