@@ -9,7 +9,7 @@ lines a step and with a draft in the text box too; in the `?` menu the pick move
 a task a step. A question, the first-run screen and a paste on show keep the screen as it is.
 
 While the text box holds words, the wheel over the list moves the view only, never the selection: who the words are
-for is locked (the box's top edge says who: `To: #34`), and a turn of the wheel must not send an answer to another
+for is locked (the hint line under the box says who: `enter send to #34's agent`), and a turn of the wheel must not send an answer to another
 task's agent. The next key brings the view back to the selected task.
 
 **A click on a task's row selects it**, as `↑` and `↓` would; on the selected one it does nothing more, and every

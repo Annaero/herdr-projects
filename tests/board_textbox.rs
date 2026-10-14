@@ -120,5 +120,5 @@ fn a_reply_to_a_tasks_agent_wraps_in_the_same_box_under_its_latest_message() {
     assert!(d.framed); assert!(d.lines.iter().any(|l| regex::Regex::new(r"^│ Made f\. +│$").unwrap().is_match(l)), "the agent's latest message is in the same box: {:?}", d.lines);
     s.typed(&format!(" {all} {all}"));
     let e = s.draft(50);
-    assert_eq!(e.lines.len(), 24); assert!(e.above > 0); assert_eq!(e.below, 0); assert!(e.lines.last().unwrap().contains("enter send to this task's agent"));
+    assert_eq!(e.lines.len(), 24); assert!(e.above > 0); assert_eq!(e.below, 0); assert!(e.lines.last().unwrap().contains("enter send to #1's agent"));
 }

@@ -35,7 +35,7 @@ fn typing_adds_a_task_tab_delegates_space_replies_and_enter_opens_the_agent() {
     assert!(has(&s.text(), r"│ ❯ Send message to Agent"), "{}", s.text());
     w.script(json!({ "worker": [{ "status": "working" }] }));
     s.typed("also say goodbye");
-    assert!(s.text().contains("│ ❯ also say goodbye") && s.text().contains("enter send to this task's agent · shift+enter new line · esc put away"), "{}", s.text());
+    assert!(s.text().contains("│ ❯ also say goodbye") && s.text().contains("enter send to #1's agent · shift+enter new line · esc put away"), "{}", s.text());
     s.press(&["enter"]);
     // What you just sent stands in the box, in place of what the agent had said, until it says something new.
     assert!(has(&s.text(), r"\n╭─[^\n]*╮\n│ You: +│\n│ also say goodbye +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n"), "{}", s.text());

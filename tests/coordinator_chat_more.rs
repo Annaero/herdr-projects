@@ -168,7 +168,7 @@ fn enter_goes_into_a_tasks_agent_the_chats_head_line_at_every_width_and_a_narrow
         x.s.input.set_text("one\ntwo\nthree\nfour and last");
         let lines = x.screen(44);
         assert_eq!(lines.len(), 8); assert!(lines.iter().all(|l| sw::text::width(l) <= 44));
-        assert!(lines.iter().any(|l| l.contains("four and last")), "the line you are typing shows: {lines:?}"); assert!(lines.last().unwrap().contains("enter send to this task's agent")); assert!(has(&lines[lines.len() - 2], "^─+$"));
+        assert!(lines.iter().any(|l| l.contains("four and last")), "the line you are typing shows: {lines:?}"); assert!(lines.last().unwrap().contains("enter send to #1's agent")); assert!(has(&lines[lines.len() - 2], "^─+$"));
         assert!(lines.iter().any(|l| l.contains("Add a greeting") && !l.contains("task panel")), "and so does who you talk to");
     }
     for width in [24, 40, 64, 90, 200] { for reply in [false, true] { let mut x = open(&w.root, 34); x.s.sel = t.clone(); x.load(); if reply { x.press(&["space"]); } let l = x.screen(width); assert!(l.iter().all(|l| sw::text::width(l) <= width), "fits {width}"); assert_eq!(l.len(), 34); } }

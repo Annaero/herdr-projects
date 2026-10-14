@@ -468,10 +468,11 @@ the `?` menu) and in a window of fewer than 14 rows the chat is its head line an
 folds it, and is back when you return: the page, or the list, has those lines. The whole task says what its agent
 said itself. A start that failed still says why.
 
-**Typed words keep who they are for.** While the box holds text, its top edge says who gets it (`To: #34`, `To:
-Coordinator`, `To: a new task`) and that does not change until the words are sent or put away: the arrows are the
-draft's, the mouse wheel moves only the view of the list, and a click selects nothing. So an answer typed for one
-task's agent can never be sent to another's.
+**Typed words keep who they are for.** While the box holds text, the hint line under it says who gets it (`enter send
+to #34's agent`, `enter send to the Coordinator`, `enter add it as a task`), naming the task by its tag, also while
+the list is scrolled to other tasks; the box's edge names no one. That does not change until the words are sent or put
+away: the arrows are the draft's, the mouse wheel moves only the view of the list, and a click selects nothing. So an
+answer typed for one task's agent can never be sent to another's.
 
 **What you just sent takes the message's place.** Send something and the box shows your words, in the bright text
 colour under `You:`, where the agent's message was, over an empty line to type on. The old message is never shown

@@ -1,7 +1,9 @@
 //! The hint line at the bottom: what matters right now, the main thing first, at most four. Each one says what the key
 //! does and to what: "this task" is the selected one. A hint is a key and its words, and may say whether it stays when
-//! only one fits and shorter words for a window too narrow for the usual ones.
+//! only one fits and shorter words for a window too narrow for the usual ones (and, for a draft, shortest ones yet: the
+//! shorter words still name who gets it).
 use super::chat::{chat_up, Who};
+use super::textbox::{draft_task, far_coordinator};
 use crate::board::keys::{hint, name, pair, K};
 use crate::board::state::{Mode, State};
 use crate::board::update::actions::{attempt_now, choosing};
@@ -9,7 +11,7 @@ use crate::json::*;
 use crate::shown::states::{can_send_error, failed_review, failure_for, in_review, is_agent};
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct Hint { pub key: String, pub words: String, pub stays: bool, pub short: String }
+pub struct Hint { pub key: String, pub words: String, pub stays: bool, pub short: String, pub shortest: String }
 fn h(p: (String, String)) -> Hint { Hint { key: p.0, words: p.1, ..Default::default() } }
 fn hk(k: K, words: &str) -> Hint { h(hint(k, Some(words))) }
 fn plain(key: String, words: &str) -> Hint { Hint { key, words: words.into(), ..Default::default() } }
@@ -29,7 +31,7 @@ pub fn hints(s: &State, r: Option<&Obj>, who: Option<&Who>) -> (Vec<Hint>, Optio
     // After esc at the top (which closes nothing) the line names the key that does.
     if let Some((_, by_esc)) = s.closing {
         let w = if by_esc { format!("{} closes the board", name(K::Close)) } else { format!("Press {} again to close the board", name(K::Close)) };
-        return (vec![Hint { key: String::new(), words: w, stays: false, short: if by_esc { format!("{} closes the board", name(K::Close)) } else { format!("{} again closes the board", name(K::Close)) } }], chat_key);
+        return (vec![Hint { key: String::new(), words: w, stays: false, short: if by_esc { format!("{} closes the board", name(K::Close)) } else { format!("{} again closes the board", name(K::Close)) }, ..Default::default() }], chat_key);
     }
     if s.menu.is_some() { return (vec![plain(arrows, "pick a key"), plain(enter, "press it"), plain(esc, "close the menu")], chat_key); }
     if let Some(e) = &s.editing {
@@ -37,20 +39,22 @@ pub fn hints(s: &State, r: Option<&Obj>, who: Option<&Who>) -> (Vec<Hint>, Optio
     }
     if s.mode == Mode::Find { return (vec![plain(enter, "keep the filter"), plain(esc, "cancel")], chat_key); }
     let agent_on = r.map(is_agent).unwrap_or(false);
-    // While you type: what the keys do with your words.
+    // While you type: what the keys do with your words, and who gets them. A reply names its task by its tag: the
+    // words are locked to it while the list may be scrolled to others, and the box's edge names no one.
     if !s.value().is_empty() {
         if let (true, Some(r)) = (s.reply, r) {
-            let fresh = !r.b("host") && ["todo", "progress"].contains(&r.s("stage"));
-            let w = if crate::board::update::actions::has_agent(r) { "send to this task's agent" } else if fresh { "send, and start an agent on this task" } else if s.data.can_dispatch || r.b("host") { "send to the Coordinator, about this task" } else { "add to this task's description" };
-            return (vec![Hint { key: enter, words: w.into(), stays: false, short: "send".into() }, line, put], chat_key);
+            let (fresh, t) = (!r.b("host") && ["todo", "progress"].contains(&r.s("stage")), draft_task(s, r));
+            let (w, short) = if crate::board::update::actions::has_agent(r) { (format!("send to {t}'s agent"), format!("send to {t}")) } else if fresh { (format!("send, and start an agent on {t}"), format!("send to {t}")) } else if s.data.can_dispatch || r.b("host") { (format!("send to the Coordinator, about {t}"), "send to the Coordinator".into()) } else { (format!("add to {t}'s description"), format!("add to {t}")) };
+            return (vec![Hint { key: enter, words: w, stays: false, short, shortest: "send".into() }, line, put], chat_key);
         }
-        if s.talks_to_coord() { return (vec![Hint { key: enter, words: "send to the Coordinator".into(), stays: false, short: "send".into() }, plain(tab, "send, and put an agent on what it adds"), line, put], chat_key); }
+        let (coordinator, short) = far_coordinator(s).map(|m| (format!("send to the Coordinator on {m}"), format!("send to {m}"))).unwrap_or_else(|| ("send to the Coordinator".into(), "send to the Coordinator".into()));
+        if s.talks_to_coord() { return (vec![Hint { key: enter, words: coordinator, stays: false, short, shortest: "send".into() }, plain(tab, "send, and put an agent on what it adds"), line, put], chat_key); }
         return (vec![plain(enter.clone(), "add it as a task"), plain(tab, "add it and put an agent on it"), line, put], chat_key);
     }
     // The popup closes on its last esc: it says so, last on the line.
     let closes = esc_step(s).is_empty() && s.ctx.popup;
-    let back: Vec<Hint> = if !esc_step(s).is_empty() { vec![plain(esc.clone(), esc_step(s))] } else if closes { vec![Hint { key: esc.clone(), words: "close".into(), stays: true, short: String::new() }] } else { vec![] };
-    let leave: Option<Vec<Hint>> = if s.full { let mut v = vec![]; if s.panel_length > s.panel_height { v.push(Hint { key: arrows.clone(), words: "scroll the task".into(), stays: true, short: String::new() }); } v.extend(back.clone()); Some(v) } else { None };
+    let back: Vec<Hint> = if !esc_step(s).is_empty() { vec![plain(esc.clone(), esc_step(s))] } else if closes { vec![Hint { key: esc.clone(), words: "close".into(), stays: true, ..Default::default() }] } else { vec![] };
+    let leave: Option<Vec<Hint>> = if s.full { let mut v = vec![]; if s.panel_length > s.panel_height { v.push(Hint { key: arrows.clone(), words: "scroll the task".into(), stays: true, ..Default::default() }); } v.extend(back.clone()); Some(v) } else { None };
     if s.job().is_some() { let mut v = vec![hk(K::Stop, "stop sending this"), plain(enter, "take the words back to change")]; v.extend(leave.unwrap_or(vec![more])); return (v, chat_key); }
     if let Some(a) = s.auto() { return (auto_hints(s, a, &back, &more), chat_key); }
     let Some(r) = r else { let mut v = back; v.extend(key); v.push(more); return (v, chat_key); };
@@ -118,6 +122,6 @@ fn auto_hints(s: &State, a: &Obj, back: &[Hint], more: &Hint) -> Vec<Hint> {
     if !all.is_empty() { v.push(plain([name(K::Up), name(K::Down)].join(""), "pick a firing")); }
     if f.map(|f| f.b("task")).unwrap_or(false) { v.push(plain(name(K::Enter), "go to its task")); }
     v.extend(act.into_iter().take(2));
-    v.push(Hint { key: name(K::Back), words: "back to the list".into(), stays: true, short: String::new() });
+    v.push(Hint { key: name(K::Back), words: "back to the list".into(), stays: true, ..Default::default() });
     v
 }

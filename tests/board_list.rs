@@ -138,16 +138,20 @@ fn typed_words_keep_who_they_are_for_the_wheel_moves_the_view_and_a_click_select
     let y = s.s.list_at.unwrap().0 + at;
     s.click(y as u16); assert_eq!(s.s.sel, s.s.list_ids[at]); assert_ne!(s.s.sel, second);
     let mine = s.s.sel.clone(); s.press(&["space"]); s.typed("pebbles please");
-    assert!(has(&s.text(), r"\n─ To: #\d+ ─+\n❯ pebbles please"), "{}", s.text());
+    // The box's edge names no one: the hint line says who gets the words, by the task's tag.
+    assert!(has(&s.text(), r"\n─+\n❯ pebbles please"), "{}", s.text());
+    let tag = format!("#{}", mine.rsplit('/').next().unwrap());
+    assert!(s.text().contains(&format!("enter send, and start an agent on {tag}")) && !s.text().contains("To: "), "{}", s.text());
     let top = s.s.top; s.wheel(4, 1); s.wheel(4, 1); s.screen(120);
     assert!(s.s.sel == mine && s.s.reply_id == mine && s.s.top > top && s.s.value() == "pebbles please", "the wheel moves the view only");
+    assert!(s.text().contains(&format!("enter send, and start an agent on {tag}")), "the hint line still names who the words are for: {}", s.text());
     s.screen(120);
     if let Some(other) = s.s.list_ids.iter().position(|id| !id.is_empty() && *id != mine) {
         let y = s.s.list_at.unwrap().0 + other; s.click(y as u16);
         assert_eq!(s.s.sel, mine); assert!(s.s.msg.contains("Send or put away what you typed first"), "{}", s.s.msg);
     }
     s.typed("!"); s.screen(120); assert!(!s.s.top_free && s.s.list_ids.contains(&mine), "the selected task is in view again");
-    s.press(&["esc", "space"]); s.typed("hello"); assert!(has(&s.text(), r"\n─ To: a new task ─+\n❯ hello"));
+    s.press(&["esc", "space"]); s.typed("hello"); assert!(has(&s.text(), r"\n─+\n❯ hello") && s.text().contains("enter add it as a task"), "{}", s.text());
 }
 
 #[test]

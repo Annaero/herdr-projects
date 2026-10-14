@@ -59,7 +59,7 @@
 ▌           60% 11m left    1m
 
  + New task  added word for w…
-─ To: a new task ─────────────
+──────────────────────────────
 ❯ Hello 日本 🚀
 ──────────────────────────────
   enter add it as a task

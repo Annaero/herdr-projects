@@ -157,7 +157,7 @@ machine's tasks and another machine's, and on the web Board, where the frame of 
 
 **Colour is never the only clue.** The line above the box names who you talk to, the grey words in the empty box
 say it (`Send message to Coordinator`, `Send message to Agent`, `your message starts an agent on it`), and while you
-type the hint line does (`enter send to the Coordinator`, `enter send to this task's agent`). With `NO_COLOR` the
+type the hint line does (`enter send to the Coordinator`, `enter send to #34's agent`). With `NO_COLOR` the
 board draws no colour at all and reads as it always did; each state has a mark of its own too.
 
 The box and the mark are never two colours. So while the board runs its own check on a task, whose mark is then a

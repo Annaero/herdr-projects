@@ -66,8 +66,10 @@ The bottom line shows only what matters right now, the main thing first, at most
   task`, or, on a task you marked as your own work, `put it back in to do`.
 - **What the screen already says is not said again.** The text box's own grey words say who gets your message (`Send message
   to Agent`, `Send message to Coordinator`), so the line does not.
-- **While you type**, it says where `Enter` sends your words: `enter send to the Coordinator`, `enter send to this
-  task's agent`, `enter send, and start an agent on this task`, `enter add it as a task`.
+- **While you type**, it says where `Enter` sends your words, and names the task by its tag, since the words are
+  locked to it while the list may show others: `enter send to the Coordinator` (`… on vm-a` for another machine's),
+  `enter send to #34's agent`, `enter send, and start an agent on #34`, `enter add it as a task`. The text box's
+  edge names no one.
 
 | Where | The hint line |
 |---|---|
@@ -92,8 +94,10 @@ the last one (`? all keys`, or the way back) stay. Between them, `alt+c hide the
 the others from the last back; `alt+c show the latest message` outlasts those, because it is how you see a reply.
 While you type, `shift+enter new line` goes first and `esc put away` stays. With room for only one hint it is the
 main thing, except while you talk to a task's agent: there `space back to the Coordinator` stays, the one way back.
-Where the window is too narrow even for that one hint, it is said shorter, not cut: `enter send`, `ctrl+l merge this
-task`, `its agent` for `this task's agent`. That holds down to about 34 columns.
+Where the window is too narrow even for that one hint, it is said shorter, not cut: `enter send to #34`, `ctrl+l merge
+this task`, `its agent` for `this task's agent`. That holds down to about 34 columns. A draft's hint keeps naming who
+gets the words for as long as that fits (`enter send to #34`, `enter send to the Coordinator`, `enter send to vm-a`);
+only narrower than that is it `enter send`.
 
 A question the board asks has its keys in its own box (`y = merge · n = do not merge`), and the hint line is empty meanwhile. An
 error stays on screen with `(esc dismisses)` after it.

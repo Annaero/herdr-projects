@@ -81,7 +81,7 @@ fn one_chat_for_everyone_space_on_a_task_talks_to_its_agent_otherwise_to_the_coo
     send(&w.root, "do something", false, "", &so).unwrap(); drain(); e.load();
     assert!(e.text().contains("The Coordinator replied. space goes back to it."), "{}", e.text()); assert!(!e.text().contains("All done.")); assert!(!look(&so).unseen.is_empty());
     // What you type there is for that agent, not for the Coordinator.
-    e.typed("also say goodbye"); assert!(e.text().contains("enter send to this task's agent · shift+enter new line · esc put away")); e.press(&["esc"]);
+    e.typed("also say goodbye"); assert!(e.text().contains("enter send to #1's agent · shift+enter new line · esc put away")); e.press(&["esc"]);
     // esc is not a chat key: the agent's message stays up, you still talk to the agent, and nothing asks to close.
     e.press(&["esc", "esc"]); assert!(e.s.chat_open && e.s.reply && e.s.ask.is_none() && !e.closed);
     assert!(has(&wide(&mut e, 160), r"\n│ Done\. +│\n│ +│\n│ ❯ Send message to Agent")); e.s.closing = None;

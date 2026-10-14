@@ -59,11 +59,35 @@ fn with_an_agent_whose_agent_is_said_once_and_in_a_narrow_window_the_hints_give_
     assert_eq!(hints(&mut s, 70), "enter open this task's agent · space back to the Coordinator");
     assert_eq!(hints(&mut s, 48), "space back to the Coordinator");
     s.typed("also say goodbye");
-    assert_eq!(hints(&mut s, 120), "enter send to this task's agent · shift+enter new line · esc put away");
-    assert_eq!(hints(&mut s, 60), "enter send to this task's agent · esc put away");
+    assert_eq!(hints(&mut s, 120), "enter send to #1's agent · shift+enter new line · esc put away");
+    assert_eq!(hints(&mut s, 60), "enter send to #1's agent · esc put away");
     for width in [48, 40, 34] { let h = hints(&mut s, width); assert!(!h.contains('…') && sw::text::width(&h) <= width - 2, "{width}: {h}"); }
-    assert_eq!(hints(&mut s, 30), "enter send"); s.press(&["esc"]);
+    assert_eq!(hints(&mut s, 30), "enter send to #1's agent");
+    // narrower, the words still name who gets them, as long as they can
+    assert_eq!(hints(&mut s, 22), "enter send to #1"); assert_eq!(hints(&mut s, 16), "enter send"); s.press(&["esc"]);
     for width in [40, 34] { assert!(!hints(&mut s, width).contains('…')); }
     assert_eq!(hints(&mut s, 34), "space back to the Coordinator"); s.press(&["space"]);
     assert_eq!(hints(&mut s, 26), "enter open its agent");
+}
+
+#[test]
+fn while_you_type_the_hint_line_says_who_gets_the_words_and_the_box_edge_names_no_one() {
+    let w = world();
+    let mut s = open(&w.root, 34); s.s.side = false;
+    s.typed("a new thing");
+    assert_eq!(hints(&mut s, 120), "enter add it as a task · tab add it and put an agent on it · shift+enter new line · esc put away");
+    // a task with no agent yet: in a narrow window too the line names the task the words are locked to
+    s.press(&["esc"]); w.add("Add pebbles"); s.load(); s.press(&["space"]); s.typed("Please add pebbles");
+    assert_eq!(hints(&mut s, 60), "enter send, and start an agent on #1 · esc put away");
+    assert_eq!(hints(&mut s, 32), "enter send to #1");
+    s.press(&["esc", "space"]);
+    // the board of another machine: its Coordinator gets the words, and the line names the machine
+    s.press(&["esc"]);
+    s.s.remotes.insert("vm-a".into(), sw::board::data::Remote { machine: sw::remote::Machine { label: "vm-a".into(), target: "me@vm-a".into(), ..Default::default() }, ok: true, ..Default::default() });
+    s.s.scope = "vm-a".into();
+    s.typed("fix the build");
+    let text = s.screen(120).join("\n");
+    assert!(text.lines().last().unwrap().trim().starts_with("enter send to the Coordinator on vm-a · "), "{text}");
+    assert!(!text.contains("To: "), "{text}");
+    assert_eq!(hints(&mut s, 32), "enter send to vm-a");
 }

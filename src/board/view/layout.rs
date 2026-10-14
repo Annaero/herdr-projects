@@ -29,10 +29,13 @@ fn hint_line(list: Vec<Hint>, chat_key: Option<&Hint>, width: usize) -> Inked {
     while list.len() > 2 && text(&list).width() > room { let n = give_up(&list); list.remove(n); }
     // Still too wide with two left: the main thing stays, unless the other is the one way back.
     if list.len() == 2 && text(&list).width() > room { let n = if list[1].stays { 0 } else { 1 }; list.remove(n); }
-    // The one that is left is said shorter where even that is too wide: it is never cut in the middle.
+    // The one that is left is said shorter where even that is too wide, and shortest where that is too: it is never cut
+    // in the middle.
+    let shorter = |h: &Hint, words: &str| Hint { key: if words.starts_with(&h.key) { String::new() } else { h.key.clone() }, words: words.to_string(), ..h.clone() };
     if list.len() == 1 && text(&list).width() > room {
         let h = list[0].clone();
-        list[0] = if !h.short.is_empty() { Hint { key: if h.short.starts_with(&h.key) { String::new() } else { h.key.clone() }, words: h.short.clone(), ..h } } else { Hint { words: h.words.replace("this task's agent", "its agent"), ..h } };
+        list[0] = if !h.short.is_empty() { shorter(&h, &h.short) } else { Hint { words: h.words.replace("this task's agent", "its agent"), ..h.clone() } };
+        if text(&list).width() > room && !h.shortest.is_empty() { list[0] = shorter(&h, &h.shortest); }
     }
     Inked::plain("  ").add(text(&list))
 }
