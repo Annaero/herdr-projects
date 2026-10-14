@@ -109,7 +109,7 @@ All of them are under `needs you` and in its colour, red; with colour off (`NO_C
 that waits from one that went wrong. Finished work that passed and waits for your yes is none of these: its mark is
 `◆`, in green, under `ready to approve` (an exclamation mark there would read as "something is wrong", and nothing
 is). Every mark is a character every monospace font has; the web board draws the same ones. The words for where a
-task stands are one list (`src/status-words.js`), which the rows, the State line, herdr's sidebar and the web page all
+task stands are one list (`src/status_words.rs`), which the rows, the State line, herdr's sidebar and the web page all
 read. The records the board writes to the terminal carry no mark: they name the state and the kind
 (`state=blocked:kind=question`) and the terminal draws its own.
 
@@ -593,7 +593,7 @@ one tab is renamed. When the board closes (also when it closes to take you into 
 it had before; a name you gave it yourself while the board was open is kept. A board that was killed leaves the
 name, and the next board that opens and closes in that tab puts the old one back. Nothing is renamed by the popup
 (it is no tab and has none of its own), in the tab your board key opens (that one is named `board`, above), outside herdr, in a tmux inside the pane, or by a subcommand that opens no board (`add`,
-`list`, `show` and the rest). The code is `src/board/tab.js`.
+`list`, `show` and the rest). The code is `name_board_tab` in `src/board/run/place.rs`.
 
 While the text box holds text it owns the keyboard: only `Enter`, `Tab`, `Esc` and `Ctrl+C` act on the board, so no shortcut
 fires in the middle of a draft. `Esc` puts a draft away; `Ctrl+Z` brings it back only to whoever it was for, so a reply

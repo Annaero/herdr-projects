@@ -1,0 +1,35 @@
+//! The repo's own rules, checked: no source file past its size, every source file says what it holds, a key's chord
+//! written only in the keys' table, and no made table out of date. Part of the check (tests/guard.rs runs it); by hand:
+//! `herdr-superwork docs --guard`.
+
+/// A source file past this many lines is split by area (as src/finish/ was) rather than appended to.
+pub const MAX_LINES: usize = 300;
+const KEYS_FILE: &str = "src/board/keys.rs";
+/// The text box's own editing keys (the chords every text box has) are its own table.
+const BOX_KEYS: &str = "src/board/textbox/keys.rs";
+/// A file made by a script (herdr's palette) is as long as what it is made from.
+fn made(text: &str) -> bool { text.lines().take(3).any(|l| l.contains("Do not edit: run the script")) }
+
+pub fn problems() -> Vec<String> {
+    let mut out = vec![];
+    let files = match super::map::sources() { Ok(f) => f, Err(e) => return vec![e] };
+    for f in &files {
+        let text = super::read(f);
+        let n = text.trim_end_matches('\n').lines().count();
+        if n > MAX_LINES && !made(&text) && !f.ends_with(".css") { out.push(format!("{f} has {n} lines, more than {MAX_LINES}: split it by area into a folder of small files (AGENTS.md, \"Where new things go\")")); }
+        if let Err(e) = super::map::holds(f) { out.push(e); }
+    }
+    // A key's chord is written in src/board/keys.rs and nowhere else, so that changing a key is one edit.
+    let chord = crate::re!(r#""(ctrl|alt|shift)\+[a-z]"#);
+    for f in files.iter().filter(|f| f.starts_with("src/") && f.ends_with(".rs") && *f != KEYS_FILE && *f != BOX_KEYS) {
+        let mut in_tests = false;
+        for (n, l) in super::read(f).lines().enumerate() {
+            if l.contains("#[cfg(test)]") { in_tests = true; }
+            let code = l.split("//").next().unwrap_or("");
+            if !in_tests && chord.is_match(code) { out.push(format!("{f}:{} names a key by its chord: use keys::is(p, K::…) and key_name(\"…\") from {KEYS_FILE}, where every key is defined once", n + 1)); }
+        }
+    }
+    let old = super::tables::stale();
+    if !old.is_empty() { out.push(format!("{} {} out of date: run `npm run check` (or `herdr-superwork docs`) and commit what it writes (never edit a made table by hand)", old.join(", "), if old.len() > 1 { "are" } else { "is" })); }
+    out
+}

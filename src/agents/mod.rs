@@ -1,0 +1,13 @@
+//! Everything agent-specific: the table of agent programs (kinds.rs and adapter.rs), reading what they saved,
+//! starting them, and what is installed. One area per file.
+pub mod adapter;
+pub mod homes;
+pub mod installed;
+pub mod kinds;
+pub mod prompts;
+pub mod provider_error;
+pub mod read_tokens;
+pub mod read_turn;
+pub mod screen_text;
+pub mod start;
+pub mod talk;

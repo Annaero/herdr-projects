@@ -8,21 +8,23 @@ agents, their status is mirrored from herdr, and going into a task takes you to 
 
 ## Install
 
-Linux. Needs herdr 0.9.3 or newer, Node 22.19+, `git`, `flock` (util-linux), and optionally `gh` (pull requests) and
-`tailscale` (private review links).
+Linux or macOS (x86_64 or aarch64). Needs herdr 0.9.3 or newer, `git`, `curl` or `wget`, and optionally `gh` (pull
+requests) and `tailscale` (private review links). The board is one program: no Node, no npm.
 
 ```sh
-cd herdr-superwork
-npm install
-npm link                          # puts `herdr-superwork` on your PATH (agents use it too)
+git clone https://github.com/eliasstravik/herdr-superwork && cd herdr-superwork
 herdr plugin link "$PWD"          # hooks, the popup and the actions
+sh bin/run.sh install             # gets the program, writes its launcher, says how to put it on your PATH
 ```
 
-The first run, the blocks it can add to herdr's config, and taking the plugin out again: [installing](docs/install.md).
+The plugin downloads the program for your platform from the project's GitHub releases; `herdr-superwork update`
+fetches a newer one. To build it yourself instead: `cargo build --release`. The first run, the blocks it can add to
+herdr's config, updating, and taking the plugin out again: [installing](docs/install.md).
 
 ## Start
 
-Type `herdr-superwork` in any pane: that opens the board. Type what needs doing and press `Enter`: that adds a task.
+Type `herdr-superwork` in any pane (its launcher on your PATH), or run the plugin's action "Open the work board":
+that opens the board. Type what needs doing and press `Enter`: that adds a task.
 `Tab` puts an agent on the selected task. `?` shows everything else you can do.
 
 ## The pages
@@ -32,5 +34,5 @@ and [settings](docs/settings.md).
 
 ## Working on the code
 
-[AGENTS.md](AGENTS.md) says where new things go and how to run the tests; `node scripts/docs.js --where` prints
+[AGENTS.md](AGENTS.md) says where new things go and how to run the tests; `herdr-superwork docs --where` prints
 which file holds what.

@@ -135,7 +135,8 @@ take over instead of waiting for you.
 
 ## Where it is
 
-`src/limits/` (`run.js`: the light part, a run and what counts; `spent.js`: counting; `reached.js`: the stop;
-`tick.js`: the pass that looks; `shown.js`: what is shown), `src/actions/limits.js` (continue, as it is), `src/agents/read-tokens.js` (one counter per program). The
-token limit is asked at the end of a turn in `src/finish/turn-ended.js` and `src/finish/pipeline.js`, and before
-anything merges by itself in `src/finish/auto-merge.js`. Tests: `test/limits.test.js`.
+`src/limits/` (`run.rs`: the light part, a run and what counts; `spent.rs`: counting; `reached.rs`: the stop;
+`tick.rs`: the pass that looks; `shown.rs`: what is shown), `src/actions/limits.rs` (continue, as it is), `src/agents/read_tokens.rs` (one counter per program). The
+token limit is asked at the end of a turn in `src/finish/turn_ended.rs` and `src/finish/pipeline.rs`, and before
+anything merges by itself in `src/finish/auto_merge.rs`. Tests: `tests/limits.rs`, `tests/limits_more.rs`,
+`tests/limits_tokens.rs`.

@@ -21,11 +21,11 @@ running herdr: the chat says "New task", and what you type is added word for wor
 **Every chat knows the board.** The plugin keeps a small how-to, a folder named
 `herdr-superwork` holding `SKILL.md`, in each installed agent program's own skills folder (`~/.claude/skills`,
 `~/.codex/skills`, `~/.pi/agent/skills`), so an ordinary chat can "add this to the board" without being told how.
-It gives the command by its full path, so `npm link` is not needed. `herdr-superwork remove-extras` removes
+It gives the command by its full path, so it need not be on your PATH. `herdr-superwork remove-extras` removes
 exactly what was written, and it is not written back; a folder of that name the plugin did not write is left alone.
 
 Commands: `add`, `list`, `report`, `describe`, `delegate`, `tell`, `stop`, `approve`, `review`, `retry`, `fix`,
-`finish`, `details`, `pin`, `archive`, `restore`, `clear`, `set`, `unset`, `show`, `automations` ([automations](automations.md)), `machines` ([other machines](other-machines.md)), `remove-extras`; `herdr-superwork help` lists
+`finish`, `details`, `pin`, `archive`, `restore`, `clear`, `set`, `unset`, `show`, `automations` ([automations](automations.md)), `machines` ([other machines](other-machines.md)), `install`, `update` ([installing](install.md)), `remove-extras`; `herdr-superwork help` lists
 them.
 
 **Agents the board started: able, not nudged.** An agent or a reviewer the board itself started on a task can run
@@ -46,7 +46,7 @@ tell it to report itself `blocked` and nothing else (the finish line marks its w
 it does anything, and names the nearest right flag: `list --archvied` answers `list does not know --archvied. Did
 you mean --archived?`. A mistyped flag used to be kept and ignored, so the command did something other than what was
 asked. Settings given to `add` are the task's own from the start, with `--delegate` or without. The list of flags
-is `src/cli/flags.js`.
+is `src/cli/flags.rs`.
 
 **What a command answers.** Each command answers in one line that starts with the task's id, in the same few plain
 words everywhere (the board's own messages and the Coordinator's closing line use them too): `add` says **added**

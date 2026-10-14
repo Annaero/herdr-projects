@@ -17,8 +17,8 @@ action is still a key. With words in the box a click selects nothing and the boa
 you typed first`). A click anywhere else (the header, the chat, the task panel) is not the board's.
 
 **Selecting and copying.** A program that asks for the mouse gets all of it: herdr, and a terminal outside herdr,
-then no longer select text in the board themselves. So the board does it (pi-tui's own selection, the same on every
-terminal): drag over text and it is highlighted; let go and it is copied to the clipboard. A double click selects a
+then no longer select text in the board themselves. So the board does it (its own selection, `src/board/run/mouse.rs`, the same on
+every terminal): drag over text and it is highlighted; let go and it is copied to the clipboard. A double click selects a
 word, a click anywhere takes the highlight away. The copy goes out as the terminal's clipboard code (OSC 52), which
 herdr passes on, with its `copied to clipboard` note.
 

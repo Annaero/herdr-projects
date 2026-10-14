@@ -1,20 +1,11 @@
 {
   "name": "herdr-superwork",
-  "version": "0.2.0",
-  "description": "A work board for herdr: one list of tasks, each delegated one running as an ordinary herdr agent.",
-  "type": "module",
+  "version": "0.3.0",
+  "private": true,
+  "description": "A work board for herdr. The program is Rust (Cargo.toml); this file only gives every agent the one command that runs the tests.",
   "license": "MIT",
-  "bin": { "herdr-superwork": "bin/herdr-superwork.js" },
-  "engines": { "node": ">=22" },
   "scripts": {
-    "test": "node test/check.js",
-    "check": "node test/check.js"
-  },
-  "dependencies": {
-    "@earendil-works/pi-tui": "1.1.0"
-  },
-  "devDependencies": {
-    "eslint-scope": "9.1.2",
-    "espree": "11.2.0"
+    "test": "sh scripts/check.sh",
+    "check": "sh scripts/check.sh"
   }
 }

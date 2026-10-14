@@ -3,27 +3,40 @@
 Several agents change this repo at once. Before you add or change anything, look at the map: it says which file
 holds what, so that two tasks do not edit the same file.
 
-- `node scripts/docs.js --where` prints all of it; `node scripts/docs.js --where src/board/view` only that folder.
+- Build the program once: `cargo build --profile quick` (the workspace setup does it for you). It is then
+  `./target/quick/herdr-superwork`.
+- `./target/quick/herdr-superwork docs --where` prints all of the map; `… docs --where src/board/view` only that
+  folder.
 - It is also a page in your own folder, `docs/where-things-live.md`, written by the workspace setup and by
-  `npm run check`. It is not in git: never commit it. The tests are one file per area: `ls test`.
+  `npm run check`. It is not in git: never commit it. The tests are one file per area: `ls tests`.
+
+The program is Rust, one native program: `Cargo.toml` at the root, the library in `src/lib.rs`, the command in
+`src/main.rs`. There is no Node and nothing to `npm install`; `package.json` is only there so that every agent finds
+the one command that runs the tests.
 
 ## Where new things go
 
 - **One area, one small file.** Put a change in the file of its area. A new area is a new file, not more lines at
   the end of an old one. A source file may not pass 300 lines (the check fails): split it by area into a folder of
-  small files with the old file passing them on, as `src/finish.js` and `src/finish/` do.
-- **Every source file starts with a comment that says what it holds.** The map is made from those comments.
-- **A part of the board's screen is a file in `src/board/view/`** that names its part (`export const part = …`).
-  `src/board/view.js` loads every such file: there is no list to add it to, and no import to write there.
-- **A key is one entry in `src/board/keys.js`**: its chord, its name, what it does, its hint, its line in the `?`
-  menu. The key handler, the menu, the hint line and `docs/keys.md` all read that list. Never write a key's name
-  into a message: say `keyName("undo")`.
-- **A setting is one entry in `src/store/settings-list.js`**: its default and what it means. Its row in the task
-  panel is `src/board/view/panel-settings.js`.
+  small files with the old file passing them on, as `src/finish.rs` and `src/finish/` do.
+- **Every source file starts with a comment that says what it holds**: `//!` lines in a `.rs` file (`#` in a shell
+  script, `//` in the web page's `.js`, `/* */` in its `.css`). Its first sentence is its line in the map; the check
+  fails for a file without one.
+- **A part of the board's screen is a file in `src/board/view/`** (a part of the task panel: `src/board/view/panel/`),
+  named in that folder's `mod.rs` with one `pub mod` line beside its kin. What it draws is that file's; what a key
+  does to the board is `src/board/update/`, one file per area; the board's one record of what it shows is
+  `src/board/state.rs`.
+- **A key is one entry in `src/board/keys.rs`**: its chord, its name, what it does, its hint, its line in the `?`
+  menu, its button on the web board. The key handler, the menu, the hint line and `docs/keys.md` all read that list.
+  What it does is its arm in `src/board/update/` (a key with no arm there does not compile). Never write a key's
+  chord anywhere else (the check fails): test for it with `keys::is(p, K::…)`, and name it in a message with
+  `key_name("undo")`.
+- **A setting is one entry in `src/store/settings_list.rs`**, beside the ones of its area: its default and what it
+  means. Its row in the task panel is `src/board/view/panel/settings.rs`.
 - **In a list many tasks add to, one entry per line (or per block), placed beside the entries it belongs with**, never
   at the end: two additions at the end always conflict.
 - **Never edit a made table by hand**: what is between the `made:` lines in `docs/keys.md` and `docs/settings.md`.
-  Change the code; `npm run check` writes the table when it is out of date and says so (`node scripts/docs.js` does
+  Change the code; `npm run check` writes the table when it is out of date and says so (`herdr-superwork docs` does
   the same): commit what it wrote. A merge conflict in a made table is settled the same way: run the command, do not
   pick lines.
 - **A task's words go in the `docs/` page of its own topic, and only there.** A new topic is a new page. A page that
@@ -36,25 +49,32 @@ holds what, so that two tasks do not edit the same file.
 
 ## Tests
 
-One command runs tests, for everyone: `npm run check` (`npm test` is the same). Never start the tests another way
-(`node --test`, a loop of your own): the command remembers what already passed for this exact code and for what is
-installed, and shares that with the reviewer and the board.
+One command runs tests, for everyone: `npm run check` (`npm test` is the same; both run `scripts/check.sh`). It builds
+the program with the `quick` profile, writes the made tables when they are out of date, checks the repo's own rules
+(`herdr-superwork docs --guard`: file sizes, the comment at the top, chords only in the keys' table, no made table
+out of date) and runs `cargo test`. It remembers what passed for this exact code (every file of the folder,
+committed or not, and the compiler), and shares that with the reviewer and the board: asked again, it answers at once.
 
-- **While you work, run the tests of what you touched**: `npm run check`. It picks the test files your change reaches
-  and answers at once when they already passed for this code. `npm run check board-panel` runs one area (every
-  `test/board-panel*.test.js`), `npm run check gate sync` several. A run of 8 files or fewer starts at once.
-- **The board runs the whole suite at the end**, when you finish: `npm run check -- --all`. Run that yourself at most
+- **While you work, run the tests of what you touched**: `npm run check board-panel` runs one area's test files
+  (`tests/board_panel.rs` and `tests/board_panel_*.rs`), `npm run check gate sync` several. A name that is no area runs
+  the tests whose own names hold it (`npm run check textbox`). With no name it runs them all.
+- **The board runs the whole check at the end**, when you finish: `npm run check -- --all`. Run that yourself at most
   once, last of all, when your task asks for it; never after each edit. The board's run then answers at once.
 - **Never wait in a loop for the machine to be quiet**, and never look at the load before a run. A busy machine fails
-  nothing: the whole suite has no time budget (its totals are only printed), and one file's clock budget stretches
-  with the load. `waiting for a turn` means another whole run goes first: leave it, it starts by itself.
-- A failed test is the only thing to fix. When one file is over its own budget the check names it: make its tests
-  lighter or split the file; do not work around the budget.
+  nothing: the check has no time budget, and the light tests never wait for the real clock. `Blocking waiting for
+  file lock` is cargo letting another build in the same folder finish first: leave it, it goes on by itself.
+- A failed test is the only thing to fix.
 - The check writes the made tables (`docs/keys.md`, `docs/settings.md`) when they are out of date and says so: commit
   them. `--fresh` runs again what already passed; you rarely need it.
-- New tests are the light kind: they call the code in the test's own process (`world()` in `test/helpers.js`), start
-  no program, and never sleep or depend on the machine's speed (move the clock: `fastClock`). A real program only when
-  the program itself is what is tested, in a test whose name starts with `[real programs]`.
+- New tests are the light kind: they call the code in the test's own process. `world()` in `tests/common/mod.rs`
+  gives a test a board folder of its own, a git repo, a fake herdr that answers in the test's own thread and agents
+  that play a script (`w.script(json!({"worker": [step, …]}))`); `settle(id)` runs what would have been the board's
+  background jobs until nothing moves; `common::board::open` gives the board itself, to press keys on and read as
+  text. A test starts no program and never sleeps or depends on the machine's speed (move the clock:
+  `sw::clock::set`, `sw::clock::advance`). A real program only when the program itself is what is tested, in a test
+  whose name starts with `real_programs_`.
+- Whole frames of the board are kept in `tests/frames/`. A change to what the board looks like changes them on
+  purpose: `UPDATE_FRAMES=1 npm run check frames` writes them again; look at what changed before you commit it.
 - A look at the real thing (a real terminal, a browser screenshot) only for a task that changes what the board looks
   like.
 

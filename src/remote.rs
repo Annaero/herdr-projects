@@ -1,0 +1,176 @@
+//! Other machines. Every machine keeps its own tasks; a home board asks each machine for its list and sends each
+//! action to the machine that owns the task, through one entry point there: `herdr-superwork remote list|do|dispatch`,
+//! run over SSH with a login shell so PATH is set. Work never moves between machines. Why a machine did not answer is
+//! remote/why.rs; the check you can run (`herdr-superwork machines`) is remote/check.rs.
+//!
+//! Machines come from `herdr machine list --json` (the ones the client added with `herdr machine add`): each has an
+//! `id`, a `label`, a `target` (`user@host` or `ssh://user@host:port`), a `session` and `enabled`. The
+//! `board.machines` setting names them by hand instead.
+pub mod automations;
+pub mod check;
+pub mod why;
+
+use crate::actions::{archive, filing, finish_line, start, talk};
+use crate::err::Res;
+use crate::flow::{live::board, talk::task_talk, task::is_agent_task};
+use crate::json::*;
+use crate::store::{files::{data_dir, VERSION}, keys::repo_keys, marks::tilde, repos::{branch_of, can_worktree, folder_of}, settings::{change::{checked, set_value, unset_value}, lookup::{in_repo, setting, Scope}, show::{problems, rows}, values::say}, tasks::{find, get, update, Change}};
+use why::{read_answer, why_not, Ended};
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Machine { pub id: String, pub target: String, pub session: String, pub label: String }
+fn b64(v: &Value) -> String { crate::util::base64(serde_json::to_string(v).unwrap_or_default().as_bytes()) }
+fn clean(s: &str, extra: &str) -> String { s.chars().filter(|c| c.is_ascii_alphanumeric() || extra.contains(*c)).collect() }
+
+pub fn machines() -> Vec<Machine> {
+    let want = setting("board.machines", None).as_str().unwrap_or("auto").to_string();
+    let user = std::env::var("USER").unwrap_or_default();
+    if want == "none" { return vec![]; }
+    if want != "auto" {
+        return want.split(|c: char| c.is_whitespace() || c == ',').filter(|x| !x.is_empty()).map(|x| Machine { id: String::new(), target: if x.contains('@') { x.into() } else { format!("{user}@{x}") }, label: x.rsplit('@').next().unwrap_or(x).split('.').next().unwrap_or(x).into(), session: String::new() }).collect();
+    }
+    // `id`: herdr's own id for the saved machine (the web UI names its PCs by it: webui/pcs.rs).
+    crate::herdr::Herdr::new(None).machines().into_iter().filter(|m| m.is_object() && m.at("enabled") != &json!(false)).map(|m| {
+        let pick = |ks: &[&str]| ks.iter().map(|k| m.t(k)).find(|s| !s.is_empty()).unwrap_or_default();
+        let label = pick(&["label", "name", "ssh_target", "target"]);
+        let label = label.rsplit('@').next().unwrap_or("").split('.').next().unwrap_or("").chars().map(|c| if c.is_ascii_alphanumeric() || "_.-".contains(c) { c } else { '-' }).collect();
+        Machine { id: m.t("id"), target: pick(&["ssh_target", "target", "ssh", "host"]), session: pick(&["remote_session", "session"]), label }
+    }).filter(|m| !m.target.is_empty() && !m.label.is_empty()).collect()
+}
+/// Its own known-hosts file, so an old saved key elsewhere cannot get in the way; one shared connection per machine,
+/// so asking again every few seconds costs almost nothing. The remote side runs through a login shell so PATH is set.
+pub fn ssh_command(m: &Machine, remote: &str, tty: bool) -> (String, Vec<String>) {
+    let session = if !m.session.is_empty() && m.session != "default" { format!("HERDR_SESSION={} ", clean(&m.session, "_.-")) } else { String::new() };
+    if let Ok(s) = std::env::var("HERDR_SUPERWORK_SSH") { return (s, vec![m.target.clone(), format!("{session}{remote}")]); } // a stand-in, for tests
+    let d = data_dir();
+    let mut a: Vec<String> = if tty { vec!["-t".into()] } else { vec!["-o".into(), "BatchMode=yes".into()] };
+    for o in ["ConnectTimeout=6", "StrictHostKeyChecking=accept-new"] { a.extend(["-o".into(), o.into()]); }
+    a.extend(["-o".into(), format!("UserKnownHostsFile={}", d.join("known_hosts").display()), "-o".into(), "ControlMaster=auto".into(), "-o".into(), format!("ControlPath={}", d.join("ssh-%C").display()), "-o".into(), "ControlPersist=120".into(), "-o".into(), "LogLevel=ERROR".into()]);
+    a.push(m.target.clone());
+    a.push(format!("exec \"${{SHELL:-/bin/sh}}\" -lc '{session}{remote}'"));
+    ("ssh".into(), a)
+}
+/// Run a command to its end or its time, as an SSH call is read.
+pub fn run_ended(mut c: std::process::Command, ms: u64) -> Ended {
+    c.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+    let child = match c.spawn() { Ok(ch) => ch, Err(e) => return Ended { error: e.to_string(), ms, ..Default::default() } };
+    match crate::herdr::cli::wait_with_timeout(child, ms) {
+        Ok(r) => Ended { code: Some(r.status), stdout: r.stdout, stderr: r.stderr, ms, ..Default::default() },
+        Err(e) if e.code == "timeout" => Ended { timed_out: true, ms, ..Default::default() },
+        Err(e) => Ended { error: e.message, ms, ..Default::default() },
+    }
+}
+/// Ask a machine: its answer (one line of JSON, wherever the shell's start-up files printed around it), or why there
+/// is none (remote/why.rs).
+pub fn ask(m: &Machine, what: &str, arg: Option<&Value>, ms: u64) -> Result<Value, Value> {
+    let (cmd, args) = ssh_command(m, &format!("herdr-superwork remote {what}{}", arg.map(|a| format!(" {}", b64(a))).unwrap_or_default()), false);
+    let mut c = std::process::Command::new(cmd);
+    c.args(args);
+    let end = run_ended(c, ms);
+    let j = if end.timed_out || !end.error.is_empty() { None } else { read_answer(&end.stdout) };
+    j.ok_or_else(|| why_not(&end, &m.label, &m.target))
+}
+/// Entering a remote task's agent: SSH to that machine and `herdr agent attach <pane id>` there, in the board's own
+/// terminal. A direct view of that one agent's terminal, no nested herdr; detaching (ctrl+b q) returns to the board.
+pub fn attach_command(m: &Machine, pane: &str) -> (String, Vec<String>) {
+    let session = if !m.session.is_empty() && m.session != "default" { format!(" --session {}", clean(&m.session, "_.-")) } else { String::new() };
+    ssh_command(m, &format!("herdr{session} agent attach {}", clean(pane, ":_-")), true)
+}
+
+// ---- the door on this machine: each request answers in one line of JSON ---------------------------------------------
+fn snapshot(t: &Obj) -> Value {
+    let folder = folder_of(t.s("id"));
+    let tree = t.t("worktree");
+    // What its agent (its reviewer, while it is under review) said: only for a task someone is on, and kept small.
+    let talk = if is_agent_task(t) && !t.b("archivedAt") && t.s("stage") != "done" { task_talk(t, 8, 6000) } else { Value::Null };
+    // Where its work lands, for the asking side's merge question: only for a task that waits for that yes.
+    let onto = if t.s("stage") == "approval" { json!(crate::sync::lands_on(t)) } else { Value::Null };
+    let at = if tree.is_empty() { folder.clone() } else { tree.clone().into() };
+    json!({ "talk": talk, "landsOn": onto, "folder": tilde(&folder.display().to_string()), "tree": tilde(&tree), "branch": branch_of(&at),
+        "settings": rows(&Scope::task(t)).iter().map(|r| r.json()).collect::<Vec<_>>(), "problems": problems(Some(t)), "canWorktree": can_worktree(&folder), "repo": in_repo(t) })
+}
+/// `said`, `usage` and `agentVersion` ride along on each task; `version` is this side's version (a machine on an older
+/// one sends none). Pending hook events are this machine's own and are not sent. `automations`: this machine's own.
+pub fn remote_list() -> Value {
+    let keys = repo_keys();
+    let tasks: Vec<Value> = board(true).into_iter().map(|mut t| {
+        let snap = snapshot(&t);
+        for k in ["live", "announced", "events"] { t.del(k); }
+        if let Some(k) = keys.get(t.s("repo")) { t.put("key", k.clone()); }
+        t.put("snap", snap);
+        Value::Object(t)
+    }).collect();
+    json!({ "host": check::hostname(), "version": VERSION, "automations": automations::automations_sent(), "tasks": tasks })
+}
+pub fn remote_main(a: &[String]) -> i32 {
+    let what = a.first().cloned().unwrap_or_default();
+    let req: Value = a.get(1).and_then(|p| crate::util::unbase64(p)).and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(json!({}));
+    let answer = match door(&what, &req) { Ok(v) => v, Err(e) => json!({ "ok": false, "msg": e.msg }) };
+    println!("{}", serde_json::to_string(&answer).unwrap_or_default());
+    0
+}
+fn carried(id: &str, req: &Value) -> Res<()> {
+    if !req.at("settings").is_object() { return Ok(()); }
+    let pairs: Vec<(String, Value)> = req.at("settings").as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    let values = checked(&pairs, &Scope::you())?;
+    let from: String = (if req.b("from") { req.t("from") } else { "another machine".into() }).chars().take(64).collect();
+    update(id, |t| { t.put("carried", json!({ "from": from, "settings": values })); Ok(Change::Write) })?;
+    Ok(())
+}
+/// One request of another machine, answered here (`remote_main` prints it as its one line).
+pub fn door(what: &str, req: &Value) -> Res<Value> {
+    let ok = |msg: String| Ok(json!({ "ok": true, "msg": msg }));
+    match what {
+        "list" => Ok(remote_list()),
+        "hello" => Ok(json!({ "ok": true, "host": check::hostname(), "version": VERSION })), // the check a machine runs on itself (remote/check.rs)
+        "do" if automations::is_automation_action(req.s("action")) => automations::automation_do(req), // an automation of this machine, not a task
+        "do" => {
+            let t = find(req.s("id"))?;
+            let id = t.t("id");
+            // The work settings of the machine that asked travel with the task it starts: they stand where this
+            // machine's own "you" and its entry for the repo would. Board settings stay with each machine.
+            match req.s("action") {
+                // A change to one of its own settings, from the asking side's task panel.
+                "set" => {
+                    let r = if req.at("value").is_null() { unset_value(req.s("name"), &Scope::task(&t))? } else { set_value(req.s("name"), req.at("value"), &Scope::task(&t))? };
+                    let later = get(&id).and_then(|c| rows(&Scope::task(&c)).into_iter().find(|x| x.name == r.name)).map(|x| x.later).unwrap_or_default();
+                    ok(format!("{}: {} ({}){}", r.name, say(&r.value), r.from, if later.is_empty() { String::new() } else { format!(" · {later}") }))
+                }
+                "archive" => { archive::archive(&id)?; ok(format!("{id}: archived. ? has undo, and the archive.")) }
+                "restore" => { archive::restore(&id)?; ok(format!("{id}: restored")) }
+                "delegate" => { carried(&id, req)?; start::delegate(&id, vec![])?; ok(format!("{id}: an agent is on it")) }
+                "tell" => { if !t.b("startedOnce") { carried(&id, req)?; } ok(talk::tell(&id, &req.t("text"), false)?.msg) }
+                "approve" => { let seen = if req.at("seen").is_array() { Some((req.at("seen").get(0).cloned().unwrap_or_default(), req.at("seen").get(1).cloned().unwrap_or_default())) } else { None }; ok(finish_line::approve(&id, seen, *req.at("anyway") == json!(true))?.msg) }
+                "pick" => ok(crate::attempts::settle::pick(&id, &req.t("letter"))?.msg),
+                "fix" => ok(finish_line::send_failure(&id)?.msg),
+                "retry" => ok(finish_line::send_error(&id)?.msg),
+                "again" => ok(finish_line::retry(&id)?.msg),
+                "review" => ok(finish_line::send_review(&id)?.msg),
+                "finish" => ok(finish_line::finish_anyway(&id)?.msg),
+                "pin" => { let p = filing::pin(&id)?; ok(format!("{id}: {}", if p.b("pinned") { "pinned" } else { "unpinned" })) }
+                "stop" => { talk::stop(&id)?; ok(format!("{id}: stopped.")) }
+                // Going into a task from another machine: reopen its space and restart its exited agent here first,
+                // with the same function the local board calls, and answer with the pane to attach to.
+                "reopen" => { let (pane, has, _) = crate::delegate::jobs::reopen(&id, true)?; Ok(json!({ "ok": true, "msg": "", "pane": pane.at("pane_id"), "workspace": pane.t("workspace_id"), "hasAgent": has })) }
+                "clear" => { let (cid, kept) = archive::clear(&id)?; ok(if kept.is_empty() { format!("{cid}: removed") } else { format!("{cid}: removed. Kept, so no work is lost: {}", kept.join(", ")) }) }
+                other => Ok(json!({ "ok": false, "msg": format!("Unknown action {other}") })),
+            }
+        }
+        "dispatch" => {
+            let cwd = if req.b("about") { folder_of(req.s("about")) } else { crate::store::files::user_home() };
+            let socket = crate::herdr::cli::current_socket();
+            if !crate::coordinator::who::ready(&socket) {
+                let text = req.t("text");
+                let (title, rest) = text.split_once('\n').unwrap_or((&text, ""));
+                let t = filing::add(&cwd, title, filing::AddOpts { description: rest.into(), ..Default::default() })?;
+                carried(t.s("id"), req)?;
+                if req.b("delegate") { start::delegate(t.s("id"), vec![])?; }
+                return ok(format!("{}: added{}", t.s("id"), if req.b("delegate") { ", an agent is on it" } else { "" }));
+            }
+            // This machine's own Coordinator takes it, in its one conversation; its answer shows on this machine's board.
+            crate::coordinator::requests::send(&cwd, &req.t("text"), req.b("delegate"), req.s("about"), &socket)?;
+            ok(format!("sent to {}", check::hostname()))
+        }
+        _ => Ok(json!({ "ok": false, "msg": format!("Unknown request {what}") })),
+    }
+}

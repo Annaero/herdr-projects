@@ -1,18 +1,52 @@
 # Installing, the first run, and taking it out again
 
-Linux. Needs herdr 0.9.3 or newer, Node 22.19+, `git`, `flock` (util-linux), and optionally `gh` (pull requests) and
-`tailscale` (private review links).
+Linux or macOS, on x86_64 or aarch64. Needs herdr 0.9.3 or newer and `git`; `curl` or `wget` to download the
+program; optionally `gh` (pull requests) and `tailscale` (private review links). No Node, no npm: the board is one
+program.
 
 ```sh
-cd herdr-superwork
-npm install
-npm link                          # puts `herdr-superwork` on your PATH (agents use it too)
+git clone https://github.com/eliasstravik/herdr-superwork && cd herdr-superwork
 herdr plugin link "$PWD"          # hooks, the board's tab and the actions
+sh bin/run.sh install             # gets the program, writes its launcher, says how to put it on your PATH
 ```
 
-On a machine that another one will ask for its tasks ([other machines](other-machines.md)), `herdr-superwork` and
-`node` must be found by a login shell that nobody types into, which is what SSH starts: a PATH set only in `~/.bashrc`
-is often not enough. `herdr-superwork machines` checks it on the machine itself and says how to fix it; from the other
+**The program is one file per platform** (`herdr-superwork-linux-x86_64`, `-linux-aarch64`, `-macos-x86_64`,
+`-macos-aarch64`; the Linux ones run on any Linux). Every command herdr runs for the plugin goes through
+`bin/run.sh`, which runs, the first it finds:
+
+1. a program built in this checkout (`target/release/herdr-superwork`) that no source file is newer than;
+2. the downloaded one in `bin/`, when it is this checkout's version (`Cargo.toml`) or newer;
+3. that file downloaded now from the project's GitHub release of this checkout's version, its checksum checked, put
+   in place in one step, one download at a time;
+4. failing all that, an older build or an older download, with a line saying so. A download that failed is tried
+   again ten minutes later, not on every command (each of herdr's hooks would wait for it).
+
+With none it says what to do and stops at once, so herdr is never held up. The plugin's build step
+(`sh bin/run.sh --fetch`) only gets the program, and builds it from source when it cannot download it.
+`HERDR_SUPERWORK_RELEASES` names another place for the releases (a fork, a mirror, a folder as `file:///…`). The
+release files are built for every version tag by `.github/workflows/release.yml`.
+
+**Updating.** `herdr-superwork update` puts the newest release in place of the downloaded program, in one step
+(`update 0.3.1` a given version); an open board and the keeper see the file change and load it by themselves
+([the board's size](board-size.md)). Pulling a newer version of the plugin (`git pull`) does the same at the next
+command herdr runs: `bin/run.sh` downloads that version. A program you built yourself is updated with `git pull` and
+`cargo build --release`, never by a download.
+
+**Building from source** instead: `cargo build --release` in the checkout (Rust: https://rustup.rs). `bin/run.sh`
+then runs that build, and builds again are picked up the same way.
+
+**The command on your PATH.** Agents and hooks are handed the launcher `~/.herdr-superwork/data/bin/herdr-superwork`,
+which runs the program; `herdr-superwork install` writes it again and says whether something else named
+`herdr-superwork` comes first on your PATH. To type `herdr-superwork` in a shell, put that folder on your PATH (in
+`~/.profile` or your shell's start-up file).
+
+**From the older Node version**: `npm unlink -g herdr-superwork` takes the Node program off your PATH. The first run
+of this version keeps a copy of the data folder as it was (`~/.herdr-superwork/data-0.2.0`) before it changes
+anything; the data's form is the same, so nothing is converted.
+
+On a machine that another one will ask for its tasks ([other machines](other-machines.md)), `herdr-superwork` must
+be found by a login shell that nobody types into, which is what SSH starts: a PATH set only in `~/.bashrc` is often
+not enough. `herdr-superwork machines` checks it on the machine itself and says how to fix it; from the other
 machine the test is `ssh <machine> 'exec $SHELL -lc "herdr-superwork remote list"' | tail -c 200`, which ends with a
 line of JSON.
 

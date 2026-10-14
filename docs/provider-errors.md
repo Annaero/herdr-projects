@@ -30,5 +30,6 @@ otherwise give up or go to you: after the last try for an error that passes, at 
 fix. The order is the tries first, then the fallback, then you ([the fallback agent](fallback.md)).
 
 The waits are fixed. What was seen in real conversation files is in [checked-on-herdr.md](checked-on-herdr.md); the
-code is `providerError` in `src/agents/provider-error.js` (which errors pass), `src/store/retries.js` (the wait) and
-`src/finish/turn-ended.js` and `src/finish/review.js` (the retries); the tests are `test/retry.test.js`, on recorded endings in `test/fixtures/endings`.
+code is `provider_error` in `src/agents/provider_error.rs` (which errors pass), `src/store/retries.rs` (the wait) and
+`src/finish/turn_ended.rs` and `src/finish/review.rs` (the retries); the tests are `tests/retry.rs`, `tests/retry_agent.rs`
+and `tests/endings.rs`, on recorded endings in `tests/fixtures/endings`.

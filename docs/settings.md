@@ -8,7 +8,7 @@ Coordinator, the Watcher). One setting is neither: `repo.key`, a fact about one 
 
 1. A work setting is looked up in one order, and the nearest answer wins:
    **this task → your entry for this repo → you → the repo's own file → built in.**
-   One function does this for every setting (`src/store/settings/lookup.js`); no setting has a lookup of its own.
+   One function does this for every setting (`src/store/settings/lookup.rs`); no setting has a lookup of its own.
 2. A board setting is yours only: everything under `board.`, `coordinator.` and `watcher.`. Setting one on a task or
    for a repo is refused, and the answer says how to set it for yourself.
 3. A setting is read when its step starts, and a step under way is never changed: the agent's settings at its next
@@ -89,7 +89,7 @@ the task (fast mode for a program that has none) is not offered ([the task panel
 
 ## The list
 
-<!-- made:settings Made by `node scripts/docs.js` from src/store/settings-list.js. Do not edit between these two lines. -->
+<!-- made:settings Made by `herdr-superwork docs` from src/store/settings_list.rs. Do not edit between these two lines. -->
 | Setting | Built in | Can be said by | Means |
 |---|---|---|---|
 | `worker.agent` | `claude` | task, repo entry, you | the working agent's program: `claude`, `codex` or `pi`, with an optional model after a slash (`codex/gpt-5.5`). The model travels with the program, so one program's model is never handed to another |

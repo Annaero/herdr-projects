@@ -31,5 +31,5 @@ closed, tabs and all.
 Two tabs outside a task's space are named the same way: the Coordinator's, `Coordinator`, in the home space
 ([coordinator.md](coordinator.md)), and the board's own, `herdr-superwork` ([board.md](board.md)).
 
-The names and the code are in `src/flow/tabs.js`; what herdr does with tabs is in
+The names and the code are in `src/flow/tabs.rs`; what herdr does with tabs is in
 [checked-on-herdr.md](checked-on-herdr.md).

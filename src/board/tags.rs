@@ -1,0 +1,72 @@
+//! A task's number as the board says it: the quiet tag of its row, `#134`, or `HSW-134` where its repo has a short key
+//! (store/keys.rs); with every machine shown, whose it is too (`otherbox#1`). Also how a message names a task: its tag
+//! and its title. On an automation's row the word on or off stands where a task has its number.
+use crate::json::*;
+use crate::store::keys::Keys;
+use crate::text::{cut, width};
+
+/// A tag is cut to this many cells (a key has 5 at most, so only another machine's could be longer); one that names its
+/// machine too to FAR_MAX.
+const TAG_MAX: usize = 12;
+const FAR_MAX: usize = 14;
+/// The tag gives way, on every row at once, where it would leave a row's name fewer cells than this.
+pub const NAME_LEFT: usize = 16;
+/// The most empty cells between a tag and its title.
+pub const GAP: usize = 3;
+fn id_of(r: &Obj) -> String { if r.b("rid") { r.t("rid") } else { r.t("id") } }
+fn clean(s: &str) -> String { crate::shown::words::clean(s) }
+/// The tag in words. `scope`: whose board shows ("*" every machine: another machine's tag names its machine). `machine`:
+/// false in find, which takes the number alone.
+pub fn number_tag(r: &Obj, keys: &Keys, scope: &str, machine: bool) -> String {
+    if r.has("auto") { return if r.at("auto").b("on") { "on".into() } else { "off".into() }; }
+    let id = id_of(r);
+    let num = id.rsplit('/').next().unwrap_or("").to_string();
+    let repo = id.split('/').next().unwrap_or("").to_string();
+    if !r.has("title") || num.is_empty() || !num.chars().all(|c| c.is_ascii_digit()) { return String::new(); }
+    let key = if r.b("host") { r.t("key") } else { keys.get(&repo).cloned().unwrap_or_default() };
+    let far = if machine && r.b("host") && scope == "*" { clean(r.s("host")) } else { String::new() };
+    let own = cut(&if key.is_empty() { format!("#{num}") } else { format!("{}-{num}", clean(&key)) }, TAG_MAX);
+    if far.is_empty() { return own; }
+    let sep = if key.is_empty() { "" } else { ":" };
+    format!("{}{sep}{own}", cut(&far, 3.max(FAR_MAX.saturating_sub(width(&own) + sep.len()))))
+}
+/// The column for tags of these widths: the one that lines up the most titles within the limit, the narrower of two
+/// that line up as many. A tag wider than it runs on, and a tag too short for it stands right before its own title.
+pub fn tag_column(widths: &[usize]) -> usize {
+    let lined = |col: usize| widths.iter().filter(|w| **w <= col && col - **w < GAP).count();
+    let mut all: Vec<usize> = widths.iter().copied().filter(|w| *w > 0).collect();
+    all.sort(); all.dedup();
+    all.sort_by(|a, b| lined(*b).cmp(&lined(*a)).then(a.cmp(b)));
+    all.first().copied().unwrap_or(0)
+}
+/// The cells a tag this wide fills in that column, without the cell that parts it from its title.
+pub fn tag_cells(w: usize, col: usize) -> usize { if col == 0 || w == 0 { 0 } else if w <= col && col - w < GAP { col } else { w } }
+/// What the tags of a list are made from: the column, and the widest tag.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Numbering { pub cells: usize, pub widest: usize }
+pub fn numbering(recs: &[&Obj], keys: &Keys, scope: &str, autos: bool) -> Numbering {
+    let widths: Vec<usize> = recs.iter().map(|r| width(&number_tag(r, keys, scope, true))).filter(|w| *w > 0).collect();
+    let mut n = Numbering { cells: tag_column(&widths), widest: widths.iter().copied().max().unwrap_or(0) };
+    // An automation's row has the word on or off where a task has its number: the column is there for it too.
+    if autos { n.cells = n.cells.max(3); n.widest = n.widest.max(3); }
+    n
+}
+/// The tags' column in a list this wide: none where the tags gave way.
+pub fn number_cells(width: usize, n: Numbering) -> usize { if n.cells > 0 && width >= 3 + n.widest + 1 + NAME_LEFT { n.cells } else { 0 } }
+/// A task as a message names it: `#134 "Fix the footer"`, with its machine where you look at more than one.
+pub fn name_say(r: &Obj, keys: &Keys, scope: &str, max: usize) -> String {
+    let tag = number_tag(r, keys, scope, true);
+    let title = clean(r.s("title"));
+    let mut parts = vec![];
+    if !tag.is_empty() { parts.push(tag); } else if title.is_empty() { parts.push(r.t("id")); }
+    if !title.is_empty() { parts.push(format!("\"{}\"", if max == usize::MAX { title } else { cut(&title, max) })); }
+    if r.b("host") && scope != "*" { parts.push(format!("on {}", clean(r.s("host")))); }
+    parts.join(" ")
+}
+pub fn id_say(r: &Obj, keys: &Keys, scope: &str) -> String { let t = number_tag(r, keys, scope, true); if t.is_empty() { r.t("id") } else { t } }
+/// A task's id as the panel says it: with a key, the short name and the id it stands for.
+pub fn id_words(r: &Obj, keys: &Keys, scope: &str) -> String {
+    let said = id_say(r, keys, scope);
+    let label = crate::shown::words::id_label(r.s("id"));
+    if said == r.s("id") { label } else { format!("{said} · {label}") }
+}

@@ -1,6 +1,0 @@
-#!/usr/bin/env node
-// The stand-in for gh (test/fake-gh.js), as a program.
-import { run } from "../fake-gh.js";
-const r = run(process.argv.slice(2));
-process.stdout.write(r.stdout); process.stderr.write(r.stderr);
-process.exit(r.status);

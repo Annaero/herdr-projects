@@ -129,8 +129,8 @@ costs nothing when all goes well; attempts are side by side, always.
 [Limits on time and tokens](limits.md) are built too. A task stopped at its limit is **not** handed over: the limit
 is your cap on what the task may cost, a token limit counts all its agents together, and another agent would only
 go on spending. It waits for you, as that page says. Not built yet is a plan you approve. The hand-over is one
-function (`handOver` in `src/finish/hand-over.js`) that any step can call with its reason.
+function (`hand_over` in `src/finish/hand_over.rs`) that any step can call with its reason.
 
-The code: `src/store/handovers.js` (what is kept on the task, the next on the list, the words),
-`src/finish/hand-over.js` (the working agent's), `src/finish/review-fallback.js` (the reviewer's); the tests are
-`test/fallback.test.js`.
+The code: `src/store/handovers.rs` (what is kept on the task, the next on the list, the words),
+`src/finish/hand_over.rs` (the working agent's), `src/finish/review_fallback.rs` (the reviewer's); the tests are
+`tests/fallback.rs`, `tests/fallback_more.rs` and `tests/fallback_settings.rs`.

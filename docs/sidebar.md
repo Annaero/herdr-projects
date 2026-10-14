@@ -16,7 +16,7 @@ nobody is on (to do, done and cleaned up) has no pane in herdr and so no entry.
    key ([task numbers](task-numbers.md)). The number comes first and herdr cuts a row at its end, so a narrow
    sidebar cuts the title, never the number. The machine's name stands before it only where the sidebar shows more
    than one machine: that is herdr's own `machine` token.
-2. **Who is on it and where it stands**, from the one list of status words (`src/status-words.js`):
+2. **Who is on it and where it stands**, from the one list of status words (`src/status_words.rs`):
 
    | The row on the board | Row 2 of the entry |
    |---|---|
@@ -67,8 +67,8 @@ latest message under it. herdr's own words for it would be `sw-coordinator` and 
 
 ## How it gets there
 
-The board keeps one writer for all of it (`src/flow/sidebar.js`), and that writer has no words of its own: it draws
-the task's row with the board's own code, without colours (`src/flow/sidebar-entry.js`). Whoever ticks, the keeper
+The board keeps one writer for all of it (`src/flow/sidebar.rs`), and that writer has no words of its own: it draws
+the task's row with the board's own code, without colours (`src/flow/sidebar_entry.rs`). Whoever ticks, the keeper
 or an open board, writes an entry once a second when a word of it changed: as often as the board draws its own rows
 again. Where a task comes to wait for you, goes wrong, is taken up again or ends, whatever did that writes the entry
 at once, without waiting for the tick. The Watcher and the check only keep what they find on the task

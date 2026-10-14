@@ -12,19 +12,21 @@ travel over the plugin's own SSH connection, because herdr has no command that r
 Each one needs, once:
 
 ```sh
-# Node 22.19+, git, gh, flock, the agent programs it will run, then:
-git clone <this repository> && cd herdr-superwork && npm install
-npm link
+# git, gh, the agent programs it will run, then:
+git clone https://github.com/eliasstravik/herdr-superwork && cd herdr-superwork
 herdr plugin link "$PWD"
+sh bin/run.sh install             # gets the program and writes its launcher
 ```
+
+and `herdr-superwork` on the PATH of a login shell there (below). How the program is fetched and updated is in
+[installing](install.md).
 
 **The command must be found by a login shell that nobody types into.** The board asks another machine over SSH with
 `$SHELL -lc 'herdr-superwork remote list'`: a login shell, not an interactive one. A PATH that is only set for
 interactive shells does not count: on many systems `~/.bashrc` stops at its "if not running interactively, return"
-line, so `herdr-superwork` or `node` set up below that line (as nvm and other version managers do) is not found. Set
-the PATH in the profile file instead (`~/.profile` or `~/.bash_profile` for bash, `~/.zprofile` for zsh), or link both
-programs into a folder a login shell already has (`ln -s "$(command -v herdr-superwork)" ~/.local/bin/`, the same for
-`node`). The test, from the machine the board is on, ends with a line of JSON when all is well:
+line, so a PATH set up below that line is not found. Set the PATH in the profile file instead (`~/.profile` or
+`~/.bash_profile` for bash, `~/.zprofile` for zsh), or link the launcher into a folder a login shell already has
+(`ln -s ~/.herdr-superwork/data/bin/herdr-superwork ~/.local/bin/`). The test, from the machine the board is on, ends with a line of JSON when all is well:
 
 ```sh
 ssh <machine> 'exec $SHELL -lc "herdr-superwork remote list"' | tail -c 200
@@ -49,7 +51,7 @@ why in its one message.
 | cannot connect (its name is not known, connecting timed out, it refused the connection, there is no way to it from here), ssh could not connect | SSH never reached the machine | is it on and on the network; its name and port in `herdr machine list` or `board.machines` |
 | its host key changed | the machine shows another key than the board saved for it | if it was set up again: `ssh-keygen -R <host> -f ~/.herdr-superwork/data/known_hosts` (the board keeps its own list; with a port other than 22 the name is `'[<host>]:<port>'`, and the board's line gives it so) |
 | it does not let the board in | no key that works, or it asks for a password: the board runs SSH in batch mode and cannot type one | `ssh-copy-id <machine>`, or load your key into the SSH agent the board runs under |
-| herdr-superwork is not found there, node is not found there, its node is too old | a login shell there does not find the program (exit 127), or starts it with a Node older than 22 | the PATH of a login shell, as above |
+| herdr-superwork is not found there, node is not found there, its node is too old | a login shell there does not find the program (exit 127), or finds an older version of it, which ran on Node, with no Node there or one older than 22 | the PATH of a login shell, as above; installing this version there needs no Node |
 | it answered something else than the board's answer, it answered nothing, it answered with an error, it answered, but not with its tasks | the command ran and what it printed is not the board's list: an older plugin, a start-up file that prints and stops, an error | update herdr-superwork there; run the test above to see all of it |
 | it took too long | no answer within 20 seconds | the board asks again by itself; a start-up file that waits for something |
 

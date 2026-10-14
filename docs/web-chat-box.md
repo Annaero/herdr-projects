@@ -65,13 +65,13 @@ Left out, because the Board cannot do it, rather than shown as a dead control:
 
 ## How it was measured
 
-`node scripts/chat-box-match.js` opens the two side by side in a real browser: the web UI on an agent's chat, and the
+A script, `scripts/chat-box-match.js`, opens the two side by side in a real browser: the web UI on an agent's chat, and the
 Board through its front door in front of that same web UI. At a phone's (390×800) and a desktop's (1280×800) size, in
 dark and light, with the box empty, with one line, with fourteen lines, focused, and focused and empty, it reads
 each one's sizes, places and styles and compares the pixels of the message field and of the round Send. It ends
 with 1 when the two differ in anything but what is the board's own.
 
-    node scripts/chat-box-match.js --web-ui 'http://127.0.0.1:7317/?ws=…&pane=…&view=chat' \
+    node chat-box-match.js --web-ui 'http://127.0.0.1:7317/?ws=…&pane=…&view=chat' \
         --board 'http://127.0.0.1:7327/#board' --playwright <the web UI's checkout> [--browser firefox] [--sending]
 
 With `--sending` it also compares the two **while a message is on its way**: it presses enter in each and holds the
@@ -79,10 +79,11 @@ message back for four seconds on its way out (the web UI's on its socket, the bo
 boxes in that moment, and fails if either was not caught in it. That sends for real, four times: one line to the
 agent of that web UI's pane and one to the board. So run it against a scratch herdr and a scratch board.
 
-It is not part of `npm run check`: it needs a running web UI with an agent's pane, the front door and a browser
-([trying it against a copy](web-ui.md#trying-it-against-a-copy)). `npm run check` holds the rest: the box is written
-from the web UI's variables, hides the browser's own look, and names the version it was measured against
-(`test/web-chat-box.test.js`).
+The script is a Node program with Playwright, so it is not in the repo since the board became one Rust program:
+it is in the repo's history (`git log --all -- scripts/chat-box-match.js` finds it), the page it measures
+(`compose.js`, `compose.css`) is unchanged. It was never part of `npm run check`: it needs a running web UI with an
+agent's pane, the front door and a browser ([trying it against a copy](web-ui.md#trying-it-against-a-copy)).
+`compose.css` names the version it was measured against.
 
 Measured on 2026-10-13 against herdr-web-ui 0.4.8 with herdr 0.9.3, in Chromium 156 and Firefox 155:
 
@@ -106,8 +107,8 @@ written, `-webkit-appearance: none` and the rest, and not seen), and a real phon
 
 ## When the web UI changes its box
 
-Run the script again against the new version. What it prints is what to change in `compose.css`; then name the new
-version there and here (the check holds the two together).
+Run the script again against the new version (from the repo's history, above). What it prints is what to change in `compose.css`; then name the new
+version there and here.
 
 Already known: the web UI's code after 0.4.8 (its `main` on 2026-10-13, commit `a4b2295`, not released) changes its
 box, and the script says so (82 differences): the message has 4 px less padding at each side (16 px, 12 px on a phone),

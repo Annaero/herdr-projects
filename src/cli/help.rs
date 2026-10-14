@@ -1,0 +1,57 @@
+//! What `herdr-superwork help` prints: every command, in a few words each.
+pub const HELP: &str = r#"herdr-superwork: a work board for herdr
+
+  herdr-superwork                     open the board here (in herdr: bind a key to the plugin action "open")
+  herdr-superwork add <title> [--desc TEXT] [--repo NAME|PATH] [--delegate] [--<setting> VALUE ...] [--research|--no-research]
+                                      (--research: research only, short for --research.only true. Its agent changes
+                                       nothing in the repo; the result is a report. --no-research: not research only,
+                                       where a default says it is)
+  herdr-superwork list [--archived] [--all] [--query TEXT] [--json]
+  herdr-superwork report <id> --state idle|working|blocked|done|error [--kind question|permission|auth] [--msg TEXT] [--title TEXT]
+                         [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
+  herdr-superwork describe <id> <text>          write or replace a task's description
+  (a title is at most 60 characters: a longer one is shortened at a word, its full text kept in the description)
+  (an <id> is repo/134; where its repo has a short key, HSW-134 names the same task, in any letter case.
+   A key: herdr-superwork set repo.key HSW --repo NAME)
+  herdr-superwork delegate <id> [--<setting> VALUE ...] [--research|--no-research]
+                                      any work setting, for this task only: --reviewer.agent claude --merge.by itself
+                                      (a refused option changes nothing on the task)
+  herdr-superwork tell <id> <text>              send a message to the task's agent
+  herdr-superwork stop <id>                     stop its agent
+  herdr-superwork approve <id> [--anyway]       merge finished work that waits for approval (--anyway: also when its review failed);
+                                                on a task whose plan is ready (plan.approve you): yes to the plan, the build starts.
+                                                tell <id> <text> there sends the plan back with those words
+  herdr-superwork pick <id> <letter>            keep one of a task's several attempts (attempts.by); the others' tabs close
+  herdr-superwork review <id>                   send the reviewer's findings back to the agent
+  herdr-superwork retry <id>                    send the saved error back to the agent; on a task a limit stopped: continue
+  herdr-superwork fix <id>                      send failure details to the agent (never approves a merge)
+  herdr-superwork finish <id>                   finish anyway, when the agent stopped without a summary or at a limit
+  herdr-superwork details <id>                  failure details, review, next steps, and what it used against its limits
+  herdr-superwork pin|archive|restore|clear <id>
+  herdr-superwork set <name> <value> [--repo NAME | --task ID | --automation NAME]
+                                      change a setting: for you, for your entry for one repo, for one task, or for an automation
+  herdr-superwork unset <name> [--repo NAME | --task ID]
+                                      back to what it would be without that answer
+  herdr-superwork show [<id>] [--repo NAME]     every setting and the place it came from; without an id, your own
+  herdr-superwork automations [add|show|change|on|off|run|firings|remove] …
+                                      tasks made on a schedule or when something happens on the board; each firing adds
+                                      a task and puts an agent on it. `herdr-superwork automations help` says how
+  herdr-superwork coordinator                   the Coordinator (the agent behind the board's box): who it is, how it stands
+  herdr-superwork coordinator tell <text> [--delegate]
+                                                say something to it (it is started when it is not running); --delegate is
+                                                the board's tab: what it adds from this message gets an agent at once
+  herdr-superwork coordinator where             where the human was when they last wrote to it from the board (for the Coordinator itself)
+  herdr-superwork coordinator restart           start its program again, in the same conversation
+  herdr-superwork coordinator new [--agent KIND[/MODEL]] [--effort E]
+                                                a fresh one; with options, that choice is for this one only
+  herdr-superwork coordinator stop              close it; the next message starts it again where it left off (words still waiting go in then)
+  herdr-superwork --skill                       instructions an agent can load
+  herdr-superwork machines                      other machines: whether each answers, its version, or why not and what to do;
+                                                and whether another machine could ask this one
+  herdr-superwork web-ui [link|unlink]          the board inside the herdr web UI: how it stands; point the web UI's shared link at it, or back
+  herdr-superwork version                       this program's version, and where it is
+  herdr-superwork install                       write the launcher in the data folder (agents and hooks run it) for this program
+  herdr-superwork update [VERSION]              this program, in place, from the newest release (or that version)
+  herdr-superwork remove-extras                 take out what the plugin added outside its own folders (the how-to
+                                                files, its blocks in herdr's config); run it before unlinking
+"#;

@@ -149,11 +149,11 @@ machine: the board says so instead of opening it.
 ## The same code decides
 
 The web board works nothing out again. On the server it *is* the terminal board, opened with no terminal
-(`src/webui/web-view.js`): the same list, selection, questions and actions. A button presses the board's own key; what
+(`src/webui/view.rs`, and the board as data for the page in `src/webui/model/`): the same list, selection, questions and actions. A button presses the board's own key; what
 is typed is sent as enter sends it. The row's mark, words and columns, the task panel's lines, the hint line and the
 `?` menu are drawn by the board's own code through a theme that names each colour instead of painting it, and the page
 gives each name a colour. So the two boards cannot disagree, and a change to the terminal board is a change to the web
-board. A key's button has a name of its own in the board's words there (`web` in `src/board/keys.js`): "“Undo” brings
+board. A key's button has a name of its own in the board's words there (`web` in `src/board/keys.rs`): "“Undo” brings
 it back".
 
 ## Other machines

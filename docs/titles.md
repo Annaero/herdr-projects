@@ -1,7 +1,7 @@
 # Titles
 
 **A title is at most 60 characters.** One limit, the same wherever a title is made or changed: a task you type
-in the box, `add` and `report --title`. The number is `TITLE_MAX` in `src/store/titles.js`, and nothing else knows it.
+in the box, `add` and `report --title`. The number is `TITLE_MAX` in `src/store/titles.rs`, and nothing else knows it.
 
 ## Why 60
 
@@ -28,10 +28,7 @@ command's answer says what to do about it.
 What is counted is room on the screen, the way the rows count it: a letter of most alphabets is one, a wide
 character (Chinese, Japanese, Korean, an emoji) takes two cells and counts as two, so 30 of those fill a title. A
 title at the limit takes 60 cells whatever it is written in: the count is made by the same measure the rows are
-drawn with, so the two cannot disagree. On a Node older than 22.12 (older than the board's screen library supports)
-that measure cannot be loaded where titles are saved. The count used there is never too low, so the title still
-fits: an emoji and every character from U+1100 up counts as two, which can cut a title of narrow characters from
-that range a little sooner than needed.
+drawn with, so the two cannot disagree.
 
 ## Who is told
 

@@ -13,9 +13,9 @@ board:
 
 ## The board loading its new version
 
-An open board loads its new version by itself when the plugin's code changes under it. Where the plugin runs from
-the checkout that tasks are merged into (`npm link` in the repo you work on with the board), that is every time a
-task's work lands: when an agent finishes and its work is merged. The reload stopped the screen the usual way, which
+An open board loads its new version by itself when the program's file changes under it: when the plugin updates
+the program ([installing](install.md)), or, where you run a program you build yourself from the repo you work on with
+the board, every time you build it again. The reload stopped the screen the usual way, which
 leaves the full-screen view and prints the board once more on the plain screen under it; the new board then cleared
 the view and drew. Recorded on a real terminal, a frame every 20 ms: the whole board one line off for 0.36 seconds,
 then an empty screen for 0.09 seconds, then the board again.
@@ -40,7 +40,7 @@ Now the old board gives back the modes it took (keyboard, paste) but stays in th
 frame up, and the new board, which is in that view already, neither enters it again nor clears it (herdr clears
 the view on entering it a second time) and draws its first frame over the old one.
 Recorded the same way: no frame between the two boards but the board itself. If the new board cannot start, the
-terminal gets its plain screen back. (`src/board/reload-screen.js`.)
+terminal gets its plain screen back. (`src/board/run/term.rs`, `src/board/run/start.rs`.)
 
 ## What does not change it: agents starting and ending
 
@@ -58,7 +58,7 @@ through a task's whole life (start, review, approval, merge, its space closed) a
 and stopped, the board's terminal kept its size, herdr's layout for its pane did not change, and no row of the board
 moved. (The reviewer was then still a pane split off the agent's pane; it has since moved to a tab of its own, which the same test covers.) On herdr a space opened without focus, a pane split off a pane in another space, an agent starting there and a
 space closing do nothing to a pane in the space you look at. A test holds the plugin to it
-(`test/board-still.test.js`): every space and pane it opens is opened with `--no-focus`, it never focuses anything
+(`tests/board_still_sight.rs`): every space and pane it opens is opened with `--no-focus`, it never focuses anything
 while a task runs, and it never splits or closes the board's own pane. Going into an agent on purpose (`Enter` on a
 task) is the one thing that moves herdr's window, as before.
 

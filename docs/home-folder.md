@@ -85,7 +85,7 @@ How it is safe:
   in one step, a link to where the folder now is. Each folder goes in three steps, each of them whole or not done:
   two spare links are made (`<old>.moving` and the new place); the old folder and the spare link change places; the
   new place and the spare name change places. "Change places" is one call to the system (Linux `renameat2`, a Mac's
-  `renamex_np`; `python3` makes the call, since Node cannot), so a command started at the old path at any moment
+  `renamex_np`), so a command started at the old path at any moment
   finds its file. A run that was cut off is carried on by the next one from the shape it left, and a second run
   finds nothing to do. `moved.json` is written before the first step.
 - **The old places become links to the new ones.** So everything that still holds an old path keeps working on the
@@ -105,7 +105,7 @@ How it is safe:
 - **A run never starts on an empty new place.** Whatever has not moved when a run begins (another run is still
   moving it after three seconds of waiting, a step failed, a lock in the new place was held) is used where it is, in the old
   place, for that run.
-- **No way to change two paths in one step** (no `python3`, a system without that call), **or the old place is on
+- **No way to change two paths in one step** (a system without that call), **or the old place is on
   another disk:** the folder stays where it is and the new place becomes a link to it. Still one folder to look
   in, still no moment without the old path, and the line says so.
 - **A folder you named yourself stays.** With `HERDR_SUPERWORK_DATA_DIR` (or the settings or reports one) set to a
