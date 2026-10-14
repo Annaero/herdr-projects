@@ -71,7 +71,10 @@ fn a_start_that_fails_loses_nothing_a_restart_asked_for_meanwhile_still_happens_
     assert_eq!(look(&so).error, "", "the failure of the start it replaced is not shown over a Coordinator that is there");
     let mut s = open(&w.root, 34); assert!(!s.text().contains("could not be started")); assert!(s.text().contains("Coordinator  idle"), "{}", s.text());
     // A start that failed is not tried again every few seconds by itself; your next message tries.
-    std::fs::write(sw::store::files::data_dir().join("versions.json"), json!({ "pi": { "v": "", "at": sw::clock::now(), "found": false } }).to_string()).unwrap();
+    // Only pi is missing: claude stays installed as the world has it, never asked of this machine.
+    let versions = sw::store::files::data_dir().join("versions.json");
+    let mut known = sw::store::files::read_json(&versions).unwrap(); known["pi"] = json!({ "v": "", "at": sw::clock::now(), "found": false });
+    sw::store::files::write_json(&versions, &known).unwrap();
     fresh(pick_of("pi", "").unwrap(), &so).unwrap(); tell(&w, "x"); drain();
     assert!(get(&w).s("error").contains("not installed"), "{}", get(&w).s("error"));
     unstamp("coordinator-default");

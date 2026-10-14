@@ -17,6 +17,7 @@ fn part<'a>(s: &'a Value, n: usize) -> &'a [Value] { s.at("panel").at("parts")[n
 #[test]
 fn the_web_board_has_the_automations_one_whole_with_its_buttons_and_a_firing_that_goes_to_its_task() {
     let w = world();
+    sw::clock::set(Some(sw::clock::now())); // "next in 2h" stays 2h however long the board takes
     let s = web(&w, "board", json!({}));
     assert_eq!(s.at("list").arr("groups").len(), 0);
     assert!(!s.arr("menu").iter().any(|i| i.s("label").contains("automation")), "none: no group, and no key that shows a list of them");

@@ -29,6 +29,7 @@ fn ink_of(l: &sw::shown::ink::Inked, part: &str) -> Option<Ink> { l.0.iter().fin
 #[test]
 fn the_group_has_a_colour_of_its_own_narrow_rows_a_menu_of_its_own_and_stays_with_no_task() {
     let w = world();
+    sw::clock::set(Some(sw::clock::now())); // "next in 2h" and "0s ago" stay so however long the drawing takes
     w.add("Mine");
     let mut s = open(&w.root, 44); s.s.side = false;
     let all = three(&w);
@@ -88,6 +89,7 @@ fn the_group_has_a_colour_of_its_own_narrow_rows_a_menu_of_its_own_and_stays_wit
 #[test]
 fn more_automations_than_fit_the_list_says_how_many_it_does_not_show_and_the_selected_one_is_always_in_view() {
     let w = world();
+    sw::clock::set(Some(sw::clock::now())); // "next in 3h" stays 3h however long the drawing takes
     for n in 1..=3 { w.add(&format!("Task {n}")); }
     for n in 1..=16 { l::add(Add { name: &format!("Automation {n:02}"), prompt: "Do it.", trigger: Some(parse_schedule(&format!("every {n}h")).unwrap()), repo: "", folder: &w.root, settings: Obj::new(), research: None }).unwrap(); }
     let mut s = open(&w.root, 20); s.s.side = false;

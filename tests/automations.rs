@@ -22,6 +22,7 @@ fn row_id(a: &Obj) -> String { format!("auto:{}", a.s("id")) }
 #[test]
 fn the_automations_are_a_group_of_the_main_list_with_keys_that_turn_fire_and_remove() {
     let w = world();
+    sw::clock::set(Some(sw::clock::now())); // "next in 2h" and "0s ago" stay so however long the drawing takes
     w.add("Mine");
     let mut s = open(&w.root, 44); s.s.side = false;
     assert!(!s.text().contains("automations"), "none: no heading at all");

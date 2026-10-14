@@ -106,7 +106,10 @@ fn what_you_say_is_never_lost_a_dialog_on_its_screen_holds_it_a_failed_start_say
     assert_eq!(said(&w), std::iter::once("after".to_string()).chain((1..=6).map(|n| format!("quick {n}"))).collect::<Vec<_>>());
     unsafe { std::env::remove_var("HERDR_SUPERWORK_HANDLED_MS") };
     // A program that is not installed cannot be started: the reason shows, and the words wait.
-    std::fs::write(sw::store::files::data_dir().join("versions.json"), json!({ "pi": { "v": "", "at": sw::clock::now(), "found": false } }).to_string()).unwrap();
+    // Only pi is missing: claude stays installed as the world has it, never asked of this machine.
+    let versions = sw::store::files::data_dir().join("versions.json");
+    let mut known = sw::store::files::read_json(&versions).unwrap(); known["pi"] = json!({ "v": "", "at": sw::clock::now(), "found": false });
+    sw::store::files::write_json(&versions, &known).unwrap();
     sw::coordinator::requests::fresh(pick_of("pi", "").unwrap(), &so).unwrap(); tell(&w, &w.root, "second", false); drain();
     assert!(has(&look(&so).error, r#""pi" is not installed here"#), "{}", look(&so).error); assert_eq!(get(&w).arr("queue").len(), 1);
     s.load();

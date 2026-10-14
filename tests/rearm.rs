@@ -1,6 +1,6 @@
 //! Typing in the agent's own terminal re-arms the pipeline (approval revoked, review stale, checked again), and the
 //! readings that must not: a late `working` of the turn already handled, one from the terminal herdr had before it
-//! restarted, one an older version saved, and a task an older version left stuck re-armed.
+//! restarted, one an older version saved, and a task an older version left stuck re-armed. A closing note is handled once.
 mod common;
 use common::*;
 use serde_json::{json, Value};
@@ -45,6 +45,30 @@ fn typing_in_the_agents_own_terminal_re_arms_the_pipeline_then_it_is_checked_aga
     herdr_says(&w, &pane, "done", true, 1);
     let t = settle(&id);
     assert_eq!((t.s("stage"), t.s("summary"), t.at("review").b("stale")), ("approval", "Did v2.", false));
+    assert_eq!(t.s("reviewedHead"), head(&t));
+}
+
+#[test]
+fn a_closing_note_is_handled_once_its_time_reads_back_the_same_from_the_task_s_file() {
+    let w = world();
+    let id = to_approval(&w, "Work");
+    let pane = task(&id).at("link").t("pane");
+    w.script(json!({ "worker": [{ "files": { "f.txt": "v2\n" }, "commit": "v2", "note": null, "status": "working" }] }));
+    api(&w).agent_prompt(&pane, "make it v2").unwrap();
+    on_pane(&w, &pane);
+    // stamped at a time whose last digit a quick reading of the saved task gets wrong (one in nine is; it failed the
+    // check on GitHub): 2100-01-01, later than anything the board armed
+    let t = task(&id);
+    note(&t, Some("Did v2."), 0);
+    std::fs::File::options().write(true).open(sw::flow::task::note_file(&t)).unwrap().set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_nanos(4102444800123456700)).unwrap();
+    herdr_says(&w, &pane, "done", true, 1);
+    let t = settle(&id);
+    assert_eq!(t.at("handled").f("note"), sw::flow::task::note_stat(&t).unwrap().0, "the note handled is the note there");
+    let armed = t.at("armedAt").clone();
+    // later readings of the same rest do not take that note for a new turn
+    herdr_says(&w, &pane, "done", false, 1); on_pane(&w, &pane);
+    let t = settle(&id);
+    assert_eq!((t.s("stage"), t.s("summary"), t.at("review").b("stale"), t.at("armedAt")), ("approval", "Did v2.", false, &armed));
     assert_eq!(t.s("reviewedHead"), head(&t));
 }
 

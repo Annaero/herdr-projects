@@ -18,7 +18,8 @@ path = "src/main.rs"
 ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
 crossterm = "0.29"
 serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["preserve_order"] }
+# float_roundtrip: a number read back from a saved file is the number written (a closing note's time is compared exactly).
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 unicode-width = "0.2"
 unicode-segmentation = "1"
 libc = "0.2"
