@@ -51,8 +51,8 @@ pub fn hints(s: &State, r: Option<&Obj>, who: Option<&Who>) -> (Vec<Hint>, Optio
         if s.talks_to_coord() { return (vec![Hint { key: enter, words: coordinator, stays: false, short, shortest: "send".into() }, plain(tab, "send, and put an agent on what it adds"), line, put], chat_key); }
         return (vec![plain(enter.clone(), "add it as a task"), plain(tab, "add it and put an agent on it"), line, put], chat_key);
     }
-    // The popup closes on its last esc: it says so, last on the line.
-    let closes = esc_step(s).is_empty() && s.ctx.popup;
+    // The popup closes on its last esc: it says so, last on the line (not while esc would hide the chat's message).
+    let closes = esc_step(s).is_empty() && s.ctx.popup && !crate::board::update::chat::shown(s);
     let back: Vec<Hint> = if !esc_step(s).is_empty() { vec![plain(esc.clone(), esc_step(s))] } else if closes { vec![Hint { key: esc.clone(), words: "close".into(), stays: true, ..Default::default() }] } else { vec![] };
     let leave: Option<Vec<Hint>> = if s.full { let mut v = vec![]; if s.panel_length > s.panel_height { v.push(Hint { key: arrows.clone(), words: "scroll the task".into(), stays: true, ..Default::default() }); } v.extend(back.clone()); Some(v) } else { None };
     if s.job().is_some() { let mut v = vec![hk(K::Stop, "stop sending this"), plain(enter, "take the words back to change")]; v.extend(leave.unwrap_or(vec![more])); return (v, chat_key); }

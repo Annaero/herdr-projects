@@ -59,7 +59,8 @@ fn a_reply_put_away_comes_back_as_a_reply_to_the_same_task_never_as_a_new_task()
         s.cols = width; s.s.sel = id.clone(); s.load();
         s.press(&["space"]); s.typed("also say goodbye");
         s.press(&["esc"]); assert!(s.s.value().is_empty() && s.s.reply, "the first esc only puts the words away");
-        s.press(&["esc"]); assert!(s.s.chat_open && s.s.reply);
+        s.text(); s.press(&["esc"]); assert!(!s.s.chat_open && s.s.reply, "the next hides the chat's message; who you talk to stays");
+        s.press(&["alt+c"]);
         s.press(&["space"]); assert!(!s.s.reply);
         s.press(&["down", "down"]); assert_ne!(s.s.sel, id); // past the heading of to do
         let other = s.s.sel.clone();

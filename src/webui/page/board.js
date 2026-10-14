@@ -117,8 +117,13 @@ export function openBoard({ onClose }) {
   document.body.append(root);
   // On a phone the Board entry is in the web UI's drawer: the drawer closes as it does when you pick a pane there.
   try { document.querySelector(".scrim.is-open")?.click(); } catch {}
-  // Escape goes one step back, as it does on the terminal board: the menu, the open task, then the board itself.
-  untrap = trapEscape(() => { if (snap?.ask) return press("back"); if (menuOpen) { menuOpen = false; return draw(); } if (snap?.panel) return call("pick", { id: snap.list.selected, open: false }); closing?.(); });
+  // Escape goes one step back, as it does on the terminal board: the menu, the open task, the chat's latest message
+  // (hidden as its Hide button hides it, while nothing is typed or searched), then the board itself.
+  untrap = trapEscape(() => {
+    if (snap?.ask) return press("back"); if (menuOpen) { menuOpen = false; return draw(); } if (snap?.panel) return call("pick", { id: snap.list.selected, open: false });
+    if (snap?.chat?.open && snap.chat.text && !finding && !chat.typing()) return press("chatMessage");
+    closing?.();
+  });
   fit();
   window.addEventListener("resize", fit);
   refresh();

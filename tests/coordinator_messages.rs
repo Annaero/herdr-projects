@@ -114,13 +114,11 @@ fn what_you_say_is_never_lost_a_dialog_on_its_screen_holds_it_a_failed_start_say
     assert!(has(&look(&so).error, r#""pi" is not installed here"#), "{}", look(&so).error); assert_eq!(get(&w).arr("queue").len(), 1);
     s.load();
     assert!(has(&s.text(), r#"Coordinator {2}could not be started[^\n]*\n╭─[^\n]*╮\n│ It could not be started: "pi" is not installed here"#), "also with its message hidden: {}", s.text());
-    // alt+c hides that too, as the chat's line says; esc does not.
+    // alt+c hides that too, as the chat's line says, and so does esc with nothing else to step back from.
     s.s.chat_open = false; s.s.input.set_text(""); s.s.reply = false; s.s.full = false; s.s.filter = String::new(); s.s.msg = String::new();
     let chat_key = regex::escape(&key_name("chatMessage"));
     assert!(has(&s.text(), &format!("{chat_key} hide the latest message")), "{}", s.text());
-    s.press(&["esc"]); assert!(s.s.ask.is_none() && !s.closed); assert!(s.text().contains("It could not be started:"));
-    s.s.closing = None;
-    s.press(&["alt+c"]);
+    s.press(&["esc"]); assert!(s.s.ask.is_none() && !s.closed && s.s.closing.is_none());
     assert!(!s.text().contains("It could not be started:"));
     assert!(has(&s.text(), &format!(r"Coordinator {{2}}could not be started[^\n]*\n─[^\n]*\n❯ [^\n]*\n─+\n[^\n]*{chat_key} show the latest message")), "{}", s.text());
     s.load(); assert!(!s.text().contains("It could not be started:"), "the same error stays hidden");

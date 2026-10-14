@@ -436,6 +436,9 @@ The chat is three things, and looks the same for the Coordinator and for a task'
   box grows with it: it takes the lines the message needs, up to two thirds of the window, and shrinks back for a
   short one. The list above gives up those rows and keeps the selected task in view. (Under the whole task, `Alt+T`,
   and the `?` menu, which are there to be read themselves, the message keeps to a third of the window.)
+  `Alt+C` hides the message and shows it again; with nothing else to step back from (a draft, find, the whole
+  task, the filter, the archive), `Esc` hides it too, before it does anything about closing the board. On the web
+  board `Esc` does the same, while nothing is typed and find is closed.
 
 **Only the words of the conversation are in the box**: what the Coordinator, the agent or the reviewer said, and
 what was sent to it. Nothing of the program's own screen is: no tool call and none of its output, no spinner, timing
@@ -556,7 +559,7 @@ panes, their sizes and a zoomed pane are as they were when it closes. While it s
 mouse, as herdr's own menu has: nothing behind it takes a key or a click.
 
 - **The key again closes it**, and so does `Esc` once there is nothing left to step back from (a draft, the whole
-  task, the filter and the archive come first, as on every board), and `Ctrl+C` twice. What you typed, the task you
+  task, the filter, the archive and a chat message that shows come first, as on every board), and `Ctrl+C` twice. What you typed, the task you
   were on and the filter are there when it opens again.
 - **`Enter` on a task closes the popup and lands in that task's agent.** The first three times it says for a moment
   how to get back.

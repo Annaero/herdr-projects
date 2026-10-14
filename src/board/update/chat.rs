@@ -12,6 +12,8 @@ pub fn toggle(s: &mut State, fx: &mut Vec<Effect>) {
     fx.push(Effect::Save);
     sync_coord(s, fx);
 }
+/// Whether the box shows a message now (as the screen was last drawn): then esc hides it before it closes anything.
+pub fn shown(s: &State) -> bool { s.chat_fit.is_some() }
 /// A task's last words and the turn they were said in.
 pub fn turn_mark(r: &Obj) -> (String, Value, Value) { let h = r.at("handled"); (r.t("said"), h.at("msg").clone(), h.at("comp").clone()) }
 pub fn note_sent(s: &mut State, id: &str, text: &str) {

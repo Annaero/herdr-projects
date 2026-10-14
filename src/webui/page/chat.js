@@ -65,6 +65,7 @@ export function chatEl({ onSend, onPress }) {
   const el = h("footer.sw-chat", { "aria-label": "Chat" }, h("div.sw-chat-head", pick, who, hide), note, said.el, compose);
   return {
     el,
+    typing: () => !!box.value.trim(),
     fill(text) { box.value = text; to = null; sync(); keep(text, to); grow(); box.focus(); },
     update(snap) {
       const c = snap.chat;

@@ -42,14 +42,12 @@ fn typing_adds_a_task_tab_delegates_space_replies_and_enter_opens_the_agent() {
     assert!(!s.text().contains("Sent to the agent"));
     let t1 = task("proj/1");
     assert!(prompts(&w, t1.at("link").s("pane")).last().unwrap().contains("also say goodbye"));
-    // esc has nothing to go back from here: it never hides the chat's message and never changes who you talk to.
-    assert!(s.text().contains("esc close · space back to the Coordinator"), "{}", s.text());
-    s.press(&["esc"]);
-    assert!(s.s.chat_open && s.s.reply && s.s.ask.is_none() && s.s.closing.is_none());
-    assert!(s.closed, "this board is the popup: the last esc closes it");
+    // esc has nothing else to go back from here: it hides the chat's message, and never changes who you talk to.
+    assert!(s.text().contains("· space back to the Coordinator") && !s.text().contains("esc close"), "{}", s.text());
+    s.press(&["esc"]); assert!(!s.s.chat_open && s.s.reply && s.s.ask.is_none() && s.s.closing.is_none() && !s.closed);
+    assert!(s.text().contains(&format!("esc close · {} show the latest message", key_name("chatMessage"))), "{}", s.text());
+    s.press(&["esc"]); assert!(s.closed, "this board is the popup: the last esc closes it");
     s.closed = false;
-    s.press(&["alt+c"]); assert!(!s.s.chat_open && s.s.reply);
-    assert!(s.text().contains(&format!("{} show the latest message", key_name("chatMessage"))), "{}", s.text());
     s.press(&["alt+c"]); assert!(s.s.chat_open);
     s.press(&["space"]); assert!(!s.s.reply);
     assert!(has(&s.text(), r"\n *\n \+ New task  [^\n]*\n─[^\n]*\n❯"), "{}", s.text());

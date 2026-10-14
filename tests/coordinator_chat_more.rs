@@ -24,7 +24,7 @@ fn has(text: &str, re: &str) -> bool { regex::Regex::new(re).unwrap().is_match(t
 fn cli(args: &[&str]) -> String { let a = sw::cli::flags::parse(&args.iter().map(|s| s.to_string()).collect::<Vec<_>>()); sw::cli::tasks::command(&a.pos[0], &a).unwrap_or_else(|e| panic!("{args:?}: {}", e.msg)).1 }
 
 #[test]
-fn esc_never_shows_hides_or_closes_the_chat_and_a_task_with_no_agent_is_talked_about_to_the_coordinator() {
+fn esc_hides_but_never_shows_the_chat_and_a_task_with_no_agent_is_talked_about_to_the_coordinator() {
     let w = coord_world();
     let chat_key = regex::escape(&key_name("chatMessage"));
     w.script(json!({ "coordinator": [{ "said": "Added proj/1." }, { "said": "Delegated proj/1." }, { "said": "Shorter now." }] }));
@@ -38,15 +38,16 @@ fn esc_never_shows_hides_or_closes_the_chat_and_a_task_with_no_agent_is_talked_a
     // esc never shows the message, and never closes the board: hidden, it stays hidden, and nothing is asked.
     s.press(&["esc"]); assert!(!s.s.chat_open && s.s.ask.is_none() && !s.closed && s.s.closing.is_some());
     assert!(has(&s.text(), &format!(r"\n  {} closes the board *$", regex::escape(&key_name("close")))), "{}", s.text()); s.s.closing = None;
-    // Shown, esc does not hide it either: the same key that hid it shows it, and the chat's line names only that key.
+    // Shown, with nothing else to step back from, esc hides it as its own key does (the chat's line names only that key).
     s.press(&["alt+c"]); assert!(s.s.chat_open && s.text().contains("Added proj/1.")); assert!(has(&s.text(), &format!("{chat_key} hide the latest message"))); assert!(!s.text().contains("esc hide"));
-    s.press(&["esc", "esc"]); assert!(s.s.chat_open && s.s.ask.is_none() && !s.closed && s.text().contains("Added proj/1.")); s.s.closing = None;
-    assert_eq!(sw::store::files::read_obj(&sw::store::files::data_dir().join("view.json")).unwrap().s("chat"), "open");
-    // With a draft, esc puts the words away and the message stays up, however often it is pressed.
+    s.press(&["esc"]); assert!(!s.s.chat_open && s.s.ask.is_none() && !s.closed && s.s.closing.is_none() && !s.text().contains("Added proj/1."));
+    assert_eq!(sw::store::files::read_obj(&sw::store::files::data_dir().join("view.json")).unwrap().s("chat"), "closed");
+    s.press(&["alt+c"]); assert!(s.s.chat_open && s.text().contains("Added proj/1."));
+    // With a draft, esc puts the words away and the message stays up; only the next esc hides it.
     s.typed("half");
     assert!(has(&s.text(), r"│ Added proj/1\. +│\n│ +│\n│ ❯ half +│\n╰─+╯\n[ ▌] enter send to the Coordinator · tab send, and put an agent on what it adds · shift\+enter new line · esc put away *$"), "{}", s.text());
     s.press(&["esc"]); assert_eq!(s.s.value(), ""); assert!(s.s.chat_open);
-    s.press(&["esc"]); assert!(s.s.chat_open); s.s.closing = None; s.press(&["alt+c"]); assert!(!s.s.chat_open);
+    s.text(); s.press(&["esc"]); assert!(!s.s.chat_open && s.s.closing.is_none());
     s.typed("and start it"); s.press(&["tab"]); drain();
     assert_eq!(get(&w).s("last"), "and start it"); assert_eq!(get(&w).s("over"), "Added proj/1.", "what it had last said when the words went in");
     // With a task open that has no agent to reply to, the words go to the Coordinator with that task named.

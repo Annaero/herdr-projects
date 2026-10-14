@@ -50,7 +50,8 @@ fn press(s: &mut State, p: &Press, fx: &mut Vec<Effect>) {
     let r = s.current().cloned();
     if esc {
         // One step back at a time, and nothing else: a draft is put away, not thrown away; then the whole task, the
-        // filter and the archive close; the last step only shows how the board closes (the popup closes on it).
+        // filter and the archive close; then a chat message that shows is hidden, as its own key hides it; the last
+        // step only shows how the board closes (the popup closes on it).
         if s.mode != Mode::New { s.mode = Mode::New; s.input.set_text(""); }
         else if !s.value().is_empty() {
             if !text.is_empty() { s.draft_away = Some(Away { text: s.value(), to: if s.reply { r.as_ref().map(|r| r.t("id")).unwrap_or_default() } else { String::new() }, cwd: s.ctx.cwd.clone(), warned: false }); s.flash(format!("Put away. {} brings it back.", key_name("undo")), Ink::Muted); }
@@ -59,6 +60,7 @@ fn press(s: &mut State, p: &Press, fx: &mut Vec<Effect>) {
         else if s.full { return act::fold_panel(s); }
         else if !s.filter.is_empty() { s.filter.clear(); }
         else if s.archive_view { return act::toggle_archive(s); }
+        else if super::chat::shown(s) { return super::chat::toggle(s, fx); }
         else if s.ctx.popup { fx.push(Effect::Close); return; }
         else { s.closing = Some((s.now + CLOSE_WAIT, true)); return; }
         return relist(s);
