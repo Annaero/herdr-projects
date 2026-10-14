@@ -59,10 +59,14 @@ pub enum Then {
     Unsent { text: String, to: String },
     /// The board is in herdr's popup and an agent was opened: it closes.
     Leave,
-    /// This terminal becomes the agent's until you detach (outside a herdr client, or another machine's agent).
+    /// This terminal becomes the agent's until you detach (outside a herdr client, or another machine's agent on an
+    /// older plugin).
     Attach { command: String, args: Vec<String>, id: String },
     /// An agent of this machine was opened in herdr, and the board stays where it is.
     Opened(String),
+    /// Another machine's herdr put this task's agent (`agent`; else its bare terminal) in front: the board stays and
+    /// says to pick that machine in herdr's sidebar.
+    OpenedThere { id: String, host: String, agent: bool },
     /// A paste-it-yourself text the first run could not write.
     Paste(String),
     /// The first run: which of its two choices are still to be asked (a refused one); both settled: the screen goes.

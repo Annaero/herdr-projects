@@ -224,3 +224,8 @@ pub fn reopen(id: &str, restart: bool) -> Res<(Value, bool, Task)> {
     }
     Ok((pane, has_agent, get(t.s("id")).unwrap_or(t)))
 }
+/// Put a reopened task's pane in front in its herdr: its agent, or (herdr cannot focus a bare pane by id) with no
+/// agent in it its workspace and tab. Used by "go into the task" here and from another machine.
+pub fn bring_forward(api: &Herdr, pane: &Value, has_agent: bool) -> crate::herdr::cli::HRes<()> {
+    if has_agent { api.agent_focus(pane.s("pane_id")).map(|_| ()) } else { api.workspace_focus(pane.s("workspace_id")).map(|_| { let _ = api.tab_focus(pane.s("tab_id")); }) }
+}

@@ -33,7 +33,11 @@ pub fn far(m: &Machine, host: &str, action: &str, req: Value, quiet: bool) -> Do
         Err(why) => Done::fail(unanswered(host, &why)),
         Ok(j) if !j.b("ok") => Done::fail(j.t("msg")),
         Ok(j) if action == "reopen" => {
+            // In a herdr window: that machine's herdr put it in front (`focus`); the window goes there when you pick
+            // that machine in its sidebar, as herdr has no command that switches a window to another machine.
+            if j.b("focused") { return Done::default().and(Then::OpenedThere { id: format!("{host}:{}", req.t("id")), host: host.into(), agent: j.b("hasAgent") }); }
             if !j.b("hasAgent") { return Done::say(format!("{host}: its agent has exited and could not be restarted. {} and a reply starts it again.", key_name("talk")), Ink::Yellow); }
+            // Outside a herdr client, or a machine on an older plugin that cannot put it in front: this terminal attaches.
             let (command, args) = attach_command(m, &if j.b("pane") { j.t("pane") } else { req.t("pane") });
             Done::default().and(Then::Attach { command, args, id: format!("{host}:{}", req.t("id")) })
         }
@@ -77,9 +81,7 @@ pub fn open_agent(id: &str, popup: bool) -> Done {
         let args = vec![format!("HERDR_SOCKET_PATH={}", t.at("link").s("socket")), crate::herdr::cli::bin(), "agent".into(), "attach".into(), pane.t("pane_id")];
         return Done::default().and(Then::Attach { command: "env".into(), args, id: id.into() });
     }
-    // herdr cannot focus a bare pane by id: with no agent in it, its workspace and tab are focused.
-    let focused = if has_agent { api.agent_focus(pane.s("pane_id")).map(|_| ()) } else { api.workspace_focus(pane.s("workspace_id")).map(|_| { let _ = api.tab_focus(pane.s("tab_id")); }) };
-    if let Err(e) = focused { return Done::fail(e.message); } // herdr refused: the board stays as it is and says why
+    if let Err(e) = crate::delegate::jobs::bring_forward(&api, &pane, has_agent) { return Done::fail(e.message); } // herdr refused: the board stays as it is and says why
     Done::default().and(if popup { Then::Leave } else { Then::Opened(id.into()) })
 }
 /// The first run's answers, each saved as soon as it is settled, so one that herdr refuses is the only one asked again.

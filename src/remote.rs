@@ -158,8 +158,17 @@ pub fn door(what: &str, req: &Value) -> Res<Value> {
                 "pin" => { let p = filing::pin(&id)?; ok(format!("{id}: {}", if p.b("pinned") { "pinned" } else { "unpinned" })) }
                 "stop" => { talk::stop(&id)?; ok(format!("{id}: stopped.")) }
                 // Going into a task from another machine: reopen its space and restart its exited agent here first,
-                // with the same function the local board calls, and answer with the pane to attach to.
-                "reopen" => { let (pane, has, _) = crate::delegate::jobs::reopen(&id, true)?; Ok(json!({ "ok": true, "msg": "", "pane": pane.at("pane_id"), "workspace": pane.t("workspace_id"), "hasAgent": has })) }
+                // with the same function the local board calls, and answer with the pane to attach to. With `focus`
+                // (a board in a herdr window) this machine's herdr puts it in front, as the local board does.
+                "reopen" => {
+                    let (pane, has, t) = crate::delegate::jobs::reopen(&id, true)?;
+                    let mut a = json!({ "ok": true, "msg": "", "pane": pane.at("pane_id"), "workspace": pane.t("workspace_id"), "hasAgent": has });
+                    if req.b("focus") {
+                        if let Err(e) = crate::delegate::jobs::bring_forward(&crate::flow::task::h(&t), &pane, has) { return Ok(json!({ "ok": false, "msg": format!("{}'s herdr did not go to it: {}", check::hostname(), e.message) })); }
+                        a["focused"] = json!(true);
+                    }
+                    Ok(a)
+                }
                 "clear" => { let (cid, kept) = archive::clear(&id)?; ok(if kept.is_empty() { format!("{cid}: removed") } else { format!("{cid}: removed. Kept, so no work is lost: {}", kept.join(", ")) }) }
                 other => Ok(json!({ "ok": false, "msg": format!("Unknown action {other}") })),
             }

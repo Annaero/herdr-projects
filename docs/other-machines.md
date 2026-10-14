@@ -73,9 +73,15 @@ vm-b     does not answer: herdr-superwork is not found there  (exedev@vm-b)
 
 ## What runs where
 
-Actions on another machine's task run on that machine, over SSH. Going into one of its agents attaches your
-terminal to that one agent there (`herdr agent attach`), after that machine has reopened the task's space and
-restarted an exited agent in the same conversation; `ctrl+b q` returns to the board. A machine on an older plugin is
+Actions on another machine's task run on that machine, over SSH. Going into one of its agents (`Enter`) first has
+that machine reopen the task's space and restart an exited agent in the same conversation. In a herdr window, that
+machine's herdr then puts the agent's pane in front, as `Enter` does with an agent of this machine, and the board
+stays and says `vm-a: its agent is in front there. Pick vm-a in herdr's sidebar to go to it: “<its title>”; Local there brings you back here.`
+herdr has no command that switches a window to another machine, so that one click in its machines sidebar is yours;
+the agent is there when you do. **Local** in the sidebar (or `prefix+w` and a space of this machine) brings you back
+to the board, as you left it. The board's own key does not while that machine is shown: herdr runs it there, so it
+opens that machine's board. Outside a herdr client (plain SSH), and with a machine on an older plugin, your terminal
+attaches to that one agent there instead (`herdr agent attach`); `ctrl+b q` returns to the board. A machine on an older plugin is
 told apart by its missing version: its new fields stay blank and the board says "update herdr-superwork on <machine>". Work never moves between
 machines.
 

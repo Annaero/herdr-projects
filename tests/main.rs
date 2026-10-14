@@ -150,6 +150,7 @@ mod remerge;
 mod remote;
 mod remote_board;
 mod remote_more;
+mod remote_open;
 mod remote_why;
 mod research;
 mod research_more;

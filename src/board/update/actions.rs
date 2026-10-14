@@ -99,7 +99,8 @@ pub fn open_agent(s: &mut State, r: &Obj, fx: &mut Vec<Effect>) {
         if s.guest || s.viewed { return s.flash(format!("In the web UI, pick its agent in the sidebar under {}: “{}”. From here herdr's key for the way back would not get through while the web UI shows this pane.", r.s("host"), clean(if r.b("title") { r.s("title") } else { r.s("rid") })), Ink::Yellow); }
         s.stick = r.t("id");
         s.flash(format!("{}: opening…", r.s("host")), Ink::Muted);
-        let mut j = far(s, r, "reopen", json!({ "pane": r.at("link").t("pane") }), true);
+        // In a herdr window that machine's herdr puts it in front; outside one (plain SSH) this terminal attaches.
+        let mut j = far(s, r, "reopen", json!({ "pane": r.at("link").t("pane"), "focus": s.ctx.in_herdr }), true);
         if let Job::Far { req, .. } = &mut j { req.as_object_mut().unwrap().put("pane", r.at("link").t("pane")); }
         return fx.push(Effect::Run(j));
     }
