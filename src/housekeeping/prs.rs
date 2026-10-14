@@ -16,7 +16,7 @@ pub fn poll_prs() {
     super::fetch_mains();
     for first in list(ListOpts::default()) {
         if !first.b("pr") || first.b("prMerged") || runner_alive(&first) || (first.s("stage") == "working" && !first.b("autoMerge")) || needs_login(&first) { continue; }
-        let r = gh(&["pr", "view", &pr_number(first.s("pr")), "--json", "state,reviewDecision,statusCheckRollup,author,comments,reviews,headRefOid"], &folder_of(first.s("id")), 60000);
+        let r = gh(&["pr", "view", &pr_number(first.s("pr")), "--json", "state,reviewDecision,statusCheckRollup,author,comments,reviews,headRefOid,mergeCommit"], &folder_of(first.s("id")), 60000);
         let Ok(j) = serde_json::from_str::<Value>(&r.stdout) else { continue };
         poll_one(first.s("id"), first.s("pr"), &j);
     }
@@ -45,7 +45,7 @@ fn poll_one(id: &str, pr: &str, j: &Value) {
         if j.s("state") == "MERGED" {
             let h = if !head.is_empty() { head.clone() } else { t.t("prHead") };
             mode = if covered(&local(), &h) { "always" } else { "merged" };
-            t.put("stage", "done"); t.put("mergedAt", now()); let tm = tidy_mark(t, mode, ""); t.put("tidy", tm.unwrap_or(Value::Null)); t.put("msg", format!("Merged: {pr}"));
+            t.put("stage", "done"); t.put("mergedAt", now()); if j.at("mergeCommit").b("oid") { t.put("mergeCommit", j.at("mergeCommit").t("oid")); } let tm = tidy_mark(t, mode, ""); t.put("tidy", tm.unwrap_or(Value::Null)); t.put("msg", format!("Merged: {pr}"));
             t.put("failure", Value::Null); t.put("prFailure", Value::Null); t.put("prMerged", true); t.put("prState", "merged"); t.put("autoMerge", false); t.put("mergeIntent", Value::Null);
             then = Then::Merged;
             return Ok(Change::Write);

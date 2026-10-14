@@ -1,7 +1,8 @@
 //! The housekeeping pass. It rides on every hook run (for any pane, in any task), every board tick and the startup
 //! hook, rate-limited by timestamps in the data folder, so nothing important depends on the board being open:
-//! start queued tasks when a slot is free, reconcile each linked task with herdr, bring waiting tasks up to date when
-//! main moved, and poll open pull requests (housekeeping/prs.rs).
+//! start queued tasks when a slot is free (and the ones that wait for others, once those are done: after.rs),
+//! reconcile each linked task with herdr, bring waiting tasks up to date when main moved, and poll open pull requests
+//! (housekeeping/prs.rs).
 mod prs;
 pub use prs::poll_prs;
 
@@ -29,12 +30,14 @@ pub fn housekeeping(socket: &str, force: Force) {
     let every = list(ListOpts { attempts: true, ..Default::default() });
     let tasks: Vec<Task> = every.iter().filter(|t| !t.b("attemptOf")).cloned().collect();
     if socket_exists(socket) {
-        let linked: Vec<&Task> = every.iter().filter(|t| is_agent_task(t) && t.at("link").s("socket") == socket && !["done", "todo", "progress", "queued"].contains(&t.s("stage"))).collect();
+        let linked: Vec<&Task> = every.iter().filter(|t| is_agent_task(t) && t.at("link").s("socket") == socket && !["done", "todo", "progress", "queued", "after"].contains(&t.s("stage"))).collect();
         if !linked.is_empty() {
             let api = Herdr::new(Some(socket.into()));
             if api.workspaces().is_ok() { for t in linked { crate::hook::reconcile(&get(t.s("id")).unwrap_or_else(|| t.clone()), &api); } }
         }
-        if every.iter().any(|t| t.s("stage") == "queued") { start_queued(socket); }
+        // A task that waited for others to be done goes on to a slot once they are (after.rs).
+        let woke = crate::after::pass::after_pass(&tasks, socket);
+        if woke || every.iter().any(|t| t.s("stage") == "queued") { start_queued(socket); }
         // Attempts that are all through: the task fails, goes on with the one that passed, or waits for a pick.
         crate::attempts::settle::settle_pass(&tasks, socket, now());
         if due(&format!("spaces-{}", key(socket)), 30000) { sweep_repo_spaces(socket); sweep_closing(socket); }

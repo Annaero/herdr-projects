@@ -58,7 +58,13 @@ pub fn tab(s: &mut State, text: &str, r: Option<&Obj>, fx: &mut Vec<Effect>) {
     if r.b("archivedAt") { return s.flash(read_only(), Ink::Yellow); }
     s.stick = r.t("id");
     let n = name(s, r);
-    act(s, r, "delegate", json!({}), Job::Delegate { id: r.t("id"), name: n }, fx);
+    // One that waits for other tasks to be done starts by itself: early only on a yes.
+    if r.s("stage") == crate::after::STAGE {
+        let job = if r.b("host") { far(s, r, "delegate", json!({ "now": true }), false) } else { Job::Delegate { id: r.t("id"), name: n.clone(), now: true } };
+        let why = if r.b("afterBlocked") { format!("It waits for you: {}.", r.s("afterBlocked")) } else { format!("{}: it starts by itself once that is so.", r.s("msg")) };
+        return confirm(s, format!("Start {n} now?"), job, Valid::Always, vec![("sayYes", "start now".into()), ("sayNo", "let it wait".into())], why, false);
+    }
+    act(s, r, "delegate", json!({}), Job::Delegate { id: r.t("id"), name: n, now: false }, fx);
 }
 /// What you typed, for the Coordinator: this machine's one long-lived agent, or another machine's (for a task of
 /// theirs you have open, or when the words start with its name: "@vm-a fix the build"). With no Coordinator what you

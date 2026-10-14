@@ -60,6 +60,8 @@ pub fn show(t: &Obj, live: &Value, now: i64) -> Show {
     if let Some(w) = waiting_of(t) { let msg = wait_line(w, now); let rv = w.s("who") == "reviewer"; return out("working", &|s| { s.msg = msg.clone(); s.reviewing = rv; }); }
     match t.s("stage") {
         "todo" => return out("idle", &|_| {}),
+        // delegated, and waits for other tasks to be done (after.rs): its line says for which, or why it waits for you
+        "after" => return if t.b("afterBlocked") { out("blocked", &|s| s.kind = Some("question".into())) } else { out("idle", &|_| {}) },
         // your own task: the progress and the minutes left you reported
         "progress" => return out("working", &|s| { s.app = t.t("owner"); s.progress = pct(t.at("watch")); s.eta = t.at("watch").at("eta").is_number().then(|| t.at("watch").i("eta")); }),
         "done" => return out("done", &|_| {}),

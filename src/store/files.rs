@@ -11,9 +11,10 @@ use std::path::{Path, PathBuf};
 
 /// Every stage a task can be in. The board's five states are derived from these in state.rs.
 /// "plan": its plan is written and waits for your yes. Several attempts: `attempts` (under way), `pick` (more than one
-/// passed the check: you choose), `tried` (an attempt that passed).
+/// passed the check: you choose), `tried` (an attempt that passed). "after": delegated, and waits for other tasks to be
+/// done (after.rs).
 pub const STAGES: &[&str] = &["todo", "progress", "queued", "starting", "setup", "working", "stopped", "nosummary", "asks", "checking",
-    "pushing", "reviewing", "reviewneeds", "plan", "approval", "merging", "failed", "done", "attempts", "pick", "tried"];
+    "pushing", "reviewing", "reviewneeds", "plan", "approval", "merging", "failed", "done", "attempts", "pick", "tried", "after"];
 /// A slot is held only while something is actually running; tasks waiting for the human never block the queue.
 pub const SLOT_STAGES: &[&str] = &["starting", "setup", "working", "checking", "pushing", "reviewing", "merging"];
 /// Stages owned by a runner (a long job of ours), as opposed to the agent's own turn.

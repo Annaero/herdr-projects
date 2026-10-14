@@ -1,5 +1,6 @@
 //! Putting an agent on a task: the request, and starting queued tasks while slots are free.
 use super::shared::is_agent_stage;
+use crate::after::{self, Wait};
 use crate::clock::now;
 use crate::err::Res;
 use crate::flow;
@@ -66,8 +67,13 @@ const FRESH: &[&str] = &[
 
 /// Records the request (stage "queued") and lets the housekeeping pass start it when a slot is free. `asked`: work
 /// settings for this task (research.only among them): all checked before anything is saved.
-pub fn delegate(id: &str, asked: Vec<(String, Value)>) -> Res<Task> {
+pub fn delegate(id: &str, asked: Vec<(String, Value)>) -> Res<Task> { delegate_with(id, asked, Wait::default()) }
+/// The same with what it waits for (after.rs): a task whose tasks are not all done waits in stage "after" instead,
+/// and one that waits already is only started early with `now`.
+pub fn delegate_with(id: &str, asked: Vec<(String, Value)>, w: Wait) -> Res<Task> {
     let cur = find(id)?;
+    if cur.s("stage") == after::STAGE && !w.now && w.after.is_none() && asked.is_empty() { crate::fail!("{}", after::still_waits(&cur)); }
+    let deps = match &w.after { Some(r) => Some(after::checked(Some(cur.s("id")), r)?), None => None };
     let asked: Vec<(String, Value)> = asked.into_iter().filter(|(_, v)| !(v.is_null() || *v == json!(""))).collect();
     let values = checked(&asked, &Scope::task(&cur))?;
     let socket = current_socket();
@@ -108,6 +114,8 @@ pub fn delegate(id: &str, asked: Vec<(String, Value)>) -> Res<Task> {
         t.put("mergeIntent", Value::Null); t.put("requireApproval", ra); t.put("failure", Value::Null); t.put("expectedWake", Value::Null); t.put("turnOpen", false); t.put("waiting", Value::Null);
         if t.at("review").is_object() { t.obj_mut("review").put("stale", true); }
         for k in ["checkFails", "reviewRounds", "prRounds", "syncRepairs"] { t.put(k, 0); }
+        if let Some(d) = &deps { t.put("after", d.clone()); }
+        after::on_delegate(t, w.now);
         Ok(Change::Write)
     })?;
     for c in &stale { let _ = crate::attempts::adopt::discard(&t, c); }

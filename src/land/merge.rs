@@ -43,10 +43,12 @@ fn fail(g: &mut Guard, title: &str, detail: &str, next: &str, f: Fail) -> Res<()
     Ok(())
 }
 fn no_fix() -> Fail { Fail { agent_can_fix: false, auth: Some(false), keep_intent: false } }
-/// `head`: the commit that was merged. Nothing newer on the branch is taken for merged.
-fn landed(id: &str, g: &mut Guard, t: &Task, msg: &str, head: &str) -> Res<()> {
+/// `head`: the commit that was merged. Nothing newer on the branch is taken for merged. `commit`: the commit it made on
+/// the branch it landed on, what a task that waited for it is told (after/handed.rs).
+fn landed(id: &str, g: &mut Guard, t: &Task, msg: &str, head: &str, commit: &str) -> Res<()> {
     let mark = flow::spaces::tidy_mark(t, "always", head);
     let d = g.set(|t| {
+        if !commit.is_empty() { t.put("mergeCommit", commit); }
         t.put("stage", "done"); t.put("mergedAt", now()); t.put("tidy", mark.clone().unwrap_or(Value::Null)); t.put("msg", msg);
         for k in ["failure", "prFailure", "mergeIntent", "lineAt", "lineTurn"] { t.put(k, Value::Null); }
         for k in ["autoMerge", "autoMergeLocal", "mergeFailed", "requireApproval"] { t.put(k, false); }
@@ -141,14 +143,15 @@ pub fn land_core(id: &str, g: &mut Guard) -> Res<()> {
         // Bring your checkout along when that is safe.
         if git_slow(&root, &["fetch", "origin"], 60000).is_ok() && git_out(&root, &["status", "--porcelain", "--untracked-files=no"]).map(|s| s.is_empty()).unwrap_or(false) { let _ = git_out(&root, &["merge", "--ff-only", "@{upstream}"]); }
         // gh answering "fine" is not "merged": on a repo with a merge queue it only lines the pull request up.
-        let state = serde_json::from_str::<Value>(&gh(&["pr", "view", &pr, "--json", "state"], &root, 60000).stdout).map(|v| v.t("state")).unwrap_or_default();
+        let seen = serde_json::from_str::<Value>(&gh(&["pr", "view", &pr, "--json", "state,mergeCommit"], &root, 60000).stdout).unwrap_or(Value::Null);
+        let state = seen.t("state");
         if state != "MERGED" { g.set(|t| { t.put("failure", Value::Null); t.put("autoMerge", true); t.put("autoMergeLocal", false); let m = format!("Approved: GitHub merges it when its checks and merge queue are through ({})", t.s("pr")); t.put("msg", m); })?; return Ok(()); }
         flow::git::drop_remote_branch(&root, t.s("branch"), &reviewed);
         let head = if reviewed.is_empty() { t.t("prHead") } else { reviewed.clone() };
-        return landed(id, g, &t, &format!("Merged: {}", t.s("pr")), &head);
+        return landed(id, g, &t, &format!("Merged: {}", t.s("pr")), &head, &seen.at("mergeCommit").t("oid"));
     }
     // No pull request: merge into the branch your checkout is on.
-    if tree.is_empty() { let m = if t.b("msg") && !t.s("msg").to_lowercase().starts_with("merging") { t.t("msg") } else { "Done".into() }; return landed(id, g, &t, &m, ""); }
+    if tree.is_empty() { let m = if t.b("msg") && !t.s("msg").to_lowercase().starts_with("merging") { t.t("msg") } else { "Done".into() }; return landed(id, g, &t, &m, "", ""); }
     let local = (|| -> Res<Option<String>> {
         let mess = flow::git::dirty(&root);
         if !mess.is_empty() { fail(g, "Merge needs a clean checkout", &format!("Checkout: {}\n\nUncommitted or untracked files:\n{mess}", root.display()), "Commit, stash or move your own unsaved files, then approve again. The agent must not alter your checkout.", no_fix())?; return Ok(None); }
@@ -172,10 +175,11 @@ pub fn land_core(id: &str, g: &mut Guard) -> Res<()> {
             if let Err(e) = git_out(&root, &["merge", "--squash", &head]) { return conflict(g, e); }
             if !git_out(&root, &["diff", "--cached", "--name-only"])?.is_empty() { if let Err(e) = git_out(&root, &["commit", "-m", &message]) { return conflict(g, e); } }
         } else if let Err(e) = git_out(&root, &["merge", if how == "rebase" { "--ff" } else { "--no-ff" }, "-m", &message, &head]) { return conflict(g, e); }
-        Ok(Some(format!("Merged into {onto}.|{head}")))
+        let made = git_out(&root, &["rev-parse", "HEAD"]).unwrap_or_default();
+        Ok(Some(format!("Merged into {onto}.|{head}|{made}")))
     })();
     match local {
-        Ok(Some(done)) => { let (m, h) = done.split_once('|').unwrap_or((&done, "")); landed(id, g, &t, m, h) }
+        Ok(Some(done)) => { let p: Vec<&str> = done.splitn(3, '|').collect(); landed(id, g, &t, p[0], p.get(1).unwrap_or(&""), p.get(2).unwrap_or(&"")) }
         Ok(None) => Ok(()),
         Err(e) if is_aborted(&e) => Err(e),
         Err(e) => fail(g, "Merge failed", &e.msg, "Investigate the Git error in your own worktree, then finish again. Approve again only after the problem is fixed.", Fail::default()),

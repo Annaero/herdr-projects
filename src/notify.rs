@@ -11,7 +11,7 @@ use crate::store::tasks::{update, Change};
 pub fn event_of(t: &Obj) -> &'static str {
     if t.b("archivedAt") { return ""; }
     let st = t.s("stage");
-    if ["asks", "reviewneeds", "plan", "pick"].contains(&st) || (st == "stopped" && t.b("limitStop")) { return "needs you"; }
+    if ["asks", "reviewneeds", "plan", "pick"].contains(&st) || (st == "stopped" && t.b("limitStop")) || (st == "after" && t.b("afterBlocked")) { return "needs you"; }
     if st == "attempts" { return if attempts_of(t).iter().any(|c| ["asks", "reviewneeds"].contains(&c.s("stage"))) { "needs you" } else { "" }; }
     if st == "failed" || st == "nosummary" { return "failed"; }
     if st == "approval" { return if t.b("failure") || t.b("prFailure") || t.b("syncBlocked") { "needs you" } else { "ready to approve" }; }

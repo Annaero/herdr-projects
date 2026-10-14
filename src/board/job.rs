@@ -9,7 +9,8 @@ use crate::shown::ink::Ink;
 pub enum Job {
     /// A message to a task's agent (or one that starts it). `fresh`: the task had no agent yet.
     Tell { id: String, text: String, fresh: bool },
-    Delegate { id: String, name: String },
+    /// `now`: a task that waits for others (after.rs) starts without waiting.
+    Delegate { id: String, name: String, now: bool },
     Approve { id: String, seen: Option<(Value, Value)>, anyway: bool },
     FinishAnyway { id: String }, Retry { id: String }, CarryOn { id: String },
     SendFailure { id: String }, SendError { id: String }, SendReview { id: String },
@@ -108,9 +109,9 @@ fn run_one(job: Job) -> Done {
                 if !fresh && out.msg == "Sent to the agent" { d.flash = Some((out.msg, Ink::Plain)); } // plainly sent: the box shows your words (said only with the chat hidden)
                 d
             }
-            Job::Delegate { id, name } => {
-                let t = start::delegate(&id, vec![])?;
-                green(if t.s("stage") == "attempts" { format!("{} attempts are on {name}.", t.arr("attempts").len()) } else if t.s("stage") == "queued" { format!("{name} waits for a free slot.") } else { format!("An agent is on {name}.") })
+            Job::Delegate { id, name, now } => {
+                let t = start::delegate_with(&id, vec![], crate::after::Wait { now, ..Default::default() })?;
+                green(if let Some(w) = crate::after::waiting_words(&t) { format!("{name} {w}.") } else if t.s("stage") == "attempts" { format!("{} attempts are on {name}.", t.arr("attempts").len()) } else if t.s("stage") == "queued" { format!("{name} waits for a free slot.") } else { format!("An agent is on {name}.") })
             }
             Job::Approve { id, seen, anyway } => green(finish_line::approve(&id, seen, anyway)?.msg),
             Job::FinishAnyway { id } => green(finish_line::finish_anyway(&id)?.msg),

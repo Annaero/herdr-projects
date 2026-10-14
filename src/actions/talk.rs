@@ -110,11 +110,13 @@ pub fn stop(id: &str) -> Res<Task> {
         if t.at("link").at("reviewer").b("pane") { flow::tabs::close_reviewer_tab(&flow::task::h(&t), t.at("link").at("reviewer")); }
         return Ok(get(&cid).unwrap_or(t));
     }
-    if !flow::task::is_agent_task(&cur) || cur.s("stage") == "queued" {
+    if !flow::task::is_agent_task(&cur) || ["queued", "after"].contains(&cur.s("stage")) {
         return update(&cid, |t| {
-            if !is_agent_stage(t.s("stage")) { crate::fail!("{} is not working.", t.s("id")); }
+            let was_waiting = t.s("stage") == "after";
+            if !is_agent_stage(t.s("stage")) && !was_waiting { crate::fail!("{} is not working.", t.s("id")); } // one that waits stops waiting
             let agent = flow::task::is_agent_task(t);
             t.put("stage", if agent { "stopped" } else { "todo" }); if !agent { t.put("app", Value::Null); } t.put("msg", "");
+            if was_waiting { t.put("stoppedWaiting", true); } // a task that waits for this one is told it was stopped (after.rs)
             Ok(Change::Write)
         });
     }

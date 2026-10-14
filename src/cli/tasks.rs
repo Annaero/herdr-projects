@@ -38,12 +38,19 @@ pub fn command(cmd: &str, a: &Args) -> Res<(Value, String)> {
             need(1, "a title")?;
             let (settings, research) = pick_choices(flags); // the task's own from the start, an agent on it or not
             let from = caller().map(|c| c.0.t("id")).unwrap_or_default();
+            // What it is to wait for is checked before it is added: a refused --after adds nothing.
+            let after = flag("after").map(|r| crate::after::checked(None, &crate::after::refs_of(&r))).transpose()?;
             let t = filing::add(&here, &rest(1), filing::AddOpts { description: flag("desc").or_else(|| flag("description")).unwrap_or_default(), repo: flag("repo").unwrap_or_default(), research, settings, from })?;
             // Added by the Coordinator from a message the human sent with tab: delegated here, flag or no flag.
             let mut tab = false;
             if !flags.b("delegate") && !crate::util::env_set("HERDR_PLUGIN_ID") { if let Some(p) = crate::util::env_val("HERDR_PANE_ID") { tab = crate::coordinator::requests::tab_turn(&p, &current_socket()); } }
-            if flags.b("delegate") || tab { start::delegate(t.s("id"), vec![])?; }
-            let on = if flags.b("delegate") || tab { format!(", an agent is on it{}", if tab { format!(" (the message was sent with {})", key_name("delegate")) } else { String::new() }) } else { String::new() };
+            let after = after.filter(|d| !d.is_empty());
+            if let Some(d) = &after { crate::store::tasks::set(t.s("id"), json!({ "after": d }))?; }
+            let on = if flags.b("delegate") || tab {
+                let d = start::delegate(t.s("id"), vec![])?;
+                let how = crate::after::waiting_words(&d).map(|w| format!(", it {w}")).unwrap_or_else(|| ", an agent is on it".into());
+                format!("{how}{}", if tab { format!(" (the message was sent with {})", key_name("delegate")) } else { String::new() })
+            } else if let Some(d) = &after { format!(", it will wait for {} to be done once it is delegated", crate::after::names(d)) } else { String::new() };
             (shown_of(t.s("id")), format!("{}: added{}{on}{}", t.s("id"), if is_research(&t) { " as research only" } else { "" }, title_note(&rest(1))))
         }
         "list" | "ls" => {
@@ -76,10 +83,17 @@ pub fn command(cmd: &str, a: &Args) -> Res<(Value, String)> {
         "delegate" => {
             let (mut settings, research) = pick_choices(flags);
             if let Some(r) = research { settings.push(("research.only".into(), json!(r))); }
-            let t = start::delegate(&need(1, "an id")?, settings)?;
-            let how = if t.s("stage") == "attempts" { format!("started, {} attempts at once ({})", t.arr("attempts").len(), t.arr("attempts").iter().map(|x| format!("{} {}", x.s("letter"), x.s("agent"))).collect::<Vec<_>>().join(", ")) }
+            let wait = crate::after::Wait { after: flag("after").map(|r| crate::after::refs_of(&r)), now: flags.b("now") };
+            let t = start::delegate_with(&need(1, "an id")?, settings, wait)?;
+            let how = if let Some(w) = crate::after::waiting_words(&t) { format!("delegated, {w}") }
+                else if t.s("stage") == "attempts" { format!("started, {} attempts at once ({})", t.arr("attempts").len(), t.arr("attempts").iter().map(|x| format!("{} {}", x.s("letter"), x.s("agent"))).collect::<Vec<_>>().join(", ")) }
                 else if t.s("stage") == "queued" { "started, waiting for a free slot".into() } else { "started, an agent is on it".into() };
             (shown_of(t.s("id")), format!("{}: {how}", t.s("id")))
+        }
+        "after" => {
+            let refs = if flags.b("clear") { Some(vec![]) } else if pos.len() > 2 { Some(crate::after::refs_of(&rest(2))) } else { None };
+            let (t, msg) = crate::after::change::change(&need(1, "an id")?, refs)?;
+            (shown_of(t.s("id")), msg)
         }
         "tell" => { let id = need(1, "an id")?; need(2, "the text")?; said(talk::tell(&id, &rest(2), false)?) }
         "stop" => { let t = talk::stop(&need(1, "an id")?)?; (shown_of(t.s("id")), format!("{}: stopped", t.s("id"))) }

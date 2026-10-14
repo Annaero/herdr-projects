@@ -24,7 +24,7 @@ running herdr: the chat says "New task", and what you type is added word for wor
 It gives the command by its full path, so it need not be on your PATH. `herdr-superwork remove-extras` removes
 exactly what was written, and it is not written back; a folder of that name the plugin did not write is left alone.
 
-Commands: `add`, `list`, `report`, `describe`, `delegate`, `tell`, `stop`, `approve`, `review`, `retry`, `fix`,
+Commands: `add`, `list`, `report`, `describe`, `delegate`, `after` ([one task after another](after.md)), `tell`, `stop`, `approve`, `review`, `retry`, `fix`,
 `finish`, `details`, `pin`, `archive`, `restore`, `clear`, `set`, `unset`, `show`, `automations` ([automations](automations.md)), `machines` ([other machines](other-machines.md)), `install`, `update` ([installing](install.md)), `remove-extras`; `herdr-superwork help` lists
 them.
 

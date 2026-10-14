@@ -2,6 +2,7 @@
 //! the keeper that runs the flow of a task, other machines, and the web Board.
 //! `herdr-superwork docs --where` prints which file holds what, from the comment at the top of each file.
 pub mod actions;
+pub mod after;
 pub mod agents;
 pub mod attempts;
 pub mod automations;

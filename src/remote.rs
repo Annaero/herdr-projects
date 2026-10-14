@@ -138,7 +138,7 @@ pub fn door(what: &str, req: &Value) -> Res<Value> {
                 }
                 "archive" => { archive::archive(&id)?; ok(format!("{id}: archived. ? has undo, and the archive.")) }
                 "restore" => { archive::restore(&id)?; ok(format!("{id}: restored")) }
-                "delegate" => { carried(&id, req)?; start::delegate(&id, vec![])?; ok(format!("{id}: an agent is on it")) }
+                "delegate" => { carried(&id, req)?; let d = start::delegate_with(&id, vec![], crate::after::Wait { now: req.b("now"), ..Default::default() })?; ok(format!("{id}: {}", crate::after::waiting_words(&d).unwrap_or_else(|| "an agent is on it".into()))) }
                 "tell" => { if !t.b("startedOnce") { carried(&id, req)?; } ok(talk::tell(&id, &req.t("text"), false)?.msg) }
                 "approve" => { let seen = if req.at("seen").is_array() { Some((req.at("seen").get(0).cloned().unwrap_or_default(), req.at("seen").get(1).cloned().unwrap_or_default())) } else { None }; ok(finish_line::approve(&id, seen, *req.at("anyway") == json!(true))?.msg) }
                 "pick" => ok(crate::attempts::settle::pick(&id, &req.t("letter"))?.msg),

@@ -60,6 +60,8 @@ pub fn create_attempt(task: &Task, letter: &str, agent: &str, extra: Obj) -> Res
             "title": task.at("title"), "description": task.at("description"), "owner": task.at("owner"), "attemptOf": task.at("id"), "letter": letter }));
         if task.b("automation") { t.put("automation", task.at("automation").clone()); }
         if task.b("carried") { t.put("carried", task.at("carried").clone()); }
+        // What the task waited for, handed over to each attempt's agent as to the task's own (after/handed.rs).
+        for k in ["afterDone", "afterEarly"] { if task.b(k) { t.put(k, task.at(k).clone()); } }
         for (k, v) in obj(json!({ "stage": "queued", "msg": "", "created": now, "at": now, "since": now, "pinned": false, "archivedAt": null, "settings": { "worker.agent": agent } })) { t.insert(k, v); }
         for (k, v) in extra { t.insert(k, v); }
         write_json(&file_of(&id), &Value::Object(t.clone()))?;

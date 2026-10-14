@@ -2,7 +2,7 @@
 pub const HELP: &str = r#"herdr-superwork: a work board for herdr
 
   herdr-superwork                     open the board here (in herdr: bind a key to the plugin action "open")
-  herdr-superwork add <title> [--desc TEXT] [--repo NAME|PATH] [--delegate] [--<setting> VALUE ...] [--research|--no-research]
+  herdr-superwork add <title> [--desc TEXT] [--repo NAME|PATH] [--delegate] [--after ID[,ID…]] [--<setting> VALUE ...] [--research|--no-research]
                                       (--research: research only, short for --research.only true. Its agent changes
                                        nothing in the repo; the result is a report. --no-research: not research only,
                                        where a default says it is)
@@ -13,9 +13,12 @@ pub const HELP: &str = r#"herdr-superwork: a work board for herdr
   (a title is at most 60 characters: a longer one is shortened at a word, its full text kept in the description)
   (an <id> is repo/134; where its repo has a short key, HSW-134 names the same task, in any letter case.
    A key: herdr-superwork set repo.key HSW --repo NAME)
-  herdr-superwork delegate <id> [--<setting> VALUE ...] [--research|--no-research]
+  herdr-superwork delegate <id> [--after ID[,ID…]|--now] [--<setting> VALUE ...] [--research|--no-research]
                                       any work setting, for this task only: --reviewer.agent claude --merge.by itself
                                       (a refused option changes nothing on the task)
+                                      --after: start only once those tasks (of any repo here) are done, by itself;
+                                      --now: start a task that waits without waiting
+  herdr-superwork after <id> [ID[,ID…] | --clear]   what a task waits for: shown, changed, or dropped (it starts then)
   herdr-superwork tell <id> <text>              send a message to the task's agent
   herdr-superwork stop <id>                     stop its agent
   herdr-superwork approve <id> [--anyway]       merge finished work that waits for approval (--anyway: also when its review failed);

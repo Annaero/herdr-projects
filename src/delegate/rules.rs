@@ -60,6 +60,6 @@ pub fn task_line_as(t: &Obj, role: &str, round: i64) -> String {
 /// With a launch flag for standing rules the rules stay in force for the whole session and are not repeated here.
 pub fn first_prompt(t: &Obj) -> String {
     let standing = has_standing(t.s("agent"));
-    [task_line(t), t.t("title"), t.t("description"), if plan::open(t) { plan::FIRST.to_string() } else { plan::handed(t) }, if standing { String::new() } else { rules(t) }]
+    [task_line(t), t.t("title"), t.t("description"), crate::after::handed::words(t), if plan::open(t) { plan::FIRST.to_string() } else { plan::handed(t) }, if standing { String::new() } else { rules(t) }]
         .into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("\n\n")
 }

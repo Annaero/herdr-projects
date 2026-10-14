@@ -14,7 +14,7 @@ use crate::status_words::{needs, review_tally};
 use crate::store::retries::waiting_of;
 
 /// The facts under Status, in the order they are drawn.
-pub const ORDER: [&str; 11] = ["head", "state", "progress", "now", "time", "tokens", "who", "over", "made", "change", "next"];
+pub const ORDER: [&str; 12] = ["head", "state", "after", "progress", "now", "time", "tokens", "who", "over", "made", "change", "next"];
 fn same(a: &str, b: &str) -> bool { a.trim().to_lowercase() == b.trim().to_lowercase() }
 fn asks(kind: &str) -> String { needs(kind).map(|w| { let mut c = w.chars(); c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default() }).unwrap_or_else(|| "Needs you".into()) }
 /// The status part's facts by name, redrawn when some go.
@@ -40,6 +40,8 @@ pub fn status(k: &mut Kit, c: &Ctx, r: &Obj) -> (usize, Top, usize, String) {
     let stand = if r.b("archivedAt") { "archived".to_string() } else if under { reviewer_word(r).into() } else { standing(r) };
     let rw = round_words(r);
     rows.push(("state", k.fact("State", k.flow(vec![c.mark.clone().add(Inked::plain(" ")).add(Inked::of(stand, ink).bold()), if (reviewing(r) || r.s("stage") == "approval") && !rw.is_empty() { Inked::of(rw, ink) } else { Inked::new() }, Kit::dim(when)], None, " · "))));
+    // What it waits for, or waited for, before it starts (after.rs): each task, and whether it is done.
+    if let Some((label, line)) = crate::after::panel_line(r) { rows.push(("after", k.fact(label, Kit::wrap_at(&line, k.room).into_iter().map(|l| l.recolor(Ink::Soft)).collect()))); }
     let has_eta = r.at("eta").is_number();
     let eta = if has_eta { format!("{}m left", r.t("eta")) } else { String::new() };
     if r.at("progress").is_number() && r.s("state") != "done" {
