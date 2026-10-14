@@ -27,7 +27,8 @@ pub fn auto_panel(s: &mut State, t: &Theme, a: &Obj, width: usize, full: bool) -
     st.extend(k.fact_text("Trigger", row.s("trigger")));
     if row.b("next") { st.extend(k.fact_text("Next", &format!("{} · {}", row.s("next"), when(a.i("nextAt"))))); }
     if a.b("host") { st.extend(k.fact_text("Machine", &clean(a.s("host")))); }
-    st.extend(k.fact_text("Repo", &format!("{} · {}", a.s("repo"), crate::store::marks::tilde(a.s("root")))));
+    let key = if a.b("host") { String::new() } else { crate::store::keys::repo_keys().get(a.s("repo")).cloned().unwrap_or_default() };
+    st.extend(k.fact_text("Repo", &format!("{} · {}", crate::board::tags::repo_with_key(a.s("repo"), &key), crate::store::marks::tilde(a.s("root")))));
     st.extend(k.fact_text("Last firing", row.s("last")));
     if a.b("research") { st.extend(k.fact_text("Research", "only · its tasks change nothing in the repo")); }
     k.part(st);

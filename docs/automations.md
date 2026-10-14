@@ -122,7 +122,7 @@ no heading while there is no automation.
 - **One row per automation, in a task row's places** ([the board](board.md) has the table): its mark (`⟳`, dimmed
   while it is off), the word `on` or `off` where a task has its number (never colour alone), its name where the titles
   start, its trigger in plain words after it (`every 2h`, `when a task is merged, in every repo`), the task its last
-  firing made by that task's own mark and number (`✓ #4`), and in the list's time column when it fires next or fired
+  firing made by that task's own mark and number (`✓ HSW-4`), and in the list's time column when it fires next or fired
   last: `next in 4m` for a schedule that is on, else `fired 2h ago` (`skipped 2h ago` when the last firing made no
   task), else `never fired`. One that turned itself off says why on a line under its row. One that is off is drawn
   as quietly as a done task. In a window too narrow for the trigger beside the name, it is on a line under it.

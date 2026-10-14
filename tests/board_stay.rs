@@ -59,7 +59,7 @@ fn enter_on_a_task_goes_into_its_agent_and_the_board_stays_as_it_was_from_the_ro
         assert!(!s.closed, "the board is not closed: {way}"); assert!(!s.s.leaving, "{way}");
         assert_eq!(focus(&w)[before..].to_vec(), vec![format!("agent {pane}")], "herdr moved to the agent: {way}");
         assert_eq!(s.s.sel, id, "{way}"); assert_eq!(s.s.filter, "greeting", "{way}"); assert_eq!(s.s.data.repo, "proj", "{way}");
-        assert!(has(&s.text().split_whitespace().collect::<Vec<_>>().join(" "), r"Opened (#1|proj/1)'s agent\. prefix\+w brings you back to the board\."), "{way}: {}", s.text());
+        assert!(has(&s.text().split_whitespace().collect::<Vec<_>>().join(" "), r"Opened (PRJ-1|proj/1)'s agent\. prefix\+w brings you back to the board\."), "{way}: {}", s.text());
         assert_eq!(view_sel("view.json"), id, "where you were is saved: {way}");
         // It still takes keys when you are back, and a second enter goes in again.
         s.press(&["enter"]);

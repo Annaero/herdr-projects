@@ -7,13 +7,13 @@ use crate::research::is_research;
 use crate::shown::ink::Ink;
 use crate::shown::words::age;
 use crate::store::automations::firings_of;
-use crate::store::keys::{repo_keys, say_id};
+use crate::store::keys::{repo_keys, say_id, say_ids};
 
 pub fn ago(at: i64, now: i64) -> String { format!("{} ago", age(now - at)) }
 /// One firing: when, what fired it, the task it made or why it was skipped.
 pub fn firing_words(f: &Value, now: i64) -> (String, String, String, String) {
     let result = if f.b("task") { format!("made {}{}", say_id(f.s("task"), &repo_keys()), if f.b("note") { format!(" ({})", f.s("note")) } else { String::new() }) }
-        else { format!("skipped{}: {}", if f.i("n") > 1 { format!(" ×{}", f.i("n")) } else { String::new() }, f.s("skipped")) };
+        else { format!("skipped{}: {}", if f.i("n") > 1 { format!(" ×{}", f.i("n")) } else { String::new() }, say_ids(f.s("skipped"), &repo_keys())) };
     (ago(f.i("at"), now), if f.b("what") { f.t("what") } else { f.t("cause") }, f.t("task"), result)
 }
 pub fn firing_line(f: &Value, now: i64) -> String { let (w, what, _, r) = firing_words(f, now); format!("{w:<8} {what}  →  {r}") }

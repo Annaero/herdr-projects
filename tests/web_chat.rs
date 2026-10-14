@@ -70,7 +70,7 @@ fn the_page_gets_the_two_you_can_talk_to_and_hiding_the_message_is_the_boards_ow
     let s = web(&w, "pick", json!({ "id": id, "open": false }));
     let c = s.at("chat");
     assert_eq!((c.s("coord"), c.at("toAgent"), c.at("open")), ("New task", &json!(false), &json!(true)), "no Coordinator here: the box adds tasks");
-    assert!(c.s("task").starts_with('#'), "the task's agent is named by its number: {}", c.s("task"));
+    assert!(c.s("task").starts_with("PRJ-"), "the task's agent is named by its number: {}", c.s("task"));
     // the switch presses the board's own key; the chat is then the task's agent's
     let s = web(&w, "press", json!({ "id": "talk" }));
     assert_eq!((s.at("chat").at("toAgent"), s.at("flags").at("reply")), (&json!(true), &json!(true)));

@@ -1,6 +1,7 @@
 //! A repo's short key (`repo.key`: `HSW` for herdr-superwork) and what it does to a task's name: its tag reads
-//! `HSW-134` instead of `#134`, and `HSW-134` names the task wherever its id does. Nothing is stored under a key: it is
-//! another way to write the id, worked out each time, so changing or removing one breaks nothing.
+//! `HSW-134`, and `HSW-134` names the task wherever its id does. Every repo has one (store/keys_given.rs). Nothing is
+//! stored under a key: it is another way to write the id, worked out each time, so changing one breaks nothing, and a
+//! key a repo had before still names its tasks: every key that counts is put on record as its repo's for good.
 use super::files::*;
 use super::repos::known_repos;
 use super::settings::{lookup, places, values::NONE};
@@ -11,19 +12,24 @@ use std::sync::Mutex;
 #[derive(Clone, Debug)]
 pub struct Said { pub repo: String, pub key: String, pub place: String }
 
-fn mark(file: &std::path::Path) -> String {
-    use std::os::unix::fs::MetadataExt;
-    std::fs::metadata(file).map(|m| format!("{}|{}|{}|{}", m.ino(), m.size(), m.mtime_nsec() + m.mtime() * 1_000_000_000, m.ctime_nsec() + m.ctime() * 1_000_000_000)).unwrap_or_default()
-}
 static KEPT: Mutex<Option<(String, Vec<Said>)>> = Mutex::new(None);
+static COUNTED: Mutex<Option<(String, Keys)>> = Mutex::new(None);
+/// What the keys are worked out from, as it stands on disk: a change to any of it is a fresh look. The files are
+/// small and read whole: two edits of the same size within the clock's step look alike by their times.
+fn stamp(repos: &Obj) -> String {
+    let cfg = places::config_file();
+    let own = super::keys_given::record_file();
+    let whole = |f: &std::path::Path| read_text(f).unwrap_or_default();
+    let mut stamp = vec![data_dir().display().to_string(), cfg.display().to_string(), whole(&cfg), whole(&own)];
+    for (name, root) in repos { stamp.push(name.clone()); stamp.push(text(root)); stamp.push(whole(&std::path::Path::new(&text(root)).join(places::REPO_FILE))); }
+    stamp.join("\n")
+}
 /// Every key that is said, with who says it. Asked on every look at the board, so the answer is kept until one of
-/// the files it comes from changes: the list of repos, your settings, a repo's own file.
+/// the files it comes from changes: the list of repos, your settings, a repo's own file, the board's own record of
+/// keys (where a stand-in stands, place "standin": store/keys_given.rs).
 pub fn said_keys() -> Vec<Said> {
     let repos = known_repos();
-    let cfg = places::config_file();
-    let mut stamp = vec![data_dir().display().to_string(), cfg.display().to_string(), mark(&cfg)];
-    for (name, root) in &repos { stamp.push(name.clone()); stamp.push(text(root)); stamp.push(mark(&std::path::Path::new(&text(root)).join(places::REPO_FILE))); }
-    let stamp = stamp.join("\n");
+    let stamp = stamp(&repos);
     if let Some((s, out)) = KEPT.lock().unwrap().as_ref() { if *s == stamp { return out.clone(); } }
     let mine = places::yours();
     let mut out = vec![];
@@ -33,24 +39,36 @@ pub fn said_keys() -> Vec<Said> {
             if !v.is_empty() && v != NONE { out.push(Said { repo: repo.clone(), key: v, place: r.place.clone() }); }
         }
     }
+    for (repo, key) in super::keys_given::stand_ins() { if repos.contains_key(&repo) { out.push(Said { repo, key: text(&key), place: "standin".into() }); } }
     *KEPT.lock().unwrap() = Some((stamp, out.clone()));
     out
 }
 pub type Keys = BTreeMap<String, String>;
-/// The keys that count: repo -> key. A key two repos say in the same kind of place counts for neither; your entry wins
-/// over a file.
+/// The keys that count: repo -> key. A key another repo had is never this one's (an old `HSW-134` keeps its task). A
+/// key two repos say is the one of the repo whose entry says it (your entry wins over a file), and among two of the
+/// same kind, of the repo the board knew first. The other goes by the stand-in the board gave it, and what it says is
+/// kept as it is. What counts is put on record (store/keys_given.rs).
 pub fn repo_keys() -> Keys {
-    let said = said_keys();
+    let at = stamp(&known_repos());
+    if let Some((s, out)) = COUNTED.lock().unwrap().as_ref() { if *s == at { return out.clone(); } }
+    let all = said_keys();
+    let had = super::keys_given::had_keys();
+    let theirs = |s: &Said| had.get(&s.key).map(|r| text(r) != s.repo).unwrap_or(false);
+    let (said, stand): (Vec<&Said>, Vec<&Said>) = all.iter().filter(|s| !theirs(s)).partition(|s| s.place != "standin");
     let mut out = Keys::new();
     for s in &said {
-        let same: Vec<&Said> = said.iter().filter(|x| x.key == s.key).collect();
-        let entries: Vec<&&Said> = same.iter().filter(|x| x.place == "repo").collect();
-        if same.len() == 1 || (entries.len() == 1 && std::ptr::eq(*entries[0], s)) { out.insert(s.repo.clone(), s.key.clone()); }
+        let same: Vec<&&Said> = said.iter().filter(|x| x.key == s.key).collect();
+        let first = same.iter().find(|x| x.place == "repo").or(same.first());
+        if first.map(|f| std::ptr::eq(**f, *s)).unwrap_or(false) { out.insert(s.repo.clone(), s.key.clone()); }
     }
+    for s in stand { if !out.contains_key(&s.repo) && !out.values().any(|k| *k == s.key) { out.insert(s.repo.clone(), s.key.clone()); } }
+    super::keys_given::note_keys(&out);
+    *COUNTED.lock().unwrap() = Some((stamp(&known_repos()), out.clone()));
     out
 }
 fn number_of(id: &str) -> &str { let n = id.rsplit('/').next().unwrap_or(""); if !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) { n } else { "" } }
-/// `hsw-134` -> `herdr-superwork/134`, in any letter case; "" when it is not a key and a number, or no repo has it.
+/// `hsw-134` -> `herdr-superwork/134`, in any letter case; "" when it is not a key and a number, or no repo has it. With
+/// no keys given, every key a repo ever went by counts too, after the ones they go by now.
 pub fn id_of_key(reference: &str, keys: Option<&Keys>) -> String {
     let s = reference.trim();
     let Some((k, n)) = s.split_once('-') else { return String::new() };
@@ -59,7 +77,9 @@ pub fn id_of_key(reference: &str, keys: Option<&Keys>) -> String {
     let owned;
     let all = match keys { Some(k) => k, None => { owned = repo_keys(); &owned } };
     let up = k.to_uppercase();
-    match all.iter().find(|(_, v)| **v == up) { Some((repo, _)) => format!("{repo}/{}", n.parse::<u64>().unwrap_or(0)), None => String::new() }
+    let repo = all.iter().find(|(_, v)| **v == up).map(|(r, _)| r.clone())
+        .or_else(|| if keys.is_none() { super::keys_given::had_keys().get(&up).map(text) } else { None });
+    match repo { Some(repo) => format!("{repo}/{}", n.parse::<u64>().unwrap_or(0)), None => String::new() }
 }
 /// A task's short tag: `HSW-134` with a key, `#134` without. "" for an id with no number.
 pub fn tag_of(id: &str, keys: &Keys) -> String {

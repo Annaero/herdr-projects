@@ -34,7 +34,13 @@ pub fn settings_command(cmd: &str, pos: &[String], w: &Where, value: Option<Valu
     let fresh = task.as_ref().and_then(|t| get(t.s("id")));
     let scope2 = match &fresh { Some(t) => Scope::task(t), None => scope.clone() };
     let row = rows(&scope2).into_iter().find(|x| x.name == r.name);
-    let note = row.map(|row| if !row.note.is_empty() { row.note } else if !row.later.is_empty() { format!("It {}.", row.later) } else { String::new() }).unwrap_or_default();
+    let mut note = row.map(|row| if !row.note.is_empty() { row.note } else if !row.later.is_empty() { format!("It {}.", row.later) } else { String::new() }).unwrap_or_default();
+    // A repo is never left without a key: unset goes back to the repo's file's, or to one made from its name.
+    if cmd == "unset" && r.name == "repo.key" && note.is_empty() {
+        let r2 = w.repo.clone().unwrap_or_default();
+        note = if r.place == "file" { format!("A repo always has a key: {r2} is back to the one its own file says.") }
+            else { format!("A repo always has a key: {r2} is back to the one the board made from its name. Another: herdr-superwork set repo.key <KEY> --repo {r2}") };
+    }
     let text = format!("{}{place}: {}  ({}){}", r.name, say(&r.value), r.from, if note.is_empty() { String::new() } else { format!("\n{note}") });
     let mut j = obj(json!({ "name": r.name, "value": r.value, "from": r.from }));
     if !note.is_empty() { j.put("note", note); }

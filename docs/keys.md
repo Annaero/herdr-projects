@@ -1,7 +1,7 @@
 # Keys, questions and the ? menu
 
 **The board asks before what cannot be undone**, always the same way, in a small box. The question says what it
-does: a merge names the task, where it lands and that it cannot be undone (`Merge #18 "Add an undo for clear"
+does: a merge names the task, where it lands and that it cannot be undone (`Merge HSW-18 "Add an undo for clear"
 (PR#18) into main?`, then `A merge cannot be undone.`; for another machine's task, where it lands there: `into main on otherbox`); after a failed review it says what the review found, and its
 yes reads `y = merge anyway`. A remove shows the task's whole title and what is really lost: the task with its
 description and reviews, and its worktree only where it has one (work in it that is not saved or not merged is kept).
@@ -70,7 +70,7 @@ The bottom line shows only what matters right now, the main thing first, at most
   to Agent`, `Send message to Coordinator`), so the line does not.
 - **While you type**, it says where `Enter` sends your words, and names the task by its tag, since the words are
   locked to it while the list may show others: `enter send to the Coordinator` (`… on vm-a` for another machine's),
-  `enter send to #34's agent`, `enter send, and start an agent on #34`, `enter add it as a task`. The text box's
+  `enter send to HSW-34's agent`, `enter send, and start an agent on HSW-34`, `enter add it as a task`. The text box's
   edge names no one.
 
 | Where | The hint line |
@@ -96,9 +96,9 @@ the last one (`? all keys`, or the way back) stay. Between them, `alt+c hide the
 the others from the last back; `alt+c show the latest message` outlasts those, because it is how you see a reply.
 While you type, `shift+enter new line` goes first and `esc put away` stays. With room for only one hint it is the
 main thing, except while you talk to a task's agent: there `space back to the Coordinator` stays, the one way back.
-Where the window is too narrow even for that one hint, it is said shorter, not cut: `enter send to #34`, `ctrl+l merge
+Where the window is too narrow even for that one hint, it is said shorter, not cut: `enter send to HSW-34`, `ctrl+l merge
 this task`, `its agent` for `this task's agent`. That holds down to about 34 columns. A draft's hint keeps naming who
-gets the words for as long as that fits (`enter send to #34`, `enter send to the Coordinator`, `enter send to vm-a`);
+gets the words for as long as that fits (`enter send to HSW-34`, `enter send to the Coordinator`, `enter send to vm-a`);
 only narrower than that is it `enter send`.
 
 A question the board asks has its keys in its own box (`y = merge · n = do not merge`), and there is no hint line meanwhile: the box takes its row. An

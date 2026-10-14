@@ -7,12 +7,12 @@ status groups) under it, and their tasks under those.
 
 ```
  ▾ vm-str ─────────────────────────────────────────────────────────
- ▾ herdr-superwork
- ◐ #151 Rewrite the board in Rust on Ratatui              47%   3h
- ○ #179 Remove the "To: Coordinator" label             1h ago
+ ▾ herdr-superwork · HSW
+ ◐ HSW-151 Rewrite the board in Rust on Ratatui           47%   3h
+ ○ HSW-179 Remove the "To: Coordinator" label          1h ago
 
- ▾ open-crm
- ○ #4   Explore Open CRM as the next-gen CRM            9h ago
+ ▾ open-crm · CRM
+ ○ CRM-4   Explore Open CRM as the next-gen CRM         9h ago
 
  ▸ vm-ssa  1 task ─────────────────────────────────────────────────
 ```
@@ -20,9 +20,10 @@ status groups) under it, and their tasks under those.
 - **A machine's heading** is its name in bold, in the accent colour, with a rule to the edge of the list. This machine
   is named by its own name (its hostname). The machines come in the order of herdr's machines sidebar, this machine
   where it stands there ([machine order](machine-order.md)). A machine with no task in view has no heading; one whose tasks cannot be read says so above the list, as always.
-- **A row never names its machine.** Its tag is the one it has on its own machine's board, `#151` or the repo's key
-  (`HSW-151`, [task numbers](task-numbers.md)): the heading above it says whose it is. A repo's heading is its name
-  alone (`herdr-superwork`), never `vm-str:herdr-superwork`. The repo the board is in comes first on each machine.
+- **A row never names its machine.** Its tag is the one it has on its own machine's board, the repo's key with the
+  number (`HSW-151`, [task numbers](task-numbers.md)): the heading above it says whose it is. A repo's heading is its
+  name with its key beside it, dimmed (`herdr-superwork · HSW`), never `vm-str:herdr-superwork`. The repo the board is
+  in comes first on each machine.
 - **On one machine** (this machine's board, or one other machine by itself) there is no machine heading: the list is
   as it always was.
 

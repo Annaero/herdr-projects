@@ -56,11 +56,11 @@ fn resizing_keeps_the_chat_on_the_last_line_and_the_working_rows_columns_at_the_
             let l = &lines[n];
             if columns >= 120 {
                 assert!(has(l, r"Pin the chat to the bottom +█+░+ +55% 12m left {2}PR#3 {2}6m {4}$"), "{note}: {l:?}"); assert_eq!(width(l), columns, "{note}");
-                assert!(has(&lines[n + 1], r"^[ ▌] {5,7}Checking every window size\. *$"), "{note}: {:?}", lines[n + 1]);
+                assert!(has(&lines[n + 1], r"^[ ▌] {8,10}Checking every window size\. *$"), "{note}: {:?}", lines[n + 1]);
             } else {
                 // Under 80 columns its first line is the name alone: the columns are on its third line, the bar filling the width.
-                assert!(has(l.trim_end(), r"^[ ▌]◐ #\d+ +Pin the chat to the bottom$"), "{note}: {l:?}");
-                if rows >= 20 { let third = lines[n + 2].trim_end(); assert!(has(third, r"^[ ▌] {6,8}█+░+ 55% 12m left {2}PR#3 {2}6m$"), "{note}: {third:?}"); assert_eq!(width(third), columns, "{note}"); }
+                assert!(has(l.trim_end(), r"^[ ▌]◐ PRJ-\d+ +Pin the chat to the bottom$"), "{note}: {l:?}");
+                if rows >= 20 { let third = lines[n + 2].trim_end(); assert!(has(third, r"^[ ▌] {8,10}█+░+ 55% 12m left {2}PR#3 {2}6m$"), "{note}: {third:?}"); assert_eq!(width(third), columns, "{note}"); }
             }
         }
         // All spare height is the list's (a narrow screen's working row is one line taller). The old test made the row

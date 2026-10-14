@@ -23,7 +23,7 @@ fn note(s: &Entry, r: &Found, task: Option<&Task>, scope: &Scope, no_repo: bool,
     if no_repo && needs_repo(&s.name) { return "does not apply: this task is in no repo".into(); }
     if s.name == "repo.key" && text(&r.value) != "none" && (task.is_some() || !scope.repo.is_empty()) {
         let repo = if scope.repo.is_empty() { task.map(|t| t.s("id").split('/').next().unwrap_or("").to_string()).unwrap_or_default() } else { scope.repo.clone() };
-        if repo_keys().get(&repo) != Some(&text(&r.value)) { return "not used: another repo says the same key".into(); }
+        match repo_keys().get(&repo) { Some(k) if *k == text(&r.value) => {}, Some(k) => return format!("not used: another repo has or had the same key; its tasks go by {k}"), None => return "not used: another repo has or had the same key".into() }
     }
     if s.name == "attempts.by" && task.map(|t| t.b("startedOnce")).unwrap_or(false) { return "its work has begun: counts when it is started afresh".into(); }
     if s.name.ends_with(".fast") && r.value == json!(true) {

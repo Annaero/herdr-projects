@@ -34,7 +34,7 @@ fn the_web_board_has_the_automations_one_whole_with_its_buttons_and_a_firing_tha
     assert_eq!((one.s("id"), one.s("title"), one.s("mark"), one.s("color"), one.at("quiet"), one.s("tag"), said(&one), one.s("time")), (format!("auto:{}", a.s("id")).as_str(), "Look for old dependencies", "⟳", "auto", &json!(false), "on", "every 2h".to_string(), "next in 2h"));
     assert_eq!((two.s("title"), two.s("mark"), two.at("markDim"), two.at("quiet"), two.s("tag"), said(&two), two.s("time")), ("Release note", "⟳", &json!(true), &json!(true), "off", "when a task is merged".to_string(), "never fired"), "off: quiet, the same mark dimmed, and the word");
     assert_eq!(g.s("color"), "auto", "the heading has the automations' own colour");
-    assert_eq!([one.i("tagWidth"), two.i("tagWidth"), s.at("list").arr("groups")[0].arr("rows")[0].i("tagWidth")], [3, 3, 3], "one column: the names start where the task's title does");
+    assert_eq!([one.i("tagWidth"), two.i("tagWidth"), s.at("list").arr("groups")[0].arr("rows")[0].i("tagWidth")], [5, 5, 5], "one column: the names start where the task's title does");
     // on the page its row shows all of what it says, on any width, and its word (on, off) stays when the tasks' numbers give way
     assert_eq!((one.at("automation"), two.at("automation"), s.at("list").arr("groups")[0].arr("rows")[0].at("automation")), (&json!(true), &json!(true), &Value::Null));
     assert!(include_str!("../src/webui/page/board.css").contains(".sw-row.is-automation .sw-says { display: block; overflow: visible; -webkit-line-clamp: none; }"));
@@ -52,13 +52,13 @@ fn the_web_board_has_the_automations_one_whole_with_its_buttons_and_a_firing_tha
     assert!(common::board::web_as(&w, "test", "press", json!({ "id": "delegate", "role": "watch" })).unwrap_err().contains("This device can only watch"));
     // fire it now: a task is made and started, and the firing is a link to it
     let s = web(&w, "press", json!({ "id": "delegate" }));
-    assert!(s.at("msg").s("text").contains("\"Look for old dependencies\" fired: #2 was added and an agent is on it."), "{}", s.at("msg"));
+    assert!(s.at("msg").s("text").contains("\"Look for old dependencies\" fired: PRJ-2 was added and an agent is on it."), "{}", s.at("msg"));
     assert_eq!(task("proj/2").s("stage"), "starting"); assert_eq!(s.at("list").s("selected"), one.s("id"));
     sw::automations::fire::fire(a.s("id"), sw::automations::told::Cause::Schedule, sw::clock::now()).unwrap();
     let s = web(&w, "board", json!({}));
     let firings = s.at("panel").arr("parts").iter().find(|p| p.s("head") == "Firings").unwrap().arr("items").to_vec();
     assert_eq!(firings.iter().filter(|x| x.s("k") == "text").map(|x| x.t("go")).collect::<Vec<_>>(), vec!["", "proj/2"]);
-    assert!(texts(&firings)[0].contains("skipped: its last task, proj/2, is still being worked on"), "{:?}", texts(&firings));
+    assert!(texts(&firings)[0].contains("skipped: its last task, PRJ-2, is still being worked on"), "{:?}", texts(&firings));
     // off and on: off, the button that fires it is gone
     let s = web(&w, "press", json!({ "id": "talk" }));
     assert_eq!(sw::store::automations::automation(a.s("id")).unwrap().at("on"), &json!(false));
@@ -86,7 +86,7 @@ fn the_web_board_has_the_automations_one_whole_with_its_buttons_and_a_firing_tha
     let made = rows_of(&s).into_iter().find(|r| r.s("id") == "proj/2").unwrap();
     assert!(made.s("title").ends_with("[auto]") && made.at("made") == &json!(true), "its tag is drawn in the automations' colour");
     let auto = s.at("list").arr("groups").last().unwrap().arr("rows")[0].clone();
-    assert_eq!(auto.at("review").as_array().unwrap().iter().map(|p| p.t("t")).collect::<String>(), "◒ #2", "the automation's row has the task its last firing made");
+    assert_eq!(auto.at("review").as_array().unwrap().iter().map(|p| p.t("t")).collect::<String>(), "◒ PRJ-2", "the automation's row has the task its last firing made");
     assert!(part(&s, 0).iter().any(|x| x.s("k") == "fact" && x.s("label") == "Made by"));
     // remove: the same question, the same answers
     web(&w, "pick", json!({ "id": "proj/2", "open": false })); web(&w, "pick", json!({ "id": format!("auto:{}", b.s("id")), "open": true }));
@@ -113,7 +113,7 @@ fn the_web_board_has_each_tasks_tag_on_its_row_on_the_open_task_and_in_the_chats
     assert_eq!((nine.as_str(), big.as_str()), ("proj/9", "proj/134"));
     let tags = |s: &Value, id: &str| { let r = rows_of(s).into_iter().find(|r| r.s("id") == id).unwrap(); (r.t("tag"), r.i("tagWidth")) };
     let s = web(&w, "board", json!({}));
-    assert_eq!((tags(&s, &big), tags(&s, &nine)), (("#134".into(), 4), ("#9".into(), 4)), "one column, within the limit on the space before a title");
+    assert_eq!((tags(&s, &big), tags(&s, &nine)), (("PRJ-134".into(), 7), ("PRJ-9".into(), 7)), "one column, within the limit on the space before a title");
     sw::store::settings::change::set_value("repo.key", &json!("hsw"), &sw::store::settings::lookup::Scope::repo("proj")).unwrap();
     let s = web(&w, "board", json!({}));
     assert_eq!((tags(&s, &big), tags(&s, &nine)), (("HSW-134".into(), 7), ("HSW-9".into(), 7)));

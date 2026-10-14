@@ -49,7 +49,8 @@ export function listEl(list, opts) {
 // to its one line, with how many tasks it holds, and unfolds it; the automations' heading has no id and does not fold.
 function headEl(g, selected, onFold) {
   const count = g.folded ? g.count : g.machine ? null : g.rows.length + g.more;
-  const words = [g.name, count === null ? null : h("span.sw-count", String(count))];
+  // A repo's heading has its key beside its name, dimmed: `gtm-agent · AGT`.
+  const words = [g.key ? h("span", g.name, h("span.sw-repo-key", ` · ${g.key}`)) : g.name, count === null ? null : h("span.sw-count", String(count))];
   const tag = g.machine ? "h2.sw-machine-name" : "h3.sw-group-name";
   if (!g.id) return h(`${tag}.sw-c-${g.color}`, words);
   return h(`${tag}.sw-c-${g.color}${selected ? ".is-selected" : ""}`,

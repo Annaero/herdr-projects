@@ -60,20 +60,20 @@ fn one_chat_for_everyone_space_on_a_task_talks_to_its_agent_otherwise_to_the_coo
     assert!(has(&wide(&mut e, 160), r"The agent said ─+ *\n[^\n]*Done\."), "{}", wide(&mut e, 160)); assert!(has(&wide(&mut e, 160), r"\n[ ▌]. Coordinator {2}"));
     e.press(&["space"]); assert!(e.s.reply);
     let text = wide(&mut e, 160);
-    let row_mark = text.lines().find(|l| l.contains(&format!("#1  {TITLE}")) || l.contains(&format!("#1 {TITLE}"))).and_then(|l| l.chars().nth(1)).unwrap();
-    assert!(has(&text, &format!(r"\n *\n {} #\d+ {}  \S[^\n]*\n╭─[^\n]*╮\n│ Agent: +│\n│ Done\. +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n", regex::escape(&row_mark.to_string()), regex::escape(TITLE))), "the row's own mark: {text}");
+    let row_mark = text.lines().find(|l| l.contains(&format!("PRJ-1 {TITLE}")) || l.contains(&format!("PRJ-1 {TITLE}"))).and_then(|l| l.chars().nth(1)).unwrap();
+    assert!(has(&text, &format!(r"\n *\n {} PRJ-\d+ {}  \S[^\n]*\n╭─[^\n]*╮\n│ Agent: +│\n│ Done\. +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n", regex::escape(&row_mark.to_string()), regex::escape(TITLE))), "the row's own mark: {text}");
     let lines: Vec<&str> = text.lines().collect();
     assert!(!has(&lines[lines.len() - 8..lines.len() - 1].join("\n"), &format!("its agent|claude|last message|{chat_key}")), "the key is on the hint line, under the box");
     assert!(!has(&text, r"The agent said|\n[ ▌]. Coordinator {2}|reply to")); assert!(has(&text, r"space back to the Coordinator *$"), "{text}"); assert_eq!(text.matches("Done.").count(), 1);
     e.press(&["alt+c"]);
-    assert!(has(&wide(&mut e, 160), r"The agent said ─+ *\n[^\n]*Done\.")); assert!(has(&wide(&mut e, 160), &format!(r"\n[ ▌]. #\d+ {}  [^\n]*\n─+\n❯ Send message to Agent", regex::escape(TITLE))), "{}", wide(&mut e, 160));
+    assert!(has(&wide(&mut e, 160), r"The agent said ─+ *\n[^\n]*Done\.")); assert!(has(&wide(&mut e, 160), &format!(r"\n[ ▌]. PRJ-\d+ {}  [^\n]*\n─+\n❯ Send message to Agent", regex::escape(TITLE))), "{}", wide(&mut e, 160));
     e.press(&["alt+c"]);
     // The name is never cut inside a prompt: a window narrower than the name gives it a second line.
     {
         let lines = e.screen(44);
-        let at = lines.iter().rposition(|l| has(l, r"^ \S #\d+ Add a greeting")).unwrap();
+        let at = lines.iter().rposition(|l| has(l, r"^ \S PRJ-\d+ Add a greeting")).unwrap();
         let strip = |l: &str| regex::Regex::new(r"^\S ").unwrap().replace(l.trim(), "").to_string();
-        assert_eq!(format!("{} {}", strip(&lines[at]), strip(&lines[at + 1])), format!("#1 {TITLE}"), "{lines:?}");
+        assert_eq!(format!("{} {}", strip(&lines[at]), strip(&lines[at + 1])), format!("PRJ-1 {TITLE}"), "{lines:?}");
         assert_eq!(lines[at - 1].trim(), ""); assert!(has(&lines[at + 2], "^╭─.*╮$")); assert!(lines.join("\n").contains("\n│ ❯ Send message to Agent"));
     }
     // While you talk to a task's agent the chat stays that agent's: the Coordinator's reply is said once, in a line.
@@ -81,7 +81,7 @@ fn one_chat_for_everyone_space_on_a_task_talks_to_its_agent_otherwise_to_the_coo
     send(&w.root, "do something", false, "", &so).unwrap(); drain(); e.load();
     assert!(e.text().contains("The Coordinator replied. space goes back to it."), "{}", e.text()); assert!(!e.text().contains("All done.")); assert!(!look(&so).unseen.is_empty());
     // What you type there is for that agent, not for the Coordinator.
-    e.typed("also say goodbye"); assert!(e.text().contains("enter send to #1's agent · shift+enter new line · esc put away")); e.press(&["esc"]);
+    e.typed("also say goodbye"); assert!(e.text().contains("enter send to PRJ-1's agent · shift+enter new line · esc put away")); e.press(&["esc"]);
     // esc is not a chat key: the agent's message stays up, you still talk to the agent, and nothing asks to close.
     e.press(&["esc", "esc"]); assert!(e.s.chat_open && e.s.reply && e.s.ask.is_none() && !e.closed);
     assert!(has(&wide(&mut e, 160), r"\n│ Done\. +│\n│ +│\n│ ❯ Send message to Agent")); e.s.closing = None;
@@ -95,10 +95,10 @@ fn one_chat_for_everyone_space_on_a_task_talks_to_its_agent_otherwise_to_the_coo
         let d = order.iter().position(|x| *x == other).unwrap() as i64 - order.iter().position(|x| *x == t).unwrap() as i64;
         for _ in 0..d.abs() { e.press(&[if d > 0 { "down" } else { "up" }]); }
         assert_eq!(e.s.sel, other); assert!(e.s.reply && !e.s.chat_open);
-        assert!(has(&wide(&mut e, 160), r"\n *\n[ ▌]. #\d+ Somebody else {2}no agent yet: your message starts one *\n─[^\n]*\n❯ your message starts an agent on it"), "{}", wide(&mut e, 160));
+        assert!(has(&wide(&mut e, 160), r"\n *\n[ ▌]. PRJ-\d+ Somebody else {2}no agent yet: your message starts one *\n─[^\n]*\n❯ your message starts an agent on it"), "{}", wide(&mut e, 160));
         for _ in 0..d.abs() { e.press(&[if d > 0 { "up" } else { "down" }]); }
         assert_eq!(e.s.sel, t);
-        assert!(has(&wide(&mut e, 160), &format!(r"\n *\n[ ▌]. #\d+ {}  [^\n]*\n─+\n❯ Send message to Agent *\n─+\n[^\n]*{chat_key} show the latest message", regex::escape(TITLE))), "{}", wide(&mut e, 160));
+        assert!(has(&wide(&mut e, 160), &format!(r"\n *\n[ ▌]. PRJ-\d+ {}  [^\n]*\n─+\n❯ Send message to Agent *\n─+\n[^\n]*{chat_key} show the latest message", regex::escape(TITLE))), "{}", wide(&mut e, 160));
         sw::actions::archive::clear(&other).unwrap(); e.load();
     }
     e.press(&["alt+c"]); assert!(e.s.chat_open); assert!(has(&wide(&mut e, 160), r"\n│ Done\. +│\n│ +│\n│ ❯ Send message to Agent"));

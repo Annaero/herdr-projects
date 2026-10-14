@@ -59,12 +59,12 @@ fn with_an_agent_whose_agent_is_said_once_and_in_a_narrow_window_the_hints_give_
     assert_eq!(hints(&mut s, 70), "enter open this task's agent · space back to the Coordinator");
     assert_eq!(hints(&mut s, 48), "space back to the Coordinator");
     s.typed("also say goodbye");
-    assert_eq!(hints(&mut s, 120), "enter send to #1's agent · shift+enter new line · esc put away");
-    assert_eq!(hints(&mut s, 60), "enter send to #1's agent · esc put away");
+    assert_eq!(hints(&mut s, 120), "enter send to PRJ-1's agent · shift+enter new line · esc put away");
+    assert_eq!(hints(&mut s, 60), "enter send to PRJ-1's agent · esc put away");
     for width in [48, 40, 34] { let h = hints(&mut s, width); assert!(!h.contains('…') && sw::text::width(&h) <= width - 2, "{width}: {h}"); }
-    assert_eq!(hints(&mut s, 30), "enter send to #1's agent");
+    assert_eq!(hints(&mut s, 30), "enter send to PRJ-1's agent");
     // narrower, the words still name who gets them, as long as they can
-    assert_eq!(hints(&mut s, 22), "enter send to #1"); assert_eq!(hints(&mut s, 16), "enter send"); s.press(&["esc"]);
+    assert_eq!(hints(&mut s, 22), "enter send to PRJ-1"); assert_eq!(hints(&mut s, 16), "enter send"); s.press(&["esc"]);
     for width in [40, 34] { assert!(!hints(&mut s, width).contains('…')); }
     assert_eq!(hints(&mut s, 34), "space back to the Coordinator"); s.press(&["space"]);
     assert_eq!(hints(&mut s, 26), "enter open its agent");
@@ -78,8 +78,8 @@ fn while_you_type_the_hint_line_says_who_gets_the_words_and_the_box_edge_names_n
     assert_eq!(hints(&mut s, 120), "enter add it as a task · tab add it and put an agent on it · shift+enter new line · esc put away");
     // a task with no agent yet: in a narrow window too the line names the task the words are locked to
     s.press(&["esc"]); w.add("Add pebbles"); s.load(); s.press(&["space"]); s.typed("Please add pebbles");
-    assert_eq!(hints(&mut s, 60), "enter send, and start an agent on #1 · esc put away");
-    assert_eq!(hints(&mut s, 32), "enter send to #1");
+    assert_eq!(hints(&mut s, 60), "enter send, and start an agent on PRJ-1 · esc put away");
+    assert_eq!(hints(&mut s, 32), "enter send to PRJ-1");
     s.press(&["esc", "space"]);
     // the board of another machine: its Coordinator gets the words, and the line names the machine
     s.press(&["esc"]);

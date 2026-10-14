@@ -78,7 +78,7 @@ fn a_button_presses_the_boards_own_key_a_merge_asks_first_and_typed_words_are_se
     }
     web_as(&w, "phone", "pick", json!({ "id": id, "open": true })).unwrap();
     let s = web_as(&w, "phone", "press", json!({ "id": "yes" })).unwrap();
-    assert_eq!(s.at("ask"), &json!({ "q": "Merge #1 \"Make f\" into main?", "detail": "A merge cannot be undone.", "danger": true, "keys": [{ "id": "sayYes", "label": "merge" }, { "id": "sayNo", "label": "do not merge" }] }));
+    assert_eq!(s.at("ask"), &json!({ "q": "Merge PRJ-1 \"Make f\" into main?", "detail": "A merge cannot be undone.", "danger": true, "keys": [{ "id": "sayYes", "label": "merge" }, { "id": "sayNo", "label": "do not merge" }] }));
     assert_eq!(s.at("actions"), &json!([]));
     let s = web_as(&w, "phone", "press", json!({ "id": "sayNo" })).unwrap();
     assert!(s.at("ask").is_null()); assert_eq!(task(&id).s("stage"), "approval"); assert_eq!(s.s("draft"), "");
@@ -105,7 +105,7 @@ fn a_button_presses_the_boards_own_key_a_merge_asks_first_and_typed_words_are_se
     let next = s.at("panel").arr("parts")[0].arr("items").iter().find(|x| x.s("label") == "Next").map(|x| said(&x.at("lines")[0])).unwrap_or_default();
     assert_eq!(next, "No agent is on this yet. “Put an agent on this task” puts one on it.");
     assert_eq!(s.arr("actions").iter().map(|b| b.t("id")).collect::<Vec<_>>(), vec!["delegate", "talk"]);
-    let s = web_as(&w, "phone", "press", json!({ "id": "stop" })).unwrap(); assert!(s.at("ask").s("q").starts_with("Remove #"));
+    let s = web_as(&w, "phone", "press", json!({ "id": "stop" })).unwrap(); assert!(s.at("ask").s("q").starts_with("Remove PRJ-"));
     let s = web_as(&w, "phone", "press", json!({ "id": "back" })).unwrap(); assert!(s.at("ask").is_null());
     // find narrows the list
     let s = web_as(&w, "phone", "find", json!({ "text": "readme" })).unwrap();

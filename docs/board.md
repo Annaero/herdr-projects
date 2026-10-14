@@ -34,23 +34,23 @@ drawn by the code that draws a task's row:
 
 ```
  to do
- ○ #2  Write the changelog                                                                    1d ago
- ○ #1  Fix the footer on the pricing page                                                     3h ago
+ ○ HSW-2 Write the changelog                                                                  1d ago
+ ○ HSW-1 Fix the footer on the pricing page                                                   3h ago
 
  automations
- ⟳ on  Look for old dependencies  every 2h                                      ✓ #4 next in  4m
- ⟳ on  Release note after a merge  when a task is merged, in every repo              skipped  5h ago
- ⟳ off Nightly audit  daily 03:00                                                        never fired
-       it fired 30 times in an hour
+ ⟳ on    Look for old dependencies  every 2h                                 ✓ HSW-4 next in  4m
+ ⟳ on    Release note after a merge  when a task is merged, in every repo            skipped  5h ago
+ ⟳ off   Nightly audit  daily 03:00                                                      never fired
+         it fired 30 times in an hour
 ```
 
 | Where a task's row has | An automation's row has |
 |---|---|
 | its mark | `⟳` (U+27F3), in the automations' colour while it is on and the same one dimmed while it is off: an arrow going round, where every task's mark is round, a diamond or a sign |
-| its number (`#12`) | the word `on` or `off`, in the same grey. It fills the numbers' column, so every name starts where the titles start |
+| its tag (`HSW-12`) | the word `on` or `off`, in the same grey. It fills the numbers' column, so every name starts where the titles start |
 | its title | its name, plain as a to-do's title; greyed while it is off |
 | what it says, after the title | its trigger in plain words (`every 2h`, `when a task is merged, in every repo`), in the same grey; then its repo when that is not the one the board shows, and its machine (`on otherbox`) on the board of every machine |
-| its review tag and pull request | the task its last firing made, by that task's own mark and number (`✓ #4`: done; `◐ #7`: an agent is on it), and the word that goes with the time (`next in`, `fired`, `skipped`) |
+| its review tag and pull request | the task its last firing made, by that task's own mark and number (`✓ HSW-4`: done; `◐ HSW-7`: an agent is on it), and the word that goes with the time (`next in`, `fired`, `skipped`) |
 | its time | how long until it fires (`4m`), or how long ago it last did (`2h ago`), in the list's time column, under the tasks' times. `never fired` stands there for one that never did |
 | a second line, for a live task | a second line only when it has something to say: why the board turned it off. Where the trigger has no room beside the names it stands there too, on every row of the group at once |
 
@@ -116,7 +116,7 @@ task stands are one list (`src/status_words.rs`), which the rows, the State line
 read. The records the board writes to the terminal carry no mark: they name the state and the kind
 (`state=blocked:kind=question`) and the terminal draws its own.
 
-A row reads: the task's number, greyed (`#134`, or `HSW-134` where its repo has a short key:
+A row reads: the task's tag, greyed (`HSW-134`, its repo's short key and its number:
 [task numbers and repo keys](task-numbers.md)), the
 name, then on the right two groups with a wider gap between them: the progress (the bar, the percent and the minutes
 left), and then the review, the pull request and the time:
@@ -283,9 +283,9 @@ work has its percent: `Q#1` gets the next free slot, `Q#2` the one after.
 
 ```
  working
- ◐ #151 Rewrite the board in Rust on Ratatui              █████░░░  65%  3m       9m
-        Reading the list code
- ◓ #152 Show automations in the main list                            Q#1           2m
+ ◐ HSW-151 Rewrite the board in Rust on Ratatui           █████░░░  65%  3m       9m
+           Reading the list code
+ ◓ HSW-152 Show automations in the main list                         Q#1           2m
         Waiting for a free slot
  ◓ #153 Fix the footer                                               Q#2          40s
         Waiting for a free slot
@@ -504,7 +504,7 @@ folds it, and is back when you return: the page, or the list, has those lines. T
 said itself. A start that failed still says why.
 
 **Typed words keep who they are for.** While the box holds text, the hint line under it says who gets it (`enter send
-to #34's agent`, `enter send to the Coordinator`, `enter add it as a task`), naming the task by its tag, also while
+to HSW-34's agent`, `enter send to the Coordinator`, `enter add it as a task`), naming the task by its tag, also while
 the list is scrolled to other tasks; the box's edge names no one. That does not change until the words are sent or put
 away: the arrows are the draft's, the mouse wheel moves only the view of the list, and a click selects nothing. So an
 answer typed for one task's agent can never be sent to another's.

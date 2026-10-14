@@ -32,7 +32,7 @@ fn every_review_and_every_piece_of_evidence_shows() {
     s.press(&["alt+t"]);
     let text = s.screen(120).join("\n");
     assert!(!has(&text, "view error|could not be shown"));
-    assert!(text.starts_with(" Task details  #1 \"Build a flying game\""));
+    assert!(text.starts_with(" Task details  PRJ-1 \"Build a flying game\""));
     assert!(has(&text, r"\n Reviews · 3 ─+ *\n History      2/5 no → no verdict → 4/5 yes *\n"), "{text}");
     for n in 1..=3 { assert!(has(&text, &format!(r"\n Review {n}     [✓✗–] ")), "review {n}: {text}"); }
     assert!(has(&text, r"\n Evidence ─+ *\n ↗ The plane takes off *\n[ ▌]  A screenshot of the first level\. *\n[ ▌]  https://example\.test/proj/1/takeoff\.png *\n *\n ↗ The test run *\n[ ▌]  https://example\.test/proj/1/tests\.txt *\n"), "{text}");

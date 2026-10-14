@@ -6,7 +6,8 @@ use super::values::{check, fits, known, nearest, NONE};
 use crate::err::{Error, Res};
 use crate::json::*;
 use crate::research::turn_refusal;
-use crate::store::keys::said_keys;
+use crate::store::keys::{repo_keys, said_keys};
+use crate::store::keys_given::give_keys;
 use crate::store::old_research::RESEARCH;
 use crate::store::repos::known_repos;
 use crate::store::runs::keep_run_times;
@@ -40,10 +41,18 @@ fn now_value(name: &str, scope: &Scope) -> String { lookup(name, scope, &yours()
 pub fn checked(pairs: &[(String, Value)], scope: &Scope) -> Res<Obj> {
     let mut out = Obj::new();
     for (name, value) in pairs { allowed(name, scope)?; out.insert(name.clone(), check(name, value, "")?); }
+    // Every repo has a key: none is refused, with the way back to the one made from its name.
+    if out.get("repo.key").map(text).as_deref() == Some(NONE) {
+        return refuse(format!("repo.key cannot be none: every repo has a short key. To go back to the one the board made from its name: herdr-superwork unset repo.key --repo {}", scope.repo));
+    }
     // Two repos with one key would make `HSW-134` two tasks: the second is refused, and told who has it.
-    if let Some(k) = out.get("repo.key").map(text).filter(|k| k != NONE) {
+    if let Some(k) = out.get("repo.key").map(text) {
         if let Some(other) = said_keys().into_iter().find(|s| s.key == k && s.repo != scope.repo) {
             return refuse(format!("repo.key: {} already has the key {}. Choose another for {}.", other.repo, other.key, scope.repo));
+        }
+        // A key another repo had still names that repo's tasks: taken, an old `HSW-134` would name another task.
+        if let Some(r) = crate::store::keys_given::had_keys().get(&k).map(text).filter(|r| *r != scope.repo) {
+            return refuse(format!("repo.key: {k} was {r}'s key and still names {r}'s tasks. Choose another for {}.", scope.repo));
         }
     }
     // Research only, on a task that was started as an ordinary one: refused where it cannot be honoured.
@@ -88,10 +97,20 @@ fn save(values: &[(String, Option<Value>)], scope: &Scope) -> Res<Option<Task>> 
 fn read_back(name: &str, scope: &Scope, saved: Option<Task>) -> Res<Found> {
     match saved { Some(t) => lookup(name, &Scope::task(&t), &yours()), None => lookup(name, scope, &yours()) }
 }
+/// A repo's key changed: the keys it had are on record (repo_keys keeps them), and a repo left with none is given one
+/// at once.
+fn key_after(name: &str, scope: &Scope) {
+    if name != "repo.key" || scope.repo.is_empty() { return; }
+    give_keys(Some(&scope.repo));
+    repo_keys();
+}
+fn key_before(name: &str) { if name == "repo.key" { repo_keys(); } }
 /// set: the setting as the scope now reads it.
 pub fn set_value(name: &str, value: &Value, scope: &Scope) -> Res<Found> {
     let values = checked(&[(name.to_string(), value.clone())], scope)?;
+    key_before(name);
     let saved = save(&values.into_iter().map(|(k, v)| (k, Some(v))).collect::<Vec<_>>(), scope)?;
+    key_after(name, scope);
     read_back(name, scope, saved)
 }
 /// Several settings of one task at once (delegate's options): all or none.
@@ -111,6 +130,8 @@ pub fn unset_value(name: &str, scope: &Scope) -> Res<Found> {
         let why = turn_refusal(t, to);
         if !why.is_empty() { return refuse(why); }
     }
+    key_before(name);
     let saved = save(&[(name.to_string(), None)], scope)?;
+    key_after(name, scope);
     read_back(name, scope, saved)
 }

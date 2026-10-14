@@ -54,11 +54,12 @@ fn herdrs_sidebar_every_stage_the_entrys_three_rows_are_the_board_rows_number_an
     ];
     let theme = Theme::default_dark(true);
     let mut s = State::new(Default::default(), Default::default());
+    s.data.keys = sw::store::keys::repo_keys();
     for (patch, stands, line, numbers) in &stages {
         let t = with(&base, patch.clone());
         let (e, r) = (entry(&t), as_row(&t));
         let name = format!("{} {} {}", patch.s("stage"), patch.s("state"), patch.s("kind"));
-        assert_eq!((e.name.as_str(), e.stands.as_str(), e.line.as_str(), e.progress.as_str()), ("#1 Show automations in the main list", *stands, *line, *numbers), "{name}");
+        assert_eq!((e.name.as_str(), e.stands.as_str(), e.line.as_str(), e.progress.as_str()), ("PRJ-1 Show automations in the main list", *stands, *line, *numbers), "{name}");
         // Word for word what the board draws: the row's own sentence, its percent, its minutes left, its tags.
         let f = row_fields(&r, sw::clock::now());
         if !e.line.is_empty() { assert_eq!(e.line, plain_words(&sentence(&r).text()), "{name}"); }

@@ -33,9 +33,9 @@ fn every_machine_a_heading_its_repos_under_it_and_rows_with_the_number_alone() {
     s.press(&["alt+m", "alt+s"]); assert!(s.s.scope == "*" && s.s.by_repo);
     let t = s.screen(100).join("\n");
     let here = sw::shown::words::clean(&sw::remote::check::hostname());
-    assert!(has(&t, &format!(r"{} ▾ proj\n[ ▌]○ #\d+ +Mine", head(&regex::escape(&here)))), "this machine first, under its own name: {t}");
+    assert!(has(&t, &format!(r"{} ▾ proj · PRJ\n[ ▌]○ PRJ-\d+ +Mine", head(&regex::escape(&here)))), "this machine first, under its own name: {t}");
     // The repo the board is in comes first on every machine, as on one.
-    assert!(has(&t, &format!(r"{} ▾ proj\n[ ▌]○ #151 Theirs in proj[^\n]*\n\n ▾ crm\n[ ▌]○ #4 +Theirs in crm", head("otherbox"))), "{t}");
+    assert!(has(&t, &format!(r"{} ▾ proj\n[ ▌]○ #151 +Theirs in proj[^\n]*\n\n ▾ crm\n[ ▌]○ #4 +Theirs in crm", head("otherbox"))), "{t}");
     assert!(!t.contains("otherbox#") && !t.contains("otherbox:"), "a row never names its machine, nor a heading the repo's machine: {t}");
     // By status: the same machines, their status groups under them.
     s.press(&["alt+s"]);

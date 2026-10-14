@@ -25,12 +25,12 @@ fn the_finish_lines_sidebar_entries_are_written_once_again_only_when_a_word_chan
     let pane = t.at("link").t("pane");
     let st = w.state();
     let said: Vec<String> = st.arr("metadata").iter().filter(|m| m.s("pane") == pane).map(args_of).collect();
-    assert!(has(said.last().unwrap(), r"--clear-state-labels --display-agent ready to approve · R#1 · <1m ago --title #1 Add a greeting --token summary=Pass · 1 minor --clear-token progress --clear-token eta$"), "{said:?}");
+    assert!(has(said.last().unwrap(), r"--clear-state-labels --display-agent ready to approve · R#1 · <1m ago --title PRJ-1 Add a greeting --token summary=Pass · 1 minor --clear-token progress --clear-token eta$"), "{said:?}");
     // The task's space is named the same way, with the same line under it.
     let ws: Vec<String> = st.arr("metadata").iter().filter(|m| m.s("workspace") == t.at("link").s("workspace")).map(args_of).collect();
     assert!(has(ws.last().unwrap(), r"--token summary=Pass · 1 minor --clear-token progress$"), "{ws:?}");
     // On its way here the reviewer's pane had an entry of its own from its start, naming the reviewer.
-    assert!(st.arr("metadata").iter().any(|m| m.b("pane") && m.s("pane") != pane && args_of(m).contains("--display-agent reviewer · under review · R#1 · <1m --title #1 Add a greeting")), "the reviewer's own entry");
+    assert!(st.arr("metadata").iter().any(|m| m.b("pane") && m.s("pane") != pane && args_of(m).contains("--display-agent reviewer · under review · R#1 · <1m --title PRJ-1 Add a greeting")), "the reviewer's own entry");
     assert_eq!(agent_of(&w, &pane).s("kind"), "claude");
     let calls = || w.state().arr("metadata").iter().filter(|m| m.s("pane") == pane).map(args_of).collect::<Vec<_>>();
     let last = || calls().last().cloned().unwrap_or_default();

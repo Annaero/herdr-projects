@@ -91,6 +91,8 @@ impl World {
 thread_local! { static FAKE: std::cell::RefCell<Option<Rc<herdr::FakeHerdr>>> = const { std::cell::RefCell::new(None) }; }
 /// The closing notes of the turns that ended so far, written between the board's jobs (herdr.rs: notes).
 pub fn flush() { FAKE.with(|f| if let Some(f) = f.borrow().as_ref() { f.notes(); }); }
+/// A task as the board names it in words: its repo's key and its number (`PRJ-1` for proj/1).
+pub fn short(id: &str) -> String { sw::store::keys::say_id(id, &sw::store::keys::repo_keys()) }
 pub fn task(id: &str) -> Obj { sw::store::tasks::get(id).unwrap_or_else(|| panic!("no task {id}")) }
 /// Run the jobs that would have been detached runners, then let the hook see the worker's pane, until nothing moves.
 pub fn settle(id: &str) -> Obj {

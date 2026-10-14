@@ -115,9 +115,9 @@ fn a_reply_to_a_tasks_agent_wraps_in_the_same_box_under_its_latest_message() {
     let d = s.draft(50);
     assert_eq!(d.rows.join(" "), all); assert!(d.rows.len() > 5); assert_eq!(d.above + d.below, 0);
     assert_eq!(d.lines.len(), 24); assert!(d.lines.iter().all(|l| sw::text::width(l) <= 50));
-    assert!(d.lines.iter().any(|l| regex::Regex::new(r"^[ ▌]. #\d+ +Make f").unwrap().is_match(l)), "who the reply goes to still shows above the box");
+    assert!(d.lines.iter().any(|l| regex::Regex::new(r"^[ ▌]. PRJ-\d+ +Make f").unwrap().is_match(l)), "who the reply goes to still shows above the box");
     assert!(d.framed); assert!(d.lines.iter().any(|l| regex::Regex::new(r"^│ Made f\. +│$").unwrap().is_match(l)), "the agent's latest message is in the same box: {:?}", d.lines);
     s.typed(&format!(" {all} {all}"));
     let e = s.draft(50);
-    assert_eq!(e.lines.len(), 24); assert!(e.above > 0); assert_eq!(e.below, 0); assert!(e.lines.last().unwrap().contains("enter send to #1's agent"));
+    assert_eq!(e.lines.len(), 24); assert!(e.above > 0); assert_eq!(e.below, 0); assert!(e.lines.last().unwrap().contains("enter send to PRJ-1's agent"));
 }

@@ -19,8 +19,8 @@ fn a_heading_that_folds_has_a_caret_that_says_which_way_one_that_does_not_has_no
     let at = |lines: &[String], start: &str| lines.iter().position(|l| l.starts_with(start)).unwrap_or_else(|| panic!("{start}\n{}", lines.join("\n")));
     // Open: `▾` in the marks' column, the name where a task's tag starts.
     let todo = at(&lines, " ▾ to do");
-    let task = at(&lines, " ○ #");
-    assert_eq!(lines[todo].find("to do"), lines[task].find('#'), "{}", lines.join("\n"));
+    let task = at(&lines, " ○ PRJ-");
+    assert_eq!(lines[todo].find("to do"), lines[task].find("PRJ-"), "{}", lines.join("\n"));
     // The automations do not fold: no caret, and the name still starts in the headings' column.
     let autos = at(&lines, "   automations");
     assert!(!lines[autos].contains('▾') && !lines[autos].contains('▸'));

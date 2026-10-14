@@ -50,7 +50,9 @@ fn run(cmd: &str, a: &Args) -> Res<i32> {
     home_at_start(cmd); // an older version's folders move into the one home folder, once (store/move_home.rs)
     crate::store::old_copy::copy_at_start(cmd); // …then a copy of the data an older (Node) version wrote, once (store/old_copy.rs)
     // …and its settings into the new names, once (store/settings/migrate.rs). Asking for help changes nothing.
-    if !["help", "--skill", "skill", "version"].contains(&cmd) && !a.flags.b("help") { move_settings(); }
+    // …and every repo it knew without a short key is given one, once (store/keys_given.rs): the board says which. Not
+    // by `docs`, which the repo's check runs with a build that is not yours yet.
+    if !["help", "--skill", "skill", "version"].contains(&cmd) && !a.flags.b("help") { move_settings(); if cmd != "docs" { crate::store::keys_given::keys_at_start(); } }
     let flag = |k: &str| a.flags.get(k).map(text).unwrap_or_default();
     let pos = |n: usize| a.pos.get(n).cloned().unwrap_or_default();
     // ---- entries herdr itself calls: kept light, they run on every agent status change -------------------------------

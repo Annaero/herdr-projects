@@ -101,7 +101,9 @@ pub fn settings(k: &mut Kit, c: &Ctx, r: &Obj) -> Drawn {
     if usage.is_object() && usage.b("context") && usage.b("window") { fixed(&mut session, "Context", format!("{}% full of {}", ((usage.f("context") / usage.f("window")) * 100.0).round().min(100.0), tokens(usage.f("window")))); }
     if usage.is_object() { fixed(&mut session, "Tokens", format!("{} in · {} out", tokens(usage.f("in")), tokens(usage.f("out")))); }
     if r.at("spent").b("total") { fixed(&mut session, "Used so far", format!("{} tokens, counted for this task", crate::store::settings::values::tokens_say(r.at("spent").f("total")))); }
-    fixed(&mut session, "Task id", if r.b("rid") { r.t("rid") } else { r.t("id") });
+    // The id a command takes, with its repo's key beside it (`gtm-agent/12 · AGT`).
+    let id = if r.b("rid") { r.t("rid") } else { r.t("id") };
+    fixed(&mut session, "Task id", crate::board::tags::repo_with_key(&id, &c.repo_key));
     let l = r.at("link");
     if l.b("pane") { fixed(&mut session, "herdr", format!("{}space {} · pane {}{}", if l.b("socket") && !r.b("host") { format!("session {} · ", crate::herdr::cli::session_name(l.s("socket"))) } else { String::new() }, if l.b("workspace") { l.s("workspace") } else { "?" }, l.s("pane"), if l.b("agent") { format!(" · {}", l.s("agent")) } else { String::new() })); }
     // Not read yet (the board's first frame is drawn from the files alone): it says so, never a row of blanks.

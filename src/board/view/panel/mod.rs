@@ -21,7 +21,7 @@ use kit::{Kit, Part};
 /// The widest the task details are drawn full screen: text wider than this is hard to read.
 pub const READ: usize = 100;
 /// What every part is drawn for.
-pub struct Ctx { pub now: i64, pub full: bool, pub web: bool, pub tag: String, pub mark: Inked, pub agent: bool, pub failure: Option<Obj>, pub attempt: String, pub repo_root: String }
+pub struct Ctx { pub now: i64, pub full: bool, pub web: bool, pub tag: String, pub mark: Inked, pub agent: bool, pub failure: Option<Obj>, pub attempt: String, pub repo_root: String, pub repo_key: String }
 fn render(k: &Kit, lead: bool, gap: bool) -> Vec<Inked> {
     let mut out = if lead { vec![Inked::new()] } else { vec![] };
     let mut n = 0;
@@ -48,7 +48,8 @@ pub fn panel(s: &mut State, t: &Theme, r: &Obj, width: usize, full: bool, fit: u
     if !r.has("title") { return job_panel(&mut k, r, s.now, t); }
     let agent = crate::shown::states::is_agent(r);
     let c = Ctx { now: s.now, full, web: s.ctx.web, tag: crate::board::tags::number_tag(r, &s.data.keys, &s.scope, true), mark: super::fields::mark(t, r), agent, failure: crate::shown::states::failure_for(r),
-        attempt: if crate::board::update::actions::choosing(s, r) { crate::board::update::actions::attempt_sel(s, r) } else { String::new() }, repo_root: s.data.repo_root.clone() };
+        attempt: if crate::board::update::actions::choosing(s, r) { crate::board::update::actions::attempt_sel(s, r) } else { String::new() }, repo_root: s.data.repo_root.clone(),
+        repo_key: if r.b("host") { r.t("key") } else { s.data.keys.get(r.s("id").split('/').next().unwrap_or("")).cloned().unwrap_or_default() } };
     let mut cut = false;
     let (title, mut top, top_part, told) = status::status(&mut k, &c, r);
     // The description: whole on the full screen, its first few hundred characters beside the list.

@@ -66,7 +66,7 @@ fn the_commands_add_list_show_change_set_unset_on_off_run_firings_remove_all_wit
     // run now, its firings, off and on
     assert_eq!(out(&w, &["automations", "run", "Dependencies"]), "\"Dependencies\" fired: proj/1 was added and an agent is on it.\n");
     assert_eq!(out(&w, &["automations", "run", "Dependencies"]), "\"Dependencies\" did not fire: its last task, proj/1, is still being worked on.\n");
-    like(&out(&w, &["automations", "firings", "Dependencies"]), r"^\d+s ago +run now {2}→ {2}skipped: its last task, proj/1, is still being worked on\n\d+s ago +run now {2}→ {2}made proj/1\n$");
+    like(&out(&w, &["automations", "firings", "Dependencies"]), r"^\d+s ago +run now {2}→ {2}skipped: its last task, PRJ-1, is still being worked on\n\d+s ago +run now {2}→ {2}made PRJ-1\n$");
     let f: serde_json::Value = serde_json::from_str(&out(&w, &["automations", "firings", "Dependencies", "--json"])).unwrap();
     assert_eq!(f.as_array().unwrap().iter().map(|f| if f.b("task") { f.t("task") } else { "skipped".into() }).collect::<Vec<_>>(), ["skipped", "proj/1"]);
     let shown = out(&w, &["automations", "show", "Dependencies"]);

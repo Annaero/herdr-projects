@@ -40,7 +40,7 @@ Measured against **herdr-web-ui 0.4.8** (see [how](#how-it-was-measured)):
 | The board's | Where it is in the box |
 |---|---|
 | who gets your words: the Coordinator (and on which machine, where another one's shows) or a task's agent, with the task named | said by the switch over the box ([the web UI](web-ui.md)), not in it: the box's own hint says it too while empty (`Send message to Coordinator`) |
-| the lock that keeps a draft with who it was typed for | a filled chip in the lower left, where the web UI has its add button, only while the page shows somebody else: `To: #34 agent · not who is shown above` |
+| the lock that keeps a draft with who it was typed for | a filled chip in the lower left, where the web UI has its add button, only while the page shows somebody else: `To: HSW-34 agent · not who is shown above` |
 | the box's colour by who you type to ([colours](colours.md)) | the card's border: the plain text colour for the Coordinator, the task's status colour for its agent. The web UI's border is grey and turns to its accent on focus; here the border already says who, so focus draws a ring of that same colour round it |
 | the two ways to send | the round button and enter send; **Send + start** and tab, while there are words and it applies, send and put an agent on what it adds. **Send + start** is a chip of the web UI's (the shape of its one-tap replies). Each says in its tooltip what it does with the words |
 | the switch between the Coordinator and the task's agent, and the conversation | over the box, as wide as it: the web UI's segmented switch, Hide and Show, and the conversation in a panel of its own that scrolls back ([the web UI](web-ui.md)) |

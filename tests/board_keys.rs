@@ -28,14 +28,14 @@ fn typing_adds_a_task_tab_delegates_space_replies_and_enter_opens_the_agent() {
     s.press(&["tab"]);
     settle("proj/1"); s.load();
     let t = s.text();
-    assert!(has(&t, r"\n ▾ working +[^\n]*\n[ ▌]◐ #\d+ +Add a greeting"), "{t}");
+    assert!(has(&t, r"\n ▾ working +[^\n]*\n[ ▌]◐ PRJ-\d+ +Add a greeting"), "{t}");
     assert!(!has(&t, "On its screen|Editing greet|esc to interrupt"), "nothing of the program's screen is shown");
     assert!(t.contains(&format!("enter open this task's agent · space talk to the agent · {} stop the agent · esc close · ? all keys", key_name("stop"))), "{t}");
     s.press(&["space"]);
     assert!(has(&s.text(), r"│ ❯ Send message to Agent"), "{}", s.text());
     w.script(json!({ "worker": [{ "status": "working" }] }));
     s.typed("also say goodbye");
-    assert!(s.text().contains("│ ❯ also say goodbye") && s.text().contains("enter send to #1's agent · shift+enter new line · esc put away"), "{}", s.text());
+    assert!(s.text().contains("│ ❯ also say goodbye") && s.text().contains("enter send to PRJ-1's agent · shift+enter new line · esc put away"), "{}", s.text());
     s.press(&["enter"]);
     // What you just sent stands in the box, in place of what the agent had said, until it says something new.
     assert!(has(&s.text(), r"\n╭─[^\n]*╮\n│ You: +│\n│ also say goodbye +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n"), "{}", s.text());
@@ -66,10 +66,10 @@ fn typing_adds_a_task_tab_delegates_space_replies_and_enter_opens_the_agent() {
     assert_eq!(s2.s.sel, "proj/1");
     s2.press(&["ctrl+x"]);
     assert_eq!(task("proj/1").s("stage"), "stopped");
-    assert!(s2.text().contains("Stopped #1 \"Add a greeting\"."), "{}", s2.text());
+    assert!(s2.text().contains("Stopped PRJ-1 \"Add a greeting\"."), "{}", s2.text());
     assert!(s2.s.ask.is_none() && s2.s.sel == "proj/1");
     s2.press(&["ctrl+x"]);
-    assert!(has(&s2.text(), r#"\n[ ▌]\? Remove #1 "Add a greeting"\?[^?]*\n   y = remove · n = keep"#), "{}", s2.text());
+    assert!(has(&s2.text(), r#"\n[ ▌]\? Remove PRJ-1 "Add a greeting"\?[^?]*\n   y = remove · n = keep"#), "{}", s2.text());
     s2.press(&["enter", "ctrl+x"]); assert!(s2.s.ask.is_some());
     s2.press(&["n"]); assert!(s2.s.ask.is_none());
     assert!(sw::store::tasks::get("proj/1").is_some() && sw::store::tasks::get("proj/3").is_some());
@@ -107,7 +107,7 @@ fn while_the_text_box_holds_words_no_shortcut_fires_and_ctrl_c_twice_closes() {
     let mut s2 = open(&w.root, 34);
     s2.s.sel = id.clone(); s2.load();
     s2.press(&["ctrl+l"]);
-    assert!(has(&s2.text(), r#"\? Merge #1 "Make f" into \S+\? *\n[ ▌]  A merge cannot be undone\. *\n[ ▌]  y = merge · n = do not merge"#), "{}", s2.text());
+    assert!(has(&s2.text(), r#"\? Merge PRJ-1 "Make f" into \S+\? *\n[ ▌]  A merge cannot be undone\. *\n[ ▌]  y = merge · n = do not merge"#), "{}", s2.text());
     s2.press(&["ctrl+c"]); assert!(s2.s.ask.is_none() && !s2.closed); assert_eq!(task(&id).s("stage"), "approval");
     s2.press(&["ctrl+c", "ctrl+c"]); assert!(s2.closed);
 }
@@ -126,7 +126,7 @@ fn ctrl_x_stops_an_agent_that_waits_for_your_answer_and_asks_to_remove_only_wher
     assert_eq!(items.iter().find(|i| i.id == sw::board::keys::K::Stop).map(|i| i.label.clone()).unwrap_or_default(), "stop this task's agent");
     s.press(&["ctrl+x"]); assert!(s.s.ask.is_none());
     assert_eq!(task(&id).s("stage"), "stopped");
-    assert!(s.text().contains("Stopped #1 \"One\"."));
-    s.press(&["ctrl+x"]); assert!(has(&s.text(), r#"\n[ ▌]\? Remove #1 "One"\?"#), "{}", s.text());
+    assert!(s.text().contains("Stopped PRJ-1 \"One\"."));
+    s.press(&["ctrl+x"]); assert!(has(&s.text(), r#"\n[ ▌]\? Remove PRJ-1 "One"\?"#), "{}", s.text());
     s.press(&["n"]); assert!(sw::store::tasks::get(&id).is_some());
 }

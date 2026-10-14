@@ -1,6 +1,7 @@
 //! A repo's short key (`repo.key`: `HSW-134`) naming a task wherever its id does: find, the commands, what an agent is
 //! told, the board's rows, panel, chat and messages, what another machine is sent; and the key itself: set for the
-//! repo or in its own file, kept in capitals, checked, never one key for two repos.
+//! repo or in its own file, kept in capitals, checked, never one key for two repos. The key the board makes for every
+//! repo is tests/task_keys_made.rs.
 use crate::common;
 use common::board::open;
 use common::*;
@@ -32,7 +33,7 @@ fn key_of(repo: &str) -> serde_json::Value { lookup("repo.key", &Scope::repo(rep
 fn the_key_names_the_task_wherever_an_id_does_in_any_letter_case_the_id_stays_its_real_name_and_a_changed_key_breaks_nothing() {
     let w = world();
     w.add("First"); w.add("Second");
-    refused(find("hsw-2"), "No task hsw-2"); // no key yet
+    refused(find("hsw-2"), "No task hsw-2"); assert_eq!(find("prj-2").unwrap().s("id"), "proj/2"); // the key made from its name: PRJ
     set_value("repo.key", &json!("HSW"), &Scope::repo("proj")).unwrap();
     for r in ["HSW-2", "hsw-2", "Hsw-2", " hsw-2 ", "proj/2", "2", "#2"] { assert_eq!(find(r).unwrap().s("id"), "proj/2", "{r}"); }
     refused(find("hsw-9"), "No task hsw-9"); refused(find("zzz-2"), "No task zzz-2");
@@ -54,10 +55,20 @@ fn the_key_names_the_task_wherever_an_id_does_in_any_letter_case_the_id_stays_it
     assert_eq!(w.add("Third"), "proj/3"); let k = repo_keys(); assert_eq!(say_ids("proj/3: added", &k), "HSW-3: added");
     assert_eq!(say_ids("Kept: /data/tasks/proj/3/note.md, proj/3x and other/3. See proj/3.", &k), "Kept: /data/tasks/proj/3/note.md, proj/3x and other/3. See HSW-3.");
     assert_eq!(task_ref("proj/3", &k), "HSW-3 (proj/3)"); assert_eq!(task_ref("other/3", &k), "other/3");
-    // Nothing is stored under the key: changed, the new one works, the old one is no longer understood, the id always is.
+    // Nothing is stored under the key: changed, the new one works, and so do the old ones and the id.
     set_value("repo.key", &json!("NEW"), &Scope::repo("proj")).unwrap();
-    assert_eq!(find("new-2").unwrap().s("id"), "proj/2"); refused(find("hsw-2"), "No task hsw-2"); assert_eq!(find("proj/2").unwrap().s("title"), "Second, renamed");
-    unset_value("repo.key", &Scope::repo("proj")).unwrap(); refused(find("new-2"), "No task"); assert_eq!(find("proj/2").unwrap().s("id"), "proj/2"); assert!(task("proj/2").at("settings").at("repo.key").is_null());
+    for r in ["new-2", "hsw-2", "prj-2", "proj/2"] { assert_eq!(find(r).unwrap().s("title"), "Second, renamed", "{r}"); }
+    assert_eq!(run(&w, &["describe", "hsw-2", "Old name."]), "NEW-2: updated (description)\n"); // said by the key it has now
+    // Taken away: back to the key made from its name, and every name it had still works.
+    unset_value("repo.key", &Scope::repo("proj")).unwrap(); assert_eq!(key_of("proj"), json!("PRJ"));
+    for r in ["new-2", "hsw-2", "prj-2", "proj/2"] { assert_eq!(find(r).unwrap().s("id"), "proj/2", "{r}"); }
+    assert!(task("proj/2").at("settings").at("repo.key").is_null());
+    // An old key still names its repo's tasks: another repo may not take it, so an old name never points elsewhere.
+    let other = w.base.join("other"); std::fs::create_dir_all(&other).unwrap(); sw::actions::filing::add(&other, "Elsewhere", Default::default()).unwrap();
+    refused(set_value("repo.key", &json!("hsw"), &Scope::repo("other")), r"HSW was proj's key and still names proj's tasks\. Choose another for other\.");
+    assert_eq!(find("hsw-1").unwrap().s("id"), "proj/1"); assert_eq!(find("new-1").unwrap().s("id"), "proj/1");
+    // Its own old key, a repo may take again.
+    set_value("repo.key", &json!("hsw"), &Scope::repo("proj")).unwrap(); assert_eq!(find("hsw-1").unwrap().s("id"), "proj/1"); assert_eq!(find("new-1").unwrap().s("id"), "proj/1");
 }
 
 #[test]
@@ -70,7 +81,7 @@ fn on_the_board_a_keyed_repos_rows_read_hsw_134_the_panel_the_chat_and_the_messa
     assert_eq!([nine.as_str(), big.as_str(), next.as_str()], ["proj/9", "proj/134", "proj/135"]);
     let mut s = open(&w.root, 40); s.s.side = false;
     let row = |s: &mut common::board::Board, title: &str| s.screen(100).into_iter().find(|l| l.contains(title) && has(l, r"^[ ▌]\S ")).unwrap_or_default();
-    assert!(has(&row(&mut s, "Number nine"), r"^[ ▌]○ #9 {3}Number nine +\ds ago$"), "{}", s.text()); assert!(has(&row(&mut s, "Number one three four"), r"^[ ▌]○ #134 Number one three four +\ds ago$"));
+    assert!(has(&row(&mut s, "Number nine"), r"^[ ▌]○ PRJ-9 {3}Number nine +\ds ago$"), "{}", s.text()); assert!(has(&row(&mut s, "Number one three four"), r"^[ ▌]○ PRJ-134 Number one three four +\ds ago$"));
     // Find: the number, `#` and the number, or the tag; exactly one task's, the selection goes to it.
     for typed in ["134", "#134"] {
         s.s.sel = nine.clone(); s.press(&["ctrl+f"]); s.typed(typed);
@@ -78,14 +89,14 @@ fn on_the_board_a_keyed_repos_rows_read_hsw_134_the_panel_the_chat_and_the_messa
         s.press(&["enter"]); assert_eq!(s.s.sel, big, "{typed}"); s.press(&["esc"]); assert_eq!(s.s.filter, "", "{typed}");
     }
     s.s.sel = big.clone(); s.press(&["ctrl+f"]); s.typed("13"); assert!(!row(&mut s, "Number one three four").is_empty() && !row(&mut s, "Its neighbour").is_empty()); s.typed("5"); assert_eq!(s.s.sel, next); s.press(&["esc", "esc"]);
-    // With a key: the tag on the rows, the panel's title, the heading of the details page. The id itself stands once,
+    // Another key: the tag on the rows, the panel's title, the heading of the details page. The id itself stands once,
     // on the whole task, with the session: where a command needs it.
     set_value("repo.key", &json!("hsw"), &Scope::repo("proj")).unwrap(); s.s.sel = big.clone(); s.load();
     assert!(has(&row(&mut s, "Number nine"), r"^[ ▌]○ HSW-9 {3}Number nine +\ds ago$"), "{}", s.text()); assert!(has(&row(&mut s, "Number one three four"), r"^[ ▌]○ HSW-134 Number one three four +\ds ago$"));
     s.s.side = true; let text = s.screen(140).join("\n");
     assert!(has(&text, r"│ {2}HSW-134 Number one three four"), "{text}"); assert!(!text.contains("proj/134"));
     s.s.side = false; s.press(&["alt+t"]); assert!(has(&s.screen(100).join("\n"), r#"^ Task details {2}HSW-134 "Number one three four""#), "{}", s.text());
-    s.s.panel_top = 1_000_000_000; assert!(has(&s.screen(100).join("\n"), r"\n Task id {6}proj/134\n"), "{}", s.screen(100).join("\n")); s.s.panel_top = 0;
+    s.s.panel_top = 1_000_000_000; assert!(has(&s.screen(100).join("\n"), r"\n Task id {6}proj/134 · HSW\n"), "{}", s.screen(100).join("\n")); s.s.panel_top = 0;
     assert!(has(&s.screen(100).join("\n"), r"\n HSW-134 Number one three four\n"), "{}", s.screen(100).join("\n")); s.press(&["esc"]);
     // The chat's line names the task with its tag.
     s.press(&["space"]); assert!(has(&s.screen(100).join("\n"), r"\n[ ▌]○ HSW-134 Number one three four {2}no agent yet: your message starts one"), "{}", s.screen(100).join("\n")); s.press(&["space"]);
@@ -96,10 +107,10 @@ fn on_the_board_a_keyed_repos_rows_read_hsw_134_the_panel_the_chat_and_the_messa
     // What another machine is sent: each task with its repo's key, so its rows there read the same.
     let sent = |id: &str| sw::remote::remote_list().arr("tasks").iter().find(|t| t.s("id") == id).map(|t| t.at("key").clone()).unwrap_or_default();
     assert_eq!(sent(&big), json!("HSW"));
-    // Without the key again: the number, and the id in the board's messages.
+    // Taken away: the key made from the repo's name again, never a bare number.
     unset_value("repo.key", &Scope::repo("proj")).unwrap(); s.s.sel = big.clone(); s.load();
-    assert!(has(&row(&mut s, "Number one three four"), r"^[ ▌]○ #134 Number one three four")); s.press(&["ctrl+a"]); assert!(s.s.msg.starts_with("Archived #134 \"Number one three four\"."), "{}", s.s.msg);
-    assert!(sent(&nine).is_null());
+    assert!(has(&row(&mut s, "Number one three four"), r"^[ ▌]○ PRJ-134 Number one three four")); s.press(&["ctrl+a"]); assert!(s.s.msg.starts_with("Archived PRJ-134 \"Number one three four\"."), "{}", s.s.msg);
+    assert_eq!(sent(&nine), json!("PRJ"));
 }
 
 #[test]
@@ -108,19 +119,19 @@ fn a_repos_short_key_set_for_the_repo_or_in_its_own_file_kept_in_capitals_checke
     w.add("First");
     let other = w.base.join("other"); std::fs::create_dir_all(&other).unwrap(); sw::actions::filing::add(&other, "Elsewhere", Default::default()).unwrap();
     let keys = || serde_json::to_value(repo_keys()).unwrap();
-    assert_eq!(keys(), json!({})); assert_eq!(key_of("proj"), json!("none"));
-    assert_eq!(set_value("repo.key", &json!("hsw"), &Scope::repo("proj")).unwrap().value, json!("HSW")); assert_eq!(keys(), json!({ "proj": "HSW" }));
+    assert_eq!(keys(), json!({ "proj": "PRJ", "other": "OTH" })); assert_eq!(key_of("proj"), json!("PRJ")); // made from their names
+    assert_eq!(set_value("repo.key", &json!("hsw"), &Scope::repo("proj")).unwrap().value, json!("HSW")); assert_eq!(keys(), json!({ "proj": "HSW", "other": "OTH" }));
     assert_eq!(run(&w, &["set", "repo.key", "Ab1", "--repo", "proj"]), "repo.key for proj: AB1  (your entry for proj)\n");
     // Checked when set: a bad one is refused with the reason, and changes nothing.
-    for (bad, why) in [("x", "2 to 5 letters or digits"), ("toolong", "2 to 5 letters or digits"), ("1ab", "the first a letter"), ("a-b", "2 to 5"), ("pr", "already means a pull request")] { refused(set_value("repo.key", &json!(bad), &Scope::repo("proj")), why); }
+    for (bad, why) in [("x", "2 to 5 letters or digits"), ("toolong", "2 to 5 letters or digits"), ("1ab", "the first a letter"), ("a-b", "2 to 5"), ("pr", "already means a pull request"), ("none", "every repo has a short key")] { refused(set_value("repo.key", &json!(bad), &Scope::repo("proj")), why); }
     refused(set_value("repo.key", &json!("HSW"), &Scope::you()), r"one repo's own: it cannot be set for every repo at once\. Set it for the repo: herdr-superwork set repo\.key <value> --repo <name>");
     refused(set_value("repo.key", &json!("HSW"), &Scope::task(&task("proj/1"))), "one repo's own: it cannot be set on a task");
     refused(set_value("repo.key", &json!("HSW"), &Scope::repo("nope")), r#"No repo "nope" on the board"#);
-    assert_eq!(keys(), json!({ "proj": "AB1" }));
+    assert_eq!(keys(), json!({ "proj": "AB1", "other": "OTH" }));
     // Two repos, one key: the second is refused, and told who has it.
     refused(set_value("repo.key", &json!("ab1"), &Scope::repo("other")), r"proj already has the key AB1\. Choose another for other\.");
     assert_eq!(set_value("repo.key", &json!("AB1"), &Scope::repo("proj")).unwrap().value, json!("AB1")); // its own key again is no clash
-    assert_eq!(set_value("repo.key", &json!("oth"), &Scope::repo("other")).unwrap().value, json!("OTH")); assert_eq!(keys(), json!({ "proj": "AB1", "other": "OTH" }));
+    assert_eq!(set_value("repo.key", &json!("oth"), &Scope::repo("other")).unwrap().value, json!("OTH")); assert_eq!(keys(), json!({ "proj": "AB1", "other": "OTH" })); // its own made key, now set
     // `show`: with the repo's settings, never among yours.
     assert!(has(&run(&w, &["show", "--repo", "proj"]), r"\n\* repo\.key +AB1 +your entry for proj\n")); assert!(!run(&w, &["show"]).contains("repo.key"));
     // The repo's own file can carry it: your entry wins, and without one the file's counts.
@@ -128,14 +139,17 @@ fn a_repos_short_key_set_for_the_repo_or_in_its_own_file_kept_in_capitals_checke
     assert_eq!(key_of("proj"), json!("AB1"));
     assert_eq!(unset_value("repo.key", &Scope::repo("proj")).unwrap().value, json!("FIL")); assert_eq!(lookup("repo.key", &Scope::repo("proj"), &yours()).unwrap().from, "the repo's file"); assert_eq!(keys(), json!({ "proj": "FIL", "other": "OTH" }));
     assert!(sw::store::settings::places::repo_file(&w.root, None).1.is_empty());
-    // A file can still bring a key another repo has. Your entry wins over a file; said twice in files, it counts for neither.
+    // A file can still bring a key another repo has. Your entry wins over a file; said in two files, it is the one of the
+    // repo the board knew first. The other's file is left as it is: it goes by a stand-in the board gives it, and
+    // nothing is written for it in your settings.
     std::fs::write(other.join(".herdr-superwork.json"), json!({ "repo": { "key": "FIL" } }).to_string()).unwrap(); unset_value("repo.key", &Scope::repo("other")).unwrap();
-    assert_eq!(keys(), json!({})); assert!(has(&run(&w, &["show", "--repo", "proj"]), r"\n {2}repo\.key +FIL +not used: another repo says the same key\n"));
-    refused(find("fil-1"), "No task fil-1"); // so a key never names tasks of two repos
-    refused(set_value("repo.key", &json!("FIL"), &Scope::repo("proj")), "other already has the key FIL"); // `set` still refuses it
+    assert_eq!(keys(), json!({ "proj": "FIL", "other": "OTH" })); assert_eq!(find("fil-1").unwrap().s("id"), "proj/1"); // so a key never names tasks of two repos
     let config = sw::store::files::config_dir().join("config.json");
+    let saved: serde_json::Value = serde_json::from_str(&read(&config)).unwrap(); assert!(saved.at("repos").at("other").is_null(), "{saved}");
+    assert!(has(&run(&w, &["show", "--repo", "other"]), r"\n {2}repo\.key +FIL +not used: another repo has or had the same key; its tasks go by OTH\n"), "{}", run(&w, &["show", "--repo", "other"]));
+    refused(set_value("repo.key", &json!("FIL"), &Scope::repo("other")), "proj already has the key FIL"); // `set` refuses it
     std::fs::write(&config, json!({ "watcher.agent": "none", "coordinator.agent": "none", "repos": { "proj": { "repo": { "key": "FIL" } } } }).to_string()).unwrap(); // written by hand
-    assert_eq!(keys(), json!({ "proj": "FIL" })); assert_eq!(find("fil-1").unwrap().s("id"), "proj/1");
+    assert_eq!(keys(), json!({ "proj": "FIL", "other": "OTH" })); assert!(sw::store::keys_given::give_keys(None).is_empty());
     // A mistake made by hand is reported with the setting's name, and that key is not counted.
     std::fs::write(&config, json!({ "watcher.agent": "none", "coordinator.agent": "none", "repo": { "key": "TOP" }, "repos": { "proj": { "repo": { "key": "way too long" } } } }).to_string()).unwrap();
     let bad = sw::store::settings::show::problems(None);

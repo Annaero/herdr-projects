@@ -22,9 +22,9 @@ fn as_old(id: &str, patch: Value) { let mut t = o(json_of(&task_file(id))); t.de
 #[test]
 fn the_move_with_exactly_this_computers_file_every_old_name_becomes_its_new_one_once_and_the_old_file_is_kept() {
     let w = world();
-    std::fs::write(file(), serde_json::to_string_pretty(&old()).unwrap()).unwrap();
     // tasks as the old version saved them: one under way with choices of its own, one untouched
     let (a, b, c) = (w.add("Under way"), w.add("Untouched"), w.add("Research"));
+    std::fs::write(file(), serde_json::to_string_pretty(&old()).unwrap()).unwrap();
     as_old(&a, json!({ "stage": "approval", "startedOnce": true, "agent": "claude", "repoCfg": old_repo(), "own": { "reviewer": "claude", "reviewerModel": "opus", "model": "sonnet", "effort": "high", "gate": "minor", "autoMerge": false, "conflictAuto": true, "watcher": "off" }, "base": "head" }));
     as_old(&b, json!({})); as_old(&c, json!({ "own": { "research": true, "reviewer": "off" }, "worktreeMode": "none" }));
     assert!(move_settings());

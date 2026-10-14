@@ -27,7 +27,7 @@ fn one_header_line_five_groups_a_mark_for_each_state_and_the_task_panel_from_90_
     report(&b, "half way", Some(50), None); assert_eq!(task(&b).at("watch"), &json!({ "progress": 50, "eta": 12 }));
     let mut s = open(&w.root, 34);
     let text = s.screen(120).join("\n");
-    assert!(has(&text, r"^ herdr-superwork  proj · 1 working · 1 to do +│ *\n +│"), "{text}");
+    assert!(has(&text, r"^ herdr-superwork  proj · PRJ · 1 working · 1 to do +│ *\n +│"), "{text}");
     let inks = s.inked(120);
     assert_eq!(ink_of(&inks, "◐"), Some((Ink::Yellow, false)), "a working task's mark is the working colour");
     assert_eq!(ink_of(&inks, "My own task"), Some((Ink::Plain, true)), "its title plain, and bold while it lives");
@@ -36,13 +36,13 @@ fn one_header_line_five_groups_a_mark_for_each_state_and_the_task_panel_from_90_
     assert_eq!(heading(&inks, "working"), Some(Ink::Yellow)); assert_eq!(heading(&inks, "to do"), Some(Ink::Todo), "the headings are in their group's colour");
     assert_eq!(ink_of(&inks, "50%").map(|x| x.0), Some(Ink::Yellow)); assert_eq!(ink_of(&inks, "12m left").map(|x| x.0), Some(Ink::Yellow));
     assert!(has(&text, r"\n ▾ working +│") && has(&text, r"\n ▾ to do +│"));
-    assert!(has(&text, r"◐ #2 My own task +█+░+ +50% 12m left +\ds {5}│[^\n]*\n[ ▌] {5}half way +│"), "{text}");
+    assert!(has(&text, r"◐ PRJ-2 My own task +█+░+ +50% 12m left +\ds {5}│[^\n]*\n[ ▌] {8}half way +│"), "{text}");
     assert!(has(&text, r"│  Progress     █+░+ 50% · 12m left *\n"));
-    assert!(has(&text, r"│  #2 My own task") && has(&text, r"│  State        ◐ working · for \ds *\n") && has(&text, r"│  On it        you *\n"), "{text}");
+    assert!(has(&text, r"│  PRJ-2 My own task") && has(&text, r"│  State        ◐ working · for \ds *\n") && has(&text, r"│  On it        you *\n"), "{text}");
     assert!(has(&text, r"\n *\n \+ New task  [^\n]*\n─[^\n]*\n❯ Add a task *\n") && !text.contains("Coordinator"));
     assert_eq!(s.screen(120).len(), 34);
-    assert!(!s.screen(80).join("\n").contains("│  #2 My own task"), "no panel beside the list below 90 columns");
-    s.press(&["ctrl+b"]); assert!(s.screen(120).join("\n").contains("│  #2 My own task")); assert_eq!(s.s.value(), "");
+    assert!(!s.screen(80).join("\n").contains("│  PRJ-2 My own task"), "no panel beside the list below 90 columns");
+    s.press(&["ctrl+b"]); assert!(s.screen(120).join("\n").contains("│  PRJ-2 My own task")); assert_eq!(s.s.value(), "");
     // alt+p closes the side panel and opens it again: closed, the list has the whole width
     s.press(&["alt+p"]);
     let text = s.screen(120).join("\n");
@@ -51,18 +51,18 @@ fn one_header_line_five_groups_a_mark_for_each_state_and_the_task_panel_from_90_
     assert_eq!(sw::store::files::read_obj(&sw::store::files::data_dir().join("view.json")).unwrap().at("side"), &json!(false), "your choice is remembered");
     s.press(&["?"]); assert!(has(&s.screen(120).join("\n"), &format!(r"{} +show the side panel", regex::escape(&key_name("side")))));
     s.press(&["esc"]);
-    s.press(&["space"]); assert!(s.s.reply && !s.screen(120).join("\n").contains("│  #2 My own task") && !s.s.full);
-    s.press(&["space", "alt+p"]); assert!(s.s.side && s.screen(120).join("\n").contains("│  #2 My own task"));
+    s.press(&["space"]); assert!(s.s.reply && !s.screen(120).join("\n").contains("│  PRJ-2 My own task") && !s.s.full);
+    s.press(&["space", "alt+p"]); assert!(s.s.side && s.screen(120).join("\n").contains("│  PRJ-2 My own task"));
     s.cols = 80; s.screen(80); s.press(&["alt+p", "alt+p"]);
     assert!(s.screen(80).join("\n").contains(&format!("The side panel needs a wider window. {} shows the task full screen.", key_name("panel"))), "{}", s.screen(80).join("\n"));
     s.cols = 120;
     s.press(&["down", "down", "alt+t"]); // past the heading of to do
     let text = s.screen(80).join("\n");
-    assert!(text.starts_with(" Task details  #1 \"") && has(&text, r"\n State        ○ to do · \ds ago *\n") && has(&text, r"Description ─+ *\n All of them\."), "{text}");
+    assert!(text.starts_with(" Task details  PRJ-1 \"") && has(&text, r"\n State        ○ to do · \ds ago *\n") && has(&text, r"Description ─+ *\n All of them\."), "{text}");
     assert!(!text.split("Session ─").next().unwrap().contains("proj/1"), "the task is named as its row names it");
     assert!(!s.s.reply && has(&text, r"\n *\n \+ New task  [^\n]*\n─[^\n]*\n❯ Add a task"));
     s.press(&["space"]); assert!(s.s.reply && s.s.full);
-    assert!(has(&s.screen(80).join("\n"), r"\n *\n[ ▌]. #\d+ +Write the docs  [^\n]*\n─[^\n]*\n❯ your message starts an agent on it"));
+    assert!(has(&s.screen(80).join("\n"), r"\n *\n[ ▌]. PRJ-\d+ +Write the docs  [^\n]*\n─[^\n]*\n❯ your message starts an agent on it"));
     s.press(&["alt+t"]); assert!(!s.s.full && s.s.reply, "folding the panel keeps who you talk to");
     s.press(&["alt+t", "space"]); assert!(!s.s.reply && s.s.full, "space never opens or folds the panel");
     s.press(&["space", "esc"]); assert!(!s.s.full && s.s.reply);
@@ -81,7 +81,7 @@ fn the_done_list_is_newest_first_and_nothing_marks_a_task_as_read() {
     }
     let mut s = open(&w.root, 34);
     let lines = s.screen(80);
-    let at: Vec<usize> = titles.iter().map(|t| lines.iter().position(|l| has(l, r"^[ ▌]✓ #\d ") && l.chars().skip(6).collect::<String>().starts_with(t)).unwrap_or(0)).collect();
+    let at: Vec<usize> = titles.iter().map(|t| lines.iter().position(|l| has(l, r"^[ ▌]✓ PRJ-\d ") && l.chars().skip(9).collect::<String>().starts_with(t)).unwrap_or(0)).collect();
     assert!(at[2] > 0 && at[2] < at[1] && at[1] < at[0], "{}", lines.join("\n"));
     assert!(!lines.join("\n").contains("unread"));
     for l in s.inked(80) { if l.text().contains('✓') { assert!(!l.0.iter().any(|p| p.bold), "no done row stands out: {}", l.text()); } }
@@ -105,13 +105,13 @@ fn work_whose_review_failed_stands_under_needs_you_and_its_yes_is_merge_anyway()
     use sw::shown::states::{group_of, standing};
     assert_eq!((group_of(&rows[&bad]), standing(&rows[&bad]), group_of(&rows[&good]), standing(&rows[&good])), ("needs you", "review failed".to_string(), "ready to approve", "ready to approve".to_string()));
     let t = s.text();
-    assert!(has(&t, r"\n ▾ needs you *\n[ ▌]! #1 +Add an undo for clear +R#1 +\d+s ago *\n[ ▌] {5}Review failed · 1 critical, 1 major *\n"), "{t}");
-    assert!(has(&t, r"\n ▾ ready to approve *\n[ ▌]◆ #2 +Max length for titles +R#1 +\d+s ago *\n[ ▌] {5}Pass *\n"), "{t}");
-    assert!(t.starts_with(" herdr-superwork  proj · 1 needs you · 1 ready"));
+    assert!(has(&t, r"\n ▾ needs you *\n[ ▌]! PRJ-1 +Add an undo for clear +R#1 +\d+s ago *\n[ ▌] {8}Review failed · 1 critical, 1 major *\n"), "{t}");
+    assert!(has(&t, r"\n ▾ ready to approve *\n[ ▌]◆ PRJ-2 +Max length for titles +R#1 +\d+s ago *\n[ ▌] {8}Pass *\n"), "{t}");
+    assert!(t.starts_with(" herdr-superwork  proj · PRJ · 1 needs you · 1 ready"));
     s.s.sel = bad.clone(); s.load();
     assert!(s.text().contains(&format!("  {} send the review to this task's agent · {} merge this task anyway · ", key_name("sendBack"), key_name("yes"))), "{}", s.text());
     s.press(&["ctrl+l"]);
-    assert!(has(&s.text(), r#"\n \? Merge #1 "Add an undo for clear" into \S+\? *\n   Its last review failed: 1 critical, 1 major\. A merge cannot be undone\. *\n   y = merge anyway · n = do not merge *\n"#), "{}", s.text());
+    assert!(has(&s.text(), r#"\n \? Merge PRJ-1 "Add an undo for clear" into \S+\? *\n   Its last review failed: 1 critical, 1 major\. A merge cannot be undone\. *\n   y = merge anyway · n = do not merge *\n"#), "{}", s.text());
     assert!(s.s.ask.as_ref().unwrap().danger);
     s.press(&["enter", "x"]); assert!(s.s.ask.is_some());
     assert!(has(&s.text(), r"\n   press y or n: y = merge anyway · n = do not merge *\n")); assert_eq!(s.s.value(), "");
@@ -140,7 +140,7 @@ fn typed_words_keep_who_they_are_for_the_wheel_moves_the_view_and_a_click_select
     let mine = s.s.sel.clone(); s.press(&["space"]); s.typed("pebbles please");
     // The box's edge names no one: the hint line says who gets the words, by the task's tag.
     assert!(has(&s.text(), r"\n─+\n❯ pebbles please"), "{}", s.text());
-    let tag = format!("#{}", mine.rsplit('/').next().unwrap());
+    let tag = short(&mine);
     assert!(s.text().contains(&format!("enter send, and start an agent on {tag}")) && !s.text().contains("To: "), "{}", s.text());
     let top = s.s.top; s.wheel(4, 1); s.wheel(4, 1); s.screen(120);
     assert!(s.s.sel == mine && s.s.reply_id == mine && s.s.top > top && s.s.value() == "pebbles please", "the wheel moves the view only");
@@ -160,7 +160,7 @@ fn the_list_says_what_it_hides_the_header_where_you_are_and_an_action_what_it_di
     for n in 1..=40 { w.add(&format!("Task number {n}")); }
     let mut s = open(&w.root, 24); s.s.side = false;
     let lines = s.screen(100);
-    assert!(has(&lines[0], r"^ herdr-superwork  proj · 40 to do *$"));
+    assert!(has(&lines[0], r"^ herdr-superwork  proj · PRJ · 40 to do *$"));
     let end = lines.iter().position(|l| l.contains("New task")).unwrap();
     let list = &lines[1..end];
     let shown = list.iter().filter(|l| l.contains("Task number")).count();
@@ -177,12 +177,12 @@ fn the_list_says_what_it_hides_the_header_where_you_are_and_an_action_what_it_di
     s.press(&["esc"]); assert!(!s.screen(100)[1].contains("filter"));
     s.press(&["ctrl+f"]); s.typed("zzzq"); assert!(s.text().contains("Nothing matches \"zzzq\"."), "{}", s.text()); s.press(&["esc"]);
     let id = s.s.sel.clone();
-    let tag = format!("#{}", id.split('/').nth(1).unwrap());
+    let tag = short(&id);
     let title = task(&id).t("title");
     s.press(&["ctrl+p"]); assert_eq!(s.s.msg, format!("Pinned {tag} \"{title}\" to the top. {} unpins it.", key_name("pin")));
     assert_eq!(s.s.sel, id); assert!(has(&s.screen(100).join("\n"), r"\n ▾ pinned *\n▌"));
     s.press(&["ctrl+p"]); assert_eq!(s.s.msg, format!("Unpinned {tag} \"{title}\".")); assert_eq!(s.s.sel, id);
-    s.s.flash("proj/7: started, an agent is on it", Ink::Muted); assert_eq!(s.s.msg, "#7: started, an agent is on it");
+    s.s.flash("proj/7: started, an agent is on it", Ink::Muted); assert_eq!(s.s.msg, "PRJ-7: started, an agent is on it");
     s.s.flash("Run: herdr-superwork approve proj/7 --anyway", Ink::Muted); assert!(s.s.msg.contains("approve proj/7 --anyway"), "a command keeps the id it takes");
     s.press(&["ctrl+r"]); assert_eq!(s.s.msg, "Nothing to send back here."); assert_ne!(s.s.msg_kind, Ink::Red);
     assert_eq!(sw::board::run::place::size_for(Some(&json!({ "width": 150, "height": 45 }))), ("90%", "90%"));

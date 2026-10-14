@@ -47,23 +47,23 @@ fn the_group_has_a_colour_of_its_own_narrow_rows_a_menu_of_its_own_and_stays_wit
     assert_eq!(s.screen(60).last().unwrap(), "  enter open this automation · ? all keys", "the hints that give way are whole ones");
     // narrower still: what a row says wraps under its name as a live task's does, and nothing is cut with …
     let tight = s.screen(34);
-    let from = tight.iter().position(|l| l == " ⟳ on  Release note after a merge").unwrap();
-    assert_eq!(tight[from..from + 3].to_vec(), [" ⟳ on  Release note after a merge", "       when a task is merged, in", "       every repo      never fired"]);
+    let from = tight.iter().position(|l| l == " ⟳ on    Release note after a").unwrap();
+    assert_eq!(tight[from..from + 4].to_vec(), [" ⟳ on    Release note after a", "         merge", "         when a task is merged, in", "         every repo    never fired"]);
     assert!(!tight[5..from + 8].iter().any(|l| l.contains('…')), "{}", tight.join("\n"));
-    assert_eq!(s.screen(30)[6..9].to_vec(), ["▌⟳ on  Look for old", "▌      dependencies", "▌      every 2h     next in 2h"]);
+    assert_eq!(s.screen(30)[6..9].to_vec(), ["▌⟳ on    Look for old", "▌        dependencies", "▌        every 2h   next in 2h"]);
     // too narrow for the tasks' numbers: they go, the names still start where the task's title does, and on or off is the first word under each
     let tiny = s.screen(22);
     let at = |re: &str| { let r = regex::Regex::new(re).unwrap(); tiny.iter().position(|l| r.is_match(l)).unwrap_or_else(|| panic!("{re}\n{}", tiny.join("\n"))) };
     assert!(at(r"^ ○ Mine") > 0);
     like(&tiny[at(r"^▌⟳ Look for old") + 2], r"^▌ {2}on · every 2h"); like(&tiny[at(r"^ ⟳ Release note") + 2], r"^ {3}on · when a task is"); like(&tiny[at(r"^ ⟳ Nightly audit") + 1], r"^ {3}off · daily 03:00");
     // off, tab would only say so: its hint goes
-    s.press(&["space"]); like(&s.screen(120)[6], r"^▌⟳ off Look for old dependencies {2}every 2h +never fired");
+    s.press(&["space"]); like(&s.screen(120)[6], r"^▌⟳ off {3}Look for old dependencies {2}every 2h +never fired");
     assert_eq!(s.screen(140).last().unwrap(), "  enter open this automation · space turn this automation on · ctrl+x remove it · ctrl+e its settings · ? all keys");
     s.press(&["space", "tab"]);
-    like(&t(&mut s, 120), r"\n▌⟳ on {2}Look for old dependencies {2}every 2h +◒ #2 next in {2}2h\n"); // the task its last firing made, by that task's own mark and number
+    like(&t(&mut s, 120), r"\n▌⟳ on {4}Look for old dependencies {2}every 2h +◒ PRJ-2 next in {2}2h\n"); // the task its last firing made, by that task's own mark and number
     assert_eq!(task("proj/2").at("settings"), &serde_json::json!({ "reviewer.agent": "claude", "merge.by": "itself" }));
     s.press(&["tab"]); l::turn(all[0].s("id"), false).unwrap(); s.load();
-    like(&t(&mut s, 120), r"⟳ off Look for old dependencies {2}every 2h +◒ #2 skipped +\d+s ago"); l::turn(all[0].s("id"), true).unwrap(); s.load();
+    like(&t(&mut s, 120), r"⟳ off {3}Look for old dependencies {2}every 2h +◒ PRJ-2 skipped +\d+s ago"); l::turn(all[0].s("id"), true).unwrap(); s.load();
     // the key the old list had is no key here; what is typed is no reply to anyone: with no Coordinator on, it is a new task
     s.press(&["down", "down", "down"]); assert_eq!(s.s.sel, row_id(&all[2])); s.press(&["up"]); assert_eq!(s.s.sel, row_id(&all[1]));
     s.press(&["alt+o"]); assert_eq!(s.s.msg, ""); assert_eq!(s.s.sel, row_id(&all[1]));
@@ -83,7 +83,7 @@ fn the_group_has_a_colour_of_its_own_narrow_rows_a_menu_of_its_own_and_stays_wit
     // with no task at all the group is still there
     for x in sw::store::tasks::list(Default::default()) { sw::store::tasks::patch(x.s("id"), |t| t.put("archivedAt", sw::clock::now())).unwrap(); }
     s.load();
-    like(&t(&mut s, 120), r"^ herdr-superwork {2}proj\n\n   automations\n[ ▌]⟳ on {2}Look for old dependencies");
+    like(&t(&mut s, 120), r"^ herdr-superwork {2}proj · PRJ\n\n   automations\n[ ▌]⟳ on {2}Look for old dependencies");
 }
 
 #[test]
@@ -94,12 +94,12 @@ fn more_automations_than_fit_the_list_says_how_many_it_does_not_show_and_the_sel
     for n in 1..=16 { l::add(Add { name: &format!("Automation {n:02}"), prompt: "Do it.", trigger: Some(parse_schedule(&format!("every {n}h")).unwrap()), repo: "", folder: &w.root, settings: Obj::new(), research: None }).unwrap(); }
     let mut s = open(&w.root, 20); s.s.side = false;
     let list = |lines: &[String]| -> Vec<String> { let end = lines.iter().position(|l| l.contains("New task")).unwrap_or(lines.len()); lines[1..end].to_vec() };
-    let shown = |l: &[String]| l.iter().filter(|x| regex::Regex::new(r"⟳ on {2}Automation").unwrap().is_match(x)).count();
+    let shown = |l: &[String]| l.iter().filter(|x| regex::Regex::new(r"⟳ on {4}Automation").unwrap().is_match(x)).count();
     let note = |l: &[String]| l.iter().find(|x| regex::Regex::new(r"^ [↓↑] ").unwrap().is_match(x)).cloned().unwrap_or_default();
     let lines = s.screen(100);
     let l1 = list(&lines);
-    like(&lines[3], r"^▌○ #\d {2}Task \d"); assert!(l1.iter().any(|x| x == "   automations"));
-    assert!(l1.iter().any(|x| regex::Regex::new(r"^ ⟳ on {2}Automation 01 {2}every 1h +next in {2}1h$").unwrap().is_match(x)), "{}", lines.join("\n"));
+    like(&lines[3], r"^▌○ PRJ-\d Task \d"); assert!(l1.iter().any(|x| x == "   automations"));
+    assert!(l1.iter().any(|x| regex::Regex::new(r"^ ⟳ on {4}Automation 01 {2}every 1h +next in {2}1h$").unwrap().is_match(x)), "{}", lines.join("\n"));
     assert_eq!(note(&l1), format!(" ↓ {} automations", 16 - shown(&l1))); assert!(shown(&l1) >= 2 && shown(&l1) < 16);
     // no task gives way for them: every task shows
     for n in 1..=3 { assert!(l1.iter().any(|x| x.contains(&format!("Task {n}")))); }
@@ -107,15 +107,15 @@ fn more_automations_than_fit_the_list_says_how_many_it_does_not_show_and_the_sel
     for _ in 0..30 { s.press(&["down"]); }
     assert_eq!(s.s.sel, row_id(automations().last().unwrap()));
     let l2 = list(&s.screen(100));
-    assert!(l2.iter().any(|x| x.starts_with("▌⟳ on  Automation 16 ")), "{}", l2.join("\n")); assert_eq!(note(&l2), format!(" ↑ 3 more, {} automations", 16 - shown(&l2)));
+    assert!(l2.iter().any(|x| x.starts_with("▌⟳ on    Automation 16 ")), "{}", l2.join("\n")); assert_eq!(note(&l2), format!(" ↑ 3 more, {} automations", 16 - shown(&l2)));
     // one step up from the first automation is the last task
     for _ in 0..15 { s.press(&["up"]); }
     assert_eq!(s.s.sel, row_id(&automations()[0])); s.press(&["up"]); assert_eq!(&s.s.sel, s.s.steps.last().unwrap()); like(&s.s.sel, r"^proj/\d$");
     // a short narrow window, two lines a row: still whole rows, the selected one among them
     s.rows = 16; s.press(&["down", "down", "down"]);
     let narrow = s.screen(40);
-    let at = narrow.iter().position(|l| l == "▌⟳ on  Automation 03").unwrap_or_else(|| panic!("{}", narrow.join("\n")));
-    assert_eq!(narrow[at + 1], "▌      every 3h               next in 3h");
+    let at = narrow.iter().position(|l| l == "▌⟳ on    Automation 03").unwrap_or_else(|| panic!("{}", narrow.join("\n")));
+    assert_eq!(narrow[at + 1], "▌        every 3h             next in 3h");
     for l in &narrow { assert!(sw::text::width(l) <= 40, "{l}"); }
     // one of them only: said in the singular
     for x in automations().into_iter().skip(1) { l::remove(x.s("id")).unwrap(); }

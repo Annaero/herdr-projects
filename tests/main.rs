@@ -177,6 +177,7 @@ mod talk;
 mod talk_rest;
 mod talk_who;
 mod task_keys;
+mod task_keys_made;
 mod task_numbers;
 mod task_numbers_rest;
 mod theme;

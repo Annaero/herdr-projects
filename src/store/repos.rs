@@ -69,10 +69,10 @@ pub fn known_repos() -> Obj {
     o
 }
 fn real(p: &Path) -> PathBuf { fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf()) }
-/// The repo a folder belongs to, named on first sight.
+/// The repo a folder belongs to, named on first sight, with its short key given then (store/keys_given.rs).
 pub fn repo_of(folder: &Path) -> Res<(String, PathBuf)> {
     let root = primary_root(folder);
-    with_lock("repos", || {
+    let found = with_lock("repos", || {
         let mut map = known_repos();
         let found = map.iter().find(|(_, v)| { let p = PathBuf::from(text(v)); p == root || real(&p) == real(&root) }).map(|(k, _)| k.clone());
         let name = match found {
@@ -90,7 +90,9 @@ pub fn repo_of(folder: &Path) -> Res<(String, PathBuf)> {
             }
         };
         Ok((name, root.clone()))
-    })
+    })?;
+    super::keys_given::give_keys(Some(&found.0)); // at once, and again where it was taken away
+    Ok(found)
 }
 /// The folder of a task's repo (its primary checkout); the home folder for a task in none.
 pub fn folder_of(id: &str) -> PathBuf {

@@ -78,8 +78,8 @@ fn the_finish_line_checks_reviews_waits_for_approval_and_approve_merges_and_clea
     // herdr's own sidebar says what the row says: where it stands as the agent's shown name, the second line as summary.
     let said: Vec<String> = st.arr("metadata").iter().filter(|m| m.s("pane") == t.at("link").s("pane")).map(|m| m.arr("args").iter().map(text).collect::<Vec<_>>().join(" ")).collect();
     let last = said.last().cloned().unwrap_or_default();
-    assert!(last.contains("--display-agent ready to approve · R#1") && last.contains("--title #1 Add a greeting --token summary=Pass · 1 minor"), "{last}");
-    assert_eq!(st.arr("workspaces").iter().find(|x| x.s("workspace_id") == t.at("link").s("workspace")).map(|x| x.t("label")).unwrap_or_default(), "#1 Add a greeting");
+    assert!(last.contains("--display-agent ready to approve · R#1") && last.contains("--title PRJ-1 Add a greeting --token summary=Pass · 1 minor"), "{last}");
+    assert_eq!(st.arr("workspaces").iter().find(|x| x.s("workspace_id") == t.at("link").s("workspace")).map(|x| x.t("label")).unwrap_or_default(), "PRJ-1 Add a greeting");
     assert!(!st.arr("panes").iter().any(|p| p.at("agent").s("name") == "sw-proj-1-r"), "the reviewer's pane is closed again");
     finish_line::approve(&id, None, false).unwrap();
     assert_eq!(task(&id).s("stage"), "merging");
@@ -87,7 +87,7 @@ fn the_finish_line_checks_reviews_waits_for_approval_and_approve_merges_and_clea
     assert_eq!(t.s("stage"), "done", "{}", t.at("failure"));
     assert_eq!(t.s("msg"), "Merged into main.");
     assert_eq!(read(&w.root.join("hello.txt")), "hello\n");
-    assert!(git(&w.root, &["log", "-1", "--format=%B"]).contains("Add a greeting\n\nTask: proj/1"));
+    assert!(git(&w.root, &["log", "-1", "--format=%B"]).contains("Add a greeting\n\nTask: PRJ-1 (proj/1)"));
     assert_eq!(git(&w.root, &["branch", "--list", "work/*"]), "");
     assert_eq!(w.state().arr("workspaces").iter().filter(|x| x.at("worktree").b("is_linked_worktree")).count(), 0);
     assert_eq!(row(&id).s("state"), "done");

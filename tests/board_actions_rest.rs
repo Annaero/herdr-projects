@@ -21,11 +21,11 @@ fn a_result_stays_through_the_beats_and_the_menu_names_every_key_and_no_old_one(
     let mut s = open(&w.root, 34);
     s.s.sel = id.clone(); s.load();
     s.press(&["ctrl+l", "y"]);
-    assert!(s.text().contains("#1: approved, merging"), "{}", s.text());
+    assert!(s.text().contains("PRJ-1: approved, merging"), "{}", s.text());
     // a result stays until the next key press, however long that takes
     let now = sw::clock::now();
     for n in 1..=3 { let fx = update(&mut s.s, Event::Tick(now + n * 1000)); assert!(fx.is_empty() || !fx.contains(&sw::board::update::Effect::Close)); }
-    assert!(s.text().contains("#1: approved, merging"), "{}", s.text());
+    assert!(s.text().contains("PRJ-1: approved, merging"), "{}", s.text());
     settle(&id); s.load();
     assert!(!s.screen(80).join("\n").contains("unread"), "a done row says nothing more than its name and time");
     // the ? menu: every key it has, with its line

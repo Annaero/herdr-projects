@@ -11,8 +11,9 @@ use crate::research::is_research;
 use crate::shown::queue::{queued, tag as queue_tag, words as queue_words};
 use crate::store::{keys::{repo_keys, tag_of}, reviews::{current_review, review_round}, tasks::find, titles::title_note};
 
-fn line(t: &Obj) -> String {
-    format!("{:<14} {:<8}{}{}  {}{}{}{}", t.s("id"), t.t("state"), if t.b("kind") { format!(" {}", t.s("kind")) } else { String::new() }, if t.b("shownApp") { format!(" [{}]", t.s("shownApp")) } else { String::new() },
+/// One task of `list`: named by its key (`HSW-134`), in a column of its own.
+fn line(t: &Obj, keys: &crate::store::keys::Keys) -> String {
+    format!("{:<9} {:<8}{}{}  {}{}{}{}", crate::store::keys::say_id(t.s("id"), keys), t.t("state"), if t.b("kind") { format!(" {}", t.s("kind")) } else { String::new() }, if t.b("shownApp") { format!(" [{}]", t.s("shownApp")) } else { String::new() },
         t.s("title"), if t.b("research") { " [research]" } else { "" }, if queued(t) { format!("  · {}", queue_words(t)) } else if t.b("note") { format!("  · {}", t.s("note")) } else { String::new() }, if t.b("archivedAt") { "  (archived)" } else { "" })
 }
 fn brief(t: &Obj) -> Value {
@@ -60,7 +61,7 @@ pub fn command(cmd: &str, a: &Args) -> Res<(Value, String)> {
             let keys = repo_keys();
             let all: Vec<Obj> = board(true).into_iter().filter(|t| if flags.b("archived") { t.b("archivedAt") } else { flags.b("all") || !q.is_empty() || !t.b("archivedAt") })
                 .filter(|t| q.is_empty() || format!("{} #{} {} {} {} {} {} {}", tag_of(t.s("id"), &keys), t.t("n"), t.s("id"), t.s("title"), t.s("note"), t.t("state"), t.s("shownApp"), t.s("description")).to_lowercase().contains(&q)).collect();
-            (Value::Array(all.iter().map(brief).collect()), if all.is_empty() { "No tasks.".into() } else { all.iter().map(line).collect::<Vec<_>>().join("\n") })
+            (Value::Array(all.iter().map(brief).collect()), if all.is_empty() { "No tasks.".into() } else { all.iter().map(|t| line(t, &keys)).collect::<Vec<_>>().join("\n") })
         }
         // Suggested tasks were taken out of the board. An agent started before that is told so in a plain sentence.
         "suggest" | "suggestions" | "accept" | "dismiss" => crate::fail!("There is no \"{cmd}\" command any more: suggested tasks were removed from the board. Mention work you came across outside your task in a short \"Also noticed\" list in your closing note or your report, and carry on with your own task."),

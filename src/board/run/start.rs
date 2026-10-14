@@ -38,11 +38,15 @@ pub fn prepare(folder: &std::path::Path) -> (State, Theme, Option<(String, Strin
     let popup = place::in_popup();
     let ctx = Ctx { cwd: folder.display().to_string(), popup, from: place::context().0, pane: if env("HERDR_ENV") == "1" && env("TMUX").is_empty() { env("HERDR_PANE_ID") } else { String::new() },
         own_pane: place::own_name(), board_key: crate::extras::board_key(), own_key: crate::extras::board_presses(), can_reload: reloads < 5, web: false, leave_ms: 700, settle_ms: 1000, in_herdr: in_herdr() };
+    // Every repo has a short key: given before the first look, and the ones given since the board last opened said once.
+    let keys = crate::store::keys_given::keys_note();
     let mut s = view(ctx, folder);
     // The one-time move of an older version's folders, said once.
     let (home, envn) = (crate::store::files::user_home(), crate::store::move_home::env_now());
     let moved = crate::store::move_home::move_note(&home, &envn);
-    if !moved.is_empty() { s.flash(moved, Ink::Green); crate::store::move_home::move_told(&home, &envn); }
+    if !moved.is_empty() { crate::store::move_home::move_told(&home, &envn); }
+    let said: Vec<String> = [moved, keys].into_iter().filter(|x| !x.is_empty()).collect();
+    if !said.is_empty() { s.flash(said.join("  "), Ink::Green); }
     start_setup(&mut s);
     let seen = term::colours_told(asked, 250);
     let theme = Theme::load(seen.light, seen);

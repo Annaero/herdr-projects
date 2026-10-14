@@ -27,7 +27,8 @@ pub fn head_lines(s: &State, w: usize) -> Vec<Inked> {
     let scope = if s.scope == "*" { format!("all machines: {}", if others.is_empty() { "no others found".into() } else { others.join(", ") }) } else if s.all() { format!("only {}{}", s.scope, if s.remotes.get(&s.scope).map(|m| m.ok).unwrap_or(false) { "" } else { " (no answer)" }) } else { String::new() };
     let n = counts(s);
     let c = |k: &str| n.get(k).copied().unwrap_or(0);
-    let where_ = if s.archive_view { "archive".to_string() } else { repo_label(&s.data.repo) };
+    // The repo with its key beside it (`gtm-agent · AGT`), in the header's quiet ink as the rest of it.
+    let where_ = if s.archive_view { "archive".to_string() } else { crate::board::tags::repo_with_key(&repo_label(&s.data.repo), s.data.keys.get(&s.data.repo).map(|k| k.as_str()).unwrap_or("")) };
     let tally: Vec<String> = if s.archive_view { vec![format!("{} archived", c("archived"))] } else {
         [(c("needs you") > 0).then(|| format!("{} {} you", c("needs you"), if c("needs you") == 1 { "needs" } else { "need" })), (c("ready to approve") > 0).then(|| format!("{} ready", c("ready to approve"))),
          (c("working") > 0).then(|| format!("{} working", c("working"))), (c("to do") > 0).then(|| format!("{} to do", c("to do"))), (c("done") > 0).then(|| format!("{} done", c("done")))].into_iter().flatten().collect()
@@ -73,9 +74,13 @@ pub fn unread_lines(s: &State, width: usize) -> Vec<Inked> {
 /// A heading's line. A machine's in bold accent, a rule after it to the edge; a repo's in bold, a status group's in its
 /// colour. One that folds has a caret in the marks' column, `▾` open, `▸` folded (then with how many tasks it holds);
 /// one that does not (the automations') has a blank there, so every heading's name starts in the same column.
-fn heading(s: &State, r: &Row, width: usize) -> Inked {
+/// A repo's heading has its key beside its name, dimmed (`gtm-agent · AGT`): the first thing to go where room is short.
+fn heading(s: &State, rows: &[Row], at: usize, width: usize) -> Inked {
+    let r = &rows[at];
     let Row::Head { name, autos, machine, folded, id } = r else { return Inked::new() };
+    let key = if s.by_repo { crate::board::tags::heading_key(rows, at, &s.data.keys) } else { String::new() };
     let named = if *autos { Inked::of(name.clone(), Ink::Auto) } else if *machine { Inked::of(name.clone(), Ink::Accent).bold() } else if s.by_repo { Inked::of(repo_label(name), Ink::Soft).bold() } else { Inked::of(name.clone(), group_ink(name)) };
+    let named = if key.is_empty() { named } else { named.add(Inked::of(format!(" · {key}"), Ink::Muted)) };
     let caret = if id.is_empty() { Inked::plain("  ") } else { Inked::of(if *folded > 0 { "▸ " } else { "▾ " }, Ink::Muted) };
     let mut out = Inked::plain(" ").add(caret).add(named);
     if *folded > 0 { out = out.add(Inked::of(format!("  {folded} task{}", if *folded == 1 { "" } else { "s" }), Ink::Muted)); }
@@ -124,7 +129,7 @@ pub fn list_lines(s: &mut State, t: &Theme, width: usize, h: usize, screen: usiz
             Row::Head { id, folded, .. } => {
                 if heading_height(&rows, k) > 1 { lines.push(L { head: true, ..line(Inked::new()) }); }
                 // An open heading at the foot of what shows goes with the empty line above it; a folded one is a row.
-                lines.push(L { head: *folded == 0, sel: !id.is_empty() && *id == s.sel, id: id.clone(), ..line(heading(s, r, width)) });
+                lines.push(L { head: *folded == 0, sel: !id.is_empty() && *id == s.sel, id: id.clone(), ..line(heading(s, &rows, k, width)) });
             }
             Row::Note(n) => lines.push(line(Inked::plain("   ").add(Inked::of(n.clone(), Ink::Muted)))),
             Row::Rec(_) | Row::Auto(_) => {

@@ -35,7 +35,7 @@ fn one_order_for_every_work_setting_this_task_your_entry_for_the_repo_you_the_re
     unset_value("check.command", &Scope::task(&task(&id))).unwrap(); assert_eq!(on("check.command"), p("from the entry", "your entry for proj"));
     unset_value("check.command", &Scope::repo("proj")).unwrap(); assert_eq!(on("check.command"), p("from you", "you"));
     unset_value("check.command", &you()).unwrap(); assert_eq!(on("check.command"), p("from the file", "the repo's file"));
-    assert_eq!(saved(), json!({ "watcher.agent": "none", "coordinator.agent": "none" })); // nothing of it is left in the file
+    assert_eq!(saved(), json!({ "watcher.agent": "none", "coordinator.agent": "none", "repos": { "proj": { "repo": { "key": "PRJ" } } } })); // nothing of it is left in the file: only the key the board gave the repo
     use sw::store::settings_list::{entry_of, names, Kind};
     for name in names() {
         let t = task(&id);
@@ -49,7 +49,7 @@ fn one_order_for_every_work_setting_this_task_your_entry_for_the_repo_you_the_re
     assert_eq!(setting("review.rounds", Some(&far)), json!(3)); assert_eq!(setting("review.rounds", None), json!(3));
     // the file is written nested, with real booleans and numbers
     set_value("merge.pr", &json!("no"), &you()).unwrap();
-    assert_eq!(saved().at("merge"), &json!({ "pr": false })); assert_eq!(saved().at("repos"), &json!({ "proj": { "review": { "rounds": 7 } } }));
+    assert_eq!(saved().at("merge"), &json!({ "pr": false })); assert_eq!(saved().at("repos"), &json!({ "proj": { "repo": { "key": "PRJ" }, "review": { "rounds": 7 } }, "other-1": { "repo": { "key": "OTH1" } } }));
     assert!(has(&show_text(&Scope::task(&task(&id))), r"\n {2}review\.rounds +7 +your entry for proj\n")); assert!(has(&show_text(&you()), r"\n\* merge\.pr +false +you\n"));
 }
 

@@ -7,13 +7,13 @@ nobody is on (to do, done and cleaned up) has no pane in herdr and so no entry.
 ## The three rows of an entry
 
 ```
- ◐ #152 Show automations in the main…      1. herdr's dot, the task's number and title
+ ◐ HSW-152 Show automations in the m…      1. herdr's dot, the task's number and title
    agent · working · R#1 PR#113 · 6m       2. who is on it, where it stands, review round, pull request, tags, time
    Reading the list code · 8% 16m left     3. the row's second line, the percent and the time left
 ```
 
-1. **herdr's dot, then the task's number and title**, as on the row: `#152 …`, or `HSW-152 …` where the repo has a
-   key ([task numbers](task-numbers.md)). The number comes first and herdr cuts a row at its end, so a narrow
+1. **herdr's dot, then the task's number and title**, as on the row: `HSW-152 …`, its repo's key and its number
+   ([task numbers](task-numbers.md)). The number comes first and herdr cuts a row at its end, so a narrow
    sidebar cuts the title, never the number. The machine's name stands before it only where the sidebar shows more
    than one machine: that is herdr's own `machine` token.
 2. **Who is on it and where it stands**, from the one list of status words (`src/status_words.rs`):
@@ -54,7 +54,7 @@ its own.
 latest message under it. herdr's own words for it would be `sw-coordinator` and `done`.
 
 **The spaces part** follows the same rule: a task's space is named with the task's number and title
-(`#152 Show automations…`), and under it stands the row's second line with the percent and the time left.
+(`HSW-152 Show automations…`), and under it stands the row's second line with the percent and the time left.
 
 ## What is herdr's own
 
@@ -94,7 +94,7 @@ herdr's default sidebar shows a space's name, the tab's name and the agent's sho
 
 | | With the rows ([installing](install.md)) | herdr's default rows |
 |---|---|---|
-| Row 1 | `#152 Show automations…` | `#152 Show automations… · Agent`: the tab's name too |
+| Row 1 | `HSW-152 Show automations…` | `HSW-152 Show automations… · Agent`: the tab's name too |
 | Row 2 | `agent · working · R#1 PR#113` | the same |
 | Row 3 | `Reading the list code · 8% 16m left` | not shown: herdr's default rows show no token |
 | A space | its name, its branch, the row's second line | its name and its branch |

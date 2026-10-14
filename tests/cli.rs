@@ -25,14 +25,14 @@ fn real_programs_add_list_report_set_unset_and_show() {
     assert_eq!((listed[0].s("state"), listed[0].s("app"), listed[0].s("msg")), ("working", sw::store::files::me().as_str(), "on it"));
     assert_eq!(out(&w, &["set", "board.agents", "2"]), "board.agents: 2  (you)\n");
     assert!(out(&w, &["--skill"]).starts_with("---\nname: herdr-superwork\n"));
-    assert_eq!(out(&w, &["set", "review.when", "never", "--task", "1"]), "review.when for proj/1: never  (this task)\n");
+    assert_eq!(out(&w, &["set", "review.when", "never", "--task", "1"]), "review.when for PRJ-1: never  (this task)\n");
     assert!(regex::Regex::new(r"^Your settings \(\* = changed by you\)\n[\s\S]*\n  merge\.by +you +built in\n[\s\S]*\n\* board\.agents +2 +you\n").unwrap().is_match(&out(&w, &["show"])));
-    assert!(regex::Regex::new(r"^proj/1: every setting, and the place it came from[\s\S]*\n\* review\.when +never +this task\n[\s\S]*\n  board\.agents +2 +you\n").unwrap().is_match(&out(&w, &["show", "1"])));
+    assert!(regex::Regex::new(r"^PRJ-1: every setting, and the place it came from[\s\S]*\n\* review\.when +never +this task\n[\s\S]*\n  board\.agents +2 +you\n").unwrap().is_match(&out(&w, &["show", "1"])));
     let shown: serde_json::Value = serde_json::from_str(&out(&w, &["show", "1", "--json"])).unwrap();
     assert_eq!(shown.arr("settings").iter().find(|r| r.s("name") == "review.when").cloned().unwrap(), serde_json::json!({ "name": "review.when", "kind": "work", "value": "never", "from": "this task", "place": "task", "own": true, "note": "" }));
     out(&w, &["set", "merge.by", "itself", "--repo", "proj"]);
     assert!(regex::Regex::new(r"\n  merge\.by +itself +your entry for proj\n").unwrap().is_match(&out(&w, &["show", "1"])));
-    assert_eq!(out(&w, &["unset", "review.when", "--task", "1"]), "review.when for proj/1: repos  (built in)\n");
+    assert_eq!(out(&w, &["unset", "review.when", "--task", "1"]), "review.when for PRJ-1: repos  (built in)\n");
     assert_eq!(out(&w, &["unset", "board.agents"]), "board.agents: 4  (built in)\n");
     refused(&w, &["set", "merge.pr", "maybe"], r"merge\.pr is a switch: true or false");
     refused(&w, &["set", "review.round", "2"], r#"Unknown setting "review\.round"\. Did you mean review\.rounds\?"#);

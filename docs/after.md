@@ -49,11 +49,11 @@ going again, and once it is done the wait goes on by itself.
   is the same as `--clear` while delegating.
 - `delegate` on a task that waits says it still does, and how to go on: `delegate <id> --now` starts it without
   waiting (its agent is told the tasks were not all done, and what there is of them). On the board (and the web Board),
-  the key that puts an agent on a task asks first: `Start #4 "…" now?`.
+  the key that puts an agent on a task asks first: `Start HSW-4 "…" now?`.
 - `stop <id>` on a task that waits stops the waiting: it is back to to do, and what it waits for is kept for its next
   delegation. A task that waits for that one is told it was stopped, as for any stopped task, until it is delegated
   again.
 - A task an agent is on cannot be made to wait: the wait is before the start.
 
-The Coordinator knows all of this: "then", "once that is merged", "after #12" in what you type to it becomes an
+The Coordinator knows all of this: "then", "once that is merged", "after HSW-12" in what you type to it becomes an
 `--after` on the task it adds or delegates.

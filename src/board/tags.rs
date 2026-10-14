@@ -55,6 +55,19 @@ pub fn numbering(recs: &[&Obj], keys: &Keys, autos: bool) -> Numbering {
 }
 /// The tags' column in a list this wide: none where the tags gave way.
 pub fn number_cells(width: usize, n: Numbering) -> usize { if n.cells > 0 && width >= 3 + n.widest + 1 + NAME_LEFT { n.cells } else { 0 } }
+/// The key beside a repo's name where the board names the repo (`gtm-agent · AGT`), never on a task's row, which starts
+/// with it: from the first task under the repo's heading at `at` (another machine's tasks come with theirs), else this
+/// machine's keys. "" for a heading that is no repo's.
+pub fn heading_key(rows: &[crate::board::state::Row], at: usize, keys: &Keys) -> String {
+    use crate::board::state::Row;
+    let Some(Row::Head { name, machine: false, autos: false, .. }) = rows.get(at) else { return String::new() };
+    match rows[at + 1..].iter().take_while(|r| !matches!(r, Row::Head { .. })).find_map(|r| if let Row::Rec(o) = r { Some(o) } else { None }) {
+        Some(o) if o.b("host") => o.t("key"),
+        _ => keys.get(name).cloned().unwrap_or_default(),
+    }
+}
+/// A repo named with its key: `gtm-agent · AGT`, or the name alone where it has none.
+pub fn repo_with_key(name: &str, key: &str) -> String { if key.is_empty() { name.to_string() } else { format!("{name} · {key}") } }
 /// A task as a message names it: `#134 "Fix the footer"`, with its machine where you look at more than one.
 pub fn name_say(r: &Obj, keys: &Keys, scope: &str, max: usize) -> String {
     let tag = number_tag(r, keys, scope, true);

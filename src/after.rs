@@ -117,11 +117,11 @@ pub fn panel_line(r: &Obj) -> Option<(&'static str, String)> {
     let all = after_of(r);
     if r.s("stage") == STAGE {
         let left = strings(r.at("afterLeft"));
-        return Some(("Starts after", all.iter().map(|i| if left.contains(i) || !r.has("afterLeft") { i.clone() } else { format!("{i} (done)") }).collect::<Vec<_>>().join(", ")));
+        return Some(("Starts after", all.iter().map(|i| if left.contains(i) || !r.has("afterLeft") { say(i) } else { format!("{} (done)", say(i)) }).collect::<Vec<_>>().join(", ")));
     }
     let done = r.arr("afterDone");
-    if !done.is_empty() { return Some(("Waited for", done.iter().map(|d| format!("{} ({})", d.s("id"), if d.b("done") { "done" } else { "not done" })).collect::<Vec<_>>().join(", "))); }
-    (!all.is_empty()).then(|| ("To wait for", all.join(", ")))
+    if !done.is_empty() { return Some(("Waited for", done.iter().map(|d| format!("{} ({})", say(d.s("id")), if d.b("done") { "done" } else { "not done" })).collect::<Vec<_>>().join(", "))); }
+    (!all.is_empty()).then(|| ("To wait for", all.iter().map(|i| say(i)).collect::<Vec<_>>().join(", ")))
 }
 /// Said to a delegation of a task that already waits: it starts by itself, or early when asked.
 pub fn still_waits(t: &Task) -> String {

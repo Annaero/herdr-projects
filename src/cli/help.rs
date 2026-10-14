@@ -11,8 +11,8 @@ pub const HELP: &str = r#"herdr-superwork: a work board for herdr
                          [--progress 0-100] [--eta MINUTES]   (your own task, with --state working: how far, and minutes left)
   herdr-superwork describe <id> <text>          write or replace a task's description
   (a title is at most 60 characters: a longer one is shortened at a word, its full text kept in the description)
-  (an <id> is repo/134; where its repo has a short key, HSW-134 names the same task, in any letter case.
-   A key: herdr-superwork set repo.key HSW --repo NAME)
+  (an <id> is repo/134; every repo has a short key, made from its name, and HSW-134 names the same task, in any
+   letter case. Another key: herdr-superwork set repo.key HSW --repo NAME; the old one still names its tasks)
   herdr-superwork delegate <id> [--after ID[,ID…]|--now] [--<setting> VALUE ...] [--research|--no-research]
                                       any work setting, for this task only: --reviewer.agent claude --merge.by itself
                                       (a refused option changes nothing on the task)

@@ -50,7 +50,9 @@ function chips() {
 function draw() {
   if (!root || !snap) return;
   root.classList.toggle("has-task", !!snap.panel);
-  part("where").textContent = [snap.list.head.where, snap.list.head.session && `session ${snap.list.head.session}`].filter(Boolean).join(" · ");
+  // The repo with its key beside it, dimmed: `gtm-agent · AGT`.
+  const head = snap.list.head, where = part("where");
+  where.replaceChildren(...[head.where, head.where && head.whereKey ? h("span.sw-repo-key", ` · ${head.whereKey}`) : null, head.session ? `${head.where ? " · " : ""}session ${head.session}` : null].filter(Boolean));
   const once = (key, value, fn) => { const text = JSON.stringify(value); if (drawn[key] !== text) { drawn[key] = text; fn(); } };
   once("chips", [snap.flags, snap.list.head], () => part("chips").replaceChildren(...chips()));
   once("list", snap.list, () => part("list-host").replaceChildren(listEl(snap.list, { onPick: (id) => call("pick", { id, open: true }), onMore: () => press("allDone"), onFold: (id) => call("fold", { id }) })));

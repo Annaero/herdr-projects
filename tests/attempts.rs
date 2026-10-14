@@ -77,7 +77,7 @@ fn one_row_times_three_pick_one_the_panel_and_the_approve_key_keeps_the_selected
     assert!(regex::Regex::new(r"  C › +claude").unwrap().is_match(&b.text()));
     assert!(regex::Regex::new(r"  B ★ +claude").unwrap().is_match(&b.text()), "the reviewer's choice keeps its mark");
     b.press(&["ctrl+l"]);
-    assert!(b.text().contains("Keep attempt C (claude) of #1 \"Greet\"?"), "{}", b.text());
+    assert!(b.text().contains("Keep attempt C (claude) of PRJ-1 \"Greet\"?"), "{}", b.text());
     b.press(&["n"]);
     assert_eq!(task(&id).s("stage"), "pick");
     b.press(&["ctrl+l", "y"]);

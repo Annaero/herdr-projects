@@ -18,7 +18,7 @@ Both have the same parts, in the same order, and **one form for every part**:
   lines and whole facts give way (below), and the last line says where the rest is.
 
 ```
- #84 Max length for task titles
+ HSW-84 Max length for task titles
 
  Status ─────────────────────────────────────────────
  State        ◆ ready to approve · 4th review · 2m ago
@@ -58,9 +58,10 @@ Both have the same parts, in the same order, and **one form for every part**:
   it is on, since when), `Progress` (the bar, its percent and the minutes left), `Now` (what the agent or the
   reviewer is doing right now, wrapped whole), `On it` (who), `Took over` (each hand-over to [a fallback agent](fallback.md), in plain words), `Made by` (the [automation](automations.md) that made it, when one did), `Change` (the pull request, in the colour of its
   checks, and the size of the change; the number is a link, and full screen the address is printed too). A task
-  nobody is on says what puts an agent on it (`Next`). The task is named as its row names it (`#84`, or `HSW-84`), in
-  the title and in the heading of the whole-task page (`Task details  #84 "Max length for task titles"`); its id as
-  a command takes it (`proj/84`) stands once, on the whole task, with the session.
+  nobody is on says what puts an agent on it (`Next`). The task is named as its row names it (`HSW-84`), in
+  the title and in the heading of the whole-task page (`Task details  HSW-84 "Max length for task titles"`); its id as
+  a command takes it stands once, on the whole task, with the session and its repo's key beside it
+  (`Task id  herdr-superwork/84 · HSW`).
 - **What it needs from you** is a part of its own right under Status, its headline in red: `Asks you`, `Asks for
   your OK`, `Needs a login`, `Review failed` (what the review found, and what the two keys do: send it back, or merge
   anyway), or `Went wrong` with what failed, who can fix it, the `Next step` and the `Details`. A headline is never
@@ -117,7 +118,7 @@ and its name as a command takes it, `*` on the ones set for this task only. Wher
 said here either: `herdr-superwork show <id>` says it.
 
 ```
- Settings  #12 "Tidy the first-run questions"
+ Settings  HSW-12 "Tidy the first-run questions"
  ────────────────────────────────────────────────────────────────────────────────
  Send back from: critical · [major] · minor · trivial
 

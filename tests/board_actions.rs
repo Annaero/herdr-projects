@@ -19,7 +19,7 @@ fn ready_to_approve_the_merge_asks_first_the_menu_acts_remove_asks_and_messages_
     let mut s = open(&w.root, 34);
     s.s.sel = id.clone(); s.load();
     let t80 = s.screen(80).join("\n");
-    assert!(has(&t80, r"\n ▾ ready to approve *\n[ ▌]◆ #\d+ +Make f +R#1 +\d+s ago *\n[ ▌]     Pass · 1 minor *\n") && !has(&t80, "blocked|approve to merge|r1"), "{t80}");
+    assert!(has(&t80, r"\n ▾ ready to approve *\n[ ▌]◆ PRJ-\d+ +Make f +R#1 +\d+s ago *\n[ ▌]        Pass · 1 minor *\n") && !has(&t80, "blocked|approve to merge|r1"), "{t80}");
     let text = s.screen(120).join("\n");
     assert!(has(&text, r"│  State        ◆ ready to approve · \d+s ago *\n"), "{text}");
     assert!(has(&text, r"│  Review ─+ *\n[^\n]*│  Review 1     ✓ Pass · 1 minor · \d+s ago *\n[^\n]*│               Good\."), "{text}");
@@ -28,7 +28,7 @@ fn ready_to_approve_the_merge_asks_first_the_menu_acts_remove_asks_and_messages_
     assert_eq!((r.i("round"), r.at("pass").clone(), r.arr("findings").len(), r.t("text")), (1, json!(true), 1, "Good.".into()));
     assert!(text.contains(&format!("{} approve and merge this task · {} send the review to the agent · space talk to the agent · ? all keys", key_name("yes"), key_name("sendBack"))), "{text}");
     s.press(&["ctrl+l"]);
-    assert!(has(&s.text(), r#"\n[ ▌]\? Merge #1 "Make f" into \S+\? *\n   A merge cannot be undone\. *\n   y = merge · n = do not merge"#), "{}", s.text());
+    assert!(has(&s.text(), r#"\n[ ▌]\? Merge PRJ-1 "Make f" into \S+\? *\n   A merge cannot be undone\. *\n   y = merge · n = do not merge"#), "{}", s.text());
     s.press(&["esc"]); assert_eq!(task(&id).s("stage"), "approval"); assert!(s.s.ask.is_none());
     // The question is about what it names: the task changes underneath it, the question goes.
     s.press(&["ctrl+l"]); assert!(s.s.ask.is_some());
@@ -37,7 +37,7 @@ fn ready_to_approve_the_merge_asks_first_the_menu_acts_remove_asks_and_messages_
     s.load();
     assert!(s.s.ask.is_none() && s.text().contains("It changed while you were asked, so nothing was merged."));
     s.press(&["enter"]); assert_eq!(task(&id).s("stage"), "approval");
-    s.press(&["ctrl+l"]); assert!(has(&s.text(), r#"\n[ ▌]\? Merge #1 "Make f" \(PR#19\) into \S+\?"#), "{}", s.text());
+    s.press(&["ctrl+l"]); assert!(has(&s.text(), r#"\n[ ▌]\? Merge PRJ-1 "Make f" \(PR#19\) into \S+\?"#), "{}", s.text());
     sw::store::tasks::update(&id, |t| { t.del("pr"); Ok(sw::store::tasks::Change::Write) }).unwrap();
     // (A key press reads no file: the merge itself refuses a yes given to something else, and says so.)
     s.press(&["y"]); assert_eq!(task(&id).s("stage"), "approval"); assert!(s.s.ask.is_none()); assert!(s.text().contains("changed while you were asked"), "{}", s.text());
@@ -51,13 +51,13 @@ fn ready_to_approve_the_merge_asks_first_the_menu_acts_remove_asks_and_messages_
     s.press(&["ctrl+l", "N"]); assert!(s.s.ask.is_none() && s.s.value().is_empty());
     s.press(&["ctrl+l", "Y"]); assert!(s.s.value().is_empty());
     assert_eq!(task(&id).s("stage"), "merging");
-    assert!(s.text().contains("#1: approved, merging"), "{}", s.text());
+    assert!(s.text().contains("PRJ-1: approved, merging"), "{}", s.text());
     settle(&id); s.load();
-    assert!(has(&s.screen(80).join("\n"), r"\n ▾ done *\n[ ▌]✓ #\d+ +Make f +R#1 +\d"));
+    assert!(has(&s.screen(80).join("\n"), r"\n ▾ done *\n[ ▌]✓ PRJ-\d+ +Make f +R#1 +\d"));
     // the ? menu: every key the board has, in three groups
     s.s.sel = "proj/2".into(); s.load(); s.rows = 60; s.press(&["?"]);
     let text = s.text();
-    assert!(text.starts_with(" Menu  for #2 \"Other\""), "{text}");
+    assert!(text.starts_with(" Menu  for PRJ-2 \"Other\""), "{text}");
     let keys: Vec<String> = text.split("\n on a row").next().unwrap().lines().filter(|l| has(l, r"^ (❯| ) \S")).map(|l| l.chars().skip(3).take(8).collect::<String>().trim().to_string()).filter(|x| !x.is_empty()).collect();
     assert_eq!(keys, vec!["↑ ↓", "pgup pgd", "enter", "space", "tab", "esc", "?", "y  n", "ctrl+l", "ctrl+r", "ctrl+x", "ctrl+a", "ctrl+p", "ctrl+e", "ctrl+z", "ctrl+f", "ctrl+c", "alt+c", "alt+u", "alt+j", "alt+p", "alt+t", "alt+a", "alt+s", "alt+d", "alt+m"]);
     assert_eq!(s.s.menu.as_ref().unwrap().at, -1, "no line is picked when the menu opens");
@@ -68,10 +68,10 @@ fn ready_to_approve_the_merge_asks_first_the_menu_acts_remove_asks_and_messages_
     s.press(&["x", "ctrl+l"]); assert!(s.s.menu.is_some(), "a stray key neither acts nor closes the menu");
     s.press(&["down", "down", "down", "down", "enter"]);
     assert!(task("proj/2").b("archivedAt") && s.s.menu.is_none());
-    assert!(s.text().contains(&format!("Archived #2 \"Other\". {} undoes it; {} shows the archive. Now on #1 \"Make f\".", key_name("undo"), key_name("archiveView"))), "{}", s.text());
+    assert!(s.text().contains(&format!("Archived PRJ-2 \"Other\". {} undoes it; {} shows the archive. Now on PRJ-1 \"Make f\".", key_name("undo"), key_name("archiveView"))), "{}", s.text());
     s.rows = 34;
     s.press(&["alt+a"]);
-    assert!(s.text().starts_with(" herdr-superwork  archive · 1 archived") && has(&s.text(), r"\n ▾ archived [^\n]*\n[ ▌]. #2 +Other ") && !s.text().contains("[archived]"), "{}", s.text());
+    assert!(s.text().starts_with(" herdr-superwork  archive · 1 archived") && has(&s.text(), r"\n ▾ archived [^\n]*\n[ ▌]. PRJ-2 +Other ") && !s.text().contains("[archived]"), "{}", s.text());
     s.press(&["ctrl+a"]); assert!(!task("proj/2").b("archivedAt"));
     s.press(&["alt+a"]);
     s.s.sel = "proj/2".into(); s.load(); s.press(&["ctrl+p"]); assert_eq!(task("proj/2").at("pinned"), &json!(true));
@@ -80,14 +80,14 @@ fn ready_to_approve_the_merge_asks_first_the_menu_acts_remove_asks_and_messages_
     s.press(&["esc"]); assert_eq!(s.s.filter, "");
     // ctrl+x on a task with no agent running asks to remove it; only y deletes
     s.s.sel = "proj/2".into(); s.load(); s.press(&["ctrl+x"]);
-    assert!(has(&s.text(), r#"\n[ ▌]\? Remove #2 "Other"\? *\n   This cannot be undone\. The task goes, with its description and what its agent said\. It has no worktree\. ctrl\+a only *\n   archives it\. *\n   y = remove · n = keep"#), "{}", s.text());
+    assert!(has(&s.text(), r#"\n[ ▌]\? Remove PRJ-2 "Other"\? *\n   This cannot be undone\. The task goes, with its description and what its agent said\. It has no worktree\. ctrl\+a only *\n   archives it\. *\n   y = remove · n = keep"#), "{}", s.text());
     s.press(&["ctrl+x", "enter"]); assert!(s.s.ask.is_some()); assert!(sw::store::tasks::get("proj/2").is_some());
     s.press(&["esc"]); assert!(s.s.ask.is_none());
     sw::actions::filing::rename("proj/2", "A task with quite a long title here").unwrap(); s.load(); s.press(&["ctrl+x"]);
     for width in [80, 60, 40, 30] {
         let lines = s.screen(width);
         assert!(lines.iter().any(|l| l.contains("y = remove")) && lines.iter().any(|l| l.contains("n = keep")), "the keys show at {width}");
-        assert!(regex::Regex::new(r"\s+").unwrap().replace_all(&lines.join(" "), " ").contains("? Remove #2 \"A task with quite a long title here\"? This cannot be undone."), "at {width}");
+        assert!(regex::Regex::new(r"\s+").unwrap().replace_all(&lines.join(" "), " ").contains("? Remove PRJ-2 \"A task with quite a long title here\"? This cannot be undone."), "at {width}");
         assert!(lines.iter().all(|l| sw::text::width(l) <= width) && lines.len() == 34);
     }
     s.press(&["esc"]); sw::actions::filing::rename("proj/2", "Other").unwrap(); s.load();
@@ -118,7 +118,7 @@ fn yes_on_something_that_went_wrong_retries_it_and_the_focused_pane_action_asks_
     let tree = std::path::Path::new(t.s("worktree"));
     std::fs::write(tree.join("good.txt"), "ok\n").unwrap(); git(tree, &["add", "-A"]); git(tree, &["commit", "-qm", "good"]);
     s.press(&["ctrl+l"]);
-    assert!(s.text().contains("#1: trying again"), "{}", s.text()); assert_eq!(task(&id).s("stage"), "checking");
+    assert!(s.text().contains("PRJ-1: trying again"), "{}", s.text()); assert_eq!(task(&id).s("stage"), "checking");
     let t = settle(&id);
     assert_eq!(t.s("stage"), "approval", "{}", t.at("failure"));
     assert_eq!(prompts(&w, t.at("link").s("pane")).len(), sent, "nothing was sent to the agent");
@@ -131,7 +131,7 @@ fn yes_on_something_that_went_wrong_retries_it_and_the_focused_pane_action_asks_
     assert!(calls(&w).iter().any(|c| c.contains("plugin pane")), "it opens the board");
     let mut b = open(&w.root, 34);
     assert_eq!(b.s.sel, id);
-    assert!(has(&b.text(), r#"\n[ ▌]\? Merge #1 "Never passes" into \S+\? *\n   A merge cannot be undone\. *\n   y = merge · n = do not merge"#), "{}", b.text());
+    assert!(has(&b.text(), r#"\n[ ▌]\? Merge PRJ-1 "Never passes" into \S+\? *\n   A merge cannot be undone\. *\n   y = merge · n = do not merge"#), "{}", b.text());
     b.press(&["esc"]); assert_eq!(task(&id).s("stage"), "approval");
     assert!(open(&w.root, 34).s.ask.is_none(), "asked once, not every time the board opens");
     unsafe { std::env::set_var("HERDR_PLUGIN_CONTEXT_JSON", json!({ "focused_pane_id": t.at("link").s("pane") }).to_string()) };

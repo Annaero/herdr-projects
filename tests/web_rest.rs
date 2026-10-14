@@ -76,7 +76,7 @@ fn a_remove_asked_from_the_page_names_the_task_and_a_no_leaves_it() {
     let id = w.add("Sort the notes");
     web(&w, "pick", json!({ "id": id, "open": true }));
     let s = web(&w, "press", json!({ "id": "stop" }));
-    assert!(regex::Regex::new(r#"^Remove #\d+ "Sort the notes"\?"#).unwrap().is_match(s.at("ask").s("q")), "{}", s.at("ask"));
+    assert!(regex::Regex::new(r#"^Remove PRJ-\d+ "Sort the notes"\?"#).unwrap().is_match(s.at("ask").s("q")), "{}", s.at("ask"));
     let s = web(&w, "press", json!({ "id": "back" }));
     assert!(s.at("ask").is_null()); assert!(sw::store::tasks::get(&id).is_some(), "the task is still there");
 }

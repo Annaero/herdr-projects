@@ -99,7 +99,7 @@ fn the_settings_page_every_work_setting_plain_and_a_mark_on_this_tasks_own() {
     let mut s = open(&w.root, 60); s.s.sel = id.clone(); s.load();
     s.press(&["ctrl+e"]);
     let text = s.screen(120).join("\n");
-    assert!(text.starts_with(" Settings  #1 \"One\""), "{text}");
+    assert!(text.starts_with(" Settings  PRJ-1 \"One\""), "{text}");
     assert!(text.ends_with(&format!("  ↑ ↓ move · enter change · {} put back · esc back to the task", key_name("putBack"))), "{text}");
     assert!(!has(&text, "Coordinator|put an agent|all keys"));
     for name in sw::store::settings_list::work() { assert_eq!(!row_of(&text, name).is_empty(), !["worker.fast", "reviewer.fast"].contains(&name), "{name}"); }

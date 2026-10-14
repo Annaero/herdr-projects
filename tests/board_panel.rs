@@ -35,12 +35,12 @@ fn the_panel_beside_the_list_cuts_a_long_description_short_and_the_whole_panel_s
     let mut s = open(&w.root, 44);
     s.s.sel = big.clone(); s.load();
     let text = s.screen(120).join("\n");
-    assert!(has(&text, r"│ {2}#2 Long one") && text.contains("Line 1 of a very long"), "{text}");
+    assert!(has(&text, r"│ {2}PRJ-2 Long one") && text.contains("Line 1 of a very long"), "{text}");
     // Beside the list the description is short: a few lines, then where the rest is.
     assert!(has(&text, r"Line 8 of a very long description\. … *\n") && has(&text, &keyed(r"│ {2}{panel} shows the whole task")), "{text}");
     assert!(!text.contains("Line 9 of") && !text.contains("Line 80 of"));
     // The title, the status under its headline as facts, then the description, then the settings: an empty line between.
-    assert!(has(&text, r"│ {2}#2 Long one *\n[^\n]*│ *\n[^\n]*│ {2}Status ─+ *\n[^\n]*│ {2}State {8}○ to do · \ds ago *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n"), "{text}");
+    assert!(has(&text, r"│ {2}PRJ-2 Long one *\n[^\n]*│ *\n[^\n]*│ {2}Status ─+ *\n[^\n]*│ {2}State {8}○ to do · \ds ago *\n[^\n]*│ *\n[^\n]*│ {2}Description ─+ *\n"), "{text}");
     assert!(has(&text, r"│ {2}Settings ─+ *\n[^\n]*│ {2}Agent {8}claude · default model *\n[^\n]*│ {15}default effort *\n[^\n]*│ {2}Plan first {3}off *\n"), "{text}");
     assert!(!text.contains("as usual"));
     let whole = text_of(&panel_of(&mut s, 80, true));
@@ -94,7 +94,7 @@ fn the_panel_beside_the_list_cuts_a_long_description_short_and_the_whole_panel_s
     // The task details: the same parts full screen, scrolled, with every setting.
     s.press(&["alt+t"]);
     assert!(s.s.full);
-    assert!(has(&s.screen(120).join("\n"), r"^ Task details {2}#2 \x22Long one\x22 +lines 1–\d+ of \d+"));
+    assert!(has(&s.screen(120).join("\n"), r"^ Task details {2}PRJ-2 \x22Long one\x22 +lines 1–\d+ of \d+"));
     s.s.panel_top = usize::MAX / 2; let text = s.screen(120).join("\n");
     assert!(text.contains("Line 80 of"));
     for fact in SETTINGS { assert!(text.contains(&format!("\n {fact} ")), "{fact}"); }
@@ -125,7 +125,7 @@ fn the_panel_never_opens_full_screen_by_itself_something_going_wrong_only_change
     s.load();
     assert!(s.s.sel == id && !s.s.full && !s.s.reply);
     let text = s.screen(80).join("\n");
-    assert!(has(&text, r"\n ▾ needs you *\n[ ▌]✗ #1 Match the colors [^\n]*\n[ ▌] {5}Merge conflict with main"), "{text}");
+    assert!(has(&text, r"\n ▾ needs you *\n[ ▌]✗ PRJ-1 Match the colors [^\n]*\n[ ▌] {8}Merge conflict with main"), "{text}");
     assert!(!text.contains("Conflicting files"));
     // The hint line: what matters now, the main thing first, never more than four; the main thing is the last to go.
     assert!(has(&s.screen(120).join("\n"), &keyed(r"\n[ ▌] {1}{sendBack} tell this task's agent to fix it · {yes} retry as it is · space talk about this task · \? all keys *$")), "{}", s.screen(120).join("\n"));
@@ -139,14 +139,14 @@ fn the_panel_never_opens_full_screen_by_itself_something_going_wrong_only_change
     // same panel full screen; esc leaves it, and the chat stays the task's.
     s.cols = 80; s.screen(80); s.press(&["space"]);
     let text = s.screen(80).join("\n");
-    assert!(!s.s.full && s.s.reply && text.starts_with(" herdr-superwork") && has(&text, r"\n *\n[ ▌]. #1 Match the colors {2}"), "{text}");
+    assert!(!s.s.full && s.s.reply && text.starts_with(" herdr-superwork") && has(&text, r"\n *\n[ ▌]. PRJ-1 Match the colors {2}"), "{text}");
     s.press(&["alt+t"]); let text = s.screen(80).join("\n");
     assert!(s.s.full && s.s.reply);
-    assert!(text.starts_with(" Task details  #1 \"Match the colors\"") && text.contains("Merge conflict with main") && has(&text, r"\n Details {6}Conflicting files: *\n[ ▌] {13}src/board/view\.js"), "{text}");
-    assert!(has(&text, r"\n *\n[ ▌]. #1 Match the colors {2}[^\n]*\n(?:[^\n]*\n)*?─[^\n]*\n❯"), "{text}");
+    assert!(text.starts_with(" Task details  PRJ-1 \"Match the colors\"") && text.contains("Merge conflict with main") && has(&text, r"\n Details {6}Conflicting files: *\n[ ▌] {13}src/board/view\.js"), "{text}");
+    assert!(has(&text, r"\n *\n[ ▌]. PRJ-1 Match the colors {2}[^\n]*\n(?:[^\n]*\n)*?─[^\n]*\n❯"), "{text}");
     s.press(&["esc"]);
     let text = s.screen(80).join("\n");
-    assert!(!s.s.full && s.s.reply && !text.contains("Conflicting files") && has(&text, r"\n *\n[ ▌]. #1 Match the colors {2}"), "{text}");
+    assert!(!s.s.full && s.s.reply && !text.contains("Conflicting files") && has(&text, r"\n *\n[ ▌]. PRJ-1 Match the colors {2}"), "{text}");
     // Nor does coming back from the archive bring it up, and an open panel is not remembered when the board reopens.
     s.press(&["alt+t"]); assert!(s.s.full);
     s.press(&["esc", "alt+a"]); assert!(s.s.archive_view);

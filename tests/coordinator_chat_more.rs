@@ -54,7 +54,7 @@ fn esc_never_shows_hides_or_closes_the_chat_and_a_task_with_no_agent_is_talked_a
     sw::actions::filing::report(&t, sw::actions::filing::Report { state: "done".into(), ..Default::default() }).unwrap();
     s.load(); s.s.sel = t.clone(); s.load(); s.press(&["space"]); assert!(s.s.reply);
     let txt = s.screen(160).join("\n");
-    assert!(has(&txt, r"\n *\n[ ▌]. #\d+ Write the docs {2}no agent on it: your message goes to the Coordinator, about this task *\n─[^\n]*\n❯ Send message to Coordinator"), "{txt}");
+    assert!(has(&txt, r"\n *\n[ ▌]. PRJ-\d+ Write the docs {2}no agent on it: your message goes to the Coordinator, about this task *\n─[^\n]*\n❯ Send message to Coordinator"), "{txt}");
     s.typed("make it shorter"); s.press(&["enter"]); drain();
     assert_eq!(prompts_of(&w)[2], "make it shorter");
     assert!(has(&where_text(&w.socket), r#"\n- "make it shorter"[^\n]*Task proj/1 \("Write the docs"\) was open: for this message "it" and "this" mean that task\. It was sent with enter"#), "{}", where_text(&w.socket));
@@ -126,22 +126,22 @@ fn enter_goes_into_a_tasks_agent_the_chats_head_line_at_every_width_and_a_narrow
     unsafe { std::env::set_var("HERDR_ENV", "1") }; // the board inside herdr
     let title = "Add a greeting that is polite, friendly and never cut short";
     let t = w.add(title); delegate(&t); settle(&t);
-    w.add("Somebody else"); sw::actions::archive::clear("proj/2").unwrap(); // the old test's numbers: this one is #3
+    w.add("Somebody else"); sw::actions::archive::clear("proj/2").unwrap(); // the old test's numbers: this one is PRJ-3
     // Into a task's agent is enter, with nothing typed: herdr shows that agent's pane.
     w.script(json!({ "worker": [{ "status": "working", "screen": "● Editing greet.sh\n" }] }));
     let u = w.add("Still at it"); delegate(&u); settle(&u);
     let mut g = open(&w.root, 34); g.s.sel = u.clone(); g.load(); g.press(&["space"]);
-    assert!(has(&g.screen(160).join("\n"), r"\n *\n[ ▌]. #\d+ Still at it {2}working *\n╭─[^\n]*╮\n│ The agent has just started: nothing to show yet\. +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n"), "{}", g.screen(160).join("\n"));
+    assert!(has(&g.screen(160).join("\n"), r"\n *\n[ ▌]. PRJ-\d+ Still at it {2}working *\n╭─[^\n]*╮\n│ The agent has just started: nothing to show yet\. +│\n│ +│\n│ ❯ Send message to Agent +│\n╰─+╯\n"), "{}", g.screen(160).join("\n"));
     // That line is what herdr's sidebar says about the agent: the row's mark, the name, the Watcher's "doing now" line.
     sw::store::tasks::update(&u, |c| { c.put("msg", "Verifying the test run after the rebase onto main"); Ok(sw::store::tasks::Change::Write) }).unwrap(); g.load();
     let lines = g.screen(160);
-    assert!(has(&lines.join("\n"), r"\n[ ▌]. #\d+ Still at it {2}Verifying the test run after the rebase onto main *\n╭─[^\n]*╮\n│ The agent has just started"), "{}", lines.join("\n"));
+    assert!(has(&lines.join("\n"), r"\n[ ▌]. PRJ-\d+ Still at it {2}Verifying the test run after the rebase onto main *\n╭─[^\n]*╮\n│ The agent has just started"), "{}", lines.join("\n"));
     assert!(!has(&lines[lines.len() - 7], &format!("{chat_key}|its agent · ")));
     // However little room the name leaves, the status is cut, never dropped: down to the "…" alone. The task's number
     // stands before its name while the status keeps a readable width beside it; then it goes.
     let head = |g: &mut common::board::Board, cols: usize| { let l = g.screen(cols); let at = l.iter().position(|x| x.starts_with("╭─")).unwrap(); l[at - 1].clone() };
     let mark: String = head(&mut g, 160).chars().take(2).collect();
-    for (cols, want) in [(40, " #3 Still at it  Verifying the test r…"), (26, " #3 Still at it  Verify…"), (25, " Still at it  Verifyin…"), (23, " Still at it  Verify…"), (18, " Still at it  V…"), (17, " Still at it  …"), (16, " Still at it")] {
+    for (cols, want) in [(40, " PRJ-3 Still at it  Verifying the tes…"), (29, " PRJ-3 Still at it  Verify…"), (28, " Still at it  Verifying t…"), (25, " Still at it  Verifyin…"), (23, " Still at it  Verify…"), (18, " Still at it  V…"), (17, " Still at it  …"), (16, " Still at it")] {
         assert_eq!(head(&mut g, cols), format!("{mark}{want}"), "at {cols}");
     }
     g.press(&["enter"]); assert!(!g.closed); assert_eq!(text(w.state().arr("focus").last().unwrap()), format!("agent {}", task(&u).at("link").s("pane"))); // into its agent: the board stays
@@ -168,7 +168,7 @@ fn enter_goes_into_a_tasks_agent_the_chats_head_line_at_every_width_and_a_narrow
         x.s.input.set_text("one\ntwo\nthree\nfour and last");
         let lines = x.screen(44);
         assert_eq!(lines.len(), 8); assert!(lines.iter().all(|l| sw::text::width(l) <= 44));
-        assert!(lines.iter().any(|l| l.contains("four and last")), "the line you are typing shows: {lines:?}"); assert!(lines.last().unwrap().contains("enter send to #1's agent")); assert!(has(&lines[lines.len() - 2], "^─+$"));
+        assert!(lines.iter().any(|l| l.contains("four and last")), "the line you are typing shows: {lines:?}"); assert!(lines.last().unwrap().contains("enter send to PRJ-1's agent")); assert!(has(&lines[lines.len() - 2], "^─+$"));
         assert!(lines.iter().any(|l| l.contains("Add a greeting") && !l.contains("task panel")), "and so does who you talk to");
     }
     for width in [24, 40, 64, 90, 200] { for reply in [false, true] { let mut x = open(&w.root, 34); x.s.sel = t.clone(); x.load(); if reply { x.press(&["space"]); } let l = x.screen(width); assert!(l.iter().all(|l| sw::text::width(l) <= width), "fits {width}"); assert_eq!(l.len(), 34); } }

@@ -60,7 +60,7 @@ fn a_draft_goes_to_who_it_was_typed_for_a_merge_has_no_filled_yes_and_the_page_s
     let s = web(&w, "press", json!({ "id": "yes" }));
     let ask = s.at("ask");
     assert_eq!(ask.at("danger"), &json!(true));
-    assert!(regex::Regex::new(r#"^Merge #3 "Add an undo" into \S+\?$"#).unwrap().is_match(ask.s("q")), "{ask}");
+    assert!(regex::Regex::new(r#"^Merge PRJ-3 "Add an undo" into \S+\?$"#).unwrap().is_match(ask.s("q")), "{ask}");
     assert!(regex::Regex::new(r"^Its last review failed: 1 critical\. A merge cannot be undone\.$").unwrap().is_match(ask.s("detail")), "{ask}");
     assert_eq!(ask.at("keys"), &json!([{ "id": "sayYes", "label": "merge anyway" }, { "id": "sayNo", "label": "do not merge" }]));
     web(&w, "press", json!({ "id": "sayNo" })); assert_eq!(task(&bad).s("stage"), "approval");

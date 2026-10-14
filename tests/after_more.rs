@@ -21,11 +21,11 @@ fn the_board_shows_what_a_task_waits_for_and_its_key_asks_before_it_starts_one_e
     let mut b = open(&w.root, 40);
     b.s.sel = id.clone(); b.load();
     let text = b.screen(120).join("\n");
-    assert!(has(&text, r"\n▌○ #2 +Take it in +starts after proj/1 +0s ago"), "{text}");
-    assert!(has(&text, r"│  State +○ to do · 0s ago *\n[^\n]*│  Starts after +proj/1 *\n"), "{text}");
+    assert!(has(&text, r"\n▌○ PRJ-2 +Take it in +starts after PRJ-1 +0s ago"), "{text}");
+    assert!(has(&text, r"│  State +○ to do · 0s ago *\n[^\n]*│  Starts after +PRJ-1 *\n"), "{text}");
     // The key that puts an agent on a task asks first: it starts by itself once the other is done.
     b.press(&["tab"]);
-    assert!(has(&b.text(), r#"\? Start #2 "Take it in" now\? *\n +It starts after proj/1 by itself\. *\n +y = start now · n = let it wait"#), "{}", b.text());
+    assert!(has(&b.text(), r#"\? Start PRJ-2 "Take it in" now\? *\n +It starts after PRJ-1 by itself\. *\n +y = start now · n = let it wait"#), "{}", b.text());
     b.press(&["n"]);
     assert_eq!(task(&id).s("stage"), "after");
     assert!(starts(&w).is_empty());
@@ -34,9 +34,9 @@ fn the_board_shows_what_a_task_waits_for_and_its_key_asks_before_it_starts_one_e
     assert!(!["after", "queued"].contains(&t.s("stage")), "{}", t.s("stage"));
     assert!(t.b("afterEarly"));
     let told = prompts(&w, t.at("link").s("pane")).join("\n");
-    assert!(told.contains("the human started it before they all were") && told.contains("- proj/1 \"Change the skill\" (repo proj): not done yet."), "{told}");
+    assert!(told.contains("the human started it before they all were") && told.contains("- PRJ-1 \"Change the skill\" (repo proj): not done yet."), "{told}");
     let text = b.screen(120).join("\n");
-    assert!(!text.contains("starts after proj/1") && !text.contains("Starts after"), "{text}");
+    assert!(!text.contains("starts after PRJ-1") && !text.contains("Starts after"), "{text}");
 }
 
 #[test]
@@ -47,9 +47,9 @@ fn after_sets_shows_and_drops_a_wait_and_stop_stops_the_waiting() {
     let id = w.add("Second");
     assert_eq!(run(&["after", &id]).unwrap().1, format!("{id}: waits for nothing"));
     // On a task nobody delegated yet: kept for when it is.
-    assert_eq!(run(&["after", &id, &dep]).unwrap().1, format!("{id}: is to wait for {dep}, from when it is delegated"));
+    assert_eq!(run(&["after", &id, &dep]).unwrap().1, format!("{id}: is to wait for {}, from when it is delegated", short(&dep)));
     assert_eq!(task(&id).s("stage"), "todo");
-    assert_eq!(run(&["delegate", &id]).unwrap().1, format!("{id}: delegated, starts after {dep} by itself"));
+    assert_eq!(run(&["delegate", &id]).unwrap().1, format!("{id}: delegated, starts after {} by itself", short(&dep)));
     // Stop stops the waiting; what it is to wait for stays, for the next delegation.
     sw::actions::talk::stop(&id).unwrap();
     assert_eq!((task(&id).s("stage"), task(&id).at("after").clone()), ("todo".into(), json!([dep])));
@@ -69,7 +69,7 @@ fn after_sets_shows_and_drops_a_wait_and_stop_stops_the_waiting() {
     assert_eq!(run(&["delegate", &third, "--after", &dep]).unwrap().1, format!("{third}: started, an agent is on it"));
     let t = settle(&third);
     let told = prompts(&w, t.at("link").s("pane")).join("\n");
-    assert!(told.contains("- proj/1 \"First\" (repo proj): done. Its closing note:\n    Made the first part."), "{told}");
+    assert!(told.contains("- PRJ-1 \"First\" (repo proj): done. Its closing note:\n    Made the first part."), "{told}");
 }
 
 /// The door, as `herdr-superwork remote <what> <request>` answers it on this machine (in this process).
@@ -84,9 +84,9 @@ fn another_machines_board_sees_the_wait_and_starts_one_early_only_when_asked() {
     run(&["delegate", &id, "--after", &dep]).unwrap();
     let sent = sw::remote::remote_list();
     let r = sent.arr("tasks").iter().find(|t| t.s("id") == id).cloned().unwrap_or_default();
-    assert_eq!((r.s("stage"), r.s("note")), ("after", "starts after proj/1"));
+    assert_eq!((r.s("stage"), r.s("note")), ("after", "starts after PRJ-1"));
     let no = door("do", json!({ "action": "delegate", "id": id }));
-    assert!(no.s("msg").contains("still waits: it starts after proj/1 by itself"), "{no}");
+    assert!(no.s("msg").contains("still waits: it starts after PRJ-1 by itself"), "{no}");
     assert_eq!(door("do", json!({ "action": "delegate", "id": id, "now": true })), json!({ "ok": true, "msg": format!("{id}: an agent is on it") }));
     assert_ne!(settle(&id).s("stage"), "after");
 }
@@ -101,11 +101,11 @@ fn the_web_board_says_the_same_and_its_button_asks_before_it_starts_one_early() 
     let said = |p: &Value| p.as_array().map(|a| a.iter().map(|x| x.t("t")).collect::<String>()).unwrap_or_default();
     let s = common::board::web(&w, "pick", json!({ "id": id, "open": true }));
     let row = s.at("list").arr("groups").iter().flat_map(|g| g.arr("rows").to_vec()).find(|r| r.s("id") == id).unwrap();
-    assert_eq!(said(row.at("says")), "starts after proj/1");
+    assert_eq!(said(row.at("says")), "starts after PRJ-1");
     let fact = s.at("panel").arr("parts").iter().find(|p| p.s("head") == "Status").and_then(|p| p.arr("items").iter().find(|x| x.s("label") == "Starts after").cloned()).unwrap_or_default();
-    assert_eq!(said(&fact.at("lines")[0]), "proj/1");
+    assert_eq!(said(&fact.at("lines")[0]), "PRJ-1");
     let s = common::board::web(&w, "press", json!({ "id": "delegate" }));
-    assert_eq!(s.at("ask").s("q"), "Start #2 \"Second\" now?");
+    assert_eq!(s.at("ask").s("q"), "Start PRJ-2 \"Second\" now?");
     assert_eq!(task(&id).s("stage"), "after");
     common::board::web(&w, "press", json!({ "id": "sayYes" }));
     assert_ne!(settle(&id).s("stage"), "after");
@@ -123,13 +123,13 @@ fn stopping_a_task_that_waits_tells_the_tasks_that_wait_for_it_that_it_was_stopp
     assert_eq!(task(&b).s("stage"), "todo");
     sw::housekeeping::housekeeping(&w.socket, sw::housekeeping::Force::Yes);
     let t = task(&c);
-    assert_eq!((t.s("stage"), t.s("afterBlocked")), ("after", "proj/2 was stopped"));
+    assert_eq!((t.s("stage"), t.s("afterBlocked")), ("after", "PRJ-2 was stopped"));
     assert_eq!(row(&c).s("state"), "blocked");
     assert_eq!(sw::notify::event_of(&t), "needs you");
     // Delegated again, it waits once more, and so does the one after it.
     run(&["delegate", &b]).unwrap();
     sw::housekeeping::housekeeping(&w.socket, sw::housekeeping::Force::Yes);
-    assert_eq!((task(&c).s("msg"), task(&c).at("afterBlocked").clone()), ("starts after proj/2".into(), Value::Null));
+    assert_eq!((task(&c).s("msg"), task(&c).at("afterBlocked").clone()), ("starts after PRJ-2".into(), Value::Null));
 }
 
 #[test]
@@ -145,6 +145,6 @@ fn each_attempt_of_a_task_that_waited_is_told_what_came_before_it() {
     for k in kids(&id) {
         assert_eq!(k.at("afterDone"), task(&id).at("afterDone"));
         let told = prompts(&w, k.at("link").s("pane")).join("\n");
-        assert!(told.contains("- proj/1 \"First\" (repo proj): done, its work merged, merge commit abc1234. Its closing note:\n    Made the first part."), "{}: {told}", k.s("id"));
+        assert!(told.contains("- PRJ-1 \"First\" (repo proj): done, its work merged, merge commit abc1234. Its closing note:\n    Made the first part."), "{}: {told}", k.s("id"));
     }
 }

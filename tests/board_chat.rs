@@ -26,7 +26,7 @@ fn a_task_agents_chat_its_message_then_your_words_in_its_place_then_its_next_mes
     s.s.sel = id.clone(); s.load(); s.press(&["space"]);
     for width in [120, 48] {
         let c = s.chat(width);
-        assert!(c.framed); assert!(regex::Regex::new(r"^ \S #\d+ +Make f  \S").unwrap().is_match(&c.who), "{}", c.who);
+        assert!(c.framed); assert!(regex::Regex::new(r"^ \S PRJ-\d+ +Make f  \S").unwrap().is_match(&c.who), "{}", c.who);
         assert!(!regex::Regex::new("agent|claude|alt\\+|last message").unwrap().is_match(&c.who));
         assert_eq!(c.boxed, v(&["Agent:", "Made f, with one line in it.", "", "❯ Send message to Agent"]));
         assert!(c.hints.ends_with("space back to the Coordinator"), "{}", c.hints);
@@ -34,7 +34,7 @@ fn a_task_agents_chat_its_message_then_your_words_in_its_place_then_its_next_mes
     assert!(s.chat(120).hints.ends_with(&format!("{} hide the latest message · space back to the Coordinator", key_name("chatMessage"))));
     s.typed("yes, g too");
     assert_eq!(s.chat(120).boxed, v(&["Agent:", "Made f, with one line in it.", "", "❯ yes, g too"]));
-    assert_eq!(s.chat(120).hints, "enter send to #1's agent · shift+enter new line · esc put away");
+    assert_eq!(s.chat(120).hints, "enter send to PRJ-1's agent · shift+enter new line · esc put away");
     s.press(&["enter"]);
     assert_eq!(s.chat(120).boxed, v(&["You:", "yes, g too", "", "❯ Send message to Agent"]));
     assert!(!s.text().contains("Sent to the agent"));
