@@ -71,6 +71,9 @@ pub struct State {
     pub web: Web,
     pub data: Data,
     pub remotes: BTreeMap<String, Remote>,
+    /// The machines ("" this one) in the order of herdr's sidebar (remote/sidebar.rs), the other machine whose sidebar
+    /// was followed last (kept with the view), and herdr's own list here (None: named by hand in board.machines).
+    pub order: Vec<String>, pub sidebar_from: Option<String>, pub own_order: Option<Vec<String>>,
     /// The tasks of whoever's board shows, as rows (shown/states.rs: as_row), and what the list makes of them.
     pub items: Vec<Rec>, pub rows: Vec<Row>, pub grouped: Vec<(String, Vec<Rec>)>, pub whole: bool, pub autos: Vec<Obj>, pub jobs: Vec<Obj>, pub steps: Vec<String>,
     pub selection_rows: Vec<SelRow>, pub selection_layout: String,
@@ -116,7 +119,7 @@ pub struct State {
 impl State {
     pub fn new(ctx: Ctx, data: Data) -> State {
         State {
-            ctx, web: Web::default(), data, remotes: BTreeMap::new(), items: vec![], rows: vec![], grouped: vec![], whole: false, autos: vec![], jobs: vec![], steps: vec![],
+            ctx, web: Web::default(), data, remotes: BTreeMap::new(), order: vec![], sidebar_from: None, own_order: None, items: vec![], rows: vec![], grouped: vec![], whole: false, autos: vec![], jobs: vec![], steps: vec![],
             selection_rows: vec![], selection_layout: String::new(), sel: String::new(), top: 0, stick: String::new(), top_free: false,
             all_done: false, archive_view: false, archive_back: None, archive_undo: None, reply: false, reply_id: String::new(),
             side: false, full: false, panel_top: 0, panel_height: 1, panel_length: 0, width: 120,

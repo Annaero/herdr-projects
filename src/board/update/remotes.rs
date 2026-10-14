@@ -1,13 +1,13 @@
 //! Other machines from the board's side: whose board you see (this machine, every machine, or one), and what each
 //! machine answered when it was asked for its tasks. One that did not answer is never an empty one: why is kept and
-//! said where its tasks would be.
+//! said where its tasks would be. They are listed everywhere in the order of herdr's sidebar (remote/sidebar.rs).
 use super::list::relist;
 use super::Effect;
 use crate::board::data::Remote;
 use crate::board::state::State;
 use crate::json::*;
 use crate::remote::why::{not_list, unknown};
-use crate::remote::Machine;
+use crate::remote::{sidebar, Machine};
 use crate::shown::ink::Ink;
 
 /// The machines herdr knows (or the `board.machines` setting names): new ones are added, gone ones dropped.
@@ -18,6 +18,8 @@ pub fn machines(s: &mut State, list: Vec<Machine>, fx: &mut Vec<Effect>) {
         let off = crate::store::settings::lookup::setting("board.machines", None) == json!("none");
         s.flash(if off { "Other machines are off (unset board.machines turns them on).".to_string() } else { "No other machines. Add one with: herdr machine add <name> <ssh target>  (or name them in the board.machines setting).".into() }, Ink::Yellow);
     }
+    let auto = crate::store::settings::lookup::setting("board.machines", None).as_str().unwrap_or("auto") == "auto";
+    s.own_order = auto.then(|| list.iter().map(|m| m.label.clone()).collect());
     for m in &list { s.remotes.entry(m.label.clone()).or_insert_with(|| Remote { machine: m.clone(), ..Default::default() }).machine = m.clone(); }
     s.remotes.retain(|k, _| list.iter().any(|m| m.label == *k));
     relist(s);
@@ -29,7 +31,7 @@ pub fn answered(s: &mut State, label: &str, answer: Result<Value, Value>) {
     m.busy = false;
     match answer {
         Ok(j) if j.at("tasks").is_array() => {
-            m.ok = true; m.why = None; m.version = j.t("version"); m.coord = j.at("coordinator").clone();
+            m.ok = true; m.why = None; m.version = j.t("version"); m.coord = j.at("coordinator").clone(); m.sidebar = sidebar::read(j.at("sidebar"));
             let mc = m.machine.clone();
             m.items = j.arr("tasks").iter().filter_map(|x| x.as_object()).map(|x| {
                 let mut r = crate::shown::states::as_row(x);
@@ -49,9 +51,24 @@ pub fn answered(s: &mut State, label: &str, answer: Result<Value, Value>) {
     }
     relist(s);
 }
+/// The machines in the order of herdr's sidebar: worked out again whenever the list is. The other machine whose sidebar
+/// it is stays the one followed before also while it has not answered yet (the board just opened).
+pub fn reorder(s: &mut State) {
+    let far: Vec<(Machine, Option<Vec<sidebar::Entry>>)> = s.remotes.values().map(|m| (m.machine.clone(), m.sidebar.clone())).collect();
+    let here = sidebar::Here { names: crate::remote::own_names::own_names(), session: s.data.session.clone() };
+    let (from, order) = sidebar::order(s.own_order.as_deref(), &far, &here, s.sidebar_from.as_deref());
+    if let Some(f) = from.filter(|f| !f.is_empty()) { s.sidebar_from = Some(f); }
+    s.order = order;
+}
+/// Where a machine ("" this one) stands in that order.
+pub fn place(s: &State, host: &str) -> usize { s.order.iter().position(|h| h == host).unwrap_or(usize::MAX) }
+/// The other machines in that order.
+pub fn others(s: &State) -> Vec<&Remote> { let mut v: Vec<&Remote> = s.remotes.values().collect(); v.sort_by_key(|m| place(s, &m.machine.label)); v }
+/// The machines in view: all the others with every machine shown, else the one shown.
+pub fn in_view(s: &State) -> Vec<&Remote> { if s.scope == "*" { others(s) } else { s.remotes.get(&s.scope).into_iter().collect() } }
 /// Whose board, in turn: this machine, every machine, then each other machine by itself.
 pub fn scope_next(s: &State) -> String {
-    let ring: Vec<String> = std::iter::once(String::new()).chain(std::iter::once("*".to_string())).chain(s.remotes.keys().cloned()).collect();
+    let ring: Vec<String> = std::iter::once(String::new()).chain(std::iter::once("*".to_string())).chain(others(s).into_iter().map(|m| m.machine.label.clone())).collect();
     let at = ring.iter().position(|x| *x == s.scope).unwrap_or(0);
     ring[(at + 1) % ring.len()].clone()
 }

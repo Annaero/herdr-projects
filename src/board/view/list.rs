@@ -23,7 +23,7 @@ pub fn hl(t: &Theme, line: &Inked, width: usize) -> Inked {
 /// The header says where you are: whose tasks show (other machines in the accent colour), else the repo new tasks go
 /// to; then how many tasks stand in each group. A filter has a line of its own under it.
 pub fn head_lines(s: &State, w: usize) -> Vec<Inked> {
-    let others: Vec<String> = s.remotes.values().map(|m| if m.ok { m.machine.label.clone() } else { format!("{} (no answer)", m.machine.label) }).collect();
+    let others: Vec<String> = crate::board::update::remotes::others(s).into_iter().map(|m| if m.ok { m.machine.label.clone() } else { format!("{} (no answer)", m.machine.label) }).collect();
     let scope = if s.scope == "*" { format!("all machines: {}", if others.is_empty() { "no others found".into() } else { others.join(", ") }) } else if s.all() { format!("only {}{}", s.scope, if s.remotes.get(&s.scope).map(|m| m.ok).unwrap_or(false) { "" } else { " (no answer)" }) } else { String::new() };
     let n = counts(s);
     let c = |k: &str| n.get(k).copied().unwrap_or(0);
@@ -56,7 +56,7 @@ pub fn head_lines(s: &State, w: usize) -> Vec<Inked> {
 /// The machines in view whose tasks could not be read (or have not come yet), each with why: what the list says
 /// where their tasks would be. On that machine's own board the whole of it follows.
 pub fn unread_lines(s: &State, width: usize) -> Vec<Inked> {
-    let all: Vec<&crate::board::data::Remote> = if s.scope == "*" { s.remotes.values().collect() } else { s.remotes.get(&s.scope).into_iter().collect() };
+    let all = crate::board::update::remotes::in_view(s);
     let whole = s.scope != "*";
     let mut out = vec![];
     for m in all.into_iter().filter(|m| !m.ok) {

@@ -25,13 +25,14 @@ pub fn label(s: &State, host: &str) -> String {
 pub fn folded(s: &State, id: &str) -> bool { filter_now(s).is_empty() && s.folded.contains(id) }
 /// One machine's part of the list: its groups, and whether it has a heading of its own (only with every machine shown).
 pub struct Part { pub host: String, pub heading: bool, pub groups: Vec<(String, Vec<Rec>)> }
-/// The groups, machine by machine: this machine first, then the others in the order their tasks came. On one
-/// machine's board, one part with no heading.
+/// The groups, machine by machine in the order of herdr's sidebar (remotes.rs: place), this machine where it stands
+/// there. On one machine's board, one part with no heading.
 pub fn parts(s: &State, groups: &[(String, Vec<Rec>)]) -> Vec<Part> {
     if s.scope != "*" { return vec![Part { host: s.scope.clone(), heading: false, groups: groups.to_vec() }]; }
     let mut hosts: Vec<String> = vec![String::new()];
     for r in &s.items { let h = host_of(r); if !hosts.contains(&h) { hosts.push(h); } }
     for (_, recs) in groups { for r in recs { let h = host_of(r); if !hosts.contains(&h) { hosts.push(h); } } }
+    hosts.sort_by_key(|h| super::remotes::place(s, h));
     hosts.into_iter().map(|h| Part { groups: groups.iter().map(|(n, recs)| (n.clone(), recs.iter().filter(|r| host_of(r) == h).cloned().collect())).collect(), host: h, heading: true }).collect()
 }
 /// The selected heading, when the selection is on one.

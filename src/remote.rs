@@ -5,9 +5,12 @@
 //!
 //! Machines come from `herdr machine list --json` (the ones the client added with `herdr machine add`): each has an
 //! `id`, a `label`, a `target` (`user@host` or `ssh://user@host:port`), a `session` and `enabled`. The
-//! `board.machines` setting names them by hand instead.
+//! `board.machines` setting names them by hand instead. The order the board lists them in is herdr's sidebar's
+//! (remote/sidebar.rs).
 pub mod automations;
 pub mod check;
+pub mod own_names;
+pub mod sidebar;
 pub mod why;
 
 use crate::actions::{archive, filing, finish_line, start, talk};
@@ -22,6 +25,8 @@ pub struct Machine { pub id: String, pub target: String, pub session: String, pu
 fn b64(v: &Value) -> String { crate::util::base64(serde_json::to_string(v).unwrap_or_default().as_bytes()) }
 fn clean(s: &str, extra: &str) -> String { s.chars().filter(|c| c.is_ascii_alphanumeric() || extra.contains(*c)).collect() }
 
+/// The board's name for a machine herdr names `raw`: no user, no domain, nothing but letters, digits, `_.-`.
+pub fn short_label(raw: &str) -> String { raw.rsplit('@').next().unwrap_or("").split('.').next().unwrap_or("").chars().map(|c| if c.is_ascii_alphanumeric() || "_.-".contains(c) { c } else { '-' }).collect() }
 pub fn machines() -> Vec<Machine> {
     let want = setting("board.machines", None).as_str().unwrap_or("auto").to_string();
     let user = std::env::var("USER").unwrap_or_default();
@@ -32,8 +37,7 @@ pub fn machines() -> Vec<Machine> {
     // `id`: herdr's own id for the saved machine (the web UI names its PCs by it: webui/pcs.rs).
     crate::herdr::Herdr::new(None).machines().into_iter().filter(|m| m.is_object() && m.at("enabled") != &json!(false)).map(|m| {
         let pick = |ks: &[&str]| ks.iter().map(|k| m.t(k)).find(|s| !s.is_empty()).unwrap_or_default();
-        let label = pick(&["label", "name", "ssh_target", "target"]);
-        let label = label.rsplit('@').next().unwrap_or("").split('.').next().unwrap_or("").chars().map(|c| if c.is_ascii_alphanumeric() || "_.-".contains(c) { c } else { '-' }).collect();
+        let label = short_label(&pick(&["label", "name", "ssh_target", "target"]));
         Machine { id: m.t("id"), target: pick(&["ssh_target", "target", "ssh", "host"]), session: pick(&["remote_session", "session"]), label }
     }).filter(|m| !m.target.is_empty() && !m.label.is_empty()).collect()
 }
@@ -91,6 +95,7 @@ fn snapshot(t: &Obj) -> Value {
 }
 /// `said`, `usage` and `agentVersion` ride along on each task; `coordinator`: this machine's (coordinator/far.rs); `version` is this side's version (a machine on an older
 /// one sends none). Pending hook events are this machine's own and are not sent. `automations`: this machine's own.
+/// `sidebar`: this machine's herdr list of machines, in the order its sidebar shows them (remote/sidebar.rs).
 pub fn remote_list() -> Value {
     let keys = repo_keys();
     let tasks: Vec<Value> = board(true).into_iter().map(|mut t| {
@@ -103,7 +108,7 @@ pub fn remote_list() -> Value {
     // This machine's Coordinator, which gets what the asking side types while it shows this machine's board.
     let socket = crate::herdr::cli::current_socket();
     let coordinator = crate::coordinator::far::sent(&crate::coordinator::look::look(&socket), crate::coordinator::who::ready(&socket));
-    json!({ "host": check::hostname(), "version": VERSION, "automations": automations::automations_sent(), "coordinator": coordinator, "tasks": tasks })
+    json!({ "host": check::hostname(), "version": VERSION, "automations": automations::automations_sent(), "coordinator": coordinator, "sidebar": sidebar::sent(), "tasks": tasks })
 }
 pub fn remote_main(a: &[String]) -> i32 {
     let what = a.first().cloned().unwrap_or_default();

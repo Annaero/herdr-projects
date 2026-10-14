@@ -29,19 +29,20 @@ fn tags(s: &State, r: &Obj) -> Vec<String> {
     let n = tag.rsplit(['#', '-']).next().unwrap_or("").to_string();
     vec![tag, format!("#{n}"), n]
 }
-/// The automations of whoever's board shows, this machine's first. None in the archive.
+/// The automations of whoever's board shows, machine by machine in the order of herdr's sidebar. None in the archive.
 pub fn autos_shown(s: &State, f: &str) -> Vec<Obj> {
     if s.archive_view { return vec![]; }
     let mut all: Vec<Obj> = if s.scope.is_empty() || s.scope == "*" { s.data.autos.iter().map(|a| { let mut a = a.clone(); let row = format!("auto:{}", a.s("id")); a.put("row", row); a.put("host", ""); a }).collect() } else { vec![] };
-    let far: Vec<&crate::board::data::Remote> = if s.scope == "*" { s.remotes.values().collect() } else { s.remotes.get(&s.scope).into_iter().collect() };
-    for m in far { all.extend(m.autos.iter().cloned()); }
+    for m in super::remotes::in_view(s) { all.extend(m.autos.iter().cloned()); }
+    all.sort_by_key(|a| super::remotes::place(s, a.s("host")));
     if f.is_empty() { return all; }
     all.into_iter().filter(|a| { let r = a.at("rowNow"); format!("automation {} {} {} {} {}", r.s("name"), r.s("trigger"), r.s("repo"), r.s("state"), a.s("host")).to_lowercase().contains(f) }).collect()
 }
 /// What the list is made of, from the items: call after anything changed what shows (a load, a key, a filter).
 pub fn relist(s: &mut State) {
+    super::remotes::reorder(s);
     let mine = &s.data.items;
-    s.items = if s.scope.is_empty() { mine.clone() } else if s.scope == "*" { mine.iter().cloned().chain(s.remotes.values().flat_map(|m| m.items.iter().cloned())).collect() } else { s.remotes.get(&s.scope).map(|m| m.items.clone()).unwrap_or_default() };
+    s.items = if s.scope.is_empty() { mine.clone() } else if s.scope == "*" { mine.iter().cloned().chain(super::remotes::others(s).into_iter().flat_map(|m| m.items.iter().cloned())).collect() } else { s.remotes.get(&s.scope).map(|m| m.items.clone()).unwrap_or_default() };
     s.jobs = if s.archive_view { vec![] } else { s.data.jobs.clone() };
     let f = filter_now(s);
     // The task the selection is held on keeps its row whatever it has become meanwhile.

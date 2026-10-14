@@ -8,7 +8,8 @@ headings](list-headings.md)). A machine's [automations](automations.md) come wit
 group: with every machine shown each row names its machine (`on otherbox`), and they are turned on and off, fired
 and removed, and their settings changed, on the machine that has them.
 Machines are found through herdr only: the ones you added with `herdr machine add` (or name them in `board.machines`);
-with none, `Alt+M` says so. There is no Tailscale discovery. The plugin's own commands on another machine still
+with none, `Alt+M` says so. They are listed in the order of herdr's machines sidebar ([machine order](machine-order.md)).
+There is no Tailscale discovery. The plugin's own commands on another machine still
 travel over the plugin's own SSH connection, because herdr has no command that runs a plugin's commands there.
 Each one needs, once:
 

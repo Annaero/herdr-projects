@@ -38,8 +38,8 @@ fn far(label: &str, m: &Remote, pcs: &[Pc]) -> (Value, Option<[usize; 5]>) {
     let detail: Vec<String> = std::iter::once(why.t("line")).chain(why.arr("detail").iter().map(|d| d.as_str().unwrap_or("").to_string())).filter(|d| !d.is_empty()).collect();
     (json!({ "scope": label, "name": name, "dot": "", "line": "not reachable", "off": true, "title": format!("{name} is not reachable: {}", detail.join("\n")) }), None)
 }
-/// Every entry, this machine first, then the others in the web UI's own order of its PCs (one it has no PC for after
-/// them), then all machines together.
+/// Every entry, this machine first, then the others in the web UI's own order of its PCs (the ones it has no PC for
+/// after them, in the order of herdr's sidebar), then all machines together.
 pub fn boards(c: &mut Client) -> Value {
     let now = crate::clock::now();
     if now - c.boards_at >= ASK { c.boards_at = now; poll(c, false); }
@@ -50,7 +50,7 @@ pub fn boards(c: &mut Client) -> Value {
     let mut out = vec![entry("", &here, &mine, format!("{here}'s board: {}", line(&mine)))];
     let place = |m: &Remote| pc_of(&m.machine, &pcs).and_then(|p| pcs.iter().position(|x| x.id == p.id)).unwrap_or(usize::MAX);
     let mut others: Vec<(&String, &Remote)> = c.s.remotes.iter().collect();
-    others.sort_by_key(|(label, m)| (place(m), label.to_lowercase()));
+    others.sort_by_key(|(label, m)| (place(m), crate::board::update::remotes::place(&c.s, label)));
     let (mut all, mut away) = (mine, 0);
     for (label, m) in &others {
         let (e, n) = far(label, m, &pcs);

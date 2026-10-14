@@ -13,9 +13,10 @@ use crate::store::{automations::automations, inbox::{clear_dispatch, dispatches}
 use std::collections::BTreeMap;
 
 /// Another machine, as the board knows it: its tasks as rows, its automations, its Coordinator as it sent it
-/// (coordinator/far.rs), and why it did not answer.
+/// (coordinator/far.rs), and why it did not answer; `sidebar`: its herdr list of machines as it last sent it
+/// (remote/sidebar.rs), None from one that sends none.
 #[derive(Clone, Debug, Default)]
-pub struct Remote { pub machine: crate::remote::Machine, pub items: Vec<crate::board::state::Rec>, pub autos: Vec<Obj>, pub ok: bool, pub busy: bool, pub fail_at: i64, pub why: Option<Value>, pub version: String, pub coord: Value }
+pub struct Remote { pub machine: crate::remote::Machine, pub items: Vec<crate::board::state::Rec>, pub autos: Vec<Obj>, pub ok: bool, pub busy: bool, pub fail_at: i64, pub why: Option<Value>, pub version: String, pub coord: Value, pub sidebar: Option<Vec<crate::remote::sidebar::Entry>> }
 
 #[derive(Clone, Debug, Default)]
 pub struct Data {

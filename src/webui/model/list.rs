@@ -38,7 +38,7 @@ pub fn auto_row_of(s: &State, t: &Theme, a: &Obj, now: i64) -> Value {
 }
 /// The machines in view whose tasks could not be read, each with why and what to do: said where their tasks would be.
 pub fn unread(s: &State) -> Vec<Value> {
-    let all: Vec<&crate::board::data::Remote> = if s.scope == "*" { s.remotes.values().collect() } else { s.remotes.get(&s.scope).into_iter().collect() };
+    let all = crate::board::update::remotes::in_view(s);
     all.into_iter().filter(|m| !m.ok).map(|m| match &m.why {
         Some(w) => {
             let mut d: Vec<String> = vec![];
@@ -84,7 +84,7 @@ pub fn list_of(s: &State, t: &Theme) -> Value {
             // The repo new tasks go to, by its name: no folder path, and nothing for the home folder.
             "where": if s.archive_view || s.data.repo_root == home { String::new() } else { s.data.repo.clone() },
             "session": if s.data.session == "default" { String::new() } else { s.data.session.clone() },
-            "machines": if s.scope == "*" { let l: Vec<String> = s.remotes.values().map(|m| if m.ok { m.machine.label.clone() } else { format!("{} (no answer)", m.machine.label) }).collect(); if l.is_empty() { "no others found".to_string() } else { l.join(", ") } } else { String::new() },
+            "machines": if s.scope == "*" { let l: Vec<String> = crate::board::update::remotes::others(s).into_iter().map(|m| if m.ok { m.machine.label.clone() } else { format!("{} (no answer)", m.machine.label) }).collect(); if l.is_empty() { "no others found".to_string() } else { l.join(", ") } } else { String::new() },
             "only": if s.all() && s.scope != "*" { s.scope.clone() } else { String::new() }, "filter": s.filter, "host": crate::remote::check::hostname(), "version": crate::store::files::VERSION,
         },
         "groups": groups, "selected": s.sel,
