@@ -1,6 +1,6 @@
 //! The fallback agents (worker.fallback, reviewer.fallback): the next agent on the list takes the task over in the same
 //! worktree and pane when the one on it cannot go on, and is told what was done; the list gone through in order.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

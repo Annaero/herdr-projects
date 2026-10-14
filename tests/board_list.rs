@@ -1,7 +1,7 @@
 //! The task list: one header line, the five groups, a mark for each state in its group's colour, the task panel from 90
 //! columns, the side panel that alt+p shows or hides, the whole task; the done list newest first; work whose review
 //! failed under needs you with "merge anyway"; what the list hides and what an action did; the wheel and the mouse.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

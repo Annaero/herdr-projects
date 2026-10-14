@@ -1,7 +1,7 @@
 //! Other machines on the web board: their tasks show with the machine's name, an action goes to the machine that owns
 //! the task, and another machine's agent opens in the web UI's view of that machine's pane, or what is missing is said.
-mod common;
-mod far;
+use crate::common;
+use crate::far;
 use common::*;
 use far::Far;
 use serde_json::{json, Value};

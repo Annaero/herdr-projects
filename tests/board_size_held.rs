@@ -2,7 +2,7 @@
 //! the key that ends that view (never a process to kill), and stops when the size is its own again. A view somebody
 //! looks through (seen live on herdr-web-ui 0.4.8: disconnected and reattached every four seconds) keeps the terminal:
 //! the board is drawn for it, drops the enter its input line adds, and never turns its terminal into an agent.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use serde_json::json;

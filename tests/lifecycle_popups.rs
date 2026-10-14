@@ -1,6 +1,6 @@
 //! No notifications: a task that needs you raises nothing, the pop-up block an older version wrote into herdr's config
 //! is taken out, and the sidebar rows an older version wrote are brought up to this version's.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::cell::Cell;

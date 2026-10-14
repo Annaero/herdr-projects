@@ -1,8 +1,8 @@
 //! Other machines that do not answer: the rest of the reasons and what to do, the answer read whatever a shell prints
 //! around it, asking over an SSH stand-in, and `herdr-superwork machines` (this machine as a login shell finds it, then
 //! each machine). The boards' side of it: remote_board.rs.
-mod common;
-mod far;
+use crate::common;
+use crate::far;
 use common::*;
 use far::{theirs, Far};
 use serde_json::json;

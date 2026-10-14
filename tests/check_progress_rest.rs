@@ -1,7 +1,7 @@
 //! The rest of the old check-progress tests: the check's mark in its own colour, the rows of a section giving up their
 //! bars and percents together beside a check, a check waiting its turn in the list, the chat line cutting the words and
 //! never the numbers (and with no room, the numbers too), a known answer with no numbers, and the usual run's time.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::{json, Value};

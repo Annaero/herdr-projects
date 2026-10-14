@@ -1,6 +1,6 @@
 //! An automation's trigger: a schedule read from plain words or cron (what it says, when it is next due, what is
 //! refused), a board event by its name, the events read off a task as it stands, and the rules that name the commands.
-mod common;
+use crate::common;
 use chrono::TimeZone;
 use common::*;
 use serde_json::json;

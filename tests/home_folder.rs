@@ -1,9 +1,8 @@
 //! The one home folder: where things are kept by default, and the one-time move of an older version's folders into it
 //! (old layout in, new layout out; twice; cut off; with new data there already; the Coordinator's conversation found
 //! again). The rest of the move (lock files, what is not the board's, real programs): home_folder_more.rs.
-mod common;
-#[path = "move_home/mod.rs"]
-mod util;
+use crate::common;
+use crate::move_home as util;
 use common::{world_with, Opts};
 use serde_json::json;
 use std::path::{Path, PathBuf};

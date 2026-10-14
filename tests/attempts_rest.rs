@@ -1,7 +1,7 @@
 //! What tests/attempts.rs left of the old suite: the check as a filter keeps the others' worktrees and branches (also
 //! one whose only unsaved file is ignored), only the chosen attempt is reviewed, each attempt's tab in the task's one
 //! space, and a check changed while the task waits for your pick is run again on the chosen one.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

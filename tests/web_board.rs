@@ -1,7 +1,7 @@
 //! The web Board as data: the same list, groups, marks and words as the terminal board, one task whole as parts, the
 //! buttons that press the board's own keys, typed words sent as enter sends them, one board per browser, and what a
 //! watching device may not do. Also what the page needs to know of every colour name, mark and setting.
-mod common;
+use crate::common;
 use common::board::{open, web, web_as};
 use common::*;
 use serde_json::json;

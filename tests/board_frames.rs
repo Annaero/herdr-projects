@@ -2,7 +2,7 @@
 //! the task beside it, the whole task, the ? menu and a draft: compared with the frames kept in tests/frames/ (written
 //! there when missing, or again with UPDATE_FRAMES=1). With colour, each cell's colour is kept too, as a letter per
 //! colour with a legend. Every frame holds to the rules that need no picture: no line over the width, the hint line last.
-mod common;
+use crate::common;
 use common::fixtures::fixture_rows;
 use common::*;
 use ratatui::buffer::Buffer;
@@ -13,7 +13,6 @@ use sw::board::keys::Press;
 use sw::board::state::{Ctx, State};
 use sw::board::theme::Theme;
 use sw::board::update::{list::relist, update, Event};
-use sw::json::*;
 
 const SIZES: [(u16, u16); 10] = [(10, 8), (20, 10), (30, 12), (40, 16), (60, 20), (80, 24), (100, 30), (120, 40), (160, 50), (200, 60)];
 const NOW: i64 = 1_790_000_000_000;

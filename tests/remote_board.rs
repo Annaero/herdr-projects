@@ -1,8 +1,8 @@
 //! A machine that did not answer, on both boards: never shown as an empty one. Its line with why where its tasks would
 //! be, its own board with the reason whole (read with the arrows on a small screen), nothing of it as a message, and
 //! an action on a task of a machine that stopped answering says why. The web board says the same.
-mod common;
-mod far;
+use crate::common;
+use crate::far;
 use common::board::{open, web_as};
 use common::*;
 use far::{theirs, Far};

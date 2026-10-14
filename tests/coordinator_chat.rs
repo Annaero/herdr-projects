@@ -1,7 +1,7 @@
 //! One chat for everyone: space on a task talks to its agent, otherwise to the Coordinator; alt+c only shows or hides
 //! the latest message; a draft left from the Coordinator's own pane is sent from the repo it was typed in; and the herdr
 //! action that goes into the Coordinator's pane from anywhere, starting it first.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use serde_json::{json, Value};

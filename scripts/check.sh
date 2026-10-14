@@ -22,6 +22,10 @@ if ! command -v cargo >/dev/null 2>&1; then
   for d in "$HOME/.cargo/bin"; do [ -x "$d/cargo" ] && PATH="$d:$PATH"; done
 fi
 command -v cargo >/dev/null 2>&1 || { echo "The check needs Rust (cargo): https://rustup.rs" >&2; exit 2; }
+# Compiles through the build cache every worktree shares, when the workspace setup installed it, on this task's share
+# of the cores (docs/testing.md).
+. scripts/build-cache.sh
+. scripts/share-cores.sh
 # The code as it stands, new files and uncommitted changes too, and the compiler that builds it.
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-superwork-check"
 stamp=""
@@ -44,17 +48,25 @@ say "1/3 steps"
 ./target/quick/herdr-superwork docs --guard
 say "2/3 steps"
 # A name that is an area (a test file `tests/<name>.rs`, or several `tests/<name>_*.rs`; `-` stands for `_`) runs
-# those files; any other name runs the tests whose own names hold it.
-files=""; words=""
+# those files, which are modules of the one test program (tests/main.rs); any other name runs the tests whose own
+# names hold it.
+mods=""; words=""
 for n in $names; do
   f=$(printf '%s' "$n" | tr - _); found=""
-  for t in tests/"$f".rs tests/"$f"_*.rs; do [ -f "$t" ] && { found=1; files="$files --test $(basename "$t" .rs)"; }; done
+  for t in tests/"$f".rs tests/"$f"_*.rs; do
+    [ -f "$t" ] && [ "$t" != tests/main.rs ] && { found=1; mods="$mods|$(basename "$t" .rs)"; }
+  done
   [ -n "$found" ] || words="$words $n"
 done
+if [ -n "$mods" ]; then
+  # Exactly the tests of those modules: `settings::` as a filter would also run `web_settings::`.
+  all=$(cargo test --profile quick --quiet --test main -- --list)
+  picked=$(printf '%s\n' "$all" | sed -n 's/: test$//p' | grep -E "^(${mods#|})::" || true)
+  # shellcheck disable=SC2086
+  [ -z "$picked" ] || cargo test --profile quick --quiet --no-fail-fast --test main -- --exact $picked
+fi
 # shellcheck disable=SC2086
-if [ -n "$files" ]; then cargo test --profile quick --quiet --no-fail-fast $files; fi
-# shellcheck disable=SC2086
-if [ -z "$files" ] || [ -n "$words" ]; then cargo test --profile quick --quiet --no-fail-fast -- $words; fi
+if [ -z "$mods" ] || [ -n "$words" ]; then cargo test --profile quick --quiet --no-fail-fast -- $words; fi
 say "3/3 steps"
 if [ -n "$stamp" ]; then mkdir -p "$cache" && echo "passed in $(( $(date +%s) - started ))s" > "$cache/$stamp"; fi
 echo "The check passed in $(( $(date +%s) - started ))s."

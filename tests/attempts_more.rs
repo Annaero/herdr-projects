@@ -1,7 +1,7 @@
 //! More of several attempts at one task: an attempt another agent took over is chosen whole, each attempt's mark, a
 //! count above the free slots waits its turn while a reply and a stop reach every attempt, and research-only attempts
 //! whose chosen report is the task's.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

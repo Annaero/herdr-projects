@@ -1,6 +1,6 @@
 //! Where an agent writes for the board: the task's own folder in the board's data folder, never the folder it works
 //! in; the old place is still read for agents started with the old rule; a cleaned-up task leaves no note behind.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::path::Path;

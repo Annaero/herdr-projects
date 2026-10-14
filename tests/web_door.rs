@@ -2,7 +2,7 @@
 //! upload, a socket), the web UI's page gets one script line, the board's own calls are as protected as the web UI's
 //! (its login, the board's header and the same origin to change anything, a watching device only looks), a fault of
 //! ours never breaks the web UI, and the Phone setup still knows its link.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::io::{Read, Write};

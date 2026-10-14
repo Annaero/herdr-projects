@@ -1,7 +1,7 @@
 //! What the old box-colour tests checked that tests/board_colours.rs does not: a task's mark in the list is its status
 //! colour too (a finished one's made quieter) and its group's; the colour follows the status while words are typed; an
 //! agent whose pane is gone takes no message; and the grey words inside the box name who gets the message.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::board::state::State;

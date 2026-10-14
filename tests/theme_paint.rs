@@ -1,6 +1,6 @@
 //! The board paints with what it read from herdr's config: true colour, the terminal's 16 colours, herdr's marks, its
 //! text colour under everything left uncoloured, and nothing painted with NO_COLOR.
-mod common;
+use crate::common;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier};

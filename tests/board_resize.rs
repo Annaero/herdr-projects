@@ -1,7 +1,7 @@
 //! A window resized through many sizes: the screen is drawn to its last row, the hints last with the one rounded box
 //! right above them (the Coordinator's message, an empty line, the line you type on), and a working row's columns at
 //! the window's right edge however wide it is; under 80 columns they are on the row's third line.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

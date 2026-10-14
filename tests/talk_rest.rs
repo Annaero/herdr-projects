@@ -2,7 +2,7 @@
 //! reviewer says and its text box says a message stops the review; another machine's task shows what its machine sent,
 //! or says that machine is too old to send it; the reviewer's screen is read fresh; a dialog is said in words; and a
 //! working agent's chat is its words (markdown read as text), never its tool calls, or its screen where it cannot be read.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};

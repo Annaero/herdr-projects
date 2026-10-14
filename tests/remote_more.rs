@@ -1,7 +1,7 @@
 //! Other machines' work settings: what the asking machine says travels with the task it starts there, its panel reads
 //! the task's settings with their places, a row is changed where the task lives, and carried settings outlast the
 //! agent's start (a task that waited for a slot starts on the agent its setting names then).
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::json::*;

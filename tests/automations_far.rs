@@ -1,8 +1,8 @@
 //! Other machines' automations: the machine that has one answers for it (its list sends them with their firings and own
 //! settings; it turns one off, fires it, removes it and sets its settings when asked), and the board shows them in its
 //! list with the machine named, each key sent to that machine.
-mod common;
-mod far;
+use crate::common;
+use crate::far;
 use common::board::{open, Board};
 use common::*;
 use far::Far;

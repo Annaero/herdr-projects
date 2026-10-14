@@ -1,6 +1,6 @@
 //! [real programs] The command line, as a person or an agent runs it: add, list, report, set, unset, show, --json,
 //! and a flag a command does not know refused with the nearest right one named, and nothing done.
-mod common;
+use crate::common;
 use common::*;
 use sw::json::*;
 

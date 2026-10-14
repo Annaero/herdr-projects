@@ -1,7 +1,7 @@
 //! The board key's two ways to open the board (`board.open`): a tab unless you choose herdr's popup. The popup it
 //! opens, closes when run again and moves to the tab that shows; a board in a tab running beside it, each with its own
 //! note, selection and words; herdr refusing the popup, and the board in a tab saying why.
-mod common;
+use crate::common;
 use common::board::{open_with, Board};
 use common::herdr::FakeHerdr;
 use common::*;

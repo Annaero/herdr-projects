@@ -1,6 +1,6 @@
 //! Clean-up never takes work that arrives while it runs: a reply waits, a late commit keeps its worktree and branch,
 //! and a turn typed in the agent's own terminal during clean-up keeps its terminal open.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::cell::{Cell, RefCell};

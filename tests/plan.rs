@@ -1,7 +1,7 @@
 //! A plan before the build (plan.approve, plan.agent): the plan written in a read-only worktree, "plan ready" until
 //! your yes or the reviewer's, sent back with your words, and the build from it afterwards; on the board, the web
 //! board and herdr's sidebar.
-mod common;
+use crate::common;
 use common::board::{open, web};
 use common::*;
 use serde_json::json;

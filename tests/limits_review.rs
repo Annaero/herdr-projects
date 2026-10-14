@@ -1,6 +1,6 @@
 //! limit.tokens and what the board does by itself: a review's tokens are the task's too, and at the limit findings
 //! do not go back and ready work does not merge, until the limit is higher; reviewed work with nothing to land stops too.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::Path;

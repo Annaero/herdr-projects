@@ -1,7 +1,7 @@
 //! Pull requests through a fake gh: pushed as a draft, merged through gh on approval, remembered while GitHub's checks
 //! run, watched; failed checks wake the agent; merged elsewhere without a newer local commit; comments of the human
 //! only wake the agent.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::path::Path;

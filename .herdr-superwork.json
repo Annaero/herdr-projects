@@ -1,1 +1,1 @@
-{ "workspace": { "setup": "cargo build --profile quick && ./target/quick/herdr-superwork docs" }, "check": { "command": "npm run check -- --all" } }
+{ "workspace": { "setup": "sh scripts/setup.sh" }, "check": { "command": "npm run check -- --all" } }

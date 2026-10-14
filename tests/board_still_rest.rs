@@ -2,7 +2,7 @@
 //! not the full-screen view, and the new one draws over the old frame without entering or clearing it (recorded on a
 //! real terminal: the board stood a line off, then the screen was empty, then the board was back). The new version that
 //! never comes up gives the terminal its plain screen and its cursor back.
-mod common;
+use crate::common;
 use common::*;
 use std::io::{Read, Write};
 use std::os::fd::{FromRawFd, OwnedFd};

@@ -1,6 +1,6 @@
 //! No bare "…" as a working task's status line: the list, the panel, the whole-task page and herdr's sidebar say the
 //! words ("Just started", the Watcher's sentence, the kept sentence with its age) through a run and the next.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use serde_json::json;

@@ -1,7 +1,7 @@
 //! Nothing is changed before a plan's yes: the worktree is read-only while the plan is written and while it waits (also
 //! for files git ignores); a change that gets in all the same is put back and kept as a patch; in your own checkout a
 //! change the board may not undo holds the build until it is undone.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

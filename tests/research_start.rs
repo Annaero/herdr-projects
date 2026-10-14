@@ -1,7 +1,7 @@
 //! Research only is decided when the agent starts: a change while the task waits for a slot, or while the repo's
 //! setup still runs, counts for the agent that starts after it, and the repo's file is the one of the commit its
 //! worktree starts from.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::json::*;

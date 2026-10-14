@@ -1,6 +1,6 @@
 //! The whole screen: the chat block (who you talk to, the text box, what just happened, the hints) ends on the window's
 //! last line and the list has every line above it, at any height, through a resize, while the block grows or shrinks.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 

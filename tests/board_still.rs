@@ -3,7 +3,7 @@
 //! about another size, or says only once, is not drawn for; and a second herdr window on the session has its terminal
 //! taken twice, after which the board says what frees the size. The board is opened as the program opens it: a size
 //! has to last a second before it is laid out for.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use sw::board::keys::key_name;

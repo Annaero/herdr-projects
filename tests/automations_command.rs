@@ -1,6 +1,6 @@
 //! The automations' commands: add, list, show, change, set and unset with --automation, on, off, run, firings, remove;
 //! all with --json; and what each refuses, with nothing made.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

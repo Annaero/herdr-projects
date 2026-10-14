@@ -1,7 +1,7 @@
 //! The store: tasks added per repo, numbered and changed under a lock; locks busy for the next holder; a worktree's
 //! tasks in its primary repo; the built-in settings; the inbox; login failures; minutes left; the one mapping from
 //! stage and herdr status to the board's state; the command line's words; and every review a task had.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::json::*;

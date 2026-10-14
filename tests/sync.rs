@@ -1,7 +1,7 @@
 //! Main merged into a task's branch by the board itself, before the check and the review and whenever main moves while
 //! it waits: the agent hears of it only on a real conflict; a review is repeated only where the update touched the
 //! task's own files; a worktree off its own branch is never checked or put up for approval.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::path::Path;

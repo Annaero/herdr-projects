@@ -1,7 +1,7 @@
 //! The board's check as it runs and shows: everywhere a task's progress shows (the row, the panel, the chat line,
 //! OSC) in a colour of its own, what its command writes kept on the task as it changes, how long a full run took
 //! remembered, and an answer known at once said and not timed.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::{json, Value};

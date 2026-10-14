@@ -1,7 +1,7 @@
 //! The web UI's PCs and the board's machines: which is which (by herdr's id, or by where they connect), what the web UI
 //! answers read down to what the board needs, and the web board going with the web UI to the PC it is on and back.
-mod common;
-mod far;
+use crate::common;
+use crate::far;
 use common::*;
 use far::Far;
 use serde_json::{json, Value};

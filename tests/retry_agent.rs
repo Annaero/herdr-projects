@@ -1,7 +1,7 @@
 //! The working agent's turn cut off by the model's provider: told to carry on by itself after a wait (said on the row,
 //! the task panel and herdr's sidebar), started again when its program exited, given up on after the last try with
 //! the real error, and an error that does not pass held for you at once.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::housekeeping::{housekeeping, Force};

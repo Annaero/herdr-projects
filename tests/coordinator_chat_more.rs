@@ -1,7 +1,7 @@
 //! More of the Coordinator's chat: esc never shows, hides or closes it (only alt+c does), a task with no agent is talked
 //! about to the Coordinator, enter goes into a task's agent, the chat's head line at every width, a narrow or short
 //! window; and a message sent with tab, whose tasks the board itself delegates when they come from that turn.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

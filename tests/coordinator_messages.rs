@@ -1,7 +1,7 @@
 //! What you say to the Coordinator is never lost: a dialog on its screen holds it, a failed start says why, each
 //! message keeps its own repo and tab choice, none it has not dealt with is dropped, and it can be turned on and off
 //! while the board is open.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::{json, Value};

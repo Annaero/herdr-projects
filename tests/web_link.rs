@@ -1,14 +1,13 @@
 //! The one setup step of the board in the herdr web UI: its private link pointed at the front door after a yes,
 //! followed when the door or the web UI moves, pointed back (Tailscale is a stand-in program here); the web UI found
 //! from its own settings and from herdr's plugins, the `web-ui` command, remove-extras; and the page server's front door.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::rc::Rc;
-use sw::herdr::cli::Fake;
 use sw::extras::{extras, note};
 use sw::json::*;
 use sw::webui::{command as cmd, find::{address_from, web_ui}, link};

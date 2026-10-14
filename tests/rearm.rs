@@ -1,7 +1,7 @@
 //! Typing in the agent's own terminal re-arms the pipeline (approval revoked, review stale, checked again), and the
 //! readings that must not: a late `working` of the turn already handled, one from the terminal herdr had before it
 //! restarted, one an older version saved, and a task an older version left stuck re-armed. A closing note is handled once.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::Path;

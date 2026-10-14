@@ -1,6 +1,6 @@
 //! The hidden helper: the Watcher's line and guess, what it is told (the task, the time spent, its previous guess),
 //! the minutes left worked out from them, and herdr's sidebar told the same.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::cell::RefCell;

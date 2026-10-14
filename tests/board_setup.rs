@@ -1,7 +1,7 @@
 //! The first run: one screen with both choices (the board's key, herdr's sidebar), answered with single keys; a key
 //! herdr or your config uses refused as it is typed; esc asks again next time. And a board that loads its new version
 //! by itself once nothing is half typed.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use sw::board::state::Setup;

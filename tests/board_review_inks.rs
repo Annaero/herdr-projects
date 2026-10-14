@@ -1,8 +1,8 @@
 //! Reviews in colour: a verdict in red or green; the PR in the colour of its checks and nothing else; merged, the
 //! reviews and the PR go quiet unless the last review failed; a finished row's right-hand side is quiet; the reviewer's
 //! own blue wherever the reviewer works; and what a row says is in the brighter grey, a question to you in the text colour.
-mod common;
-mod review_kit;
+use crate::common;
+use crate::review_kit;
 use common::*;
 use review_kit::*;
 use serde_json::json;

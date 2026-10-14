@@ -1,7 +1,7 @@
 //! The automations' group in the board's list, beyond tests/automations.rs: its own colour (off is the same mark, never
 //! colour alone), its rows at very narrow widths, the ? menu on its row, what is typed there, the group with no task at
 //! all; and more automations than fit, said by their name, the selected one always in view.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use sw::automations::list::{self as l, Add};

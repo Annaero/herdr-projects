@@ -1,7 +1,7 @@
 //! What the old board-layout test checked that tests/board_layout.rs does not: a longer message from the Coordinator
 //! grows the chat block upwards into the list, its lines in the one rounded box, and the block stays on the window's
 //! last line through a resize.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use serde_json::json;

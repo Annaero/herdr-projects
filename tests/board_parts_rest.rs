@@ -1,7 +1,7 @@
 //! What the old board-setup and board-tab tests checked that tests/board_setup.rs and tests/board_parts.rs do not: the
 //! first run offers the next free key when prefix+a is taken and says why, and saves only what it asked; and the popup
 //! (no pane of its own) or a board outside herdr has no tab to name.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use sw::board::run::place::board_pane;

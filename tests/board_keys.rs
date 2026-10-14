@@ -1,7 +1,7 @@
 //! The board's keys on a test world: typing adds a task, tab puts an agent on it, space replies to it, enter opens the
 //! agent; ctrl+x stops an agent and asks to remove only where none runs; and while the text box holds words it owns the
 //! keyboard, so no shortcut fires in the middle of a draft.
-mod common;
+use crate::common;
 use common::board::{open, open_with};
 use common::*;
 use serde_json::json;

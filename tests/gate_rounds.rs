@@ -1,6 +1,6 @@
 //! The gate on real rounds: minor findings merge at the default gate, `meets: false` goes back, a pre-existing fault
 //! is only a note, round two cannot grow the list, and review.rounds 0 is the manual mode.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::gate as g;

@@ -1,7 +1,7 @@
 //! A message an agent took in the middle of a long turn: delivered, even found only when it rests, and never retried
 //! as "not started" while its session lives; one only queued is not delivered; and an agent that exits with typed text
 //! not taken is not started with the text kept, whatever late report of its old turn comes in.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};

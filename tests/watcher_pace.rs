@@ -1,5 +1,5 @@
 //! The Watcher's pace: how often it looks, what it skips, one call at a time, and giving way on a busy machine.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::cell::RefCell;

@@ -1,7 +1,7 @@
 //! The task panel beside the list: a long description cut short with where the rest is, every setting the task runs
 //! with, what gives way first in a short window, the inks of headlines, labels and values; and the whole task full
 //! screen, scrolled, with the place each of the task's own settings came from.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use serde_json::json;

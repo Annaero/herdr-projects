@@ -1,7 +1,7 @@
 //! Words typed into an agent's box reach it: an enter a starting program swallowed is pressed again, never the words
 //! twice; a message typed into a running turn is not taken for sent because the agent works; and an agent that never
 //! takes its instructions says so ("Not started: its instructions sit unsent in its box") until retry hands them over.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

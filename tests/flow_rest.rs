@@ -1,7 +1,7 @@
 //! The finish line's herdr sidebar, what the first port of the flow left out: the exact words written for the task's
 //! pane, its space and its reviewer, and the keeper's pass that writes an entry once, again only when a word changed,
 //! takes it off for an archived task and writes it again when herdr lost it.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::flow::sidebar::{sync_sidebar, tell_sidebar};

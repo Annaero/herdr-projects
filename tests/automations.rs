@@ -1,6 +1,6 @@
 //! Automations: a group of the main list under the tasks (purple, ⟳, on or off where a task has its number), the keys
 //! that turn one on or off, fire it and remove it, and a schedule that makes a task and starts it by the keeper's tick.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

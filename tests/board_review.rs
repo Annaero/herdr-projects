@@ -1,8 +1,8 @@
 //! Reviews as the board shows them on a row: a row waiting for approval says the reviewer's advice in words under its
 //! name, with the R# tag and the PR in the colour of its checks on the right; failed checks, a failed merge and a task
 //! behind main need you; what the hint line offers for each; and the verdict stays whole on its own line when narrow.
-mod common;
-mod review_kit;
+use crate::common;
+use crate::review_kit;
 use common::*;
 use review_kit::*;
 use serde_json::json;

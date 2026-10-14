@@ -1,6 +1,6 @@
 //! The store, what the ported lock test left out: the real lock (flock) leaves its lock files in the board's data
 //! folder, one per name, and they stay there once let go.
-mod common;
+use crate::common;
 use common::*;
 
 #[test]

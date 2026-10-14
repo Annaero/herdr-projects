@@ -1,6 +1,6 @@
 //! The review gate (review.mustFix, review.rounds): what counts as critical, what a gate lets through, how the result
 //! reads, what a later round may still find, and a review that fails the gate going straight back up to its rounds.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::gate as g;

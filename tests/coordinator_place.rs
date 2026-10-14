@@ -1,6 +1,6 @@
 //! Where the Coordinator lives: a tab named Coordinator in the home space, found or started again, never a space of its
 //! own; the home space under another label still found; and moved over from the space of its own it had before.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::coordinator::{look::look, pump::{active, tick}, requests::{restart, send, stop, tab_turn}, state};

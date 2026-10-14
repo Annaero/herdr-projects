@@ -1,7 +1,7 @@
 //! What you do to a task from the board: approve and merge (asked first, and only about what is there now), the ?
 //! menu that acts, archive, restore, undo, pin, find, remove (asked first), an error that stays until esc; and yes on
 //! something that went wrong retries it as it stands, and herdr's focused-pane action asks before it merges.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

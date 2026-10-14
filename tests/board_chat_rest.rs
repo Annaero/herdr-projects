@@ -1,7 +1,7 @@
 //! What the old board-chat and board-reply tests checked that tests/board_chat.rs and tests/board_reply.rs do not:
 //! while your just-sent words stand in the chat's box the task panel has the agent's message, and a reply still in the
 //! text box when the board is closed from outside comes back with ctrl+z on its task.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

@@ -2,8 +2,8 @@
 //! the list, every one full screen (the newest first, with what it found by how bad it is), nothing dropped on a narrow
 //! full screen, a short side panel that keeps where the task stands and the latest review, and a review that still
 //! stood after main was merged in.
-mod common;
-mod review_kit;
+use crate::common;
+use crate::review_kit;
 use common::*;
 use review_kit::*;
 use serde_json::{json, Value};

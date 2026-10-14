@@ -1,7 +1,7 @@
 //! Words handed to an agent, more: what tells a program that has not drawn yet, a slow start typed into only once it
 //! has, a swallowed first enter pressed again, a later message's lost enter, two messages left in one box, and an
 //! agent herdr cannot classify, all held to the same: enter again, never the words again.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::json::*;

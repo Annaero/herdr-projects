@@ -1,7 +1,7 @@
 //! The reviewer's brief and the Coordinator's messages are held to what a task's agent is: an enter a starting program
 //! swallowed is pressed again, never the words again; words typed into a turn the Coordinator was in the middle of get
 //! their enter once it rests.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::coordinator::{pump::tick, requests::send, state};

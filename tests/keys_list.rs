@@ -5,7 +5,7 @@
 //! The old test moved keys to other chords at run time and saw them move everywhere. Here the list is fixed when the
 //! program is built (a `static`), so the same promise is checked the other way round: everything shown is made from the
 //! entries, and nothing outside src/board/keys.rs spells a chord of the board.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

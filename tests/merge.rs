@@ -1,6 +1,6 @@
 //! Merging an approved task into your checkout: unsaved files there stop it and nothing is forced; a commit that
 //! reaches the branch during the merge is neither merged unseen nor deleted as merged.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::path::Path;

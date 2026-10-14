@@ -1,6 +1,6 @@
 //! The Coordinator's standing rules: AGENTS.md in the folder it starts in (CLAUDE.md only passing on to it), on no launch
 //! flag, still there after a restart, a new Coordinator and a switch to another program; your own notes in the file kept.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::coordinator::{requests::{fresh, restart, send}, rules::{intro_line, rules, write_rules}, state, who::pick_of};

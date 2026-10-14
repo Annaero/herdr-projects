@@ -1,7 +1,7 @@
 //! A plan first, its two settings (plan.approve, plan.agent): built in none, looked up nearest first, never from a
 //! repo's own file, delegate, show, an automation, the Coordinator; and what the plan's writer, a planner, the builder
 //! and the reviewer are told.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

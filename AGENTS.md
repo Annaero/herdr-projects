@@ -3,12 +3,13 @@
 Several agents change this repo at once. Before you add or change anything, look at the map: it says which file
 holds what, so that two tasks do not edit the same file.
 
-- Build the program once: `cargo build --profile quick` (the workspace setup does it for you). It is then
-  `./target/quick/herdr-superwork`.
+- Build the program once: `cargo build --profile quick` (the workspace setup, `scripts/setup.sh`, does it for you,
+  through the build cache every worktree shares). It is then `./target/quick/herdr-superwork`.
 - `./target/quick/herdr-superwork docs --where` prints all of the map; `… docs --where src/board/view` only that
   folder.
 - It is also a page in your own folder, `docs/where-things-live.md`, written by the workspace setup and by
-  `npm run check`. It is not in git: never commit it. The tests are one file per area: `ls tests`.
+  `npm run check`. It is not in git: never commit it. The tests are one file per area (`ls tests`), all of them
+  modules of one test program, `tests/main.rs`.
 
 The program is Rust, one native program: `Cargo.toml` at the root, the library in `src/lib.rs`, the command in
 `src/main.rs`. There is no Node and nothing to `npm install`; `package.json` is only there so that every agent finds
@@ -55,6 +56,8 @@ the program with the `quick` profile, writes the made tables when they are out o
 out of date) and runs `cargo test`. It remembers what passed for this exact code (every file of the folder,
 committed or not, and the compiler), and shares that with the reviewer and the board: asked again, it answers at once.
 
+- **Run cargo through the check**: it builds through the one build cache every worktree shares and takes this task's
+  share of the cores, not all of them (`scripts/build-cache.sh`, `scripts/share-cores.sh`).
 - **While you work, run the tests of what you touched**: `npm run check board-panel` runs one area's test files
   (`tests/board_panel.rs` and `tests/board_panel_*.rs`), `npm run check gate sync` several. A name that is no area runs
   the tests whose own names hold it (`npm run check textbox`). With no name it runs them all.
@@ -66,6 +69,8 @@ committed or not, and the compiler), and shares that with the reviewer and the b
 - A failed test is the only thing to fix.
 - The check writes the made tables (`docs/keys.md`, `docs/settings.md`) when they are out of date and says so: commit
   them. `--fresh` runs again what already passed; you rarely need it.
+- A new test file is a module of the one test program: one `mod` line in `tests/main.rs`, in its place in the list
+  (the check fails a file left out), and `use crate::common;` in it, never `mod common;`.
 - New tests are the light kind: they call the code in the test's own process. `world()` in `tests/common/mod.rs`
   gives a test a board folder of its own, a git repo, a fake herdr that answers in the test's own thread and agents
   that play a script (`w.script(json!({"worker": [step, …]}))`); `settle(id)` runs what would have been the board's

@@ -1,8 +1,8 @@
 //! The web board, more of it: a draft goes to who it was typed for (a task, a machine's Coordinator) whatever shows
 //! meanwhile, a merge has no filled yes, the More menu holds only what applies, the page speaks web (no terminal key);
 //! and the marks, links and keys of the terminal's own the page never gets.
-mod common;
-mod far;
+use crate::common;
+use crate::far;
 use common::board::web;
 use common::*;
 use far::Far;

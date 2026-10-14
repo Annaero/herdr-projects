@@ -1,6 +1,6 @@
 //! The terminal board asks once whether the herdr web UI's link may go through its front door: a few seconds after it
 //! opens, with nothing of yours open; yes points the link, no is for good, later (esc) asks the next time it opens.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::board::update::{update, Effect, Event};

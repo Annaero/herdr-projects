@@ -1,7 +1,7 @@
 //! The merge.by setting: a green task merges by itself, the repo's own file can never switch that on, one whose review
 //! fails still asks, and turning it off while a task waits to merge by itself (also before its runner ran) waits for
 //! your yes again.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::actions::finish_line;

@@ -1,6 +1,6 @@
 //! The flow of a task, end to end on a real git repo with a fake herdr and scripted agents: delegated, worked on,
 //! checked, reviewed, approved and merged; what goes wrong on the way sent back to the agent or held for you.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::actions::{filing, finish_line, talk};

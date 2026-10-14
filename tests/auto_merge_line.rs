@@ -1,7 +1,7 @@
 //! Auto-merge under way: turned on while tasks wait (a green one merges at the reviewed commit, one you stepped into
 //! asks, an old hold of a review sent back is told from a real one), main moving under a task that may merge (a
 //! conflicting catch-up goes to the agent and is reviewed), and several such tasks going one at a time.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::Path;

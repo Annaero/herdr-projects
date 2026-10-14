@@ -1,12 +1,11 @@
 //! The chat's box: the latest message, an empty line, the line you type on. Whose message it holds (a task's agent, the
 //! Coordinator), your just-sent words in its place until the answer, and the answer taking that place even in the very
 //! same words; hidden, only who and the line you type on.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;
 use sw::board::keys::key_name;
-use sw::json::*;
 
 fn coord_world() -> World {
     let w = world_with(Opts { repo: true, settings: json!({ "coordinator.agent": "claude", "review.when": "never" }), ..Default::default() });

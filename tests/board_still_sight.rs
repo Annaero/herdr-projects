@@ -1,7 +1,7 @@
 //! The board stands still while work goes on: an agent, its reviewer and the Coordinator start and end out of sight.
 //! Nothing is opened in front of you, nothing moves herdr's window, and nothing is split off the board's own pane
 //! (checked on herdr 0.9.3: only a pane split off the board's pane, or a focus that moves the window, changes its size).
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

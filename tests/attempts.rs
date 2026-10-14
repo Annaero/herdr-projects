@@ -1,6 +1,6 @@
 //! A task done several times at once (attempts.by, attempts.pick): one row, a worktree and tab for each attempt, the
 //! check as a filter, the reviewer's comparison, your pick (`pick <id> <letter>`, the approve key), and what is kept.
-mod common;
+use crate::common;
 use common::board::{open, web};
 use common::*;
 use serde_json::json;

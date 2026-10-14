@@ -1,9 +1,8 @@
 //! The one-time move, continued: the lock file in the place in use is never replaced; what is not the board's to move
 //! stays (a folder you named, another copy's board, a worktree's copy); old places named by XDG are found; and, with
 //! real programs, a lock replaced under a waiter and the old command running at every moment of a real move.
-mod common;
-#[path = "move_home/mod.rs"]
-mod util;
+use crate::common;
+use crate::move_home as util;
 use common::{world_with, Opts};
 use std::path::{Path, PathBuf};
 use std::process::Command;

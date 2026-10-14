@@ -1,7 +1,7 @@
 //! The task panel has one form for every part, in every state and at every width: a headline on its rule, facts in one
 //! column, nothing boxed and nothing cut; what each state shows under Status; the reviews as a history; evidence
 //! wrapped whole; the place of a task's own setting wrapped with its value; another machine's settings; and the inks.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use serde_json::{json, Value};

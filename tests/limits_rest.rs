@@ -1,7 +1,7 @@
 //! limit.time, what the first port left out: the row says nothing until the run nears its limit, a stop is "needs you"
 //! in the row and herdr's sidebar, nothing is reviewed while stopped, a raised limit counts from the time the run had
 //! taken, and continue by the command, a reply and "take it as it is" by the command each carry on.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

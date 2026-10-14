@@ -1,8 +1,8 @@
 //! A task at work in a short side panel: the settings outlast every text (what the agent said, the review's summary,
 //! then the description give way first), the ones that say who works and who reviews stay longest with a line that
 //! counts the rest, and where the task stands and what it is doing now stay whole at every height, wrapped, never cut.
-mod common;
-mod review_kit;
+use crate::common;
+use crate::review_kit;
 use common::*;
 use review_kit::*;
 use serde_json::json;

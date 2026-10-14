@@ -1,7 +1,7 @@
 //! The Coordinator's conversation as its program saves it: Codex names its own and is restarted in it, the agent's own
 //! new-chat command (Claude Code's /clear, pi's /new) is followed, and a helper's side conversation, a headless run or
 //! another folder's chat is never taken for its.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};

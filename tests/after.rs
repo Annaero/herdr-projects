@@ -1,7 +1,7 @@
 //! A task that waits for others to be done (`--after`, docs/after.md): it waits, holding no slot, says so on its row,
 //! in its panel and in `details`, and starts by itself once they are done (merged, research with its report, or
 //! marked done), its agent told what came before it.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::PathBuf;

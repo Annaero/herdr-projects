@@ -1,6 +1,6 @@
 //! Work that passed its review and then only took main in is not reviewed again: the tests run on the merged result and
 //! the review stands. Anything beyond the merge is reviewed as ever.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::path::Path;

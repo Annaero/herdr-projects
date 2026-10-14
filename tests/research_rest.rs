@@ -1,7 +1,7 @@
 //! Research only, the rest of the old suite's checks: what every agent, a research-only task's agent, its reviewer and
 //! the Coordinator are told; a research-only task never merges; every kind of change is found (an empty commit or
 //! merge, and in your own checkout what is staged, a mode, a hidden file, a name with a blank), yours never counted.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::path::Path;

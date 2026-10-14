@@ -1,7 +1,7 @@
 //! What the old board-keys tests checked that tests/board_keys.rs does not: the popup says how to get back before it
 //! closes for an agent and takes no key meanwhile; which tasks have an agent alive for ctrl+x to stop; and the close
 //! hints in full (after esc, after ctrl+c, in the menu, the two seconds it stays), ctrl+y gone, a draft kept on close.
-mod common;
+use crate::common;
 use common::board::{open, open_with, Board};
 use common::*;
 use serde_json::json;

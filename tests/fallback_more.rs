@@ -1,7 +1,7 @@
 //! More of the fallback agents (worker.fallback, reviewer.fallback): the board's own tries come first, an agent that
 //! cannot be used here is passed over, a fallback that cannot start changes nothing, a check or review that still
 //! fails hands over, the list is read when the hand-over happens, and the reviewer's own list.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::rc::Rc;

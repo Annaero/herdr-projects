@@ -1,7 +1,7 @@
 //! Going into an agent never ends the board: in a pane of its own it runs on, keeps its selection on the task you went
 //! into whatever that task becomes, and opening the board from anywhere in herdr goes back to the one that runs, or
 //! opens one in a tab of its own. Only a board in herdr's popup closes for an agent.
-mod common;
+use crate::common;
 use common::board::{open, open_with, Board};
 use common::*;
 use serde_json::json;

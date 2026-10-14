@@ -1,7 +1,7 @@
 //! The Coordinator: one long-lived agent you talk to in the chat, started once in a tab of its own in the home space,
 //! your words going in exactly as typed (tab: and put an agent on what it adds), its reply in the chat's box in place of
 //! what you said, alt+c only shows or hides that message, and where each message was sent from said to it.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

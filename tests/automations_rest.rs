@@ -1,7 +1,7 @@
 //! What tests/automations*.rs left of the old suite: an automation turned off keeps its firings and its edits and fires
 //! nothing, turned on again its schedule counts from then; and on its row the keys of a task change no task, removing
 //! it asks with y and n, find and the archive leave out what does not match.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

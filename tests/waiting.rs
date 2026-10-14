@@ -1,6 +1,6 @@
 //! An agent that stopped to wait for the human is waiting, not finished: no check, no review, no merge follow, in
 //! whichever order the two signals of its turn's end arrive. And when a saved conversation's last turn began.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};

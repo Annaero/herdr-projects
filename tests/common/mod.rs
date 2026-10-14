@@ -17,8 +17,10 @@ use std::rc::Rc;
 use std::sync::{Mutex, MutexGuard};
 use sw::json::*;
 
-/// A world sets this process's environment: one test at a time in each test file.
+/// A world sets this process's environment, which every test file shares (they are one test program): one test at a
+/// time in all of them. A test that sets the environment without a world takes the same turn (`one_at_a_time`).
 static ONE: Mutex<()> = Mutex::new(());
+pub fn one_at_a_time() -> MutexGuard<'static, ()> { ONE.lock().unwrap_or_else(|e| e.into_inner()) }
 static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 pub struct World { pub base: PathBuf, pub root: PathBuf, pub fake: Rc<herdr::FakeHerdr>, pub gh: Rc<gh::FakeGh>, pub socket: String, _listen: std::os::unix::net::UnixListener, _one: MutexGuard<'static, ()> }
 #[derive(Default)]
@@ -27,7 +29,7 @@ pub fn git(cwd: &Path, a: &[&str]) -> String { worktrees::git(cwd, a).unwrap_or_
 fn set(k: &str, v: &str) { unsafe { std::env::set_var(k, v) } }
 pub fn world() -> World { world_with(Opts { repo: true, ..Default::default() }) }
 pub fn world_with(o: Opts) -> World {
-    let one = ONE.lock().unwrap_or_else(|e| e.into_inner());
+    let one = one_at_a_time();
     sw::clock::set(None);
     let base = std::env::temp_dir().join(format!("sw-test-{}-{}", std::process::id(), N.fetch_add(1, std::sync::atomic::Ordering::SeqCst)));
     let _ = std::fs::remove_dir_all(&base);
@@ -71,7 +73,9 @@ pub fn world_with(o: Opts) -> World {
     World { base, root, fake, gh, socket, _listen: listen, _one: one }
 }
 impl Drop for World {
-    fn drop(&mut self) { FAKE.with(|f| *f.borrow_mut() = None); sw::webui::web::forget(); sw::herdr::cli::set_fake(None); sw::flow::git::set_fake_gh(None); sw::clock::set(None); sw::runner::JOBS.with(|j| j.borrow_mut().clear()); let _ = std::process::Command::new("chmod").args(["-R", "u+w"]).arg(&self.base).status(); let _ = std::fs::remove_dir_all(&self.base); }
+    // Out of the world's folder before it goes (a test may have gone into it): the other tests run in this same
+    // process, and a program they start would find its folder gone.
+    fn drop(&mut self) { let _ = std::env::set_current_dir(env!("CARGO_MANIFEST_DIR")); FAKE.with(|f| *f.borrow_mut() = None); sw::webui::web::forget(); sw::herdr::cli::set_fake(None); sw::flow::git::set_fake_gh(None); sw::clock::set(None); sw::runner::JOBS.with(|j| j.borrow_mut().clear()); let _ = std::process::Command::new("chmod").args(["-R", "u+w"]).arg(&self.base).status(); let _ = std::fs::remove_dir_all(&self.base); }
 }
 impl World {
     /// The scripted turns, by role: { "worker": [step, …], "reviewer": […], "picker": […], "coordinator": […] }.

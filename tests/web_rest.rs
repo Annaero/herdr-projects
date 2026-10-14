@@ -2,7 +2,7 @@
 //! sources, so a new one is checked the day it is added) has a colour on the page and reaches it by its name; every
 //! state's mark is one letter of its own; every group's heading has a colour the page knows; and a remove asked from
 //! the page names the task, and leaves it where the answer is no.
-mod common;
+use crate::common;
 use common::board::web;
 use common::*;
 use serde_json::json;

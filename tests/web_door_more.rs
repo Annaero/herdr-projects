@@ -2,7 +2,7 @@
 //! its caching, a length that fits, no tag of the old page), a page that comes packed or has no place for the line goes
 //! on as sent, compressed bytes and ranges pass as they are, the caller's headers reach the web UI in their own
 //! spelling; and a fault of ours never breaks the web UI, while a web UI that is down is said plainly.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::io::{Read, Write};

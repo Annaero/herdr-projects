@@ -1,6 +1,6 @@
 //! A task an older version left stuck re-armed (working, turn open, no runner, completion handled): handed to the
 //! human, never finished by itself; and a real new turn after "finish anyway" is never taken for one.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::Path;

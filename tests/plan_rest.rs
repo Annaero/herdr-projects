@@ -1,7 +1,7 @@
 //! A plan before the build, the rest of the old suite's checks: "plan ready" as the row, herdr's sidebar, the
 //! notification, the panel and the web board say it, the read-only worktree and its mount, the yes and the review of
 //! the work against the plan; and the reviewer's look at a plan in tabs of its own, which is no round of the task's.
-mod common;
+use crate::common;
 use common::board::{open, web};
 use common::*;
 use serde_json::json;

@@ -1,6 +1,6 @@
 //! A title's length limit: one number, the same for a task typed, added or renamed. A longer title is shortened at a
 //! word and its full text is kept in the description; the command line says so to whoever gave it.
-mod common;
+use crate::common;
 use common::*;
 use sw::json::*;
 use sw::store::titles::{short_title, titled, TITLE_MAX};

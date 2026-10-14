@@ -1,6 +1,6 @@
 //! The gate, more: a later round's verdict read against the earlier findings and what the reviewer is told, the
 //! review.mustFix and review.rounds settings, and the review page and the pull request showing every finding.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::finish::review_brief::{parse_verdict, review_brief, Brief};

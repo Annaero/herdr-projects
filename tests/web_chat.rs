@@ -2,8 +2,8 @@
 //! the chat shows what it said on both boards (an older machine sends none, and that is said); the page gets the two
 //! you can talk to and whether the latest message shows; hiding it is the board's own key, remembered; and the page's
 //! code, read as text: the switch, Hide, the conversation that scrolls back, tab that sends.
-mod common;
-mod far;
+use crate::common;
+use crate::far;
 use common::board::{web, web_as};
 use common::*;
 use far::Far;

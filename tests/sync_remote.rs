@@ -1,6 +1,6 @@
 //! Keeping tasks up to date with a remote's main: main moving there is noticed by the periodic fetch and the updated
 //! branch pushed; a fetch that fails is never a sync; with pull requests off, your local branch is the main.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::path::Path;

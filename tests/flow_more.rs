@@ -1,6 +1,6 @@
 //! More of a task's flow: a start-up dialog's answer that herdr counts as a finished turn is not the end of the agent's
 //! work, and a board kept in its own folder is named by the agent's command and its herdr space.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::json::*;

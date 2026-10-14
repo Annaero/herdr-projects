@@ -1,7 +1,7 @@
 //! The web board's automations (the last group of its list, one of them whole, the buttons that turn it off, fire it
 //! and remove it, its settings, a firing that goes to its task) and each task's tag (on its row with the width of the
 //! column, on the open task, in the chat's line, and find goes to a task by it).
-mod common;
+use crate::common;
 use common::board::web;
 use common::*;
 use serde_json::{json, Value};

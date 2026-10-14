@@ -1,7 +1,7 @@
 //! The Coordinator's restart and new: restart keeps the conversation, new starts a fresh one, one Coordinator can be
 //! picked for a single use, the board itself neither restarts it nor starts a new one, and out of the box it is Claude
 //! Code on its defaults whatever the working agent is.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::{json, Value};

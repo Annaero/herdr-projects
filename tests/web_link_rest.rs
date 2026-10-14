@@ -1,7 +1,7 @@
 //! [real programs] The page server's front door, what the first port left out: turning the board in the web UI off
 //! points its link back and closes the door (its bookkeeping says so), on again it is back on the port it had, and it
 //! closes cleanly. The door's loop takes its looks here one at a time (Tailscale is a stand-in program).
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::io::Write;

@@ -1,6 +1,6 @@
 //! More of an agent that waits for the human: a research task's rules, interim report and note that end nothing, a
 //! review stopped by the agent saying it waits, and when a saved conversation's last turn began, for every program.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};

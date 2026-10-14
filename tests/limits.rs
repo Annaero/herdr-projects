@@ -1,6 +1,6 @@
 //! Limits on time and tokens (limit.time, limit.tokens): a run that reaches its limit is stopped once, its work kept
 //! and nothing merged ("stopped at its 2h limit"); continue, a higher limit, a reply or "take it as it is" carry on.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

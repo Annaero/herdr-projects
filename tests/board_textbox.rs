@@ -1,11 +1,10 @@
 //! The text box: a draft wraps between words and the box grows with it up to half the window, then scrolls inside
 //! it with the cursor in view; the arrows and editing keys work across wrapped lines; a long word is cut at the edge;
 //! a paste keeps its line breaks and nothing in it acts as a key; a reply wraps in the same box under the agent's message.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;
-use sw::json::*;
 
 fn words(n: usize) -> String { (1..=n).map(|i| format!("word{i}")).collect::<Vec<_>>().join(" ") }
 fn row(c: char) -> String { vec![c.to_string().repeat(4); 7].join(" ") }

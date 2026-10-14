@@ -2,7 +2,7 @@
 //! cut-out of it from the top left; seen live at 435x58 in windows of 184x78 and 412x56): the board draws inside what
 //! is shown and says what holds it, takes its terminal back by itself (a viewer that comes back is sent away again, a
 //! take that fails is tried again), and no key does it. Also how herdr's layout and the attach processes are read.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use serde_json::{json, Value};

@@ -3,7 +3,7 @@
 //! whole width without it; looking at a done task changes nothing about it; and every machine's tasks: whose they are
 //! in the header, never cut, a heading per machine, find by number, and where a far task's merge lands; a
 //! click on no row is not the board's.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

@@ -1,7 +1,7 @@
 //! An automation's firings and their guards: its own settings put on the task it makes (an edit applies from the next
 //! firing), a missed tick never caught up, a board event in its own repo or every repo, no loops, one at a time, and a
 //! runaway that turns itself off.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::automations::fire::{fire, RUNAWAY};

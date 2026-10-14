@@ -1,8 +1,8 @@
 //! The Boards section of the web UI's sidebar: one entry per machine with a board, named as the web UI names it, and one
 //! for all machines, each with a dot in the board's status colours and a short line of how it stands; a machine that
 //! cannot be reached says so; picking an entry shows that machine's board, and the board and the section stay in step.
-mod common;
-mod far;
+use crate::common;
+use crate::far;
 use common::*;
 use far::Far;
 use serde_json::{json, Value};

@@ -1,6 +1,6 @@
 //! Who writes a plan: a program with its own plan mode (started in it, its plan taken by the board's hook, started
 //! again after the yes with its usual access), and a planner of its own (plan.agent) in a tab beside the worker's.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::{json, Value};

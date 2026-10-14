@@ -1,7 +1,7 @@
 //! The web board's settings page: every setting of the open task with its plain label and what it means, in the
 //! terminal page's order; changed and put back there; the task's own panel saying the same in words, its settings
 //! above the long texts; a refused value refused in the board's words; read-only for a watcher and an archived task.
-mod common;
+use crate::common;
 use common::board::{web, web_as};
 use common::*;
 use serde_json::{json, Value};

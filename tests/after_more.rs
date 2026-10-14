@@ -1,7 +1,7 @@
 //! A waiting task from the board and the command line: its row and panel say what it waits for, the board's key asks
 //! before it starts one early, `after` sets, shows and drops a wait, stop stops the waiting, a task with an agent on it
 //! cannot be made to wait, and another machine's board starts one early the same way.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::{json, Value};

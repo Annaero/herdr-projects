@@ -1,7 +1,7 @@
 //! Research only as the setting research.only: looked up like every other, the short form and the setting writing the
 //! same thing, a default for a repo or for you; a change before a start counting at once and one on a task under way
 //! from its next start, and turning it on refused once the repo was changed or a pull request is open.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::{json, Value};

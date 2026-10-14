@@ -1,8 +1,8 @@
 //! A row's marks and its R# tag: the board's own steps share one mark, a task that only waits keeps the working mark,
 //! the reviewer at work says only what it is doing; a review judged by the gate says its result and a short tally; and
 //! the R# tag is a column of its own left of the PR, whose colour alone says how the review went.
-mod common;
-mod review_kit;
+use crate::common;
+use crate::review_kit;
 use common::*;
 use review_kit::*;
 use serde_json::{json, Value};

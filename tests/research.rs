@@ -1,7 +1,7 @@
 //! Research only (research.only, --research): the agent changes nothing in the repo, writes a report in the task's
 //! folder among the board's reports, is reviewed on that report, and the task ends as done with nothing to merge;
 //! one that changed the repo is sent back and, after its rounds, waits for you saying why.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::actions::filing;

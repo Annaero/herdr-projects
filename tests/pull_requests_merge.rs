@@ -1,6 +1,6 @@
 //! A pull request merges only at the commit that was reviewed (a commit pushed from elsewhere stops it, also the
 //! remembered merge), and one that GitHub only queued is not taken for merged until GitHub says so, or closed.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::Path;

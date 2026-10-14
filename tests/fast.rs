@@ -1,6 +1,6 @@
 //! Fast mode: the `worker.fast` and `reviewer.fast` settings, what an agent or reviewer is started with, and where the
 //! command and the task panel say it does nothing.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::agents::start::{has_fast, start_args, StartOpts};

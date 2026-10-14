@@ -1,6 +1,6 @@
 //! Every fixture row and its panel, drawn at the widths from 20 to 200: nothing runs over the width it was given, and
 //! what says which task it is never vanishes (tests/common/fixtures.rs holds the rows: a new state is one new row there).
-mod common;
+use crate::common;
 use common::fixtures::fixture_rows;
 use common::*;
 use sw::board::state::{Rec, State};

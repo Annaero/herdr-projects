@@ -1,7 +1,7 @@
 //! The settings' one rule, continued: a mistake in a file edited by hand is reported and the next place down is used; a
 //! refused delegate changes nothing and a task in no repo skips the repo places; a task's work settings travel to
 //! another machine and board settings stay; and what a task holds is checked too.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::json::*;

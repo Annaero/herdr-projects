@@ -1,7 +1,7 @@
 //! What the old board-actions tests checked that tests/board_actions.rs does not: a result stays through the board's
 //! beats, the ? menu names every key it has and none it lost, the archive's own hint line, undo of an archiving, the pinned group,
 //! and a task whose agent needs a login, which yes tells to carry on.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

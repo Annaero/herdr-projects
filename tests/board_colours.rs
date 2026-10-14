@@ -2,7 +2,7 @@
 //! prompt) is the task's status colour when it sends to that task's agent and herdr's plain text colour for the
 //! Coordinator; each status has a colour of its own ("to do" a readable grey of its own); with NO_COLOR the same words
 //! stand there with no colour at all.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::board::state::State;

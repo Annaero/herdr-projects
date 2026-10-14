@@ -1,7 +1,7 @@
 //! The fallback lists as settings (worker.fallback, reviewer.fallback): the one lookup, set and unset in every place,
 //! refused values, never the repo's own file, add, delegate and automations; the settings page and the Coordinator's
 //! rules in plain words; the words for why an agent could not go on.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

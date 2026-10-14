@@ -1,7 +1,7 @@
 //! Every colour the board gives a meaning of its own ("to do", an automation, a running review, pass and fail) is the
 //! kind of colour it is called and told apart from everything it sits beside, in every theme light and dark, and
 //! colours of your own cannot take that away.
-mod common;
+use crate::common;
 use sw::board::theme::greys::{apart, contrast, FLOOR, TODO_APART, TODO_BESIDE, TODO_DIMMER};
 use sw::board::theme::picks::{is_blue, is_purple, AUTO_APART, AUTO_BESIDE, REVIEW_APART, REVIEW_BESIDE, REVIEW_BLUE};
 use sw::board::theme::{resolve, Pal, Seen, Theme, C};

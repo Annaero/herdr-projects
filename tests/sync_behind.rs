@@ -1,6 +1,6 @@
 //! A task that could not be brought up to date with main is held as behind main: no approval until the sync really
 //! happened, and nothing merged into it, or by it, while your checkout is on another branch.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::path::Path;

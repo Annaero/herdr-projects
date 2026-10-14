@@ -1,6 +1,6 @@
 //! The task details of a reviewed task with evidence: every review, and every piece of evidence with what it is and
 //! its link in full; beside the list the latest review, the first piece, and where the rest is.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

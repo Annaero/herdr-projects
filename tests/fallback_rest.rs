@@ -1,6 +1,6 @@
 //! The fallback agents, what the first ports left out: herdr's sidebar and the task's details name the agent that took
 //! over, the panel's note says who was passed over when nobody is left, and after you step in the list starts again.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

@@ -1,6 +1,6 @@
 //! Merging, the rest of the old suite's checks: a merge conflict with your checkout waits for you as a question of
 //! permission, not as a review (the rest of that test is lifecycle.rs).
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

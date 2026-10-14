@@ -2,7 +2,7 @@
 //! panes), with the PC the page is on, and are asked once for a moment, not with every look; and the Phone setup's
 //! answer with the link through the door whole (its port kept, no command offered, no caching), while a link the web
 //! UI found itself, Tailscale stopped, or an answer that is not one, are passed on as they are.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::io::{Read, Write};

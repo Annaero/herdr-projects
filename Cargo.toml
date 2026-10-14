@@ -5,6 +5,8 @@ edition = "2024"
 description = "A work board for herdr: one list of tasks, each delegated one running as an ordinary herdr agent."
 license = "MIT"
 publish = false
+# The tests are one program (tests/main.rs, every file in tests/ a module of it), not one program per file.
+autotests = false
 
 [lib]
 name = "sw"
@@ -13,6 +15,10 @@ path = "src/lib.rs"
 [[bin]]
 name = "herdr-superwork"
 path = "src/main.rs"
+
+[[test]]
+name = "main"
+path = "tests/main.rs"
 
 [dependencies]
 ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }

@@ -1,7 +1,7 @@
 //! When a plan step starts and ends: the settings read when their step starts, a stop with no plan as a failure the
 //! agent can fix, no plan written in a repo without a read-only mount, a plan said rather than saved, and a plan
 //! approved once and handed to every attempt.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::json::*;

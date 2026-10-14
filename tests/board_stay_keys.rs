@@ -1,7 +1,7 @@
 //! The popup never left behind: its board closes the moment herdr shows another tab. In the popup the board key itself
 //! closes the board. The popup opens on the task of the pane you were in, and words left in its box stay with the repo
 //! they were typed for. With the tab chosen, the key pressed on the board goes back to where you came from.
-mod common;
+use crate::common;
 use common::board::Board;
 use common::*;
 use serde_json::{json, Value};

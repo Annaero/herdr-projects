@@ -1,6 +1,6 @@
 //! The one-time move from the old settings: your config.json, each task's own settings and what it took from its repo's
 //! file become the new names, once; the old file is kept beside the new one; tasks under way keep their choices.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::json::*;

@@ -1,6 +1,6 @@
 //! The hint line: each hint says what the key does and to what, a key shows only where it does something, esc says what
 //! it goes back from, and in a narrow window the hints give way in one order, the last one said shorter, never cut.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use serde_json::json;

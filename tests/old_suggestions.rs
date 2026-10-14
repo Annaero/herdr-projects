@@ -1,6 +1,6 @@
 //! Suggested tasks are gone: what old tasks still carry of them is saved once and taken off, the old commands say so
 //! in a plain sentence, and a task that still carries some reads as any other.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

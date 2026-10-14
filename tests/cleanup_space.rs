@@ -1,6 +1,6 @@
 //! A finished task leaves herdr's sidebar: the repo space herdr opened goes with the last task, yours stays, unsaved
 //! files stay on disk; and clean-up closes no space with something of yours running in it, nor one herdr cannot answer for.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::path::Path;

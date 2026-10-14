@@ -1,6 +1,6 @@
 //! More of a task's life: reconciled with herdr after a gone pane, an exited agent or a missed turn end; a task of
 //! another herdr session; a task outside git; a failed setup; a landed task delegated again in a fresh worktree.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::path::Path;

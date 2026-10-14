@@ -1,7 +1,7 @@
 //! A review cut off by the model's provider: the wait (growing, a few times, said on the row), the review started
 //! again by itself and not counted as a round, the board giving up with the real error, an error waiting cannot fix,
 //! and a reviewer that really finished without a verdict. The endings are recorded ones (tests/fixtures/endings).
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::json::*;

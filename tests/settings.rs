@@ -1,7 +1,7 @@
 //! The settings' one rule: the order of the places, the repo file's facts, board settings refused on a task,
 //! instructions adding up, `none` against unset, and what a value may be. (A mistake made by hand, a refused delegate,
 //! other machines and what a task holds: settings_more.rs.)
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::json::*;

@@ -1,7 +1,7 @@
 //! limit.tokens on a task at work: counted when a turn ends, the stop before anything more is spent, your word that
 //! gives the limit once more, a time limit read when a run starts, a review's tokens owed and counted later, a cut-off
 //! turn at the limit, and limit.time stopping a review too.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::Path;

@@ -1,6 +1,6 @@
 //! The limits' two settings (limit.time, limit.tokens): what a value may be, the nearest right one for a refused one,
 //! the lookup, never the repo's own file, attempts counted as one task; and the token counters of each program.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::Path;

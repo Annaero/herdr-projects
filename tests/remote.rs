@@ -1,6 +1,6 @@
 //! Other machines: why a machine did not answer, each with what to do on it; the door another machine asks (one line of
 //! JSON, actions run where the task lives); and the SSH line that asks it, through a login shell.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

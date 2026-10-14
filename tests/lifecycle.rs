@@ -1,7 +1,7 @@
 //! A task's life around its work: a slot for each agent at work (board.agents), archived and restored, started again
 //! by a reply, removed while unsaved work is kept; and a merge conflict with your checkout rolled back, sent to the
 //! agent and landed after its repair.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

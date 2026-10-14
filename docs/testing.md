@@ -1,7 +1,8 @@
 # Tests
 
 A fake herdr and scripted fake agents: no model calls, no real board, no real herdr. The tests are in `tests/`, one
-file per area, with what they share in `tests/common/`; small tests of one function sit beside it in `src/`
+file per area, with what they share in `tests/common/`, all of them one test program (`tests/main.rs`, below); small
+tests of one function sit beside it in `src/`
 (`#[cfg(test)]`). What to run, and when, is in [AGENTS.md](../AGENTS.md); this page says how the command works and why.
 
 ## One command
@@ -18,8 +19,9 @@ Everything that runs tests uses the same command: you, an agent at work, the rev
 | Again, although it passed | add `--fresh` |
 
 A name is first an area: `board-panel` (or `board_panel`) runs `tests/board_panel.rs` and every
-`tests/board_panel_*.rs`. A name that is no area is matched against each test's own name, as `cargo test` matches it:
-a test's function name in `tests/` (`the_hint_line_names_the_task_once_…`), and the module path of a test in `src/`.
+`tests/board_panel_*.rs`, exactly those (not `web_board_panel.rs`). A name that is no area is matched against each
+test's own name, as `cargo test` matches it: a test in `tests/` is named by its file and its function
+(`board_hints::the_hint_line_names_the_task_once_…`), and one in `src/` by its module path.
 `npm run check textbox` runs the tests that say `textbox`, wherever they are. A word that matches no test runs none,
 and passes.
 
@@ -34,6 +36,9 @@ It does four things, in this order, and stops at the first that fails:
    past 300 lines, every source file starts with a comment that says what it holds, a key's chord written only in
    `src/board/keys.rs`, and no made table out of date.
 4. **Runs the tests**: `cargo test`, with the names you gave.
+
+It compiles through the build cache every worktree shares, and takes this task's share of the cores, not all of them
+(both below).
 
 The old program's check had to find names used and never defined, and which test files a change reached through its
 imports. The compiler does the first now (such a file does not build), and a build is one whole: there are no
@@ -51,12 +56,49 @@ no file, so it changes nothing here; any edit does.
 A failed run is never remembered. A run with names is remembered as that run only: `npm run check textbox` passing
 says nothing about the whole. `--fresh` runs regardless.
 
+### One test program
+
+Every file in `tests/` is a module of one test program, `tests/main.rs` (`autotests = false` in `Cargo.toml`), the
+usual way in Rust: cargo compiles and links the tests once, where a program per file meant 191 compiles, each linking
+the whole library again, and about 2.3 GB of programs in every worktree. A test file is still a file of one area, and
+what the files share (`common`, `far`, `review_kit`, `move_home`) is declared once in `tests/main.rs`; a file reaches
+it as `use crate::common;`. A new test file is one `mod` line in `tests/main.rs`, in its place in the list: the guard
+fails a file left out, which would never be built or run.
+
+All the tests run side by side in that one process, so whatever a test changes of the process is everyone's: the
+environment (a world takes its turn, below; a test that sets it without a world takes the same turn,
+`common::one_at_a_time()`) and the working folder (a world leaves its folder before it is removed).
+
 ### Builds take turns
 
 Cargo lets one build at a time use a folder's `target/`: a second one says `Blocking waiting for file lock` and goes
 on when the first is done. Each worktree has a `target/` of its own, so this happens only within one folder. There
-are no other turns and no slots: one run is one build and one `cargo test`, which runs the test files one after
-another and the tests within a file side by side.
+are no other turns and no slots: one run is one build and one `cargo test`.
+
+### One build cache for every worktree
+
+The libraries the program uses are the same in every worktree, so they are compiled once on a machine and kept in
+one cache: [sccache](https://github.com/mozilla/sccache), one pinned version checked against its published sha256.
+The workspace setup (`scripts/setup.sh`, `workspace.setup` in `.herdr-superwork.json`) installs it with
+`scripts/build-cache.sh` and builds through it; the check compiles through it when it is there. It lives in
+`~/.cache/herdr-superwork` with its cache (2 GB at most, the oldest dropped first) and a server of its own (a socket
+there, so another sccache of yours is left alone): outside every worktree, so removing a worktree
+(`workspace.cleanup`) frees that worktree's `target/` and nothing shared. Where it is not installed (CI, which keeps
+its own cache, another platform, no network) builds go on as before, each worktree alone. `HERDR_SUPERWORK_NO_CACHE=1`
+turns it off; a `RUSTC_WRAPPER` of your own wins.
+
+What it keeps is what a task does not change: the libraries. The program's own code is not shared: it is different in
+every task, and the compiler keeps its own notes on it in each `target/` (incremental compilation), which makes the
+next build after a small edit quick; a cache cannot take those. A shared `target/` instead of the cache was left
+out: cargo lets one build at a time into a `target/`, so tasks would wait on each other, and the program it builds
+for the tests is one file at one place there, which two tasks would overwrite under each other's tests.
+
+### Its share of the cores
+
+A task's build and tests take the machine's cores divided by `board.agents` (how many agents work at once; 4 when it
+is not set), rounded up: `scripts/share-cores.sh` sets `CARGO_BUILD_JOBS` and `RUST_TEST_THREADS`, for the check and
+the setup. Tasks working at once then share the machine instead of each asking for all of it. Set either yourself
+to use another number.
 
 ### It tells the board where it is
 
@@ -91,8 +133,8 @@ What makes a test slow is starting programs and waiting. A new test does neither
   repo and a first commit. `to_approval(&w, title)` is the scene most finish-line tests start from.
 - **git is the one program still started**, because the board's work is git work. Ask for each fact once.
 
-A world sets the process's environment, so the tests of one file that make a world take turns (a lock in
-`tests/common/mod.rs`); the files run one after another.
+A world sets the process's environment, so the tests that make a world take turns, in all the files (a lock in
+`tests/common/mod.rs`); the others run beside them.
 
 ### The stand-ins
 

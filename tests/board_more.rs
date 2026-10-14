@@ -1,7 +1,7 @@
 //! More of the board's screen: a long chat message wraps inside its box and takes the rows it needs, never the text
 //! box's; a very narrow window keeps the box whole; ctrl does something and alt only shows or hides; the selected row's
 //! bar and its inverse video where no colour can show it; a part that fails to draw says so in its place.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};

@@ -1,6 +1,6 @@
 //! A task's tabs in its herdr space: the agent's tab is named Agent, each reviewer has a tab of its own, unfocused,
 //! closed again after its review, on stop, and when left over from before a restart.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::cell::{Cell, RefCell};

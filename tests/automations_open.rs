@@ -1,7 +1,7 @@
 //! One automation on the board, whole: its prompt, trigger, own settings and firings (enter on a firing goes to the task
 //! it made); its settings page, the page a task has; and a task an automation made, which says so, made by the board's
 //! own tick while it is open.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use serde_json::json;

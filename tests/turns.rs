@@ -1,7 +1,7 @@
 //! An agent's turns: approve refusing work that changed after its review, an agent herdr cannot classify, an agent
 //! that says it is blocked, a verdict for another commit, a reviewer that touches the tree, and the words herdr's
 //! sidebar says of where a task stands.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::json::*;

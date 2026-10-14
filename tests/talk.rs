@@ -80,7 +80,7 @@ fn a_screens_words_leave_out_what_is_drawn_and_markdown_reads_as_text() {
     assert_eq!(lines, vec!["Result", "Pass. All of it.", "- a point that is long", "  enough to wrap", "  const a = 1;", "1. first"]);
 }
 
-mod common;
+use crate::common;
 use common::*;
 use sw::board::keys::key_name;
 use sw::json::*;

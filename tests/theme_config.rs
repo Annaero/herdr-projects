@@ -1,6 +1,6 @@
 //! herdr's config is read however it is written (tables, inline tables, dotted keys, the whole of TOML), a file that
 //! cannot be read gives herdr's defaults, and the review page takes the same theme and follows the browser.
-mod common;
+use crate::common;
 use sw::board::theme::page::page_theme_of;
 use sw::board::theme::{read_config, resolve, Resolved, Seen, C};
 use sw::herdr::palette::parse_color;

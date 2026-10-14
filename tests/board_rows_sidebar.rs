@@ -2,7 +2,7 @@
 //! title, who is on it and where it stands (with the row's review tag and pull request), and its second line with the
 //! percent and time left; the reviewer's own entry, the time by the minute, the tags, herdr's 80 characters, and the
 //! Coordinator's entry.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use sw::board::state::State;

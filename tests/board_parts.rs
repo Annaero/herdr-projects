@@ -1,6 +1,6 @@
 //! Parts of the board around the list: its own tab named while it is open; the list's order (what waits for you, what
 //! is worked on, to do, done last with its fold line); and a task's settings page, read, changed and put back there.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

@@ -1,6 +1,6 @@
 //! A conflict with main caught before review, not after approval: sent to the agent by itself, its repairs capped,
 //! caught again by the last sync after an approval, and kept in the record of conflicts.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use std::path::Path;

@@ -1,6 +1,6 @@
 //! The two settings of several attempts (attempts.by, attempts.pick) like every other: what a value may be and what a
 //! refusal names, the places, never the repo's own file, delegate, an automation, the Coordinator, the settings page.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::{json, Value};

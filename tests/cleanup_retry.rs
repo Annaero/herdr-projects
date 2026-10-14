@@ -1,6 +1,6 @@
 //! A clean-up put off because the task's space was in use (a command of yours, a tool the agent started, an agent herdr
 //! cannot place, a turn in its own terminal) is tried again by the housekeeping pass once the space is free.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::{json, Value};
 use std::path::Path;

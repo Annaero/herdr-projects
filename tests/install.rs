@@ -2,15 +2,14 @@
 //! platform names, release URLs, versions, checksums, the update put in place, the launcher, and run.sh in a scratch
 //! plugin folder with a release folder of its own (file://). No network, never the real ~/.herdr-superwork.
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::MutexGuard;
 use sw::install::*;
 
-static ONE: Mutex<()> = Mutex::new(());
 static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 fn set(k: &str, v: &str) { unsafe { std::env::set_var(k, v) } }
 /// A scratch home of its own: HOME and HERDR_SUPERWORK_HOME point into it.
 fn scratch() -> (PathBuf, MutexGuard<'static, ()>) {
-    let one = ONE.lock().unwrap_or_else(|e| e.into_inner());
+    let one = crate::common::one_at_a_time(); // the environment is the whole test program's
     let base = std::env::temp_dir().join(format!("sw-install-{}-{}", std::process::id(), N.fetch_add(1, std::sync::atomic::Ordering::SeqCst)));
     let _ = std::fs::remove_dir_all(&base);
     std::fs::create_dir_all(base.join("home")).unwrap();

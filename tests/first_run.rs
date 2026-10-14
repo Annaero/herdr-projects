@@ -1,15 +1,14 @@
 //! The first run of this version on data an older (Node) version wrote (src/store/old_copy.rs): one copy of the data
 //! folder as it was, beside it, made once, and its one line for the human. In a scratch HERDR_SUPERWORK_HOME.
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::MutexGuard;
 use sw::store::old_copy::*;
 
-static ONE: Mutex<()> = Mutex::new(());
 static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 fn set(k: &str, v: &str) { unsafe { std::env::set_var(k, v) } }
 /// A scratch home and board folder; returns the data folder.
 fn scratch() -> (PathBuf, PathBuf, MutexGuard<'static, ()>) {
-    let one = ONE.lock().unwrap_or_else(|e| e.into_inner());
+    let one = crate::common::one_at_a_time(); // the environment is the whole test program's
     let base = std::env::temp_dir().join(format!("sw-first-run-{}-{}", std::process::id(), N.fetch_add(1, std::sync::atomic::Ordering::SeqCst)));
     let _ = std::fs::remove_dir_all(&base);
     std::fs::create_dir_all(base.join("home")).unwrap();

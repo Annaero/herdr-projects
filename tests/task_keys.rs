@@ -1,7 +1,7 @@
 //! A repo's short key (`repo.key`: `HSW-134`) naming a task wherever its id does: find, the commands, what an agent is
 //! told, the board's rows, panel, chat and messages, what another machine is sent; and the key itself: set for the
 //! repo or in its own file, kept in capitals, checked, never one key for two repos.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

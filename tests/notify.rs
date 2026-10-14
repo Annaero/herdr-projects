@@ -1,6 +1,6 @@
 //! The board.notify setting: a task that needs you, is ready to approve or failed rings the bell on an open board or
 //! runs your command, once per event; `none`, the built-in value, does neither.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::json::*;

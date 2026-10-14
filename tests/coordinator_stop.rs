@@ -1,7 +1,7 @@
 //! The Coordinator's start that fails, and stop: a failed start loses nothing (a restart asked for meanwhile still
 //! happens, a long launch line never reaches the shell), stop leaves it stopped with words still waiting, and a stop asked
 //! for while a message goes in holds back the ones still waiting.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::{json, Value};

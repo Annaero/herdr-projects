@@ -1,7 +1,7 @@
 //! Replying to a task's agent: only space flips between the Coordinator and a task's agent; the arrows only move (the
 //! chat follows the selection while you talk to an agent); words put away come back to whom they were typed for, never
 //! to anyone else, also across a reload; a task that goes away takes nothing of yours with it.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::json;

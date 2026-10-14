@@ -1,7 +1,7 @@
 //! Reports and research only, more: any task's report and its link, the row and the panel saying research only, the
 //! repo's own file and an automation holding the setting, what the old switch saved read as the setting, and the
 //! settings page's row for it.
-mod common;
+use crate::common;
 use common::board::open;
 use common::*;
 use serde_json::{json, Value};

@@ -1,6 +1,6 @@
 //! What the old board-widths test checked that tests/board_widths.rs does not: at every width from 20 to 200 every
 //! fixture row's first line starts with its mark, in the gutter's cell after the bar's.
-mod common;
+use crate::common;
 use common::fixtures::fixture_rows;
 use common::*;
 use sw::board::state::{Rec, State};

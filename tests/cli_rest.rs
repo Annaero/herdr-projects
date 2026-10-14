@@ -1,7 +1,7 @@
 //! What tests/cli.rs left of the old suite, run in this process: the hook entry makes nothing, show for a repo, the
 //! how-to names the report command, a flag named like an object's own property is refused like any other, how a flag
 //! was typed is kept, a setting where none is taken is said as such, and every flag the help names is one its command takes.
-mod common;
+use crate::common;
 use common::*;
 use serde_json::json;
 use sw::cli::flags::{parse, unknown_flags};

@@ -1,7 +1,7 @@
 //! The chat's message when it is long: the box grows with it, up to two thirds of the window, it scrolls with two keys
 //! and the mouse wheel, and the box says where there is more. The wheel on the rest of the board: the list, the menu,
 //! the whole-task page. A tall draft in a small window never takes the answer away.
-mod common;
+use crate::common;
 use common::board::{open, Board};
 use common::*;
 use sw::board::keys::key_name;

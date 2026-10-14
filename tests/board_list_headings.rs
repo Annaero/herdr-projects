@@ -2,7 +2,7 @@
 //! rows that never name their machine; the arrows stop on every heading, enter folds it to one line that says how many
 //! tasks it holds and unfolds it, at both levels, grouped by repo and by status; a fold outlasts a refresh and the board
 //! closing, gives way to a filter and to a task the selection is taken to; the hint line, the ? menu and the web board.
-mod common;
+use crate::common;
 use common::board::{open, web, Board};
 use common::*;
 use serde_json::{json, Value};
