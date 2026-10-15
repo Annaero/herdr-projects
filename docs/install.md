@@ -5,6 +5,14 @@ program; optionally `gh` (pull requests) and `tailscale` (private review links).
 program.
 
 ```sh
+herdr plugin install eliasstravik/herdr-projects
+```
+
+herdr clones the repo's main branch into its own plugins folder (`herdr plugin list` shows where; `--ref v1.0.0`
+takes a given release) and runs the plugin's build step there, which downloads the program. Or, to keep a checkout
+of your own:
+
+```sh
 git clone https://github.com/eliasstravik/herdr-projects && cd herdr-projects
 herdr plugin link "$PWD"          # hooks, the board's tab and the actions
 sh bin/run.sh install             # gets the program, writes its launcher, says how to put it on your PATH

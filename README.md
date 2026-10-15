@@ -23,8 +23,9 @@ herdr plugin link "$PWD"          # hooks, the popup and the actions
 sh bin/run.sh install             # gets the program, writes its launcher, says how to put it on your PATH
 ```
 
-**Coming from herdr-projects 0.2 or herdr-superwork?** Install this version the same way: its first run takes the old
-one over by itself. The old projects are set aside in `~/.herdr-projects-legacy`, never deleted
+**Coming from herdr-projects 0.2 or herdr-superwork?** Run the same `herdr plugin install` again (in a linked
+checkout: `git pull`, then `sh bin/run.sh install`), then open the board: its first run takes the old version over by
+itself. The old projects are set aside in `~/.herdr-projects-legacy`, never deleted
 ([older installs](docs/old-installs.md)). The old version lives on in the `legacy` branch and the `v0.2.35` release.
 
 The plugin downloads the program for your platform from the project's GitHub releases; `herdr-projects update`
@@ -34,8 +35,9 @@ herdr's config, updating, and taking the plugin out again: [installing](docs/ins
 ## Start
 
 Type `herdr-projects` in any pane (its launcher on your PATH), or run the plugin's action "Open the work board":
-that opens the board. Type what needs doing and press `Enter`: that adds a task.
-`Tab` puts an agent on the selected task. `?` shows everything else you can do.
+that opens the board. Type what needs doing and press `Enter`: the Coordinator, the board's own agent, makes it a
+task (or several). Send it with `Tab` instead and each task it adds gets an agent at once. `?` shows everything else
+you can do.
 
 ## The pages
 
