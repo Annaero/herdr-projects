@@ -1,285 +1,77 @@
-//! End-to-end checks of the built binary with a scrubbed environment.
+//! [real programs] The command line, as a person or an agent runs it: add, list, report, set, unset, show, --json,
+//! and a flag a command does not know refused with the nearest right one named, and nothing done.
+use crate::common;
+use common::*;
+use sw::json::*;
 
-use std::path::Path;
-use std::process::Command;
+/// The program run in the world's repo: its exit code, what it printed and what it said went wrong.
+fn run(w: &World, args: &[&str]) -> (i32, String, String) {
+    let o = std::process::Command::new(env!("CARGO_BIN_EXE_herdr-projects")).args(args).current_dir(&w.root)
+        .env("HERDR_SOCKET_PATH", "/nonexistent").env("HERDR_BIN_PATH", "/bin/false").output().unwrap();
+    (o.status.code().unwrap_or(-1), String::from_utf8_lossy(&o.stdout).into_owned(), String::from_utf8_lossy(&o.stderr).into_owned())
+}
+fn out(w: &World, args: &[&str]) -> String { let (code, o, e) = run(w, args); assert_eq!(code, 0, "{args:?}: {e}"); o }
+fn refused(w: &World, args: &[&str], re: &str) { let (code, o, e) = run(w, args); assert_ne!(code, 0, "{args:?} was not refused: {o}"); assert!(regex::Regex::new(re).unwrap().is_match(&e), "{args:?}: {e}"); }
+fn tasks() -> Vec<Obj> { sw::store::tasks::list(Default::default()) }
 
-const BIN: &str = env!("CARGO_BIN_EXE_herdr-projects");
-
-fn hp(home: &Path, args: &[&str]) -> std::process::Output {
-    Command::new(BIN)
-        .env_clear()
-        .env("HOME", home)
-        .args(args)
-        .output()
-        .unwrap()
+#[test]
+fn real_programs_add_list_report_set_unset_and_show() {
+    let w = world();
+    assert_eq!(out(&w, &["hook"]), "");
+    let added: serde_json::Value = serde_json::from_str(&out(&w, &["add", "From", "the", "shell", "--desc", "d", "--json"])).unwrap();
+    assert_eq!(added.s("id"), "proj/1");
+    out(&w, &["report", "1", "--state", "working", "--msg", "on it"]);
+    let listed: serde_json::Value = serde_json::from_str(&out(&w, &["list", "--json"])).unwrap();
+    assert_eq!((listed[0].s("state"), listed[0].s("app"), listed[0].s("msg")), ("working", sw::store::files::me().as_str(), "on it"));
+    assert_eq!(out(&w, &["set", "board.agents", "2"]), "board.agents: 2  (you)\n");
+    assert!(out(&w, &["--skill"]).starts_with("---\nname: herdr-projects\n"));
+    assert_eq!(out(&w, &["set", "review.when", "never", "--task", "1"]), "review.when for PRJ-1: never  (this task)\n");
+    assert!(regex::Regex::new(r"^Your settings \(\* = changed by you\)\n[\s\S]*\n  merge\.by +you +built in\n[\s\S]*\n\* board\.agents +2 +you\n").unwrap().is_match(&out(&w, &["show"])));
+    assert!(regex::Regex::new(r"^PRJ-1: every setting, and the place it came from[\s\S]*\n\* review\.when +never +this task\n[\s\S]*\n  board\.agents +2 +you\n").unwrap().is_match(&out(&w, &["show", "1"])));
+    let shown: serde_json::Value = serde_json::from_str(&out(&w, &["show", "1", "--json"])).unwrap();
+    assert_eq!(shown.arr("settings").iter().find(|r| r.s("name") == "review.when").cloned().unwrap(), serde_json::json!({ "name": "review.when", "kind": "work", "value": "never", "from": "this task", "place": "task", "own": true, "note": "" }));
+    out(&w, &["set", "merge.by", "itself", "--repo", "proj"]);
+    assert!(regex::Regex::new(r"\n  merge\.by +itself +your entry for proj\n").unwrap().is_match(&out(&w, &["show", "1"])));
+    assert_eq!(out(&w, &["unset", "review.when", "--task", "1"]), "review.when for PRJ-1: repos  (built in)\n");
+    assert_eq!(out(&w, &["unset", "board.agents"]), "board.agents: 4  (built in)\n");
+    refused(&w, &["set", "merge.pr", "maybe"], r"merge\.pr is a switch: true or false");
+    refused(&w, &["set", "review.round", "2"], r#"Unknown setting "review\.round"\. Did you mean review\.rounds\?"#);
+    refused(&w, &["set", "board.agents", "2", "--task", "1"], r"board\.agents is a board setting: it is yours only and cannot be set on a task");
+    refused(&w, &["delegate", "1", "--merge.by", "sometimes", "--reviewer.agent", "claude"], r"merge\.by must be you, itself");
+    assert_eq!(task("proj/1").at("settings"), &serde_json::json!({}));
+    refused(&w, &["config", "max", "2"], r#"Unknown command "config""#);
+    refused(&w, &["frobnicate"], "Unknown command");
 }
 
 #[test]
-fn context_prints_a_usable_prefix_in_a_scrubbed_environment() {
-    let home = tempfile::tempdir().unwrap();
-    let root = home.path().join("my root");
-    let root_arg = root.to_str().unwrap();
-    assert!(hp(home.path(), &["--root", root_arg, "new", "Demo"]).status.success());
-
-    let out = hp(home.path(), &["--root", root_arg, "context", "demo", "--peek"]);
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
-    let text = String::from_utf8(out.stdout).unwrap();
-    let prefix = text.lines().next().unwrap().strip_prefix("Commands: ").unwrap();
-    // Fixed shape `<binary> --root <root>`, with the spaced root shell-quoted.
-    assert_eq!(prefix, format!("{BIN} --root '{root_arg}'"));
-
-    // The printed prefix works as typed, from a bare shell.
-    let listed = Command::new("/bin/sh")
-        .env_clear()
-        .env("HOME", home.path())
-        .args(["-c", &format!("{prefix} list")])
-        .output()
-        .unwrap();
-    assert!(listed.status.success());
-    assert_eq!(String::from_utf8_lossy(&listed.stdout), "demo\tactive\tno threads\n");
-}
-
-#[test]
-fn peek_records_nothing_and_context_records_seen_items() {
-    let home = tempfile::tempdir().unwrap();
-    let root = home.path().join("root");
-    let root_arg = root.to_str().unwrap();
-    assert!(hp(home.path(), &["--root", root_arg, "new", "demo"]).status.success());
-    let item = "+++\nid = \"20260917T000000Z-routine-r-1\"\nkind = \"routine\"\nsubject = \"r\"\ncreated = \"x\"\nsummary = \"s\"\n+++\n";
-    std::fs::write(root.join("demo/inbox/20260917T000000Z-routine-r-1.md"), item).unwrap();
-    let seen = root.join("demo/.state/inbox-seen.json");
-
-    assert!(hp(home.path(), &["--root", root_arg, "context", "demo", "--peek"]).status.success());
-    assert!(!seen.exists());
-    assert!(hp(home.path(), &["--root", root_arg, "context", "demo"]).status.success());
-    assert!(std::fs::read_to_string(&seen).unwrap().contains("routine-r-1"));
-}
-
-#[test]
-fn path_like_names_and_slugs_are_refused() {
-    let home = tempfile::tempdir().unwrap();
-    let root = home.path().join("root");
-    let root_arg = root.to_str().unwrap();
-    assert!(!hp(home.path(), &["--root", root_arg, "new", "../x"]).status.success());
-    assert!(!hp(home.path(), &["--root", root_arg, "open", "../x"]).status.success());
-    assert!(!hp(home.path(), &["--root", root_arg, "context", "../x"]).status.success());
-    assert!(!hp(home.path(), &["--root", root_arg, "thread", "list", "../x"]).status.success());
-    assert!(!hp(home.path(), &["--root", root_arg, "delete", "../x", "--force"]).status.success());
-    assert!(!root.exists());
-    assert!(!home.path().join("x").exists());
-}
-
-#[test]
-fn ticker_start_without_projects_creates_nothing() {
-    let home = tempfile::tempdir().unwrap();
-    assert!(hp(home.path(), &["ticker", "start"]).status.success());
-    assert!(!home.path().join(".herdr-projects").exists());
-    assert!(!home.path().join(".config").exists());
-}
-
-#[cfg(unix)]
-mod progress_hooks {
-    use super::*;
-    use std::io::Write;
-    use std::os::unix::fs::PermissionsExt;
-    use std::process::Stdio;
-    use serde_json::{Value, json};
-
-    struct Hooks {
-        home: tempfile::TempDir,
-        root: std::path::PathBuf,
-        herdr: std::path::PathBuf,
-        pane: Value,
-        coordinator: Value,
-        codex_thread_id: Option<&'static str>,
-        agent_reply: Option<Value>,
-    }
-
-    impl Hooks {
-        fn new() -> Self {
-            let home = tempfile::tempdir().unwrap();
-            let root = home.path().join("root");
-            assert!(hp(home.path(), &["--root", root.to_str().unwrap(), "new", "demo"]).status.success());
-            let cwd = root.join("demo").canonicalize().unwrap();
-            let pane = json!({"pane_id":"w1:p1", "terminal_id":"term-1", "workspace_id":"w1", "tab_id":"w1:t1", "cwd":cwd, "agent":"codex", "name":"hpc-demo"});
-            let coordinator = json!({"socket":"/managed.sock", "pane_id":"w1:p1", "workspace_id":"w1", "tab_id":"w1:t1", "cwd":cwd, "agent":"codex"});
-            let herdr = home.path().join("herdr");
-            std::fs::write(&herdr, "#!/bin/sh\necho \"$*\" >> \"$FIXTURES/calls.log\"\ncase \"$*\" in\n  'pane current --current') /bin/cat \"$FIXTURES/current.json\" ;;\n  'pane list') /bin/cat \"$FIXTURES/panes.json\" ;;\n  'agent list') /bin/cat \"$FIXTURES/agents.json\" ;;\n  *) exit 1 ;;\nesac\n").unwrap();
-            std::fs::set_permissions(&herdr, std::fs::Permissions::from_mode(0o755)).unwrap();
-            let fixture = Self { home, root, herdr, pane, coordinator, codex_thread_id: Some("main"), agent_reply: None };
-            fixture.save_coordinator();
-            fixture
-        }
-
-        fn save_coordinator(&self) {
-            std::fs::write(self.root.join("demo/.state/coordinator.json"), self.coordinator.to_string()).unwrap();
-        }
-
-        fn thread(&self, machine: &str) {
-            let text = format!("id = 't-0001'\nstatus = 'open'\nkind = 'worktree'\npane_id = 'w1:p1'\nworkspace_id = 'w1'\ntab_id = 'w1:t1'\ncwd = '/separate/worktree'\nagent = 'codex'\nagent_name = 'hpt-demo-t-0001'\nmachine = '{machine}'\n");
-            std::fs::write(self.root.join("demo/threads/t-0001.toml"), text).unwrap();
-        }
-
-        fn run(&self, socket: &str, event: Value) -> std::process::Output {
-            for (file, reply) in [
-                ("current.json", json!({"result":{"pane":self.pane}})),
-                ("panes.json", json!({"result":{"panes":[self.pane]}})),
-                ("agents.json", self.agent_reply.clone().unwrap_or_else(|| json!({"result":{"agents":[self.pane]}}))),
-            ] {
-                std::fs::write(self.home.path().join(file), reply.to_string()).unwrap();
-            }
-            let mut command = Command::new(BIN);
-            command.env_clear().env("HOME", self.home.path())
-                .env("HERDR_ENV", "1").env("HERDR_PANE_ID", "w1:p1")
-                .env("HERDR_SOCKET_PATH", socket).env("HERDR_BIN_PATH", &self.herdr)
-                .env("FIXTURES", self.home.path())
-                .args(["--root", self.root.to_str().unwrap(), "hook", "--agent", "codex"])
-                .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
-            if let Some(id) = self.codex_thread_id { command.env("CODEX_THREAD_ID", id); }
-            let mut child = command.spawn().unwrap();
-            child.stdin.take().unwrap().write_all(event.to_string().as_bytes()).unwrap();
-            let out = child.wait_with_output().unwrap();
-            assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
-            assert!(out.stderr.is_empty());
-            out
-        }
-
-        fn check_events(&self, socket: &str, managed: bool) {
-            for kind in ["SessionStart", "UserPromptSubmit", "PostToolUse"] {
-                let progress = self.root.join(".progress");
-                if progress.exists() { std::fs::remove_dir_all(&progress).unwrap(); }
-                let out = self.run(socket, json!({"hook_event_name":kind, "session_id":"main"}));
-                assert_eq!(!out.stdout.is_empty(), managed, "{kind}: {}", String::from_utf8_lossy(&out.stdout));
-                assert_eq!(progress.exists(), managed, "{kind}: progress record creation");
-                if managed {
-                    let response: Value = serde_json::from_slice(&out.stdout).unwrap();
-                    assert!(!response["hookSpecificOutput"]["additionalContext"].as_str().unwrap().is_empty());
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn unmanaged_progress_hooks_are_silent_for_every_event() {
-        let mut h = Hooks::new();
-        h.pane["cwd"] = "/unrelated/repo".into();
-        h.check_events("/managed.sock", false);
-        h.pane["cwd"] = h.coordinator["cwd"].clone();
-        h.check_events("/other.sock", false);
-    }
-
-    #[test]
-    fn an_unmanaged_pane_costs_no_herdr_call_beyond_its_own() {
-        let mut h = Hooks::new();
-        h.pane["cwd"] = "/unrelated/repo".into();
-        let log = h.home.path().join("calls.log");
-        for kind in ["SessionStart", "UserPromptSubmit", "PostToolUse"] {
-            let _ = std::fs::remove_file(&log);
-            assert!(h.run("/managed.sock", json!({"hook_event_name":kind, "session_id":"main"})).stdout.is_empty());
-            let calls = std::fs::read_to_string(&log).unwrap_or_default();
-            assert!(calls.lines().all(|c| c == "pane current --current"), "{kind}: {calls}");
-        }
-    }
-
-    #[test]
-    fn managed_progress_hooks_cover_coordinators_discovery_and_worktrees() {
-        let mut h = Hooks::new();
-        h.check_events("/managed.sock", true);
-        // A second coordinator before the ticker has recorded it.
-        h.coordinator["pane_id"] = "w9:p1".into();
-        h.save_coordinator();
-        h.pane["foreground_cwd"] = h.pane["cwd"].clone();
-        h.pane["cwd"] = "/shell".into();
-        h.check_events("/managed.sock", true);
-        std::fs::remove_file(h.root.join("demo/.state/coordinator.json")).unwrap();
-        h.check_events("/managed.sock", true);
-        h.save_coordinator();
-        h.pane["foreground_cwd"] = "".into();
-        h.pane["cwd"] = "/separate/worktree".into();
-        h.pane["name"] = "hpt-demo-t-0001".into();
-        h.thread("");
-        h.check_events("/managed.sock", true);
-        h.check_events("/other.sock", false);
-        // A remote pane id must never grant ownership to a local pane.
-        h.thread("remote-host");
-        h.check_events("/managed.sock", false);
-    }
-
-    #[test]
-    fn managed_progress_hooks_keep_subagent_and_foreign_session_exclusions() {
-        let mut h = Hooks::new();
-        for event in [
-            json!({"hook_event_name":"SessionStart", "session_id":"nested"}),
-            json!({"hook_event_name":"SessionStart", "session_id":"main", "agent_id":"child"}),
-        ] {
-            assert!(h.run("/managed.sock", event).stdout.is_empty());
-            assert!(!h.root.join(".progress").exists());
-        }
-        assert!(!h.run("/managed.sock", json!({"hook_event_name":"SessionStart", "session_id":"main"})).stdout.is_empty());
-        let file = std::fs::read_dir(h.root.join(".progress")).unwrap().next().unwrap().unwrap().path();
-        let before = std::fs::read(&file).unwrap();
-        // Exercise the saved session exclusion independently of Codex's env gate.
-        h.codex_thread_id = None;
-        assert!(h.run("/managed.sock", json!({"hook_event_name":"PostToolUse", "session_id":"nested"})).stdout.is_empty());
-        assert_eq!(std::fs::read(file).unwrap(), before);
-    }
-
-    #[test]
-    fn unmanaged_progress_hooks_leave_existing_records_unchanged() {
-        let mut h = Hooks::new();
-        h.run("/managed.sock", json!({"hook_event_name":"SessionStart", "session_id":"main"}));
-        let file = std::fs::read_dir(h.root.join(".progress")).unwrap().next().unwrap().unwrap().path();
-        let before = std::fs::read(&file).unwrap();
-        h.pane["cwd"] = "/unrelated/repo".into();
-        for kind in ["SessionStart", "UserPromptSubmit", "PostToolUse"] {
-            assert!(h.run("/managed.sock", json!({"hook_event_name":kind, "session_id":"main"})).stdout.is_empty());
-            assert_eq!(std::fs::read(&file).unwrap(), before);
-        }
-    }
-
-    #[test]
-    fn managed_progress_hooks_reject_reused_thread_identity() {
-        let mut h = Hooks::new();
-        h.coordinator["pane_id"] = "w9:p1".into();
-        h.save_coordinator();
-        h.pane["cwd"] = "/separate/worktree".into();
-        h.pane["name"] = "hpt-demo-t-0001".into();
-        h.thread("");
-        h.pane["name"] = "someone-else".into();
-        h.check_events("/managed.sock", false);
-        h.pane["name"] = "hpt-demo-t-0001".into();
-        h.pane["cwd"] = "/different/worktree".into();
-        h.check_events("/managed.sock", false);
-        h.pane["cwd"] = "/separate/worktree".into();
-        let file = h.root.join("demo/threads/t-0001.toml");
-        let text = std::fs::read_to_string(&file).unwrap();
-        std::fs::write(file, text.replace("status = 'open'", "status = 'resolved'")).unwrap();
-        h.check_events("/managed.sock", false);
-    }
-
-    #[test]
-    fn managed_progress_hooks_discover_coordinators_before_agent_detection() {
-        let mut h = Hooks::new();
-        std::fs::remove_file(h.root.join("demo/.state/coordinator.json")).unwrap();
-        h.pane["agent"] = "".into();
-        h.agent_reply = Some(json!({"result":{"agents":[]}}));
-        let out = h.run("/managed.sock", json!({"hook_event_name":"SessionStart", "session_id":"main"}));
-        assert!(String::from_utf8_lossy(&out.stdout).contains("# Progress (herdr-projects)"));
-        assert!(!h.root.join("demo/.state/coordinator.json").exists(), "discovery stays read-only");
-    }
-
-    #[test]
-    fn managed_progress_hooks_reject_failed_agent_observations() {
-        let mut h = Hooks::new();
-        h.coordinator["pane_id"] = "w9:p1".into();
-        h.save_coordinator();
-        h.pane["cwd"] = "/separate/worktree".into();
-        h.pane["agent"] = "".into();
-        h.thread("");
-        for reply in [json!({"error":{"code":"timeout", "message":"unavailable"}}), json!({"result":{"agents":null}})] {
-            h.agent_reply = Some(reply);
-            assert!(h.run("/managed.sock", json!({"hook_event_name":"PostToolUse", "session_id":"main"})).stdout.is_empty());
-            assert!(!h.root.join(".progress").exists());
-        }
-    }
+fn real_programs_a_flag_a_command_does_not_know_is_refused_with_the_nearest_right_one_and_nothing_is_done() {
+    let w = world();
+    refused(&w, &["list", "--archvied"], r"^list does not know --archvied\. Did you mean --archived\? It takes: --archived, --all, --query, --json, --help\. Nothing was done\.\n?$");
+    refused(&w, &["list", "--no-archvied"], r"list does not know --no-archvied\. Did you mean --archived\?");
+    refused(&w, &["add", "A task", "--reviewer", "claude"], r"add does not know --reviewer\. Did you mean --reviewer\.agent\? It takes: .*any work setting by its name");
+    refused(&w, &["add", "A task", "--delgate"], r"Did you mean --delegate\?");
+    assert_eq!(tasks().len(), 0, "nothing was added");
+    refused(&w, &["add", "A task", "--review.wen", "never"], r#"Unknown setting "review\.wen"\. Did you mean review\.when\?"#);
+    assert_eq!(tasks().len(), 0);
+    refused(&w, &["set", "board.agents", "2", "--tsak", "1"], r"set does not know --tsak\. Did you mean --task\?");
+    refused(&w, &["automations", "add", "n", "--prompt", "p", "--schedule", "daily 09:00", "--evry-repo"], r"Did you mean --every-repo\?");
+    refused(&w, &["report", "--title", "x", "--query=y"], r"report does not know --query\.");
+    refused(&w, &["--archived"], r"herdr-projects does not know --archived\. It takes: --skill, --json, --help");
+    refused(&w, &["nonsense", "--x"], r#"Unknown command "nonsense""#);
+    refused(&w, &["help", "--bogus"], r"help does not know --bogus\. It takes: --json, --help");
+    for hidden in ["hook", "keeper", "keeper-work", "open", "open-coordinator", "approve-current", "serve", "run", "turn-ended", "plan-written", "skill", "remote"] { refused(&w, &[hidden, "--bogus"], &format!("{hidden} does not know --bogus")); }
+    refused(&w, &["turn-ended", "--id", "x", "--rol", "agent"], r"turn-ended does not know --rol\. Did you mean --role\?");
+    refused(&w, &["automations", "list", "--review.wen", "never"], r"automations list does not know --review\.wen: it takes no settings \(and the setting is named review\.when\)\. It takes: --json, --help");
+    refused(&w, &["automations", "on", "n", "--prompt", "p"], r"automations on does not know --prompt");
+    refused(&w, &["coordinator", "stop", "--agent", "codex"], r"coordinator stop does not know --agent");
+    refused(&w, &["delegate", "1", "--worker.agnt", "codex"], r#"Unknown setting "worker\.agnt"\. Did you mean worker\.agent\?"#);
+    refused(&w, &["list", "--review.when", "never"], r"list does not know --review\.when: it takes no settings");
+    assert_eq!(sw::store::automations::automations().len(), 0);
+    // settings given to add without --delegate are the task's own from the start, and kept
+    out(&w, &["add", "Kept", "settings", "--review.when", "never", "--merge.by=itself", "--no-research"]);
+    let t = tasks().into_iter().next().unwrap();
+    assert_eq!((t.t("title"), t.at("settings").t("review.when"), t.at("settings").t("merge.by"), t.at("settings").at("research.only").clone(), t.t("stage")), ("Kept settings".into(), "never".into(), "itself".into(), serde_json::json!(false), "todo".into()));
+    assert!(regex::Regex::new(r"\n\* review\.when +never +this task\n").unwrap().is_match(&out(&w, &["show", t.s("id")])));
+    assert!(out(&w, &["list", "--archived"]).contains("No tasks"));
+    assert!(out(&w, &["list", "--all", "--query", "kept"]).contains("Kept settings"));
 }

@@ -1,99 +1,58 @@
 id = "herdr-projects"
 name = "Projects"
-version = "0.2.35"
-min_herdr_version = "0.9.1"
-description = "A coordinator conversation, parallel worker threads, shared memory and an overview of what needs you."
-platforms = ["macos", "linux"]
+version = "0.3.0"
+# The oldest herdr this plugin was actually verified on.
+min_herdr_version = "0.9.3"
+description = "A work board: one list of tasks, each delegated one an ordinary herdr agent in its own space"
+platforms = ["linux", "macos"]
 
+# Commands go through bin/run.sh: herdr starts them with its server's environment, which may lack the user's PATH. It
+# runs the program built here, or the one downloaded for this platform from this version's GitHub release.
+
+# Gets the program when the plugin is installed: downloads it, or builds it from source when it cannot.
 [[build]]
-# Downloads the release binary; falls back to `cargo build --release --locked`.
-command = ["sh", "scripts/install.sh"]
+command = ["sh", "bin/run.sh", "--fetch"]
 
 [[startup]]
-command = ["target/release/herdr-projects", "startup"]
-
-[[actions]]
-id = "new"
-title = "Projects: new project"
-contexts = ["workspace"]
-command = ["target/release/herdr-projects", "action", "new"]
+command = ["sh", "bin/run.sh", "hook"]
 
 [[actions]]
 id = "open"
-title = "Projects: open project"
-contexts = ["workspace"]
-command = ["target/release/herdr-projects", "action", "open"]
+title = "Open the work board"
+command = ["sh", "bin/run.sh", "open"]
 
 [[actions]]
-id = "open-popup"
-title = "Projects"
-contexts = ["global", "workspace"]
-command = ["target/release/herdr-projects", "action", "open-popup"]
+id = "coordinator"
+title = "Go into the Coordinator's chat"
+command = ["sh", "bin/run.sh", "open-coordinator"]
 
 [[actions]]
-id = "focus"
-title = "Projects: focus sidebar on this project"
-contexts = ["workspace"]
-command = ["target/release/herdr-projects", "action", "focus"]
+id = "approve-current"
+title = "Approve the task in the focused pane (the board asks first)"
+contexts = ["pane"]
+command = ["sh", "bin/run.sh", "approve-current"]
 
-[[actions]]
-id = "unfocus"
-title = "Projects: clear sidebar focus"
-contexts = ["workspace"]
-command = ["target/release/herdr-projects", "action", "unfocus"]
+[[events]]
+on = "pane.agent_status_changed"
+command = ["sh", "bin/run.sh", "hook"]
 
-[[actions]]
-id = "adopt-workspace"
-title = "Projects: continue this workspace as a project"
-contexts = ["workspace"]
-command = ["target/release/herdr-projects", "action", "adopt-workspace"]
+# An agent exiting to its shell fires this (released) on herdr 0.9.3.
+[[events]]
+on = "pane.agent_detected"
+command = ["sh", "bin/run.sh", "hook"]
 
-[[actions]]
-id = "pause"
-title = "Projects: pause project"
-contexts = ["workspace"]
-command = ["target/release/herdr-projects", "action", "pause"]
+[[events]]
+on = "pane.closed"
+command = ["sh", "bin/run.sh", "hook"]
 
-[[actions]]
-id = "resume"
-title = "Projects: resume project"
-contexts = ["workspace"]
-command = ["target/release/herdr-projects", "action", "resume"]
-
-[[actions]]
-id = "configure"
-title = "Projects: set up the sidebar, popup key, progress hooks and skill"
-contexts = ["workspace"]
-command = ["target/release/herdr-projects", "action", "configure"]
-
-[[actions]]
-id = "doctor"
-title = "Projects: check setup"
-contexts = ["workspace"]
-command = ["target/release/herdr-projects", "action", "doctor"]
+[[events]]
+on = "worktree.removed"
+command = ["sh", "bin/run.sh", "hook"]
 
 [[panes]]
-id = "projects"
-title = "Projects"
-placement = "popup"
-width = "80%"
-height = "80%"
-command = ["target/release/herdr-projects", "pane", "projects"]
-
-[[panes]]
-id = "new"
-title = "New project"
-placement = "popup"
-command = ["target/release/herdr-projects", "pane", "new"]
-
-[[panes]]
-id = "pick"
-title = "Pick a project"
-placement = "popup"
-command = ["target/release/herdr-projects", "pane", "pick"]
-
-[[panes]]
-id = "adopt"
-title = "Continue as a project"
-placement = "popup"
-command = ["target/release/herdr-projects", "pane", "adopt"]
+id = "board"
+title = "Work board"
+# A tab of its own unless you choose the popup (`board.open`): the board key then opens this pane as herdr's popup
+# instead, a window over everything (src/board/run/place.rs).
+placement = "tab"
+command = ["sh", "bin/run.sh", "board"]
