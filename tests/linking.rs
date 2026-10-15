@@ -80,3 +80,52 @@ fn the_cargo_config_is_the_same_words_in_every_worktree() {
     assert!(!config.contains("linker ="), "a linker named in the config is given to cargo as its whole path: {config}");
     assert_eq!(std::fs::read_link(root().join("scripts/ld/ld")).unwrap(), Path::new("../linker.sh"));
 }
+
+/// The platforms the program is built on (Linux and macOS, x86_64 and ARM) and for (the release files, musl on Linux).
+const TARGETS: &[&str] = &["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin"];
+
+/// The rustc that built the tests, by rustup's words for it as they were then: the tests' worlds move HOME and PATH.
+fn rustc() -> std::process::Command {
+    let (home, toolchain) = (option_env!("RUSTUP_HOME"), option_env!("RUSTUP_TOOLCHAIN"));
+    if let (Some(h), Some(t)) = (home, toolchain) {
+        let own = Path::new(h).join("toolchains").join(t).join("bin/rustc");
+        if own.exists() { return std::process::Command::new(own); }
+    }
+    let mut c = std::process::Command::new("rustc");
+    if let (Some(h), Some(t)) = (home, toolchain) { c.env("RUSTUP_HOME", h).env("RUSTUP_TOOLCHAIN", t); }
+    c
+}
+
+/// The flags cargo gives every build for `target` from .cargo/config.toml: `[build]`'s and then its own `[target.…]`'s.
+fn flags_for(config: &toml::Table, target: &str) -> Vec<String> {
+    let of = |t: Option<&toml::Value>| -> Vec<String> {
+        match t.and_then(|t| t.get("rustflags")) {
+            Some(toml::Value::String(s)) => s.split_whitespace().map(String::from).collect(),
+            Some(toml::Value::Array(a)) => a.iter().map(|f| f.as_str().unwrap().to_string()).collect(),
+            _ => vec![],
+        }
+    };
+    let mut flags = of(config.get("build"));
+    flags.extend(of(config.get("target").and_then(|t| t.get(target))));
+    flags
+}
+
+#[test]
+fn real_programs_rustc_takes_the_cargo_configs_flags_on_every_platform_with_stable_rust() {
+    // a flag that is unstable on one target fails every build there at once (`-C linker-features=-lld` on ARM Linux):
+    // rustc says so before it needs that target's library, so this holds on a machine of any platform
+    let config: toml::Table = std::fs::read_to_string(root().join(".cargo/config.toml")).unwrap().parse().unwrap();
+    let named: Vec<String> = config.get("target").and_then(|t| t.as_table()).map(|t| t.keys().cloned().collect()).unwrap_or_default();
+    assert!(named.iter().all(|t| !t.starts_with("cfg(")), "teach this test the `cfg(…)` sections: {named:?}");
+    for target in TARGETS.iter().map(|t| t.to_string()).chain(named.iter().cloned()) {
+        let flags = flags_for(&config, &target);
+        assert!(flags.iter().all(|f| !f.starts_with("-Z")), "{target}: stable Rust takes no -Z flag: {flags:?}");
+        let o = rustc().args(["--print", "cfg", "--target", &target]).args(&flags)
+            .env_remove("RUSTC_BOOTSTRAP").output().unwrap();
+        assert!(o.status.success(), "{target} with {flags:?}: {}", String::from_utf8_lossy(&o.stderr));
+    }
+    for target in ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"] {
+        assert!(flags_for(&config, target).iter().any(|f| f == "-Clink-arg=-Bscripts/ld/"), "{target} links with mold");
+    }
+}

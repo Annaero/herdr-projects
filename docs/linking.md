@@ -6,17 +6,25 @@ installed they link as Rust does by itself.
 
 ## How
 
-- `.cargo/config.toml` gives the builds on Linux (x86_64 and aarch64) two flags: `-Clinker-features=-lld`, so the C
-  compiler is no longer asked for Rust's own lld, and `-Clink-arg=-Bscripts/ld/`, so it runs `scripts/ld/ld` as its
-  `ld`. That is a link to `scripts/linker.sh`. It holds for every build in the repo: the check, the workspace setup,
-  and a `cargo build` or `cargo test` of your own.
+- `.cargo/config.toml` gives the builds on Linux (x86_64 and aarch64) `-Clink-arg=-Bscripts/ld/`, so the C compiler
+  runs `scripts/ld/ld` as its `ld`. That is a link to `scripts/linker.sh`. On x86_64, where Rust asks the C compiler
+  for its own lld by default, the builds also get `-Clinker-features=-lld`, so it no longer does. It holds for every
+  build in the repo: the check, the workspace setup, and a `cargo build` or `cargo test` of your own.
+- **ARM Linux (aarch64) gets only the `-B` flag.** `-Clinker-features` is unstable there (as on macOS; it is stable on
+  x86_64 Linux): with it, every build on stable Rust stops at once, saying the flag is unstable on the
+  `aarch64-unknown-linux-gnu` target. It is not needed there either: Rust does not ask for its lld on that target,
+  so the C compiler runs its `ld` from `scripts/ld/` all the same, and the build links with mold too.
+- **A test checks every platform's flags** (`tests/linking.rs`): it runs `rustc --print cfg` with the flags the
+  config gives each of x86_64 and aarch64 Linux (gnu and musl) and macOS, and every target the config names, and
+  fails when rustc does not take them or one is a `-Z` flag. rustc says so before it needs that target's library, so
+  the test catches a config that breaks ARM Linux on any machine, CI's among them.
 - `scripts/linker.sh` runs mold, one pinned version checked against its published sha256, kept in
   `~/.cache/herdr-superwork` beside the shared build cache. The workspace setup installs it
   (`sh scripts/linker.sh --install`, in `scripts/setup.sh`). Like Rust's lld, mold links on all the cores: a link is a
   fraction of a second, and on this task's share of them ([testing](testing.md)) mold kept little of its gain.
 - **Where mold is not installed** (GitHub CI, a fresh machine, no network, a platform with no mold build), the script
   runs the linker Rust uses by itself: its own lld (`rust-lld`, which Rust puts first on the linker's PATH) on x86_64,
-  the system's `ld` elsewhere. Nothing has to be installed for a build to work.
+  the system's `ld` elsewhere (aarch64). Nothing has to be installed for a build to work.
 - **Release builds link as before**: a link whose files go under a `release` folder (`cargo build --release`, also
   with `--target`) is that same linker. The release files themselves are built for musl targets, which
   `.cargo/config.toml` does not name.
