@@ -50,5 +50,5 @@ pane of herdr 0.9.3 and in the popup the board key opens (`board.open`: herdr's 
 with its position as in any pane ([what was checked](checked-on-herdr.md)). A drag that selects and copies was not
 tried in the popup.
 
-The two keys that scroll the chat without a mouse, `Alt+U` and `Alt+J`, are in [the keys](keys.md); how the chat
+The two keys that scroll the chat without a mouse, `Alt+K` and `Alt+J`, are in [the keys](keys.md); how the chat
 grows and where a message starts is in [the board](board.md).

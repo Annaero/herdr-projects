@@ -41,7 +41,7 @@ fn an_opened_chat_stays_open_on_what_you_read_while_the_coordinator_works_and_sa
     let l = shown(&mut b);
     assert!(has(&l, "Message 12, line 4.") && !has(&l, "Message 11,"), "{l:?}");
     // Up, and up again: the conversation, from an older message.
-    for _ in 0..3 { b.press(&["alt+u"]); shown(&mut b); }
+    for _ in 0..3 { b.press(&["alt+k"]); shown(&mut b); }
     let reading = shown(&mut b);
     assert!(!has(&reading, "Message 12, line 4."), "scrolled up from the end: {reading:?}");
     let first = reading[0].clone();
@@ -73,24 +73,24 @@ fn hiding_the_chat_or_talking_to_another_closes_an_opened_chat_nothing_else_does
     let closed = shown(&mut b);
     // Up, each press further, to its start, and up more there: still open, on its start. Down to its end, and once more:
     // closed to the newest.
-    b.press(&["alt+u"]); let mut n = 0; let mut was = usize::MAX;
-    while b.s.chat_fit.as_ref().unwrap().top > 0 { let top = b.s.chat_fit.as_ref().unwrap().top; assert!(top < was, "further up each press"); was = top; b.press(&["alt+u"]); b.chat(120); n += 1; assert!(n < 20); }
+    b.press(&["alt+k"]); let mut n = 0; let mut was = usize::MAX;
+    while b.s.chat_fit.as_ref().unwrap().top > 0 { let top = b.s.chat_fit.as_ref().unwrap().top; assert!(top < was, "further up each press"); was = top; b.press(&["alt+k"]); b.chat(120); n += 1; assert!(n < 20); }
     let start = shown(&mut b); assert!(has(&start, "Message 1, line 1."), "{start:?}");
-    b.press(&["alt+u", "alt+u"]); assert_eq!(shown(&mut b), start, "up at its start stays open there");
+    b.press(&["alt+k", "alt+k"]); assert_eq!(shown(&mut b), start, "up at its start stays open there");
     while b.s.chat_fit.as_ref().unwrap().below > 0 { b.press(&["alt+j"]); shown(&mut b); n += 1; assert!(n < 40); }
     assert_ne!(shown(&mut b), closed, "at its end, still open");
     b.press(&["alt+j"]); assert_eq!(shown(&mut b), closed);
     // Hidden and shown again (esc hides it, as its own key does): the newest, closed.
-    b.press(&["alt+u"]); assert_ne!(shown(&mut b), closed);
+    b.press(&["alt+k"]); assert_ne!(shown(&mut b), closed);
     b.press(&["esc"]); assert!(!b.s.chat_open); b.press(&["alt+c"]); assert_eq!(shown(&mut b), closed);
-    b.press(&["alt+u"]); assert_ne!(shown(&mut b), closed);
+    b.press(&["alt+k"]); assert_ne!(shown(&mut b), closed);
     b.press(&["alt+c", "alt+c"]); assert_eq!(shown(&mut b), closed);
     // The task's agent, and back to the Coordinator: it starts closed again.
-    b.press(&["alt+u"]); assert_ne!(shown(&mut b), closed);
+    b.press(&["alt+k"]); assert_ne!(shown(&mut b), closed);
     b.press(&["space"]); b.chat(120); b.press(&["space"]); read(&mut b, 1, 12, "idle");
     assert!(!b.s.reply); assert_eq!(shown(&mut b), closed);
     // A window too short for the box folds it to its head line for a while: open, it is still open after.
-    b.press(&["alt+u"]); let open_at = shown(&mut b);
+    b.press(&["alt+k"]); let open_at = shown(&mut b);
     b.rows = 12; b.chat(120); assert!(b.s.chat_fit.is_none());
     b.rows = 34; read(&mut b, 1, 12, "working"); assert_eq!(shown(&mut b), open_at);
 }
@@ -101,7 +101,7 @@ fn a_reply_said_twice_keeps_you_on_the_one_you_read_when_a_new_message_comes() {
     let mut b = open(&w.root, 34); b.s.side = false;
     // The Coordinator gave the same answer as message 2 and as message 6; you read the second of them.
     read_twice(&mut b, 1, 12, "idle", &[2, 6]); shown(&mut b);
-    b.press(&["alt+u"]); shown(&mut b);
+    b.press(&["alt+k"]); shown(&mut b);
     let lines = b.s.chat_at.as_ref().unwrap().lines.clone();
     let at = lines.iter().enumerate().filter(|(_, l)| l.as_str() == "The same answer, line 1.").map(|x| x.0).nth(1).unwrap();
     let place = b.s.chat_at.as_mut().unwrap(); place.top = Some(at); place.end = false; // scrolled there

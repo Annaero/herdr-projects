@@ -78,7 +78,7 @@ fn the_chats_box_grows_with_the_answer_up_to_two_thirds_of_the_window_and_shrink
 }
 
 #[test]
-fn alt_u_and_alt_j_scroll_a_message_longer_than_its_box_with_a_draft_too_the_box_says_where_there_is_more_a_new_message_keeps_the_place() {
+fn alt_k_and_alt_j_scroll_a_message_longer_than_its_box_with_a_draft_too_the_box_says_where_there_is_more_a_new_message_keeps_the_place() {
     let mut b = B::new(30, 30);
     let (up, down) = (regex::escape(&key_name("chatScrollUp")), regex::escape(&key_name("chatScrollDown")));
     // The box names the key where there is more: under the message at first, on its top edge too once scrolled.
@@ -92,9 +92,11 @@ fn alt_u_and_alt_j_scroll_a_message_longer_than_its_box_with_a_draft_too_the_box
     assert!(has(&edge(&mut b, 40), &format!("^╭─+ {up} more ↑ ─╮$"))); assert!(has(&edge(&mut b, 14), "^╭─+ more ↑ ─╮$")); assert!(has(&edge(&mut b, 9), "^╭─+ ↑ ─╮$"));
     b.key(&["alt+j", "alt+j", "alt+j", "alt+j"]); let c = b.chat(120);
     assert_eq!(c.message.last().unwrap(), "Line 40 of the answer."); assert_eq!(c.message.len(), 16); assert!(c.up && !c.down);
+    // alt+u no longer scrolls it (alt+k pairs with alt+j), and types nothing.
+    b.key(&["alt+u"]); assert_eq!(b.chat(120).message.last().unwrap(), "Line 40 of the answer."); assert_eq!(b.b.s.value(), "");
     // And up again, to the start and no further.
-    b.key(&["alt+u"]); assert_eq!(b.first(), "Line 17 of the answer.");
-    b.key(&["alt+u", "alt+u", "alt+u", "alt+u"]); let c = b.chat(120);
+    b.key(&["alt+k"]); assert_eq!(b.first(), "Line 17 of the answer.");
+    b.key(&["alt+k", "alt+k", "alt+k", "alt+k"]); let c = b.chat(120);
     assert_eq!(c.message[0], "Line 1 of the answer."); assert!(!c.up);
     // The selection never moved, and nothing was typed.
     let sel = b.b.s.sel.clone(); b.key(&["alt+j"]); assert_eq!(b.b.s.sel, sel); assert_eq!(b.b.s.value(), "");
@@ -103,15 +105,15 @@ fn alt_u_and_alt_j_scroll_a_message_longer_than_its_box_with_a_draft_too_the_box
     assert!(has(&c.lines[c.top], &format!(" {up} more ↑ ─╮$")), "{}", c.lines[c.top]);
     b.key(&["alt+j"]); let c = b.chat(120);
     assert_eq!(c.message[0], "Line 16 of the answer."); assert_eq!(b.b.s.value(), "my draft"); assert!(has(&c.draft.join(" "), "❯ my draft"));
-    b.key(&["alt+u", "alt+u", "alt+u"]); assert_eq!(b.b.s.value(), "my draft"); assert_eq!(b.first(), "Line 1 of the answer.");
+    b.key(&["alt+k", "alt+k", "alt+k"]); assert_eq!(b.b.s.value(), "my draft"); assert_eq!(b.first(), "Line 1 of the answer.");
     // A message that fits has nothing to scroll: the keys do nothing, and are not typed into the draft.
-    b.said.text = "Done.".into(); b.chat(120); b.key(&["alt+j", "alt+u"]); assert_eq!(b.b.s.value(), "my draft"); assert_eq!(b.chat(120).message, vec!["Done."]);
+    b.said.text = "Done.".into(); b.chat(120); b.key(&["alt+j", "alt+k"]); assert_eq!(b.b.s.value(), "my draft"); assert_eq!(b.chat(120).message, vec!["Done."]);
     b.key(&["esc"]);
     // Scrolled down, then the message changes: the place stays (board_chat_open.rs has more). So it does for another
     // turn in the very same words, and for the same words after nothing was said a moment.
     // (alt+j at the end of the short one closed it to the newest: a long one then shows from its start.)
     b.said.text = answer(40); assert_eq!(b.first(), "Line 1 of the answer.");
-    b.key(&["alt+u"; 4]); b.key(&["alt+j"]); assert_eq!(b.first(), "Line 8 of the answer.");
+    b.key(&["alt+k"; 4]); b.key(&["alt+j"]); assert_eq!(b.first(), "Line 8 of the answer.");
     b.said.text = answer(41); assert_eq!(b.first(), "Line 8 of the answer.");
     b.said.turn = "turn-2".into(); assert_eq!(b.first(), "Line 8 of the answer.");
     let words = b.said.text.clone(); b.said.text = String::new(); b.screen(120); b.said.text = words; assert_eq!(b.first(), "Line 8 of the answer.");
@@ -138,7 +140,7 @@ fn alt_u_and_alt_j_scroll_a_message_longer_than_its_box_with_a_draft_too_the_box
     // A screen (a dialog that is up) starts at its end, where a terminal has what is new; it scrolls up from there.
     b.said.raw = true; let c = b.chat(120);
     assert_eq!(c.message.last().unwrap(), "Line 41 of the answer."); assert!(c.up && !c.down);
-    b.key(&["alt+u"]); assert_eq!(b.chat(120).message.last().unwrap(), "Line 33 of the answer.");
+    b.key(&["alt+k"]); assert_eq!(b.chat(120).message.last().unwrap(), "Line 33 of the answer.");
 }
 
 #[test]
@@ -203,7 +205,7 @@ fn a_long_message_at_every_board_size_the_window_is_filled_exactly_nothing_is_wi
                     if b.b.s.chat_fit.as_ref().map(|f| f.above > 0).unwrap_or(false) { assert!(lines[top].contains('↑'), "{note}: it says there is more above"); }
                 }
             }
-            b.key(&["alt+u"; 8]);
+            b.key(&["alt+k"; 8]);
         }
     }
 }
@@ -227,6 +229,6 @@ fn a_tall_draft_in_a_small_window_never_takes_the_answer_away_it_gives_rows_back
         b.key(&["alt+j"]); let lines = b.screen(120);
         assert!(b.b.s.chat_fit.as_ref().unwrap().above > 0, "alt+j scrolls at {rows} rows"); assert!(lines.iter().any(|l| l.contains('↑')));
         assert_eq!(b.b.s.value(), draft, "the draft is whole");
-        b.key(&["alt+u"; 20]);
+        b.key(&["alt+k"; 20]);
     }
 }

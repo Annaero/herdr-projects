@@ -206,7 +206,7 @@
 
  alt: only shows or hides
    alt+c        hide the chat's latest message
-   alt+u        scroll the chat's message up
+   alt+k        scroll the chat's message up
    alt+j        scroll the chat's message down
    alt+p        show the side panel: this task, beside the list
    alt+t        show the whole task, full screen

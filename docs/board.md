@@ -422,7 +422,7 @@ to a neighbour's agent.
 
 ```
  ○ Coordinator  idle
-╭───────────────────────────────────────────────────────────────────────────── alt+u more ↑ ─╮
+╭───────────────────────────────────────────────────────────────────────────── alt+k more ↑ ─╮
 │ Coordinator:                                                                               │
 │ Added proj/4: Add an undo. An agent is on it.                                              │
 │                                                                                            │
@@ -502,8 +502,8 @@ conversation.
 ```
 
 **The box scrolls through the conversation's words.** It opens on the newest thing said and holds only that. What
-was said and sent before is above it: `Alt+U` opens the box to the conversation and scrolls up through it, `Alt+J`
-down, half a box at a time (U sits above J on the keyboard), and `Alt+J` once more from its end closes it to the
+was said and sent before is above it: `Alt+K` opens the box to the conversation and scrolls up through it, `Alt+J`
+down, half a box at a time (K and J, as up and down in vim), and `Alt+J` once more from its end closes it to the
 newest message alone again, from its start. That holds wherever the box was opened, whoever you talk to, and also
 after new messages came while it was open. The last dozen things said are there, each under the line that names who said it, as in the
 Coordinator's chat: `You:` for your words (typed in the box, with `tell`, or in the agent's own pane), `Agent:` or
@@ -511,12 +511,12 @@ Coordinator's chat: `You:` for your words (typed in the box, with `tell`, or in 
 on its own (its brief, a review's findings, the word to go on). A long text sent, such as a brief, shows only its
 beginning.
 The mouse wheel does the same with the pointer over the chat ([the mouse](mouse.md)). Both work while you type, and
-neither touches the draft. The box says where there is more and names the key: `alt+u more ↑` on its top edge,
+neither touches the draft. The box says where there is more and names the key: `alt+k more ↑` on its top edge,
 `alt+j more ↓` at the right of the line under the message (in a narrow window only `more ↓`, then only the arrow).
 
 ```
  ● Coordinator  idle
-╭───────────────────────────────────────────────────────────────────────────── alt+u more ↑ ─╮
+╭───────────────────────────────────────────────────────────────────────────── alt+k more ↑ ─╮
 │ 3. The check fails on main too: it is not this task's change.                              │
 │ 4. I filed proj/7 for it and put an agent on it.                                           │
 │                                                                               alt+j more ↓ │
@@ -531,7 +531,7 @@ for a program whose conversation cannot be read, starts at its end, where a term
 Opened to the conversation, the chat stays open until you close it: whatever happens meanwhile (the Coordinator at
 work, a new message, the list read again, tasks changing), it stays on the lines you were reading, found again where
 they moved as the oldest messages drop off (also in a reply said twice: the one you read). Scrolled to its end, it
-shows each new message as it comes. `Alt+U` goes further up with each press; it goes back to the newest message only
+shows each new message as it comes. `Alt+K` goes further up with each press; it goes back to the newest message only
 when you take it there: `Alt+J` once more from its end, hiding the chat (`Alt+C`, or esc) and showing it again, or
 talking to another (the task's agent, another task's, back to the Coordinator).
 

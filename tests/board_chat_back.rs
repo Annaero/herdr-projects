@@ -1,5 +1,5 @@
 //! Back to the newest message: the chat's box holds one message, the newest, whoever said it (your words only until
-//! the answer comes); alt+u opens it to the conversation, alt+j scrolls down, and alt+j once more from the end always
+//! the answer comes); alt+k opens it to the conversation, alt+j scrolls down, and alt+j once more from the end always
 //! closes it to that one message again, from wherever it was opened, for the Coordinator and for a task's agent, also
 //! after new messages came while it was open and with a draft.
 use crate::common;
@@ -66,7 +66,7 @@ fn the_box_holds_only_the_newest_message_whoever_said_it_your_words_only_until_t
     // The answer alone: your question is one scroll up.
     let mut c = C::new(exchange(1));
     assert_eq!(message(&c.boxed()), v(&["Coordinator:", "Answer 1 line 1.", "Answer 1 line 2.", "Answer 1 line 3."]));
-    c.key("alt+u"); assert!(c.boxed().contains(&"Question 1?".to_string()), "{:?}", c.boxed());
+    c.key("alt+k"); assert!(c.boxed().contains(&"Question 1?".to_string()), "{:?}", c.boxed());
     c.key("alt+j"); assert_eq!(message(&c.boxed()), v(&["Coordinator:", "Answer 1 line 1.", "Answer 1 line 2.", "Answer 1 line 3."]), "alt+j at the end: back to the answer alone");
     // Your words, until the answer comes: then alone too.
     c.talk.push((true, "And now?".into()));
@@ -92,25 +92,25 @@ fn alt_j_scrolls_down_and_once_more_at_the_end_closes_the_coordinators_chat_to_t
     let mut c = C::new(exchange(4));
     let newest = message(&c.boxed());
     assert_eq!(newest, v(&["Coordinator:", "Answer 4 line 1.", "Answer 4 line 2.", "Answer 4 line 3."]));
-    // From every place in the conversation: alt+u that many times, then alt+j down to the end and once more.
+    // From every place in the conversation: alt+k that many times, then alt+j down to the end and once more.
     for ups in 1..=8 {
-        for _ in 0..ups { c.key("alt+u"); }
-        assert!(c.b.s.chat_at.as_ref().unwrap().top.is_some(), "alt+u opened it");
+        for _ in 0..ups { c.key("alt+k"); }
+        assert!(c.b.s.chat_at.as_ref().unwrap().top.is_some(), "alt+k opened it");
         assert_ne!(message(&c.boxed()), newest);
         c.back();
-        assert_eq!(message(&c.boxed()), newest, "after {ups} alt+u");
+        assert_eq!(message(&c.boxed()), newest, "after {ups} alt+k");
     }
     // At the end of the open conversation one alt+j closes it.
-    c.key("alt+u"); c.key("alt+j"); c.boxed();
+    c.key("alt+k"); c.key("alt+j"); c.boxed();
     assert_eq!(c.b.s.chat_fit.as_ref().unwrap().below, 0); assert!(c.b.s.chat_at.as_ref().unwrap().top.is_some());
     c.key("alt+j"); assert_eq!(message(&c.boxed()), newest);
     // With a draft: the same, and the draft is whole.
     c.apply(); c.b.typed("half typed");
-    c.key("alt+u"); c.key("alt+u"); c.back();
+    c.key("alt+k"); c.key("alt+k"); c.back();
     assert_eq!(message(&c.boxed()), newest); assert_eq!(c.b.s.value(), "half typed");
     c.key("esc");
     // Hidden while open (alt+c, the only key that hides and shows it): shown again, the newest alone (board_chat_open.rs).
-    c.key("alt+u"); c.key("alt+c"); assert!(!c.b.s.chat_open); c.boxed(); c.key("alt+j"); c.key("alt+c");
+    c.key("alt+k"); c.key("alt+c"); assert!(!c.b.s.chat_open); c.boxed(); c.key("alt+j"); c.key("alt+c");
     assert_eq!(message(&c.boxed()), newest);
 }
 
@@ -119,7 +119,7 @@ fn a_short_conversation_that_starts_with_your_words_closes_too() {
     // Your words first, the answer under them: the whole conversation fits the box, open or not.
     let mut c = C::new(vec![(true, "Where do things stand?".into()), (false, "Six tasks are in progress.".into())]);
     assert_eq!(message(&c.boxed()), v(&["Coordinator:", "Six tasks are in progress."]));
-    c.key("alt+u"); assert_eq!(message(&c.boxed()), v(&["You:", "Where do things stand?", "", "Coordinator:", "Six tasks are in progress."]));
+    c.key("alt+k"); assert_eq!(message(&c.boxed()), v(&["You:", "Where do things stand?", "", "Coordinator:", "Six tasks are in progress."]));
     c.key("alt+j"); assert_eq!(message(&c.boxed()), v(&["Coordinator:", "Six tasks are in progress."]));
 }
 
@@ -133,7 +133,7 @@ fn a_newest_message_longer_than_the_box_alt_j_from_its_end_shows_it_from_its_sta
     assert!(n > 2, "it scrolled down first: {n} presses");
     assert_eq!(first(&mut c), v(&["Coordinator:", "Long line 1."]));
     // Opened above it to your words, the same.
-    for _ in 0..3 { c.key("alt+u"); }
+    for _ in 0..3 { c.key("alt+k"); }
     assert!(c.boxed().contains(&"Tell me everything.".to_string()));
     c.back();
     assert_eq!(first(&mut c), v(&["Coordinator:", "Long line 1."]));
@@ -154,7 +154,7 @@ fn back_from_start(c: &mut C) -> usize {
 fn new_messages_while_it_is_open_alt_j_still_goes_down_to_the_end_and_closes_it_to_the_newest() {
     for at_end in [false, true] {
         let mut c = C::new(exchange(3));
-        for _ in 0..4 { c.key("alt+u"); }
+        for _ in 0..4 { c.key("alt+k"); }
         if at_end { c.key("alt+j"); c.key("alt+j"); c.key("alt+j"); c.key("alt+j"); }
         // The Coordinator answers again, and again, while the human reads.
         c.talk.push((true, "Question 4?".into())); c.boxed();
@@ -192,13 +192,13 @@ fn a_task_agents_chat_alt_j_at_the_end_closes_it_to_the_newest_message_also_afte
     s.s.sel = id.clone(); s.load(); s.press(&["space"]); assert!(s.s.reply);
     assert_eq!(message(&s.chat(120).boxed), v(&["Agent:", "Made g."]));
     for ups in [1, 3, 8] {
-        for _ in 0..ups { s.press(&["alt+u"]); }
+        for _ in 0..ups { s.press(&["alt+k"]); }
         assert_ne!(message(&s.chat(120).boxed), v(&["Agent:", "Made g."]));
         back(&mut s, &mut |_| {}, 120);
-        assert_eq!(message(&s.chat(120).boxed), v(&["Agent:", "Made g."]), "after {ups} alt+u");
+        assert_eq!(message(&s.chat(120).boxed), v(&["Agent:", "Made g."]), "after {ups} alt+k");
     }
     // Open, then the agent says more: alt+j down to the end and once more, the newest alone.
-    for _ in 0..3 { s.press(&["alt+u"]); }
+    for _ in 0..3 { s.press(&["alt+k"]); }
     talk.push((true, "And h?".into())); talk.push((false, "Made h.".into()));
     save_talk(&w, &id, &talk); s.load();
     back(&mut s, &mut |_| {}, 120);
