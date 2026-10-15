@@ -149,16 +149,20 @@ pub fn latest_session(kind: &str, cwd: &Path, since: i64, was: Option<&Path>) ->
     }
 }
 /// Codex names its own conversations: without a hook, the one for this task is the file made after launch, in this
-/// folder, whose prompts name this task and role. No match, or more than one: none.
-pub fn find_session(kind: &str, cwd: &Path, since: i64, needle: &str) -> Option<String> {
+/// folder, whose prompts name this task and role. More than one: the one begun since launch (a review started again
+/// has the same words as the one before it). No match, or still more than one: none.
+pub fn find_session(kind: &str, cwd: &Path, since: i64, needle: &str) -> Option<String> { find_session_but(kind, cwd, since, needle, "") }
+/// The same, leaving out a conversation already known to be another's (`but`: the one a review started again had).
+pub fn find_session_but(kind: &str, cwd: &Path, since: i64, needle: &str, but: &str) -> Option<String> {
     if kind != "codex" { return None; }
     let real = real(cwd).display().to_string();
-    let hits: Vec<PathBuf> = find_file(&codex_home().join("sessions"), &|n| n.ends_with(".jsonl"), 4).into_iter()
+    let hits: Vec<(i64, String)> = find_file(&codex_home().join("sessions"), &|n| n.ends_with(".jsonl"), 4).into_iter()
         .filter(|f| mtime_ms(f).map(|m| m >= since - 60000).unwrap_or(false))
-        .filter(|f| { let head = head_of(f, 400000); serde_json::from_str::<Value>(first_line(&head)).map(|m| m.at("payload").s("cwd") == real && when(m.at("timestamp")) >= since - 5000 && head.contains(needle)).unwrap_or(false) })
+        .filter(|f| !super::helpers::codex_helper_file(f)) // a helper's conversation carries the agent's first prompt along
+        .filter_map(|f| { let head = head_of(&f, 400000); let m = serde_json::from_str::<Value>(first_line(&head)).ok()?; let at = when(m.at("timestamp")); (m.at("payload").s("cwd") == real && at >= since - 5000 && head.contains(needle) && (but.is_empty() || m.at("payload").s("id") != but)).then(|| (at, m.at("payload").t("id"))) })
         .collect();
-    if hits.len() != 1 { return None; }
-    serde_json::from_str::<Value>(first_line(&head_of(&hits[0], 400000))).ok().map(|m| m.at("payload").t("id"))
+    let since_launch: Vec<&(i64, String)> = hits.iter().filter(|h| h.0 >= since).collect();
+    match (hits.len(), since_launch.len()) { (1, _) => Some(hits[0].1.clone()), (_, 1) => Some(since_launch[0].1.clone()), _ => None }
 }
 pub fn can_find_session(kind: &str) -> bool { kind == "codex" }
 pub fn resume_args(kind: &str, id: &str) -> Vec<String> { match kind { "claude" => vec!["--resume".into(), id.into()], "codex" => vec!["resume".into(), id.into()], "pi" => vec!["--session-id".into(), id.into()], _ => vec![] } }

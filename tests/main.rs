@@ -119,6 +119,7 @@ mod gate_rest;
 mod gate_rounds;
 mod guard;
 mod guard_rest;
+mod helpers;
 mod herdr_keys;
 mod home_folder;
 mod home_folder_more;

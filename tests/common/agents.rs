@@ -1,7 +1,9 @@
 //! The fake herdr's agents: started in a pane, prompted, sent keys, read. Each prompt plays the next step of the
 //! script for its role (worker, reviewer for a name ending in -r, picker for -pick, the Coordinator): it writes files,
 //! commits, writes the closing note, the plan, the verdict or the comparison where the board tells an agent to, and
-//! may end its turn with a recorded ending (tests/fixtures/endings) and run the agent's own turn-end report.
+//! may end its turn with a recorded ending (tests/fixtures/endings) and run the agent's own turn-end report. A step's
+//! `then` is a step of the same turn played later: on the board's `after`-th look at the agent (3; 0: never), or by
+//! `go_on`.
 use super::herdr::{arr, fail, ok, out, FakeHerdr as F, Out};
 use super::worktrees::git;
 use serde_json::{json, Value};
@@ -30,7 +32,12 @@ pub fn agent(f: &F, verb: &str, arg2: &str, argv: &[String], flag: &dyn Fn(&str)
     }
     let Some(pi) = st.arr("panes").iter().position(|p| p.at("agent").is_object() && (p.s("pane_id") == arg2 || p.at("agent").s("name") == arg2)) else { return fail("agent_not_found", &format!("agent target {arg2} not found")) };
     match verb {
-        "get" => { if st.b("agentGetFails") { return fail("timeout", "timed out"); } let p = st["panes"][pi].clone(); ok(json!({ "type": "agent_info", "agent": F::agent_out(&p) })) }
+        "get" => {
+            if st.b("agentGetFails") { return fail("timeout", "timed out"); }
+            let due = { let a = &mut st["panes"][pi]["agent"]; a.at("then").is_object() && a.i("thenIn") > 0 && { let n = a.i("thenIn") - 1; a["thenIn"] = json!(n); n == 0 } };
+            if due { drop(st); go_on(f, pi); st = f.st.borrow_mut(); }
+            let p = st["panes"][pi].clone(); ok(json!({ "type": "agent_info", "agent": F::agent_out(&p) }))
+        }
         "prompt" => {
             if st["panes"][pi]["agent"].s("status") == "blocked" { return fail("agent_blocked", "agent is blocked"); }
             let typed = argv.get(3).cloned().unwrap_or_default();
@@ -75,9 +82,14 @@ fn told(first: &str) -> Option<String> { regex::Regex::new(r"^Work board task (\
 fn task_dir(id: &str) -> PathBuf { let mut p = data().join("tasks"); for part in id.split('/') { p.push(part); } p }
 fn write(path: &Path, text: &str) { if let Some(d) = path.parent() { let _ = std::fs::create_dir_all(d); } let _ = std::fs::write(path, text); }
 
+/// The rest of the agent's turn (its step's `then`), now.
+pub fn go_on(f: &F, pi: usize) {
+    let (step, prompt) = { let mut st = f.st.borrow_mut(); let a = &mut st["panes"][pi]["agent"]; (a["then"].take(), a.arr("prompts").last().map(text).unwrap_or_default()) };
+    if step.is_object() { run(f, pi, &prompt, step); }
+}
 /// One scripted turn.
 pub fn play(f: &F, pi: usize, prompt: &str) {
-    let (name, cwd) = { let st = f.st.borrow(); (st["panes"][pi]["agent"].t("name"), st["panes"][pi].t("cwd")) };
+    let name = f.st.borrow()["panes"][pi]["agent"].t("name");
     let coordinator = name.starts_with("sw-coordinator");
     let role = if coordinator { "coordinator" } else if regex::Regex::new(r"-pick(-\d+)?$").unwrap().is_match(&name) { "picker" } else if regex::Regex::new(r"-r(-\d+)?$").unwrap().is_match(&name) { "reviewer" } else { "worker" };
     let step = { let mut sc = f.script.borrow_mut(); let q = arr(&mut sc, role); if q.is_empty() { Value::Null } else { q.remove(0) } };
@@ -87,6 +99,11 @@ pub fn play(f: &F, pi: usize, prompt: &str) {
         arr(&mut st["panes"][pi]["agent"], "prompts").push(json!(prompt));
         F::bump(&mut st, pi, "working", false);
     }
+    run(f, pi, prompt, step);
+}
+fn run(f: &F, pi: usize, prompt: &str, step: Value) {
+    let (name, cwd) = { let st = f.st.borrow(); (st["panes"][pi]["agent"].t("name"), st["panes"][pi].t("cwd")) };
+    let coordinator = name.starts_with("sw-coordinator");
     let first = f.st.borrow()["panes"][pi]["agent"].arr("prompts").first().map(text).unwrap_or_default();
     let dir = Path::new(&cwd);
     if !coordinator {
@@ -122,11 +139,13 @@ pub fn play(f: &F, pi: usize, prompt: &str) {
         }
         drop(st);
     }
+    if step.b("helper") { super::endings::helper_ends(f, pi, step.s("helper") == "running"); }
     if step.b("ends") || step.b("hook") { super::endings::end_turn(f, pi, prompt, &step); }
     let mut st = f.st.borrow_mut();
     if step.b("session") { st["panes"][pi]["agent"]["session"] = step.at("session").clone(); }
     if step.b("screen") { st["panes"][pi]["agent"]["screen"] = step.at("screen").clone(); }
     if step.b("exit") { st["panes"][pi]["agent"] = Value::Null; return; }
+    if step.at("then").is_object() { let a = &mut st["panes"][pi]["agent"]; a["then"] = step.at("then").clone(); a["thenIn"] = json!(if step.has("after") { step.i("after") } else { 3 }); }
     let status = if step.b("status") { step.t("status") } else { "done".into() };
     if status != "working" { F::bump(&mut st, pi, &status, status == "done" || status == "idle"); }
 }

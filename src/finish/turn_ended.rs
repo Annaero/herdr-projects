@@ -8,7 +8,7 @@ use super::pipeline::pipeline;
 use super::review::close_reviewer;
 use super::shared::{fail, failure, last_lines, ms, FailHow};
 use super::waiting::{stay, waits};
-use crate::agents::{adapter, installed, kinds::kind, read_turn::Turn};
+use crate::agents::{adapter, helpers::still_at_work, installed, kinds::kind, read_turn::Turn};
 use crate::board::keys::key_name;
 use crate::clock::now;
 use crate::err::Res;
@@ -114,6 +114,8 @@ fn finish_steps(id: &str, g: &mut Guard, mut t: Task, ev: Option<Value>, force: 
         if reads { let _ = count_mark(&format!("reader:{k}"), &ver, turn.is_some()); }
         let _ = count_mark(&format!("hook:{k}"), &ver, true);
         if let Some(x) = &turn { if !(newer(Some(x), &t) && ((x.finished && x.id != t.at("handled").s("msg")) || !x.error.is_empty())) { return Ok(()); } } // a repeat, or an earlier turn
+        // Helpers it started are still at work (agents/helpers.rs): their answers start it again, and that turn's end counts.
+        if let Some(x) = turn.as_ref().filter(|x| x.finished && x.error.is_empty()) { if still_at_work(&k, Some(x), t.i("startedAgentAt")) { return Ok(()); } }
         // It said that it waits for the human, then stopped: that is not a finish.
         if waits(&t, turn.as_ref()) { stay(id, &t, turn.as_ref(), seen(), e.s("session")); return Ok(()); }
         // A turn that ended in a stage other than "working" was the human's, typed in the agent's own terminal.
@@ -144,6 +146,8 @@ fn finish_steps(id: &str, g: &mut Guard, mut t: Task, ev: Option<Value>, force: 
                 }
             }
             Some(_) => if let Some(x) = turn.as_ref().filter(|x| x.finished) {
+                // the same, seen through herdr alone: this "idle" is handled, the helper's answer brings the next one
+                if still_at_work(&k, Some(x), t.i("startedAgentAt")) { let c = comp.clone(); let _ = update_wait(id, 10000, |t| { t.obj_mut("handled").put("comp", c.clone()); Ok(Change::Write) }); return Ok(()); }
                 // The file must have stood still through the settle wait: a message followed by more work is not the end.
                 let again = x.file.as_deref().and_then(|f| installed::read_turn_of(&k, Some(f), "", &cwd_of(&t), false));
                 if again.map(|y| y.id != x.id || y.pos != x.pos).unwrap_or(true) { return Ok(()); }

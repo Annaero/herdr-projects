@@ -1,7 +1,7 @@
 //! The agent's own turn-end report. `turn-ended` is run by the hook the board passes at launch, inside the agent's
 //! own turn: it only records the event and starts the finish runner, exits 0, prints nothing, and never waits more
 //! than two seconds. Every judgement is made by the finish runner (finish/).
-use crate::agents::{installed, kinds::kind, read_turn::Turn};
+use crate::agents::{helpers, installed, kinds::kind, read_turn::Turn};
 use crate::clock::now;
 use crate::json::*;
 use crate::runner::spawn_runner;
@@ -34,12 +34,15 @@ pub fn turn_ended(id: &str, role: &str, token: &str, round: i64, extra: &[String
     if !["agent", "reviewer"].contains(&role) || !token_ok(t.s("id"), role, token, round) { return log(&format!("refused for {id} ({role}): wrong token")); }
     let j = input(extra);
     // Codex also reports turns of side conversations: a real first prompt starts with the task line, so `side` marks
-    // every other report for the runner to judge.
+    // every other report for the runner to judge. And the turns of the agent's own helpers (agents/helpers.rs), which
+    // carry its first prompt along: their conversation names the thread that started them.
     let first = j.arr("input-messages").first().map(text).unwrap_or_default();
     let me = if t.b("as") { t.t("as") } else { t.t("id") };
     let session = if j.b("session_id") { j.t("session_id") } else { j.t("thread-id") };
-    let ev = json!({ "at": now(), "role": role, "round": round, "session": session, "file": j.t("transcript_path"), "error": j.t("error"),
-        "side": j.b("thread-id") && !first.trim_start().starts_with(&format!("Work board task {me},")) });
+    let helper = j.b("thread-id") && helpers::is_helper("codex", &session);
+    let mut ev = json!({ "at": now(), "role": role, "round": round, "session": session, "file": j.t("transcript_path"), "error": j.t("error"),
+        "side": helper || (j.b("thread-id") && !first.trim_start().starts_with(&format!("Work board task {me},"))) });
+    if helper { ev["helper"] = json!(true); }
     let mut start = false;
     let r = update_wait(t.s("id"), 2000, |t| {
         let seq = t.i("eventSeq") + 1;

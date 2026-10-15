@@ -1,7 +1,8 @@
 //! The reviewer: a visible herdr agent in a tab of its own in the task's space. Starting it, waiting for it, trying
 //! again. A reviewer whose turn ended in a provider error did not review anything: that is not a round. When the error
 //! is one that passes by itself, the board waits and starts the review again, a few times with growing waits; then, or at
-//! once for an error that waiting cannot fix, it fails with the provider's own words.
+//! once for an error that waiting cannot fix, it fails with the provider's own words. A reviewer that ended without a
+//! verdict is started once more by itself before the review counts as failed.
 use super::review_fallback::{next_reviewer, Cut};
 use super::review_once::{review_once, Plan};
 use crate::err::Res;
@@ -18,17 +19,28 @@ pub fn close_reviewer(id: &str) {
     flow::tabs::close_reviewer_tab(&flow::task::h(&t), t.at("link").at("reviewer"));
     let _ = update_wait(id, 10000, |t| { if t.at("link").is_object() { t.obj_mut("link").put("reviewer", Value::Null); } Ok(Change::Write) });
 }
-/// What one review gave: a verdict, or an error; `cut` when its provider ended it; `aborted` when the world moved on.
+/// What one review gave: a verdict, or an error; `cut` when its provider ended it; `aborted` when the world moved on;
+/// `ended` when the reviewer finished (or exited) without a verdict.
 #[derive(Default)]
-pub struct Reviewed { pub review: Option<Obj>, pub error: String, pub auth: bool, pub cut: bool, pub aborted: bool, pub by: String, pub cut_by: Option<Cut> }
+pub struct Reviewed { pub review: Option<Obj>, pub error: String, pub auth: bool, pub cut: bool, pub aborted: bool, pub by: String, pub cut_by: Option<Cut>, pub ended: bool }
 pub fn run_review(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, to_land: bool, ch: &Obj, check: &str) -> Res<Reviewed> { run_review_with(id, g, text, change, to_land, ch, check, None) }
 #[allow(clippy::too_many_arguments)]
 pub fn run_review_with(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, to_land: bool, ch: &Obj, check: &str, plan: Option<&Plan>) -> Res<Reviewed> {
     let waits = retry_waits();
     let mut tried: Vec<String> = vec![];
     let mut tries: i64 = 0;
+    let mut again = true;
     loop {
         let r = review_once(id, g, text, change, to_land, ch, check, plan)?;
+        // It ended without a verdict: once more, as the same review, before that counts as a failed one.
+        if r.ended && again {
+            again = false;
+            match g.set(|t| { if plan.is_none() { t.put("reviewRound", (t.i("reviewRound") - 1).max(0)); } t.put("msg", "The reviewer ended without a verdict: reviewing again"); }) {
+                Ok(_) => continue,
+                Err(e) if is_aborted(&e) => return Ok(Reviewed { aborted: true, ..Default::default() }),
+                Err(e) => return Err(e),
+            }
+        }
         let Some(cut) = r.cut_by.as_ref() else { return Ok(r) };
         // At the task's token limit a cut-off review is not started again by itself.
         if let Some((limit, used)) = tokens_over(id, "") { stop_at(id, "tokens", &limit, used, StopHow { role: "reviewer".into(), ..Default::default() }); return Ok(Reviewed { aborted: true, ..Default::default() }); }

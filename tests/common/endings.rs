@@ -1,6 +1,6 @@
 //! A scripted agent's turn ending as a real one does: the lines its program writes to its own conversation file (a
 //! recorded ending from tests/fixtures/endings, with times of now), and its own turn-end report, run in the test's
-//! thread as the hook the board installed would run it.
+//! thread as the hook the board installed would run it. And a Codex helper's turn ending inside the agent's turn.
 use super::herdr::FakeHerdr as F;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -50,13 +50,41 @@ pub fn end_turn(f: &F, pi: usize, prompt: &str, step: &Value) {
     let _ = std::fs::OpenOptions::new().create(true).append(true).open(&file).and_then(|mut fh| fh.write_all(body.as_bytes()));
     if !step.b("hook") { return; }
     let first = a.arr("prompts").first().map(text).unwrap_or_default();
-    let Some(c) = regex::Regex::new(r"^Work board task (\S+), role: (\w+)(?:, round (\d+))?\.").unwrap().captures(&first) else { return };
+    let says = match kind.as_str() { "codex" => json!({ "thread-id": id, "input-messages": [first] }), "claude" => json!({ "session_id": id, "transcript_path": file.display().to_string() }), _ => json!({ "transcript_path": file.display().to_string() }) };
+    report(&first, says);
+}
+/// A Codex sub-agent the agent started (a review's `/root/check_plans`) ending its own turn: its conversation, which
+/// names its parent and carries the agent's first prompt along, and its turn-end report, the parent's notify hook run
+/// with the helper's own thread (as seen on HP-1, 2026-10-15). `running`: it is still at work, as the one the
+/// `codex-helper-running-made` ending started.
+pub fn helper_ends(f: &F, pi: usize, running: bool) {
+    let (a, cwd, seq) = { let st = f.st.borrow(); (st["panes"][pi]["agent"].clone(), st["panes"][pi].t("cwd"), st.i("seq")) };
+    let real = std::fs::canonicalize(&cwd).unwrap_or_else(|_| PathBuf::from(&cwd)).display().to_string();
+    let first = a.arr("prompts").first().map(text).unwrap_or_default();
+    let root = if a.b("thread") { a.t("thread") } else { format!("root-{seq}") };
+    let id = if running { "check-plans-running".to_string() } else { format!("helper-{seq}") };
+    let iso = sw::clock::iso(sw::clock::now() + 1000);
+    let lines = [
+        json!({ "timestamp": iso, "type": "session_meta", "payload": { "id": id, "session_id": root, "forked_from_id": root, "parent_thread_id": root, "cwd": real, "source": { "subagent": { "thread_spawn": { "parent_thread_id": root, "agent_path": "/root/check_plans" } } } } }),
+        json!({ "timestamp": iso, "type": "response_item", "payload": { "type": "message", "role": "user", "content": [{ "type": "input_text", "text": first }] } }),
+        json!({ "timestamp": iso, "type": "event_msg", "payload": { "type": "task_started" } }),
+        json!({ "timestamp": iso, "type": "response_item", "payload": { "type": "message", "role": "assistant", "phase": "final_answer", "content": [{ "type": "output_text", "text": "Two plan gaps." }] } }),
+        json!({ "timestamp": iso, "type": "event_msg", "payload": { "type": "task_complete", "turn_id": "helper-turn", "last_agent_message": "Two plan gaps." } }),
+    ];
+    let file = env_path("CODEX_HOME").join("sessions").join("2026").join(format!("rollout-2026-{id}.jsonl"));
+    if let Some(d) = file.parent() { let _ = std::fs::create_dir_all(d); }
+    let _ = std::fs::write(&file, lines[..if running { 3 } else { 5 }].iter().map(|l| format!("{l}\n")).collect::<String>());
+    if running { return; }
+    report(&first, json!({ "thread-id": id, "input-messages": [first] }));
+}
+/// A turn-end report for the agent whose first prompt this is, with the board's token for it.
+fn report(first: &str, says: Value) {
+    let Some(c) = regex::Regex::new(r"^Work board task (\S+), role: (\w+)(?:, round (\d+))?\.").unwrap().captures(first) else { return };
     let task = c[1].to_string();
     let role = if &c[2] == "reviewer" { "reviewer" } else { "agent" };
     let round: i64 = c.get(3).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
     let mut dir = sw::store::files::data_dir().join("tasks"); for part in task.split('/') { dir.push(part); }
     let tokens: Value = std::fs::read_to_string(dir.join("tokens.json")).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or(Value::Null);
     let token = if role == "reviewer" { tokens.at("reviewer").t(&round.to_string()) } else { tokens.t("agent") };
-    let says = match kind.as_str() { "codex" => json!({ "thread-id": id, "input-messages": [first] }), "claude" => json!({ "session_id": id, "transcript_path": file.display().to_string() }), _ => json!({ "transcript_path": file.display().to_string() }) };
     sw::turn::turn_ended(&task, role, &token, round, &[says.to_string()]);
 }

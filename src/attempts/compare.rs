@@ -5,7 +5,7 @@
 use super::adopt::adopt;
 use super::settle::to_pick;
 use super::words::{agent_word, standing_of};
-use crate::agents::{installed, start};
+use crate::agents::{helpers::still_at_work, installed, start};
 use crate::board_rule::reviewer_board_rule;
 use crate::clock::now;
 use crate::delegate::{launch_extras, rules::task_line_as};
@@ -117,6 +117,7 @@ fn compare(id: &str, g: &mut Guard, t: &Task) -> Res<Obj> {
     let until = now() + ms("HERDR_SUPERWORK_REVIEW_MS", 20 * 60000);
     let every = ms("HERDR_SUPERWORK_POLL_MS", 3000);
     let mut sent = false;
+    let mut waited: Vec<i64> = vec![]; // its own turn-end reports while helpers it started were still at work
     let sleep = |m: i64| std::thread::sleep(std::time::Duration::from_millis(m.max(0) as u64));
     loop {
         g.check()?;
@@ -129,8 +130,14 @@ fn compare(id: &str, g: &mut Guard, t: &Task) -> Res<Obj> {
         }
         if now() > until { return err("the comparison timed out"); }
         // The reviewer's own turn-end report, and still no answer: it finished without one.
-        let ended = get(id).map(|c| pending_events(&c).into_iter().any(|e| e.s("role") == "reviewer" && !e.b("side") && e.i("at") >= started_at)).unwrap_or(false);
-        if ended && sent { sleep(every.min(1500)); if !file.exists() { return err("the reviewer finished without naming an attempt"); } continue; }
+        let ended = get(id).and_then(|c| pending_events(&c).into_iter().find(|e| e.s("role") == "reviewer" && !e.b("side") && e.i("at") >= started_at && !waited.contains(&e.i("n"))));
+        if let (Some(e), true) = (&ended, sent) {
+            sleep(every.min(1500));
+            if file.exists() { continue; }
+            let w = crate::turn::why_stopped(&get(id).unwrap_or(t.clone()), "reviewer", Some(e));
+            if w.turn.as_ref().map(|x| x.error.is_empty()).unwrap_or(false) && still_at_work(&w.kind, w.turn.as_ref(), started_at) { waited.push(e.i("n")); continue; }
+            return err("the reviewer finished without naming an attempt");
+        }
         let a = api.agent_get(&pane).ok().flatten();
         if a.is_none() && sent { return err("the reviewer exited without naming an attempt"); }
         if a.is_none() && api.pane_get(&pane).is_none() { return err("the reviewer's terminal was closed"); }

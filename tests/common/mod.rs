@@ -84,6 +84,8 @@ impl World {
     pub fn patch(&self, f: impl FnOnce(&mut Value)) { f(&mut self.fake.st.borrow_mut()); }
     pub fn pane_of(&self, t: &Obj) -> Value { self.state().arr("panes").iter().find(|p| p.s("pane_id") == t.at("link").s("pane")).cloned().unwrap_or(Value::Null) }
     pub fn root_str(&self) -> String { self.root.display().to_string() }
+    /// The rest of the turn of the task's agent (its step's `then`, agents.rs), now.
+    pub fn go_on(&self, t: &Obj) { let pi = self.state().arr("panes").iter().position(|p| p.s("pane_id") == t.at("link").s("pane")); if let Some(pi) = pi { agents::go_on(&self.fake, pi); } }
     /// What the fake gh answers from now on (gh.rs).
     pub fn gh_says(&self, c: Value) { *self.gh.cfg.borrow_mut() = c; }
     pub fn add(&self, title: &str) -> String { sw::actions::filing::add(&self.root, title, Default::default()).unwrap().t("id") }

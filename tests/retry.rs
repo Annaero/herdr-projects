@@ -128,13 +128,13 @@ fn an_error_waiting_cannot_fix_is_not_retried_a_missing_model_fails_at_once_a_mi
 }
 
 #[test]
-fn a_reviewer_that_really_finished_without_a_verdict_is_still_a_failed_review_with_its_last_message() {
+fn a_reviewer_that_really_finished_without_a_verdict_twice_is_still_a_failed_review_with_its_last_message() {
     let w = cut_world("30,30", json!({}));
-    w.script(json!({ "worker": [work()], "reviewer": [{ "ends": "codex-finished-made" }] }));
+    w.script(json!({ "worker": [work()], "reviewer": [{ "ends": "codex-finished-made" }, { "ends": "codex-finished-made" }] }));
     let id = w.add("No verdict");
     delegate(&id);
     let t = settle(&id);
-    assert_eq!(t.s("stage"), "failed"); assert_eq!(reviewer_starts(&w), 1);
+    assert_eq!(t.s("stage"), "failed"); assert_eq!(reviewer_starts(&w), 2); // once more by itself (tests/helpers.rs)
     assert!(t.at("failure").s("detail").contains("the reviewer finished without a verdict. Its last message: I looked at it and it seems fine."), "{}", t.at("failure"));
     assert_eq!(review_round(&t), 1); assert!(review_history(&t)[0].s("error").contains("finished without a verdict"));
 }

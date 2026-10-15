@@ -4,7 +4,7 @@ use super::review::{close_reviewer, Reviewed};
 use super::review_brief::{parse_verdict, review_brief, Brief};
 use super::review_fallback::{reviewer_now, Cut};
 use super::shared::ms;
-use crate::agents::{adapter, installed, start};
+use crate::agents::{adapter, helpers::still_at_work, installed, start};
 use crate::clock::now;
 use crate::delegate::{launch_extras, rules::task_line_as};
 use crate::err::Res;
@@ -54,6 +54,7 @@ pub fn review_once(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, 
     let round = if plan.is_some() { 0 } else { t.i("reviewRound") + 1 };
     let other = by != ch.s("reviewer.agent");
     let note = if rkind != who.kind && !t.b("reviewerOn") && stand_in.is_empty() { Some(format!("reviewed by {rkind}: {} is not installed here", who.kind)) } else { None };
+    let was = t.t("reviewSession"); // a review started again: the conversation of the try before is not this one's
     t = g.set(|t| { if plan.is_none() { keep_saved_review(t); t.put("reviewRound", round); } t.put("reviewSession", Value::Null); let f = t.obj_mut("fallbacks"); match &note { Some(n) => f.put("reviewer", n.clone()), None => f.del("reviewer") } })?;
     // From the second round of a send-back on, the reviewer checks the earlier findings instead of starting over.
     let before: Vec<Value> = if plan.is_some() { vec![] } else { review_history(&t).into_iter().filter(gate::is_tagged).collect() };
@@ -63,7 +64,7 @@ pub fn review_once(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, 
     let brief = format!("{}\n\n{body}{}", task_line_as(&t, "reviewer", round), if who.instructions.is_empty() { String::new() } else { format!("\n\n{}", start::own_words(&who.instructions)) });
     let head = if to_land { change.map(|c| c.t("head")).unwrap_or_default() } else { String::new() };
     let mut pane_tab: Option<(String, String)> = None;
-    let (mut error, mut review, mut auth, mut cut): (String, Option<Obj>, bool, Option<Cut>) = (String::new(), None, false, None);
+    let (mut error, mut review, mut auth, mut cut, mut ended): (String, Option<Obj>, bool, Option<Cut>, bool) = (String::new(), None, false, None, false);
     let run = (|| -> Res<()> {
         installed::pre_trust(&rkind, &if t.b("root") { PathBuf::from(t.s("root")) } else { folder_of(t.s("id")) }, &who.access);
         close_reviewer(id); // a tab left over from an interrupted round
@@ -90,12 +91,15 @@ pub fn review_once(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, 
         let tl = task_line_as(&t, "reviewer", round);
         let mark_cell: std::cell::RefCell<Option<Value>> = std::cell::RefCell::new(None);
         let brief_shown = || -> Option<bool> {
-            let s = get(id).map(|c| c.t("reviewSession")).filter(|s| !s.is_empty()).or_else(|| adapter::find_session(&rkind, &folder, started_at, &tl))?;
+            let s = get(id).map(|c| c.t("reviewSession")).filter(|s| !s.is_empty()).or_else(|| adapter::find_session_but(&rkind, &folder, started_at, &tl, &was))?;
             mark_cell.borrow().as_ref().and_then(|m| crate::submit::shown(&rkind, None, &s, &folder, m, &brief))
         };
         let until = now() + ms("HERDR_SUPERWORK_REVIEW_MS", 20 * 60000);
         let every = ms("HERDR_SUPERWORK_POLL_MS", 3000);
         let (mut sent, mut sent_at, mut quiet_since) = (false, 0i64, 0i64);
+        let mut waited: Vec<i64> = vec![]; // its own turn-end reports while its helpers were still at work
+        // Its turn ended while helpers it started are still at work (agents/helpers.rs): their answers start it again.
+        let helpers_at_work = |ev: Option<&Value>| { let w = why_stopped(&get(id).unwrap_or(t.clone()), "reviewer", ev); w.turn.as_ref().map(|x| x.error.is_empty()).unwrap_or(false) && still_at_work(&w.kind, w.turn.as_ref(), started_at) };
         // The reviewer ended its turn with no verdict. Its saved conversation says why.
         let mut no_verdict = |ev: Option<&Value>, or: &str| -> String {
             let mut w = why_stopped(&get(id).unwrap_or(t.clone()), "reviewer", ev);
@@ -120,11 +124,16 @@ pub fn review_once(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, 
             if now() > until { error = "review timed out".into(); break; }
             let cur = get(id).ok_or("the task is gone")?;
             // The reviewer's own turn-end report for this round, and still no verdict: the review failed, at once.
-            let rev = pending_events(&cur).into_iter().find(|e| e.s("role") == "reviewer" && e.i("round") == round && !e.b("side") && e.i("at") >= started_at);
+            let rev = pending_events(&cur).into_iter().find(|e| e.s("role") == "reviewer" && e.i("round") == round && !e.b("side") && e.i("at") >= started_at && !waited.contains(&e.i("n")));
             if let Some(r) = &rev { if r.b("session") && !cur.b("reviewSession") { let s = r.t("session"); let _ = update_wait(id, 10000, |t| { t.put("reviewSession", s.clone()); Ok(Change::Write) }); } }
-            if let (Some(r), true) = (&rev, sent) { sleep(every.min(1500)); if !verdict_file.exists() { error = no_verdict(Some(r), ""); break; } continue; }
+            if let (Some(r), true) = (&rev, sent) {
+                sleep(every.min(1500));
+                if verdict_file.exists() { continue; }
+                if helpers_at_work(Some(r)) { waited.push(r.i("n")); continue; }
+                error = no_verdict(Some(r), ""); ended = true; break;
+            }
             let a = api.agent_get(&pane).ok().flatten();
-            if a.is_none() && sent { error = no_verdict(None, "the reviewer exited without a verdict"); break; }
+            if a.is_none() && sent { error = no_verdict(None, "the reviewer exited without a verdict"); ended = true; break; }
             if a.is_none() && api.pane_get(&pane).is_none() { error = "the reviewer's terminal was closed".into(); break; }
             // herdr status is used only to notice a reviewer that is blocked: "review needs you".
             let blocked = a.as_ref().map(|a| a.s("agent_status") == "blocked").unwrap_or(false);
@@ -144,9 +153,15 @@ pub fn review_once(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, 
                 // No hook: "idle" alone never fails a review. Only its saved conversation ending in a finished message or
                 // an error, and still no verdict 15 seconds later, does.
                 let mut session = cur.t("reviewSession");
-                if session.is_empty() { if let Some(s) = adapter::find_session(&rkind, &folder, started_at, &tl) { session = s.clone(); let _ = update_wait(id, 10000, |t| { t.put("reviewSession", s.clone()); Ok(Change::Write) }); } }
+                if session.is_empty() { if let Some(s) = adapter::find_session_but(&rkind, &folder, started_at, &tl, &was) { session = s.clone(); let _ = update_wait(id, 10000, |t| { t.put("reviewSession", s.clone()); Ok(Change::Write) }); } }
                 let turn = if session.is_empty() { None } else { installed::read_turn_of(&rkind, None, &session, &folder, false) };
-                match turn { Some(x) if x.pos > sent_at && (x.finished || !x.error.is_empty()) => { if quiet_since == 0 { quiet_since = now(); } if now() - quiet_since > ms("HERDR_SUPERWORK_QUIET_MS", 15000) && !verdict_file.exists() { error = no_verdict(None, ""); break; } } _ => quiet_since = 0 }
+                match turn {
+                    Some(x) if x.pos > sent_at && (x.finished || !x.error.is_empty()) && !(x.error.is_empty() && still_at_work(&rkind, Some(&x), started_at)) => {
+                        if quiet_since == 0 { quiet_since = now(); }
+                        if now() - quiet_since > ms("HERDR_SUPERWORK_QUIET_MS", 15000) && !verdict_file.exists() { error = no_verdict(None, ""); ended = true; break; }
+                    }
+                    _ => quiet_since = 0,
+                }
             }
             sleep(every);
         }
@@ -167,7 +182,7 @@ pub fn review_once(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, 
         if let Err(e) = g.set(|t| { if plan.is_none() && t.i("reviewRound") == round { t.put("reviewRound", round - 1); } }) { if is_aborted(&e) { return Ok(Reviewed { aborted: true, ..Default::default() }); } }
         return Ok(Reviewed { cut: true, error, auth, by, cut_by: cut, ..Default::default() });
     }
-    let Some(mut rv) = review else { return Ok(Reviewed { error: if error.is_empty() { "no valid verdict".into() } else { error }, auth, by, ..Default::default() }) };
+    let Some(mut rv) = review else { return Ok(Reviewed { error: if error.is_empty() { "no valid verdict".into() } else { error }, auth, by, ended, ..Default::default() }) };
     gate::stamp(&mut rv, ch.s("review.mustFix"));
     rv.put("by", by.clone()); // who reviewed: the task's history keeps it
     if plan.is_some() { let _ = std::fs::remove_dir_all(&dir); rv.del("listed"); return Ok(Reviewed { review: Some(rv), by, ..Default::default() }); }

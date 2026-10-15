@@ -19,8 +19,11 @@ login error, token use. With the board open or closed it then:
 2. pushes the branch and opens a draft pull request, when there is an `origin` remote and `gh`;
 3. has a second agent review it adversarially, in a tab of its own in the same herdr space (see [A task's tabs](tabs.md)); it says what it found
    and brings evidence; whatever it changed is put back. When the repo has a `check`, the reviewer is told the
-   command and that it passed on this commit, and to run tests only through it. A reviewer that finishes its turn with no verdict fails the
-   review at once, with its last message; one whose turn was ended by its provider is tried again by the board
+   command and that it passed on this commit, and to run tests only through it. A reviewer that finishes its turn with no verdict is started
+   once more by itself, as the same review; a second one that does fails the review, with its last message. Only the
+   reviewer's own turn ending counts: a helper it hands part of the review to (Codex's sub-agents, Claude Code's
+   background agents) finishing is not the review ending, and while one of its helpers is still at work the review is
+   still going (the same holds for a working agent and its task). One whose turn was ended by its provider is tried again by the board
    (see [A turn cut off by the provider](provider-errors.md)). The board decides from the findings (see [The gate](gate.md)): a
    review that fails goes straight back to the agent. The row says the result and a tally (`Pass · 2 minor`), and
    its `R#2` tag which review it was and, by its colour, how it went; the task panel has its summary, and every earlier

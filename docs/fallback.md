@@ -85,7 +85,8 @@ review fails as it does without one.
 
 One case does **not** apply to the reviewer: there is no "failed `review.rounds` times" for it. A reviewer that
 reviewed and found faults has done its work; replacing it until one passes the change would be shopping for a
-verdict. A review that timed out or ended without a verdict is a failed review as before, not a hand-over: nothing
+verdict. A review that timed out or ended without a verdict (twice: the first time it is started once more) is a failed
+review as before, not a hand-over: nothing
 says another program would do better.
 
 ## What you see

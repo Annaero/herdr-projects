@@ -15,3 +15,7 @@ a recorded one. `claude-overloaded-made` and `claude-rate-limit-made` have the r
 the API's documented 529 and 429 texts; the two `-finished-made` files are an ordinary finished turn.
 - `claude-review-60k-made`, `claude-review-60k-again-made`, `claude-review-1510-made` (tests/limits_review.rs): a reviewer's
   finished turn that used that many tokens.
+- `codex-helper-running-made`, `claude-helper-running-made`, `claude-helper-back-made` (tests/helpers.rs): a turn that
+  ends while a helper it started is still at work, in the shape of the recorded ones (Codex 0.162.1's
+  `SubAgentActivity`, Claude Code 2.1's "Async agent launched" result and `<task-notification>`), and the turn its
+  helper's answer starts.
