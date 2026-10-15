@@ -46,6 +46,7 @@ mod board_more;
 mod board_needs;
 mod board_needs_rest;
 mod board_panel;
+mod board_pending;
 mod board_panel_form;
 mod board_parts;
 mod board_parts_rest;

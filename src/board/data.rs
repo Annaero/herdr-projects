@@ -35,6 +35,8 @@ pub struct Data {
     /// herdr's approve action asked this board to ask about a task; a line the board key left for this board.
     pub approve: String, pub heard: Option<(String, String)>,
     pub loaded: bool,
+    /// Which read this is (`reads_started`), counted from the program's start.
+    pub seq: u64,
 }
 /// What the board wants a closer look at.
 #[derive(Clone, Debug, Default)]
@@ -49,8 +51,13 @@ pub fn repo_here(cwd: &str) -> (String, String) {
     *h = Some((cwd.to_string(), r.clone()));
     r
 }
+static READS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// How many reads of the tasks have started: a read numbered higher than this began after now, so it sees what was
+/// just done.
+pub fn reads_started() -> u64 { READS.load(std::sync::atomic::Ordering::SeqCst) }
 /// One read of everything. `wants`: the tasks to look at closer.
 pub fn load(wants: &Wants) -> Data {
+    let seq = READS.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
     let socket = current_socket();
     let mut items: Vec<Obj> = board(true).iter().map(as_row).collect();
     for r in items.iter_mut() { if wants.ids.iter().any(|w| w == r.s("id")) { let s = snap(r); r.put("snap", s); } }
@@ -70,7 +77,7 @@ pub fn load(wants: &Wants) -> Data {
         session: session_name(&socket), notify: setting("board.notify", None).as_str().unwrap_or("").to_string(),
         repo: here.0, repo_root: here.1, host: crate::remote::check::hostname(),
         // herdr's approve action and a line left by the board key are for a board in a terminal, never the web board.
-        approve: if wants.web { String::new() } else { crate::actions::finish_line::take_approve(&socket, &wants.own_pane) }, heard: if wants.web { None } else { crate::board::run::say::heard(&wants.own_pane, &socket) }, loaded: true,
+        approve: if wants.web { String::new() } else { crate::actions::finish_line::take_approve(&socket, &wants.own_pane) }, heard: if wants.web { None } else { crate::board::run::say::heard(&wants.own_pane, &socket) }, loaded: true, seq,
     }
 }
 /// An automation with what its row and its panel show, read here: its firings, newest first, its own settings, every

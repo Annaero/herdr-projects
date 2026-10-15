@@ -112,6 +112,8 @@ fn other_machines_automations_are_in_the_list_with_their_machine_named_and_are_c
     assert_eq!(automation(mine.s("id")).unwrap().at("settings"), &json!({ "reviewer.agent": "claude", "merge.by": "itself" }), "nothing of this machine's changed");
     s.press(&["esc"]); assert!(s.s.editing.is_none()); assert!(s.s.auto_open); s.press(&["esc"]); assert!(!s.s.auto_open);
     f.ends("vm-b", "do", "", "", 255); s.press(&["space"]); assert!(t(&mut s, 120).contains("vm-b did not answer"), "{}", t(&mut s, 120));
+    // its row says so too, until esc dismisses the error (board_pending.rs)
+    like(&t(&mut s, 140), r"⟳ on +Theirs nightly +Could not turn off: vm-b did not answer"); s.press(&["esc"]);
     f.answers("vm-b", "do", &json!({ "ok": true, "msg": "Removed the automation \"Theirs nightly\"." }));
     // whole: drawn from what that machine sent, with the machine named; a firing goes to that machine's task
     s.press(&["enter"]);

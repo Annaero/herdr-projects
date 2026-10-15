@@ -52,7 +52,10 @@ pub fn status(k: &mut Kit, c: &Ctx, r: &Obj) -> (usize, Top, usize, String) {
     } else if has_eta && r.s("state") != "done" { rows.push(("progress", k.fact("Progress", vec![Inked::of(eta.clone(), ink)]))); }
     let note = review_note(r);
     let failure = c.failure.clone();
-    if working && !note.is_empty() && !(failure.is_some() && waiting_of(r).map(|w| w.s("who") == "agent").unwrap_or(false)) { rows.push(("now", k.fact_text("Now", &note))); }
+    // What you just did, under way (update/pending.rs): said at once, before anything of it can be read.
+    let p = r.at("pending");
+    if p.b("word") { let ink = if p.b("failed") { Ink::Red } else { Ink::Yellow }; rows.push(("now", k.fact("Now", Kit::wrap_at(&p.t("word"), k.room).into_iter().map(|l| l.recolor(ink)).collect()))); }
+    else if working && !note.is_empty() && !(failure.is_some() && waiting_of(r).map(|w| w.s("who") == "agent").unwrap_or(false)) { rows.push(("now", k.fact_text("Now", &note))); }
     // What this run and the task have used against each limit that is set, in amber from near it on.
     let lim = r.at("limits");
     let near = |x: &Value, of: f64| x.f("used") >= NEAR * of;
@@ -83,7 +86,7 @@ pub fn status(k: &mut Kit, c: &Ctx, r: &Obj) -> (usize, Top, usize, String) {
         if c.full && !url.is_empty() && !c.web { v.push(Kit::dim(url.clone())); }
         rows.push(("change", k.fact("Change", v)));
     }
-    if !c.agent && !r.b("archivedAt") && r.s("state") == "idle" && r.s("description").trim().is_empty() { rows.push(("next", k.fact("Next", Kit::wrap_at(&format!("No agent is on this yet. {} puts one on it.", key_name("delegate")), k.room).into_iter().map(|l| l.recolor(Ink::Muted)).collect()))); }
+    if !c.agent && !r.b("archivedAt") && !r.at("pending").b("word") && r.s("state") == "idle" && r.s("description").trim().is_empty() { rows.push(("next", k.fact("Next", Kit::wrap_at(&format!("No agent is on this yet. {} puts one on it.", key_name("delegate")), k.room).into_iter().map(|l| l.recolor(Ink::Muted)).collect()))); }
     let top = Top { rows };
     let top_part = k.part(top.lines());
     k.parts[top_part].name = "top";

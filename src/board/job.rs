@@ -46,6 +46,24 @@ pub enum Job {
     WebUiLink, WebUiDecline,
     Nothing,
 }
+impl Job {
+    /// The row this job acts on: a task's id (another machine's as `host:id`), an automation's row; "" for the rest.
+    pub fn about(&self) -> String {
+        match self {
+            Job::Tell { id, .. } | Job::Delegate { id, .. } | Job::Approve { id, .. } | Job::FinishAnyway { id } | Job::Retry { id } | Job::CarryOn { id }
+            | Job::SendFailure { id } | Job::SendError { id } | Job::SendReview { id } | Job::Stop { id, .. } | Job::Pin { id, .. } | Job::Archive { id, .. }
+            | Job::Restore { id, .. } | Job::Clear { id, .. } | Job::Pick { id, .. } | Job::Describe { id, .. } | Job::OpenAgent { id, .. } => id.clone(),
+            Job::AutoTurn { id, .. } | Job::AutoFire { id } | Job::AutoRemove { id, .. } => format!("auto:{id}"),
+            Job::Far { host, action, req, .. } if action.starts_with("auto-") => format!("{host}:auto:{}", req.s("id")),
+            Job::Far { host, req, .. } => format!("{host}:{}", req.s("id")),
+            _ => String::new(),
+        }
+    }
+    /// Which job this is, to tell two jobs on one row apart: its variant ("Stop"), or another machine's action ("far:stop").
+    pub fn kind(&self) -> String {
+        match self { Job::Far { action, .. } => format!("far:{action}"), j => format!("{j:?}").split([' ', '{', '(']).next().unwrap_or("").to_string() }
+    }
+}
 /// What follows a job, for the board to take in.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Then {
@@ -81,13 +99,15 @@ pub enum Then {
     /// to be put right.
     Saved(String),
 }
+/// `about`: the row the job acted on (Job::about), `kind` which job it was (Job::kind); `seen`: how many reads of the tasks had started when it ended, so the
+/// board knows which read shows what it did (update/pending.rs).
 #[derive(Clone, Debug, PartialEq)]
-pub struct Done { pub flash: Option<(String, Ink)>, pub then: Vec<Then>, pub ok: bool }
+pub struct Done { pub flash: Option<(String, Ink)>, pub then: Vec<Then>, pub ok: bool, pub about: String, pub kind: String, pub seen: u64 }
 /// Done, and nothing to say: it worked.
-impl Default for Done { fn default() -> Self { Done { flash: None, then: vec![], ok: true } } }
+impl Default for Done { fn default() -> Self { Done { flash: None, then: vec![], ok: true, about: String::new(), kind: String::new(), seen: 0 } } }
 impl Done {
-    pub fn say(text: impl Into<String>, ink: Ink) -> Done { Done { flash: Some((text.into(), ink)), then: vec![], ok: true } }
-    pub fn fail(text: impl Into<String>) -> Done { Done { flash: Some((text.into(), Ink::Red)), then: vec![], ok: false } }
+    pub fn say(text: impl Into<String>, ink: Ink) -> Done { Done { flash: Some((text.into(), ink)), ..Default::default() } }
+    pub fn fail(text: impl Into<String>) -> Done { Done { flash: Some((text.into(), Ink::Red)), ok: false, ..Default::default() } }
     pub fn and(mut self, t: Then) -> Done { self.then.push(t); self }
 }
 /// Run one job to its end. Errors are said in red, as the board says every error.
@@ -100,7 +120,9 @@ pub fn run(job: Job) -> Done {
         Job::Describe { id, text } => Some((text.clone(), id.clone())),
         _ => None,
     };
+    let (about, kind) = (job.about(), job.kind());
     let mut d = run_one(job);
+    d.about = about; d.kind = kind; d.seen = super::data::reads_started();
     if !d.ok { if let Some((text, to)) = unsent { d.then.push(Then::Unsent { text, to }); } }
     d
 }

@@ -76,6 +76,7 @@ pub fn update(s: &mut State, ev: Event) -> Vec<Effect> {
         Event::Took(r) => size::took(s, r),
         Event::WebUiOffer(urls) => web_ui::offered(s, urls),
     }
+    pending::start(s, &mut fx); // what was just asked for shows on its row now, not when it is done
     fx
 }
 /// A paste goes into the text box whole: its keys never act on the board.
@@ -95,6 +96,7 @@ pub mod edit;
 pub mod keys;
 pub mod menu;
 pub mod mouse;
+pub mod pending;
 pub mod remotes;
 pub mod setup;
 pub mod size;

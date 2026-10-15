@@ -3,6 +3,7 @@
 //! has its own: the word on or off where a task has its number, its trigger where a task says something, the task its
 //! last firing made where the review tag stands, and when it fires next or fired last in the time column.
 use crate::board::state::State;
+use crate::board::update::pending::said as pending_said;
 use crate::board::theme::Theme;
 use crate::json::*;
 use crate::research::is_research;
@@ -28,6 +29,9 @@ pub fn auto(r: &Obj) -> &Value { r.at("auto") }
 /// A task's mark: herdr's own, a different one for each state, in the colour of its group.
 pub fn mark(t: &Theme, r: &Obj) -> Inked {
     if is_auto(r) { let on = auto(r).b("on"); let m = Inked::of(AUTO_MARK, Ink::Auto); return if on { m } else { m.quiet() }; }
+    // Something you just did is under way on it (update/pending.rs): the working mark, or the error mark when it failed.
+    let p = r.at("pending");
+    if p.b("word") { return if p.b("failed") { Inked::of(t.mark("error", ""), Ink::Red).bold() } else { Inked::of(t.mark("working", ""), Ink::Yellow) }; }
     let c = status_ink(r);
     if r.b("archivedAt") { return Inked::of(t.mark("unknown", ""), c); }
     if in_review(r) { return Inked::of(t.mark("ready", ""), c).bold(); } // passed and waits for your yes
@@ -72,11 +76,12 @@ pub fn name_ink(r: &Obj, s: &str) -> Inked {
 /// trigger there, on a narrow screen (`tall`) under its name instead.
 pub fn says_beside(s: &State, r: &Obj, tall: bool) -> Inked {
     if is_auto(r) { return if tall { Inked::new() } else { auto_said(s, r, "beside") }; }
-    if is_live(r) { Inked::new() } else { sentence(r) }
+    if is_live(r) { Inked::new() } else { pending_said(r.at("pending")).unwrap_or_else(|| sentence(r)) }
 }
 /// What a live task's second line says: its words, or something true and quiet instead of a gap.
 pub fn says_under(s: &State, r: &Obj, says_beside_shown: bool) -> Inked {
     if is_auto(r) { return auto_said(s, r, if says_beside_shown { "why" } else { "all" }); }
+    if let Some(p) = pending_said(r.at("pending")) { return p; }
     let said = sentence(r);
     if !said.is_empty() { return said; }
     let st = r.s("stage");
@@ -86,6 +91,7 @@ pub fn says_under(s: &State, r: &Obj, says_beside_shown: bool) -> Inked {
 /// every machine; and why the board turned it off. `part`: "beside" its name, "why" (under it), or "all" under it.
 pub fn auto_said(s: &State, r: &Obj, part: &str) -> Inked {
     let a = auto(r);
+    if part != "why" { if let Some(p) = pending_said(a.at("pending")) { return p; } }
     let row = a.at("rowNow");
     let first = [if s.tags_gone { row.t("state") } else { String::new() }, row.t("trigger"), if row.s("repo") != s.data.repo { crate::shown::words::repo_label(row.s("repo")) } else { String::new() }, if a.b("host") && s.scope == "*" { format!("on {}", a.s("host")) } else { String::new() }];
     let mut parts: Vec<String> = if part == "why" { vec![] } else { first.to_vec() };

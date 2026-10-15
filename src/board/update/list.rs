@@ -43,6 +43,7 @@ pub fn relist(s: &mut State) {
     super::remotes::reorder(s);
     let mine = &s.data.items;
     s.items = if s.scope.is_empty() { mine.clone() } else if s.scope == "*" { mine.iter().cloned().chain(super::remotes::others(s).into_iter().flat_map(|m| m.items.iter().cloned())).collect() } else { s.remotes.get(&s.scope).map(|m| m.items.clone()).unwrap_or_default() };
+    super::pending::overlay(s);
     s.jobs = if s.archive_view { vec![] } else { s.data.jobs.clone() };
     let f = filter_now(s);
     // The task the selection is held on keeps its row whatever it has become meanwhile.
@@ -73,6 +74,7 @@ pub fn relist(s: &mut State) {
     // What is typed is a task's own number or tag: the selection goes to that task.
     if !f.is_empty() && layout != s.selection_layout { if let Some(exact) = shown.iter().find(|r| tags(s, r).contains(&f)) { s.sel = exact.t("id"); } }
     s.autos = autos_shown(s, &f);
+    super::pending::overlay_autos(s);
     // The selection taken to a task (or the list laid out anew under it): that task's headings unfold.
     if !is_head(&s.sel) && (layout != s.selection_layout || !s.selection_rows.iter().any(|r| r.id == s.sel)) { super::heads::reveal(s); }
     s.rows = fold_rows(s);

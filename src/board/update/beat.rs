@@ -17,12 +17,14 @@ pub fn tick(s: &mut State, now: i64, fx: &mut Vec<Effect>) {
     // herdr is asked what it shows of the board's pane every two seconds (size.rs).
     if s.ticks % 2 == 0 && !s.ctx.pane.is_empty() { s.size.ask = true; }
     if s.ticks == 3 { super::web_ui::look(s, fx); }
+    if super::pending::tick(s) { relist(s); }
 }
 pub fn loaded(s: &mut State, d: Data, fx: &mut Vec<Effect>) {
     let first = !s.data.loaded;
     let approve = d.approve.clone();
     let heard = d.heard.clone();
     s.data = d;
+    super::pending::read(s);
     relist(s);
     // The task left the list, so the selection went to its neighbour: the message says which.
     if !s.left.is_empty() && s.items.iter().any(|r| r.s("id") == s.left && r.b("archivedAt") != s.archive_view) {

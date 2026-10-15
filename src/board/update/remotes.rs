@@ -50,6 +50,7 @@ pub fn answered(s: &mut State, label: &str, answer: Result<Value, Value>) {
         Err(why) => { m.ok = false; m.fail_at = now; m.items.clear(); m.autos.clear(); m.coord = Value::Null; m.why = Some(if why.is_null() { unknown(&m.machine.label, &m.machine.target) } else { why }); }
     }
     relist(s);
+    if super::pending::polled(s, label) { relist(s); }
 }
 /// The machines in the order of herdr's sidebar: worked out again whenever the list is. The other machine whose sidebar
 /// it is stays the one followed before also while it has not answered yet (the board just opened).

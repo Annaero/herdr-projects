@@ -57,6 +57,13 @@ pub enum Row { Head { name: String, autos: bool, id: String, machine: bool, fold
 /// The selection's row in the list as last laid out, to keep the selection steady when rows move.
 #[derive(Clone, Debug, Default)]
 pub struct SelRow { pub id: String, pub order: String, pub at: i64, pub done: bool, pub base: i64 }
+/// What a key started on a row, shown on it until what it did is read (update/pending.rs): its word ("Stopping…") and
+/// what it says if it fails ("Could not stop"), when, another machine's row as it was then (`was`), whether a read
+/// must show it (`wait`), and how it went: `answered` the reads started when its job ended, `failed` why it did not
+/// work. `polls`: another machine's answers taken in since the job ended. `kind`: which job it is (Job::kind), the only
+/// one whose answer counts, `out` how many of that kind are under way, `through` words or a pane being opened.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Pending { pub word: String, pub fail: String, pub at: i64, pub was: String, pub far: bool, pub wait: bool, pub answered: Option<u64>, pub answered_at: i64, pub failed: Option<String>, pub polls: u32, pub kind: String, pub out: u32, pub through: bool }
 /// A size somebody else holds the board's terminal at (held.rs), as last seen.
 #[derive(Clone, Debug, Default)]
 pub struct Held { pub columns: u16, pub rows: u16, pub room: (u16, u16), pub by: Vec<(i64, i64)>, pub known: bool }
@@ -97,6 +104,8 @@ pub struct State {
     /// The first ctrl+c (or the last esc) shows how the board closes: until then (ms), and whether esc showed it.
     pub closing: Option<(i64, bool)>, pub leaving: bool, pub leave_at: i64,
     pub attempt_at: HashMap<String, String>,
+    /// What a key started and the board has not yet read the result of, by row id (update/pending.rs).
+    pub pending: HashMap<String, Pending>,
     pub list_room: usize, pub list_tall: bool, pub list_width: usize, pub fold_sel: String, pub unread_top: usize, pub unread_max: usize,
     pub list_at: Option<(usize, usize)>, pub list_ids: Vec<String>,
     pub told: i64, pub rang: i64, pub err_hid: String, pub told_reply: String, pub lone_at: i64, pub prefixed: i64,
@@ -127,7 +136,7 @@ impl State {
             mode: Mode::New, menu: None, ask: None, by_repo: false, draft_away: None, auto_open: false, auto_at: -1, folded: Default::default(), scope: String::new(),
             filter: String::new(), msg: String::new(), msg_kind: Ink::Muted, chat_open: true, chat_folded: false, just_sent: HashMap::new(), chat_at: None, chat_fit: None, chat_rows: None,
             input: TextBox::default(), editing: None, edit_line: 0, setup: None, paste_text: String::new(), closing: None, leaving: false, leave_at: 0,
-            attempt_at: HashMap::new(), list_room: 0, list_tall: false, list_width: 0, fold_sel: String::new(), unread_top: 0, unread_max: 0, list_at: None, list_ids: vec![],
+            attempt_at: HashMap::new(), pending: HashMap::new(), list_room: 0, list_tall: false, list_width: 0, fold_sel: String::new(), unread_top: 0, unread_max: 0, list_at: None, list_ids: vec![],
             told: 0, rang: 0, err_hid: String::new(), told_reply: String::new(), lone_at: 0, prefixed: 0, stale: String::new(), left: String::new(),
             held: None, guest: false, viewed: false, off_note: String::new(), size: Default::default(), chat_key_shown: false, web_ui_asked: false, tags_gone: false, now: crate::clock::now(), ticks: 0, osc_sent: HashMap::new(),
         }

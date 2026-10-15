@@ -38,7 +38,7 @@ fn press(s: &mut State, p: &Press, fx: &mut Vec<Effect>) {
     if !s.paste_text.is_empty() { s.paste_text.clear(); return; }
     let (esc, close, tab) = (is(p, K::Back), is(p, K::Close), is(p, K::Delegate));
     // An error stays until esc dismisses it; anything else is gone with the next key.
-    if !s.msg.is_empty() && s.msg_kind == Ink::Red { if esc { s.msg.clear(); return; } } else { s.msg.clear(); }
+    if !s.msg.is_empty() && s.msg_kind == Ink::Red { if esc { s.msg.clear(); return super::pending::dismiss(s); } } else { s.msg.clear(); }
     if s.setup.is_some() { return super::setup::key(s, p, fx); }
     let enter = is(p, K::Enter);
     if s.ask.is_some() { return answer(s, p, esc, close, fx); }

@@ -46,10 +46,15 @@ impl Board {
         }
         if again { self.load(); }
     }
+    /// One key pressed, and what it started left for `run`: the board as it is the moment the key is pressed, before any
+    /// of its work is done.
+    pub fn hold(&mut self, key: &str) -> Vec<Effect> { update(&mut self.s, Event::Key(press_of(key))) }
+    /// What a held key started, run now (its job, and the read after it).
+    pub fn run(&mut self, fx: Vec<Effect>) { self.effects(fx); }
     /// Keys by their chord ("alt+t", "esc", "enter", "space", "ctrl+l"); anything else is one character typed.
     pub fn press(&mut self, keys: &[&str]) {
         for k in keys {
-            let p = match *k { "space" => Press::char(' '), "esc" => Press::chord("escape"), k if k.chars().count() == 1 => Press::char(k.chars().next().unwrap()), k => Press::chord(k) };
+            let p = press_of(k);
             let was = self.s.sel.clone();
             let fx = update(&mut self.s, Event::Key(p));
             self.effects(fx);
@@ -99,6 +104,7 @@ impl Board {
     /// The screen at another width, each line without the spaces at its end.
     pub fn screen(&mut self, cols: usize) -> Vec<String> { let was = self.cols; self.cols = cols; let l = self.lines(); self.cols = was; l.into_iter().map(|x| x.trim_end().to_string()).collect() }
 }
+fn press_of(k: &str) -> Press { match k { "space" => Press::char(' '), "esc" => Press::chord("escape"), k if k.chars().count() == 1 => Press::char(k.chars().next().unwrap()), k => Press::chord(k) } }
 /// One call of the web board, as the page makes it (for a page that may drive).
 pub fn web(w: &super::World, call: &str, args: Value) -> Value { web_as(w, "test", call, args).unwrap_or_else(|e| panic!("web {call}: {e}")) }
 /// A call of one browser's board (`client`), as a page that may drive unless `args` says its `role`.

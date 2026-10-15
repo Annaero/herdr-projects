@@ -8,6 +8,7 @@ use crate::board::state::{Away, State};
 use crate::shown::ink::Ink;
 
 pub fn apply(s: &mut State, d: Done, fx: &mut Vec<Effect>) {
+    super::pending::answered(s, &d, fx);
     if let Some((text, ink)) = d.flash {
         // Plainly sent to the agent: the box shows your words; said only while the chat is hidden.
         if ink == Ink::Plain { if !s.chat_open { s.flash(text, Ink::Green); } } else { s.flash(text, ink); }
@@ -16,7 +17,7 @@ pub fn apply(s: &mut State, d: Done, fx: &mut Vec<Effect>) {
         match t {
             Then::Sel(id) => { s.sel = id; }
             Then::NoteSent { id, text } => super::chat::note_sent(s, &id, &text),
-            Then::Archived(id) => { if let Some(r) = s.items.iter().find(|r| r.s("id") == id) { s.archive_undo = Some((**r).clone()); } s.left = id; }
+            Then::Archived(id) => { if let Some(r) = s.items.iter().find(|r| r.s("id") == id) { let mut r = (**r).clone(); r.remove("pending"); s.archive_undo = Some(r); } s.left = id; }
             Then::Left(id) => s.left = id,
             Then::AutoGone => { s.auto_open = false; s.editing = None; }
             Then::Unsent { text, to } => {
