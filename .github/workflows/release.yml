@@ -1,6 +1,6 @@
 # Builds the program for every platform and attaches it to the GitHub release of a version tag.
 #
-# Runs when a tag `v*` is pushed (`git tag v0.3.0 && git push origin v0.3.0`), or by hand with a tag to build the files
+# Runs when a tag `v*` is pushed (`git tag v1.0.0 && git push origin v1.0.0`), or by hand with a tag to build the files
 # of an existing release again. Each file is `herdr-projects-<os>-<arch>` (os linux|macos, arch x86_64|aarch64) with
 # its `.sha256` beside it: bin/run.sh and `herdr-projects update` download exactly these names. The Linux files are
 # static (musl), so they run on any Linux. The tag must be the version in Cargo.toml and herdr-plugin.toml, or the run
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: The tag to build, e.g. v0.3.0
+        description: The tag to build, e.g. v1.0.0
         required: true
 
 permissions:

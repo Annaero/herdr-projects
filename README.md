@@ -12,10 +12,20 @@ Linux or macOS (x86_64 or aarch64). Needs herdr 0.9.3 or newer, `git`, `curl` or
 requests) and `tailscale` (private review links). The board is one program: no Node, no npm.
 
 ```sh
+herdr plugin install eliasstravik/herdr-projects
+```
+
+Or from a checkout of your own:
+
+```sh
 git clone https://github.com/eliasstravik/herdr-projects && cd herdr-projects
 herdr plugin link "$PWD"          # hooks, the popup and the actions
 sh bin/run.sh install             # gets the program, writes its launcher, says how to put it on your PATH
 ```
+
+**Coming from herdr-projects 0.2 or herdr-superwork?** Install this version the same way: its first run takes the old
+one over by itself. The old projects are set aside in `~/.herdr-projects-legacy`, never deleted
+([older installs](docs/old-installs.md)). The old version lives on in the `legacy` branch and the `v0.2.35` release.
 
 The plugin downloads the program for your platform from the project's GitHub releases; `herdr-projects update`
 fetches a newer one. To build it yourself instead: `cargo build --release`. The first run, the blocks it can add to
