@@ -1,15 +1,15 @@
 # The home folder: where the board keeps its files
 
-Everything the board keeps for you is in one folder, the same on every machine: `~/.herdr-superwork/`.
+Everything the board keeps for you is in one folder, the same on every machine: `~/.herdr-projects/`.
 
 ```
-~/.herdr-superwork/
+~/.herdr-projects/
   settings/     config.json: your own preferences (docs/settings.md)
   data/         everything the board writes while it runs
     tasks/<repo>/<n>/        one folder per task: task.json, inbox.jsonl, closing-note.md, artifacts/
     coordinator/<session>/   the Coordinator's saved state, and chat/, the folder it starts in
     automations/             the automations, their firings, the board events counted already (docs/automations.md)
-    bin/herdr-superwork      the command agents are handed, by its full path
+    bin/herdr-projects      the command agents are handed, by its full path
     conflicts.jsonl          one line per conflict with main, once repaired (docs/how-work-gets-done.md)
     locks/ stamps/ *.json *.log   the board's own bookkeeping
   reports/      pages and reports an agent made for you that belong in no repo, one folder per task
@@ -20,11 +20,11 @@ Everything the board keeps for you is in one folder, the same on every machine: 
 
 | To put somewhere else | Set |
 |---|---|
-| the whole folder | `HERDR_SUPERWORK_HOME` |
-| only the data | `HERDR_SUPERWORK_DATA_DIR` |
-| only the settings | `HERDR_SUPERWORK_CONFIG_DIR` |
-| only the reports | `HERDR_SUPERWORK_REPORTS_DIR` |
-| only the folder the Coordinator starts in | `HERDR_SUPERWORK_COORDINATOR_DIR` |
+| the whole folder | `HERDR_PROJECTS_HOME` |
+| only the data | `HERDR_PROJECTS_DATA_DIR` |
+| only the settings | `HERDR_PROJECTS_CONFIG_DIR` |
+| only the reports | `HERDR_PROJECTS_REPORTS_DIR` |
+| only the folder the Coordinator starts in | `HERDR_PROJECTS_COORDINATOR_DIR` |
 
 The `XDG_*` variables (`XDG_STATE_HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`) no longer choose a place. They are
 read for one thing only: to find where an older version kept its files, for the move below.
@@ -34,7 +34,7 @@ read for one thing only: to find where an older version kept its files, for the 
 What an agent writes for the board goes in its task's own folder, `data/tasks/<repo>/<n>/`: its closing note
 (`closing-note.md`) and, while a review runs, the reviewer's verdict and evidence (`review/`, moved to `artifacts/`
 when the review ends). The agent is told the full path. So a task that works in your home folder writes nothing
-into `~/.herdr-superwork/` itself, and no repo or worktree gets a folder of the board's.
+into `~/.herdr-projects/` itself, and no repo or worktree gets a folder of the board's.
 
 The closing note is removed when its task is cleaned up (after a merge, a task that ended with nothing to merge,
 or `clear`), and the whole task folder goes when the task is cleared away.
@@ -53,18 +53,18 @@ where a `closing-1.md` beside `data` and `settings` comes from. What that means 
   it yourself when no agent from before is still running. The line for it in the repo's `.git/info/exclude` stays,
   so leftovers never show up as changes.
 
-`.herdr-superwork.json` (a repo's own settings) is a file of another name.
+`.herdr-projects.json` (a repo's own settings) is a file of another name.
 
 ## What stays outside it
 
-- The how-to file in each agent program's own skills folder (`~/.claude/skills/herdr-superwork` and the others)
+- The how-to file in each agent program's own skills folder (`~/.claude/skills/herdr-projects` and the others)
   and the marked blocks in herdr's `config.toml`: they have to be where those programs read them.
-  `herdr-superwork remove-extras` takes them out ([installing](install.md)).
+  `herdr-projects remove-extras` takes them out ([installing](install.md)).
 - With the herdr web UI plugin installed, and only after a yes: where that web UI's shared link (`tailscale serve`)
-  points, so the Board shows in it. `herdr-superwork web-ui unlink` and `remove-extras` point it back
+  points, so the Board shows in it. `herdr-projects web-ui unlink` and `remove-extras` point it back
   ([the board in the herdr web UI](web-ui.md)).
 - The trust mark for a repo, in the agent program's own settings (`~/.claude.json`, `~/.codex/config.toml`).
-- This repo's own test runner keeps what already passed in `~/.cache/herdr-superwork-check` ([tests](testing.md)).
+- This repo's own test runner keeps what already passed in `~/.cache/herdr-projects-check` ([tests](testing.md)).
   That is the cache of a tool for working on this code, not something the board keeps for you: it can be deleted
   at any time.
 
@@ -72,10 +72,10 @@ where a `closing-1.md` beside `data` and `settings` comes from. What that means 
 
 Older versions kept the data in `~/.local/state/herdr-superwork`, the settings in `~/.config/herdr-superwork`, and
 agents put reports in `~/.local/share/herdr-superwork-reports`. The first run of a new version moves all three into
-`~/.herdr-superwork/` by itself: any run, the board, a command, or the hook herdr calls. It then says so once, in one
+`~/.herdr-projects/` by itself: any run, the board, a command, or the hook herdr calls. It then says so once, in one
 line, the first time you would see it (on the board when it opens, or after a command you typed):
 
-    Moved the board's files into ~/.herdr-superwork: data (from ~/.local/state/herdr-superwork), settings (from
+    Moved the board's files into ~/.herdr-projects: data (from ~/.local/state/herdr-superwork), settings (from
     ~/.config/herdr-superwork), reports (from ~/.local/share/herdr-superwork-reports). The old places are links to
     the new ones, so whatever is running carries on.
 
@@ -108,7 +108,7 @@ How it is safe:
 - **No way to change two paths in one step** (a system without that call), **or the old place is on
   another disk:** the folder stays where it is and the new place becomes a link to it. Still one folder to look
   in, still no moment without the old path, and the line says so.
-- **A folder you named yourself stays.** With `HERDR_SUPERWORK_DATA_DIR` (or the settings or reports one) set to a
+- **A folder you named yourself stays.** With `HERDR_PROJECTS_DATA_DIR` (or the settings or reports one) set to a
   place of your own, that part is not moved.
 - **Only the copy the board runs from moves anything.** A second checkout of this code (a git worktree an agent
   works in, a copy under test) leaves the files alone and works on the board where it is.

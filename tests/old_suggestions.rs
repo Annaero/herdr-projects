@@ -64,7 +64,7 @@ fn agents_reviewers_and_the_coordinator_are_told_the_same_plain_thing_work_found
     let t = task(&w.add("Add a column"));
     let told = sw::delegate::rules::rules(&t);
     assert!(told.contains("Work you merely come across is a line in your closing note or report, never a task."), "{told}");
-    assert!(!has(&told, "herdr-superwork suggest|accept|dismiss"));
+    assert!(!has(&told, "herdr-projects suggest|accept|dismiss"));
     let change = json!({ "head": "abc" });
     let brief = sw::finish::review_brief::review_brief(&t, &sw::finish::review_brief::Brief { text: "done", change: Some(&change), to_land: true, ch: &Obj::new(), earlier: None, check: "" });
     assert!(brief.contains("such a finding is a note for the human, it never sends the work back and nothing else is done with it"), "{brief}");
@@ -72,7 +72,7 @@ fn agents_reviewers_and_the_coordinator_are_told_the_same_plain_thing_work_found
     assert!(!has(&brief, "suggest|becomes a task"));
     let coordinator = sw::coordinator::rules::rules("board");
     assert!(coordinator.contains("they mention it in a short \"Also noticed\" list in their closing note or report (a reviewer: as a note in the review)"), "{coordinator}");
-    let skill = sw::extras::skill_text::skill_text("herdr-superwork");
+    let skill = sw::extras::skill_text::skill_text("herdr-projects");
     assert!(skill.contains("mention it in a short \"Also noticed\" list"), "{skill}");
     for words in [&coordinator, &skill] { assert!(!has(words, "suggest|accept <id>|dismiss")); }
     // A reviewer on an older version's brief may still write a `title`: it is read past.

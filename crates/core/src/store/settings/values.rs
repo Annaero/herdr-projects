@@ -32,7 +32,7 @@ pub fn nearest(word: &str, list: &[&str]) -> Option<String> {
 fn hint(word: &str, list: &[&str]) -> String { nearest(word, list).map(|n| format!(" Did you mean {n}?")).unwrap_or_default() }
 /// The entry of a name, or a refusal that names the nearest one.
 pub fn known(name: &str) -> Res<&'static Entry> {
-    match entry_of(name) { Some(e) => Ok(e), None => refuse(format!("Unknown setting \"{name}\".{} `herdr-superwork show` lists them all.", hint(name, &names()))) }
+    match entry_of(name) { Some(e) => Ok(e), None => refuse(format!("Unknown setting \"{name}\".{} `herdr-projects show` lists them all.", hint(name, &names()))) }
 }
 
 // ---- a time carries a unit ---------------------------------------------------------------------------------------------

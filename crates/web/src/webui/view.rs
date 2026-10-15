@@ -103,7 +103,7 @@ pub fn set_setting(c: &mut Client, id: &str, name: &str, value: Option<String>) 
     let r = a.clone().or_else(|| c.s.current().cloned());
     let Some(r) = r.filter(|r| (if a.is_some() { r.s("row") } else { r.s("id") }) == id && (a.is_some() || r.has("title"))) else { c.s.flash("That task is no longer the one that is open. Nothing was changed.", Ink::Yellow); return Ok(()) };
     if crate::store::settings_list::entry_of(name).is_none() { return Err(format!("Unknown setting \"{name}\".")); }
-    if let Some(a) = &a { if !crate::board::update::autos::can_set(a) { c.s.flash(format!("Its settings are changed on {}: herdr-superwork set <name> <value> --automation \"{}\"", a.s("host"), a.s("name")), Ink::Yellow); return Ok(()); } }
+    if let Some(a) = &a { if !crate::board::update::autos::can_set(a) { c.s.flash(format!("Its settings are changed on {}: herdr-projects set <name> <value> --automation \"{}\"", a.s("host"), a.s("name")), Ink::Yellow); return Ok(()); } }
     let was = c.s.editing.take();
     c.s.editing = Some(crate::board::state::Editing { id: if a.is_some() { r.t("row") } else { r.t("id") }, auto: a.is_some(), ..Default::default() });
     let mut fx: Vec<Effect> = vec![];

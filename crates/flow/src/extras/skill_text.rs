@@ -4,25 +4,25 @@ use crate::store::titles::TITLE_RULE;
 
 pub fn skill_text(shim: &str) -> String {
     format!(r#"---
-name: herdr-superwork
+name: herdr-projects
 description: The human's work board in herdr. Use it when they ask to add, list, delegate, check or update a task on "the board", or to put an agent on something.
 ---
 
-# herdr-superwork: the work board
+# herdr-projects: the work board
 
 The human keeps one list of tasks on a board. You can read and change it from your shell with this command (the
 full path works even when it is not on your PATH):
 
     {shim}
 
-Every command accepts `--json`. Below, `herdr-superwork` stands for that path.
+Every command accepts `--json`. Below, `herdr-projects` stands for that path.
 
-- `herdr-superwork list`: the tasks: each by its short name (`HSW-134`; `--json` gives the id, `<repo>/<number>`), state (idle, working, blocked, done, error), who is on it, title.
+- `herdr-projects list`: the tasks: each by its short name (`HSW-134`; `--json` gives the id, `<repo>/<number>`), state (idle, working, blocked, done, error), who is on it, title.
   Every repo has a short key, so the human may name a task by it: `HSW-134` (any letter case) is accepted wherever an
   `<id>` is and means the same task, and so is a key the repo had before. The id stays its real name: use the id in
-  what you write back. To change a key: `herdr-superwork set repo.key <KEY> --repo <name>`.
+  what you write back. To change a key: `herdr-projects set repo.key <KEY> --repo <name>`.
   `--query TEXT` searches, `--archived` shows the archive, `--all` includes it.
-- `herdr-superwork add "<short title>" --desc "<full description>"`: add a new task to the current repo
+- `herdr-projects add "<short title>" --desc "<full description>"`: add a new task to the current repo
   (a title is a few words, {TITLE_RULE}: a longer one is cut short and its full text kept in the description;
   `--repo <name or path>` for another). Adding starts nothing. Add `--delegate` only if the human asked for an agent.
   Add `--research` when the human plainly asked for research, a review or a report with nothing changed: the task's agent
@@ -30,7 +30,7 @@ Every command accepts `--json`. Below, `herdr-superwork` stands for that path.
   the setting `research.only`: `--research.only true`, or `set research.only true --task <id>` (`--repo <name>`
   for every new task of a repo; `--no-research` on one task says otherwise).
   Add a task only when the human asked for it: nothing adds tasks by itself.
-- `herdr-superwork delegate <id>`: put an agent on a task. It works in its own git worktree, as an ordinary herdr
+- `herdr-projects delegate <id>`: put an agent on a task. It works in its own git worktree, as an ordinary herdr
   agent in its own herdr space. Any work setting can be chosen for this one task as `--<name> <value>`:
   `--worker.agent claude|codex|pi` (a model after a slash: `codex/gpt-5.5`), `--worker.effort`, `--reviewer.agent`,
   `--worker.fallback "codex, claude/claude-opus-5-5"` (who takes over, in order, when the agent cannot go on: out of
@@ -43,16 +43,16 @@ Every command accepts `--json`. Below, `herdr-superwork` stands for that path.
   --delegate`, `delegate <id> --after …`) it is queued after them and starts by itself once they are done, its agent
   told what they did. `after <id> <id>[,…]` changes what it waits for, `after <id> --clear` drops the wait;
   `delegate <id> --now` starts it regardless. Only when the human asks.
-- `herdr-superwork show [<id>]`: every setting, its value and the place it came from (for one task, or the human's own).
-  `herdr-superwork set <name> <value>` changes one for the human, `--repo <name>` for one repo, `--task <id>` for one
-  task; `herdr-superwork unset <name>` (same options) puts it back. Only when the human asks.
-- `herdr-superwork tell <id> "<text>"`: send a message to a task's agent (on a task with no agent yet: starts one with it).
-- `herdr-superwork stop <id>`: interrupt a task's agent.
-- `herdr-superwork report <id> --state <idle|working|done> [--msg "<one line>"] [--progress <0-100>] [--eta <minutes left>]`: say where one of
+- `herdr-projects show [<id>]`: every setting, its value and the place it came from (for one task, or the human's own).
+  `herdr-projects set <name> <value>` changes one for the human, `--repo <name>` for one repo, `--task <id>` for one
+  task; `herdr-projects unset <name>` (same options) puts it back. Only when the human asks.
+- `herdr-projects tell <id> "<text>"`: send a message to a task's agent (on a task with no agent yet: starts one with it).
+- `herdr-projects stop <id>`: interrupt a task's agent.
+- `herdr-projects report <id> --state <idle|working|done> [--msg "<one line>"] [--progress <0-100>] [--eta <minutes left>]`: say where one of
   the human's own tasks stands. Write it like these: "Updating file locations and running checks", "Waiting for the PR review on GitHub", "Fixing the two failing tests".
-  `--title` renames it. `herdr-superwork describe <id> "<text>"` replaces its description.
-- `herdr-superwork approve <id>`: merge finished work that waits for approval. Only when the human plainly says so.
-- `herdr-superwork pick <id> <letter>`: keep one of a task's several attempts (`--attempts.by 3` on `delegate`), when it waits as "pick one". Only when the human names the one.
+  `--title` renames it. `herdr-projects describe <id> "<text>"` replaces its description.
+- `herdr-projects approve <id>`: merge finished work that waits for approval. Only when the human plainly says so.
+- `herdr-projects pick <id> <letter>`: keep one of a task's several attempts (`--attempts.by 3` on `delegate`), when it waits as "pick one". Only when the human names the one.
   With `merge.by` set to `itself` (`set merge.by itself`, or `--task <id>` for one task) work that passed its review
   merges by itself; `you`, the default, waits for that approval. Only the human changes it.
 - A plan first: `--plan.approve you` on delegate makes a task start with a plan, and nothing in the repo is changed
@@ -62,19 +62,19 @@ Every command accepts `--json`. Below, `herdr-superwork` stands for that path.
 - Finished work is reviewed by a second agent. It lists findings tagged critical, major, minor or trivial; the board
   decides from them. A finding at or above `review.mustFix` (major by default) fails the review and goes back to
   the agent by itself; anything milder passes (`Pass · 2 minor`). `review.rounds 0`: nothing goes back by itself.
-- `herdr-superwork review <id>` sends the reviewer's findings back to the agent; `retry <id>` sends a saved error back;
+- `herdr-projects review <id>` sends the reviewer's findings back to the agent; `retry <id>` sends a saved error back;
   `fix <id>` sends failure details; `details <id>` reads them.
 - Limits, both `none` unless set: `limit.time` (the longest one run of an agent may take: `2h`, `45m`) and
   `limit.tokens` (the most tokens a task may use in all: `2m`, `500k`). At one, the agent is stopped, its work is kept,
   nothing is merged and the task waits: `retry <id>` (or `tell`) continues, a higher limit carries on by itself,
   `finish <id>` takes the work as it is. Only the human raises or removes a limit.
-- `herdr-superwork automations`: tasks made on a schedule or when something happens on the board. Each firing adds an
+- `herdr-projects automations`: tasks made on a schedule or when something happens on the board. Each firing adds an
   ordinary task (its title the automation's name, its description the automation's prompt) and puts an agent on it at once.
   `automations add "<name>" --prompt "<what each task is to do>" --schedule "<every 2h | daily 09:00 | mon 09:00 | cron "0 9 * * 1">"`
   or `--when <added|approval|review-failed|failed|needs-you|merged> [--every-repo]`; `--repo`, `--research` and any
   work setting (`--worker.agent codex`) as on `delegate`. `automations show|change|on|off|run|firings|remove <name>`;
   its settings later: `set <name> <value> --automation <name>`. There is no webhook trigger. Only when the human asks.
-- `herdr-superwork archive <id>` hides a task and keeps everything; `restore <id>` brings it back; `clear <id>` removes it
+- `herdr-projects archive <id>` hides a task and keeps everything; `restore <id>` brings it back; `clear <id>` removes it
   (only when the human plainly asks).
 
 If you are an agent or a reviewer the board itself started on a task, your rules were given to you at the start, and

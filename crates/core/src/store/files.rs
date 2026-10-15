@@ -23,22 +23,22 @@ pub const KINDS: &[&str] = &["permission", "question", "auth"];
 /// The version of this program: what the marks and the keeper compare.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// Everything the board keeps for a user is in one folder, the same on every machine: ~/.herdr-superwork, with a
-// sub-folder for each kind of thing (docs/home-folder.md). HERDR_SUPERWORK_HOME names another one; each sub-folder
+// Everything the board keeps for a user is in one folder, the same on every machine: ~/.herdr-projects, with a
+// sub-folder for each kind of thing (docs/home-folder.md). HERDR_PROJECTS_HOME names another one; each sub-folder
 // has a variable of its own too. The XDG_* variables only say where an older version kept things (move_home.rs).
-pub const HOME_NAME: &str = ".herdr-superwork";
+pub const HOME_NAME: &str = ".herdr-projects";
 fn env(k: &str) -> Option<String> { std::env::var(k).ok().filter(|v| !v.is_empty()) }
 pub fn user_home() -> PathBuf { env("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/")) }
-pub fn home_dir() -> PathBuf { env("HERDR_SUPERWORK_HOME").map(PathBuf::from).unwrap_or_else(|| user_home().join(HOME_NAME)) }
-pub fn data_dir() -> PathBuf { env("HERDR_SUPERWORK_DATA_DIR").map(PathBuf::from).unwrap_or_else(|| home_dir().join("data")) }
-pub fn config_dir() -> PathBuf { env("HERDR_SUPERWORK_CONFIG_DIR").map(PathBuf::from).unwrap_or_else(|| home_dir().join("settings")) }
+pub fn home_dir() -> PathBuf { env("HERDR_PROJECTS_HOME").map(PathBuf::from).unwrap_or_else(|| user_home().join(HOME_NAME)) }
+pub fn data_dir() -> PathBuf { env("HERDR_PROJECTS_DATA_DIR").map(PathBuf::from).unwrap_or_else(|| home_dir().join("data")) }
+pub fn config_dir() -> PathBuf { env("HERDR_PROJECTS_CONFIG_DIR").map(PathBuf::from).unwrap_or_else(|| home_dir().join("settings")) }
 /// Pages and reports an agent makes for the human that belong in no repo.
-pub fn reports_dir() -> PathBuf { env("HERDR_SUPERWORK_REPORTS_DIR").map(PathBuf::from).unwrap_or_else(|| home_dir().join("reports")) }
+pub fn reports_dir() -> PathBuf { env("HERDR_PROJECTS_REPORTS_DIR").map(PathBuf::from).unwrap_or_else(|| home_dir().join("reports")) }
 /// The board's own folders as resolved here, for a process started somewhere that does not inherit this
 /// environment (an agent's herdr space).
 pub fn board_env() -> Vec<(String, String)> {
-    vec![("HERDR_SUPERWORK_DATA_DIR".into(), absolute(&data_dir()).display().to_string()),
-         ("HERDR_SUPERWORK_CONFIG_DIR".into(), absolute(&config_dir()).display().to_string())]
+    vec![("HERDR_PROJECTS_DATA_DIR".into(), absolute(&data_dir()).display().to_string()),
+         ("HERDR_PROJECTS_CONFIG_DIR".into(), absolute(&config_dir()).display().to_string())]
 }
 pub fn tasks_dir() -> PathBuf { data_dir().join("tasks") }
 pub fn has_tasks() -> bool { tasks_dir().exists() }
@@ -49,7 +49,7 @@ pub fn artifacts_dir(id: &str) -> PathBuf { dir_of(id).join("artifacts") }
 /// from: the path is the one without it, where the new program is.
 pub fn bin() -> PathBuf {
     use std::os::unix::ffi::OsStrExt;
-    let Ok(p) = std::env::current_exe() else { return PathBuf::from("herdr-superwork") };
+    let Ok(p) = std::env::current_exe() else { return PathBuf::from("herdr-projects") };
     match p.as_os_str().as_bytes().strip_suffix(b" (deleted)") { Some(b) => PathBuf::from(std::ffi::OsStr::from_bytes(b)), None => p }
 }
 pub fn absolute(p: &Path) -> PathBuf { if p.is_absolute() { p.to_path_buf() } else { std::env::current_dir().map(|d| d.join(p)).unwrap_or_else(|_| p.to_path_buf()) } }

@@ -1,11 +1,11 @@
 #!/bin/sh
 # The build cache every worktree of this repo shares on a machine: sccache, one pinned version checked against its
-# published sha256, kept with its cache in ~/.cache/herdr-superwork (outside every worktree, so removing one frees
+# published sha256, kept with its cache in ~/.cache/herdr-projects (outside every worktree, so removing one frees
 # nothing shared). `sh scripts/build-cache.sh` installs it (the workspace setup does); `. scripts/build-cache.sh` in a
 # script that runs cargo (scripts/check.sh, scripts/setup.sh) compiles through it when it is installed, and changes
 # nothing when it is not (CI, offline, another platform). How and why: docs/testing.md.
 bc_version=0.18.0
-bc_dir="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-superwork"
+bc_dir="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-projects"
 bc_bin="$bc_dir/sccache-$bc_version/sccache"
 bc_install() {
   [ -x "$bc_bin" ] && return 0
@@ -27,9 +27,9 @@ bc_install() {
   rm -rf "$tmp"; return 0
 }
 # One server (on a socket of its own, so another sccache of yours is left alone), one cache and one size limit for
-# every worktree. A RUSTC_WRAPPER you set yourself wins; HERDR_SUPERWORK_NO_CACHE=1 turns the cache off.
+# every worktree. A RUSTC_WRAPPER you set yourself wins; HERDR_PROJECTS_NO_CACHE=1 turns the cache off.
 bc_use() {
-  [ -x "$bc_bin" ] && [ -z "$RUSTC_WRAPPER" ] && [ -z "$HERDR_SUPERWORK_NO_CACHE" ] || return 0
+  [ -x "$bc_bin" ] && [ -z "$RUSTC_WRAPPER" ] && [ -z "$HERDR_PROJECTS_NO_CACHE" ] || return 0
   RUSTC_WRAPPER="$bc_bin"; SCCACHE_DIR="$bc_dir/sccache"; SCCACHE_SERVER_UDS="$bc_dir/sccache.sock"
   SCCACHE_CACHE_SIZE="${SCCACHE_CACHE_SIZE:-2G}"; SCCACHE_CLIENT_SIDE=1 # compiles in the build's own process, not the server's
   export RUSTC_WRAPPER SCCACHE_DIR SCCACHE_SERVER_UDS SCCACHE_CACHE_SIZE SCCACHE_CLIENT_SIDE

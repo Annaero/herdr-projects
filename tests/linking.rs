@@ -25,7 +25,7 @@ impl Bench {
     fn install_mold(&self) {
         let script = std::fs::read_to_string(root().join("scripts/linker.sh")).unwrap();
         let version = script.lines().find_map(|l| l.strip_prefix("ln_version=")).unwrap();
-        self.linker(&self.base.join(format!("cache/herdr-superwork/mold-{version}/bin/mold")), "mold");
+        self.linker(&self.base.join(format!("cache/herdr-projects/mold-{version}/bin/mold")), "mold");
     }
     /// The linker as the C compiler runs it: which linker it ended in, and with what.
     fn link(&self, args: &[&str], env: &[(&str, &str)]) -> Vec<String> {
@@ -40,7 +40,7 @@ impl Bench {
 impl Drop for Bench { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.base); } }
 
 fn root() -> &'static Path { Path::new(env!("CARGO_MANIFEST_DIR")) }
-const LINK: &[&str] = &["--eh-frame-hdr", "-m", "elf_x86_64", "main.o", "-o", "/w/target/quick/deps/herdr_superwork-1"];
+const LINK: &[&str] = &["--eh-frame-hdr", "-m", "elf_x86_64", "main.o", "-o", "/w/target/quick/deps/herdr_projects-1"];
 fn ran(linker: &[&str], args: &[&str]) -> Vec<String> { linker.iter().chain(args).map(|s| s.to_string()).collect() }
 /// The linker Rust uses by itself on this machine: its own lld on x86_64, the system's ld elsewhere.
 fn as_rust(args: &[&str]) -> Vec<String> {
@@ -66,9 +66,9 @@ fn real_programs_with_mold_installed_a_build_links_with_it() {
 fn real_programs_a_release_build_and_a_build_with_mold_turned_off_link_as_before() {
     let b = Bench::new("release");
     b.install_mold();
-    let release = ["main.o", "-o", "/w/target/x86_64-unknown-linux-gnu/release/deps/herdr_superwork-1"];
+    let release = ["main.o", "-o", "/w/target/x86_64-unknown-linux-gnu/release/deps/herdr_projects-1"];
     assert_eq!(b.link(&release, &[]), as_rust(&release));
-    assert_eq!(b.link(LINK, &[("HERDR_SUPERWORK_NO_MOLD", "1")]), as_rust(LINK));
+    assert_eq!(b.link(LINK, &[("HERDR_PROJECTS_NO_MOLD", "1")]), as_rust(LINK));
 }
 
 #[test]

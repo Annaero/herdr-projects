@@ -34,8 +34,8 @@ fn a_repo_a_plain_folder_the_home_folder_and_the_root_each_get_a_key_the_moment_
     let root = add_in(std::path::Path::new("/"), "At the root");
     assert_eq!((short(&notes), short(&home), short(&root)), ("NTS-1".into(), "HOME-1".into(), "ROOT-1".into()));
     assert_eq!(find("home-1").unwrap().t("title"), "At home"); assert_eq!(find("root-1").unwrap().t("title"), "At the root");
-    // Named as the human would: herdr-superwork, gtm-skills, open-crm.
-    for (name, key) in [("herdr-superwork", "HSW"), ("gtm-skills", "SKL"), ("open-crm", "CRM")] { let t = add_in(&folder(&w, name), "A task"); assert_eq!(short(&t), format!("{key}-1"), "{name}"); }
+    // Named as the human would: team-paperwork, gtm-skills, open-crm.
+    for (name, key) in [("team-paperwork", "TPW"), ("gtm-skills", "SKL"), ("open-crm", "CRM")] { let t = add_in(&folder(&w, name), "A task"); assert_eq!(short(&t), format!("{key}-1"), "{name}"); }
     // Every list of the board reads the key: never a bare number.
     b.s.scope.clear(); b.load(); let text = b.text();
     assert!(!regex::Regex::new(r"[ ▌]\S #\d").unwrap().is_match(&text), "{text}");
@@ -70,17 +70,17 @@ fn a_key_you_or_the_repos_file_gave_is_kept_and_unset_goes_back_to_the_made_one(
     let id = w.add("First"); assert_eq!(short(&id), "MINE-1"); assert_eq!(entry("proj"), json!("MINE"));
     // The repo's own file: kept, and nothing is written for it.
     let crm = folder(&w, "open-crm"); git(&crm, &["init", "-q", "-b", "main"]);
-    std::fs::write(crm.join(".herdr-superwork.json"), json!({ "repo": { "key": "OC" } }).to_string()).unwrap();
+    std::fs::write(crm.join(".herdr-projects.json"), json!({ "repo": { "key": "OC" } }).to_string()).unwrap();
     let t = add_in(&crm, "Theirs"); assert_eq!(short(&t), "OC-1"); assert!(entry("open-crm").is_null());
     // Taken away: back to the repo's file's, or to the made one; never none.
     unset_value("repo.key", &Scope::repo("proj")).unwrap(); assert_eq!(entry("proj"), json!("PRJ")); assert_eq!(find("mine-1").unwrap().s("id"), id);
     let said = sw::actions::settings::settings_command("unset", &["unset".into(), "repo.key".into()], &sw::actions::settings::Where { task: None, repo: Some("proj".into()), automation: None }, None).unwrap().1;
-    assert_eq!(said, "repo.key for proj: PRJ  (your entry for proj)\nA repo always has a key: proj is back to the one the board made from its name. Another: herdr-superwork set repo.key <KEY> --repo proj");
+    assert_eq!(said, "repo.key for proj: PRJ  (your entry for proj)\nA repo always has a key: proj is back to the one the board made from its name. Another: herdr-projects set repo.key <KEY> --repo proj");
     set_value("repo.key", &json!("XY"), &Scope::repo("open-crm")).unwrap();
     let said = sw::actions::settings::settings_command("unset", &["unset".into(), "repo.key".into()], &sw::actions::settings::Where { task: None, repo: Some("open-crm".into()), automation: None }, None).unwrap().1;
     assert_eq!(said, "repo.key for open-crm: OC  (the repo's file)\nA repo always has a key: open-crm is back to the one its own file says.");
     let e = set_value("repo.key", &json!("none"), &Scope::repo("proj")).unwrap_err().msg;
-    assert_eq!(e, "repo.key cannot be none: every repo has a short key. To go back to the one the board made from its name: herdr-superwork unset repo.key --repo proj");
+    assert_eq!(e, "repo.key cannot be none: every repo has a short key. To go back to the one the board made from its name: herdr-projects unset repo.key --repo proj");
 }
 
 #[test]
@@ -100,7 +100,7 @@ fn repos_an_older_version_knew_get_a_key_once_on_upgrade_and_the_board_says_whic
     keys_at_start(); assert!(entry("notes").is_null());
     // The board says which it gave, once: on its opening (the web board's here), never again after.
     let s = common::board::web_as(&w, "keys-upgrade", "board", json!({})).unwrap();
-    assert_eq!(s.at("msg").s("text"), "Every repo and folder has a short key now: PRJ for proj, NTS for notes, HOME for me. Change one: herdr-superwork set repo.key <KEY> --repo <name>");
+    assert_eq!(s.at("msg").s("text"), "Every repo and folder has a short key now: PRJ for proj, NTS for notes, HOME for me. Change one: herdr-projects set repo.key <KEY> --repo <name>");
     assert_eq!(entry("notes"), json!("NTS"));
     assert_eq!(keys_note(), ""); assert!(give_keys(None).is_empty());
 }
@@ -138,13 +138,13 @@ fn upgrade_never_changes_a_key_you_saved_even_one_two_repos_share_and_the_top_li
     // Your file is as you wrote it; the repo the board knew first keeps the key, the other goes by a stand-in.
     assert_eq!(read(&sw::store::files::config_dir().join("config.json")), before);
     assert_eq!(keys(), json!({ "proj": "KEEP", "beta": "BETA" }));
-    assert_eq!(keys_note(), "Every repo and folder has a short key now: BETA for beta (its own KEEP is proj's too). Change one: herdr-superwork set repo.key <KEY> --repo <name>");
+    assert_eq!(keys_note(), "Every repo and folder has a short key now: BETA for beta (its own KEEP is proj's too). Change one: herdr-projects set repo.key <KEY> --repo <name>");
     // Changed by you, the stand-in goes; your key counts.
     set_value("repo.key", &json!("BB"), &Scope::repo("beta")).unwrap(); give_keys(None);
     assert_eq!(keys(), json!({ "proj": "KEEP", "beta": "BB" })); assert!(sw::store::keys_given::stand_ins().is_empty());
     // The top line: where new tasks go, with the key beside the name, in the header's quiet ink; the web board's too.
     let id = w.add("Mine"); let mut b = common::board::open(&w.root, 30); b.s.sel = id; b.load();
-    assert!(b.screen(100)[0].starts_with(" herdr-superwork  proj · KEEP · 1 to do"), "{}", b.screen(100)[0]);
+    assert!(b.screen(100)[0].starts_with(" herdr-projects  proj · KEEP · 1 to do"), "{}", b.screen(100)[0]);
     let s = common::board::web_as(&w, "keys-top", "board", json!({})).unwrap();
     assert_eq!((s.at("list").at("head").s("where"), s.at("list").at("head").s("whereKey")), ("proj", "KEEP"));
 }
@@ -152,7 +152,7 @@ fn upgrade_never_changes_a_key_you_saved_even_one_two_repos_share_and_the_top_li
 #[test]
 fn a_key_a_repo_ever_went_by_names_its_tasks_for_good_however_it_changed_and_no_other_repos_file_takes_it() {
     let w = world();
-    let file = |dir: &std::path::Path, key: &str| std::fs::write(dir.join(".herdr-superwork.json"), json!({ "repo": { "key": key } }).to_string()).unwrap();
+    let file = |dir: &std::path::Path, key: &str| std::fs::write(dir.join(".herdr-projects.json"), json!({ "repo": { "key": key } }).to_string()).unwrap();
     let repo = |name: &str| { let d = folder(&w, name); git(&d, &["init", "-q", "-b", "main"]); d };
     // The repo's own file changes its key: the old one still names its task.
     let gamma = repo("gamma"); file(&gamma, "GG");
@@ -174,7 +174,7 @@ fn a_key_a_repo_ever_went_by_names_its_tasks_for_good_however_it_changed_and_no_
     let beta = repo("beta"); file(&beta, "AA");
     let b = add_in(&beta, "Beta task");
     assert_eq!(find("aa-1").unwrap().s("id"), a, "an old name never comes to name another repo's task");
-    assert_eq!(short(&b), "BETA-1"); assert_eq!(read(&beta.join(".herdr-superwork.json")), json!({ "repo": { "key": "AA" } }).to_string());
+    assert_eq!(short(&b), "BETA-1"); assert_eq!(read(&beta.join(".herdr-projects.json")), json!({ "repo": { "key": "AA" } }).to_string());
     assert!(entry("beta").is_null(), "nothing is written for it in your settings");
     let shown = sw::actions::settings::settings_command("show", &["show".into()], &sw::actions::settings::Where { task: None, repo: Some("beta".into()), automation: None }, None).unwrap().1;
     assert!(has(&shown, r"\n {2}repo\.key +AA +not used: another repo has or had the same key; its tasks go by BETA(\n|$)"), "{shown}");

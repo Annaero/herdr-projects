@@ -129,7 +129,7 @@ fn clean_up_touches_nothing_while_the_tasks_herdr_session_cannot_be_reached_and_
 #[test]
 fn a_clean_up_that_was_killed_half_way_or_never_started_is_owed_from_the_moment_the_task_is_done_and_is_carried_out_later() {
     // the teardown copies the task as it stands while clean-up runs: the note that it is owed must already be there
-    let w = world_with(Opts { repo: true, settings: json!({ "review.when": "never" }), repo_settings: Some(json!({ "workspace.teardown": "cp \"$HERDR_SUPERWORK_HOME/data/tasks/proj/1/task.json\" \"$HERDR_SUPERWORK_HOME/data/during.json\"" })), ..Default::default() });
+    let w = world_with(Opts { repo: true, settings: json!({ "review.when": "never" }), repo_settings: Some(json!({ "workspace.teardown": "cp \"$HERDR_PROJECTS_HOME/data/tasks/proj/1/task.json\" \"$HERDR_PROJECTS_HOME/data/during.json\"" })), ..Default::default() });
     let id = to_approval(&w, "Work");
     sw::actions::finish_line::approve(&id, None, false).unwrap();
     let t = settle(&id);

@@ -9,9 +9,9 @@ own merge.
 and starts by itself once they are done.
 
 ```sh
-herdr-superwork add "Take the new skill in" --repo gtm-agent --after gtm-skills/12             # only the condition
-herdr-superwork add "Take the new skill in" --repo gtm-agent --after gtm-skills/12 --delegate  # queued after it
-herdr-superwork delegate gtm-agent/4 --after gtm-skills/12,gtm-skills/13
+herdr-projects add "Take the new skill in" --repo gtm-agent --after gtm-skills/12             # only the condition
+herdr-projects add "Take the new skill in" --repo gtm-agent --after gtm-skills/12 --delegate  # queued after it
+herdr-projects delegate gtm-agent/4 --after gtm-skills/12,gtm-skills/13
 ```
 
 **Done** is what the board calls done, however the task got there: its work merged, a research task finished with
@@ -57,8 +57,8 @@ first: `vm-str:ELA-3`, `vm-str:ela/3` or `vm-str#3`. It is kept as `vm-str:ela/3
 the board says what a task waits for (its row, its panel, `details`, `list`, another machine's board).
 
 ```sh
-herdr-superwork delegate notably/3 --after vm-str:ELA-3
-herdr-superwork add "Use the new API" --after vm-str:ELA-3,HSW-12 --delegate
+herdr-projects delegate notably/3 --after vm-str:ELA-3
+herdr-projects add "Use the new API" --after vm-str:ELA-3,HSW-12 --delegate
 ```
 
 - When the wait is set, the board asks that machine over the machine link whether the task is there: an unknown
@@ -68,7 +68,7 @@ herdr-superwork add "Use the new API" --after vm-str:ELA-3,HSW-12 --delegate
   on the way does not answer, or names a machine this board does not know), the wait is refused as well: a circle
   nobody saw would wait forever.
 - While it waits, the waiting machine asks the other one about it by itself, every 15 seconds, in a job of its own (so
-  a slow machine holds nothing else up). The other machine needs nothing but this version of herdr-superwork (an older
+  a slow machine holds nothing else up). The other machine needs nothing but this version of herdr-projects (an older
   one cannot answer, and is said so, with "update it there"): its own board does not need to be open.
 - A machine that does not answer does not end the wait: the task goes on waiting and says so on its row,
   `queued after vm-str:ELA-3 · waiting for vm-str: not reachable since 10:42` (`details`: `after.notReachable`). Once it
@@ -97,7 +97,7 @@ going again, and once it is done the wait goes on by itself.
 
 ## Changing it, and starting early
 
-- `herdr-superwork after <id> <id>[,<id>…]` sets what a task waits for: on one that waits, the new list counts from
+- `herdr-projects after <id> <id>[,<id>…]` sets what a task waits for: on one that waits, the new list counts from
   now (all done already: it starts); on one not delegated yet, it is kept for when it is. `after <id>` says what it
   waits for; `after <id> --clear` drops the wait, and a task that waited starts at once. `delegate <id> --after none`
   is the same as `--clear` while delegating.

@@ -5,7 +5,7 @@ use crate::json::*;
 
 /// How long it waits before each new try, growing: four more tries over fifteen minutes, then it gives up.
 pub fn retry_waits() -> Vec<i64> {
-    match std::env::var("HERDR_SUPERWORK_RETRY_MS") {
+    match std::env::var("HERDR_PROJECTS_RETRY_MS") {
         Ok(v) => v.split(',').filter(|x| !x.trim().is_empty()).map(|x| x.trim().parse().unwrap_or(0)).collect(),
         Err(_) => vec![60000, 120000, 240000, 480000],
     }

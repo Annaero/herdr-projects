@@ -10,7 +10,7 @@ use sw::json::*;
 const PLAN: &str = "# Plan\n\n1. Add f.txt with one line.\n2. Run the check.\n";
 fn plan_world(settings: serde_json::Value) -> World {
     let w = world_with(Opts { repo: true, settings, ..Default::default() });
-    unsafe { std::env::set_var("HERDR_SUPERWORK_SANDBOX", "bwrap") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_SANDBOX", "bwrap") };
     w.patch(|s| s["pids"] = json!(true));
     w
 }
@@ -36,7 +36,7 @@ fn plan_approve_you_waits_as_plan_ready_and_the_yes_starts_the_build() {
     let a = agent_of(&w, t.at("link").s("pane"));
     assert_eq!((a.at("boxed"), a.s("kind")), (&json!(true), "codex"));
     let ran = w.state().arr("calls").iter().map(text).find(|c| c.starts_with("pane run")).unwrap_or_default();
-    assert!(ran.contains(&format!("env HERDR_SUPERWORK_AGENT=sw-proj-1 bwrap --dev-bind / / --ro-bind {0} {0} --ro-bind ", t.s("worktree"))), "{ran}");
+    assert!(ran.contains(&format!("env HERDR_PROJECTS_AGENT=sw-proj-1 bwrap --dev-bind / / --ro-bind {0} {0} --ro-bind ", t.s("worktree"))), "{ran}");
     assert!(!t.b("review") && !t.b("pr"));
     let r = row(&id);
     assert_eq!((r.s("state"), r.s("kind")), ("blocked", "permission"));

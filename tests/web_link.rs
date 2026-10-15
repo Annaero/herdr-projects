@@ -163,7 +163,7 @@ fn real_programs_the_web_ui_is_found_from_its_own_settings_the_command_says_how_
     plugged.enabled.set(false); assert_eq!(web_ui(true), None);
     sw::herdr::cli::set_fake(Some(w.fake.clone()));
     // installed (named by hand here), the front door up, a link that goes straight to the web UI: that is what is asked about
-    env("HERDR_SUPERWORK_WEBUI", Some("7317"));
+    env("HERDR_PROJECTS_WEBUI", Some("7317"));
     let mut m = sw::store::files::marker(); m.put("port", 7327);
     sw::store::files::write_json(&sw::webui::keep::door_file(), &Value::Object(m)).unwrap();
     // (a web UI with no link of its own yet: said, with where the Board is on this machine; a yes all the same)
@@ -171,7 +171,7 @@ fn real_programs_the_web_ui_is_found_from_its_own_settings_the_command_says_how_
     note(json!({ "webUi": "" }));
     let ts = tailnet(&w.base, &[(443, "http://127.0.0.1:7317")], &[]);
     assert_eq!(link::look(7317, Some(7327)).direct.iter().map(|e| e.url.clone()).collect::<Vec<_>>(), vec![format!("https://{HOST}")]);
-    assert_eq!(cmd::link_now().s("msg"), format!("The Board is in the web UI at https://{HOST}. `herdr-superwork web-ui unlink` points it back."));
+    assert_eq!(cmd::link_now().s("msg"), format!("The Board is in the web UI at https://{HOST}. `herdr-projects web-ui unlink` points it back."));
     // off by the setting: there is no web UI to stand in front of
     let you = sw::store::settings::lookup::Scope::you();
     sw::store::settings::change::set_value("board.webUi", &json!("none"), &you).unwrap(); assert_eq!(web_ui(true), None);
@@ -182,7 +182,7 @@ fn real_programs_the_web_ui_is_found_from_its_own_settings_the_command_says_how_
     assert_eq!(extras().s("webUi"), "removed"); assert_eq!(web_ui(true), None);
     assert!(cmd::main(&[]).s("msg").contains("taken out with remove-extras"));
     cmd::link_now(); assert_eq!(extras().s("webUi"), "yes"); assert_eq!(ts.at(443), "http://127.0.0.1:7327");
-    env("HERDR_SUPERWORK_WEBUI", None); env("HERDR_WEB_STATE_DIR", None);
+    env("HERDR_PROJECTS_WEBUI", None); env("HERDR_WEB_STATE_DIR", None);
     fresh();
 }
 
@@ -208,21 +208,21 @@ fn real_programs_the_page_servers_front_door_is_up_while_there_is_a_web_ui_on_th
         let (kind, body) = if health { ("application/json", r#"{"ok":true,"auth":{"required":true,"authenticated":false}}"#) } else { ("text/html", "<html><body>web ui</body></html>") };
         let _ = write!(c, "HTTP/1.1 200 OK\r\ncontent-type: {kind}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}", body.len());
     }); });
-    env("HERDR_SUPERWORK_INLINE", None); env("HERDR_SUPERWORK_NO_SERVER", None); env("HERDR_SUPERWORK_WEBUI", Some(&ui.to_string()));
+    env("HERDR_PROJECTS_INLINE", None); env("HERDR_PROJECTS_NO_SERVER", None); env("HERDR_PROJECTS_WEBUI", Some(&ui.to_string()));
     // the port it had (here a free one: the first one it would ask for may be a real board's)
     let free = { let l = TcpListener::bind("127.0.0.1:0").unwrap(); l.local_addr().unwrap().port() };
     sw::store::files::write_json(&sw::webui::keep::door_file(), &json!({ "port": free })).unwrap();
     sw::webui::door_loop::run_door();
     let mut info = None;
     for _ in 0..500 { info = sw::webui::keep::door_info(); if info.is_some() { break; } std::thread::sleep(std::time::Duration::from_millis(10)); }
-    env("HERDR_SUPERWORK_INLINE", Some("1")); env("HERDR_SUPERWORK_NO_SERVER", Some("1"));
+    env("HERDR_PROJECTS_INLINE", Some("1")); env("HERDR_PROJECTS_NO_SERVER", Some("1"));
     let info = info.expect("the front door is up");
     assert_eq!((info.i("pid"), info.i("port"), info.at("to")), (std::process::id() as i64, free as i64, &json!({ "host": "127.0.0.1", "port": ui })));
     assert!(TcpStream::connect(("127.0.0.1", free)).is_ok(), "it listens on this machine (127.0.0.1) only");
-    assert_eq!(fetch(free, "/"), (200, r#"<html><body>web ui<script type="module" src="/superwork/page/start.js"></script></body></html>"#.to_string()));
-    assert_eq!(fetch(free, "/superwork/api/board").0, 401);
+    assert_eq!(fetch(free, "/"), (200, r#"<html><body>web ui<script type="module" src="/herdr-projects/page/start.js"></script></body></html>"#.to_string()));
+    assert_eq!(fetch(free, "/herdr-projects/api/board").0, 401);
     // (Turning the board in the web UI off, and on again, is seen by the door's own loop every half minute: the Rust door
     // has no hook to make it look now, so that part of the old test is left out.)
-    env("HERDR_SUPERWORK_WEBUI", None);
+    env("HERDR_PROJECTS_WEBUI", None);
     fresh();
 }

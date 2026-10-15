@@ -102,8 +102,8 @@ fn a_task_under_way_when_the_move_happens_keeps_working_its_check_its_review_bar
 fn a_test_run_has_a_home_folder_of_its_own_nothing_here_reads_or_converts_your_real_one() {
     let _w = world_with(Opts::default());
     // The account's own home, as the system has it (the world gave this process another HOME).
-    let real = unsafe { let pw = libc::getpwuid(libc::getuid()); std::path::PathBuf::from(std::ffi::CStr::from_ptr((*pw).pw_dir).to_string_lossy().into_owned()) }.join(".herdr-superwork");
-    assert!(std::env::var("HERDR_SUPERWORK_HOME").is_ok(), "the run names its own home folder");
+    let real = unsafe { let pw = libc::getpwuid(libc::getuid()); std::path::PathBuf::from(std::ffi::CStr::from_ptr((*pw).pw_dir).to_string_lossy().into_owned()) }.join(".herdr-projects");
+    assert!(std::env::var("HERDR_PROJECTS_HOME").is_ok(), "the run names its own home folder");
     use sw::store::files::{config_dir, data_dir, home_dir, reports_dir};
     for dir in [home_dir(), data_dir(), config_dir(), reports_dir()] { assert!(dir != real && !dir.starts_with(&real), "{}", dir.display()); }
 }

@@ -114,8 +114,8 @@ fn compare(id: &str, g: &mut Guard, t: &Task) -> Res<Obj> {
         match api.agent_start(&name, &k, &pane, &args, 60000) { Ok(_) => { crate::submit::settle(&api, &pane, &std::iter::once(k.clone()).chain(args).collect::<Vec<_>>().join(" ")); Ok(()) } Err(e) if e.code == "agent_not_ready" => Ok(()), Err(e) => Err(e.into()) }
     };
     if let Err(e) = start_with(x.hook.clone()) { if x.hook.is_empty() { return Err(e); } start_with(vec![])?; }
-    let until = now() + ms("HERDR_SUPERWORK_REVIEW_MS", 20 * 60000);
-    let every = ms("HERDR_SUPERWORK_POLL_MS", 3000);
+    let until = now() + ms("HERDR_PROJECTS_REVIEW_MS", 20 * 60000);
+    let every = ms("HERDR_PROJECTS_POLL_MS", 3000);
     let mut sent = false;
     let mut waited: Vec<i64> = vec![]; // its own turn-end reports while helpers it started were still at work
     let sleep = |m: i64| std::thread::sleep(std::time::Duration::from_millis(m.max(0) as u64));

@@ -32,7 +32,7 @@ pub fn notify_pass(tasks: &[Obj]) {
             Ok(Change::Write)
         }) else { continue };
         if !fresh || how == "none" || how == "bell" { continue; }
-        let env = [("HERDR_SUPERWORK_ID", t.t("id")), ("HERDR_SUPERWORK_TITLE", t.t("title")), ("HERDR_SUPERWORK_EVENT", t.at("notice").t("event"))];
+        let env = [("HERDR_PROJECTS_ID", t.t("id")), ("HERDR_PROJECTS_TITLE", t.t("title")), ("HERDR_PROJECTS_EVENT", t.at("notice").t("event"))];
         crate::runner::detached_sh(&how, &env);
     }
 }

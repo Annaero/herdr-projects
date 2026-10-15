@@ -11,16 +11,16 @@ somebody who picks. It is two [settings](settings.md):
 
 ```
 # best of three, by the usual agent; you pick
-herdr-superwork delegate 12 --attempts.by 3
+herdr-projects delegate 12 --attempts.by 3
 
 # a council of claude, codex and pi, with a named judge
-herdr-superwork delegate 12 --attempts.by "claude, codex, pi" --attempts.pick reviewer --reviewer.agent claude/claude-opus-5-5
+herdr-projects delegate 12 --attempts.by "claude, codex, pi" --attempts.pick reviewer --reviewer.agent claude/claude-opus-5-5
 
 # two models for every task in one repo
-herdr-superwork set attempts.by "claude, codex/gpt-5.5" --repo my-app
+herdr-projects set attempts.by "claude, codex/gpt-5.5" --repo my-app
 
 # which attempt to keep, when the task waits for you
-herdr-superwork pick 12 B
+herdr-projects pick 12 B
 ```
 
 To the [Coordinator](coordinator.md) the same are plain words: "do this one three times and let me choose", "have
@@ -102,7 +102,7 @@ attempt you chose is the task's.
   `Enter` goes into the selected attempt's tab. A reply to the task while its attempts work goes to every attempt
   that is still in it; `Ctrl+X` stops them all.
 - **The web Board** shows the same row and the same part, and has the same keys as buttons (`Next attempt`, `Yes`).
-- `herdr-superwork show <id>` names each attempt's agent and the one that was chosen; `details <id>` has the
+- `herdr-projects show <id>` names each attempt's agent and the one that was chosen; `details <id>` has the
   attempts and the comparison.
 
 ## Beside the other settings

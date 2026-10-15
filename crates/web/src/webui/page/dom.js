@@ -62,7 +62,7 @@ export const client = (() => {
   try { let id = sessionStorage.getItem("sw-client"); if (!id) { id = crypto.randomUUID().replace(/-/g, "").slice(0, 16); sessionStorage.setItem("sw-client", id); } return id; }
   catch { return Math.random().toString(36).slice(2, 14); }
 })();
-const BASE = "/superwork/api";
+const BASE = "/herdr-projects/api";
 // The PC the web UI's page is on (its address says: `?machine=<pc>`, left out for this machine). Sent with every
 // call, so the board is the board of that machine.
 const machine = () => { try { return new URLSearchParams(location.search).get("machine") || ""; } catch { return ""; } };
@@ -77,7 +77,7 @@ export async function get(what, params = {}) {
 // A change: the same address, with the header that says it comes from the board's own controls.
 export async function post(what, body = {}) {
   try {
-    const r = await fetch(`${BASE}/${what}?${new URLSearchParams({ client, machine: machine() })}`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-herdr-superwork": "1" }, body: JSON.stringify(body) });
+    const r = await fetch(`${BASE}/${what}?${new URLSearchParams({ client, machine: machine() })}`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-herdr-projects": "1" }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
     return { ...j, ok: r.ok && j.ok !== false, status: r.status };
   } catch { return { ok: false, status: 0, msg: "No connection." }; }

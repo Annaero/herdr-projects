@@ -30,7 +30,7 @@ fn a_real_setting_set_and_unset_in_every_place_refused_values_never_the_repos_fi
     // the repo's own file may not say it: code an agent writes cannot switch it on or off
     let (facts, refused) = sw::store::settings::places::repo_file(&w.root, Some("HEAD"));
     assert_eq!(serde_json::Value::Object(facts), json!({ "check.command": "true" }));
-    for name in ["worker.fallback", "reviewer.fallback"] { assert!(refused.iter().any(|r| r.starts_with(&format!(".herdr-superwork.json: {name} is refused: the repo's file may only hold"))), "{name}: {refused:?}"); }
+    for name in ["worker.fallback", "reviewer.fallback"] { assert!(refused.iter().any(|r| r.starts_with(&format!(".herdr-projects.json: {name} is refused: the repo's file may only hold"))), "{name}: {refused:?}"); }
     let id = w.add("One");
     use sw::store::settings::lookup::{lookup, Scope};
     let f = lookup("worker.fallback", &Scope::task(&task(&id)), &sw::store::settings::places::yours()).unwrap();

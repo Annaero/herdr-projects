@@ -9,13 +9,13 @@ are `none` until you set them, so nothing changes for a board that sets neither.
 | `limit.tokens` | a count (`2m`, `500k`, `1.5m`) or `none` | the most tokens a task may use, in all |
 
 ```
-herdr-superwork set limit.time 2h                      # for every task of yours
-herdr-superwork set limit.tokens 2m --repo my-app      # for one repo
-herdr-superwork set limit.time 45m --task my-app/12    # for one task, also while it is under way
-herdr-superwork delegate 12 --limit.time 2h --limit.tokens 5m
-herdr-superwork add "Tidy the docs" --limit.time 1h     # with or without --delegate
-herdr-superwork set limit.tokens 1m --automation "Nightly look"
-herdr-superwork unset limit.time --task my-app/12
+herdr-projects set limit.time 2h                      # for every task of yours
+herdr-projects set limit.tokens 2m --repo my-app      # for one repo
+herdr-projects set limit.time 45m --task my-app/12    # for one task, also while it is under way
+herdr-projects delegate 12 --limit.time 2h --limit.tokens 5m
+herdr-projects add "Tidy the docs" --limit.time 1h     # with or without --delegate
+herdr-projects set limit.tokens 1m --automation "Nightly look"
+herdr-projects unset limit.time --task my-app/12
 ```
 
 To the Coordinator the same is plain words: "never more than two hours on this one", "at most two million tokens a
@@ -24,7 +24,7 @@ task".
 They are settings like every other ([settings](settings.md)): looked up nearest answer first (the task, your entry
 for the repo, you, built in), listed by `show` and `show <id>` with the place the value came from, on the settings
 page of a task and of an automation, and a refused value changes nothing and names the nearest right one (`2 hours`:
-"Did you mean 2h?"). One thing they are not: **a repo's own `.herdr-superwork.json` cannot hold them**, so code an
+"Did you mean 2h?"). One thing they are not: **a repo's own `.herdr-projects.json` cannot hold them**, so code an
 agent writes can neither set a limit nor lift one.
 
 ## What is measured
@@ -88,9 +88,9 @@ Where the tokens run out decides what stops:
 
 | You want | Do |
 |---|---|
-| it to continue | `Ctrl+R` on the task, or `herdr-superwork retry <id>`, or reply to its agent with your own words |
-| to give it more | set a higher limit (or `none`): `herdr-superwork set limit.time 4h --task <id>` |
-| to take the work as it is | `Ctrl+L`, or `herdr-superwork finish <id>` |
+| it to continue | `Ctrl+R` on the task, or `herdr-projects retry <id>`, or reply to its agent with your own words |
+| to give it more | set a higher limit (or `none`): `herdr-projects set limit.time 4h --task <id>` |
+| to take the work as it is | `Ctrl+L`, or `herdr-projects finish <id>` |
 
 - **Continue** is your word, so the task has its limit once more: the stopped agent is told to carry on where it
   left off, its run starts at zero, and the tokens count from where they stood. A review that was stopped is done
@@ -102,7 +102,7 @@ Where the tokens run out decides what stops:
 - **As it is** sends the stopped agent's work through the check and the review like any finished turn, and from
   there on it is an ordinary task: what `merge.by` says decides how it lands.
 
-Stopping the task yourself (`Ctrl+X`, `herdr-superwork stop <id>`) takes the limit's mark off: it is then simply
+Stopping the task yourself (`Ctrl+X`, `herdr-projects stop <id>`) takes the limit's mark off: it is then simply
 stopped.
 
 ## What the board shows
@@ -127,7 +127,7 @@ there ([the board in the web UI](web-ui.md)).
 attempt reads its task's limits; `limit.time` holds for each attempt's own runs, and `limit.tokens` for all the
 attempts and the task together, whichever of them a turn ends in.
 
-The research these come from (task herdr-superwork/154) proposes more settings in the same list: a fallback
+The research these come from (task herdr-projects/154) proposes more settings in the same list: a fallback
 agent, a plan you approve. The limits are built to hold for those too: tokens are counted per conversation file and
 added up on the task, so a planner's conversation is one more file; a run is whatever agent is at work in the
 task's stage; and a stop is the board's ordinary stop with a mark on it (`limitStop`), which a fallback can read to

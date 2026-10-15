@@ -15,7 +15,7 @@ fn coord_world_with(settings: Value) -> World {
     let w = world_with(Opts { repo: true, settings: s, ..Default::default() });
     let home = w.base.join("home-coord");
     std::fs::create_dir_all(&home).unwrap();
-    unsafe { std::env::set_var("HERDR_SUPERWORK_COORDINATOR_DIR", &home) };
+    unsafe { std::env::set_var("HERDR_PROJECTS_COORDINATOR_DIR", &home) };
     w
 }
 fn drain() { flush(); sw::runner::drain_jobs(&|job, id, extra| { sw::jobs::run_job(job, id, extra); flush(); }); }
@@ -69,7 +69,7 @@ fn restart_keeps_the_conversation_new_starts_a_fresh_one_and_one_coordinator_can
     assert_eq!(choice().map(Value::Object), Some(json!({ "kind": "codex", "model": "", "effort": "" })));
     let mut s = open(&w.root, 34);
     assert!(look(&w.socket).stale);
-    assert!(s.text().contains("your default is now codex · default model · default effort: herdr-superwork coordinator new starts a new one on it"), "{}", s.text());
+    assert!(s.text().contains("your default is now codex · default model · default effort: herdr-projects coordinator new starts a new one on it"), "{}", s.text());
     // The board itself neither restarts it nor starts a new one: the old keys do nothing, and the menu has no line for either.
     s.press(&["alt+r", "alt+n"]); assert!(s.s.ask.is_none()); assert!(!get(&w).b("want"));
     s.press(&["?"]); assert!(!has(&s.text(), "(?i)restart the Coordinator|new Coordinator")); s.press(&["esc"]);

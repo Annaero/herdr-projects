@@ -11,10 +11,10 @@ Each is a list of agents, tried in order, written like `worker.agent` with comma
 changes. **It costs nothing while all goes well**: nobody extra runs until a hand-over.
 
 ```
-herdr-superwork set worker.fallback "codex, claude/claude-opus-5-5"   for every task of yours
-herdr-superwork set worker.fallback codex --repo my-app               for one repo
-herdr-superwork set worker.fallback none --task 12                    not for this one
-herdr-superwork delegate 12 --worker.fallback pi --reviewer.fallback claude
+herdr-projects set worker.fallback "codex, claude/claude-opus-5-5"   for every task of yours
+herdr-projects set worker.fallback codex --repo my-app               for one repo
+herdr-projects set worker.fallback none --task 12                    not for this one
+herdr-projects delegate 12 --worker.fallback pi --reviewer.fallback claude
 ```
 
 ## When the working agent's task is handed over
@@ -97,7 +97,7 @@ says another program would do better.
 - **The task panel** keeps every hand-over under `Status`, as `Took over` (beside the list the latest, full screen
   all of them, each with its age); `On it` and the `Agent` row are the agent that is on it now, a `Takes over` row
   under each of the two is its list, and each review says who made it once a reviewer took over.
-- **The history**: `herdr-superwork details <id>` lists every hand-over (who, from whom, why, when) beside every
+- **The history**: `herdr-projects details <id>` lists every hand-over (who, from whom, why, when) beside every
   review, and says who is on it now.
 - **herdr**: the agent's tab is `Agent (codex)` and a reviewer's `Reviewer #2 (claude)` once one took over, and the
   sidebar names the agent where the task stands: `agent codex · working`, `reviewer claude · under review`.
@@ -116,7 +116,7 @@ the settings page of the board (`Ctrl+E`: `Agent's fallback`, `Reviewer's fallba
 list, changes nothing and names the nearest right one. A list that only names the agent that is on it anyway says
 that it does nothing.
 
-**A repo's own file may not say them**: `.herdr-superwork.json` holds its six facts and no more, so code an agent
+**A repo's own file may not say them**: `.herdr-projects.json` holds its six facts and no more, so code an agent
 writes cannot switch a hand-over on or off ([settings](settings.md)).
 
 ## Beside the other settings

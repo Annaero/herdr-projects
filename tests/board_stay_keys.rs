@@ -165,7 +165,7 @@ fn the_popup_opens_on_the_task_of_the_pane_you_were_in_and_words_left_in_its_box
     back.press(&["ctrl+z"]);
     assert_eq!(back.s.value(), "Tidy the greeting"); assert_eq!(back.s.ctx.cwd, root);
     back.load(); assert_eq!(back.s.data.repo, "proj");
-    assert!(flat(&back.text()).contains("What you typed was for proj, so the board is there now."), "{}", back.text()); assert!(back.text().contains("herdr-superwork  proj · "), "{}", back.text());
+    assert!(flat(&back.text()).contains("What you typed was for proj, so the board is there now."), "{}", back.text()); assert!(back.text().contains("herdr-projects  proj · "), "{}", back.text());
     back.press(&["enter"]);
     let all = sw::store::tasks::list(Default::default());
     assert_eq!(all.iter().find(|t| t.s("title") == "Tidy the greeting").unwrap().s("root"), root); assert!(!all.iter().any(|t| t.s("root") == other.display().to_string()));
@@ -199,7 +199,7 @@ fn with_the_tab_chosen_the_key_pressed_on_the_board_itself_goes_back_to_where_yo
     let note = || sw::store::files::read_json(&sw::store::files::data_dir().join(format!("board-pane-{}.json", sw::herdr::cli::session_name(&w.socket)))).unwrap_or(Value::Null);
     let focus = || w.state().arr("focus").iter().map(text).collect::<Vec<_>>();
     let press = |pane: &str, tab: &str, keep: bool| { let h = here(pane, tab); set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_CONTEXT_JSON", &h)]); let x = show(None, keep); set_env(&[]); x };
-    let arrive_from = |ctx: &str| { set_env(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", "w9:board"), ("HERDR_PLUGIN_ID", "herdr-superwork"), ("HERDR_PLUGIN_CONTEXT_JSON", ctx)]); arrive(); set_env(&[]); };
+    let arrive_from = |ctx: &str| { set_env(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", "w9:board"), ("HERDR_PLUGIN_ID", "herdr-projects"), ("HERDR_PLUGIN_CONTEXT_JSON", ctx)]); arrive(); set_env(&[]); };
     // The board the key opened knows from herdr which pane you came from.
     arrive_from(&here("w9:p1", "w9:t1"));
     assert_eq!(note().s("from"), "w9:p1");

@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 pub fn rules(cmd: &str) -> String {
     let words = setting_text("coordinator.instructions", None);
     let (delegate, enter, title_rule, home) = (key_name("delegate"), key_name("enter"), TITLE_RULE, user_home().display().to_string());
-    let body = format!("You are the Coordinator of the human's work board in herdr (herdr-superwork). You are an ordinary agent in a long-lived chat: you have all your tools, you may answer questions, look things up, ask the human something when you need to, and do what they ask of you. What the human types in the box at the bottom of the board reaches you word for word; the only thing ever added is one line in square brackets under their words when they sent them with {delegate} (see below). The human sees your last message in the chat at the bottom of the board, so answer briefly and lead with the result.
+    let body = format!("You are the Coordinator of the human's work board in herdr (herdr-projects). You are an ordinary agent in a long-lived chat: you have all your tools, you may answer questions, look things up, ask the human something when you need to, and do what they ask of you. What the human types in the box at the bottom of the board reaches you word for word; the only thing ever added is one line in square brackets under their words when they sent them with {delegate} (see below). The human sees your last message in the chat at the bottom of the board, so answer briefly and lead with the result.
 The board's command is: {cmd}  (written \"board\" below; always run it by that full path).
 - Before you add, delegate or change anything for a message, run: board coordinator where. It lists the human's last few messages from the board, the newest last, and for each one: which repo they were in when they sent it, which task they had open (then \"it\" and \"this\" in that message mean that task), and whether they sent it with {delegate}. Go by the entry of the message you are acting on, not by a newer one.
 - A message sent with {delegate} ends with a line in square brackets saying so. It means \"and start it right away\": every task you add from that message gets an agent at once, with no question back. Add each with \"board add … --delegate\" (settings for that one task, such as --worker.agent codex, go on that same command). \"board add\" answers \"an agent is on it\" when that is done; if it only says \"added\", run \"board delegate <id>\". A message that leads to no new task (a question, a status check, something about an existing task) delegates nothing extra. A message without that line was sent with {enter}: add its tasks and delegate only what the human asked you to.
@@ -43,8 +43,8 @@ When you acted on the board, end with one short line saying what you did, naming
     if !words.is_empty() && words != "none" { format!("{body}\n\n{}", own_words(&words)) } else { body }
 }
 pub const RULES_FILE: &str = "AGENTS.md";
-const OPEN: &str = "<!-- herdr-superwork: the Coordinator's standing rules. The board writes what is between this line and the closing one, at every start: your own notes go outside them. -->";
-const CLOSE: &str = "<!-- /herdr-superwork -->";
+const OPEN: &str = "<!-- herdr-projects: the Coordinator's standing rules. The board writes what is between this line and the closing one, at every start: your own notes go outside them. -->";
+const CLOSE: &str = "<!-- /herdr-projects -->";
 /// Only the marked block is the board's: whatever else the file holds is kept as it is.
 fn put(file: &Path, text: &str) -> Res<()> {
     let have = std::fs::read_to_string(file).unwrap_or_default();

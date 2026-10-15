@@ -125,7 +125,7 @@ fn a_change_before_a_start_counts_at_once_one_under_way_from_the_next_start_and_
     assert!(re(refused, &unset_value(NAME, &Scope::task(&task(&own))).unwrap_err().msg));
     sw::store::tasks::patch(&own, |x| { x.obj_mut("settings").shift_remove(NAME); }).unwrap();
     let e = sw::actions::start::delegate(&own, vec![]).unwrap_err().msg;
-    assert!(re(r"already changed the repo[\s\S]*To start it as it was: herdr-superwork set research\.only false --task proj/3", &e), "{e}");
+    assert!(re(r"already changed the repo[\s\S]*To start it as it was: herdr-projects set research\.only false --task proj/3", &e), "{e}");
     assert!(re(refused, &delegate_as(&own, json!(true)).unwrap_err().msg));
     assert_eq!(task(&own).s("stage"), "todo", "a refused start changes nothing");
     // A pull request that is open.

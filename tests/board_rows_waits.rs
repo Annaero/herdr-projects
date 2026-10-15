@@ -58,7 +58,7 @@ fn a_merge_waiting_for_github_checks_has_the_boards_own_mark_and_says_how_far_th
     assert_eq!((mark(&theme, &r).text(), status_ink(&r)), ("◇".to_string(), Ink::Yellow), "nobody works on it: the board's own mark, no moon");
     let mut b = open(&w.root, 30);
     let lines = b.screen(120);
-    let at = lines.iter().position(|l| l.contains("Waits for GitHub") && !l.contains("herdr-superwork")).unwrap_or_else(|| panic!("{}", lines.join("\n")));
+    let at = lines.iter().position(|l| l.contains("Waits for GitHub") && !l.contains("herdr-projects")).unwrap_or_else(|| panic!("{}", lines.join("\n")));
     assert!(lines[at].contains('◇') && !lines[at].contains('◐'), "{}", lines[at]);
     assert!(lines[at + 1].trim_start_matches([' ', '▌']).starts_with("Waiting for GitHub checks · 2 of 3 passed") && !lines[at + 1].contains("uild"), "{}", lines[at + 1]);
     // The web Board: the same mark, its amber, the same words.

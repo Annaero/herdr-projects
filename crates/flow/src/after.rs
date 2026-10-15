@@ -161,7 +161,7 @@ pub fn still_waits(t: &Task) -> String {
     let id = t.t("id");
     let (left, broken) = standing(t);
     let now = match broken { Some(w) => format!("{} waits for you: {w}.", say(&id)), None => format!("{} is still {}: it starts by itself {}.", say(&id), waits_line(&left), once(left.len())) };
-    format!("{now} To start it now anyway: herdr-superwork delegate {id} --now. To stop it waiting: herdr-superwork after {id} --clear")
+    format!("{now} To start it now anyway: herdr-projects delegate {id} --now. To stop it waiting: herdr-projects after {id} --clear")
 }
 /// What a task's wait comes to as its delegation is recorded (actions/start.rs), with `t` already queued: it waits
 /// (stage "after", its line), or it goes on to a slot with what it waited for handed over.

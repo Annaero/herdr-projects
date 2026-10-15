@@ -49,7 +49,7 @@ fn a_file_for_the_coordinator_is_kept_in_its_own_folder() {
     g.s.data.can_dispatch = true;
     let out = sw::webui::attach::attach(&g, &file("shot.png", "image/png", PNG, json!({ "id": "", "reply": false }))).unwrap();
     let home = sw::coordinator::state::home(&sw::herdr::cli::current_socket());
-    assert!(kept(&out).starts_with(home.join(".herdr-superwork").join("files")), "{}", out.s("path"));
+    assert!(kept(&out).starts_with(home.join(".herdr-projects").join("files")), "{}", out.s("path"));
 }
 
 #[test]
@@ -60,9 +60,9 @@ fn a_file_for_a_tasks_agent_is_kept_in_its_working_folder_where_git_does_not_see
     delegate(&id); settle(&id);
     let p = kept(&web(&w, "attach", file("", "image/jpeg", PNG, json!({ "id": id, "reply": true }))));
     let cwd = sw::store::repos::cwd_of(&task(&id));
-    assert!(p.starts_with(cwd.join(".herdr-superwork").join("files")) && p.extension().unwrap() == "jpg", "{}", p.display());
+    assert!(p.starts_with(cwd.join(".herdr-projects").join("files")) && p.extension().unwrap() == "jpg", "{}", p.display());
     let status = std::process::Command::new("git").args(["status", "--porcelain", "--untracked-files=all"]).current_dir(&cwd).output().unwrap();
-    assert!(!String::from_utf8_lossy(&status.stdout).contains(".herdr-superwork"), "{}", String::from_utf8_lossy(&status.stdout));
+    assert!(!String::from_utf8_lossy(&status.stdout).contains(".herdr-projects"), "{}", String::from_utf8_lossy(&status.stdout));
 }
 
 #[test]

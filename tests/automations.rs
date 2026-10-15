@@ -33,7 +33,7 @@ fn the_automations_are_a_group_of_the_main_list_with_keys_that_turn_fire_and_rem
         " ⟳ on    Look for old dependencies  every 2h                                                             next in  2h",
         " ⟳ on    Release note after a merge  when a task is merged, in every repo                                    never fired",
         " ⟳ off   Nightly audit  daily 03:00                                                                          never fired"]);
-    assert_eq!(lines[0], " herdr-superwork  proj · PRJ · 1 to do");
+    assert_eq!(lines[0], " herdr-projects  proj · PRJ · 1 to do");
     // the arrows go from the tasks on to the automations; the hint line shows the keys that act there
     s.press(&["down"]); assert_eq!(s.s.sel, row_id(&all[0])); assert!(s.s.current().is_none());
     assert!(s.screen(120)[6].starts_with("▌⟳ on    Look for old dependencies "));

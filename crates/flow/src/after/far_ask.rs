@@ -47,7 +47,7 @@ pub fn door(req: &Value) -> Value {
 pub fn ask(m: &Machine, refs: &[String]) -> Result<Vec<Value>, String> {
     match ask_machine(m, "after", Some(&json!({ "refs": refs })), ASK_MS) {
         Ok(j) if j.at("tasks").is_array() => Ok(j.arr("tasks").to_vec()),
-        Ok(j) if j.s("msg").starts_with("Unknown request") => Err("it runs an older herdr-superwork, which cannot answer for its tasks: update it there".into()),
+        Ok(j) if j.s("msg").starts_with("Unknown request") => Err("it runs an older herdr-projects, which cannot answer for its tasks: update it there".into()),
         Ok(j) => Err(if j.s("msg").is_empty() { "it did not answer for its tasks".into() } else { j.t("msg") }),
         Err(why) => Err(why.t("line")),
     }

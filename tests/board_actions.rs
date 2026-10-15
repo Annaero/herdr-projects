@@ -71,12 +71,12 @@ fn ready_to_approve_the_merge_asks_first_the_menu_acts_remove_asks_and_messages_
     assert!(s.text().contains(&format!("Archived PRJ-2 \"Other\". {} undoes it; {} shows the archive. Now on PRJ-1 \"Make f\".", key_name("undo"), key_name("archiveView"))), "{}", s.text());
     s.rows = 34;
     s.press(&["alt+a"]);
-    assert!(s.text().starts_with(" herdr-superwork  archive · 1 archived") && has(&s.text(), r"\n ▾ archived [^\n]*\n[ ▌]. PRJ-2 +Other ") && !s.text().contains("[archived]"), "{}", s.text());
+    assert!(s.text().starts_with(" herdr-projects  archive · 1 archived") && has(&s.text(), r"\n ▾ archived [^\n]*\n[ ▌]. PRJ-2 +Other ") && !s.text().contains("[archived]"), "{}", s.text());
     s.press(&["ctrl+a"]); assert!(!task("proj/2").b("archivedAt"));
     s.press(&["alt+a"]);
     s.s.sel = "proj/2".into(); s.load(); s.press(&["ctrl+p"]); assert_eq!(task("proj/2").at("pinned"), &json!(true));
     s.press(&["ctrl+f"]); assert!(s.text().contains("\nfind ❯ ")); s.typed("make"); s.press(&["enter"]);
-    assert!(has(&s.text(), r#"^ herdr-superwork  proj · [^\n]*\n filter "make" · 1 of 2 · esc clears "#), "{}", s.text());
+    assert!(has(&s.text(), r#"^ herdr-projects  proj · [^\n]*\n filter "make" · 1 of 2 · esc clears "#), "{}", s.text());
     s.press(&["esc"]); assert_eq!(s.s.filter, "");
     // ctrl+x on a task with no agent running asks to remove it; only y deletes
     s.s.sel = "proj/2".into(); s.load(); s.press(&["ctrl+x"]);

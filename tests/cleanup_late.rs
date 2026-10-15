@@ -61,7 +61,7 @@ fn clean_up_never_takes_work_that_arrives_while_it_runs_a_reply_waits_and_a_late
 #[test]
 fn a_turn_started_in_the_agents_own_terminal_during_clean_up_keeps_its_terminal_open_and_its_worktree_in_place() {
     // the teardown stands in for you typing in the agent's terminal while clean-up runs: herdr says "working" from then on
-    let w = world_with(Opts { repo: true, settings: json!({ "review.when": "never" }), repo_settings: Some(json!({ "workspace.teardown": "touch \"$HERDR_SUPERWORK_HOME/../typed\"" })), ..Default::default() });
+    let w = world_with(Opts { repo: true, settings: json!({ "review.when": "never" }), repo_settings: Some(json!({ "workspace.teardown": "touch \"$HERDR_PROJECTS_HOME/../typed\"" })), ..Default::default() });
     let h = hooked(&w);
     { let (fake, typed) = (w.fake.clone(), w.base.join("typed")); *h.on.borrow_mut() = Some(Box::new(move |_| {
         if std::fs::remove_file(&typed).is_ok() { let mut st = fake.st.borrow_mut(); let panes: Vec<String> = st.arr("panes").iter().filter(|p| p.at("agent").is_object()).map(|p| p.t("pane_id")).collect(); for p in panes { set_agent(&mut st, &p, "working", false); } }
@@ -82,8 +82,8 @@ fn a_turn_started_in_the_agents_own_terminal_during_clean_up_keeps_its_terminal_
 fn a_terminal_turn_that_starts_before_clean_up_and_ends_during_its_first_wait_still_keeps_the_terminal_a_trailing_status_does_not() {
     let w = world_with(Opts { repo: true, settings: json!({ "review.when": "never" }), ..Default::default() });
     let h = hooked(&w);
-    // clean-up waits for herdr's status (HERDR_SUPERWORK_SETTLE_MS); the turn ends at its second look, during that wait
-    unsafe { std::env::set_var("HERDR_SUPERWORK_SETTLE_MS", "60") };
+    // clean-up waits for herdr's status (HERDR_PROJECTS_SETTLE_MS); the turn ends at its second look, during that wait
+    unsafe { std::env::set_var("HERDR_PROJECTS_SETTLE_MS", "60") };
     let run = |n: i64, is_hooked: bool, event: bool| -> (Obj, bool) {
         w.script(json!({ "worker": [{ "files": { format!("f{n}.txt"): "x\n" }, "commit": format!("f{n}"), "note": "Did it." }] }));
         let id = w.add(&format!("Task {n}"));
@@ -115,5 +115,5 @@ fn a_terminal_turn_that_starts_before_clean_up_and_ends_during_its_first_wait_st
     assert!(kept(&t).contains("its space is in use again"), "{}", kept(&t)); assert!(o); assert!(Path::new(t.s("worktree")).exists());
     let (t, o) = run(3, true, false); // only herdr's status trailing the turn that ended the task
     assert!(kept(&t).contains("unmerged work"), "{}", kept(&t)); assert!(!o); assert!(Path::new(t.s("worktree")).exists());
-    unsafe { std::env::set_var("HERDR_SUPERWORK_SETTLE_MS", "0") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_SETTLE_MS", "0") };
 }

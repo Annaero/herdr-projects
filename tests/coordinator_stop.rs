@@ -17,8 +17,8 @@ fn coord_world_with(settings: Value) -> World {
     let w = world_with(Opts { repo: true, settings: s, ..Default::default() });
     let home = w.base.join("home-coord");
     std::fs::create_dir_all(&home).unwrap();
-    unsafe { std::env::set_var("HERDR_SUPERWORK_COORDINATOR_DIR", &home) };
-    unsafe { std::env::remove_var("HERDR_SUPERWORK_HANDLED_MS") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_COORDINATOR_DIR", &home) };
+    unsafe { std::env::remove_var("HERDR_PROJECTS_HANDLED_MS") };
     w
 }
 fn drain() { flush(); sw::runner::drain_jobs(&|job, id, extra| { sw::jobs::run_job(job, id, extra); flush(); }); }

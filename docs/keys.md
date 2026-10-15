@@ -14,8 +14,8 @@ neither answer to a merge or a remove is the filled button.
 
 **Work whose review failed is never merged by a plain yes.** It is not under `ready to approve` but under `needs
 you`, as `Review failed · 1 critical, 1 major`; its hints offer sending the review back first, then `merge this task
-anyway`. The guard is in the approve action itself, not only in the question: `herdr-superwork approve <id>` (and so
-the Coordinator) refuses such work and says what the review found; `herdr-superwork approve <id> --anyway` merges
+anyway`. The guard is in the approve action itself, not only in the question: `herdr-projects approve <id>` (and so
+the Coordinator) refuses such work and says what the review found; `herdr-projects approve <id> --anyway` merges
 it all the same.
 
 Merging and deleting a task ask; nothing else does by itself. A result stays on screen until
@@ -115,7 +115,7 @@ the board reads that key itself, from herdr's `config.toml`: herdr's prefix key 
 Restarting the Coordinator, starting a new one and going into its whole chat are not on the board: see
 [the Coordinator](coordinator.md).
 
-<!-- made:keys Made by `herdr-superwork docs` from crates/flow/src/board/keys.rs. Do not edit between these two lines. -->
+<!-- made:keys Made by `herdr-projects docs` from crates/flow/src/board/keys.rs. Do not edit between these two lines. -->
 **Plain keys**
 
 | Key | Does |
@@ -139,7 +139,7 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 | `Ctrl+X` | stop the agent, when one is running (working, starting, checking, under review, or waiting for your answer); the selection stays where you were, on the next row when the stopped task moves to another group. On a task with no agent running (idle, never started, stopped, finished, archived) it asks to remove the task instead: `y` removes it, its worktree too. A task you marked as your own work in progress has no agent to stop: there the key puts it back in to do. A stop never goes on to that question by itself: removing takes a second `Ctrl+X`, and a `y`. On an automation's row: remove the automation (it asks first; the tasks it made stay) |
 | `Ctrl+A` | archive the selected task, or restore it from the archive |
 | `Ctrl+P` | pin the selected task to the top, or unpin it |
-| `Ctrl+E` `Ctrl+U` | the selected task's settings, full screen: every work setting by its name and its value. `↑` `↓` move to a row; `Enter` changes it (a switch or a choice goes to its next value, anything else is typed and saved with `Enter`); rows set for this task only are marked `*` (where any other value comes from is `herdr-superwork show <id>`'s). `Ctrl+U` puts the selected row back to what it would be without this task's own answer. `Esc` or `Ctrl+E` again goes back ([settings.md](settings.md)). On an automation's row: the automation's own settings, the same page |
+| `Ctrl+E` `Ctrl+U` | the selected task's settings, full screen: every work setting by its name and its value. `↑` `↓` move to a row; `Enter` changes it (a switch or a choice goes to its next value, anything else is typed and saved with `Enter`); rows set for this task only are marked `*` (where any other value comes from is `herdr-projects show <id>`'s). `Ctrl+U` puts the selected row back to what it would be without this task's own answer. `Esc` or `Ctrl+E` again goes back ([settings.md](settings.md)). On an automation's row: the automation's own settings, the same page |
 | `Ctrl+Z` | undo: bring back a draft that was put away, or take the last archiving back |
 | `Ctrl+F` | find: type, and the list shows only the tasks that match, archived ones too. `Enter` keeps the filter, `Esc` leaves find; `Esc` on the list clears a filter that is kept |
 | `Ctrl+K` | only while a remote view holds the board's terminal at another size than herdr shows it (the line at the top says so): end that view, so the board has its own size again ([board-size.md](board-size.md)) |

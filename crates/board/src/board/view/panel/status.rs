@@ -119,7 +119,7 @@ pub fn status(k: &mut Kit, c: &Ctx, r: &Obj) -> (usize, Top, usize, String) {
         let who = if review && !ls.b("review") && !ls.b("ready") { "The reviewer" } else { "It" };
         let raw = if r.b("raw") { r.t("raw") } else if !note.is_empty() { note.clone() } else { "stopped".into() };
         let id = if r.b("rid") { r.t("rid") } else { r.t("id") };
-        k.alert(Ink::Red, "Stopped at a limit", &format!("{who} {}, {}. Its work is kept as it is and nothing was merged.\n{on}", crate::store::tasks::one_line(&raw, 600), used_say(ls)), &[("More", format!("A higher limit carries on by itself: herdr-superwork set limit.{} <value> --task {id}", ls.s("what")))]);
+        k.alert(Ink::Red, "Stopped at a limit", &format!("{who} {}, {}. Its work is kept as it is and nothing was merged.\n{on}", crate::store::tasks::one_line(&raw, 600), used_say(ls)), &[("More", format!("A higher limit carries on by itself: herdr-projects set limit.{} <value> --task {id}", ls.s("what")))]);
     } else if r.s("stage") == "pick" { told = note.clone(); }
     else if r.s("state") == "blocked" { told = if !note.is_empty() { note.clone() } else { said.clone() }; let h = asks(r.s("kind")); let x = if same(&told, &h) { String::new() } else { told.clone() }; k.alert(Ink::Red, &h, &x, &[]); }
     else if r.s("state") == "error" {

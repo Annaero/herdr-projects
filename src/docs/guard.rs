@@ -1,6 +1,6 @@
 //! The repo's own rules, checked: no source file past its size, every source file says what it holds, a key's chord
 //! written only in the keys' table, every test file in the one test program, and no made table out of date. Part of
-//! the check (tests/guard.rs runs it); by hand: `herdr-superwork docs --guard`.
+//! the check (tests/guard.rs runs it); by hand: `herdr-projects docs --guard`.
 
 /// A source file past this many lines is split by area (as crates/flow/src/finish/ was) rather than appended to.
 pub const MAX_LINES: usize = 300;
@@ -33,7 +33,7 @@ pub fn problems() -> Vec<String> {
     }
     out.extend(tests_left_out(&files, &super::read(TESTS_MAIN)));
     let old = super::tables::stale();
-    if !old.is_empty() { out.push(format!("{} {} out of date: run `npm run check` (or `herdr-superwork docs`) and commit what it writes (never edit a made table by hand)", old.join(", "), if old.len() > 1 { "are" } else { "is" })); }
+    if !old.is_empty() { out.push(format!("{} {} out of date: run `npm run check` (or `herdr-projects docs`) and commit what it writes (never edit a made table by hand)", old.join(", "), if old.len() > 1 { "are" } else { "is" })); }
     out
 }
 

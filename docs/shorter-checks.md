@@ -6,7 +6,7 @@ rounds repeats what already passed, while GitHub runs the full suite on the pull
 for it. So a repo can name a shorter check for those later rounds: `check.again`, beside `check.command`.
 
 ```json
-{ "check": { "command": "npm run check -- --all", "again": "npm run check -- --since $HERDR_SUPERWORK_CHECKED" } }
+{ "check": { "command": "npm run check -- --all", "again": "npm run check -- --since $HERDR_PROJECTS_CHECKED" } }
 ```
 
 ## When it runs
@@ -23,7 +23,7 @@ check:
   nothing merges before it passed ([how work gets done](how-work-gets-done.md)). Without that, every round runs the
   full check: it is the only full run before the merge.
 
-The shorter check is told the commit the full check last passed on, in `HERDR_SUPERWORK_CHECKED`, so that it can run
+The shorter check is told the commit the full check last passed on, in `HERDR_PROJECTS_CHECKED`, so that it can run
 only what the change since then reaches. It is always that commit: a shorter check that passed does not move it, so
 each round covers the whole change since the last full run, the earlier fix rounds' too. A full check that passes
 (the first round, or a round where one of the rules above did not hold) moves it.

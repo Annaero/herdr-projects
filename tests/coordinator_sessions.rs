@@ -14,7 +14,7 @@ fn coord_world_with(settings: Value) -> World {
     let w = world_with(Opts { repo: true, settings: s, ..Default::default() });
     let home = w.base.join("home-coord");
     std::fs::create_dir_all(&home).unwrap();
-    unsafe { std::env::set_var("HERDR_SUPERWORK_COORDINATOR_DIR", &home) };
+    unsafe { std::env::set_var("HERDR_PROJECTS_COORDINATOR_DIR", &home) };
     w
 }
 fn drain() { flush(); sw::runner::drain_jobs(&|job, id, extra| { sw::jobs::run_job(job, id, extra); flush(); }); }
@@ -98,7 +98,7 @@ fn the_agents_own_new_chat_command_is_followed_the_chat_shows_the_new_conversati
     assert_eq!(look(&w.socket).said, ""); assert!(![new_id, first.as_str()].contains(&get(&w).s("session")), "{}", get(&w).s("session"));
     sw::clock::set(None);
     // It runs in a folder of its own, so nothing else's conversations are ever taken for its.
-    unsafe { std::env::remove_var("HERDR_SUPERWORK_COORDINATOR_DIR") };
+    unsafe { std::env::remove_var("HERDR_PROJECTS_COORDINATOR_DIR") };
     assert_eq!(state::home(&w.socket), sw::store::files::data_dir().join("coordinator").join("default").join("chat"));
 }
 

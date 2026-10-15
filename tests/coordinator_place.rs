@@ -11,8 +11,8 @@ fn coord_world() -> World {
     let w = world_with(Opts { repo: true, settings: json!({ "coordinator.agent": "claude", "review.when": "never" }), ..Default::default() });
     let home = w.base.join("home-coord");
     std::fs::create_dir_all(&home).unwrap();
-    unsafe { std::env::set_var("HERDR_SUPERWORK_COORDINATOR_DIR", &home) };
-    unsafe { std::env::remove_var("HERDR_SUPERWORK_HANDLED_MS") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_COORDINATOR_DIR", &home) };
+    unsafe { std::env::remove_var("HERDR_PROJECTS_HANDLED_MS") };
     w
 }
 fn drain() { flush(); sw::runner::drain_jobs(&|job, id, extra| { sw::jobs::run_job(job, id, extra); flush(); }); }
@@ -143,7 +143,7 @@ fn moving_over_a_coordinator_in_the_old_space_of_its_own_is_moved_into_the_tab_a
     assert!(now.at("workspace").is_null()); assert_eq!(now.s("space"), "w1"); assert_eq!(now.s("paneWas"), "w9:p1"); assert_eq!(now.s("session"), first.s("session"));
     assert_eq!(api(&w).pane_get(now.s("pane")).unwrap().s("tab_id"), now.s("tab")); assert_eq!(look(&w.socket).state, "idle");
     // the next message goes to that one; a task it adds in the turn of a tab message is known to come from it under either id
-    unsafe { std::env::set_var("HERDR_SUPERWORK_HANDLED_MS", "0") }; // at rest means dealt with
+    unsafe { std::env::set_var("HERDR_PROJECTS_HANDLED_MS", "0") }; // at rest means dealt with
     send(&w.root, "two", true, "", &w.socket).unwrap(); drain();
     assert_eq!(calls_of(&w, "^agent start").len(), 1); assert_eq!(prompts_of(&w).iter().map(|p| p.split('\n').next().unwrap().to_string()).collect::<Vec<_>>(), vec!["one", "two"]);
     assert!(tab_turn("w9:p1", &w.socket)); assert!(tab_turn(now.s("pane"), &w.socket)); assert!(!tab_turn("w1:p1", &w.socket));

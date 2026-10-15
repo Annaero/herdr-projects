@@ -97,6 +97,6 @@ fn another_machines_agent_opens_in_the_web_uis_view_of_that_machines_pane_and_wh
     far::ask_again("t", 1);
     let s = open(vec![mine]);
     assert_eq!(s.at("go"), &json!({ "machine": "pc-9", "pane": "w1:p1", "workspace": "w1", "view": "chat", "n": 4 }));
-    assert_eq!(s.at("msg").s("text"), "Update herdr-superwork on vm-a: it cannot reopen a closed space yet.");
+    assert_eq!(s.at("msg").s("text"), "Update herdr-projects on vm-a: it cannot reopen a closed space yet.");
     assert_ne!(far.asked().last().unwrap().2.s("action"), "reopen");
 }

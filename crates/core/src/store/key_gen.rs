@@ -1,12 +1,12 @@
-//! The short key the board makes for a repo or folder from its name, when nobody gave it one: `HSW` for
-//! herdr-superwork, `SKL` for gtm-skills, `CRM` for open-crm, `HOME` for the home folder, `ROOT` for `/`. The same name
+//! The short key the board makes for a repo or folder from its name, when nobody gave it one: `TPW` for
+//! team-paperwork, `SKL` for gtm-skills, `CRM` for open-crm, `HOME` for the home folder, `ROOT` for `/`. The same name
 //! always makes the same key; a key another repo has is passed over for the next way of writing it, then for the
 //! first one with a number (`PRJ2`, `PRJ3`, …).
 use std::path::Path;
 
 fn vowel(c: char) -> bool { "aeiou".contains(c) }
-/// One word of 8 letters or more is two, where it parts as a word like "superwork" does: between two consonants that
-/// have a vowel on each side, nearest the middle, each half 3 letters or more (`super` `work`).
+/// One word of 8 letters or more is two, where it parts as a word like "paperwork" does: between two consonants that
+/// have a vowel on each side, nearest the middle, each half 3 letters or more (`paper` `work`).
 fn halves(w: &str) -> Vec<String> {
     let c: Vec<char> = w.chars().collect();
     if c.len() < 8 || !c.iter().all(|x| x.is_ascii_alphabetic()) { return vec![w.to_string()]; }
@@ -95,7 +95,7 @@ mod tests {
     fn key(name: &str) -> String { make_key(name, Path::new("/x").join(name).as_path(), Path::new("/home/me"), |_| false) }
     #[test]
     fn keys_from_names() {
-        assert_eq!(key("herdr-superwork"), "HSW");
+        assert_eq!(key("team-paperwork"), "TPW");
         assert_eq!(key("gtm-skills"), "SKL");
         assert_eq!(key("open-crm"), "CRM");
         assert_eq!(key("proj"), "PRJ");

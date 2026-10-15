@@ -36,14 +36,14 @@ pub fn world_with(o: Opts) -> World {
     std::fs::create_dir_all(base.join("home")).unwrap();
     let base = std::fs::canonicalize(&base).unwrap();
     let b = |p: &str| base.join(p).display().to_string();
-    for k in ["HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID", "HERDR_PLUGIN_ID", "HERDR_PLUGIN_CONTEXT_JSON", "HERDR_ENV", "HERDR_SESSION", "TMUX", "NO_COLOR", "HERDR_SUPERWORK_DATA_DIR", "HERDR_SUPERWORK_CONFIG_DIR", "HERDR_SUPERWORK_REPORTS_DIR", "HERDR_SUPERWORK_WEBUI", "HERDR_SUPERWORK_PROGRESS", "HERDR_SUPERWORK_SANDBOX", "HERDR_SUPERWORK_RETRY_MS", "HERDR_SUPERWORK_ENDED_MS", "HERDR_SUPERWORK_QUIET_MS", "HERDR_SUPERWORK_READY_MS", "HERDR_SUPERWORK_SUBMIT_MS", "HERDR_SUPERWORK_TICK_MS"] { unsafe { std::env::remove_var(k) } }
+    for k in ["HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID", "HERDR_PLUGIN_ID", "HERDR_PLUGIN_CONTEXT_JSON", "HERDR_ENV", "HERDR_SESSION", "TMUX", "NO_COLOR", "HERDR_PROJECTS_DATA_DIR", "HERDR_PROJECTS_CONFIG_DIR", "HERDR_PROJECTS_REPORTS_DIR", "HERDR_PROJECTS_WEBUI", "HERDR_PROJECTS_PROGRESS", "HERDR_PROJECTS_SANDBOX", "HERDR_PROJECTS_RETRY_MS", "HERDR_PROJECTS_ENDED_MS", "HERDR_PROJECTS_QUIET_MS", "HERDR_PROJECTS_READY_MS", "HERDR_PROJECTS_SUBMIT_MS", "HERDR_PROJECTS_TICK_MS"] { unsafe { std::env::remove_var(k) } }
     let socket = b("herdr.sock");
     // herdr's socket is there (the fake answers for herdr itself): what looks for a running herdr finds one.
     let listen = std::os::unix::net::UnixListener::bind(&socket).unwrap();
-    for (k, v) in [("HOME", b("home")), ("HERDR_SUPERWORK_HOME", b("sw")), ("HERDR_SOCKET_PATH", socket.clone()), ("XDG_CONFIG_HOME", b("home/.config")), ("XDG_STATE_HOME", b("home/.state")),
-        ("CLAUDE_CONFIG_DIR", b("claude")), ("CODEX_HOME", b("codex")), ("PI_CODING_AGENT_DIR", b("pi")), ("HERDR_SUPERWORK_CLAUDE_JSON", b("claude.json")), ("HERDR_SUPERWORK_CODEX_TOML", b("codex.toml"))] { set(k, &v); }
-    for (k, v) in [("HERDR_SUPERWORK_INLINE", "1"), ("HERDR_SUPERWORK_SETTLE_MS", "0"), ("HERDR_SUPERWORK_PR_LAG_MS", "0"), ("HERDR_SUPERWORK_READY_STEP_MS", "0"), ("HERDR_SUPERWORK_POLL_MS", "20"),
-        ("HERDR_SUPERWORK_NO_KEEPER", "1"), ("HERDR_SUPERWORK_NO_HOOK", "1"), ("HERDR_SUPERWORK_READ_MS", "0"), ("HERDR_SUPERWORK_REVIEW_MS", "120000"), ("HERDR_SUPERWORK_NO_SERVER", "1"), ("HERDR_SUPERWORK_LINKS", "local"),
+    for (k, v) in [("HOME", b("home")), ("HERDR_PROJECTS_HOME", b("sw")), ("HERDR_SOCKET_PATH", socket.clone()), ("XDG_CONFIG_HOME", b("home/.config")), ("XDG_STATE_HOME", b("home/.state")),
+        ("CLAUDE_CONFIG_DIR", b("claude")), ("CODEX_HOME", b("codex")), ("PI_CODING_AGENT_DIR", b("pi")), ("HERDR_PROJECTS_CLAUDE_JSON", b("claude.json")), ("HERDR_PROJECTS_CODEX_TOML", b("codex.toml"))] { set(k, &v); }
+    for (k, v) in [("HERDR_PROJECTS_INLINE", "1"), ("HERDR_PROJECTS_SETTLE_MS", "0"), ("HERDR_PROJECTS_PR_LAG_MS", "0"), ("HERDR_PROJECTS_READY_STEP_MS", "0"), ("HERDR_PROJECTS_POLL_MS", "20"),
+        ("HERDR_PROJECTS_NO_KEEPER", "1"), ("HERDR_PROJECTS_NO_HOOK", "1"), ("HERDR_PROJECTS_READ_MS", "0"), ("HERDR_PROJECTS_REVIEW_MS", "120000"), ("HERDR_PROJECTS_NO_SERVER", "1"), ("HERDR_PROJECTS_LINKS", "local"),
         ("HERDR_BIN_PATH", "/bin/false"), ("GIT_AUTHOR_NAME", "tester"), ("GIT_AUTHOR_EMAIL", "t@test"), ("GIT_COMMITTER_NAME", "tester"), ("GIT_COMMITTER_EMAIL", "t@test"), ("GIT_CONFIG_GLOBAL", "/dev/null"), ("GIT_CONFIG_NOSYSTEM", "1")] { set(k, v); }
     let data = sw::store::files::data_dir();
     let config = sw::store::files::config_dir();
@@ -59,7 +59,7 @@ pub fn world_with(o: Opts) -> World {
     if o.repo {
         git(&root, &["init", "-q", "-b", "main"]);
         std::fs::write(root.join("a.txt"), "one\n").unwrap();
-        if let Some(rs) = &o.repo_settings { std::fs::write(root.join(".herdr-superwork.json"), rs.to_string()).unwrap(); }
+        if let Some(rs) = &o.repo_settings { std::fs::write(root.join(".herdr-projects.json"), rs.to_string()).unwrap(); }
         git(&root, &["add", "-A"]); git(&root, &["commit", "-qm", "init"]);
         if o.origin { let bare = base.join("origin.git"); git(&base, &["init", "-q", "--bare", "-b", "main", &bare.display().to_string()]); git(&root, &["remote", "add", "origin", &bare.display().to_string()]); git(&root, &["push", "-q", "-u", "origin", "main"]); }
     }
@@ -159,7 +159,7 @@ pub fn delegate_with(id: &str, asked: Value) -> Obj { sw::actions::start::delega
 /// of their own that the board can end.
 pub fn cut_world(waits: &str, settings: Value) -> World {
     let w = world_with(Opts { repo: true, settings, ..Default::default() });
-    for (k, v) in [("HERDR_SUPERWORK_RETRY_MS", waits), ("HERDR_SUPERWORK_ENDED_MS", "0"), ("HERDR_SUPERWORK_QUIET_MS", "60")] { set(k, v); }
+    for (k, v) in [("HERDR_PROJECTS_RETRY_MS", waits), ("HERDR_PROJECTS_ENDED_MS", "0"), ("HERDR_PROJECTS_QUIET_MS", "60")] { set(k, v); }
     w.patch(|s| s["pids"] = json!(true));
     w
 }

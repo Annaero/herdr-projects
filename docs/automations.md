@@ -94,20 +94,20 @@ was made on: nothing moves between machines.
 ## Commands
 
 ```
-herdr-superwork automations                         the list
-herdr-superwork automations add "<name>" --prompt "<what each task is to do>"
+herdr-projects automations                         the list
+herdr-projects automations add "<name>" --prompt "<what each task is to do>"
                 (--schedule "<when>" | --when <event> [--every-repo])
                 [--repo NAME|PATH] [--<setting> VALUE ...] [--research|--no-research]
-herdr-superwork automations show <name>             all of it: prompt, trigger, settings, last firings
-herdr-superwork automations change <name> [--name NEW] [--prompt TEXT] [--schedule … | --when …]
+herdr-projects automations show <name>             all of it: prompt, trigger, settings, last firings
+herdr-projects automations change <name> [--name NEW] [--prompt TEXT] [--schedule … | --when …]
                 [--research | --no-research]
-herdr-superwork automations on|off <name>
-herdr-superwork automations run <name>              fire it now (through the same guards; never while it is off)
-herdr-superwork automations firings <name>          when, what fired it, the task it made or why it was skipped
-herdr-superwork automations remove <name>           the tasks it made stay
-herdr-superwork set <setting> <value> --automation <name>
-herdr-superwork unset <setting> --automation <name>
-herdr-superwork show --automation <name>            every setting its next task will have, and where it comes from
+herdr-projects automations on|off <name>
+herdr-projects automations run <name>              fire it now (through the same guards; never while it is off)
+herdr-projects automations firings <name>          when, what fired it, the task it made or why it was skipped
+herdr-projects automations remove <name>           the tasks it made stay
+herdr-projects set <setting> <value> --automation <name>
+herdr-projects unset <setting> --automation <name>
+herdr-projects show --automation <name>            every setting its next task will have, and where it comes from
 ```
 
 All accept `--json`. A name is the title of the automation's tasks, so it follows [a title's limit](titles.md), and

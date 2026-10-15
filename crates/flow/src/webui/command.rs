@@ -1,4 +1,4 @@
-//! `herdr-superwork web-ui`: how the board in the herdr web UI stands, and the one setup step by hand.
+//! `herdr-projects web-ui`: how the board in the herdr web UI stands, and the one setup step by hand.
 //!   web-ui           where the web UI is, whether the front door is up, and which links go through it
 //!   web-ui link      point the web UI's shared link at the front door (the yes the board asks for)
 //!   web-ui unlink    point it back; the board does not ask again (`web-ui link` does it later)
@@ -25,7 +25,7 @@ pub fn link_now() -> Value {
     ensure_door();
     let Some(door) = door_info() else { return json!({ "ok": false, "msg": "The front door is not up yet. Try again in a few seconds." }) };
     let urls = link::link(to.port, door.i("port") as u16);
-    let msg = if urls.is_empty() { format!("The web UI has no private link yet. Make one with its own Phone setup; it then goes through the front door by itself. On this machine the Board is at {}/.", address_of(door.i("port") as u16)) } else { format!("The Board is in the web UI at {}. `herdr-superwork web-ui unlink` points it back.", urls.join(", ")) };
+    let msg = if urls.is_empty() { format!("The web UI has no private link yet. Make one with its own Phone setup; it then goes through the front door by itself. On this machine the Board is at {}/.", address_of(door.i("port") as u16)) } else { format!("The Board is in the web UI at {}. `herdr-projects web-ui unlink` points it back.", urls.join(", ")) };
     json!({ "ok": true, "urls": urls, "msg": msg })
 }
 pub fn unlink_now(answer: &str) -> Value {
@@ -49,7 +49,7 @@ pub fn main(args: &[String]) -> Value {
     match args.first().map(|s| s.as_str()) {
         Some("link") => return link_now(),
         Some("unlink") => return unlink_now("no"),
-        Some(_) => return json!({ "ok": false, "msg": "Usage: herdr-superwork web-ui [link|unlink]" }),
+        Some(_) => return json!({ "ok": false, "msg": "Usage: herdr-projects web-ui [link|unlink]" }),
         None => {}
     }
     let (to, door) = (web_ui(true), door_info());
@@ -62,7 +62,7 @@ pub fn main(args: &[String]) -> Value {
     lines.push(match &door { Some(d) => format!("Front door: up at {}/ (this machine only)", address_of(d.i("port") as u16)), None => "Front door: not running".into() });
     if let Some(l) = &links {
         for e in &l.ours { lines.push(format!("Link: {} goes through the front door: the Board is in the web UI there", e.url)); }
-        for e in &l.direct { lines.push(format!("Link: {} goes straight to the web UI: no Board there (`herdr-superwork web-ui link`)", e.url)); }
+        for e in &l.direct { lines.push(format!("Link: {} goes straight to the web UI: no Board there (`herdr-projects web-ui link`)", e.url)); }
         for e in &l.open { lines.push(format!("Link: {} is open to the internet (Funnel): the board never goes there", e.url)); }
         if l.ours.is_empty() && l.direct.is_empty() { lines.push("Link: the web UI has no private link yet (its own Settings → Phone makes one)".into()); }
     }

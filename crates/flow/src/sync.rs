@@ -99,7 +99,7 @@ pub fn sync_main(t: &Task, tree: &str) -> Synced {
     })().ok();
     Synced { status: "merged", before, head, overlap, ..r }
 }
-fn retry_ms() -> i64 { std::env::var("HERDR_SUPERWORK_SYNC_RETRY_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(60000) }
+fn retry_ms() -> i64 { std::env::var("HERDR_PROJECTS_SYNC_RETRY_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(60000) }
 pub fn skip_why(r: &Synced) -> String { format!("your checkout is on {}, not on {}, the branch this task lands on", r.onto.as_deref().filter(|s| !s.is_empty()).unwrap_or("no branch"), r.want) }
 pub fn behind_msg(why: &str) -> String { format!("Behind main, and not up to date yet: {why}. The board keeps trying; it cannot be approved until then") }
 /// What a task remembers of a sync that was tried: where main stood for the commit that was really merged. Only a

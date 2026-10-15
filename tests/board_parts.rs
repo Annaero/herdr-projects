@@ -18,16 +18,16 @@ fn set_env(pairs: &[(&str, &str)]) { for k in ["HERDR_ENV", "HERDR_PANE_ID", "HE
 fn the_boards_own_tab_is_named_while_it_is_open_and_has_its_old_name_again_when_it_closes() {
     let w = world();
     set_env(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", "w1:p1")]); assert_eq!(board_pane(), "w1:p1");
-    set_env(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", "w1:p1"), ("HERDR_PLUGIN_ID", "herdr-superwork")]); assert_eq!(board_pane(), "", "the plugin's own tab");
+    set_env(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", "w1:p1"), ("HERDR_PLUGIN_ID", "herdr-projects")]); assert_eq!(board_pane(), "", "the plugin's own tab");
     set_env(&[("HERDR_PANE_ID", "w1:p1")]); assert_eq!(board_pane(), "", "outside herdr");
     set_env(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", "w1:p1"), ("TMUX", "/tmp/tmux")]); assert_eq!(board_pane(), "");
     set_env(&[]);
     let api = sw::herdr::Herdr::new(None);
     let a = api.workspace_create(&w.root_str(), "", &[]).unwrap().at("root_pane").clone();
     let b = api.tab_create(a.s("workspace_id"), "", "notes", &[]).unwrap().at("root_pane").clone();
-    assert_eq!(BOARD_TAB, "herdr-superwork");
+    assert_eq!(BOARD_TAB, "herdr-projects");
     let named = name_board_tab(b.s("pane_id"));
-    assert_eq!(labels(&w), vec!["1", "herdr-superwork"]);
+    assert_eq!(labels(&w), vec!["1", "herdr-projects"]);
     assert_eq!(named.as_ref().map(|n| n.1.clone()), Some(b.t("tab_id")));
     assert!(w.state().arr("focus").is_empty(), "nothing is focused");
     restore_board_tab(named);
@@ -112,7 +112,7 @@ fn the_settings_page_every_work_setting_plain_and_a_mark_on_this_tasks_own() {
     assert!(has(&row_of(&text, "workspace.cleanup"), r"^     Clean up when done +on +workspace\.cleanup *$"));
     assert!(has(&text, r"\n Agent's program: a program \(claude, codex or pi\), with a model after a slash if you like *\n"));
     s.press(&["down", "down"]); assert!(has(&s.screen(120).join("\n"), r"\n Agent's access: \[full\] · ask *\n")); s.press(&["up", "up"]);
-    assert!(text.contains("\n * this task only\n") && text.contains("Board settings are yours only: herdr-superwork show"));
+    assert!(text.contains("\n * this task only\n") && text.contains("Board settings are yours only: herdr-projects show"));
     assert!(!has(&text, "built in|your entry for|the repo's file"), "no row says where its value comes from: {text}");
     s.press(&["esc"]); assert!(s.s.editing.is_none() && s.s.full, "back to the whole task, one step");
     s.s.panel_top = 1_000_000;

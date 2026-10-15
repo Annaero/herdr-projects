@@ -27,7 +27,7 @@ fn pinned(s: &mut Board, rows: usize, who: &str, what: &str) -> (usize, usize) {
 #[test]
 fn a_longer_message_from_the_coordinator_grows_the_chat_block_upwards_and_it_stays_pinned() {
     let w = world_with(Opts { repo: true, settings: json!({ "coordinator.agent": "claude" }), ..Default::default() });
-    unsafe { std::env::set_var("HERDR_SUPERWORK_COORDINATOR_DIR", w.base.join("home-coord")) };
+    unsafe { std::env::set_var("HERDR_PROJECTS_COORDINATOR_DIR", w.base.join("home-coord")) };
     for i in 1..=230 { w.add(&format!("Task number {i}")); }
     let mut s = open(&w.root, 84); s.s.side = false;
     // The Coordinator, as the loader read it: idle, having said one line; then six.

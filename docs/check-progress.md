@@ -36,7 +36,7 @@ sidebar. Nothing shown is a guess. The Watcher is not asked.
 
 ## How a check reports its progress
 
-The board gives the check command one more variable: `HERDR_SUPERWORK_PROGRESS`, the name of a file. The check
+The board gives the check command one more variable: `HERDR_PROJECTS_PROGRESS`, the name of a file. The check
 writes where it is to that file, as often as it likes, each time the whole file anew. The board reads it once a
 second. A check that writes nothing still works: it gets the time-only line above.
 
@@ -54,7 +54,7 @@ A shell check, for example:
 
 ```sh
 n=0; total=$(ls tests/*.sh | wc -l)
-for t in tests/*.sh; do sh "$t" || exit 1; n=$((n+1)); [ -n "$HERDR_SUPERWORK_PROGRESS" ] && echo "$n/$total tests" > "$HERDR_SUPERWORK_PROGRESS"; done
+for t in tests/*.sh; do sh "$t" || exit 1; n=$((n+1)); [ -n "$HERDR_PROJECTS_PROGRESS" ] && echo "$n/$total tests" > "$HERDR_PROJECTS_PROGRESS"; done
 ```
 
 Rules the board holds to: a line it cannot read changes nothing; `done` past `total` is `total`; the file is the

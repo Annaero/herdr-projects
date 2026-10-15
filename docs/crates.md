@@ -10,7 +10,7 @@ lines meant every edit, also one line of the board's screen, paid for all of the
 | sw-flow | `crates/flow/` | the flow of a task: delegating, the finish line, landing, the keeper, other machines, automations |
 | sw-board | `crates/board/` | the board's screen (`board/`): its state, what a key does, what it draws |
 | sw-web | `crates/web/` | the board in the herdr web UI (`webui/`): the front door and the web board |
-| herdr-superwork | `Cargo.toml`, `src/` | the command line (`cli/`) and the made pages (`docs.rs`); the library is `sw` |
+| herdr-projects | `Cargo.toml`, `src/` | the command line (`cli/`) and the made pages (`docs.rs`); the library is `sw` |
 
 Most changes are to the board's screen and the web board: those build sw-board, sw-web and the command line again,
 and take sw-core and sw-flow as they were. A change to sw-core builds all five again, as before.

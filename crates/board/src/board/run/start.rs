@@ -33,7 +33,7 @@ pub fn prepare(folder: &std::path::Path) -> (State, Theme, Option<(String, Strin
     let asked = term::ask_colours();
     crate::keeper::ensure_keeper(); // the board opening is one of the keeper's starters
     let _ = crate::extras::sync_skill(); crate::extras::remove_popups(); crate::extras::refresh_sidebar();
-    let reloads: i64 = env("HERDR_SUPERWORK_RELOADS").parse().unwrap_or(0);
+    let reloads: i64 = env("HERDR_PROJECTS_RELOADS").parse().unwrap_or(0);
     let named = place::name_board_tab(&place::board_pane());
     let popup = place::in_popup();
     let ctx = Ctx { cwd: folder.display().to_string(), popup, from: place::context().0, pane: if env("HERDR_ENV") == "1" && env("TMUX").is_empty() { env("HERDR_PANE_ID") } else { String::new() },
@@ -110,8 +110,8 @@ pub fn threads(tx: &Sender<Msg>, wants: &Arc<Mutex<Wants>>, load: &Arc<(Mutex<bo
     std::thread::spawn(move || {
         let exe = crate::store::files::bin();
         let first = crate::keeper::code_stamp(&exe);
-        // Every five seconds (HERDR_SUPERWORK_STAMP_MS: the tests that load a new version look sooner).
-        let every = env("HERDR_SUPERWORK_STAMP_MS").parse().unwrap_or(5000u64);
+        // Every five seconds (HERDR_PROJECTS_STAMP_MS: the tests that load a new version look sooner).
+        let every = env("HERDR_PROJECTS_STAMP_MS").parse().unwrap_or(5000u64);
         loop {
             std::thread::sleep(std::time::Duration::from_millis(every));
             let now = crate::keeper::code_stamp(&exe);
@@ -144,8 +144,8 @@ pub fn watch_tab(socket: Option<String>, tab: &str, gone: impl Fn() + Send + Syn
 /// over the old frame. Returns only when that could not be done.
 pub fn reload() {
     use std::os::unix::process::CommandExt;
-    let reloads: i64 = env("HERDR_SUPERWORK_RELOADS").parse().unwrap_or(0);
+    let reloads: i64 = env("HERDR_PROJECTS_RELOADS").parse().unwrap_or(0);
     let exe = crate::store::files::bin();
-    let err = std::process::Command::new(exe).args(std::env::args_os().skip(1)).env(term::KEPT, "1").env("HERDR_SUPERWORK_RELOADS", (reloads + 1).to_string()).exec();
-    eprintln!("herdr-superwork could not start its new version: {err}");
+    let err = std::process::Command::new(exe).args(std::env::args_os().skip(1)).env(term::KEPT, "1").env("HERDR_PROJECTS_RELOADS", (reloads + 1).to_string()).exec();
+    eprintln!("herdr-projects could not start its new version: {err}");
 }

@@ -39,7 +39,7 @@ pub fn head_lines(s: &State, w: usize) -> Vec<Inked> {
     if !s.data.session.is_empty() && s.data.session != "default" { rest.push(format!("session {}", s.data.session)); }
     let rest = rest.join(" · ");
     // The board's name gives way before whose tasks these are; names too long for the line go on to the next, whole.
-    let name = Inked::plain(" ").add(Inked::plain("herdr-superwork").bold()).add(Inked::plain("  "));
+    let name = Inked::plain(" ").add(Inked::plain("herdr-projects").bold()).add(Inked::plain("  "));
     let lead = if !scope.is_empty() && name.width() + crate::text::width(&scope) > w { Inked::plain(" ") } else { name };
     let named: Vec<Inked> = if scope.is_empty() { vec![Inked::new()] } else { Inked::of(scope.clone(), Ink::Accent).wrap(w.saturating_sub(lead.width()).max(4)) };
     let first = lead.add(named[0].clone());

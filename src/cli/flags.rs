@@ -86,7 +86,7 @@ pub fn refuse_unknown(cmd: &str, a: &Args) -> Res<()> {
     let first = odd[0].trim_start_matches("--");
     let word = first.strip_prefix("no-").unwrap_or(first);
     let names: Vec<&str> = if t.settings { SETTINGS.iter().map(|s| s.name.as_str()).collect() } else { vec![] };
-    let who = if cmd == "board" { "herdr-superwork".to_string() } else if has_subs(cmd) && !sub.is_empty() { format!("{cmd} {sub}") } else { cmd.to_string() };
+    let who = if cmd == "board" { "herdr-projects".to_string() } else if has_subs(cmd) && !sub.is_empty() { format!("{cmd} {sub}") } else { cmd.to_string() };
     let listed = all.iter().map(|f| format!("--{f}")).collect::<Vec<_>>().join(", ");
     // A setting's name where no setting is taken: said as that, with the name it most likely was.
     if word.contains('.') && !t.settings {

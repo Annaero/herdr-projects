@@ -18,7 +18,7 @@ pub fn choice() -> Option<Obj> {
 }
 /// Fast mode and asking first are part of who it is only where they are not the usual.
 fn extra(c: &mut Obj, fast: bool, access: &str) { if fast { c.put("fast", true); } if !access.is_empty() && access != "full" { c.put("access", access); } }
-pub const OFF_WORDS: &str = "The Coordinator is off. `herdr-superwork unset coordinator.agent` turns it on.";
+pub const OFF_WORDS: &str = "The Coordinator is off. `herdr-projects unset coordinator.agent` turns it on.";
 /// A choice for one Coordinator only ("new, on codex"): what is named wins, and a model or effort set for another
 /// program is not passed on to it.
 pub fn pick_of(agent: &str, effort: &str) -> Res<Option<Obj>> {

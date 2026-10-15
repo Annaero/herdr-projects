@@ -13,8 +13,8 @@ fn coord_world() -> World {
     let w = world_with(Opts { repo: true, settings: json!({ "coordinator.agent": "claude", "review.when": "never" }), ..Default::default() });
     let home = w.base.join("home-coord");
     std::fs::create_dir_all(&home).unwrap();
-    unsafe { std::env::set_var("HERDR_SUPERWORK_COORDINATOR_DIR", &home) };
-    unsafe { std::env::remove_var("HERDR_SUPERWORK_HANDLED_MS") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_COORDINATOR_DIR", &home) };
+    unsafe { std::env::remove_var("HERDR_PROJECTS_HANDLED_MS") };
     w
 }
 fn drain() { flush(); sw::runner::drain_jobs(&|job, id, extra| { sw::jobs::run_job(job, id, extra); flush(); }); }
@@ -73,7 +73,7 @@ fn sent_with_tab_every_task_the_coordinator_adds_from_that_message_gets_an_agent
     // The Coordinator ends its turn: herdr counts one more finished turn.
     let end_turn = || w.patch(|st| { let seq = st.i("seq") + 1; st["seq"] = json!(seq); for p in st["panes"].as_array_mut().unwrap() { if p.at("agent").is_object() { p["agent"]["status"] = json!("done"); p["agent"]["seq"] = json!(seq); p["agent"]["completion"] = json!(seq); } } });
     let pane_env = |p: Option<&str>| unsafe { match p { Some(p) => std::env::set_var("HERDR_PANE_ID", p), None => std::env::remove_var("HERDR_PANE_ID") } };
-    unsafe { std::env::set_var("HERDR_SUPERWORK_HANDLED_MS", "0") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_HANDLED_MS", "0") };
     // tab: the message itself says so, under the words. The Coordinator is now in that message's turn.
     w.script(json!({ "coordinator": [{ "status": "working" }] }));
     send(&w.root, "a login page, and dark mode", true, "", &w.socket).unwrap(); drain();
@@ -117,7 +117,7 @@ fn sent_with_tab_every_task_the_coordinator_adds_from_that_message_gets_an_agent
     state::change(&w.socket, |c| { let n = c.i("startedAt") + 1; c.put("startedAt", n); true }).unwrap();
     assert_eq!(board(&["add", "After a restart"]), "proj/10: added");
     assert_eq!(on(), vec!["proj/3", "proj/4", "proj/5", "proj/9"]);
-    pane_env(None); unsafe { std::env::remove_var("HERDR_SUPERWORK_HANDLED_MS") };
+    pane_env(None); unsafe { std::env::remove_var("HERDR_PROJECTS_HANDLED_MS") };
 }
 
 #[test]

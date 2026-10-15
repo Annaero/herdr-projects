@@ -14,7 +14,7 @@ There are two ways for an agent to stop, and the board tells them apart by one t
 
 | It means | What it does | What follows |
 |---|---|---|
-| **I am waiting for you** | runs `herdr-superwork report <id> --state blocked --kind <question\|permission\|auth> --msg "<why>"`, then stops | nothing: the task waits for your answer |
+| **I am waiting for you** | runs `herdr-projects report <id> --state blocked --kind <question\|permission\|auth> --msg "<why>"`, then stops | nothing: the task waits for your answer |
 | **I am finished** | stops, with a short summary | the finish line: check, review, your approval ([how work gets done](how-work-gets-done.md)) |
 
 The board cannot read a question out of a last message, a report or a closing note. An agent that asks in plain

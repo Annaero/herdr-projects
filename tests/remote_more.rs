@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use sw::json::*;
 use sw::store::settings::lookup::{setting, Scope};
 
-/// The door, as `herdr-superwork remote <what> <request>` answers it on this machine (in this process).
+/// The door, as `herdr-projects remote <what> <request>` answers it on this machine (in this process).
 fn door(what: &str, req: Value) -> Value { sw::remote::door(what, &req).unwrap_or_else(|e| json!({ "ok": false, "msg": e.msg })) }
 
 #[test]

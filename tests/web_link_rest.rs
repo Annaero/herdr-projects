@@ -58,7 +58,7 @@ fn real_programs_the_front_door_closes_when_the_board_in_the_web_ui_is_turned_of
     let ts = tailnet(&w.base);
     let at = |https: u16| read(&ts.join("web").join(https.to_string()));
     let ui = web_ui();
-    unsafe { std::env::set_var("HERDR_SUPERWORK_WEBUI", ui.to_string()) };
+    unsafe { std::env::set_var("HERDR_PROJECTS_WEBUI", ui.to_string()) };
     // the port it had (a free one: the first one it would ask for may be a real board's)
     let free = { let l = TcpListener::bind("127.0.0.1:0").unwrap(); l.local_addr().unwrap().port() };
     sw::store::files::write_json(&door_file(), &json!({ "port": free })).unwrap();
@@ -86,5 +86,5 @@ fn real_programs_the_front_door_closes_when_the_board_in_the_web_ui_is_turned_of
     door.stop();
     assert_eq!(door.port(), None);
     assert_eq!(sw::store::files::read_json(&door_file()), Some(json!({})));
-    unsafe { std::env::remove_var("HERDR_SUPERWORK_WEBUI") };
+    unsafe { std::env::remove_var("HERDR_PROJECTS_WEBUI") };
 }

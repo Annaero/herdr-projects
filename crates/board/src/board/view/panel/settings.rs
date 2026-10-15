@@ -1,5 +1,5 @@
 //! The settings in the task panel: every setting this task runs with, a few to a row, a value set for this task only
-//! marked `*` (where any value comes from is `herdr-superwork show`'s, never the panel's); and its agent's session.
+//! marked `*` (where any value comes from is `herdr-projects show`'s, never the panel's); and its agent's session.
 //! Every setting by its name, each one changeable, is the settings page (page.rs). Read from the task's `snap`: this machine's lookup, or what the task's
 //! machine sent.
 use super::kit::Kit;

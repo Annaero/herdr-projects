@@ -43,7 +43,7 @@ fn the_web_board_has_the_automations_one_whole_with_its_buttons_and_a_firing_tha
     assert_eq!((s.at("list").s("selected"), s.at("panel").s("title"), s.at("panel").at("automation"), s.at("panel").at("task"), s.at("flags").at("open"), s.at("canOpen")), (one.s("id"), "Look for old dependencies", &json!(true), &json!(false), &json!(true), &json!(false)));
     assert_eq!(s.at("panel").arr("parts").iter().map(|p| p.t("head")).collect::<Vec<_>>(), vec!["Status", "Prompt", "Settings", "Firings"]);
     assert_eq!(s.at("flags").at("onTask"), &json!(false), "the chat's first line is no switch here: that key is the automation's own");
-    assert!(texts(part(&s, 2)).join(" ").contains("Changed with: herdr-superwork set <name> <value> --automation \"Look for old dependencies\""), "{:?}", texts(part(&s, 2)));
+    assert!(texts(part(&s, 2)).join(" ").contains("Changed with: herdr-projects set <name> <value> --automation \"Look for old dependencies\""), "{:?}", texts(part(&s, 2)));
     assert!(!s.at("panel").to_string().contains("ctrl+"), "no terminal key on the page");
     assert_eq!(part(&s, 0).iter().filter(|x| x.s("k") == "fact").map(|x| x.t("label")).collect::<Vec<_>>(), vec!["State", "Trigger", "Next", "Repo", "Last firing"]);
     assert_eq!(texts(part(&s, 1)), vec!["Check what is out of date."]); assert_eq!(texts(part(&s, 2))[0], "merge.by  itself *");

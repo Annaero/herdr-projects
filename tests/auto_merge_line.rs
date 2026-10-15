@@ -20,7 +20,7 @@ fn pass(w: &World) { sw::housekeeping::housekeeping(&w.socket, sw::housekeeping:
 fn big(first: &str, last: &str) -> String { let mut v = vec![first.to_string()]; v.extend((2..20).map(|i| format!("line {i}"))); v.push(last.into()); v.join("\n") + "\n" }
 fn main_moves(w: &World, files: &[(&str, &str)]) -> String { for (f, t) in files { std::fs::write(w.root.join(f), t).unwrap(); } git(&w.root, &["add", "-A"]); git(&w.root, &["commit", "-qm", "main moves"]); git(&w.root, &["rev-parse", "HEAD"]) }
 /// Every run of the check leaves a line outside the repo, so a test can count them.
-fn counted() -> Value { json!({ "check.command": "echo run >> \"$HERDR_SUPERWORK_REPO/../checks.log\"" }) }
+fn counted() -> Value { json!({ "check.command": "echo run >> \"$HERDR_PROJECTS_REPO/../checks.log\"" }) }
 fn checks(w: &World) -> usize { read(&w.base.join("checks.log")).lines().filter(|l| !l.is_empty()).count() }
 fn queued(job: &str) -> Vec<String> { sw::runner::JOBS.with(|j| j.borrow().iter().filter(|(x, _, _)| x == job).map(|(_, id, _)| id.clone()).collect()) }
 fn approval(w: &World, title: &str, worker: Option<Value>) -> String { let mut s = json!({ "reviewer": [verdict()] }); if let Some(x) = worker { s["worker"] = json!([x]); } w.script(s); to_approval(w, title) }

@@ -17,12 +17,12 @@ plugin nothing of this runs.
 
 That one change is the whole setup. By hand, any time:
 
-    herdr-superwork web-ui            how things stand: the web UI, the front door, which links go through it
-    herdr-superwork web-ui link       point the web UI's shared link at the front door
-    herdr-superwork web-ui unlink     point it back
+    herdr-projects web-ui            how things stand: the web UI, the front door, which links go through it
+    herdr-projects web-ui link       point the web UI's shared link at the front door
+    herdr-projects web-ui unlink     point it back
 
-`herdr-superwork remove-extras` points the link back too and stops the front door ([installing](install.md)). To turn
-the whole thing off and keep the rest: `herdr-superwork set board.webUi none` ([settings](settings.md)); the front door
+`herdr-projects remove-extras` points the link back too and stops the front door ([installing](install.md)). To turn
+the whole thing off and keep the rest: `herdr-projects set board.webUi none` ([settings](settings.md)); the front door
 points the link back by itself and closes.
 
 On the machine itself the board is also at the front door's own address, which `web-ui` prints
@@ -49,7 +49,7 @@ So the front door stands in front of it instead:
   door the entry points at the front door's port, so the web UI would say it has no link and offer the command for a
   second one. The answer is given the link it already has. Anything else in it, and the answer itself whenever it
   already names a link or cannot be read, is passed on as it came.
-- **It answers under one path the web UI does not use**, `/superwork/`: the board's page files and its calls.
+- **It answers under one path the web UI does not use**, `/herdr-projects/`: the board's page files and its calls.
 - **A fault of the board never breaks the web UI.** Whatever goes wrong on the board's side, a request that is not
   the board's still goes through. The board's work is done in a thread of its own, so reading tasks never holds up a
   terminal's keystrokes on their way through.
@@ -59,7 +59,7 @@ So the front door stands in front of it instead:
 - **It follows the web UI**: through its restarts and its own updates (it keeps its port), and to another port when
   it takes one. While the web UI is down its address answers "not answering right now" and the board lets nobody in.
 
-The front door is part of the board's one page server (`herdr-superwork serve`, which also serves
+The front door is part of the board's one page server (`herdr-projects serve`, which also serves
 [evidence pages](task-panel.md)): one long-lived process, not two. Its bookkeeping (its process, its port, where it
 passes things on to) is `data/front-door.json` in [the home folder](home-folder.md). When the plugin is updated the
 process hands over to a new one on the same port; a terminal open in the web UI reconnects by itself.
@@ -73,7 +73,7 @@ The board is as protected as the web UI, by the web UI:
   gate: `server/auth.ts`, `server/access.ts` there). Anything but a plain yes is a no: no answer, an answer it cannot
   read, a web UI that is down. Not logged in, nothing of the board can be read or changed.
 - A call that changes something must come from the board's own page: the same origin, and a header of the board's
-  own (`x-herdr-superwork`), which a page of another site cannot send. The web UI asks the same of its own controls.
+  own (`x-herdr-projects`), which a page of another site cannot send. The web UI asks the same of its own controls.
 - A device the web UI paired to *watch* can look at the board and change nothing: it can select, find, and show or
   hide; it cannot send, approve, stop or archive.
 - The page's own files (scripts and styles) hold no task and are public, as the web UI's own files are.
@@ -94,7 +94,7 @@ touched.
 takes one by itself afterwards. The web UI's Settings → Phone, opened at the link, keeps showing that link as its own
 (the one corrected answer above). Its Phone setup run from herdr on the machine reads Tailscale itself, finds no
 entry at its own port, and makes one more link on another port: that one goes straight to the web UI, is the one it
-finds from then on, and is left alone. `herdr-superwork web-ui` lists both and says which has the Board.
+finds from then on, and is left alone. `herdr-projects web-ui` lists both and says which has the Board.
 
 The front door has a port of its own because Tailscale proxies to `127.0.0.1` only (checked on 1.102: a target on
 the other loopback address is refused), so it cannot stand at the web UI's port number.
@@ -235,7 +235,7 @@ Each machine with both plugins also has a front door and a Board of its own, at 
 
 **When the web UI runs on one machine and the tasks are on another.** The Board is served by the machine the web
 UI runs on, so that machine needs this plugin too, on this version, and it needs the other machine as one of herdr's
-saved machines there (`herdr machine add`, or `board.machines`), reachable over SSH with `herdr-superwork` on its
+saved machines there (`herdr machine add`, or `board.machines`), reachable over SSH with `herdr-projects` on its
 path. The machine with the tasks needs no web UI and no front door. The Board then shows that machine's tasks when
 the web UI is on one of its panes, or through `More` → **Other machines**. The terminal board that runs on the
 machine with the tasks is that machine's own program: it is that machine's plugin that has to be on this version
@@ -277,7 +277,7 @@ inside the agent. The web Board's **Open this task's agent** is the way that wor
   the sidebar foot (`.sidebar-footer`), the Agents section's classes the Boards section is built of (`AgentSidebar.tsx`
   and `.css` there: `agent-section-toggle`, `agent-section-caret`, `agent-list-contents`, `agent-item`, `agent-row`,
   `agent-copy`, `agent-title`, `agent-context`), the drawer's scrim (`.scrim.is-open`), its address parameters `ws`,
-  `pane` and `view` (`src/lib/deepLink.ts`), `/api/health?scope=bridge` saying who asks, and that `/superwork/` is still
+  `pane` and `view` (`src/lib/deepLink.ts`), `/api/health?scope=bridge` saying who asks, and that `/herdr-projects/` is still
   free, what `/api/access` says about its link (`server/tailscale.ts`), `/api/machines` naming each PC's `id`, `kind`,
   `target` and `state`, and its `machine` address parameter.
 - **It changes its chat input**: the Board's box is measured against it again, with one command
@@ -285,7 +285,7 @@ inside the agent. The web Board's **Open this task's agent** is the way that wor
 
 ## Trying it against a copy
 
-`HERDR_SUPERWORK_WEBUI=<port>` (or `host:port`) names a web UI that herdr does not list as a plugin, which is how a
+`HERDR_PROJECTS_WEBUI=<port>` (or `host:port`) names a web UI that herdr does not list as a plugin, which is how a
 copy of it is tried out with a scratch herdr and a scratch [home folder](home-folder.md). `off` there means none.
 
 ## Checked

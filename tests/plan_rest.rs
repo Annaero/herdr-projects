@@ -13,7 +13,7 @@ use sw::store::reviews::review_history;
 const PLAN: &str = "# Plan\n\n1. Add f.txt with one line.\n2. Run the check.\n";
 fn plan_world(settings: serde_json::Value) -> World {
     let w = world_with(Opts { repo: true, settings, ..Default::default() });
-    unsafe { std::env::set_var("HERDR_SUPERWORK_SANDBOX", "bwrap") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_SANDBOX", "bwrap") };
     w.patch(|s| s["pids"] = json!(true));
     w
 }

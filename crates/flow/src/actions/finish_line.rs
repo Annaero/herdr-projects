@@ -35,18 +35,18 @@ pub fn approve(id: &str, seen: Option<(Value, Value)>, anyway: bool) -> Res<Said
     moved(&cur)?;
     if cur.s("stage") == "asks" && cur.s("kind") == "permission" { return tell(cur.s("id"), "Yes, go ahead.", false); }
     if awaits_plan(&cur) { return approve_plan(cur.s("id")); }
-    if cur.s("stage") == "pick" { crate::fail!("{0} waits for you to pick one of its attempts, not for a merge: herdr-superwork pick {0} <letter>", cur.s("id")); }
-    if is_research(&cur) { crate::fail!("{0} is research only: nothing of it is merged. To merge its change after all, turn that off (herdr-superwork set research.only false --task {0}) and delegate it again.", cur.s("id")); }
+    if cur.s("stage") == "pick" { crate::fail!("{0} waits for you to pick one of its attempts, not for a merge: herdr-projects pick {0} <letter>", cur.s("id")); }
+    if is_research(&cur) { crate::fail!("{0} is research only: nothing of it is merged. To merge its change after all, turn that off (herdr-projects set research.only false --task {0}) and delegate it again.", cur.s("id")); }
     let t = update(cur.s("id"), |t| {
         if t.s("stage") != "approval" { crate::fail!("{} is not waiting for an approval to merge.", t.s("id")); }
         moved(t)?;
         if review_failed(t) && !anyway {
             let tally = review_tally(t);
-            crate::fail!("{0} was not merged: its last review failed{1}. Send the review back with: herdr-superwork review {0}. To merge it all the same: herdr-superwork approve {0} --anyway", t.s("id"), if tally.is_empty() { tally } else { format!(" ({tally})") });
+            crate::fail!("{0} was not merged: its last review failed{1}. Send the review back with: herdr-projects review {0}. To merge it all the same: herdr-projects approve {0} --anyway", t.s("id"), if tally.is_empty() { tally } else { format!(" ({tally})") });
         }
         // GitHub's checks failed on the commit that would merge (land/checks.rs): refused the same way.
         let checks = crate::land::checks::failed_on(t).filter(|_| crate::land::checks::looked_at(t));
-        if let Some(why) = checks.as_ref().filter(|_| !anyway) { crate::fail!("{0} was not merged: {why}. Send the failure to the agent with: herdr-superwork fix {0}. To merge it all the same: herdr-superwork approve {0} --anyway", t.s("id")); }
+        if let Some(why) = checks.as_ref().filter(|_| !anyway) { crate::fail!("{0} was not merged: {why}. Send the failure to the agent with: herdr-projects fix {0}. To merge it all the same: herdr-projects approve {0} --anyway", t.s("id")); }
         // Main moved and the board could not bring this branch up to date yet: what was reviewed is not what would land.
         if t.b("syncBlocked") { crate::fail!("{} is behind main and cannot be approved yet: {}. The board keeps trying to bring it up to date.", t.s("id"), t.at("syncBlocked").s("why")); }
         if runner_alive(t) { crate::fail!("{} is busy. Try again in a moment.", t.s("id")); }

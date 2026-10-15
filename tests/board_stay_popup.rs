@@ -20,7 +20,7 @@ fn here(pane: &str, tab: &str) -> String { json!({ "focused_pane_id": pane, "tab
 /// herdr runs the board key's action: `here` is where you are.
 fn press_key(pane: &str, tab: &str, keep: bool) -> String { let h = here(pane, tab); set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_CONTEXT_JSON", &h)]); let x = show(None, keep); set_env(&[]); x }
 /// A board starting in herdr's popup over `tab`, or in a pane: it writes down where it is.
-fn arrive_popup(tab: &str) { let h = here("", tab); set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-superwork"), ("HERDR_PLUGIN_CONTEXT_JSON", &h)]); arrive(); set_env(&[]); }
+fn arrive_popup(tab: &str) { let h = here("", tab); set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-projects"), ("HERDR_PLUGIN_CONTEXT_JSON", &h)]); arrive(); set_env(&[]); }
 fn arrive_pane(pane: &str) { set_env(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", pane)]); arrive(); set_env(&[]); }
 fn note(name: &str) -> Value { sw::store::files::read_json(&note_file(name)).unwrap_or(Value::Null) }
 fn note_file(name: &str) -> std::path::PathBuf { sw::store::files::data_dir().join(format!("board-{name}-{}.json", sw::herdr::cli::session_name(&sw::herdr::cli::current_socket()))) }
@@ -75,9 +75,9 @@ fn board_open_is_a_setting_like_the_others_a_tab_unless_you_choose_the_popup() {
     assert_ne!(main(&["set", "board.open", "window"]), 0); assert_eq!(setting(), json!("popup"));
     assert_eq!(main(&["unset", "board.open"]), 0); assert_eq!(setting(), json!("tab"));
     // herdr's popup is no pane: its program gets the plugin's id and no pane id. Anything else is a pane.
-    set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-superwork")]);
+    set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-projects")]);
     assert!(in_popup()); assert_eq!(own_pane(), "", "a popup is never gone back to"); assert_eq!(own_name(), "popup");
-    set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-superwork"), ("HERDR_PANE_ID", "w9:p7")]);
+    set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-projects"), ("HERDR_PANE_ID", "w9:p7")]);
     assert!(!in_popup()); assert_eq!(own_pane(), "w9:p7"); assert_eq!(own_name(), "w9:p7");
     set_env(&[]); assert_eq!(own_name(), "");
     set_env(&[("HERDR_PLUGIN_CONTEXT_JSON", &here("w9:p1", "w9:t1"))]); assert_eq!(context(), ("w9:p1".to_string(), "w9:t1".to_string()));

@@ -71,7 +71,7 @@ it is green:
   sent back included (they are not kept, so they cannot be told from words of yours), or a conversation the board
   cannot read (only Claude Code's can be), the task asks you once more. A hold made after the board stopped
   counting a send-back is never lifted this way.)
-- **Set it like any other setting**: `herdr-superwork set merge.by itself` for every task, `--repo <name>` for one
+- **Set it like any other setting**: `herdr-projects set merge.by itself` for every task, `--repo <name>` for one
   repo's, `--task <id>` or `delegate <id> --merge.by itself` for one task, `unset merge.by` to take a choice back;
   or tell the Coordinator "auto-merge this one" or "always auto-merge". The task panel shows it as `Merge`.
 - **It counts from the moment you change it**, for tasks under way too. Turned on: a running task merges when it
@@ -80,7 +80,7 @@ it is green:
   or a merge queue, goes back to waiting for your yes, and so does one whose merge the board had started but not
   yet made (the setting is asked again right before the merge).
 
-A repo's own committed file cannot switch this on. `"land": "auto"` in `.herdr-superwork.json` used to; that file
+A repo's own committed file cannot switch this on. `"land": "auto"` in `.herdr-projects.json` used to; that file
 now holds seven facts only ([settings](settings.md)), so code an agent writes can never make its own work merge
 unasked. To merge by itself in one repo, say so yourself: `set merge.by itself --repo <name>`. `show <id>` says what
 a task really runs on, and where each value comes from.

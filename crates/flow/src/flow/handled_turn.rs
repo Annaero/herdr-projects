@@ -11,7 +11,7 @@ pub fn same_turn(t: &Obj) -> bool {
     let file = t.so("transcript").map(Path::new);
     read_turn_of(t.s("agent"), file, t.s("session"), &cwd_of(t), false).map(|turn| turn.id == t.at("handled").s("msg")).unwrap_or(false)
 }
-fn reopen_ms() -> i64 { std::env::var("HERDR_SUPERWORK_REOPEN_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(60000) }
+fn reopen_ms() -> i64 { std::env::var("HERDR_PROJECTS_REOPEN_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(60000) }
 /// A task opened for a turn that never came: nobody is known to have opened the turn, it was armed within seconds of
 /// the handled turn, and herdr counts no turn finished since, and the agent has written nothing since.
 pub fn reopened(t: &Obj, comp: &Value) -> bool {

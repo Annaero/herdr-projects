@@ -51,7 +51,7 @@ fn a_flag_named_like_an_objects_own_property_is_refused_and_a_setting_where_none
 
 #[test]
 fn every_flag_the_help_names_for_a_command_is_one_that_command_takes() {
-    let head = regex::Regex::new(r"^ {2}herdr-superwork ([a-z|-]+)(?: ([a-z]+)\b)?").unwrap();
+    let head = regex::Regex::new(r"^ {2}herdr-projects ([a-z|-]+)(?: ([a-z]+)\b)?").unwrap();
     let other = regex::Regex::new(r"^ {2}\S").unwrap();
     let flag = regex::Regex::new(r"--(?:no-)?([a-z][a-z-]*)").unwrap();
     let (mut cmds, mut sub): (Vec<String>, String) = (vec![], String::new());

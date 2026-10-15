@@ -19,7 +19,7 @@ installed they link as Rust does by itself.
   fails when rustc does not take them or one is a `-Z` flag. rustc says so before it needs that target's library, so
   the test catches a config that breaks ARM Linux on any machine, CI's among them.
 - `scripts/linker.sh` runs mold, one pinned version checked against its published sha256, kept in
-  `~/.cache/herdr-superwork` beside the shared build cache. The workspace setup installs it
+  `~/.cache/herdr-projects` beside the shared build cache. The workspace setup installs it
   (`sh scripts/linker.sh --install`, in `scripts/setup.sh`). Like Rust's lld, mold links on all the cores: a link is a
   fraction of a second, and on this task's share of them ([testing](testing.md)) mold kept little of its gain.
 - **Where mold is not installed** (GitHub CI, a fresh machine, no network, a platform with no mold build), the script
@@ -30,7 +30,7 @@ installed they link as Rust does by itself.
   `.cargo/config.toml` does not name.
 - **macOS** keeps Apple's own linker (ld-prime, the default since Xcode 15): it is as quick as lld there, and mold has
   no macOS build.
-- `HERDR_SUPERWORK_NO_MOLD=1` turns mold off. Switching it on or off rebuilds nothing.
+- `HERDR_PROJECTS_NO_MOLD=1` turns mold off. Switching it on or off rebuilds nothing.
 
 ## Why flags, and not a linker named in the config
 

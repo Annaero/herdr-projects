@@ -57,7 +57,7 @@ fn a_key_herdr_or_the_users_config_uses_is_refused_with_what_it_does_today() {
     assert!(ok("prefix+w", conf, &d), "the user moved herdr's action off it: the key is free");
     assert!(ok("prefix+a", conf, &d));
     // the board's own binding is not "taken", and a config that cannot be read still has its keys found
-    assert!(!used("[[keys.command]]\nkey = \"prefix+a\"\ntype = \"plugin_action\"\ncommand = \"herdr-superwork.open\"\n", &d).contains_key("prefix+a"));
+    assert!(!used("[[keys.command]]\nkey = \"prefix+a\"\ntype = \"plugin_action\"\ncommand = \"herdr-projects.open\"\n", &d).contains_key("prefix+a"));
     assert!(!ok("prefix+g", "this is = not toml [\nkey = \"prefix+g\"\n", &d));
     assert!(!ok("prefix+w", "this is = not toml [\nworkspace_picker = \"\"\n", &d));
 }

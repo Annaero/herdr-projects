@@ -1,5 +1,5 @@
 == the list
- herdr-superwork  proj · 5 ne…
+ herdr-projects  proj · 5 nee…
 ▌◐ #5     Max length for task
 ▌         titles
 ▌         Found the cause; now
@@ -12,7 +12,7 @@
 ──────────────────────────────
   enter open this task's agent
 == the task beside it
- herdr-superwork  proj · 5 ne…
+ herdr-projects  proj · 5 nee…
 ▌◐ #5     Max length for task
 ▌         titles
 ▌         Found the cause; now
@@ -51,7 +51,7 @@
 ──────────────────────────────
   ↑↓ pick a key
 == a draft
- herdr-superwork  proj · 5 ne…
+ herdr-projects  proj · 5 nee…
 ▌◐ #5     Max length for task
 ▌         titles
 ▌         Found the cause; now

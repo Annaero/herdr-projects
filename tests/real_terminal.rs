@@ -15,7 +15,7 @@ fn start(cwd: &std::path::Path, cols: u16, rows: u16) -> Term {
     assert_eq!(unsafe { libc::openpty(&mut m, &mut s, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut()) }, 0);
     winsize(m, cols, rows);
     let slave = unsafe { OwnedFd::from_raw_fd(s) };
-    let mut c = std::process::Command::new(env!("CARGO_BIN_EXE_herdr-superwork"));
+    let mut c = std::process::Command::new(env!("CARGO_BIN_EXE_herdr-projects"));
     c.current_dir(cwd).env("TERM", "xterm-256color").env("COLORTERM", "truecolor").env("LANG", "C.UTF-8").env_remove("NO_COLOR")
         .env("HERDR_SOCKET_PATH", "/nonexistent").env("HERDR_BIN_PATH", "/bin/false")
         .stdin(slave.try_clone().unwrap()).stdout(slave.try_clone().unwrap()).stderr(slave);
@@ -54,7 +54,7 @@ fn real_programs_the_board_starts_takes_keys_resizes_and_leaves_nothing_behind()
     for t in ["Write the notes", "Fix the footer", "Look at 日本語 🚀"] { w.add(t); }
     let t0 = Instant::now();
     let mut t = start(&w.root, 100, 30);
-    assert!(t.until("herdr-superwork", 5000), "the board drew nothing: {:?}", plain(&t.out));
+    assert!(t.until("herdr-projects", 5000), "the board drew nothing: {:?}", plain(&t.out));
     let first = t0.elapsed();
     eprintln!("first frame after {first:?}");
     assert!(first < Duration::from_secs(3), "the first frame took {first:?}");

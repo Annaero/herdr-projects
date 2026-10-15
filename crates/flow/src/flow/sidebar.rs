@@ -16,7 +16,7 @@ use crate::store::marks::due;
 use std::path::PathBuf;
 
 fn sidebar_file() -> PathBuf { data_dir().join("sidebar.json") }
-const SOURCE: &str = "plugin:herdr-superwork";
+const SOURCE: &str = "plugin:herdr-projects";
 fn token(name: &str, value: &str) -> Vec<String> { if value.is_empty() { args(&["--clear-token", name]) } else { vec!["--token".into(), format!("{name}={value}")] } }
 /// Row 2 as herdr keeps it: where the task stands, then the row's time, last, so that it is the first thing cut.
 pub fn shown_name(e: &Entry) -> String { [e.stands.clone(), e.age.clone()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ").chars().take(80).collect() }

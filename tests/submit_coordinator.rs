@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use sw::coordinator::{pump::tick, requests::send, state};
 use sw::json::*;
 
-fn waits(ready: i64, submit: i64) { unsafe { std::env::set_var("HERDR_SUPERWORK_READY_MS", ready.to_string()); std::env::set_var("HERDR_SUPERWORK_SUBMIT_MS", submit.to_string()); } }
+fn waits(ready: i64, submit: i64) { unsafe { std::env::set_var("HERDR_PROJECTS_READY_MS", ready.to_string()); std::env::set_var("HERDR_PROJECTS_SUBMIT_MS", submit.to_string()); } }
 fn pass(w: &World) { sw::housekeeping::housekeeping(&w.socket, sw::housekeeping::Force::Yes); }
 fn drain() { flush(); sw::runner::drain_jobs(&|job, id, extra| { sw::jobs::run_job(job, id, extra); flush(); }); }
 fn matching(w: &World, re: &str) -> Vec<String> { let r = regex::Regex::new(re).unwrap(); calls(w).into_iter().filter(|c| r.is_match(c)).collect() }
@@ -15,7 +15,7 @@ fn coord_world() -> World {
     let w = world_with(Opts { repo: true, settings: json!({ "coordinator.agent": "claude", "review.when": "never" }), ..Default::default() });
     let home = w.base.join("home-coord");
     std::fs::create_dir_all(&home).unwrap();
-    unsafe { std::env::set_var("HERDR_SUPERWORK_COORDINATOR_DIR", &home) };
+    unsafe { std::env::set_var("HERDR_PROJECTS_COORDINATOR_DIR", &home) };
     w
 }
 fn agents(w: &World) -> Vec<Value> { w.state().arr("panes").iter().filter(|p| p.at("agent").is_object()).map(|p| p.at("agent").clone()).collect() }

@@ -26,7 +26,7 @@ pub fn attempt_agents(by: &Value, worker: &str) -> Vec<String> {
     if names.len() > 1 { names } else { vec![] }
 }
 pub fn attempt_count(by: &Value) -> usize { attempt_agents(by, "x").len().max(1) }
-/// `herdr-superwork/12` and `B` -> `herdr-superwork/12b`.
+/// `herdr-projects/12` and `B` -> `herdr-projects/12b`.
 pub fn attempt_id(id: &str, letter: &str) -> String { format!("{id}{}", letter.to_lowercase()) }
 pub fn is_attempt_id(id: &str) -> bool {
     let Some((repo, n)) = id.split_once('/') else { return false };

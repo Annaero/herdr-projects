@@ -27,7 +27,7 @@ The [`board.theme` setting](settings.md) says otherwise by hand: `herdr` (the de
   config of the machine the client runs on, and herdr passes neither that config nor its theme on to the server the
   board runs on. When that machine's config names another theme than this one's, herdr shows that theme around a
   board in this machine's. The board cannot see it. Set `board.theme` to that theme's name
-  (`herdr-superwork set board.theme nord`), or give both machines the same `[theme]`. A plain `ssh` to this machine
+  (`herdr-projects set board.theme nord`), or give both machines the same `[theme]`. A plain `ssh` to this machine
   with herdr started here is not this case: client and server are then on one machine, and the board matches.
 - **The web Board**: the herdr web UI does not read herdr's theme; it has colours of its own (its CSS variables,
   light and dark and its palettes). The Board there is drawn with those, so it matches what herdr looks like on the

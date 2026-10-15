@@ -19,13 +19,13 @@ for a single use with `coordinator new --agent …`. A changed default applies t
 running herdr: the chat says "New task", and what you type is added word for word.
 
 **Every chat knows the board.** The plugin keeps a small how-to, a folder named
-`herdr-superwork` holding `SKILL.md`, in each installed agent program's own skills folder (`~/.claude/skills`,
+`herdr-projects` holding `SKILL.md`, in each installed agent program's own skills folder (`~/.claude/skills`,
 `~/.codex/skills`, `~/.pi/agent/skills`), so an ordinary chat can "add this to the board" without being told how.
-It gives the command by its full path, so it need not be on your PATH. `herdr-superwork remove-extras` removes
+It gives the command by its full path, so it need not be on your PATH. `herdr-projects remove-extras` removes
 exactly what was written, and it is not written back; a folder of that name the plugin did not write is left alone.
 
 Commands: `add`, `list`, `report`, `describe`, `delegate`, `after` ([one task after another](after.md)), `tell`, `stop`, `approve`, `review`, `retry`, `fix`,
-`finish`, `details`, `pin`, `archive`, `restore`, `clear`, `set`, `unset`, `show`, `automations` ([automations](automations.md)), `machines` ([other machines](other-machines.md)), `install`, `update` ([installing](install.md)), `remove-extras`; `herdr-superwork help` lists
+`finish`, `details`, `pin`, `archive`, `restore`, `clear`, `set`, `unset`, `show`, `automations` ([automations](automations.md)), `machines` ([other machines](other-machines.md)), `install`, `update` ([installing](install.md)), `remove-extras`; `herdr-projects help` lists
 them.
 
 **Agents the board started: able, not nudged.** An agent or a reviewer the board itself started on a task can run

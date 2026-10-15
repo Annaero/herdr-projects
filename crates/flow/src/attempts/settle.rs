@@ -64,7 +64,7 @@ pub fn to_pick(id: &str, comparison: Option<Value>, from: &str) -> Res<Task> {
         Ok(Change::Write)
     })
 }
-/// Your choice (the approve key on an attempt, or `herdr-superwork pick <id> <letter>`). With no letter: the one the
+/// Your choice (the approve key on an attempt, or `herdr-projects pick <id> <letter>`). With no letter: the one the
 /// reviewer recommends, when it recommended one.
 pub fn pick(id: &str, letter: &str) -> Res<Said> {
     let t = find(id)?;
@@ -79,7 +79,7 @@ pub fn pick(id: &str, letter: &str) -> Res<Said> {
     let passed: Vec<&Task> = kids.iter().filter(|c| standing_of(c, n) == "passed").collect();
     let want = if letter.is_empty() { t.at("comparison").t("pick") } else { letter.to_string() }.to_uppercase();
     let names = passed.iter().map(|c| c.t("letter")).collect::<Vec<_>>();
-    if want.is_empty() { crate::fail!("Say which attempt: herdr-superwork pick {tid} <{}>.", names.join("|")); }
+    if want.is_empty() { crate::fail!("Say which attempt: herdr-projects pick {tid} <{}>.", names.join("|")); }
     let Some(kid) = passed.iter().find(|c| c.s("letter") == want) else {
         if kids.iter().any(|c| c.s("letter") == want) { crate::fail!("Attempt {want} did not pass the check, so it cannot be chosen. Those that passed: {}.", names.join(", ")); }
         crate::fail!("{tid} has no attempt {want}. Those that passed: {}.", names.join(", "));

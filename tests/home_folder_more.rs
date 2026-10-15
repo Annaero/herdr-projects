@@ -42,20 +42,20 @@ fn what_is_not_the_boards_to_move_stays_a_folder_you_named_another_copys_board_o
     // A board kept somewhere of its own (the tests' own, too): its folders are where you put them.
     let h = old_home(&w.base, None);
     let mine = (h.home.join("mine").display().to_string(), h.home.join("mine-too").display().to_string());
-    let r = run_with(&h.home, &env(&[("HERDR_SUPERWORK_DATA_DIR", &mine.0), ("HERDR_SUPERWORK_CONFIG_DIR", &mine.1)]), &swap_now);
+    let r = run_with(&h.home, &env(&[("HERDR_PROJECTS_DATA_DIR", &mine.0), ("HERDR_PROJECTS_CONFIG_DIR", &mine.1)]), &swap_now);
     assert_eq!(r.moved.iter().map(|(p, _)| p.what).collect::<Vec<_>>(), vec!["reports"]); assert!(!is_link(&h.data) && !is_link(&h.settings));
     // The old data folder's command names another copy of the program that is still there (the installed one, seen
     // from a worktree): this copy moves nothing, and is told so that it works on that board where it is.
     let h = old_home(&w.base, Some("/bin/sh"));
     let r = h.run();
     assert!(r.other && r.moved.is_empty() && !is_link(&h.data)); assert_eq!(names(&h.to), vec!["closing-1.md"]);
-    assert_eq!(r.stay.iter().map(|p| (p.key, p.from.clone())).collect::<Vec<_>>(), vec![("HERDR_SUPERWORK_DATA_DIR", h.data.clone()), ("HERDR_SUPERWORK_CONFIG_DIR", h.settings.clone()), ("HERDR_SUPERWORK_REPORTS_DIR", h.reports.clone())]);
+    assert_eq!(r.stay.iter().map(|p| (p.key, p.from.clone())).collect::<Vec<_>>(), vec![("HERDR_PROJECTS_DATA_DIR", h.data.clone()), ("HERDR_PROJECTS_CONFIG_DIR", h.settings.clone()), ("HERDR_PROJECTS_REPORTS_DIR", h.reports.clone())]);
     // A copy that is a git worktree (a task's agent at work on this code, its reviewer trying it) never moves the board's files.
     let h = old_home(&w.base, None);
     let r = move_home(&h.home, &env(&[]), &bin_of(&h.home), Some(true), 3000, &swap_now);
     assert!(r.other && !is_link(&h.data)); assert_eq!(h.run().moved.len(), 3);
     // A copy that is gone (the plugin was moved) holds nothing back.
-    let h = old_home(&w.base, Some("/no/such/copy/bin/herdr-superwork"));
+    let h = old_home(&w.base, Some("/no/such/copy/bin/herdr-projects"));
     assert_eq!(h.run().moved.len(), 3);
     // The old version followed XDG_*: that is where its folders are looked for.
     let h = old_home(&w.base, None);
@@ -89,7 +89,7 @@ fn real_programs_a_lock_file_that_was_replaced_between_opening_it_and_locking_it
 fn real_programs_the_old_command_runs_at_every_moment_of_a_real_move_and_a_lock_held_through_it_stays_held() {
     let w = world_with(Opts::default());
     let h = old_home(&w.base, None);
-    let launcher = h.data.join("bin/herdr-superwork");
+    let launcher = h.data.join("bin").join(OLD_NAME);
     put(&launcher, "#!/bin/sh\necho ran\n", None);
     use std::os::unix::fs::PermissionsExt; std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755)).unwrap();
     let lock = h.data.join("locks/dGFzaw.lock");
@@ -99,7 +99,7 @@ fn real_programs_the_old_command_runs_at_every_moment_of_a_real_move_and_a_lock_
     let ran = std::cell::RefCell::new(vec![]);
     let old = || ran.borrow_mut().push(String::from_utf8_lossy(&Command::new(&launcher).output().map(|o| o.stdout).unwrap_or_default()).into_owned());
     let own = h.home.join("own").display().to_string();
-    let r = run_with(&h.home, &env(&[("HERDR_SUPERWORK_CONFIG_DIR", &own), ("HERDR_SUPERWORK_REPORTS_DIR", &own)]), &|a: &Path, b: &Path| { old(); let ok = swap_now(a, b); old(); ok });
+    let r = run_with(&h.home, &env(&[("HERDR_PROJECTS_CONFIG_DIR", &own), ("HERDR_PROJECTS_REPORTS_DIR", &own)]), &|a: &Path, b: &Path| { old(); let ok = swap_now(a, b); old(); ok });
     assert_eq!(hows(&r), vec![("data", "moved")]);
     assert_eq!(*ran.borrow(), vec!["ran\n"; 4]);
     assert!(is_link(&h.data) && is_dir(&h.to.join("data")));

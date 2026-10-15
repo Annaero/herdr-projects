@@ -105,7 +105,7 @@ pub fn setup(key: Option<String>, sidebar: Option<bool>, file: &str) -> Done {
         if what == "key" { left.0 = false; } else { left.1 = false; }
     }
     answer(json!({}));
-    let mut d = if said.is_empty() { Done::say("Nothing was added.", Ink::Muted) } else { Done::say(format!("Added to {}: {}. `herdr-superwork remove-extras` undoes it.", crate::store::marks::tilde(file), said.join("; ")), Ink::Green) };
+    let mut d = if said.is_empty() { Done::say("Nothing was added.", Ink::Muted) } else { Done::say(format!("Added to {}: {}. `herdr-projects remove-extras` undoes it.", crate::store::marks::tilde(file), said.join("; ")), Ink::Green) };
     if !paste.is_empty() { d.then.push(Then::Paste(paste)); }
     d.then.push(Then::SetupLeft { key: false, sidebar: false });
     d

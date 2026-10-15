@@ -44,7 +44,7 @@ fn ask(up: &Up, req: &str) -> (u16, String, String) {
     (head.split(' ').nth(1).and_then(|s| s.parse().ok()).unwrap_or(0), head.to_string(), body.to_string())
 }
 fn get(path: &str, headers: &str) -> String { format!("GET {path} HTTP/1.1\r\nhost: 127.0.0.1\r\n{headers}\r\n") }
-const PAGE: &str = "cookie: token=good\r\ncontent-type: application/json\r\nx-herdr-superwork: 1\r\nsec-fetch-site: same-origin\r\n";
+const PAGE: &str = "cookie: token=good\r\ncontent-type: application/json\r\nx-herdr-projects: 1\r\nsec-fetch-site: same-origin\r\n";
 
 #[test]
 fn the_web_uis_pcs_reach_the_board_with_only_what_it_needs_with_the_pc_the_page_is_on_and_are_asked_once_for_a_moment() {
@@ -55,10 +55,10 @@ fn the_web_uis_pcs_reach_the_board_with_only_what_it_needs_with_the_pc_the_page_
     let up = Up { port: fake_ui(seen.clone()), link: String::new() };
     let machines = || seen.lock().unwrap().iter().filter(|r| r.starts_with("GET /api/machines")).count();
     // a look of the page's own needs none
-    assert_eq!(ask(&up, &get("/superwork/api/board?client=abc", "cookie: token=good\r\n")).0, 200);
+    assert_eq!(ask(&up, &get("/herdr-projects/api/board?client=abc", "cookie: token=good\r\n")).0, 200);
     assert_eq!(machines(), 0);
     let body = r#"{"id":"allDone"}"#;
-    assert_eq!(ask(&up, &format!("POST /superwork/api/press?client=abc HTTP/1.1\r\nhost: 127.0.0.1\r\ncontent-length: {}\r\n{PAGE}\r\n{body}", body.len())).0, 200);
+    assert_eq!(ask(&up, &format!("POST /herdr-projects/api/press?client=abc HTTP/1.1\r\nhost: 127.0.0.1\r\ncontent-length: {}\r\n{PAGE}\r\n{body}", body.len())).0, 200);
     let far = Pc { id: "pc-1".into(), name: "far".into(), local: false, profile: String::new(), to: "me@far.example".into(), port: 2200, session: String::new(), connected: true, state: "connected".into() };
     {
         let c = sw::webui::web::client("abc"); let g = c.lock().unwrap();
@@ -69,7 +69,7 @@ fn the_web_uis_pcs_reach_the_board_with_only_what_it_needs_with_the_pc_the_page_
     }
     assert!(seen.lock().unwrap().iter().any(|r| r.starts_with("GET /api/machines") && r.contains("token=good")), "asked with the caller's own cookie");
     // the page on another PC: the board is told which one, with the PCs it was kept a moment
-    assert_eq!(ask(&up, &get("/superwork/api/board?client=abc&machine=pc-1", "cookie: token=good\r\n")).0, 200);
+    assert_eq!(ask(&up, &get("/herdr-projects/api/board?client=abc&machine=pc-1", "cookie: token=good\r\n")).0, 200);
     { let c = sw::webui::web::client("abc"); let g = c.lock().unwrap(); assert_eq!(g.s.web.at.as_deref(), Some("pc-1")); assert_eq!(g.s.web.pcs.as_ref().map(|l| l[1].clone()), Some(far)); }
     assert_eq!(machines(), 1, "kept for a moment, not asked with every look");
 }
@@ -79,12 +79,12 @@ fn the_sidebars_boards_come_through_the_door_with_the_web_uis_names_and_picking_
     let w = world();
     std::fs::write(sw::store::files::data_dir().join("view.json"), json!({ "cwd": w.root_str() }).to_string()).unwrap();
     let up = Up { port: fake_ui(Arc::new(Mutex::new(vec![]))), link: String::new() };
-    assert_eq!(ask(&up, &get("/superwork/api/boards?client=side", "")).0, 401, "not logged in, nothing of the board");
-    let (st, _, body) = ask(&up, &get("/superwork/api/boards?client=side", "cookie: token=good\r\n"));
+    assert_eq!(ask(&up, &get("/herdr-projects/api/boards?client=side", "")).0, 401, "not logged in, nothing of the board");
+    let (st, _, body) = ask(&up, &get("/herdr-projects/api/boards?client=side", "cookie: token=good\r\n"));
     let j: Value = serde_json::from_str(&body).unwrap();
     assert_eq!((st, j.at("boards")[0].s("name")), (200, "home"), "this machine as the web UI names it: {body}");
     let pick = r#"{"to":""}"#;
-    assert_eq!(ask(&up, &format!("POST /superwork/api/scope?client=side HTTP/1.1\r\nhost: 127.0.0.1\r\ncontent-length: {}\r\n{PAGE}\r\n{pick}", pick.len())).0, 200);
+    assert_eq!(ask(&up, &format!("POST /herdr-projects/api/scope?client=side HTTP/1.1\r\nhost: 127.0.0.1\r\ncontent-length: {}\r\n{PAGE}\r\n{pick}", pick.len())).0, 200);
     assert!(sw::webui::door::LOOKS.contains(&"scope"), "a device that only watches may pick a board");
 }
 

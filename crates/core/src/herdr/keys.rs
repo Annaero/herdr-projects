@@ -68,7 +68,7 @@ pub fn used(text: &str, defs: &Defaults) -> BTreeMap<String, Use> {
     }
     if let Some(toml::Value::Array(cmds)) = keys.get("command") {
         for c in cmds.iter().filter_map(|c| c.as_table()) {
-            if c.get("command").and_then(|v| v.as_str()) == Some("herdr-superwork.open") { continue; }
+            if c.get("command").and_then(|v| v.as_str()) == Some("herdr-projects.open") { continue; }
             let what = c.get("description").or_else(|| c.get("command")).and_then(|v| v.as_str()).unwrap_or("a command").to_string();
             for k in list(c.get("key")) { put(&k, "config", what.clone()); }
         }

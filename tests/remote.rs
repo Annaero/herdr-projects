@@ -16,9 +16,9 @@ fn why_a_machine_did_not_answer_each_with_what_to_do() {
         ("refused", end(255, "", "ssh: connect to host vm-a port 22: Connection refused\n"), "connect", "it refused the connection"),
         ("hostKey", end(255, "", "@@@@@@@@@@@\n@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @\n@@@@@@@@@@@\nHost key for vm-a has changed and you have requested strict checking.\nHost key verification failed.\n"), "connect", "its host key changed"),
         ("noKey", end(255, "", "me@vm-a: Permission denied (publickey).\n"), "login", "does not let the board in"),
-        ("bash", end(127, "", "bash: line 1: herdr-superwork: command not found\n"), "path", "herdr-superwork is not found there"),
-        ("dash", end(127, "", "sh: 1: herdr-superwork: not found\n"), "path", "herdr-superwork is not found there"),
-        ("zsh", end(127, "", "zsh:1: command not found: herdr-superwork\n"), "path", "herdr-superwork is not found there"),
+        ("bash", end(127, "", "bash: line 1: herdr-projects: command not found\n"), "path", "herdr-projects is not found there"),
+        ("dash", end(127, "", "sh: 1: herdr-projects: not found\n"), "path", "herdr-projects is not found there"),
+        ("zsh", end(127, "", "zsh:1: command not found: herdr-projects\n"), "path", "herdr-projects is not found there"),
         ("noNode", end(127, "", "env: 'node': No such file or directory\n"), "path", "node is not found there"),
         ("oldNode", end(1, "", "SyntaxError: Unexpected token 'with'\n    at compileSourceTextModule\n\nNode.js v18.19.1\n"), "path", r"its node is too old \(18\)"),
         ("banner", end(0, "Welcome to vm-a\nLast login: today\n", ""), "answer", "something else than the board's answer"),
@@ -30,13 +30,13 @@ fn why_a_machine_did_not_answer_each_with_what_to_do() {
         let why = why_not(e, "vm-a", "me@vm-a");
         assert_eq!(why.s("kind"), *kind, "{name}");
         assert!(regex::Regex::new(line).unwrap().is_match(why.s("line")), "{name}: {}", why.s("line"));
-        assert!(regex::Regex::new(r#"^Test it from this machine: ssh me@vm-a 'exec \$SHELL -lc "herdr-superwork remote list"' \| tail -c 200$"#).unwrap().is_match(&text(why.arr("detail").last().unwrap())), "{name}: {}", why.at("detail"));
+        assert!(regex::Regex::new(r#"^Test it from this machine: ssh me@vm-a 'exec \$SHELL -lc "herdr-projects remote list"' \| tail -c 200$"#).unwrap().is_match(&text(why.arr("detail").last().unwrap())), "{name}: {}", why.at("detail"));
         assert!(why.s("line").chars().count() < 60, "{name}");
     }
     let bash = why_not(&ends[5].1, "vm-a", "me@vm-a");
     let d = bash.arr("detail").iter().map(text).collect::<Vec<_>>().join("\n");
-    assert!(d.contains("must be on the PATH that a login shell gets") && d.contains("~/.bashrc does not count") && d.contains("~/.profile") && d.contains(r#"ln -s "$(command -v herdr-superwork)" ~/.local/bin/"#), "{d}");
-    assert_eq!(bash.s("said"), "bash: line 1: herdr-superwork: command not found");
+    assert!(d.contains("must be on the PATH that a login shell gets") && d.contains("~/.bashrc does not count") && d.contains("~/.profile") && d.contains(r#"ln -s "$(command -v herdr-projects)" ~/.local/bin/"#), "{d}");
+    assert_eq!(bash.s("said"), "bash: line 1: herdr-projects: command not found");
     assert!(!why_not(&ends[3].1, "vm-a", "me@vm-a").s("said").contains("@@@"));
     assert!(why_not(&ends[3].1, "vm-a", "ssh://me@vm-a:2200").at("detail").to_string().contains("ssh-keygen -R '[vm-a]:2200' -f"));
     assert!(why_not(&ends[4].1, "vm-a", "me@vm-a").at("detail").to_string().contains("ssh-copy-id me@vm-a"));
@@ -51,7 +51,7 @@ fn real_programs_the_door_answers_one_line_of_json_and_actions_run_where_the_tas
     let w = world_with(Opts { repo: true, settings: json!({ "review.when": "never", "board.machines": "exedev@vm-a, vm-b" }), ..Default::default() });
     let id = w.add("Remote task");
     let door = |args: &[&str]| -> serde_json::Value {
-        let o = std::process::Command::new(env!("CARGO_BIN_EXE_herdr-superwork")).arg("remote").args(args).current_dir(&w.root).env("HERDR_SOCKET_PATH", "/nonexistent").env("HERDR_BIN_PATH", "/bin/false").output().unwrap();
+        let o = std::process::Command::new(env!("CARGO_BIN_EXE_herdr-projects")).arg("remote").args(args).current_dir(&w.root).env("HERDR_SOCKET_PATH", "/nonexistent").env("HERDR_BIN_PATH", "/bin/false").output().unwrap();
         let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
         assert_eq!(out.lines().count(), 1, "one line: {out}");
         serde_json::from_str(&out).unwrap()
@@ -67,9 +67,9 @@ fn real_programs_the_door_answers_one_line_of_json_and_actions_run_where_the_tas
     assert_eq!(disp.at("ok"), &json!(true)); assert!(disp.s("msg").contains("added"), "{disp}");
     let found = sw::remote::machines();
     assert_eq!(found.iter().map(|m| (m.target.clone(), m.label.clone())).collect::<Vec<_>>(), vec![("exedev@vm-a".to_string(), "vm-a".to_string()), (format!("{}@vm-b", sw::store::files::me()), "vm-b".to_string())]);
-    let (cmd, args) = sw::remote::ssh_command(&sw::remote::Machine { target: "exedev@vm-a".into(), session: "work".into(), ..Default::default() }, "herdr-superwork remote list", false);
+    let (cmd, args) = sw::remote::ssh_command(&sw::remote::Machine { target: "exedev@vm-a".into(), session: "work".into(), ..Default::default() }, "herdr-projects remote list", false);
     assert_eq!(cmd, "ssh"); assert!(args.iter().any(|a| a == "BatchMode=yes"));
-    assert_eq!(args.last().unwrap(), r#"exec "${SHELL:-/bin/sh}" -lc 'HERDR_SESSION=work herdr-superwork remote list'"#);
+    assert_eq!(args.last().unwrap(), r#"exec "${SHELL:-/bin/sh}" -lc 'HERDR_SESSION=work herdr-projects remote list'"#);
     let (_, at) = sw::remote::attach_command(&sw::remote::Machine { target: "exedev@vm-a".into(), ..Default::default() }, "w4:p1; rm -rf /");
     assert!(at.iter().any(|a| a == "-t")); assert!(at.last().unwrap().ends_with("herdr agent attach w4:p1rm-rf'"), "{:?}", at.last());
 }

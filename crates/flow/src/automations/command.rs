@@ -1,4 +1,4 @@
-//! `herdr-superwork automations …`: the commands. List them, add one (a name, a prompt, one trigger, a repo, any work
+//! `herdr-projects automations …`: the commands. List them, add one (a name, a prompt, one trigger, a repo, any work
 //! setting; --research is short for --research.only true), show one, change its name, prompt or trigger, turn it on or
 //! off, run it now, read its firings, remove it. Its own settings are changed by the settings' own commands with
 //! --automation <name>. Every command returns the value for --json, and the text.
@@ -52,12 +52,12 @@ fn research(flags: &Obj) -> Option<bool> { flags.get("research").map(|v| *v == j
 pub fn automations_command(pos: &[String], flags: &Obj, here: &Path) -> Res<(Value, String)> {
     let cmd = pos.first().map(|s| s.as_str()).unwrap_or("list");
     let name = pos.iter().skip(1).cloned().collect::<Vec<_>>().join(" ");
-    let need = || -> Res<String> { if name.is_empty() { crate::fail!("automations {cmd} needs the automation's name. `herdr-superwork automations` lists them."); } Ok(name.clone()) };
+    let need = || -> Res<String> { if name.is_empty() { crate::fail!("automations {cmd} needs the automation's name. `herdr-projects automations` lists them."); } Ok(name.clone()) };
     let n = now();
     match cmd {
         "list" | "ls" => {
             let all = automations();
-            let text = if all.is_empty() { "No automations. Make one: herdr-superwork automations add \"<name>\" --prompt \"<…>\" --schedule \"every 2h\"".to_string() } else { all.iter().map(|a| list_line(a, n)).collect::<Vec<_>>().join("\n") };
+            let text = if all.is_empty() { "No automations. Make one: herdr-projects automations add \"<name>\" --prompt \"<…>\" --schedule \"every 2h\"".to_string() } else { all.iter().map(|a| list_line(a, n)).collect::<Vec<_>>().join("\n") };
             Ok((Value::Array(all.iter().map(|a| describe(a, n)).collect()), text))
         }
         "add" | "new" => {
@@ -74,7 +74,7 @@ pub fn automations_command(pos: &[String], flags: &Obj, here: &Path) -> Res<(Val
         "run" | "fire" => {
             let a = l::find(&need()?)?;
             let f = fire(a.s("id"), Cause::Run, n)?;
-            if f.b("unwritten") { crate::fail!("\"{0}\" is off, and off it never fires. Turn it on first: herdr-superwork automations on {0}", a.s("name")); }
+            if f.b("unwritten") { crate::fail!("\"{0}\" is off, and off it never fires. Turn it on first: herdr-projects automations on {0}", a.s("name")); }
             let text = if f.b("task") { format!("\"{}\" fired: {} was added{}.", a.s("name"), f.s("task"), if f.b("note") { format!(", {}", f.s("note")) } else { " and an agent is on it".into() }) } else { format!("\"{}\" did not fire: {}.", a.s("name"), f.s("skipped")) };
             Ok((f, text))
         }
@@ -96,9 +96,9 @@ pub fn settings_for(cmd: &str, pos: &[String], automation: &str, value: Option<V
         let j: Vec<Value> = rows.iter().map(|r| json!({ "name": r.name, "value": r.value, "from": r.from, "own": r.own, "note": r.note })).collect();
         return Ok((json!({ "settings": j }), lines.join("\n")));
     }
-    let Some(name) = pos.get(1) else { crate::fail!("{cmd} needs a setting's name. `herdr-superwork show --automation {}` lists them all.", a.s("name")) };
+    let Some(name) = pos.get(1) else { crate::fail!("{cmd} needs a setting's name. `herdr-projects show --automation {}` lists them all.", a.s("name")) };
     let r = if cmd == "set" {
-        let Some(v) = value else { crate::fail!("set needs a value: herdr-superwork set {name} <value> --automation {}", a.s("name")) };
+        let Some(v) = value else { crate::fail!("set needs a value: herdr-projects set {name} <value> --automation {}", a.s("name")) };
         l::set_setting(a.s("id"), name, &v)?
     } else { l::unset_setting(a.s("id"), name)? };
     let r = r.ok_or("that setting is not one an automation has")?;

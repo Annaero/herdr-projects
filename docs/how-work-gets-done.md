@@ -10,7 +10,7 @@ root pane and gets the task and its rules. Outside git the agent works in place 
 turn-end hook on the command line (Claude Code: `--settings <a file in the task's own folder>`; Codex:
 `-c notify=[…]`; pi: `-e <a one-file extension>`), a session id of its own choosing where the program takes one, and
 the task's rules as a standing system prompt. Nothing is written to your own agent settings, and your own hooks keep
-running. At each turn end the hook runs `herdr-superwork turn-ended` (silent, at most two seconds, protected by a
+running. At each turn end the hook runs `herdr-projects turn-ended` (silent, at most two seconds, protected by a
 per-launch secret), and the finish line reads the end of that agent's saved conversation: its last message, an API or
 login error, token use. With the board open or closed it then:
 
@@ -70,7 +70,7 @@ itself never merges while a chat is open or with unreviewed changes, and an appr
 code changes (a merge that waited for GitHub's checks is called off by any chat: its change waits for you to be done,
 like any chat's, and the task waits for your new yes after the review).
 
-**With the board closed** a small background process, the keeper (`herdr-superwork keeper`), does what the open board's
+**With the board closed** a small background process, the keeper (`herdr-projects keeper`), does what the open board's
 tick does: it polls pull requests, starts queued tasks, runs the Watcher, keeps herdr's sidebar current. An agent's
 entry there is a small copy of its task's row on the board ([herdr's sidebar](sidebar.md)): the task's number and title;
 who is on it and where it stands, in the board's own words (one list: `crates/core/src/status_words.rs`), with the

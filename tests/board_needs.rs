@@ -79,7 +79,7 @@ fn a_task_a_limit_stopped_and_one_near_its_limit_say_so() {
     assert_eq!(standing(&time), "needs you");
     let p = page(&time, 110, true);
     assert!(has(&p, r"\n Stopped at a limit ─+\n It stopped at its 2h limit, after 2h20m\. Its work is kept as it is and nothing was merged\.\n"), "{p}");
-    assert!(p.contains("herdr-superwork set limit.time <value> --task proj/1"));
+    assert!(p.contains("herdr-projects set limit.time <value> --task proj/1"));
     let flat = |r: &Obj| regex::Regex::new(r"\s+").unwrap().replace_all(&page(r, 110, true), " ").into_owned();
     assert!(has(&flat(&time), r"carries on, and so does a reply to the agent\. \S+ takes the work as it is, through the check and the review\."), "{}", flat(&time));
     assert!(has(&flat(&stopped(json!({ "what": "time", "limit": "30m", "role": "reviewer", "used": 1860000, "at": 1 }), "stopped at its 30m limit")), r"The reviewer stopped at its 30m limit, after 31m\.[\s\S]*carries on: it is reviewed again"));

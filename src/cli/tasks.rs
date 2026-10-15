@@ -31,7 +31,7 @@ fn shown_of(id: &str) -> Value { board(true).into_iter().find(|t| t.s("id") == i
 
 pub fn command(cmd: &str, a: &Args) -> Res<(Value, String)> {
     let (pos, flags) = (&a.pos, &a.flags);
-    let need = |n: usize, what: &str| -> Res<String> { match pos.get(n).filter(|s| !s.is_empty()) { Some(s) => Ok(s.clone()), None => crate::fail!("{cmd} needs {what}. Try: herdr-superwork help") } };
+    let need = |n: usize, what: &str| -> Res<String> { match pos.get(n).filter(|s| !s.is_empty()) { Some(s) => Ok(s.clone()), None => crate::fail!("{cmd} needs {what}. Try: herdr-projects help") } };
     let rest = |n: usize| pos.iter().skip(n).cloned().collect::<Vec<_>>().join(" ");
     let flag = |k: &str| flags.get(k).filter(|v| !matches!(v, Value::Bool(_))).map(text);
     let here = context_folder();
@@ -134,7 +134,7 @@ pub fn command(cmd: &str, a: &Args) -> Res<(Value, String)> {
         }
         "reopen" => { let (pane, has, t) = crate::delegate::jobs::reopen(&need(1, "an id")?, true)?; (json!({ "pane": pane.at("pane_id"), "hasAgent": has }), format!("{}: its space is open{}", t.s("id"), if has { "" } else { ", no agent in it" })) }
         "housekeep" => { crate::housekeeping::housekeeping(&current_socket(), if flags.b("pr") { crate::housekeeping::Force::Pr } else { crate::housekeeping::Force::Yes }); (json!({ "ok": true }), "ok".into()) }
-        _ => crate::fail!("Unknown command \"{cmd}\". Try: herdr-superwork help"),
+        _ => crate::fail!("Unknown command \"{cmd}\". Try: herdr-projects help"),
     })
 }
 mod finish_line_said { pub use crate::actions::shared::Said; }
@@ -147,12 +147,12 @@ fn coordinator(a: &Args, here: &std::path::Path) -> Res<(Value, String)> {
     let flag = |k: &str| a.flags.get(k).map(text).unwrap_or_default();
     match what {
         "where" => return Ok((json!({ "where": state::get(&socket).map(|c| c.at("where").clone()).unwrap_or(json!([])) }), r::where_text(&socket))),
-        "tell" => { if rest.is_empty() { crate::fail!("coordinator needs the text. Try: herdr-superwork help"); } r::send(here, &rest, a.flags.b("delegate"), "", &socket)?; }
+        "tell" => { if rest.is_empty() { crate::fail!("coordinator needs the text. Try: herdr-projects help"); } r::send(here, &rest, a.flags.b("delegate"), "", &socket)?; }
         "restart" => { r::restart(&socket)?; }
         "new" | "fresh" => { r::fresh(who::pick_of(&flag("agent"), &flag("effort"))?, &socket)?; }
         "stop" => { r::stop(&socket)?; }
         "status" => {}
-        _ => crate::fail!("coordinator takes: tell <text>, where, restart, new, stop. Try: herdr-superwork help"),
+        _ => crate::fail!("coordinator takes: tell <text>, where, restart, new, stop. Try: herdr-projects help"),
     }
     let s = look::summary(&socket);
     let text = match what {

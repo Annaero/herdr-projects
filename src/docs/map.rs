@@ -1,6 +1,6 @@
 //! The map of where things live: which file holds what, each line the first sentence of the comment at the top of that
 //! file, folder by folder, and the list of pages in docs/. Written in your own folder only (never in git), printed by
-//! `herdr-superwork docs --where [folder]`.
+//! `herdr-projects docs --where [folder]`.
 use std::process::Command;
 
 pub const WHERE: &str = "docs/where-things-live.md";
@@ -27,7 +27,7 @@ pub fn holds(file: &str) -> Result<String, String> {
         let mark = if file.ends_with(".rs") { "//!" } else if file.ends_with(".js") { "//" } else { "#" };
         for l in lines { let Some(w) = l.strip_prefix(mark) else { break }; let w = w.trim(); if w.is_empty() { break; } words.push(w.to_string()); }
     }
-    if words.is_empty() { return Err(format!("{file} does not start with a comment that says what it holds (the map, `herdr-superwork docs --where`, is made from it)")); }
+    if words.is_empty() { return Err(format!("{file} does not start with a comment that says what it holds (the map, `herdr-projects docs --where`, is made from it)")); }
     let text = words.join(" ");
     let end = crate::re!(r"\.(\s|$)").find(&text).map(|m| m.start()).unwrap_or(text.len());
     let first = crate::re!(r"\s+").replace_all(&text[..end], " ").trim_end_matches(':').to_string();
@@ -52,10 +52,10 @@ pub fn where_page(under: &str) -> Result<String, String> {
     let pages: Vec<String> = if at.is_empty() { tracked(&["docs"])?.into_iter().filter(|f| crate::re!(r"^docs/[^/]+\.md$").is_match(f) && f != WHERE).collect() } else { vec![] };
     let title = |f: &str| super::read(f).lines().find_map(|l| l.strip_prefix("# ").map(String::from)).unwrap_or_default();
     let mut out = vec!["# Where things live".to_string(), String::new(),
-        "<!-- Made by `herdr-superwork docs` from the comment at the top of each file. Not in git: it is written in your".into(),
+        "<!-- Made by `herdr-projects docs` from the comment at the top of each file. Not in git: it is written in your".into(),
         "     own folder. Do not edit it: change the file's own comment, then run the command again. -->".into(), String::new(),
         "Which file holds what. Every line is the first sentence of the comment at the top of that file. Printed by".into(),
-        "`herdr-superwork docs --where [folder]`. Where a new thing goes is in [AGENTS.md](../AGENTS.md); the tests are".into(),
+        "`herdr-projects docs --where [folder]`. Where a new thing goes is in [AGENTS.md](../AGENTS.md); the tests are".into(),
         "beside the code they test (`#[cfg(test)]`) and in `tests/`, one file per area.".into(), String::new()];
     for d in &dirs {
         let rows: Result<Vec<Vec<String>>, String> = files.iter().filter(|f| dir_of(f) == *d).map(|f| Ok(vec![format!("`{}`", base(f)), holds(f)?])).collect();

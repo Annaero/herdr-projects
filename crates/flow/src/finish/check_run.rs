@@ -10,7 +10,7 @@ use crate::store::files::dir_of;
 use std::path::{Path, PathBuf};
 
 /// The name of the file a check writes its progress to, given to the command in this variable (docs/check-progress.md).
-pub const PROGRESS_ENV: &str = "HERDR_SUPERWORK_PROGRESS";
+pub const PROGRESS_ENV: &str = "HERDR_PROJECTS_PROGRESS";
 pub fn progress_file(id: &str) -> PathBuf { dir_of(id).join("check-progress") }
 /// The check itself, followed: what `sh` gave, plus `known` when the command answered at once for code that passed before.
 /// `short`: the shorter check of a later round (check_again.rs), said so on the task.

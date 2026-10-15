@@ -35,7 +35,7 @@ pub fn free_branch(root: &Path, t: &Obj) -> String {
     while git_out(root, &["rev-parse", "--verify", &format!("refs/heads/{branch}")]).is_ok() { branch = format!("{stem}-{i}"); i += 1; }
     branch
 }
-/// Keep the folder older versions had agents write notes into out of the repo's status, without touching a committed
+/// Keep the board's folder (the files sent from the web board) out of the repo's status, without touching a committed
 /// file. The exclude file is shared by all of the repo's worktrees.
 pub fn exclude_rule_dir(root: &Path) {
     let own = root.join(".git").join("info");

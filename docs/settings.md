@@ -23,11 +23,11 @@ Coordinator, the Watcher). One setting is neither: `repo.key`, a fact about one 
 
 ## The places
 
-- **You**: `~/.herdr-superwork/settings/config.json` ([the home folder](home-folder.md)).
+- **You**: `~/.herdr-projects/settings/config.json` ([the home folder](home-folder.md)).
 - **Your entry for a repo**: the `repos` section of that same file, keyed by the repo's name on the board.
 - **This task**: saved on the task, only the settings that differ. A task an [automation](automations.md) made
   starts with the automation's own settings here; an automation is no place of its own.
-- **The repo's own file**: `.herdr-superwork.json`, committed in that repo. It may hold seven facts only:
+- **The repo's own file**: `.herdr-projects.json`, committed in that repo. It may hold seven facts only:
   `research.only`, `workspace.setup`, `workspace.include`, `workspace.teardown`, `check.command`, `check.timeout` and `repo.key`. Anything else in
   it is refused and said on the task (a `Note` in the task panel, and `show <id>`). It is read from the commit the
   worktree started from, so code written by agents can never loosen a guard: it cannot switch on merging by itself,
@@ -71,14 +71,14 @@ that one setting the next place down is used, and the board keeps running.
 ## Commands
 
 ```
-herdr-superwork set <name> <value>                you
-herdr-superwork set <name> <value> --repo <name>  your entry for that repo
-herdr-superwork set <name> <value> --task <id>    one task
-herdr-superwork set <name> <value> --automation <name>   the tasks one automation makes (automations.md)
-herdr-superwork unset <name>  [--repo … | --task … | --automation …]   back to what it would be
-herdr-superwork show                              your settings, the changed ones marked
-herdr-superwork show <id>                         every value of one task, and the place it came from
-herdr-superwork delegate <id> --reviewer.agent claude --merge.by itself
+herdr-projects set <name> <value>                you
+herdr-projects set <name> <value> --repo <name>  your entry for that repo
+herdr-projects set <name> <value> --task <id>    one task
+herdr-projects set <name> <value> --automation <name>   the tasks one automation makes (automations.md)
+herdr-projects unset <name>  [--repo … | --task … | --automation …]   back to what it would be
+herdr-projects show                              your settings, the changed ones marked
+herdr-projects show <id>                         every value of one task, and the place it came from
+herdr-projects delegate <id> --reviewer.agent claude --merge.by itself
 ```
 
 `delegate` takes any work setting for that task. A refused option changes nothing on the task.
@@ -90,7 +90,7 @@ the task (fast mode for a program that has none) is not offered ([the task panel
 
 ## The list
 
-<!-- made:settings Made by `herdr-superwork docs` from crates/core/src/store/settings_list.rs. Do not edit between these two lines. -->
+<!-- made:settings Made by `herdr-projects docs` from crates/core/src/store/settings_list.rs. Do not edit between these two lines. -->
 | Setting | Built in | Can be said by | Means |
 |---|---|---|---|
 | `worker.agent` | `claude` | task, repo entry, you | the working agent's program: `claude`, `codex` or `pi`, with an optional model after a slash (`codex/gpt-5.5`). The model travels with the program, so one program's model is never handed to another |
@@ -123,7 +123,7 @@ the task (fast mode for a program that has none) is not offered ([the task panel
 | `plan.approve` | `none` | task, repo entry, you | whether the work starts with a plan, and who says yes to it; nothing in the repo is changed before that yes. `none`: no plan. `you`: the agent writes its plan and the task waits as `plan ready` for your yes; a reply sends the plan back with your words, and it is written again. `reviewer`: the reviewer checks the plan against the task's description and the build goes on, or the plan goes back to its writer with the reviewer's points. Read when the agent starts and again when the plan is written. More: [a plan first](plan.md) |
 | `plan.agent` | `none` | task, repo entry, you | who writes the plan, where there is one (`plan.approve`). `none`: the working agent, in its program's own plan mode where it has one (Claude Code). A program, with an optional model after a slash (`claude/claude-opus-5-5`): that one writes the plan into the task's folder, in a tab of its own (`Planner`), and the working agent builds from it. More: [a plan first](plan.md) |
 | `check.command` | `none` | task, repo entry, you, repo file | the test command: the work only counts as done when it passes |
-| `check.again` | `none` | task, repo entry, you, repo file | a shorter check run instead of `check.command` on a later round of a task (sent back by a review, a failed check or GitHub's checks), once the full check has passed on its branch, and only while GitHub runs its checks before the merge (`merge.checks` is `github`, the pull request is open and a workflow of the branch runs for it). It is told the commit the full check passed on, in `HERDR_SUPERWORK_CHECKED`, to run only the tests the change since then reaches. `none`: the full check every time. More: [shorter checks on fix rounds](shorter-checks.md) |
+| `check.again` | `none` | task, repo entry, you, repo file | a shorter check run instead of `check.command` on a later round of a task (sent back by a review, a failed check or GitHub's checks), once the full check has passed on its branch, and only while GitHub runs its checks before the merge (`merge.checks` is `github`, the pull request is open and a workflow of the branch runs for it). It is told the commit the full check passed on, in `HERDR_PROJECTS_CHECKED`, to run only the tests the change since then reaches. `none`: the full check every time. More: [shorter checks on fix rounds](shorter-checks.md) |
 | `check.timeout` | `15m` | task, repo entry, you, repo file | how long the check may run before it is stopped and counts as failed |
 | `review.when` | `repos` | task, repo entry, you | what gets a review when finished: `repos` (work in a repo), `always` (work outside one too) or `never` |
 | `review.mustFix` | `major` | task, repo entry, you | a finding that bad or worse fails the review. More: [the gate](gate.md) |
@@ -136,11 +136,11 @@ the task (fast mode for a program that has none) is not offered ([the task panel
 | `merge.method` | `squash` | task, repo entry, you | how approved work lands |
 | `merge.pr` | `true` | task, repo entry, you | push the branch and open a draft pull request after the check passes |
 | `merge.checks` | `github` | task, repo entry, you | whether a pull request waits for its checks on GitHub before it merges, by itself or on your yes. `github`: still running, it waits for them, at most `check.timeout`, then it waits for you with that reason; failed, nothing merges and the failure goes back to the agent with each failing check's name and the end of its log, as a failed check does, within `review.rounds`, then it waits for you (`approve <id> --anyway` merges it all the same); passed, and nothing expected still out, it merges: each workflow of the branch that runs for the pull request (its events, branches and paths, as GitHub reads them) must have its run on the commit through, every job and matrix member of it, each check the branch requires must be listed, and a check gone from the list is still waited for; with nothing listed at all, only a repo where no outside CI reports merges. A fine-grained token (which cannot have the Checks permission) is enough: the checks are then read from Actions and Commit statuses, and what it cannot read (another app's check runs) is said on the task, not asked as a login. `none`: GitHub's checks are not looked at. More: [how work gets done](how-work-gets-done.md) |
-| `repo.key` | `none` | repo entry, repo file | the short key of this repo's tasks, as `HSW` for herdr-superwork: 2 to 5 letters or digits, the first a letter, kept in capitals. Every repo and folder has one: the board makes it from the name the moment it first sees the repo (`SKL` for gtm-skills, `HOME` for the home folder, `ROOT` for `/`) and saves it as your entry for the repo, so `none` lasts only until then. A task's tag on the board reads `HSW-134`, and `HSW-134` (in any letter case) names the task wherever its id `herdr-superwork/134` does. Set it to change it: the old key still names the tasks. A key another repo already has is refused; `unset` goes back to the repo's file's key, or to the one made from the name. More: [task numbers and keys](task-numbers.md) |
+| `repo.key` | `none` | repo entry, repo file | the short key of this repo's tasks, as `SKL` for gtm-skills: 2 to 5 letters or digits, the first a letter, kept in capitals. Every repo and folder has one: the board makes it from the name the moment it first sees the repo (`SKL` for gtm-skills, `HOME` for the home folder, `ROOT` for `/`) and saves it as your entry for the repo, so `none` lasts only until then. A task's tag on the board reads `HSW-134`, and `HSW-134` (in any letter case) names the task wherever its id `herdr-projects/134` does. Set it to change it: the old key still names the tasks. A key another repo already has is refused; `unset` goes back to the repo's file's key, or to the one made from the name. More: [task numbers and keys](task-numbers.md) |
 | `board.agents` | `4` | you only | how many agents work at once |
 | `board.machines` | `auto` | you only | other machines: `auto` (herdr's saved machines), names (`exedev@vm-a, vm-b`) or `none` |
 | `board.open` | `tab` | you only | what the board key opens. `tab`: the board in a herdr tab of its own, which stays when you go into an agent; pressed on the board itself, the key takes you back to where you came from. `popup`: the board as herdr's popup, a framed window in the middle of herdr's screen, over whatever is there (in a window under 110 columns or 30 rows it takes the whole pane: a margin would cost half the board); the key again or `Esc` closes it, as its hint line says (`esc close`), it closes when you go into an agent, and it is never left behind on a tab. More: [the board](board.md) |
-| `board.notify` | `none` | you only | when a task needs you, is ready to approve, or failed: `bell` rings the terminal bell, a command is run with `HERDR_SUPERWORK_ID`, `HERDR_SUPERWORK_TITLE` and `HERDR_SUPERWORK_EVENT` (`needs you`, `ready to approve` or `failed`) in its environment, `none` does neither |
+| `board.notify` | `none` | you only | when a task needs you, is ready to approve, or failed: `bell` rings the terminal bell, a command is run with `HERDR_PROJECTS_ID`, `HERDR_PROJECTS_TITLE` and `HERDR_PROJECTS_EVENT` (`needs you`, `ready to approve` or `failed`) in its environment, `none` does neither |
 | `board.webUi` | `auto` | you only | the board inside the herdr web UI. `auto`: when the web UI plugin (`devswha.herdr-web-ui`) is installed, a small front door of the board's own runs in front of it and adds a Boards section to its sidebar; without that plugin nothing runs. `none`: never. More: [the board in the web UI](web-ui.md) |
 | `board.theme` | `herdr` | you only | the board's colours. `herdr`: herdr's own theme, read from this machine's `config.toml` and resolved as herdr does, so with no theme set there it is herdr's default (Catppuccin); `dark` or `light` picks that theme's dark or light one by hand; the name of one of herdr's themes (`nord`, `gruvbox`, … and `terminal` for the terminal's own colours) is that theme whatever the config says, for a herdr opened from another machine whose config names another one. More: [colours](colours.md) |
 <!-- /made:settings -->
@@ -165,5 +165,5 @@ GitHub user's) wake its agent.
 The first run of this version converts your `config.json` and every task's own settings by itself, once, and keeps
 the old file beside the new one as `config.old.json`. A task under way keeps the choices it had.
 
-Data lives in `~/.herdr-superwork/data` (`HERDR_SUPERWORK_DATA_DIR` overrides it): one folder per task with
+Data lives in `~/.herdr-projects/data` (`HERDR_PROJECTS_DATA_DIR` overrides it): one folder per task with
 `task.json`, `inbox.jsonl` and `artifacts/`. Everything the board keeps: [the home folder](home-folder.md).

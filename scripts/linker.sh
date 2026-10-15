@@ -1,12 +1,12 @@
 #!/bin/sh
 # The linker of the builds of this repo on Linux: the C compiler runs it as its `ld` (scripts/ld/ld, named in
 # .cargo/config.toml). It is mold, one pinned version checked against its published sha256 and kept in
-# ~/.cache/herdr-superwork beside the build cache. Where mold is not installed (CI, another machine, no network), and
+# ~/.cache/herdr-projects beside the build cache. Where mold is not installed (CI, another machine, no network), and
 # for release builds, it is the linker Rust uses by itself: its own lld on x86_64, the system's ld elsewhere.
-# `sh scripts/linker.sh --install` installs mold (the workspace setup does); HERDR_SUPERWORK_NO_MOLD=1 turns it off.
+# `sh scripts/linker.sh --install` installs mold (the workspace setup does); HERDR_PROJECTS_NO_MOLD=1 turns it off.
 # How and why: docs/linking.md.
 ln_version=2.42.1
-ln_dir="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-superwork/mold-$ln_version"
+ln_dir="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-projects/mold-$ln_version"
 ln_install() {
   [ -x "$ln_dir/bin/mold" ] && return 0
   case "$(uname -s)-$(uname -m)" in
@@ -31,7 +31,7 @@ ln_install() {
 [ "$1" = --install ] && { ln_install; exit 0; }
 # A release build (its files are under a `release` folder: `-o …/release/deps/…`) links as before.
 ln_use=1
-[ -x "$ln_dir/bin/mold" ] && [ -z "$HERDR_SUPERWORK_NO_MOLD" ] || ln_use=""
+[ -x "$ln_dir/bin/mold" ] && [ -z "$HERDR_PROJECTS_NO_MOLD" ] || ln_use=""
 ln_prev=""
 for a in "$@"; do [ "$ln_prev" = -o ] && case "$a" in */release/*) ln_use="" ;; esac; ln_prev=$a; done
 [ -z "$ln_use" ] || exec "$ln_dir/bin/mold" "$@"

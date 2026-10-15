@@ -39,7 +39,7 @@ pub fn at_least(v: &str, min: &str) -> bool {
 /// Can this kind's turn-end hook be passed at launch here? The installed version meets the adapter's minimum, and the
 /// hook is not marked as not working for this program and plugin version.
 pub fn hook_usable(k: &str) -> bool {
-    if !adapter::has_hook(k) || std::env::var("HERDR_SUPERWORK_NO_HOOK").as_deref() == Ok("1") { return false; }
+    if !adapter::has_hook(k) || std::env::var("HERDR_PROJECTS_NO_HOOK").as_deref() == Ok("1") { return false; }
     let v = version_of(k);
     !v.is_empty() && at_least(&v, kind(k).map(|a| a.min_version).unwrap_or("0")) && mark(&format!("hook:{k}"), &v).is_none()
 }

@@ -45,7 +45,7 @@ pub fn as_task(a: &Obj, settings: Option<&Obj>) -> Obj { obj(json!({ "id": forma
 pub fn checked_settings(a: &Obj, pairs: &Obj) -> Res<Obj> {
     for name in pairs.keys() {
         if let Some(e) = entry_of(name) {
-            if e.kind == Kind::Board { return refuse(format!("{name} is a board setting: it is yours only and cannot be set on an automation. Set it for yourself: herdr-superwork set {name} <value>")); }
+            if e.kind == Kind::Board { return refuse(format!("{name} is a board setting: it is yours only and cannot be set on an automation. Set it for yourself: herdr-projects set {name} <value>")); }
             if needs_repo(name) && !in_repo(&as_task(a, None)) { return refuse(format!("{name} does not apply to \"{}\": its folder is no repo.", a.s("name"))); }
         }
     }

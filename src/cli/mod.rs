@@ -80,7 +80,7 @@ fn run(cmd: &str, a: &Args) -> Res<i32> {
         "help" => { print!("{}", help::HELP); return Ok(0); }
         _ if a.flags.b("help") => { print!("{}", help::HELP); return Ok(0); }
         "install" | "update" => return Ok(crate::install::main(cmd, &a.pos[1..])),
-        "version" => { println!("herdr-superwork {} ({})", crate::store::files::VERSION, crate::store::files::bin().display()); return Ok(0); }
+        "version" => { println!("herdr-projects {} ({})", crate::store::files::VERSION, crate::store::files::bin().display()); return Ok(0); }
         "docs" => {
             let mut v: Vec<String> = ["check", "guard"].iter().filter(|k| a.flags.b(k)).map(|k| format!("--{k}")).collect();
             if a.flags.has("where") { v.push("--where".into()); let w = a.flags.at("where"); v.push(if w.is_string() { crate::json::text(w) } else { a.pos.get(1).cloned().unwrap_or_default() }); }

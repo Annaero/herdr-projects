@@ -1,5 +1,5 @@
 == the list
- herdr-superwork
+ herdr-projects
 ▌◐ Max length for
 ▌  task titles
 ▌  Found the cause;
@@ -10,7 +10,7 @@
 ────────────────────
   enter open its ag…
 == the task beside it
- herdr-superwork
+ herdr-projects
 ▌◐ Max length for
 ▌  task titles
  + New task  added …
@@ -43,7 +43,7 @@
 ────────────────────
   ↑↓ pick a key
 == a draft
- herdr-superwork
+ herdr-projects
 ▌◐ Max length for
 ▌  task titles
 ▌  Found the cause;

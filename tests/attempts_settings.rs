@@ -42,13 +42,13 @@ fn the_values_the_refusals_and_who_makes_each_attempt() {
 #[test]
 fn the_places_never_the_repos_file_and_a_task_in_no_repo_is_done_once() {
     let w = world();
-    std::fs::write(w.root.join(".herdr-superwork.json"), json!({ "attempts": { "by": 5, "pick": "reviewer" }, "check": { "command": "true" } }).to_string()).unwrap();
+    std::fs::write(w.root.join(".herdr-projects.json"), json!({ "attempts": { "by": 5, "pick": "reviewer" }, "check": { "command": "true" } }).to_string()).unwrap();
     let id = w.add("T");
     let at = || setting("attempts.by", Some(&task(&id)));
     // the repo's own committed file cannot switch it on: code an agent writes may not ask for five attempts
     let (facts, refused) = sw::store::settings::places::repo_file(&w.root, None);
     assert_eq!(Value::Object(facts), json!({ "check.command": "true" }));
-    assert!(refused.iter().any(|r| r.starts_with(".herdr-superwork.json: attempts.by is refused: the repo's file may only hold")), "{refused:?}");
+    assert!(refused.iter().any(|r| r.starts_with(".herdr-projects.json: attempts.by is refused: the repo's file may only hold")), "{refused:?}");
     assert!(refused.iter().any(|r| r.contains("attempts.pick is refused")));
     assert_eq!(at(), json!(1));
     set_value("attempts.by", &json!("2"), &Scope::you()).unwrap();

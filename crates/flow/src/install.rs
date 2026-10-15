@@ -5,7 +5,7 @@ use crate::err::Res;
 use crate::store::files::{bin, write_atomic, VERSION};
 use std::path::{Path, PathBuf};
 
-pub const REPO: &str = "eliasstravik/herdr-superwork";
+pub const REPO: &str = "eliasstravik/herdr-projects";
 
 /// The release files' name for a platform, from `uname -s`/`uname -m` or Rust's own names. None: no release is made.
 pub fn platform_of(os: &str, arch: &str) -> Option<(&'static str, &'static str)> {
@@ -14,11 +14,11 @@ pub fn platform_of(os: &str, arch: &str) -> Option<(&'static str, &'static str)>
     Some((os, arch))
 }
 pub fn platform() -> Option<(&'static str, &'static str)> { platform_of(std::env::consts::OS, std::env::consts::ARCH) }
-/// `herdr-superwork-linux-x86_64`: the release file, and the downloaded program's name in the plugin's bin/ folder.
-pub fn asset_name((os, arch): (&str, &str)) -> String { format!("herdr-superwork-{os}-{arch}") }
-/// Where the releases are: GitHub's, or HERDR_SUPERWORK_RELEASES (a fork, a mirror, a folder as file:///…).
+/// `herdr-projects-linux-x86_64`: the release file, and the downloaded program's name in the plugin's bin/ folder.
+pub fn asset_name((os, arch): (&str, &str)) -> String { format!("herdr-projects-{os}-{arch}") }
+/// Where the releases are: GitHub's, or HERDR_PROJECTS_RELEASES (a fork, a mirror, a folder as file:///…).
 pub fn releases() -> String {
-    std::env::var("HERDR_SUPERWORK_RELEASES").ok().filter(|v| !v.is_empty()).map(|v| v.trim_end_matches('/').to_string()).unwrap_or_else(|| format!("https://github.com/{REPO}/releases"))
+    std::env::var("HERDR_PROJECTS_RELEASES").ok().filter(|v| !v.is_empty()).map(|v| v.trim_end_matches('/').to_string()).unwrap_or_else(|| format!("https://github.com/{REPO}/releases"))
 }
 /// The file of one release (`0.3.1` or `v0.3.1`), or of the newest one (None).
 pub fn asset_url(base: &str, version: Option<&str>, asset: &str) -> String {
@@ -31,9 +31,9 @@ pub fn sum_in(text: &str) -> Option<String> {
     let h = text.split_whitespace().next()?.to_ascii_lowercase();
     (h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit())).then_some(h)
 }
-/// The version a program says it is: `herdr-superwork 0.3.0 (/its/path)`.
+/// The version a program says it is: `herdr-projects 0.3.0 (/its/path)`.
 pub fn version_said(out: &str) -> Option<String> {
-    let v = out.strip_prefix("herdr-superwork ")?.split_whitespace().next()?;
+    let v = out.strip_prefix("herdr-projects ")?.split_whitespace().next()?;
     v.chars().next().filter(|c| c.is_ascii_digit()).map(|_| v.to_string())
 }
 /// A program cargo built (it is in a `target` folder): updated with git pull and cargo build, never by a download.
@@ -77,7 +77,7 @@ pub fn sha256(file: &Path) -> Option<String> {
 }
 /// What a program says its version is, run with nothing of the board's done at its start.
 fn version_of(prog: &Path) -> Option<String> {
-    let o = std::process::Command::new(prog).arg("version").env("HERDR_SUPERWORK_INLINE", "1").stdin(std::process::Stdio::null()).output().ok()?;
+    let o = std::process::Command::new(prog).arg("version").env("HERDR_PROJECTS_INLINE", "1").stdin(std::process::Stdio::null()).output().ok()?;
     version_said(String::from_utf8_lossy(&o.stdout).trim())
 }
 
@@ -109,32 +109,32 @@ pub fn download(exe: &Path, version: Option<&str>, fetch: &dyn Fn(&str, &Path) -
 /// `update [VERSION]`: the newest release (or that one) in place of the program that runs, in one step. An open board
 /// and the keeper see the file change and load it by themselves. Never goes back to an older one unless named.
 pub fn update(exe: &Path, version: Option<&str>, fetch: &dyn Fn(&str, &Path) -> Res<()>) -> Res<String> {
-    if built_from_source(exe) { crate::fail!("This herdr-superwork was built from source ({}): update it with git pull and cargo build --release.", exe.display()) }
+    if built_from_source(exe) { crate::fail!("This herdr-projects was built from source ({}): update it with git pull and cargo build --release.", exe.display()) }
     let got = download(exe, version, fetch)?;
     if version.is_none() && !newer(&got.version, VERSION) {
         let _ = std::fs::remove_file(&got.file);
-        return Ok(format!("herdr-superwork {VERSION} is the newest release."));
+        return Ok(format!("herdr-projects {VERSION} is the newest release."));
     }
     // Renamed over it, never written into: a running program keeps its old file, and macOS kills one changed in place.
     if let Err(e) = std::fs::rename(&got.file, exe) { let _ = std::fs::remove_file(&got.file); crate::fail!("could not put the new program in place of {}: {e}", exe.display()) }
     let named = platform().map(|p| exe.file_name().map(|n| n == asset_name(p).as_str()).unwrap_or(false)).unwrap_or(false);
     if named || version_file(exe).exists() { write_atomic(&version_file(exe), format!("{}\n", got.version).as_bytes())?; }
     crate::flow::send::shim();
-    Ok(format!("Updated herdr-superwork {VERSION} → {} ({}). An open board and the keeper load it by themselves.", got.version, exe.display()))
+    Ok(format!("Updated herdr-projects {VERSION} → {} ({}). An open board and the keeper load it by themselves.", got.version, exe.display()))
 }
 
 /// `install`: the launcher in the data folder names this program (flow/send.rs writes it, the only writer), and what
-/// is in the way of typing `herdr-superwork` in a shell is said.
+/// is in the way of typing `herdr-projects` in a shell is said.
 pub fn install(exe: &Path) -> String {
     let at = crate::flow::send::shim();
     let dir = at.parent().map(Path::to_path_buf).unwrap_or_default();
     let mut said = vec![format!("{} runs {}: agents and hooks use it.", at.display(), exe.display())];
     let path = std::env::var("PATH").unwrap_or_default();
-    let first = std::env::split_paths(&path).map(|d| d.join("herdr-superwork")).find(|f| f.is_file());
+    let first = std::env::split_paths(&path).map(|d| d.join("herdr-projects")).find(|f| f.is_file());
     match first {
         Some(f) if f == at || std::fs::canonicalize(&f).ok() == std::fs::canonicalize(exe).ok() => {}
-        Some(f) => said.push(format!("{} comes first on your PATH (an older install? `npm unlink -g herdr-superwork` takes out the Node one): remove it, or put {} before it.", f.display(), dir.display())),
-        None => said.push(format!("To type herdr-superwork in any shell, put its folder on your PATH (in ~/.profile or your shell's start-up file): export PATH=\"{}:$PATH\"", dir.display())),
+        Some(f) => said.push(format!("{} comes first on your PATH (an older install? `npm unlink -g herdr-projects` takes out the Node one): remove it, or put {} before it.", f.display(), dir.display())),
+        None => said.push(format!("To type herdr-projects in any shell, put its folder on your PATH (in ~/.profile or your shell's start-up file): export PATH=\"{}:$PATH\"", dir.display())),
     }
     said.join("\n")
 }

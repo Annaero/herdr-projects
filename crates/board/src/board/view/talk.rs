@@ -55,7 +55,7 @@ pub fn talk(r: &Obj) -> Talk {
         parts.push(note(if who == "reviewer" { format!("The reviewer shows a dialog on its screen that waits for your answer. {} opens the task's space: the reviewer is in its tab \"{}\".", key_name("enter"), crate::flow::tabs::reviewer_tab(crate::store::reviews::review_number(r), "")) }
             else { format!("The agent shows a dialog on its screen that waits for your answer: {} opens it.", key_name("enter")) }, "dialog", "yellow"));
     } else if !tk.is_object() && r.b("host") && who == "reviewer" {
-        parts.push(note(format!("The reviewer is at work. {} runs an older herdr-superwork, which does not send what its reviewer says: update it there.", r.s("host")), "old", ""));
+        parts.push(note(format!("The reviewer is at work. {} runs an older herdr-projects, which does not send what its reviewer says: update it there.", r.s("host")), "old", ""));
     } else if !parts.iter().any(|p| !p.sent) && parts.last().map(|p| p.by != "You").unwrap_or(true) {
         // Your words, with nothing said after them, are the newest thing said: they hold the box until the answer.
         parts.push(note(if who == "reviewer" || r.s("state") == "working" { format!("The {who} has just started: nothing to show yet.") } else { format!("The {who} has said nothing yet.") }, "empty", ""));

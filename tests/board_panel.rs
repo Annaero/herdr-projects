@@ -140,7 +140,7 @@ fn the_panel_never_opens_full_screen_by_itself_something_going_wrong_only_change
     // same panel full screen; esc leaves it, and the chat stays the task's.
     s.cols = 80; s.screen(80); s.press(&["space"]);
     let text = s.screen(80).join("\n");
-    assert!(!s.s.full && s.s.reply && text.starts_with(" herdr-superwork") && has(&text, r"\n *\n[ ▌]. PRJ-1 Match the colors {2}"), "{text}");
+    assert!(!s.s.full && s.s.reply && text.starts_with(" herdr-projects") && has(&text, r"\n *\n[ ▌]. PRJ-1 Match the colors {2}"), "{text}");
     s.press(&["alt+t"]); let text = s.screen(80).join("\n");
     assert!(s.s.full && s.s.reply);
     assert!(text.starts_with(" Task details  PRJ-1 \"Match the colors\"") && text.contains("Merge conflict with main") && has(&text, r"\n Details {6}Conflicting files: *\n[ ▌] {13}src/board/view\.js"), "{text}");

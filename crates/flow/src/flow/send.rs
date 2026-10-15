@@ -45,7 +45,7 @@ pub fn with_tail(t: &Task, text: &str) -> String { [text.to_string(), prompt_tai
 /// PATH. It names its own board: herdr cannot hand a worktree's space any environment.
 pub fn shim() -> PathBuf {
     let dir = data_dir().join("bin");
-    let file = dir.join("herdr-superwork");
+    let file = dir.join("herdr-projects");
     let mut text = "#!/bin/sh\n".to_string();
     for (k, v) in board_env() { text.push_str(&format!("export {k}={}\n", shq(&v))); }
     text.push_str(&format!("exec {} \"$@\"\n", shq(&bin().display().to_string())));
@@ -54,7 +54,7 @@ pub fn shim() -> PathBuf {
     if have.as_deref() != Some(text.as_str()) && crate::herdr::cli::fake().is_none() {
         use std::os::unix::fs::OpenOptionsExt;
         let _ = std::fs::create_dir_all(&dir);
-        let tmp = dir.join(format!("herdr-superwork.{}", std::process::id()));
+        let tmp = dir.join(format!("herdr-projects.{}", std::process::id()));
         let ok = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o755).open(&tmp).and_then(|mut f| std::io::Write::write_all(&mut f, text.as_bytes())).is_ok();
         if ok { let _ = std::fs::rename(&tmp, &file); }
     }

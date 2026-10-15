@@ -37,7 +37,7 @@ pub fn asked(m: &Machine) -> Option<Value> {
 /// The host SSH connects to for a target, as `ssh -G` says (it reads the SSH config, connects nowhere); "" when it
 /// cannot say, and with the tests' stand-in for ssh.
 fn resolve(target: &str) -> String {
-    if target.is_empty() || target.starts_with('-') || std::env::var_os("HERDR_SUPERWORK_SSH").is_some() { return String::new(); }
+    if target.is_empty() || target.starts_with('-') || std::env::var_os("HERDR_PROJECTS_SSH").is_some() { return String::new(); }
     let mut c = std::process::Command::new("ssh");
     c.args(["-G", target]);
     let end = super::run_ended(c, 3000);

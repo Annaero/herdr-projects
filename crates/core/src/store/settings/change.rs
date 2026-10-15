@@ -21,10 +21,10 @@ fn allowed(name: &str, scope: &Scope) -> Res<&'static Entry> {
     let e = known(name)?;
     let (task, repo) = (scope.task, scope.repo.as_str());
     if e.kind == Kind::Board && (task.is_some() || !repo.is_empty()) {
-        return refuse(format!("{name} is a board setting: it is yours only and cannot be set {}. Set it for yourself: herdr-superwork set {name} <value>", if task.is_some() { "on a task" } else { "for a repo" }));
+        return refuse(format!("{name} is a board setting: it is yours only and cannot be set {}. Set it for yourself: herdr-projects set {name} <value>", if task.is_some() { "on a task" } else { "for a repo" }));
     }
     if e.kind == Kind::Repo && repo.is_empty() {
-        return refuse(format!("{name} is one repo's own: it cannot be set {}. Set it for the repo: herdr-superwork set {name} <value> --repo <name>, or in the repo's own .herdr-superwork.json.", if task.is_some() { "on a task" } else { "for every repo at once" }));
+        return refuse(format!("{name} is one repo's own: it cannot be set {}. Set it for the repo: herdr-projects set {name} <value> --repo <name>, or in the repo's own .herdr-projects.json.", if task.is_some() { "on a task" } else { "for every repo at once" }));
     }
     let repos = known_repos();
     if !repo.is_empty() && !repos.contains_key(repo) {
@@ -43,7 +43,7 @@ pub fn checked(pairs: &[(String, Value)], scope: &Scope) -> Res<Obj> {
     for (name, value) in pairs { allowed(name, scope)?; out.insert(name.clone(), check(name, value, "")?); }
     // Every repo has a key: none is refused, with the way back to the one made from its name.
     if out.get("repo.key").map(text).as_deref() == Some(NONE) {
-        return refuse(format!("repo.key cannot be none: every repo has a short key. To go back to the one the board made from its name: herdr-superwork unset repo.key --repo {}", scope.repo));
+        return refuse(format!("repo.key cannot be none: every repo has a short key. To go back to the one the board made from its name: herdr-projects unset repo.key --repo {}", scope.repo));
     }
     // Two repos with one key would make `HSW-134` two tasks: the second is refused, and told who has it.
     if let Some(k) = out.get("repo.key").map(text) {

@@ -7,7 +7,7 @@ use crate::store::settings::values::command_of;
 use std::path::Path;
 
 /// Given to the shorter check: the commit the full check last passed on, for it to find what changed since.
-pub const CHECKED_ENV: &str = "HERDR_SUPERWORK_CHECKED";
+pub const CHECKED_ENV: &str = "HERDR_PROJECTS_CHECKED";
 /// The check a finish runs: its command as set, and for the shorter one the commit it starts from (empty: the full).
 pub struct Chosen { pub cmd: String, pub since: String }
 impl Chosen {

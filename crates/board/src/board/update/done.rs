@@ -56,7 +56,7 @@ pub fn apply(s: &mut State, d: Done, fx: &mut Vec<Effect>) {
 fn leave(s: &mut State, fx: &mut Vec<Effect>) {
     if s.ctx.leave_ms <= 0 || s.told >= 3 { fx.push(Effect::Save); fx.push(Effect::Close); return; }
     s.told += 1; s.leaving = true;
-    s.flash(format!("Opening the agent. {} brings the board back.", if s.ctx.board_key.is_empty() { "herdr-superwork".to_string() } else { s.ctx.board_key.clone() }), Ink::Green);
+    s.flash(format!("Opening the agent. {} brings the board back.", if s.ctx.board_key.is_empty() { "herdr-projects".to_string() } else { s.ctx.board_key.clone() }), Ink::Green);
     s.closing = None;
     s.leave_at = s.now + s.ctx.leave_ms;
     fx.push(Effect::Save);

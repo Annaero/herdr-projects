@@ -8,8 +8,9 @@ one function sit beside it in the code (`#[cfg(test)]`, in `src/` and `crates/`)
 ## One command
 
 Everything that runs tests uses the same command: you, an agent at work, the reviewer, and the board's own check
-(`check` in [`.herdr-superwork.json`](../.herdr-superwork.json)). `npm test` is the same command; both run
-`scripts/check.sh`, and nothing of Node is used but the name.
+(`check` in [`.herdr-projects.json`](../.herdr-projects.json)). `npm test` is the same command; both run
+`scripts/check.sh`, and nothing of Node is used but the name. `.herdr-superwork.json` says the same for the board
+that works on this repo until its machines run herdr-projects (this program's name before): it reads only that name.
 
 | To run | Command |
 |---|---|
@@ -32,9 +33,9 @@ It does four things, in this order, and stops at the first that fails:
    no debug data, quick to build again after a small change, and the libraries it uses a little optimised (they are
    built once, below). The release build, for the files people install, is another profile
    ([installing](install.md)).
-2. **Writes the made tables** when they are out of date (`herdr-superwork docs`): the keys in `docs/keys.md`, the
+2. **Writes the made tables** when they are out of date (`herdr-projects docs`): the keys in `docs/keys.md`, the
    settings in `docs/settings.md`, and the map in your own folder. It says which it wrote: commit the tables.
-3. **Checks the repo's own rules** (`herdr-superwork docs --guard`, which `tests/guard.rs` runs too): no source file
+3. **Checks the repo's own rules** (`herdr-projects docs --guard`, which `tests/guard.rs` runs too): no source file
    past 300 lines, every source file starts with a comment that says what it holds, a key's chord written only in
    `crates/flow/src/board/keys.rs`, and no made table out of date.
 4. **Runs the tests**, with the names you gave, in several processes at once (`scripts/run-tests.sh`, below).
@@ -51,7 +52,7 @@ separate test files to pick.
 A run that passed is remembered for the exact code it passed on: the git tree of the folder as it stands
 (uncommitted changes and new files included), the compiler's full version (`rustc -V`), and the names it was given.
 Asked again for the same, the command answers at once (`The check already passed for this exact code.`) and runs
-nothing. The results are kept outside the worktrees (`~/.cache/herdr-superwork-check`), so every worktree shares
+nothing. The results are kept outside the worktrees (`~/.cache/herdr-projects-check`), so every worktree shares
 them: the reviewer and the board's check, on the worker's commit, reuse the worker's passing run. Committing changes
 no file, so it changes nothing here; any edit does.
 
@@ -62,7 +63,7 @@ says nothing about the whole. `--fresh` runs regardless.
 
 On a later round of a task (a review or a failed check sent it back), the board runs `npm run check -- --since
 <commit>` instead of the whole check, where GitHub's checks still guard the merge: `check.again` in
-[`.herdr-superwork.json`](../.herdr-superwork.json), and when the board does so in
+[`.herdr-projects.json`](../.herdr-projects.json), and when the board does so in
 [shorter checks on fix rounds](shorter-checks.md). The commit is the one the whole check last passed on.
 
 It builds, writes the made tables and checks the rules as the whole check does, then runs every test beside the code
@@ -111,7 +112,7 @@ are only within it.
 
 How many: twice this task's share of the cores (below), as a process whose tests take turns uses about half a core.
 On 16 cores and five agents that is 8 processes, and the whole check about 15 seconds; five checks at once each
-take about 20. `HERDR_SUPERWORK_TEST_PROCS` sets another number (1: everything in one process, as before).
+take about 20. `HERDR_PROJECTS_TEST_PROCS` sets another number (1: everything in one process, as before).
 
 ### Builds take turns
 
@@ -123,12 +124,12 @@ are no other turns and no slots: one run is one build and one run of the tests.
 
 The libraries the program uses are the same in every worktree, so they are compiled once on a machine and kept in
 one cache: [sccache](https://github.com/mozilla/sccache), one pinned version checked against its published sha256.
-The workspace setup (`scripts/setup.sh`, `workspace.setup` in `.herdr-superwork.json`) installs it with
+The workspace setup (`scripts/setup.sh`, `workspace.setup` in `.herdr-projects.json`) installs it with
 `scripts/build-cache.sh` and builds through it; the check compiles through it when it is there. It lives in
-`~/.cache/herdr-superwork` with its cache (2 GB at most, the oldest dropped first) and a server of its own (a socket
+`~/.cache/herdr-projects` with its cache (2 GB at most, the oldest dropped first) and a server of its own (a socket
 there, so another sccache of yours is left alone): outside every worktree, so removing a worktree
 (`workspace.cleanup`) frees that worktree's `target/` and nothing shared. Where it is not installed (CI, which keeps
-its own cache, another platform, no network) builds go on as before, each worktree alone. `HERDR_SUPERWORK_NO_CACHE=1`
+its own cache, another platform, no network) builds go on as before, each worktree alone. `HERDR_PROJECTS_NO_CACHE=1`
 turns it off; a `RUSTC_WRAPPER` of your own wins.
 The builds link with mold where it is installed ([linking](linking.md)).
 
@@ -150,7 +151,7 @@ own as the next one's start. Measured on a 16-core machine with ten agents at on
 worktree's setup took 37 seconds before, a little over one now; the first worktree after the main line moved on
 builds the program again from the compiler's notes, about 15 seconds, and keeps that build for the ones after it.
 
-The builds kept are in `~/.cache/herdr-superwork/warm/<repo>/`, one folder each and `current` naming the newest: a new
+The builds kept are in `~/.cache/herdr-projects/warm/<repo>/`, one folder each and `current` naming the newest: a new
 one is made beside the old and then named, so worktrees set up at the same moment each copy a whole build, and an old
 one goes 30 minutes after it stopped being current. The copy is a clone where the file system can (APFS, Btrfs, XFS: no
 extra space), a plain copy elsewhere (ext4: about 500 MB a build kept); never hard links, as cargo writes into some of
@@ -162,7 +163,7 @@ copy builds such a part again, and the program finds its own repo when it runs (
 program is several crates ([crates](crates.md)), each with its code in its own folder, so cargo names that code from the
 crate's folder: a crate none of whose files changed since the kept build is taken as built whole. A build by another
 compiler is not copied, nor one grown past 2 GB (cargo never removes the libraries of older versions): that worktree
-builds from nothing and its build is kept instead. `HERDR_SUPERWORK_NO_WARM=1` turns it off.
+builds from nothing and its build is kept instead. `HERDR_PROJECTS_NO_WARM=1` turns it off.
 
 ### Its share of the cores
 
@@ -177,7 +178,7 @@ settings and no build cache, so that a fresh machine always gets past its start.
 
 ### It tells the board where it is
 
-When the board runs the check it names a file in `HERDR_SUPERWORK_PROGRESS`, and the command writes its progress
+When the board runs the check it names a file in `HERDR_PROJECTS_PROGRESS`, and the command writes its progress
 there: which of its three steps it has done (`1/3 steps`), or that the answer was known at once. The board shows that
 on the task: [the check's progress](check-progress.md).
 
@@ -201,7 +202,7 @@ What makes a test slow is starting programs and waiting. A new test does neither
   moment in the past or the future is written into the data, not waited for. Nothing compares against a duration it
   measured.
 - **The board's background jobs run when the test says.** What would be a detached runner (delegating, the finish
-  line, a merge) is put in a list instead (`HERDR_SUPERWORK_INLINE`), and `settle(id)` runs that list, then lets the
+  line, a merge) is put in a list instead (`HERDR_PROJECTS_INLINE`), and `settle(id)` runs that list, then lets the
   hook look at the agent's pane, round after round until nothing moves. `settle_all(id)` does the same for a task
   done several times at once.
 - **It shares set-up inside one test** rather than building a new world for every small assertion; a world is a git
@@ -213,8 +214,8 @@ A world sets the process's environment, so the tests that make a world take turn
 (above).
 
 A wait the board has to make is a number a test can make short: the board's own waits are zero in a world, and a test
-of a real program gives it the short one it needs (`HERDR_SUPERWORK_STAMP_MS`: how often an open board looks for a new
-version of itself; `HERDR_SUPERWORK_TICK_MS`: how often a running check is looked at). Never wait a fixed time for
+of a real program gives it the short one it needs (`HERDR_PROJECTS_STAMP_MS`: how often an open board looks for a new
+version of itself; `HERDR_PROJECTS_TICK_MS`: how often a running check is looked at). Never wait a fixed time for
 something that says when it is done: a real terminal is read until its frame is drawn.
 
 ### The stand-ins
@@ -253,9 +254,9 @@ something that says when it is done: a real terminal is read until its frame is 
   terminal back exactly as it was.
 
 A test never reads or writes your real board: `world()` gives it a home folder of its own (`HOME`,
-`HERDR_SUPERWORK_HOME`), takes herdr's own variables (a pane's id, its socket), `TMUX` and `NO_COLOR` out of the
+`HERDR_PROJECTS_HOME`), takes herdr's own variables (a pane's id, its socket), `TMUX` and `NO_COLOR` out of the
 environment, and points herdr at a socket of its own. When you run the program by hand while working on it, set
-`HERDR_SUPERWORK_HOME` to a scratch folder first: a new version may convert what it finds in the real one.
+`HERDR_PROJECTS_HOME` to a scratch folder first: a new version may convert what it finds in the real one.
 
 A real program is started only where the program itself is what is tested. Those tests say so in their name
 (`real_programs_…`): the command line (`tests/cli.rs`), another machine's door (`tests/remote.rs`) and the real

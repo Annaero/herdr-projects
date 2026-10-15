@@ -132,7 +132,7 @@ fn a_clean_up_put_off_because_the_space_was_in_use_is_tried_again_by_itself_once
     std::fs::write(tree.join("more.txt"), "more\n").unwrap(); git(tree, &["add", "-A"]); git(tree, &["commit", "-qm", "more"]);
     status(&w, &t, "done", true);
     assert_eq!(pass(&w, &id), 0, "not yet: you may still be talking to it");
-    unsafe { std::env::set_var("HERDR_SUPERWORK_QUIET_MS", "0") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_QUIET_MS", "0") };
     assert_eq!(pass(&w, &id), 1, "the turn that ended is seen first, and the wait starts from there");
     assert!(open(&w, &task(&id)) && task(&id).b("tidy"));
     assert_eq!(pass(&w, &id), 1);
@@ -140,5 +140,5 @@ fn a_clean_up_put_off_because_the_space_was_in_use_is_tried_again_by_itself_once
     assert!(!c.b("tidy")); assert!(kept(&c).contains("new work arrived"), "{}", kept(&c)); assert!(!open(&w, &c));
     assert!(tree.join("more.txt").exists()); assert_eq!(git(&w.root, &["log", "-1", "--format=%s", t.s("branch")]), "more");
     assert_eq!(pass(&w, &id), 0);
-    unsafe { std::env::remove_var("HERDR_SUPERWORK_QUIET_MS") };
+    unsafe { std::env::remove_var("HERDR_PROJECTS_QUIET_MS") };
 }

@@ -26,9 +26,9 @@ pub fn settings_command(cmd: &str, pos: &[String], w: &Where, value: Option<Valu
         let list: Vec<Value> = rows(&scope).iter().map(|r| r.json()).collect();
         return Ok((json!({ "settings": list, "problems": problems(task.as_ref()) }), show_text(&scope)));
     }
-    let Some(name) = pos.get(1) else { crate::fail!("{cmd} needs a setting's name. `herdr-superwork show` lists them all.") };
+    let Some(name) = pos.get(1) else { crate::fail!("{cmd} needs a setting's name. `herdr-projects show` lists them all.") };
     let r = if cmd == "set" {
-        let Some(v) = value else { crate::fail!("set needs a value: herdr-superwork set {name} <value>. To take your answer away: herdr-superwork unset {name}") };
+        let Some(v) = value else { crate::fail!("set needs a value: herdr-projects set {name} <value>. To take your answer away: herdr-projects unset {name}") };
         set_value(name, &v, &scope)?
     } else { unset_value(name, &scope)? };
     let fresh = task.as_ref().and_then(|t| get(t.s("id")));
@@ -39,7 +39,7 @@ pub fn settings_command(cmd: &str, pos: &[String], w: &Where, value: Option<Valu
     if cmd == "unset" && r.name == "repo.key" && note.is_empty() {
         let r2 = w.repo.clone().unwrap_or_default();
         note = if r.place == "file" { format!("A repo always has a key: {r2} is back to the one its own file says.") }
-            else { format!("A repo always has a key: {r2} is back to the one the board made from its name. Another: herdr-superwork set repo.key <KEY> --repo {r2}") };
+            else { format!("A repo always has a key: {r2} is back to the one the board made from its name. Another: herdr-projects set repo.key <KEY> --repo {r2}") };
     }
     let text = format!("{}{place}: {}  ({}){}", r.name, say(&r.value), r.from, if note.is_empty() { String::new() } else { format!("\n{note}") });
     let mut j = obj(json!({ "name": r.name, "value": r.value, "from": r.from }));

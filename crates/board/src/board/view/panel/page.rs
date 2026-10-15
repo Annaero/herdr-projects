@@ -1,7 +1,7 @@
 //! The settings page, drawn: each row the setting's plain label, its value, what a reader must know of it (that it
 //! does nothing here, or counts later) and its name as a command takes it, greyed. The line on top says what the
 //! selected row may be. Rows set for this task only are marked `*`; where any other comes from is not said here
-//! (`herdr-superwork show` says it).
+//! (`herdr-projects show` says it).
 use crate::board::view::list::hl;
 use crate::board::state::State;
 use crate::board::theme::Theme;
@@ -62,7 +62,7 @@ pub fn settings_page(s: &mut State, t: &Theme, r: &Obj, width: usize) -> Vec<Ink
     }
     lines.push(Inked::new());
     lines.push(Inked::plain(" ").add(Inked::of("*", Ink::Accent)).add(Inked::of(format!(" {whose} only"), Ink::Muted)).cut(width));
-    lines.push(Inked::of(" Board settings are yours only: herdr-superwork show", Ink::Muted).cut(width));
+    lines.push(Inked::of(" Board settings are yours only: herdr-projects show", Ink::Muted).cut(width));
     if !auto { for bad in r.at("snap").arr("problems") { lines.push(Inked::of(format!(" Not counted: {}", text(bad)), Ink::Yellow).cut(width)); } }
     lines
 }

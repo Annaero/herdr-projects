@@ -40,7 +40,7 @@ pub fn auto_panel(s: &mut State, t: &Theme, a: &Obj, width: usize, full: bool) -
     for x in &own { for l in k.wrap(&format!("{}  {} *", crate::text::pad(x.s("name"), wn), crate::re!(r"\s*\n\s*").replace_all(&say(x.at("value")), " / "))) { let t2 = l.text(); set.push(match t2.strip_suffix('*') { Some(h) => Inked::plain(h).add(Inked::of("*", Ink::Accent)), None => l }); } }
     if full {
         let can = crate::board::update::autos::can_set(a);
-        let said = format!("{}{}", if own.is_empty() { "" } else { "* this automation's own, put on each task it makes. " }, if !can || s.ctx.web { format!("Changed {}: herdr-superwork set <name> <value> --automation \"{}\"", if a.b("host") { format!("on {}", clean(a.s("host"))) } else { "with".into() }, clean(a.s("name"))) } else { format!("{} changes them", key_name("settings")) });
+        let said = format!("{}{}", if own.is_empty() { "" } else { "* this automation's own, put on each task it makes. " }, if !can || s.ctx.web { format!("Changed {}: herdr-projects set <name> <value> --automation \"{}\"", if a.b("host") { format!("on {}", clean(a.s("host"))) } else { "with".into() }, clean(a.s("name"))) } else { format!("{} changes them", key_name("settings")) });
         set.extend(k.wrap(&said).into_iter().map(|l| { let t2 = l.text(); match t2.strip_prefix('*') { Some(rest) => Inked::of("*", Ink::Accent).add(Inked::of(rest, Ink::Muted)), None => l.recolor(Ink::Muted) } }));
     }
     k.part(set);
@@ -57,7 +57,7 @@ pub fn auto_panel(s: &mut State, t: &Theme, a: &Obj, width: usize, full: bool) -
         lines.extend(rows.into_iter().map(|l| if here { l.bold() } else if f.b("task") { l } else { l.recolor(Ink::Muted) }));
     }
     if all.is_empty() { lines.push(Kit::dim("None yet.")); }
-    if all.len() > shown.len() || (a.b("host") && all.len() >= SHOWN) { lines.extend(k.wrap(&format!("… {}: herdr-superwork automations firings \"{}\"{}", if a.b("host") { "every one".to_string() } else { format!("{} more", all.len() - shown.len()) }, a.s("name"), if a.b("host") { format!(" (on {})", clean(a.s("host"))) } else { String::new() })).into_iter().map(|l| l.recolor(Ink::Muted))); }
+    if all.len() > shown.len() || (a.b("host") && all.len() >= SHOWN) { lines.extend(k.wrap(&format!("… {}: herdr-projects automations firings \"{}\"{}", if a.b("host") { "every one".to_string() } else { format!("{} more", all.len() - shown.len()) }, a.s("name"), if a.b("host") { format!(" (on {})", clean(a.s("host"))) } else { String::new() })).into_iter().map(|l| l.recolor(Ink::Muted))); }
     let fl = lines.len();
     k.part(lines);
     let mut body = vec![Inked::new()];

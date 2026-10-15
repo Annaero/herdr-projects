@@ -24,7 +24,7 @@ fn beat_file() -> PathBuf { data_dir().join("keeper.json") }
 fn log(msg: &str) { let _ = std::fs::OpenOptions::new().create(true).append(true).open(data_dir().join("keeper.log")).and_then(|mut f| { use std::io::Write; writeln!(f, "{} {} {msg}", iso(now()), std::process::id()) }); }
 /// Alive means the heartbeat file is less than five seconds old. Readers never touch the keeper's lock.
 pub fn keeper_alive() -> bool { std::fs::metadata(beat_file()).and_then(|m| m.modified()).map(|m| m.elapsed().map(|e| e.as_millis() < 5000).unwrap_or(true)).unwrap_or(false) }
-fn no_keeper() -> bool { std::env::var("HERDR_SUPERWORK_NO_KEEPER").as_deref() == Ok("1") }
+fn no_keeper() -> bool { std::env::var("HERDR_PROJECTS_NO_KEEPER").as_deref() == Ok("1") }
 pub fn ensure_keeper() -> bool {
     if no_keeper() || inline() || keeper_alive() { return false; }
     if !due("keeper-start", 4000) { return false; } // several hook events at once start one, not five
@@ -36,8 +36,8 @@ pub fn code_stamp(exe: &Path) -> String {
     let m = std::fs::metadata(exe).and_then(|m| m.modified()).map(|t| t.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)).unwrap_or(0);
     format!("{VERSION}:{m}")
 }
-/// How often the keeper looks at the program on disk (HERDR_SUPERWORK_STAMP_MS: the tests that update it look sooner).
-fn stamp_every() -> i64 { std::env::var("HERDR_SUPERWORK_STAMP_MS").ok().and_then(|s| s.parse().ok()).filter(|&n: &i64| n > 0).unwrap_or(5000) }
+/// How often the keeper looks at the program on disk (HERDR_PROJECTS_STAMP_MS: the tests that update it look sooner).
+fn stamp_every() -> i64 { std::env::var("HERDR_PROJECTS_STAMP_MS").ok().and_then(|s| s.parse().ok()).filter(|&n: &i64| n > 0).unwrap_or(5000) }
 
 pub fn keeper_main() {
     if no_keeper() { return; }

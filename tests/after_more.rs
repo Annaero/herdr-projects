@@ -72,7 +72,7 @@ fn after_sets_shows_and_drops_a_wait_and_stop_stops_the_waiting() {
     assert!(told.contains("- PRJ-1 \"First\" (repo proj): done. Its closing note:\n    Made the first part."), "{told}");
 }
 
-/// The door, as `herdr-superwork remote <what> <request>` answers it on this machine (in this process).
+/// The door, as `herdr-projects remote <what> <request>` answers it on this machine (in this process).
 fn door(what: &str, req: Value) -> Value { sw::remote::door(what, &req).unwrap_or_else(|e| json!({ "ok": false, "msg": e.msg })) }
 
 #[test]

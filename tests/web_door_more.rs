@@ -88,7 +88,7 @@ fn the_web_uis_page_gets_one_script_line_and_nothing_else_changes_and_what_is_no
     assert_eq!(add_script(&add_script(SHELL).unwrap()), add_script(SHELL)); assert_eq!(add_script("<p>"), None);
     let may = |m: &str, url: &str| may_be_shell(&sw::webui::proxy::Head { method: m.into(), target: url.into(), version: "HTTP/1.1".into(), headers: vec![] });
     assert_eq!([may("GET", "/"), may("GET", "/anything/deep?x=1"), may("GET", "/index.html")], [true, true, true]);
-    assert_eq!([may("POST", "/"), may("GET", "/api/session"), may("GET", "/ws"), may("GET", "/assets/a.js"), may("GET", "/sw.js"), may("GET", "/manifest.webmanifest"), may("GET", "/superwork/page/start.js")], [false; 7]);
+    assert_eq!([may("POST", "/"), may("GET", "/api/session"), may("GET", "/ws"), may("GET", "/assets/a.js"), may("GET", "/sw.js"), may("GET", "/manifest.webmanifest"), may("GET", "/herdr-projects/page/start.js")], [false; 7]);
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn a_fault_of_ours_never_breaks_the_web_ui_and_a_web_ui_that_is_down_is_said_pla
     let up = Up { port: Some(fake_ui(Arc::new(Mutex::new(vec![])))) };
     // the board fails (here: a press of a key it has not): its own call says so, and the web UI's page and calls go through as before
     let body = r#"{"id":"no-such-key"}"#;
-    let (st, _, said) = ask(&up, format!("POST /superwork/api/press HTTP/1.1\r\nHost: 127.0.0.1:{{port}}\r\ncookie: token=good\r\ncontent-type: application/json\r\nx-herdr-superwork: 1\r\nsec-fetch-site: same-origin\r\ncontent-length: {}\r\n\r\n{body}", body.len()));
+    let (st, _, said) = ask(&up, format!("POST /herdr-projects/api/press HTTP/1.1\r\nHost: 127.0.0.1:{{port}}\r\ncookie: token=good\r\ncontent-type: application/json\r\nx-herdr-projects: 1\r\nsec-fetch-site: same-origin\r\ncontent-length: {}\r\n\r\n{body}", body.len()));
     assert_eq!(st, 500, "{}", ok(&said));
     assert!(ok(&ask(&up, get("/", "")).2).contains(r#"<div id="root">"#));
     assert_eq!(ask(&up, get("/api/stream", "")).0, 200);
@@ -107,8 +107,8 @@ fn a_fault_of_ours_never_breaks_the_web_ui_and_a_web_ui_that_is_down_is_said_pla
     let moved = Up { port: Some(free) };
     let (st, _, body) = ask(&moved, get("/api/session", ""));
     assert_eq!(st, 502); assert!(ok(&body).contains("not answering"));
-    assert_eq!(ask(&moved, get("/superwork/api/board", "cookie: token=good\r\n")).0, 503);
+    assert_eq!(ask(&moved, get("/herdr-projects/api/board", "cookie: token=good\r\n")).0, 503);
     let gone = Up { port: None };
     assert_eq!(ask(&gone, get("/", "")).0, 502);
-    assert_eq!(ask(&gone, get("/superwork/api/hello", "cookie: token=good\r\n")).0, 503);
+    assert_eq!(ask(&gone, get("/herdr-projects/api/hello", "cookie: token=good\r\n")).0, 503);
 }

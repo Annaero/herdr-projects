@@ -48,7 +48,7 @@ noticed.
 
 ## A task shown as not started
 
-- **Retry** (the "yes" key on the board, or `herdr-superwork retry <id>`) ends the agent's program, starts it again
+- **Retry** (the "yes" key on the board, or `herdr-projects retry <id>`) ends the agent's program, starts it again
   in the same pane and hands it the same text, word for word. The program is ended first because its box may still
   hold the old text, and typing on top of it would send it twice.
 - An agent whose program ends with typed text it never took is shown the same way, at once: the text went with the
@@ -70,8 +70,8 @@ The reviewer and the Coordinator are held to the same. A reviewer that never sta
 
 | Variable | Default | What |
 |---|---|---|
-| `HERDR_SUPERWORK_READY_MS` | 60000 | the longest the board waits for a started program to draw its screen; 0 types at once |
-| `HERDR_SUPERWORK_SUBMIT_MS` | 5000 | the wait before the first extra enter; each later wait is twice the one before |
+| `HERDR_PROJECTS_READY_MS` | 60000 | the longest the board waits for a started program to draw its screen; 0 types at once |
+| `HERDR_PROJECTS_SUBMIT_MS` | 5000 | the wait before the first extra enter; each later wait is twice the one before |
 
 The code is `crates/flow/src/submit.rs`; what was measured on real programs is in [what was
 checked](checked-on-herdr.md).

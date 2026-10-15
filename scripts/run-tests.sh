@@ -3,7 +3,7 @@
 # that makes a world sets the process's environment, so in one process those tests take turns, and the only way to run
 # them side by side is more processes. `sh scripts/run-tests.sh [names]`: no name runs every test; a name that is an
 # area (`board-panel`: tests/board_panel.rs and tests/board_panel_*.rs) runs those files, any other name the tests whose
-# own names hold it. How many processes: HERDR_SUPERWORK_TEST_PROCS, else twice this task's share of the cores
+# own names hold it. How many processes: HERDR_PROJECTS_TEST_PROCS, else twice this task's share of the cores
 # (scripts/share-cores.sh), as a process that takes turns uses about half a core. For the shorter check of a fix round
 # (scripts/check.sh --since): `=name` runs exactly that file's tests, and `--units` every test outside tests/ (those in
 # src/ and the doc tests). docs/testing.md.
@@ -20,7 +20,7 @@ for n in "$@"; do
   done
   [ -n "$found" ] || words="$words $n"
 done
-procs="${HERDR_SUPERWORK_TEST_PROCS:-$(( ${RUST_TEST_THREADS:-1} * 2 ))}"
+procs="${HERDR_PROJECTS_TEST_PROCS:-$(( ${RUST_TEST_THREADS:-1} * 2 ))}"
 case "$procs" in ''|0*|*[!0-9]*) procs=1 ;; esac
 # Built once, compile errors shown as cargo shows them; the test programs' paths come from cargo's own report (not the
 # program itself, which cargo builds for the tests too).

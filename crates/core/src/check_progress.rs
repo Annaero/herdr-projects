@@ -1,6 +1,6 @@
 //! The board's own check as a task shows it: the count its command reports, the wait for a turn, the minutes left, and
 //! saying so when it stands still. A check command tells the board where it is by writing one line to the file named
-//! in HERDR_SUPERWORK_PROGRESS (docs/check-progress.md). Nothing here is a guess: with no count there is no percent,
+//! in HERDR_PROJECTS_PROGRESS (docs/check-progress.md). Nothing here is a guess: with no count there is no percent,
 //! and with no earlier run there are no minutes.
 use crate::json::*;
 

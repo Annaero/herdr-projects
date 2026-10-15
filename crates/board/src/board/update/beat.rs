@@ -57,7 +57,7 @@ fn ring(s: &mut State, first: bool, fx: &mut Vec<Effect>) {
 }
 /// For a board run as a plain command: its tasks as OSC 7501 records on its own terminal. Output only.
 fn announce(s: &mut State, fx: &mut Vec<Effect>) {
-    if s.ctx.web || crate::util::env_set("HERDR_PLUGIN_ID") || std::env::var("HERDR_SUPERWORK_PROGRAM_STATUS").as_deref() == Ok("0") { return; }
+    if s.ctx.web || crate::util::env_set("HERDR_PLUGIN_ID") || std::env::var("HERDR_PROJECTS_PROGRAM_STATUS").as_deref() == Ok("0") { return; }
     let mut next = std::collections::HashMap::new();
     for r in s.data.items.iter().filter(|r| !r.b("host") && !r.b("archivedAt") && r.s("state") != "idle" && r.s("state") != "done") { next.insert(r.t("id"), osc(r)); }
     let mut out = String::new();

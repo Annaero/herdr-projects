@@ -13,9 +13,9 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 static KNOWN: Mutex<Option<(bool, i64)>> = Mutex::new(None);
-/// Can a read-only mount be made here? `HERDR_SUPERWORK_SANDBOX` says it outright (bwrap, none).
+/// Can a read-only mount be made here? `HERDR_PROJECTS_SANDBOX` says it outright (bwrap, none).
 pub fn sandbox_ok() -> bool {
-    if let Ok(said) = std::env::var("HERDR_SUPERWORK_SANDBOX") { if !said.is_empty() { return said != "none"; } }
+    if let Ok(said) = std::env::var("HERDR_PROJECTS_SANDBOX") { if !said.is_empty() { return said != "none"; } }
     let now = crate::clock::now();
     if let Some((ok, at)) = *KNOWN.lock().unwrap() { if now - at < 600000 { return ok; } }
     let file = data_dir().join("sandbox.json");
@@ -31,12 +31,12 @@ fn q(s: &str) -> String { if !s.is_empty() && s.chars().all(|c| c.is_ascii_alpha
 pub fn guarded(t: &Obj) -> Option<PathBuf> { let dir = cwd_of(t); (dir.exists() && is_repo(&dir)).then_some(dir) }
 /// Does this task's plan writer run in such a mount? In a repo, while the step is open.
 pub fn boxed(t: &Obj) -> bool { open(t) && guarded(t).is_some() && sandbox_ok() }
-pub const NO_MOUNT: &str = "This task starts with a plan (plan.approve), and its writer must run where the repo cannot be written: that needs bubblewrap (the `bwrap` program, with user namespaces allowed), which is missing or not usable on this machine. Nothing was started. Install it (for example: sudo apt install bubblewrap), or take the plan off for this task: herdr-superwork set plan.approve none --task <id>.";
+pub const NO_MOUNT: &str = "This task starts with a plan (plan.approve), and its writer must run where the repo cannot be written: that needs bubblewrap (the `bwrap` program, with user namespaces allowed), which is missing or not usable on this machine. Nothing was started. Install it (for example: sudo apt install bubblewrap), or take the plan off for this task: herdr-projects set plan.approve none --task <id>.";
 /// The command that starts a program there. The name it would have had from `agent start` rides along.
 pub fn boxed_command(t: &Obj, name: &str, kind: &str, args: &[String]) -> String {
     let tree = guarded(t).map(|p| p.display().to_string()).unwrap_or_default();
     let git = git_dir_of(std::path::Path::new(&tree)); // a worktree's git folder is elsewhere; a checkout's is inside it
-    let mut all: Vec<String> = vec!["env".into(), format!("HERDR_SUPERWORK_AGENT={name}"), "bwrap".into(), "--dev-bind".into(), "/".into(), "/".into(), "--ro-bind".into(), tree.clone(), tree];
+    let mut all: Vec<String> = vec!["env".into(), format!("HERDR_PROJECTS_AGENT={name}"), "bwrap".into(), "--dev-bind".into(), "/".into(), "/".into(), "--ro-bind".into(), tree.clone(), tree];
     if let Some(g) = git { let g = g.display().to_string(); all.extend(["--ro-bind".into(), g.clone(), g]); }
     all.extend(["--die-with-parent".into(), "--".into(), kind.into()]);
     all.extend(args.iter().cloned());
@@ -49,14 +49,14 @@ pub fn start_program(api: &Herdr, t: &Obj, name: &str, kind: &str, pane: &str, a
     if open(t) && guarded(t).is_some() && !sandbox_ok() { return Err(herr("failed", NO_MOUNT.replace("<id>", t.s("id")))); } // never a plan writer in a repo without it
     if !boxed(t) { return api.agent_start(name, kind, pane, args, 60000).map(|_| ()); }
     api.pane_run(pane, &boxed_command(t, name, kind, args))?;
-    let step = std::env::var("HERDR_SUPERWORK_READY_STEP_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(250u64);
+    let step = std::env::var("HERDR_PROJECTS_READY_STEP_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(250u64);
     let until = crate::clock::now() + 60000;
     loop {
         if let Some(a) = api.agent_get(pane)? {
             if a.s("agent_status") == "blocked" { return Err(herr("agent_not_ready", format!("agent {name} is blocked during startup and is not ready for prompts"))); }
             return Ok(());
         }
-        if crate::clock::now() >= until { return Err(herr("failed", format!("{kind} did not start in its read-only mount (bwrap). Look at the pane; HERDR_SUPERWORK_SANDBOX=none starts it without one."))); }
+        if crate::clock::now() >= until { return Err(herr("failed", format!("{kind} did not start in its read-only mount (bwrap). Look at the pane; HERDR_PROJECTS_SANDBOX=none starts it without one."))); }
         if step > 0 { std::thread::sleep(std::time::Duration::from_millis(step)); }
     }
 }

@@ -49,7 +49,7 @@ fn with_part(file: &str, id: &str, from: &str, body: &str) -> Result<String, Str
     let (start, end) = (format!("<!-- made:{id} "), format!("<!-- /made:{id} -->"));
     let (Some(a), Some(b)) = (text.find(&start), text.find(&end)) else { return Err(format!("{file} has no \"{start}…\" and \"{end}\" lines for its made part")) };
     if b < a { return Err(format!("{file}: its made part's lines are the wrong way round")); }
-    Ok(format!("{}{start}Made by `herdr-superwork docs` from {from}. Do not edit between these two lines. -->\n{body}\n{}", &text[..a], &text[b..]))
+    Ok(format!("{}{start}Made by `herdr-projects docs` from {from}. Do not edit between these two lines. -->\n{body}\n{}", &text[..a], &text[b..]))
 }
 /// Every made page that is in git, as it should be now.
 pub fn pages() -> Result<Vec<(String, String)>, String> { PARTS.iter().map(|(f, id, from, make)| Ok((f.to_string(), with_part(f, id, from, &make()?)?))).collect() }

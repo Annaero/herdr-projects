@@ -144,10 +144,10 @@ fn opening_the_board_from_anywhere_in_herdr_goes_back_to_the_one_that_is_running
     let root = w.root_str();
     w.patch(|s| { s["workspaces"].as_array_mut().unwrap().push(json!({ "workspace_id": "w9", "label": "b", "cwd": root })); s["panes"].as_array_mut().unwrap().push(json!({ "pane_id": "w9:p1", "workspace_id": "w9", "tab_id": "w9:t1", "terminal_id": "term_board", "cwd": root, "agent": null })); });
     set_env(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", "w9:p1")]); assert_eq!(own_pane(), "w9:p1");
-    set_env(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", "w9:t2"), ("HERDR_PLUGIN_ID", "herdr-superwork")]); assert_eq!(own_pane(), "w9:t2", "the plugin's own tab is a pane like any other");
-    set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-superwork")]); assert_eq!(own_pane(), "", "a popup is no pane to go back to"); assert!(in_popup());
+    set_env(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", "w9:t2"), ("HERDR_PLUGIN_ID", "herdr-projects")]); assert_eq!(own_pane(), "w9:t2", "the plugin's own tab is a pane like any other");
+    set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-projects")]); assert_eq!(own_pane(), "", "a popup is no pane to go back to"); assert!(in_popup());
     set_env(&[("HERDR_PANE_ID", "w9:p1")]); assert_eq!(own_pane(), "");
-    set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-superwork"), ("HERDR_PANE_ID", "w9:t2")]); assert!(!in_popup());
+    set_env(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-projects"), ("HERDR_PANE_ID", "w9:t2")]); assert!(!in_popup());
     set_env(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", "w9:p1")]); assert!(!in_popup());
     // The plugin's own entry says the same: a tab, so nothing of it is herdr's one popup.
     let toml = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("herdr-plugin.toml")).unwrap();

@@ -48,7 +48,7 @@ fn a_refused_delegate_changes_nothing_on_the_task_a_task_in_no_repo_skips_the_re
     assert_eq!(task(&id).at("settings"), &json!({ "reviewer.agent": "claude", "merge.by": "itself", "worker.agent": "codex/gpt-5.5", "worker.effort": "high" })); assert_eq!(task(&id).s("agent"), "codex");
     // no repo: where it works, how it is checked and how it lands do not apply, and `show` says so
     let plain = w.base.join("plain-1"); std::fs::create_dir_all(&plain).unwrap();
-    std::fs::write(plain.join(".herdr-superwork.json"), json!({ "check": { "command": "npm test" } }).to_string()).unwrap();
+    std::fs::write(plain.join(".herdr-projects.json"), json!({ "check": { "command": "npm test" } }).to_string()).unwrap();
     let t = sw::actions::filing::add(&plain, "Outside a repo", Default::default()).unwrap();
     set_value("check.command", &json!("mine"), &you()).unwrap(); set_value("review.rounds", &json!(5), &you()).unwrap();
     assert!(!sw::store::settings::lookup::in_repo(&t));

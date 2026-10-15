@@ -22,7 +22,7 @@ fn work_step(n: i64, ci: bool) -> Value {
 fn checked(w_settings: Value) -> World {
     world_with(Opts { repo: true, origin: true, settings: w_settings, repo_settings: Some(json!({ "check": {
         "command": "echo full >> \"$HOME/checks.log\"",
-        "again": "echo \"again $HERDR_SUPERWORK_CHECKED\" >> \"$HOME/checks.log\"" } })), ..Default::default() })
+        "again": "echo \"again $HERDR_PROJECTS_CHECKED\" >> \"$HOME/checks.log\"" } })), ..Default::default() })
 }
 fn ran(w: &World) -> Vec<String> { read(&w.base.join("home/checks.log")).lines().map(String::from).collect() }
 /// Done once, sent back by the review once, done again: the task as it waits for your yes.

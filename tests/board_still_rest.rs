@@ -20,7 +20,7 @@ fn start(exe: &Path, cwd: &Path) -> Term {
     let slave = unsafe { OwnedFd::from_raw_fd(s) };
     let mut c = std::process::Command::new(exe);
     c.current_dir(cwd).env("TERM", "xterm-256color").env("COLORTERM", "truecolor").env("LANG", "C.UTF-8").env_remove("NO_COLOR")
-        .env("HERDR_SOCKET_PATH", "/nonexistent").env("HERDR_BIN_PATH", "/bin/false").env("HERDR_SUPERWORK_STAMP_MS", "100")
+        .env("HERDR_SOCKET_PATH", "/nonexistent").env("HERDR_BIN_PATH", "/bin/false").env("HERDR_PROJECTS_STAMP_MS", "100")
         .stdin(slave.try_clone().unwrap()).stdout(slave.try_clone().unwrap()).stderr(slave);
     unsafe { c.pre_exec(|| { libc::setsid(); libc::ioctl(0, libc::TIOCSCTTY as _, 0); Ok(()) }); }
     let child = c.spawn().unwrap();
@@ -45,9 +45,9 @@ impl Term {
 fn plain(s: &str) -> String { regex::Regex::new(r"\x1b\[[0-9;?<>=]*[A-Za-z]|\x1b\][^\x07\x1b]*(\x07|\x1b\\)").unwrap().replace_all(s, "").into_owned() }
 /// A copy of the program in a folder of the world's own: the one the test changes under the open board.
 fn copy(w: &World) -> std::path::PathBuf {
-    let exe = w.base.join("bin").join("herdr-superwork");
+    let exe = w.base.join("bin").join("herdr-projects");
     std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
-    std::fs::copy(env!("CARGO_BIN_EXE_herdr-superwork"), &exe).unwrap();
+    std::fs::copy(env!("CARGO_BIN_EXE_herdr-projects"), &exe).unwrap();
     exe
 }
 /// The program's file changed (a merge into the checkout it runs from): its time moves on.

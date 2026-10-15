@@ -23,7 +23,7 @@ fn a_research_task_that_changed_the_repo_is_sent_back_and_after_its_rounds_waits
     assert_eq!((t.at("failure").s("stage"), t.at("failure").at("agentCanFix")), ("research", &json!(true)));
     let d = t.at("failure").s("detail");
     assert!(d.contains("- docs/report.md") && d.contains("- notes.txt") && d.contains("- (1 commit added)"), "{d}");
-    assert!(t.at("failure").s("next").contains("herdr-superwork set research.only false --task proj/1) and delegates it again"));
+    assert!(t.at("failure").s("next").contains("herdr-projects set research.only false --task proj/1) and delegates it again"));
     let said = all_prompts(&w, &t);
     assert_eq!(said.matches("This task is research only, and you changed the repo").count(), 1);
     assert!(said.contains(&format!("save the report in {}/ (outside the repo)", sw::store::files::reports_dir().join("proj").join("1").display())), "{said}");

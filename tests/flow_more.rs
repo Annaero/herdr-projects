@@ -88,13 +88,13 @@ fn a_board_kept_in_its_own_folder_the_agents_command_and_its_herdr_space_both_na
     assert!(sw::delegate::rules::rules(&task(&id)).contains(&format!("{} report ", cmd.display())));
     // folders that come from the home folder rather than their own variables are carried just the same
     let other = w.base.join("other-home");
-    unsafe { std::env::set_var("HERDR_SUPERWORK_HOME", &other) }
+    unsafe { std::env::set_var("HERDR_PROJECTS_HOME", &other) }
     std::fs::create_dir_all(other.join("settings")).unwrap();
     std::fs::write(other.join("settings/config.json"), json!({ "max": 23 }).to_string()).unwrap();
-    let want = vec![("HERDR_SUPERWORK_DATA_DIR".to_string(), other.join("data").display().to_string()), ("HERDR_SUPERWORK_CONFIG_DIR".to_string(), other.join("settings").display().to_string())];
+    let want = vec![("HERDR_PROJECTS_DATA_DIR".to_string(), other.join("data").display().to_string()), ("HERDR_PROJECTS_CONFIG_DIR".to_string(), other.join("settings").display().to_string())];
     let got = sw::store::files::board_env();
     let text = read(&real_shim(&w)); // the command names both, so the agent's own environment does not count
-    unsafe { std::env::set_var("HERDR_SUPERWORK_HOME", w.base.join("sw")) }
+    unsafe { std::env::set_var("HERDR_PROJECTS_HOME", w.base.join("sw")) }
     assert_eq!(got, want);
     for (k, v) in &want { assert!(text.contains(&format!("export {k}='{v}'")), "{text}"); }
     // a shim an older version left as a link is replaced
@@ -108,10 +108,10 @@ fn real_programs_the_agents_command_names_its_board_with_nothing_in_the_environm
     let cmd = real_shim(&w);
     // Run as the agent would: by the path in its rules, from its folder, with nothing in the environment pointing at
     // this board. The shim here runs this test's own program, so it is pointed at the real one first.
-    let text = read(&cmd).replace(&sw::store::files::bin().display().to_string(), env!("CARGO_BIN_EXE_herdr-superwork"));
+    let text = read(&cmd).replace(&sw::store::files::bin().display().to_string(), env!("CARGO_BIN_EXE_herdr-projects"));
     std::fs::write(&cmd, text).unwrap();
     let o = std::process::Command::new(&cmd).args(["add", "Found on the way", "--desc", "A follow-up."]).current_dir(&w.root)
-        .env("HERDR_SUPERWORK_HOME", w.base.join("default-home")).env_remove("HERDR_SUPERWORK_DATA_DIR").env_remove("HERDR_SUPERWORK_CONFIG_DIR")
+        .env("HERDR_PROJECTS_HOME", w.base.join("default-home")).env_remove("HERDR_PROJECTS_DATA_DIR").env_remove("HERDR_PROJECTS_CONFIG_DIR")
         .env("HERDR_SOCKET_PATH", "/nonexistent").env("HERDR_BIN_PATH", "/bin/false").output().unwrap();
     assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
     assert!(sw::flow::live::board(false).iter().any(|x| x.s("title") == "Found on the way"));

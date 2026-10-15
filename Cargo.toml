@@ -1,5 +1,5 @@
 [package]
-name = "herdr-superwork"
+name = "herdr-projects"
 version.workspace = true
 edition.workspace = true
 description = "A work board for herdr: one list of tasks, each delegated one running as an ordinary herdr agent."
@@ -13,7 +13,7 @@ name = "sw"
 path = "src/lib.rs"
 
 [[bin]]
-name = "herdr-superwork"
+name = "herdr-projects"
 path = "src/main.rs"
 
 [[test]]

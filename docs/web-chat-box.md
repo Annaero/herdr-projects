@@ -34,7 +34,7 @@ Measured against **herdr-web-ui 0.4.8** (see [how](#how-it-was-measured)):
   were picked, which is how the agent reads it; Send waits while one is on its way. The web UI's limits: 8 MB a file
   (a bigger one says so in a band over the box), three on their way at a time, and as many at once as its Settings →
   Chat → Files at once says. The file is kept where whoever gets the words can read it: in the Coordinator's own
-  folder, in a task's working folder under `.herdr-superwork/files/` (git is told to leave it alone), or, with no
+  folder, in a task's working folder under `.herdr-projects/files/` (git is told to leave it alone), or, with no
   Coordinator, in the board's own folder (`files/` in its data folder). Only on this machine: a file for another
   machine's Coordinator or agent is refused, and that is said.
 - **Dictation**, as in the web UI: the mic beside the add button. Tap it to start and tap again to finish, or hold

@@ -64,7 +64,7 @@ fn real_programs_the_check_starts_in_an_empty_home_on_the_default_share_and_says
 #[test]
 fn real_programs_a_settings_file_that_cannot_be_read_is_the_default_and_one_that_names_the_agents_is_used() {
     let b = Bench::new("settings");
-    let settings = b.home().join(".herdr-superwork/settings/config.json");
+    let settings = b.home().join(".herdr-projects/settings/config.json");
     std::fs::create_dir_all(&settings).unwrap(); // a folder where the file should be: awk cannot read it
     let (code, err, saw) = b.run();
     let jobs = cores().div_ceil(4);

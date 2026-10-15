@@ -1,5 +1,5 @@
-id = "herdr-superwork"
-name = "Superwork"
+id = "herdr-projects"
+name = "Projects"
 version = "0.3.0"
 # The oldest herdr this plugin was actually verified on.
 min_herdr_version = "0.9.3"

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use sw::json::*;
 use sw::submit::{NOT_STARTED, TRIES};
 
-fn waits(ready: i64, submit: i64) { unsafe { std::env::set_var("HERDR_SUPERWORK_READY_MS", ready.to_string()); std::env::set_var("HERDR_SUPERWORK_SUBMIT_MS", submit.to_string()); } }
+fn waits(ready: i64, submit: i64) { unsafe { std::env::set_var("HERDR_PROJECTS_READY_MS", ready.to_string()); std::env::set_var("HERDR_PROJECTS_SUBMIT_MS", submit.to_string()); } }
 fn pass(w: &World) { sw::housekeeping::housekeeping(&w.socket, sw::housekeeping::Force::Yes); }
 fn count(w: &World, re: &str) -> usize { let r = regex::Regex::new(re).unwrap(); calls(w).iter().filter(|c| r.is_match(c)).count() }
 fn the_agent(w: &World, id: &str) -> Value { agent_of(w, task(id).at("link").s("pane")) }

@@ -133,9 +133,9 @@ fn other_machines_automations_are_in_the_list_with_their_machine_named_and_are_c
     poll(&mut s, Some(json!([]))); let text = t(&mut s, 140); assert!(!text.contains("automations") && !text.contains('⟳'), "{text}");
     // a machine whose version sends no rows for the page: ctrl+e says the command, and is on no hint
     poll(&mut s, Some(json!([far_auto(json!({ "shown": { "firings": [], "own": [] } }))]))); s.s.sel = "vm-b:auto:0a1b2c3d".into(); s.load();
-    s.press(&["ctrl+e"]); assert!(t(&mut s, 120).contains("Its settings are changed on vm-b: herdr-superwork set <name> <value> --automation \"Theirs nightly\"")); assert!(s.s.editing.is_none());
+    s.press(&["ctrl+e"]); assert!(t(&mut s, 120).contains("Its settings are changed on vm-b: herdr-projects set <name> <value> --automation \"Theirs nightly\"")); assert!(s.s.editing.is_none());
     assert!(!s.screen(140).last().unwrap().contains(&key_name("settings")));
-    s.press(&["enter"]); assert!(regex::Regex::new(r"\s+").unwrap().replace_all(&t(&mut s, 100), " ").contains("Changed on vm-b: herdr-superwork set <name> <value> --automation \"Theirs nightly\"")); s.press(&["esc"]);
+    s.press(&["enter"]); assert!(regex::Regex::new(r"\s+").unwrap().replace_all(&t(&mut s, 100), " ").contains("Changed on vm-b: herdr-projects set <name> <value> --automation \"Theirs nightly\"")); s.press(&["esc"]);
     // a machine on an older version sends none: no group, and nothing breaks
     poll(&mut s, None); assert!(!t(&mut s, 120).contains("automations"));
 }

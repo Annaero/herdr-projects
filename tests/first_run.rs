@@ -1,7 +1,8 @@
 //! The first run of this version on data an older (Node) version wrote (crates/core/src/store/old_copy.rs): one copy of
-//! the data folder as it was, beside it, made once, and its one line for the human. In a scratch HERDR_SUPERWORK_HOME.
+//! the data folder as it was, beside it, made once, and its one line for the human. In a scratch HERDR_PROJECTS_HOME.
 use std::path::{Path, PathBuf};
 use std::sync::MutexGuard;
+use sw::store::move_home::OLD_NAME;
 use sw::store::old_copy::*;
 
 static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -14,10 +15,10 @@ fn scratch() -> (PathBuf, PathBuf, MutexGuard<'static, ()>) {
     std::fs::create_dir_all(base.join("home")).unwrap();
     let base = std::fs::canonicalize(&base).unwrap();
     set("HOME", &base.join("home").display().to_string());
-    set("HERDR_SUPERWORK_HOME", &base.join("home/.herdr-superwork").display().to_string());
+    set("HERDR_PROJECTS_HOME", &base.join("home/.herdr-projects").display().to_string());
     for (k, v) in [("XDG_STATE_HOME", "home/.state"), ("XDG_CONFIG_HOME", "home/.config"), ("XDG_DATA_HOME", "home/.share")] { set(k, &base.join(v).display().to_string()); }
-    for k in ["HERDR_SUPERWORK_DATA_DIR", "HERDR_SUPERWORK_CONFIG_DIR", "HERDR_SUPERWORK_REPORTS_DIR", "HERDR_SUPERWORK_INLINE"] { unsafe { std::env::remove_var(k) } }
-    (base.clone(), base.join("home/.herdr-superwork/data"), one)
+    for k in ["HERDR_PROJECTS_DATA_DIR", "HERDR_PROJECTS_CONFIG_DIR", "HERDR_PROJECTS_REPORTS_DIR", "HERDR_PROJECTS_INLINE"] { unsafe { std::env::remove_var(k) } }
+    (base.clone(), base.join("home/.herdr-projects/data"), one)
 }
 fn write(p: &Path, text: &str) { std::fs::create_dir_all(p.parent().unwrap()).unwrap(); std::fs::write(p, text).unwrap(); }
 fn read(p: &Path) -> String { std::fs::read_to_string(p).unwrap_or_default() }
@@ -26,7 +27,7 @@ const NODE_LAUNCHER: &str = "#!/bin/sh\nexport HERDR_SUPERWORK_DATA_DIR='/x/data
 fn node_data(data: &Path, version: Option<&str>) {
     write(&data.join("tasks/proj/1/task.json"), "{\"id\":\"proj/1\",\"title\":\"one\"}");
     write(&data.join("tasks/proj/1/inbox.jsonl"), "{\"a\":1}\n");
-    write(&data.join("bin/herdr-superwork"), NODE_LAUNCHER);
+    write(&data.join("bin").join(OLD_NAME), NODE_LAUNCHER);
     if let Some(v) = version { write(&data.join("keeper.json"), &format!("{{\"pid\":1,\"version\":\"{v}\"}}")); }
     std::os::unix::fs::symlink("tasks/proj", data.join("latest")).unwrap();
 }
@@ -57,9 +58,9 @@ fn who_wrote_the_data() {
     assert_eq!(older_writer(&data), Some("0.2.0".into()), "its keeper wrote its version down");
     write(&data.join("keeper.json"), "{\"version\":\"0.3.0\"}");
     assert_eq!(older_writer(&data), None, "this version's keeper");
-    write(&data.join("bin/herdr-superwork"), NODE_LAUNCHER);
+    write(&data.join("bin").join(OLD_NAME), NODE_LAUNCHER);
     assert_eq!(older_writer(&data), Some("node".into()), "only its launcher says it was Node");
-    write(&data.join("bin/herdr-superwork"), "#!/bin/sh\nexec '/p/bin/herdr-superwork-linux-x86_64' \"$@\"\n");
+    write(&data.join("bin/herdr-projects"), "#!/bin/sh\nexec '/p/bin/herdr-projects-linux-x86_64' \"$@\"\n");
     assert_eq!(older_writer(&data), None, "this version's launcher");
     assert_eq!(copy_place(&data, "0.2.0"), data.parent().unwrap().join("data-0.2.0"));
 }
@@ -70,7 +71,7 @@ fn the_copy_is_the_data_as_it_was_and_made_once() {
     node_data(&data, Some("0.2.0"));
     let before = tree(&data);
     let line = keep_old_copy(&data).unwrap().expect("a copy is made");
-    assert_eq!(line, format!("herdr-superwork {} uses the data version 0.2.0 kept, unchanged; a copy of it as it was is in ~/.herdr-superwork/data-0.2.0.", sw::store::files::VERSION));
+    assert_eq!(line, format!("herdr-projects {} uses the data version 0.2.0 kept, unchanged; a copy of it as it was is in ~/.herdr-projects/data-0.2.0.", sw::store::files::VERSION));
     let copy = data.parent().unwrap().join("data-0.2.0");
     assert_eq!(tree(&copy), before, "every file, folder and link as it was");
     assert_eq!(tree(&data), before, "the data itself is not changed");
@@ -97,7 +98,7 @@ fn a_copy_already_there_or_half_made_before() {
     let spare = data.parent().unwrap().join("data-node.copying-999999999");
     write(&spare.join("tasks/half"), "half");
     let line = keep_old_copy(&data).unwrap().unwrap();
-    assert!(line.contains("the data the older (Node) version kept") && line.ends_with("~/.herdr-superwork/data-node."), "{line}");
+    assert!(line.contains("the data the older (Node) version kept") && line.ends_with("~/.herdr-projects/data-node."), "{line}");
     assert!(!spare.exists());
     assert!(!place.join("tasks/half").exists() && place.join("tasks/proj/1/task.json").is_file());
 }
@@ -112,7 +113,7 @@ fn the_first_run_makes_it_and_says_it_once() {
     copy_at_start("hook");
     assert!(data.parent().unwrap().join("data-0.2.0/tasks/proj/1/task.json").is_file());
     let note = sw::store::move_home::move_note(&home, &env);
-    assert!(note.contains("a copy of it as it was is in ~/.herdr-superwork/data-0.2.0."), "{note}");
+    assert!(note.contains("a copy of it as it was is in ~/.herdr-projects/data-0.2.0."), "{note}");
     // Said once: after that nothing is added, the copy is not made again.
     copy_at_start("hook");
     assert_eq!(sw::store::move_home::move_note(&home, &env), note);

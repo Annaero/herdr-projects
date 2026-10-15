@@ -11,7 +11,7 @@ a private link to it.
 
 Every agent the board starts is told the same, in every repo:
 
-- It writes the report into the task's own folder among the board's reports, `~/.herdr-superwork/reports/<repo>/<number>/`
+- It writes the report into the task's own folder among the board's reports, `~/.herdr-projects/reports/<repo>/<number>/`
   ([the home folder](home-folder.md)), as `index.html` (one page that stands by itself) or `report.md`. That folder
   is outside every repo, so the report cannot be committed by mistake, and it stays when the task's worktree goes.
 - When the agent finishes, the board gives the report a link, served the way a review's evidence is: privately on
@@ -19,7 +19,7 @@ Every agent the board starts is told the same, in every repo:
   `index.html` when there is one, else `report.html`, `report.md`, `README.md`, else the folder's first file.
 
 The task panel shows the link under **Report**, beside the list and full screen (`Open report`; full screen also
-the file's name and the link printed in full). `herdr-superwork details <id>` has it as `report`.
+the file's name and the link printed in full). `herdr-projects details <id>` has it as `report`.
 
 This holds for any task: a task that changes code and also wrote a report has both, its change in the pull request
 and its report on the task.
@@ -31,22 +31,22 @@ Research only is a [setting](settings.md) like every other: `research.only`, `tr
 `review.when`.) It is looked up as every setting is, nearest answer first: **the task → your entry for that repo →
 you → the repo's own file → built in.**
 
-- **One task**, when it is added: `herdr-superwork add "<title>" --research`, which is short for
+- **One task**, when it is added: `herdr-projects add "<title>" --research`, which is short for
   `--research.only true`. The Coordinator does this by itself when you plainly ask for research, a review or a
   report with nothing to be changed ("look into why the build is slow and tell me", "write me a report on …"). It
   does not when a change is wanted, and not when it cannot tell.
-- **One task**, later: `herdr-superwork delegate <id> --research` (`--no-research` turns it off again), or
-  `herdr-superwork set research.only true --task <id>`, or its row on the task's settings page (`Research only`,
+- **One task**, later: `herdr-projects delegate <id> --research` (`--no-research` turns it off again), or
+  `herdr-projects set research.only true --task <id>`, or its row on the task's settings page (`Research only`,
   with what it means): on the terminal board, and on the web Board under the open task (**All settings**).
   All of them write the same one setting on the task.
-- **A whole repo, or everything of yours**: `herdr-superwork set research.only true --repo <name>`, or without
+- **A whole repo, or everything of yours**: `herdr-projects set research.only true --repo <name>`, or without
   `--repo`. Every new task there is research only unless the task says otherwise (`--no-research`, or
-  `set research.only false --task <id>`). The repo's own `.herdr-superwork.json` may say it too:
+  `set research.only false --task <id>`). The repo's own `.herdr-projects.json` may say it too:
   `{ "research": { "only": true } }`.
 - **An [automation](automations.md)**: `--research` when it is made, or
   `set research.only true --automation <name>`. Each task it makes has it as its own.
 
-`herdr-superwork show <id>` lists it with the place its value came from (`this task`, `your entry for <repo>`,
+`herdr-projects show <id>` lists it with the place its value came from (`this task`, `your entry for <repo>`,
 `you`, `the repo's file`, `built in`), and `unset research.only` takes an answer away again.
 
 The row says `[research]` after the task's name: on the board, in herdr's sidebar and on the web Board, for an
@@ -105,7 +105,7 @@ merge. A worktree on another branch than its own counts as a change.
 - That is one round of the review loop. After `review.rounds` of them (3 by default) the task stops and waits for you. Its
   row says why: `Research only, but its agent changed the repo again after 3 rounds (2 changes in the repo): nothing
   was pushed, opened or merged`. From there you send it back once more (`ctrl+r`), or, if you want the change after
-  all, delegate it again as an ordinary task (`herdr-superwork delegate <id> --no-research`, which is
+  all, delegate it again as an ordinary task (`herdr-projects delegate <id> --no-research`, which is
   `set research.only false --task <id>` and a start in one).
 
 **Nothing changed:**

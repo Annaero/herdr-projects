@@ -5,7 +5,7 @@ use crossterm::{cursor, event, execute, terminal};
 use std::io::{Read, Write};
 
 /// A board that loads its new version keeps its screen: the new one draws over the old frame instead of clearing.
-pub const KEPT: &str = "HERDR_SUPERWORK_KEPT_SCREEN";
+pub const KEPT: &str = "HERDR_PROJECTS_KEPT_SCREEN";
 pub fn enter() -> std::io::Result<()> {
     terminal::enable_raw_mode()?;
     let mut out = std::io::stdout();

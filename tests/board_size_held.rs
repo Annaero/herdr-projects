@@ -33,7 +33,7 @@ fn the_board_says_so_top_left_when_another_view_holds_its_panes_size_and_stops_w
     look(&mut s, 120, 58);
     assert!(has(&s.screen(120)[0], r"^[ ▌]! Shown cut off: a remote view holds this pane at 120×58 \(herdr's own window: 120×34\)\. Closing that view frees it\."), "a sentence, whole: no process number to kill: {}", s.screen(120)[0]);
     assert_eq!(s.screen(120).len(), 58);
-    assert!(s.screen(120)[1].contains("herdr-superwork"), "the header and the list move down one line, nothing else changes");
+    assert!(s.screen(120)[1].contains("herdr-projects"), "the header and the list move down one line, nothing else changes");
     assert!(squash(&s.screen(60)[..3]).contains("Shown cut off: a remote view holds this pane at 120×58 (herdr's own window: 120×34). Closing that view frees it."), "in a narrow window it wraps: what frees the size is never cut off");
     assert!(has(&s.screen(60)[0], r"^[ ▌]! Shown cut off: a remote view holds this pane at 120×58"));
     // The same line over the whole task and the menu.

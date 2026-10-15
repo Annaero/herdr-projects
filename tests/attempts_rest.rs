@@ -79,7 +79,7 @@ fn each_attempt_has_a_tab_in_the_tasks_one_space_and_a_check_changed_while_it_wa
     let r = b.s.current().cloned().unwrap();
     assert_eq!(sw::board::update::actions::attempt_sel(&b.s, &r), "C");
     // the check was changed while it waited: the chosen attempt is checked again, with the new command
-    sw::store::settings::change::set_value("check.command", &json!("touch \"$HERDR_SUPERWORK_REPO/.git/checked-again\""), &sw::store::settings::lookup::Scope::task(&task(&id))).unwrap();
+    sw::store::settings::change::set_value("check.command", &json!("touch \"$HERDR_PROJECTS_REPO/.git/checked-again\""), &sw::store::settings::lookup::Scope::task(&task(&id))).unwrap();
     b.press(&["ctrl+l", "y"]);
     assert_eq!(task(&id).at("picked").s("letter"), "C");
     sw::store::settings::change::set_value("merge.by", &json!("you"), &sw::store::settings::lookup::Scope::task(&task(&id))).unwrap();

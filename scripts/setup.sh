@@ -1,5 +1,5 @@
 #!/bin/sh
-# The workspace setup (.herdr-superwork.json): run in every fresh worktree before its agent starts. It installs the
+# The workspace setup (.herdr-projects.json): run in every fresh worktree before its agent starts. It installs the
 # build cache all worktrees share (scripts/build-cache.sh) and mold, the quicker linker (scripts/linker.sh), starts
 # from the warm build of the main line (scripts/warm-start.sh), builds the program through the cache with the `quick`
 # profile on this task's share of the cores (scripts/share-cores.sh), keeps that build warm for the next worktree, and
@@ -14,4 +14,4 @@ sh scripts/linker.sh --install
 ws_seed
 cargo build --profile quick
 ws_keep
-./target/quick/herdr-superwork docs
+./target/quick/herdr-projects docs

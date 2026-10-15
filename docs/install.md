@@ -5,16 +5,16 @@ program; optionally `gh` (pull requests) and `tailscale` (private review links).
 program.
 
 ```sh
-git clone https://github.com/eliasstravik/herdr-superwork && cd herdr-superwork
+git clone https://github.com/eliasstravik/herdr-projects && cd herdr-projects
 herdr plugin link "$PWD"          # hooks, the board's tab and the actions
 sh bin/run.sh install             # gets the program, writes its launcher, says how to put it on your PATH
 ```
 
-**The program is one file per platform** (`herdr-superwork-linux-x86_64`, `-linux-aarch64`, `-macos-x86_64`,
+**The program is one file per platform** (`herdr-projects-linux-x86_64`, `-linux-aarch64`, `-macos-x86_64`,
 `-macos-aarch64`; the Linux ones run on any Linux). Every command herdr runs for the plugin goes through
 `bin/run.sh`, which runs, the first it finds:
 
-1. a program built in this checkout (`target/release/herdr-superwork`) that no source file is newer than;
+1. a program built in this checkout (`target/release/herdr-projects`) that no source file is newer than;
 2. the downloaded one in `bin/`, when it is this checkout's version (`Cargo.toml`) or newer;
 3. that file downloaded now from the project's GitHub release of this checkout's version, its checksum checked, put
    in place in one step, one download at a time;
@@ -23,10 +23,10 @@ sh bin/run.sh install             # gets the program, writes its launcher, says 
 
 With none it says what to do and stops at once, so herdr is never held up. The plugin's build step
 (`sh bin/run.sh --fetch`) only gets the program, and builds it from source when it cannot download it.
-`HERDR_SUPERWORK_RELEASES` names another place for the releases (a fork, a mirror, a folder as `file:///…`). The
+`HERDR_PROJECTS_RELEASES` names another place for the releases (a fork, a mirror, a folder as `file:///…`). The
 release files are built for every version tag by `.github/workflows/release.yml`.
 
-**Updating.** `herdr-superwork update` puts the newest release in place of the downloaded program, in one step
+**Updating.** `herdr-projects update` puts the newest release in place of the downloaded program, in one step
 (`update 0.3.1` a given version); an open board and the keeper see the file change and load it by themselves
 ([the board's size](board-size.md)). Pulling a newer version of the plugin (`git pull`) does the same at the next
 command herdr runs: `bin/run.sh` downloads that version. A program you built yourself is updated with `git pull` and
@@ -38,22 +38,22 @@ the data folder says so).
 **Building from source** instead: `cargo build --release` in the checkout (Rust: https://rustup.rs). `bin/run.sh`
 then runs that build, and builds again are picked up the same way.
 
-**The command on your PATH.** Agents and hooks are handed the launcher `~/.herdr-superwork/data/bin/herdr-superwork`,
-which runs the program; `herdr-superwork install` writes it again and says whether something else named
-`herdr-superwork` comes first on your PATH. To type `herdr-superwork` in a shell, put that folder on your PATH (in
+**The command on your PATH.** Agents and hooks are handed the launcher `~/.herdr-projects/data/bin/herdr-projects`,
+which runs the program; `herdr-projects install` writes it again and says whether something else named
+`herdr-projects` comes first on your PATH. To type `herdr-projects` in a shell, put that folder on your PATH (in
 `~/.profile` or your shell's start-up file).
 
-**From the older Node version**: `npm unlink -g herdr-superwork` takes the Node program off your PATH. The first run
-of this version keeps a copy of the data folder as it was (`~/.herdr-superwork/data-0.2.0`) before it changes
+**From the older Node version**: `npm unlink -g herdr-projects` takes the Node program off your PATH. The first run
+of this version keeps a copy of the data folder as it was (`~/.herdr-projects/data-0.2.0`) before it changes
 anything; the data's form is the same, so nothing is converted.
 
-On a machine that another one will ask for its tasks ([other machines](other-machines.md)), `herdr-superwork` must
+On a machine that another one will ask for its tasks ([other machines](other-machines.md)), `herdr-projects` must
 be found by a login shell that nobody types into, which is what SSH starts: a PATH set only in `~/.bashrc` is often
-not enough. `herdr-superwork machines` checks it on the machine itself and says how to fix it; from the other
-machine the test is `ssh <machine> 'exec $SHELL -lc "herdr-superwork remote list"' | tail -c 200`, which ends with a
+not enough. `herdr-projects machines` checks it on the machine itself and says how to fix it; from the other
+machine the test is `ssh <machine> 'exec $SHELL -lc "herdr-projects remote list"' | tail -c 200`, which ends with a
 line of JSON.
 
-Typing `herdr-superwork` in any pane opens the board. The first time it opens inside herdr it shows one screen with
+Typing `herdr-projects` in any pane opens the board. The first time it opens inside herdr it shows one screen with
 two things it can add to your herdr `config.toml`. Each is your choice, answered with single keys: `1` and `2` switch
 them on or off, `k` picks another key, `enter` saves, `esc` asks again next time. The file is backed up first, each
 block sits between two marker lines, and a change herdr rejects is rolled back:
@@ -76,7 +76,7 @@ Nothing else is needed: no herdr integration, no hooks in your own agent setting
 [[keys.command]]
 key = "prefix+a"
 type = "plugin_action"
-command = "herdr-superwork.open"
+command = "herdr-projects.open"
 
 [ui.sidebar.agents]
 rows = [["state_icon", "machine", "workspace", { token = "tab", rules = [{ equals = "Agent", hide = true }, { starts_with = "Reviewer #", hide = true }] }], ["agent"], [{ token = "$summary", dim = true }, "$progress"]]
@@ -92,17 +92,17 @@ nor swapping panes, `prefix+shift+h` `j` `k` `l`); to move the board, change the
 line and run `herdr server reload-config`.
 
 The key opens the board in a tab of its own. To have it open the board as a popup over herdr's window, and
-close it again: `herdr-superwork set board.open popup` ([the board](board.md)). The key itself stays as it is.
+close it again: `herdr-projects set board.open popup` ([the board](board.md)). The key itself stays as it is.
 
-Optionally bind `herdr-superwork.approve-current` too: for the task that owns the focused pane it opens the board on
+Optionally bind `herdr-projects.approve-current` too: for the task that owns the focused pane it opens the board on
 that task with the merge question up (`y` = yes, `n` or `esc` = no), and does nothing anywhere else.
 
-**Before unlinking the plugin** run `herdr-superwork remove-extras`: herdr gives a plugin no uninstall hook, so this
+**Before unlinking the plugin** run `herdr-projects remove-extras`: herdr gives a plugin no uninstall hook, so this
 is what takes the marked blocks out of `config.toml` and removes the how-to files (below). With the herdr web UI
 plugin installed it also points that web UI's shared link back at the web UI and stops the board's front door
 ([the board in the herdr web UI](web-ui.md)).
 
-Everything the board keeps for you is in one folder, `~/.herdr-superwork/`: [the home folder](home-folder.md).
+Everything the board keeps for you is in one folder, `~/.herdr-projects/`: [the home folder](home-folder.md).
 Updating from a version that kept its files in `~/.local/state`, `~/.config` and `~/.local/share` needs nothing from
 you: the first run moves them there and says so in one line.
 

@@ -1,5 +1,5 @@
 //! Other machines that do not answer: the rest of the reasons and what to do, the answer read whatever a shell prints
-//! around it, asking over an SSH stand-in, and `herdr-superwork machines` (this machine as a login shell finds it, then
+//! around it, asking over an SSH stand-in, and `herdr-projects machines` (this machine as a login shell finds it, then
 //! each machine). The boards' side of it: remote_board.rs.
 use crate::common;
 use crate::far;
@@ -24,7 +24,7 @@ fn the_other_reasons_a_machine_did_not_answer_each_with_what_to_do() {
         let why = why_not(e, "vm-a", "me@vm-a");
         assert_eq!(why.s("kind"), *kind, "{name}");
         assert!(has(why.s("line"), line), "{name}: {}", why.s("line"));
-        assert!(has(&text(why.arr("detail").last().unwrap()), r#"^Test it from this machine: ssh me@vm-a 'exec \$SHELL -lc "herdr-superwork remote list"' \| tail -c 200$"#), "{name}");
+        assert!(has(&text(why.arr("detail").last().unwrap()), r#"^Test it from this machine: ssh me@vm-a 'exec \$SHELL -lc "herdr-projects remote list"' \| tail -c 200$"#), "{name}");
         assert!(why.s("line").chars().count() < 60, "{name}");
     }
     let detail = |e: &Ended, target: &str| why_not(e, "vm-a", target).arr("detail").iter().map(text).collect::<Vec<_>>().join("\n");
@@ -51,7 +51,7 @@ fn real_programs_asking_over_the_ssh_stand_in_keeps_the_exit_code_and_stderr_and
     let w = world();
     let far = Far::new(&w.base);
     far.ends("good", "list", &format!("Welcome\n{LIST}\nlogout\n"), "warning: something on stderr\n", 0);
-    far.ends("nopath", "list", "Welcome\n", "bash: line 1: herdr-superwork: command not found\n", 127);
+    far.ends("nopath", "list", "Welcome\n", "bash: line 1: herdr-projects: command not found\n", 127);
     far.ends("nonode", "list", "", "env: 'node': No such file or directory\n", 127);
     far.ends("down", "list", "", "ssh: connect to host vm port 22: Connection refused\n", 255);
     far.ends("nokey", "list", "", "me@vm: Permission denied (publickey).\n", 255);
@@ -62,7 +62,7 @@ fn real_programs_asking_over_the_ssh_stand_in_keeps_the_exit_code_and_stderr_and
     let failed: Vec<(String, String, i64)> = ["nopath", "nonode", "down", "nokey", "banner"].iter().map(|n| { let why = ask(n, 20000).unwrap_err(); (n.to_string(), why.t("kind"), why.i("code")) }).collect();
     assert_eq!(failed, [("nopath", "path", 127), ("nonode", "path", 127), ("down", "connect", 255), ("nokey", "login", 255), ("banner", "answer", 0)].map(|(a, b, c)| (a.to_string(), b.to_string(), c)));
     let nopath = ask("nopath", 20000).unwrap_err();
-    assert_eq!((nopath.s("line"), nopath.s("said")), ("herdr-superwork is not found there", "bash: line 1: herdr-superwork: command not found"));
+    assert_eq!((nopath.s("line"), nopath.s("said")), ("herdr-projects is not found there", "bash: line 1: herdr-projects: command not found"));
     assert_eq!(ask("banner", 20000).unwrap_err().s("said"), "Welcome to the machine");
     assert_eq!(ask("hangs", 40).unwrap_err().s("kind"), "slow");
     assert_eq!(far.asked().iter().filter(|a| a.0 == "good").map(|a| a.1.clone()).collect::<Vec<_>>(), vec!["list"]);
@@ -81,7 +81,7 @@ fn fake_shell(w: &World, out: &str, err: &str, code: i32) -> std::path::PathBuf 
 }
 
 #[test]
-fn real_programs_herdr_superwork_machines_this_machine_as_a_bare_login_shell_then_each_machine() {
+fn real_programs_herdr_projects_machines_this_machine_as_a_bare_login_shell_then_each_machine() {
     let w = world_with(Opts { repo: true, settings: json!({ "board.machines": "vm-a, vm-b" }), ..Default::default() });
     let far = Far::new(&w.base);
     let mut archived = theirs(2); archived["archivedAt"] = json!(1);
@@ -92,7 +92,7 @@ fn real_programs_herdr_superwork_machines_this_machine_as_a_bare_login_shell_the
     let had = std::env::var("SHELL").ok();
     unsafe { std::env::set_var("SHELL", &shell) };
     let r = sw::remote::check::check(20000);
-    assert_eq!(read(&w.base.join("shell/ran")), "herdr-superwork remote hello");
+    assert_eq!(read(&w.base.join("shell/ran")), "herdr-projects remote hello");
     let env = read(&w.base.join("shell/env"));
     for k in ["HOME", "LOGNAME", "PATH", "SHELL", "USER"] { assert!(env.split(' ').any(|x| x == k), "{k}: {env}"); }
     assert!(!env.split(' ').any(|x| x.starts_with("HERDR") || x.starts_with("GIT_") || x == "TERM"), "nothing of the terminal it was typed in: {env}");
@@ -100,16 +100,16 @@ fn real_programs_herdr_superwork_machines_this_machine_as_a_bare_login_shell_the
     let ms: Vec<(String, bool, String, serde_json::Value)> = r.arr("machines").iter().map(|m| (m.t("label"), m.b("ok"), if m.b("version") { m.t("version") } else { m.at("why").t("kind") }, m.at("tasks").clone())).collect();
     assert_eq!(ms, vec![("vm-a".into(), true, "0.2.0".into(), json!(1)), ("vm-b".into(), false, "path".into(), serde_json::Value::Null)]);
     let said = sw::remote::check::say(&r);
-    assert!(has(&said, &format!(r"this machine: a login shell \(.+\) finds herdr-superwork {}\n", regex::escape(version))), "{said}");
-    assert!(has(&said, r"vm-a +answers · herdr-superwork 0\.2\.0 · 1 task  \(.*@vm-a\)\n"), "{said}");
-    assert!(has(&said, r"vm-b +does not answer: node is not found there  \(.*@vm-b\)\n    A login shell on vm-b finds `herdr-superwork` but not `node`"), "{said}");
+    assert!(has(&said, &format!(r"this machine: a login shell \(.+\) finds herdr-projects {}\n", regex::escape(version))), "{said}");
+    assert!(has(&said, r"vm-a +answers · herdr-projects 0\.2\.0 · 1 task  \(.*@vm-a\)\n"), "{said}");
+    assert!(has(&said, r"vm-b +does not answer: node is not found there  \(.*@vm-b\)\n    A login shell on vm-b finds `herdr-projects` but not `node`"), "{said}");
     assert!(has(&said, r"    What came back:\n      env: 'node': No such file or directory"), "{said}");
     // this machine itself, when a login shell does not find the program: said with the fix, by the same reading
-    fake_shell(&w, "", "bash: line 1: herdr-superwork: command not found\n", 127);
+    fake_shell(&w, "", "bash: line 1: herdr-projects: command not found\n", 127);
     let lost = sw::remote::check::here(20000);
     assert_eq!((lost.at("ok"), lost.at("why").s("kind")), (&json!(false), "path"));
     assert!(has(&lost.at("why").arr("detail").iter().map(text).collect::<Vec<_>>().join("\n"), r"(?s)must be on the PATH that a login shell gets.*Test it from another machine: ssh "));
-    assert!(has(&sw::remote::check::say(&json!({ "here": lost, "machines": [], "off": false })), r"(?s)this machine: other machines cannot ask it: herdr-superwork is not found there\n.*No other machines\. Add one with"));
+    assert!(has(&sw::remote::check::say(&json!({ "here": lost, "machines": [], "off": false })), r"(?s)this machine: other machines cannot ask it: herdr-projects is not found there\n.*No other machines\. Add one with"));
     // an older one that is found is found
     fake_shell(&w, "{\"ok\":false,\"msg\":\"Unknown request hello\"}\n", "", 0);
     assert_eq!(sw::remote::check::here(20000).at("ok"), &json!(true));

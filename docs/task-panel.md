@@ -61,7 +61,7 @@ Both have the same parts, in the same order, and **one form for every part**:
   nobody is on says what puts an agent on it (`Next`). The task is named as its row names it (`HSW-84`), in
   the title and in the heading of the whole-task page (`Task details  HSW-84 "Max length for task titles"`); its id as
   a command takes it stands once, on the whole task, with the session and its repo's key beside it
-  (`Task id  herdr-superwork/84 · HSW`).
+  (`Task id  herdr-projects/84 · HSW`).
 - **What it needs from you** is a part of its own right under Status, its headline in red: `Asks you`, `Asks for
   your OK`, `Needs a login`, `Review failed` (what the review found, and what the two keys do: send it back, or merge
   anyway), or `Went wrong` with what failed, who can fix it, the `Next step` and the `Details`. A headline is never
@@ -101,7 +101,7 @@ Both have the same parts, in the same order, and **one form for every part**:
   **Only a value set for this task alone is marked**: a `*` after it, in the accent colour, and one dim line under
   the rows, `* this task only`, where any is marked (it is the first line to go where room is short). Every other
   value looks the same, whether it is your settings, the repo's or built in: the panel never says where a value
-  comes from. `herdr-superwork show <id>` does ([settings](settings.md)). Every setting somebody chose is there all
+  comes from. `herdr-projects show <id>` does ([settings](settings.md)). Every setting somebody chose is there all
   the same, also one that says `none`, or one that does nothing now. A task
   in no repo has no `Check` and no `Workspace` row. The whole task adds where the task is (`Project`, `Worktree`
   with its folder, `Branch`); beside the list only a project that is not this board's, and another machine's name
@@ -115,7 +115,7 @@ Both have the same parts, in the same order, and **one form for every part**:
 
 `Ctrl+E` on a task opens its settings full screen: every work [setting](settings.md) by its plain label, its value
 and its name as a command takes it, `*` on the ones set for this task only. Where any other value comes from is not
-said here either: `herdr-superwork show <id>` says it.
+said here either: `herdr-projects show <id>` says it.
 
 ```
  Settings  HSW-12 "Tidy the first-run questions"
@@ -150,7 +150,7 @@ said here either: `herdr-superwork show <id>` says it.
 - `Ctrl+U` puts the selected row back to what it would be without this task's own answer.
 - `Esc`, or `Ctrl+E` again, goes back to the task.
 
-Board settings are yours only and are not on this page (`herdr-superwork show`). A task on another machine is
+Board settings are yours only and are not on this page (`herdr-projects show`). A task on another machine is
 changed there; an archived task's settings can be read, not changed.
 
 Full screen the text keeps to 100 columns, and a last part, **Session**, has the agent's context, its tokens and
@@ -194,7 +194,7 @@ it `Checked` and what it left `Unverified`. A review that gave no verdict has it
 before the gate keeps its score and its advice as they were (`4/5, says merge`), and its `Problems`. A review that
 still stood after main was merged in says so under its result. Full screen each piece of **evidence** is under
 its own `Evidence` headline: its name, what it is and its address printed in full, each wrapped under itself and
-never cut. `herdr-superwork details <id>` prints the same list
+never cut. `herdr-projects details <id>` prints the same list
 as `reviews`.
 
 ## Why it looks like this

@@ -1,4 +1,4 @@
-//! A repo's short key (`repo.key`: `HSW` for herdr-superwork) and what it does to a task's name: its tag reads
+//! A repo's short key (`repo.key`: `HSW` for this repo) and what it does to a task's name: its tag reads
 //! `HSW-134`, and `HSW-134` names the task wherever its id does. Every repo has one (store/keys_given.rs). Nothing is
 //! stored under a key: it is another way to write the id, worked out each time, so changing one breaks nothing, and a
 //! key a repo had before still names its tasks: every key that counts is put on record as its repo's for good.
@@ -67,7 +67,7 @@ pub fn repo_keys() -> Keys {
     out
 }
 fn number_of(id: &str) -> &str { let n = id.rsplit('/').next().unwrap_or(""); if !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) { n } else { "" } }
-/// `hsw-134` -> `herdr-superwork/134`, in any letter case; "" when it is not a key and a number, or no repo has it. With
+/// `hsw-134` -> `herdr-projects/134`, in any letter case; "" when it is not a key and a number, or no repo has it. With
 /// no keys given, every key a repo ever went by counts too, after the ones they go by now.
 pub fn id_of_key(reference: &str, keys: Option<&Keys>) -> String {
     let s = reference.trim();

@@ -1,8 +1,8 @@
 # Builds the program for every platform and attaches it to the GitHub release of a version tag.
 #
 # Runs when a tag `v*` is pushed (`git tag v0.3.0 && git push origin v0.3.0`), or by hand with a tag to build the files
-# of an existing release again. Each file is `herdr-superwork-<os>-<arch>` (os linux|macos, arch x86_64|aarch64) with
-# its `.sha256` beside it: bin/run.sh and `herdr-superwork update` download exactly these names. The Linux files are
+# of an existing release again. Each file is `herdr-projects-<os>-<arch>` (os linux|macos, arch x86_64|aarch64) with
+# its `.sha256` beside it: bin/run.sh and `herdr-projects update` download exactly these names. The Linux files are
 # static (musl), so they run on any Linux. The tag must be the version in Cargo.toml and herdr-plugin.toml, or the run
 # fails: run.sh asks for the release named by Cargo.toml's version.
 name: Release
@@ -28,10 +28,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: x86_64-unknown-linux-musl, runner: ubuntu-24.04, file: herdr-superwork-linux-x86_64, runs: true }
-          - { target: aarch64-unknown-linux-musl, runner: ubuntu-24.04, file: herdr-superwork-linux-aarch64, zig: true }
-          - { target: x86_64-apple-darwin, runner: macos-14, file: herdr-superwork-macos-x86_64 }
-          - { target: aarch64-apple-darwin, runner: macos-14, file: herdr-superwork-macos-aarch64, runs: true }
+          - { target: x86_64-unknown-linux-musl, runner: ubuntu-24.04, file: herdr-projects-linux-x86_64, runs: true }
+          - { target: aarch64-unknown-linux-musl, runner: ubuntu-24.04, file: herdr-projects-linux-aarch64, zig: true }
+          - { target: x86_64-apple-darwin, runner: macos-14, file: herdr-projects-macos-x86_64 }
+          - { target: aarch64-apple-darwin, runner: macos-14, file: herdr-projects-macos-aarch64, runs: true }
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -67,18 +67,18 @@ jobs:
       - name: Name the file and write its checksum
         run: |
           mkdir dist
-          cp target/${{ matrix.target }}/release/herdr-superwork dist/${{ matrix.file }}
+          cp target/${{ matrix.target }}/release/herdr-projects dist/${{ matrix.file }}
           cd dist && shasum -a 256 ${{ matrix.file }} > ${{ matrix.file }}.sha256 && cat ${{ matrix.file }}.sha256
 
       - name: Check it runs and says the release's version
         if: matrix.runs
         env:
-          HERDR_SUPERWORK_INLINE: "1"
-          HERDR_SUPERWORK_HOME: ${{ runner.temp }}/sw
+          HERDR_PROJECTS_INLINE: "1"
+          HERDR_PROJECTS_HOME: ${{ runner.temp }}/sw
         run: |
           out=$(dist/${{ matrix.file }} version)
           echo "$out"
-          case "$out" in "herdr-superwork ${TAG#v} "*) ;; *) echo "::error::expected herdr-superwork ${TAG#v}"; exit 1 ;; esac
+          case "$out" in "herdr-projects ${TAG#v} "*) ;; *) echo "::error::expected herdr-projects ${TAG#v}"; exit 1 ;; esac
 
       - name: Check the Linux file is static
         if: contains(matrix.target, 'linux')
@@ -106,7 +106,7 @@ jobs:
         working-directory: dist
         run: |
           for os in linux macos; do for arch in x86_64 aarch64; do
-            f="herdr-superwork-$os-$arch"
+            f="herdr-projects-$os-$arch"
             [ -s "$f" ] && [ -s "$f.sha256" ] || { echo "::error::$f or its checksum is missing"; exit 1; }
             sha256sum -c "$f.sha256"
           done; done
@@ -115,4 +115,4 @@ jobs:
         working-directory: dist
         run: |
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes
-          gh release upload "$TAG" herdr-superwork-* --clobber
+          gh release upload "$TAG" herdr-projects-* --clobber

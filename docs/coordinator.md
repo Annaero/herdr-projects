@@ -3,7 +3,7 @@
 **The Coordinator is one agent chat.** It is a single long-lived agent, not a call per instruction: everything
 you type goes into the same conversation, so "delegate that one too" works, and it can ask you something back. Your
 words reach it exactly as typed: which repo you were in and which task you had open are kept beside each message,
-and the Coordinator asks for them itself (`herdr-superwork coordinator where` lists the last few messages, each with
+and the Coordinator asks for them itself (`herdr-projects coordinator where` lists the last few messages, each with
 its own).
 
 **`Tab` means "and start it right away".** A message sent with `Tab` instead of `Enter` has every task the
@@ -13,17 +13,17 @@ was sent with `Tab` (the chat on the board shows your words alone), and the boar
 Coordinator adds while it is still in the turn of a `Tab` message is delegated by `add` itself. A message that
 adds nothing (a question, a status check, a word about an existing task) delegates nothing extra, and one sent with
 `Enter` is as before: its tasks are added, and delegated only when you asked for that. From a shell,
-`herdr-superwork coordinator tell <text> --delegate` is the same as `Tab`. A board opened from the Coordinator's own pane stays in the repo it was
+`herdr-projects coordinator tell <text> --delegate` is the same as `Tab`. A board opened from the Coordinator's own pane stays in the repo it was
 last in: that pane's folder is nobody's repo. It is
 an ordinary herdr agent in a tab of its own, named `Coordinator`, in your home space (`~`; see below), in a folder
 of its own inside the board's data
-folder (`HERDR_SUPERWORK_COORDINATOR_DIR` names another, which should be used for nothing else: the board writes the Coordinator's rules there), started with the same
+folder (`HERDR_PROJECTS_COORDINATOR_DIR` names another, which should be used for nothing else: the board writes the Coordinator's rules there), started with the same
 arguments as any working agent: all its tools, nothing held back. It is started by your first message and stays; when
 its program exited or herdr restarted, your next message starts it again in the same conversation. The agent's own
 new-chat command (`/clear`, `/new`) is followed: the chat and a restart go with the conversation it is in now.
 
 **Its standing rules are a file in its folder.** What the Coordinator is and how it uses the board is written as
-`AGENTS.md` in the folder it starts in (`~/.herdr-superwork/data/coordinator/<session>/chat`, see
+`AGENTS.md` in the folder it starts in (`~/.herdr-projects/data/coordinator/<session>/chat`, see
 [the home folder](home-folder.md)), and the program reads that file by itself at the start of every conversation.
 So it still knows its rules after its own `/new` or `/clear`, after `coordinator restart` and `coordinator new`,
 after `coordinator new --agent <another kind>` (the next program reads the same file), and when you start the
@@ -58,10 +58,10 @@ restored. For example "Added proj/12 and started an agent on it". The commands a
 On the board you talk to it through the chat and read its latest message there (`Alt+C` shows and hides it): only
 what it said and what you said to it, never its program's screen ([the board](board.md)). For the
 whole conversation, its dialogs, its slash commands and its menus you **go into it** in herdr, not from the board:
-it is an ordinary agent in the `Coordinator` tab of your home space, and the plugin action `herdr-superwork.coordinator` (bind a
+it is an ordinary agent in the `Coordinator` tab of your home space, and the plugin action `herdr-projects.coordinator` (bind a
 key to it) goes straight to its pane from anywhere in herdr, starting it first when it is not running. From there
 you get back to the board, or go anywhere else in herdr, the way you do from every other agent: your board key, or
-`herdr-superwork`.
+`herdr-projects`.
 
 **Where it lives in herdr.** The Coordinator has no herdr space of its own in the sidebar: it is a tab named
 `Coordinator` in the home space, the one herdr labels `~`. It is a whole tab, never a pane inside one of yours. In the
@@ -95,5 +95,5 @@ sidebar's list of agents it is named `Coordinator` and stands as the line above 
 Restarting it (the same conversation) and starting a new one (a fresh conversation) are commands, not keys of the
 board: `coordinator restart` and `coordinator new`. For a different one this once, use `coordinator new --agent …`
 below: your default stays as it is. From a shell, or by asking it:
-`herdr-superwork coordinator` (how it stands), `coordinator tell <text>`, `coordinator restart`,
+`herdr-projects coordinator` (how it stands), `coordinator tell <text>`, `coordinator restart`,
 `coordinator new [--agent KIND[/MODEL]] [--effort E]`, `coordinator stop`.

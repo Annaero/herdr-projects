@@ -76,7 +76,7 @@ pub fn follow(door: u16, was: Option<u16>, web: Option<u16>) {
 pub fn unlink(door: Option<u16>, web: Option<u16>) -> Result<usize, String> {
     let mine = recorded();
     if mine.is_empty() { return Ok(0); }
-    let all = read().ok_or("Tailscale did not answer, so the web UI's link was left as it is. Try again: herdr-superwork web-ui unlink")?;
+    let all = read().ok_or("Tailscale did not answer, so the web UI's link was left as it is. Try again: herdr-projects web-ui unlink")?;
     let mut n = 0;
     for r in mine { if let Some(e) = all.iter().find(|x| x.https as i64 == r.i("https")) { if Some(e.to) == door { point(r.i("https") as u16, web.unwrap_or(r.i("was") as u16)); n += 1; } } }
     note(json!({ "webUiLinks": [] }));

@@ -64,7 +64,7 @@ pub fn open_board(folder: &std::path::Path) -> i32 {
         let _ = terminal.draw(|f| {
             let area = f.area();
             let drawn = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| screen(&mut s, &theme, area.width as usize, area.height as usize)));
-            let lines = match drawn { Ok(sc) => { at = sc.cursor; sc.lines } Err(_) => vec![crate::shown::ink::Inked::plain(" herdr-superwork view error"), crate::shown::ink::Inked::plain(format!(" press {} to close", crate::board::keys::key_name("back")))] };
+            let lines = match drawn { Ok(sc) => { at = sc.cursor; sc.lines } Err(_) => vec![crate::shown::ink::Inked::plain(" herdr-projects view error"), crate::shown::ink::Inked::plain(format!(" press {} to close", crate::board::keys::key_name("back")))] };
             links = draw::draw(&theme, &lines, f.buffer_mut());
             sel.capture(f.buffer_mut());
             sel.paint(f.buffer_mut());

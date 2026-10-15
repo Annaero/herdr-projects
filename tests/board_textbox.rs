@@ -26,7 +26,7 @@ fn a_long_draft_wraps_between_words_and_the_box_grows_with_it() {
         assert_eq!(d.cursor, (d.rows.len() - 1, d.rows.last().unwrap().chars().count()), "the cursor is after the last word");
     }
     assert_eq!(s.draft(40).rows.len(), 8);
-    assert!(s.draft(40).lines[0].contains("herdr-superwork"));
+    assert!(s.draft(40).lines[0].contains("herdr-projects"));
     s.press(&["esc"]); assert_eq!(s.draft(40).rows.len(), 1);
 }
 

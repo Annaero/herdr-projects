@@ -33,7 +33,7 @@ fn a_task_already_stuck_re_armed_is_handed_to_the_human_never_finished_by_itself
     // a reply sent from the board looks like this for a moment: nothing happens at once
     on_pane(&w, &pane);
     assert_eq!((task(&id).t("stage"), jobs().len()), ("working".into(), 0));
-    unsafe { std::env::set_var("HERDR_SUPERWORK_REOPEN_MS", "0") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_REOPEN_MS", "0") };
     // the runner asks herdr itself: while herdr says the agent works, a late "done" from a replaced terminal finishes nothing
     let real = api(&w).agent_get(&pane).unwrap().unwrap();
     std::fs::write(tree.join("half.txt"), "not finished\n").unwrap();
@@ -95,5 +95,5 @@ fn a_task_already_stuck_re_armed_is_handed_to_the_human_never_finished_by_itself
     std::fs::File::options().write(true).open(&note).unwrap().set_modified(std::time::SystemTime::now() + std::time::Duration::from_millis(50)).unwrap();
     on_pane(&w, &pane);
     assert_eq!((task(&id).t("stage"), jobs().len()), ("working".into(), 0));
-    unsafe { std::env::remove_var("HERDR_SUPERWORK_REOPEN_MS") };
+    unsafe { std::env::remove_var("HERDR_PROJECTS_REOPEN_MS") };
 }

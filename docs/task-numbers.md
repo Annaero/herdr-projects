@@ -1,6 +1,6 @@
 # Task numbers and repo keys
 
-Every task has an id, `herdr-superwork/134`: its repo's name on the board and its number in that repo. Every repo and
+Every task has an id, `herdr-projects/134`: its repo's name on the board and its number in that repo. Every repo and
 folder has a short key of its own too, so a task is called `HSW-134`, and that is the name the board shows on every
 row and in every message: never a bare `#134`.
 
@@ -62,7 +62,7 @@ row and in every message: never a bare `#134`.
 | Where | What it shows |
 |---|---|
 | the list, the archive, find: one-, two- and three-line rows, of every group | the tag, as above |
-| the task panel and the details page | the tag before the title, greyed; the heading says `Task details  HSW-134 "its title"`. The id itself (`herdr-superwork/134`) stands once, on the whole task, as `Task id` with the session: where a command needs it |
+| the task panel and the details page | the tag before the title, greyed; the heading says `Task details  HSW-134 "its title"`. The id itself (`herdr-projects/134`) stands once, on the whole task, as `Task id` with the session: where a command needs it |
 | the chat's line that names who you talk to | the tag between the mark and the task's name; a window too narrow to leave the status 20 cells goes without it |
 | an automation's firings | `made HSW-140`, on the board and on the command line |
 | the board's own messages | the tag and the title, in one form: `Archived HSW-134 "Fix the footer".`, `Pinned HSW-14 "…" to the top.`, `Stopped HSW-14 "…".`, `Removed …`; a message an action wrote with the id reads with the tag too (`HSW-14: approved, merging`). Only a line that shows a command to run keeps the id the command takes. Pinning says so, and an action on another machine says what it is doing there (`Pinning HSW-2 on otherbox…`), never a bare `…` |
@@ -70,7 +70,7 @@ row and in every message: never a bare `#134`.
 | the web board | the same tag on each row, in the same column and with the same limit on the space before a title; what a task says and its bar start under the title, not under the tag; a list too narrow to leave the widest tag's title 16 letters shows no tags, on every row at once; before the task's title when one is open, and in the chat's line |
 
 **The key beside a repo's name.** Where the board names a repo, its key stands beside the name, dimmed:
-`gtm-agent · AGT`. That is the board's top line, which names the repo new tasks go to (`herdr-superwork  gtm-agent ·
+`gtm-agent · AGT`. That is the board's top line, which names the repo new tasks go to (`herdr-projects  gtm-agent ·
 AGT · 3 to do`, on the web board too), a repo's heading in the list grouped by repo (on the web board too), the
 `Task id` row of the whole task (`gtm-agent/12 · AGT`) and an automation's `Repo` row. Never on a task's row, which starts with the key
 already (`AGT-12`). On a narrow screen a heading is cut at its end, so the key goes first and the name stays.
@@ -81,11 +81,11 @@ already (`AGT-12`). On a narrow screen a heading is cut at its end, so the key g
 |---|---|
 | a command's answer and its error (`describe`, `delegate`, `archive`, …) | `HSW-134: updated (description)` |
 | the board's messages, also what a command answered through the board | `HSW-135: restored` |
-| what a task's agent is told about its own task | `its id on the work board is herdr-superwork/134; the human also calls it HSW-134, and every command takes that name too` |
-| a pull request's body, and the commit the board makes | `Task: HSW-134 (herdr-superwork/134)` |
+| what a task's agent is told about its own task | `its id on the work board is herdr-projects/134; the human also calls it HSW-134, and every command takes that name too` |
+| a pull request's body, and the commit the board makes | `Task: HSW-134 (herdr-projects/134)` |
 
 The id itself is kept where a program reads it, since it is the task's real name and the one that never changes:
-`--json` (the list's first column, `herdr-superwork list`, is the short name, lined up), branch names, folders and paths (an id inside a path is
+`--json` (the list's first column, `herdr-projects list`, is the short name, lined up), branch names, folders and paths (an id inside a path is
 never rewritten), and the commands an agent is given to run.
 
 ## A short key for every repo
@@ -95,7 +95,7 @@ belongs to the folder it was added in, so it has that folder's key too (`HOME-3`
 
 **Made from the name, at once.** The moment the board first sees a repo or folder (a task is added there, the board
 is opened there, the Coordinator files a task there), it makes a key from its name and saves it as your entry for
-that repo, in `~/.herdr-superwork/settings/config.json`:
+that repo, in `~/.herdr-projects/settings/config.json`:
 
 ```json
 { "repos": { "gtm-skills": { "repo": { "key": "SKL" } } } }
@@ -103,7 +103,7 @@ that repo, in `~/.herdr-superwork/settings/config.json`:
 
 | Name | Key | How |
 |---|---|---|
-| `herdr-superwork` | `HSW` | three words or more (a long word parts where a word would: `super` `work`): their first letters |
+| `team-paperwork` | `TPW` | three words or more (a long word parts where a word would: `paper` `work`): their first letters |
 | `gtm-skills`, `open-crm` | `SKL`, `CRM` | two words: the last one, which says what it is; a short word as it is, a longer one by its first letter and the consonants after it |
 | `proj`, `tmp`, `repo` | `PRJ`, `TMP`, `REPO` | one word: the same; a word with too few consonants by its first four letters |
 | `proj-2` | `PRJ2` | a number in the name goes at the end |
@@ -113,18 +113,18 @@ A key is never one another repo on this machine has, or once had. When the best 
 the name is tried (`PRO` for a second `proj`), then the best one with a number (`PRJ2`, `PRJ3`, …). The same names
 always give the same keys.
 
-**Kept.** A key you set, or one the repo's own `.herdr-superwork.json` says, is never overwritten: the board only gives
+**Kept.** A key you set, or one the repo's own `.herdr-projects.json` says, is never overwritten: the board only gives
 a key to a repo that has none. Where two repos already say the same key (two entries written by hand, or two repos'
 files), the repo the board knew first keeps it, and the other goes by a **stand-in** the board makes for it. So does a
 repo whose own file (or your entry for it) says a key another repo once went by: that key stays the other repo's. The
 stand-in is kept in
-`~/.herdr-superwork/data/repo-keys.json`, never in your settings: what you wrote stays as you wrote it. `show --repo`
+`~/.herdr-projects/data/repo-keys.json`, never in your settings: what you wrote stays as you wrote it. `show --repo`
 says so (`not used: another repo has or had the same key; its tasks go by BETA`), and so does the board's note on upgrade
 (`BETA for beta (its own KEEP is proj's too)`). Set another key for that repo and the stand-in goes.
 
 **On upgrade.** The first time this version runs, every repo the board already knew without a key gets one, once, and
 the board says which when it next opens: `Every repo and folder has a short key now: HOME for exedev, ROOT for home.
-Change one: herdr-superwork set repo.key <KEY> --repo <name>`. A key taken out of your file by hand is given again
+Change one: herdr-projects set repo.key <KEY> --repo <name>`. A key taken out of your file by hand is given again
 the next time the board opens, and said the same way.
 
 **Changing it.** `repo.key` is a setting ([settings](settings.md)) with a rule of its own, because it is a fact about
@@ -133,12 +133,12 @@ one repo and never about one task or about all repos:
 **your entry for the repo → the repo's own file → the one the board makes.**
 
 ```
-herdr-superwork set repo.key HSW --repo herdr-superwork     your entry for that repo
-herdr-superwork unset repo.key --repo herdr-superwork       back to the repo's file's key, or to the one made from its name
-herdr-superwork show --repo herdr-superwork                 what it is and where it comes from
+herdr-projects set repo.key HSW --repo herdr-projects     your entry for that repo
+herdr-projects unset repo.key --repo herdr-projects       back to the repo's file's key, or to the one made from its name
+herdr-projects show --repo herdr-projects                 what it is and where it comes from
 ```
 
-or, to let it travel with the repo, in the repo's own `.herdr-superwork.json` (it counts where your entry says none):
+or, to let it travel with the repo, in the repo's own `.herdr-projects.json` (it counts where your entry says none):
 
 ```json
 { "repo": { "key": "HSW" } }
@@ -152,7 +152,7 @@ The Coordinator sets or changes a key when you ask it to, with the same command.
   without one: it goes back to the repo's file's key, or to the one made from the name, and says which.
 - It is refused on a task (`--task`) and for yourself (no `--repo`), with how to set it.
 - **Two repos, one key: refused.** `set` refuses a key another repo already has and names that repo. It refuses a key
-  another repo *had* too (`HS was herdr-superwork's key and still names herdr-superwork's tasks`), so an old name never comes to
+  another repo *had* too (`HS was herdr-projects's key and still names herdr-projects's tasks`), so an old name never comes to
   point at another repo's task; a repo may take back a key it had itself. A repo's own
   file can still bring a key another repo has (nobody is asked when a file changes): then your own entry wins over a
   file, and of two repos that say it in the same kind of place, the one the board knew first keeps it; the other goes
@@ -165,16 +165,16 @@ The Coordinator sets or changes a key when you ask it to, with the same command.
 `HSW-134`, in any letter case, is accepted wherever an id is: every command (`details`, `delegate`, `tell`, `stop`,
 `approve`, `review`, `retry`, `fix`, `finish`, `report`, `describe`, `pin`, `archive`, `restore`, `clear`,
 `show`, `set … --task`), so "start HSW-134" is
-`herdr-superwork delegate HSW-134`. The Coordinator's rules and the skill say so too.
+`herdr-projects delegate HSW-134`. The Coordinator's rules and the skill say so too.
 
 The id keeps working and stays the task's real id: nothing is stored under a key. Changing a key breaks nothing: the
 id still names the task, and so does the old key (`HS-134` after `HS` became `HSW`), however the key changed: by
 `set`, by hand in your settings, or in the repo's own file. The board puts every key a repo goes by on record, in
-`~/.herdr-superwork/data/repo-keys.json`, as that repo's for good: no other repo may take it, by `set` or by its file.
+`~/.herdr-projects/data/repo-keys.json`, as that repo's for good: no other repo may take it, by `set` or by its file.
 
 ## Finding a task
 
 In find (`Ctrl+F` on the board, the search box on the web board), a task is found by its number and its tag as well
 as by its words: `134`, `#134` and `hsw-134` all match it. What you type still filters as you type (`13` also shows
 `HSW-13` and `HSW-135`); when it is exactly one task's number or tag, the selection goes to that task.
-`herdr-superwork list --query` matches them the same way.
+`herdr-projects list --query` matches them the same way.

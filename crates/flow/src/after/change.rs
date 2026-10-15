@@ -1,4 +1,4 @@
-//! `herdr-superwork after <id> [<id>,…] [--clear]`: what a task waits for, said, changed or dropped on a task that
+//! `herdr-projects after <id> [<id>,…] [--clear]`: what a task waits for, said, changed or dropped on a task that
 //! exists. A task that waits already goes on waiting for the new list (or starts, when all of it is done); one dropped
 //! from waiting goes on to a slot at once. A task an agent is on cannot be made to wait: the wait is before the start.
 use super::{after_of, checked, names, pass::refresh, say, standing, STAGE};

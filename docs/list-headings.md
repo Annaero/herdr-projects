@@ -7,7 +7,7 @@ status groups) under it, and their tasks under those.
 
 ```
  ▾ vm-str ─────────────────────────────────────────────────────────
- ▾ herdr-superwork · HSW
+ ▾ herdr-projects · HSW
  ◐ HSW-151 Rewrite the board in Rust on Ratatui           47%   3h
  ○ HSW-179 Remove the "To: Coordinator" label          1h ago
 
@@ -22,7 +22,7 @@ status groups) under it, and their tasks under those.
   where it stands there ([machine order](machine-order.md)). A machine with no task in view has no heading; one whose tasks cannot be read says so above the list, as always.
 - **A row never names its machine.** Its tag is the one it has on its own machine's board, the repo's key with the
   number (`HSW-151`, [task numbers](task-numbers.md)): the heading above it says whose it is. A repo's heading is its
-  name with its key beside it, dimmed (`herdr-superwork · HSW`), never `vm-str:herdr-superwork`. The repo the board is
+  name with its key beside it, dimmed (`herdr-projects · HSW`), never `vm-str:herdr-projects`. The repo the board is
   in comes first on each machine.
 - **On one machine** (this machine's board, or one other machine by itself) there is no machine heading: the list is
   as it always was.

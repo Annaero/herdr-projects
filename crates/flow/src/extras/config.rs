@@ -14,11 +14,11 @@ pub fn herdr_config() -> PathBuf {
     let base = std::env::var("XDG_CONFIG_HOME").map(PathBuf::from).unwrap_or_else(|_| crate::store::files::user_home().join(".config"));
     base.join("herdr").join("config.toml")
 }
-fn begin(what: &str) -> String { format!("# >>> herdr-superwork {what} (added by the herdr-superwork plugin; `herdr-superwork remove-extras` removes it)") }
-fn end(what: &str) -> String { format!("# <<< herdr-superwork {what}") }
+fn begin(what: &str) -> String { format!("# >>> herdr-projects {what} (added by the herdr-projects plugin; `herdr-projects remove-extras` removes it)") }
+fn end(what: &str) -> String { format!("# <<< herdr-projects {what}") }
 fn block(what: &str, arg: &str) -> String {
     match what {
-        "key" => format!("[[keys.command]]\nkey = \"{arg}\"\ntype = \"plugin_action\"\ncommand = \"herdr-superwork.open\"\ndescription = \"work board\""),
+        "key" => format!("[[keys.command]]\nkey = \"{arg}\"\ntype = \"plugin_action\"\ncommand = \"herdr-projects.open\"\ndescription = \"work board\""),
         // Row 1: herdr's dot, the machine where there is more than one, and the space's name, which for a task is its
         // number and title (flow/sidebar.rs); the tab's name too, but not a task's own tabs. Row 2: who is on it and
         // where it stands. Row 3: what it says, its percent and time left.
@@ -41,7 +41,7 @@ fn herdr_out(a: &[&str], env: Option<(&str, String)>) -> Option<(i32, String)> {
 pub fn offers() -> Value {
     let text = read();
     let x = extras();
-    let bound = regex::Regex::new(r#"command\s*=\s*["']herdr-superwork\.open["']"#).unwrap().is_match(&text);
+    let bound = regex::Regex::new(r#"command\s*=\s*["']herdr-projects\.open["']"#).unwrap().is_match(&text);
     let offer_key = !bound && x.s("key") != "no"; // an existing binding is left as it is
     let (key, note) = if offer_key && !x.b("asked") { keys::suggest(&text, &keys::defaults()) } else { (String::new(), String::new()) };
     let sidebar = !crate::re!(r"(?m)^\s*\[ui\.sidebar").is_match(&text) && x.s("sidebarAnswer") != "no";
@@ -50,7 +50,7 @@ pub fn offers() -> Value {
 /// The key that opens the board, as herdr's config binds it ("prefix+w"), or "" when none is bound.
 pub fn board_key() -> String {
     let text = read();
-    let re = regex::Regex::new(r#"\[\[keys\.command\]\][^\[]*?command\s*=\s*"herdr-superwork\.open""#).unwrap();
+    let re = regex::Regex::new(r#"\[\[keys\.command\]\][^\[]*?command\s*=\s*"herdr-projects\.open""#).unwrap();
     let Some(m) = re.find(&text) else { return String::new() };
     regex::Regex::new(r#"(?m)^\s*key\s*=\s*"([^"]+)""#).unwrap().captures(m.as_str()).map(|c| c[1].to_string()).unwrap_or_default()
 }
@@ -86,7 +86,7 @@ pub fn add_block(what: &str, arg: &str) -> Result<String, (String, Option<String
     let next = format!("{text}{}\n{b}\n", if !text.is_empty() && !text.ends_with('\n') { "\n" } else { "" });
     let paste = format!("Could not change {}. Add this to it yourself, then run: herdr server reload-config\n\n{b}", tilde(&file.display().to_string()));
     accepted(&next).map_err(|why| (format!("herdr would reject that: {why}"), None))?;
-    let backup = PathBuf::from(format!("{}.bak-herdr-superwork", file.display()));
+    let backup = PathBuf::from(format!("{}.bak-herdr-projects", file.display()));
     let existed = file.exists();
     if existed && is_link() { return Err((paste, Some(b))); } // a managed link: not ours to rewrite
     let wrote = (|| -> std::io::Result<()> { if let Some(d) = file.parent() { std::fs::create_dir_all(d)?; } if existed { std::fs::copy(&file, &backup)?; } std::fs::write(&file, &next) })();
@@ -113,7 +113,7 @@ pub fn refresh_sidebar() -> bool {
     with_lock_wait("extras", 15000, || {
         let next = format!("{}{want}{}", &text[..at], &text[e..]);
         if accepted(&next).is_err() { return Ok(false); }
-        if std::fs::copy(&file, format!("{}.bak-herdr-superwork", file.display())).is_err() || std::fs::write(&file, &next).is_err() { return Ok(false); }
+        if std::fs::copy(&file, format!("{}.bak-herdr-projects", file.display())).is_err() || std::fs::write(&file, &next).is_err() { return Ok(false); }
         let r = launch(None, &["server".into(), "reload-config".into()], "", 15000).map(|r| r.stdout).unwrap_or_default();
         if regex::Regex::new(r#""status":\s*"failed""#).unwrap().is_match(&r) { let _ = std::fs::write(&file, &text); let _ = launch(None, &["server".into(), "reload-config".into()], "", 15000); return Ok(false); }
         Ok(true)
@@ -131,11 +131,11 @@ pub fn remove_blocks(what: Option<&str>) -> bool {
     let file = herdr_config();
     let text = read();
     let w = what.map(regex::escape).unwrap_or_else(|| "[^\\n]*".into());
-    if !regex::Regex::new(&format!("(?m)^# >>> herdr-superwork {w}")).unwrap().is_match(&text) { return false; }
-    let blocks = regex::Regex::new(&format!(r"\n?# >>> herdr-superwork {w}[^\n]*\n(?s:.*?)# <<< herdr-superwork {w}[^\n]*\n?")).unwrap();
+    if !regex::Regex::new(&format!("(?m)^# >>> herdr-projects {w}")).unwrap().is_match(&text) { return false; }
+    let blocks = regex::Regex::new(&format!(r"\n?# >>> herdr-projects {w}[^\n]*\n(?s:.*?)# <<< herdr-projects {w}[^\n]*\n?")).unwrap();
     let next = blocks.replace_all(&text, "\n").to_string();
     let next = crate::re!(r"\n{3,}").replace_all(&next, "\n\n").to_string();
-    if std::fs::copy(&file, format!("{}.bak-herdr-superwork", file.display())).is_err() || std::fs::write(&file, next).is_err() { return false; }
+    if std::fs::copy(&file, format!("{}.bak-herdr-projects", file.display())).is_err() || std::fs::write(&file, next).is_err() { return false; }
     reload();
     true
 }

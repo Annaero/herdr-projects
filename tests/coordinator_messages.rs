@@ -15,8 +15,8 @@ pub fn coord_world_with(settings: Value) -> World {
     let w = world_with(Opts { repo: true, settings: s, ..Default::default() });
     let home = w.base.join("home-coord");
     std::fs::create_dir_all(&home).unwrap();
-    unsafe { std::env::set_var("HERDR_SUPERWORK_COORDINATOR_DIR", &home) };
-    unsafe { std::env::remove_var("HERDR_SUPERWORK_HANDLED_MS") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_COORDINATOR_DIR", &home) };
+    unsafe { std::env::remove_var("HERDR_PROJECTS_HANDLED_MS") };
     w
 }
 fn has(text: &str, re: &str) -> bool { regex::Regex::new(re).unwrap().is_match(text) }
@@ -66,7 +66,7 @@ fn what_you_say_is_never_lost_a_dialog_on_its_screen_holds_it_a_failed_start_say
     assert_eq!(same, vec!["same words".to_string(), format!("same words\n\n{}", tab_note())]);
     assert_eq!(wheres(&w)[wheres(&w).len() - 2..].to_vec(), vec![s3("same words", "proj", false), s3("same words", "elsewhere", true)]);
     // The list is full (five that went in). One more that a dialog refuses takes nothing away from the oldest.
-    unsafe { std::env::set_var("HERDR_SUPERWORK_HANDLED_MS", "0") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_HANDLED_MS", "0") };
     tell(&w, &w.root, "fifth", false); drain();
     let full = said(&w); assert_eq!(full, vec!["first", "later", "same words", "same words", "fifth"]);
     status(&w, "blocked");
@@ -98,13 +98,13 @@ fn what_you_say_is_never_lost_a_dialog_on_its_screen_holds_it_a_failed_start_say
     tell(&w, &w.root, "after", false); drain();
     assert_eq!(said(&w), vec!["busy 66", "busy 67", "busy 68", "after the restart", "after"]);
     // A message typed in a moment ago may not have set it working yet: it is not taken for dealt with.
-    unsafe { std::env::set_var("HERDR_SUPERWORK_HANDLED_MS", "15000") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_HANDLED_MS", "15000") };
     w.script(json!({ "coordinator": (0..6).map(|_| json!({ "said": "ok" })).collect::<Vec<_>>() }));
     for n in 1..=6 { tell(&w, &w.root, &format!("quick {n}"), false); }
     drain();
     assert_eq!(look(&so).state, "idle");
     assert_eq!(said(&w), std::iter::once("after".to_string()).chain((1..=6).map(|n| format!("quick {n}"))).collect::<Vec<_>>());
-    unsafe { std::env::remove_var("HERDR_SUPERWORK_HANDLED_MS") };
+    unsafe { std::env::remove_var("HERDR_PROJECTS_HANDLED_MS") };
     // A program that is not installed cannot be started: the reason shows, and the words wait.
     // Only pi is missing: claude stays installed as the world has it, never asked of this machine.
     let versions = sw::store::files::data_dir().join("versions.json");

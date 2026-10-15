@@ -12,7 +12,7 @@ use super::settings::places::write_yours;
 use crate::json::*;
 use std::path::{Path, PathBuf};
 
-/// `{ "upgraded": true, "had": { "HS": "herdr-superwork" }, "standIn": { "beta": "BETA" }, "untold": [["exedev", "HOME"]] }`.
+/// `{ "upgraded": true, "had": { "HS": "herdr-projects" }, "standIn": { "beta": "BETA" }, "untold": [["exedev", "HOME"]] }`.
 pub fn record_file() -> PathBuf { data_dir().join("repo-keys.json") }
 fn file() -> PathBuf { record_file() }
 fn read() -> Obj { read_obj(&file()).unwrap_or_default() }
@@ -94,7 +94,7 @@ pub fn keys_note() -> String {
         let why = |repo: &str| all.iter().find(|s| s.repo == repo && s.place != "standin").and_then(|s| have.iter().find(|(r, k)| **k == s.key && *r != repo).map(|(r, _)| format!(" (its own {} is {r}'s too)", s.key))).unwrap_or_default();
         let untold: Vec<String> = o.arr("untold").iter().map(|p| { let p = strings(p); let repo = p.first().cloned().unwrap_or_default(); format!("{} for {repo}{}", p.get(1).cloned().unwrap_or_default(), why(&repo)) }).collect();
         if untold.is_empty() { return Ok(()); }
-        said = format!("Every repo and folder has a short key now: {}. Change one: herdr-superwork set repo.key <KEY> --repo <name>", untold.join(", "));
+        said = format!("Every repo and folder has a short key now: {}. Change one: herdr-projects set repo.key <KEY> --repo <name>", untold.join(", "));
         o.shift_remove("untold");
         write(o);
         Ok(())

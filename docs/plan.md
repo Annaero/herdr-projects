@@ -25,9 +25,9 @@ writes cannot switch a plan's approval on or off.
   Who writes the plan. `none`: the working agent. A program: a planner of its own.
 
 ```
-herdr-superwork delegate 12 --plan.approve you                                    # show me the plan first
-herdr-superwork delegate 12 --plan.approve you --plan.agent claude/claude-opus-5-5 # a strong model plans, the usual one builds
-herdr-superwork set plan.approve reviewer --repo my-app                           # in this repo the reviewer checks every plan
+herdr-projects delegate 12 --plan.approve you                                    # show me the plan first
+herdr-projects delegate 12 --plan.approve you --plan.agent claude/claude-opus-5-5 # a strong model plans, the usual one builds
+herdr-projects set plan.approve reviewer --repo my-app                           # in this repo the reviewer checks every plan
 ```
 
 To the [Coordinator](coordinator.md) the same is plain words: "show me the plan first", "have Opus plan it".
@@ -53,7 +53,7 @@ landed (delegated again after its clean-up) starts with a new plan.
   settings say so in a `Note`. After the yes its tab closes, and **its time and tokens are kept on the task** (the
   plan's part of the task panel: `Planner used 51s · 18k in · 29 out`).
 
-The plan is one file, `plan.md`, in the task's own folder on the board (`~/.herdr-superwork/data/tasks/<repo>/<n>/artifacts/plan/`),
+The plan is one file, `plan.md`, in the task's own folder on the board (`~/.herdr-projects/data/tasks/<repo>/<n>/artifacts/plan/`),
 never in the repo. An agent that stopped without saving one: its last message is the plan. Nothing said either:
 `No plan was written`, which goes back to the agent like any failure. A plan that went back and was not saved
 again is the old one: then what its writer said last is the new plan, and with nothing said there is no new plan.
@@ -112,9 +112,9 @@ The plan is shown in the task panel under **Plan**: where it stands, who wrote i
 lines beside the list, all of it full screen) and **`Open plan`**, a private link served the way a report's is. The
 web Board shows the same part, and its buttons are the same two things:
 
-- **Yes** (the approve key, `ctrl+l`; `herdr-superwork approve <id>`): the plan is approved as it stands and the
+- **Yes** (the approve key, `ctrl+l`; `herdr-projects approve <id>`): the plan is approved as it stands and the
   build starts.
-- **A reply** (`space`, then your words; `herdr-superwork tell <id> <text>`): the plan goes back to its writer with
+- **A reply** (`space`, then your words; `herdr-projects tell <id> <text>`): the plan goes back to its writer with
   those words, and it is written again. The task is plan ready again when the new plan is there.
 
 ## The reviewer's look

@@ -1,5 +1,5 @@
 //! The board's keys, each one defined once: the ? menu, the hint line, the words that name a key and docs/keys.md are
-//! all made from this list. To add or change a key, change its entry here and run `herdr-superwork docs`.
+//! all made from this list. To add or change a key, change its entry here and run `herdr-projects docs`.
 //!
 //! One rule sorts them: ctrl does something; alt only shows or hides a part of the screen and never changes anything.
 //! A chord that is not in this list does nothing on the board. What each key does is board/update.rs, which matches
@@ -61,7 +61,7 @@ pub static KEYS: &[Key] = &[
     Key { id: K::Pin, name: "pin", keys: &["ctrl+p"], raw: &[], show: None, gap: None, group: Some("ctrl"), with: None, fixed: false, draft: false, web: Some("Pin"), help: None, hint: None,
         doc: Some("pin the selected task to the top, or unpin it") },
     Key { id: K::Settings, name: "settings", keys: &["ctrl+e"], raw: &[], show: None, gap: None, group: Some("ctrl"), with: None, fixed: false, draft: false, web: Some("Settings"), help: None, hint: None,
-        doc: Some("the selected task's settings, full screen: every work setting by its name and its value. {up} {down} move to a row; {enter} changes it (a switch or a choice goes to its next value, anything else is typed and saved with {enter}); rows set for this task only are marked `*` (where any other value comes from is `herdr-superwork show <id>`'s). {putBack} puts the selected row back to what it would be without this task's own answer. {back} or {settings} again goes back ([settings.md](settings.md)). On an automation's row: the automation's own settings, the same page") },
+        doc: Some("the selected task's settings, full screen: every work setting by its name and its value. {up} {down} move to a row; {enter} changes it (a switch or a choice goes to its next value, anything else is typed and saved with {enter}); rows set for this task only are marked `*` (where any other value comes from is `herdr-projects show <id>`'s). {putBack} puts the selected row back to what it would be without this task's own answer. {back} or {settings} again goes back ([settings.md](settings.md)). On an automation's row: the automation's own settings, the same page") },
     Key { id: K::PutBack, name: "putBack", keys: &["ctrl+u"], raw: &[], show: None, gap: None, group: None, with: Some("settings"), fixed: false, draft: false, web: None, help: None, hint: None,
         doc: None },
     Key { id: K::Undo, name: "undo", keys: &["ctrl+z"], raw: &[], show: None, gap: None, group: Some("ctrl"), with: None, fixed: false, draft: false, web: Some("Undo"), help: None, hint: None,

@@ -14,10 +14,10 @@ trap 'st=$?; [ "$st" = 0 ] || echo "The check stopped while $step (exit $st)." >
 quit() { echo "$1" >&2; trap - EXIT; exit 2; }
 here=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$here"
-# The folder checked is this one. The board runs a task's check with HERDR_SUPERWORK_REPO set to your own checkout
+# The folder checked is this one. The board runs a task's check with HERDR_PROJECTS_REPO set to your own checkout
 # (finish/pipeline.rs), and the program's made pages and rules follow that variable (docs.rs): taken along, the check
 # would read and write your checkout, not the task's.
-unset HERDR_SUPERWORK_REPO
+unset HERDR_PROJECTS_REPO
 fresh=0; names=""; since=""; again=0
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -32,7 +32,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 [ "$again" = 0 ] || [ -z "$names" ] || quit "check takes names of tests or --since, not both."
-say() { [ -n "$HERDR_SUPERWORK_PROGRESS" ] && printf '%s\n' "$1" > "$HERDR_SUPERWORK_PROGRESS" || true; }
+say() { [ -n "$HERDR_PROJECTS_PROGRESS" ] && printf '%s\n' "$1" > "$HERDR_PROJECTS_PROGRESS" || true; }
 if ! command -v cargo >/dev/null 2>&1; then
   for d in "$HOME/.cargo/bin"; do [ ! -x "$d/cargo" ] || PATH="$d:$PATH"; done
 fi
@@ -42,7 +42,7 @@ command -v cargo >/dev/null 2>&1 || quit "The check needs Rust (cargo): https://
 . scripts/build-cache.sh
 . scripts/share-cores.sh
 # The code as it stands, new files and uncommitted changes too, and the compiler that builds it.
-cache="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-superwork-check"
+cache="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-projects-check"
 stamp=""
 if git rev-parse --git-dir >/dev/null 2>&1; then
   idx=$(mktemp); cp "$(git rev-parse --git-path index)" "$idx" 2>/dev/null || true
@@ -68,9 +68,9 @@ cargo build --profile quick --quiet
 say "1/3 steps"
 # The made tables, written when out of date; then the rules (tests/guard.rs runs them too).
 step="writing the made tables"
-./target/quick/herdr-superwork docs
+./target/quick/herdr-projects docs
 step="checking the repo's rules"
-./target/quick/herdr-superwork docs --guard
+./target/quick/herdr-projects docs --guard
 say "2/3 steps"
 # The tests, split over several processes at once (scripts/run-tests.sh): every test, or those of the names given.
 step="running the tests"

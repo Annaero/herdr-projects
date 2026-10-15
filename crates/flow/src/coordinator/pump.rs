@@ -72,7 +72,7 @@ fn ensure(api: &Herdr, socket: &str) -> Res<(Obj, bool)> {
     let mut pane = if c.b("pane") { api.pane_get(c.s("pane")) } else { None };
     if c.b("workspace") { match move_over(api, socket, false) { Ok(p) => pane = p, Err(_) => { close_place(api, &c); let _ = change(socket, |c| { nowhere(c); true }); pane = None; } } }
     // A board kept somewhere else than the default is the board its commands must reach.
-    let env: Vec<(String, String)> = ["HERDR_SUPERWORK_DATA_DIR", "HERDR_SUPERWORK_CONFIG_DIR"].iter().filter_map(|k| std::env::var(k).ok().filter(|v| !v.is_empty()).map(|v| (k.to_string(), v))).collect();
+    let env: Vec<(String, String)> = ["HERDR_PROJECTS_DATA_DIR", "HERDR_PROJECTS_CONFIG_DIR"].iter().filter_map(|k| std::env::var(k).ok().filter(|v| !v.is_empty()).map(|v| (k.to_string(), v))).collect();
     let pane = match pane { Some(p) => p, None => open_tab(api, socket, &env)? };
     c = get(socket).unwrap_or_default();
     if api.agent_get(pane.s("pane_id"))?.is_some() { return Ok((c, false)); }

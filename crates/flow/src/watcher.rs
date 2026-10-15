@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
 /// Tests replace the model call with a stand-in: a JSON argv; the prompt arrives on stdin.
-fn stand_in() -> Option<Vec<String>> { std::env::var("HERDR_SUPERWORK_HELPER_CMD").ok().and_then(|v| serde_json::from_str::<Vec<String>>(&v).ok()).filter(|a| !a.is_empty()) }
+fn stand_in() -> Option<Vec<String>> { std::env::var("HERDR_PROJECTS_HELPER_CMD").ok().and_then(|v| serde_json::from_str::<Vec<String>>(&v).ok()).filter(|a| !a.is_empty()) }
 fn helper_command(prompt: &str, system: &str, lean: bool) -> Option<OneShot> {
     if let Some(o) = stand_in() { return Some(OneShot { command: o[0].clone(), args: o[1..].to_vec(), stdin: Some(format!("{}{prompt}", if system.is_empty() { String::new() } else { format!("{system}\n\n") })) }); }
     let a = agent_of(setting("watcher.agent", None).as_str().unwrap_or(""));
@@ -30,7 +30,7 @@ pub fn watcher_off() -> bool { setting("watcher.agent", None) == json!("none") }
 pub fn helpers_ready() -> bool { !watcher_off() && (stand_in().is_some() || one_shot(&agent_of(setting("watcher.agent", None).as_str().unwrap_or("")).kind, "", "", "", "", false).is_some()) }
 
 /// Helper calls are detached from the board's terminal (own session, no tty), so herdr does not mistake them for an
-/// agent in the board's pane. They find `herdr-superwork` on their PATH and never start the keeper.
+/// agent in the board's pane. They find `herdr-projects` on their PATH and never start the keeper.
 fn run_helper(cmd: OneShot, extra_env: &[(&str, &str)], done: impl FnOnce(i32, String, String) + Send + 'static) {
     use std::io::{Read, Write};
     use std::process::{Command, Stdio};
@@ -38,7 +38,7 @@ fn run_helper(cmd: OneShot, extra_env: &[(&str, &str)], done: impl FnOnce(i32, S
     let mut c = Command::new(&cmd.command);
     c.args(&cmd.args).current_dir(data_dir()).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
     let path = format!("{}:{}", shim().parent().map(|p| p.display().to_string()).unwrap_or_default(), std::env::var("PATH").unwrap_or_default());
-    c.env("PATH", path).env("HERDR_SUPERWORK_NO_KEEPER", "1");
+    c.env("PATH", path).env("HERDR_PROJECTS_NO_KEEPER", "1");
     for k in ["HERDR_PANE_ID", "HERDR_TAB_ID", "HERDR_WORKSPACE_ID", "HERDR_PLUGIN_ID", "HERDR_PLUGIN_CONTEXT_JSON", "HERDR_PLUGIN_EVENT", "HERDR_PLUGIN_EVENT_JSON", "HERDR_PLUGIN_ENTRYPOINT_ID"] { c.env_remove(k); }
     for (k, v) in extra_env { c.env(k, v); }
     detach(&mut c);

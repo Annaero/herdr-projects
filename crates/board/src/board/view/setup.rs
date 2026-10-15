@@ -8,7 +8,7 @@ pub fn setup_lines(s: &State, width: usize, rows: usize) -> Vec<Inked> {
     let st = s.setup.as_ref().unwrap();
     let wrap = |x: Inked, indent: &str| -> Vec<Inked> { x.wrap(width.saturating_sub(2 + indent.len()).max(10)).into_iter().map(|l| Inked::plain(indent).add(l)).collect() };
     let check = |on: bool| if on { Inked::of("[x]", Ink::Green) } else { Inked::of("[ ]", Ink::Muted) };
-    let mut l = vec![Inked::new(), Inked::plain("  ").add(Inked::plain("herdr-superwork · first run").bold()), Inked::new()];
+    let mut l = vec![Inked::new(), Inked::plain("  ").add(Inked::plain("herdr-projects · first run").bold()), Inked::new()];
     l.extend(wrap(Inked::of("Two things the board can add to herdr's settings. Both are optional.", Ink::Soft), "  "));
     if let Some((on, value, note)) = &st.key {
         l.push(Inked::new());
@@ -19,7 +19,7 @@ pub fn setup_lines(s: &State, width: usize, rows: usize) -> Vec<Inked> {
     }
     if let Some(on) = st.sidebar { l.push(Inked::new()); l.extend(wrap(Inked::of("2", Ink::Accent).add(Inked::plain("  ")).add(check(on)).add(Inked::plain(" Show each task's stage, and what it is doing, in herdr's sidebar")), "  ")); }
     l.push(Inked::new());
-    l.extend(wrap(Inked::of(format!("Saved in {} between two marker lines. The file is backed up first, and herdr-superwork remove-extras takes it all out again.", crate::store::marks::tilde(&st.file)), Ink::Muted), "  "));
+    l.extend(wrap(Inked::of(format!("Saved in {} between two marker lines. The file is backed up first, and herdr-projects remove-extras takes it all out again.", crate::store::marks::tilde(&st.file)), Ink::Muted), "  "));
     l.push(Inked::new());
     if st.typing {
         let v = s.value();

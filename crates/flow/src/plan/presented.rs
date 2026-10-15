@@ -1,5 +1,5 @@
 //! A program in its own plan mode presents its plan: the board takes it there, and the tool that would ask in the
-//! terminal is refused. `herdr-superwork plan-written` is run by the hook the board passes at launch (Claude Code's
+//! terminal is refused. `herdr-projects plan-written` is run by the hook the board passes at launch (Claude Code's
 //! PreToolUse on ExitPlanMode), inside the agent's turn. It saves the plan as the task's plan file, tells the agent on
 //! stderr to stop, and exits 2, which is how such a hook says no. Anything else is let through (exit 0).
 use super::{open, write_plan};

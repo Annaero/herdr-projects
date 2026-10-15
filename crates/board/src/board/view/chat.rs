@@ -67,7 +67,7 @@ fn coord_who(t: &Theme, v: &crate::coordinator::look::Look, screen: &str, fresh:
     let err = !v.error.is_empty();
     let word = if !err && fresh { "new reply".to_string() } else { coordinator_stands(&v.state, err) };
     let m = t.mark(if err { "error" } else if ["working", "starting"].contains(&v.state.as_str()) { "working" } else if v.state == "blocked" { "blocked" } else if v.state == "idle" { "idle" } else { "unknown" }, "");
-    let note = if v.stale { format!("your default is now {}: herdr-superwork coordinator new starts a new one on it", crate::coordinator::who::describe(v.def.as_ref())) } else { String::new() };
+    let note = if v.stale { format!("your default is now {}: herdr-projects coordinator new starts a new one on it", crate::coordinator::who::describe(v.def.as_ref())) } else { String::new() };
     let (parts, raw, mine) = if err { (vec![Part { text: format!("It could not be started: {}", v.error), tone: "red".into(), ..Default::default() }], false, false) } else { let (p, raw, mine, _) = coord_talk(v, screen); (p, raw, mine) };
     Who { mark: Inked::of(m, if err { Ink::Red } else { color }), name: "Coordinator".into(), status: coordinator_status(&word, v.queue), text: parts_text(&parts), parts, raw, mine, note, said: true,
         turn: v.turn.as_ref().map(|x| x.id.clone()).unwrap_or_default(), ink: if err { Ink::Red } else { color }, ..Default::default() }
@@ -82,7 +82,7 @@ fn far_who(s: &State, t: &Theme, far: &str) -> Who {
     }
     // An older version there sends nothing of it; a machine with none adds what you type as a task.
     let old = m.ok && m.coord.is_null();
-    let parts = if old { vec![Part { text: format!("{far} runs an older herdr-superwork, which does not send what its Coordinator says: update it there."), note: "old".into(), ..Default::default() }] } else { vec![] };
+    let parts = if old { vec![Part { text: format!("{far} runs an older herdr-projects, which does not send what its Coordinator says: update it there."), note: "old".into(), ..Default::default() }] } else { vec![] };
     let status = if m.coord.b("off") { "no Coordinator there: what you type is added as a task".to_string() } else { format!("what you type goes to {far}") };
     Who { mark: Inked::of(t.mark("unknown", ""), Ink::Muted), name, status, text: parts_text(&parts), parts, ink: Ink::Muted, ..Default::default() }
 }

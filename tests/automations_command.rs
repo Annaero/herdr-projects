@@ -28,7 +28,7 @@ fn like(text: &str, re: &str) { assert!(regex::Regex::new(re).unwrap().is_match(
 #[test]
 fn the_commands_add_list_show_change_set_unset_on_off_run_firings_remove_all_with_json() {
     let w = world();
-    like(&out(&w, &["automations"]), r"^No automations\. Make one: herdr-superwork automations add");
+    like(&out(&w, &["automations"]), r"^No automations\. Make one: herdr-projects automations add");
     assert_eq!(out(&w, &["automations", "add", "Old dependencies", "--prompt", "Look for dependencies that are out of date.", "--schedule", "mon 09:00", "--reviewer.agent", "claude", "--research"]),
         "Added the automation \"Old dependencies\": mon 09:00, in proj. Each firing adds a task and puts an agent on it.\n");
     let a = automation("old dependencies").unwrap();
@@ -77,6 +77,6 @@ fn the_commands_add_list_show_change_set_unset_on_off_run_firings_remove_all_wit
     assert_eq!(out(&w, &["automations", "on", "Dependencies"]), "\"Dependencies\" is on.\n");
     assert_eq!(out(&w, &["automations", "remove", "Dependencies"]), "Removed the automation \"Dependencies\". The tasks it made stay.\n");
     assert!(automations().is_empty()); assert!(firings_of(a.s("id")).is_empty()); assert_eq!(sw::store::tasks::list(Default::default()).len(), 1);
-    like(&out(&w, &["help"]), r"herdr-superwork automations \[add\|show\|change\|on\|off\|run\|firings\|remove\]");
+    like(&out(&w, &["help"]), r"herdr-projects automations \[add\|show\|change\|on\|off\|run\|firings\|remove\]");
     like(&out(&w, &["automations", "help"]), "--schedule {3}every 2h · daily 09:00");
 }

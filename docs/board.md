@@ -1,6 +1,6 @@
 # The board: the list and the chat
 
-**The header says where you are**, on one line: whose tasks show, then how many stand in each group (`herdr-superwork
+**The header says where you are**, on one line: whose tasks show, then how many stand in each group (`herdr-projects
 proj · 3 need you · 1 ready · 2 working · 12 to do · 30 done`). With other machines in view that comes first, in the
 accent colour, and is never cut (names too long for the line go on to the next one, whole): `all machines: otherbox`, or
 `only otherbox` ([other machines](other-machines.md)); otherwise it is the repo new tasks go to. There is no folder path
@@ -582,13 +582,13 @@ on).
 
 The key opens the board in a herdr tab of its own, named `board`, in the space you are in, and from then on goes to
 that running board from anywhere instead of opening a second one. A board you started yourself in a pane
-(`herdr-superwork` typed there) is found the same way, and the key puts the keyboard on it also when an agent's pane
+(`herdr-projects` typed there) is found the same way, and the key puts the keyboard on it also when an agent's pane
 is split beside it in the same tab. Pressed on the board itself, the key takes you back to the pane you came from, so
 it is a way there and a way back; when that pane is closed, or you started the board by hand, the board says on its
 message line that it is the board already. Closing the board (`Ctrl+C` twice) closes its tab. Outside a herdr client
 (plain SSH) the terminal becomes the agent's until you detach, and the board is back.
 
-**The board as a popup.** `herdr-superwork set board.open popup` makes the same key open the board as a popup, and
+**The board as a popup.** `herdr-projects set board.open popup` makes the same key open the board as a popup, and
 take it away again ([settings](settings.md)); `unset board.open` brings the tab back. It is herdr's own popup: a
 framed window with the board's name, in the middle of herdr's screen, nine tenths of its width and height. It is no
 pane and no tab and belongs to none: herdr draws it over whatever is there and changes nothing under it, so the
@@ -664,7 +664,7 @@ is the board's only while such a view holds the pane), and closing it where it r
 at once too. The line is not shown
 outside herdr, in a tmux inside the pane, or in herdr's popup (which has no pane of its own).
 
-**The board's tab is named `herdr-superwork`.** Run `herdr-superwork` in a terminal inside herdr and the tab that
+**The board's tab is named `herdr-projects`.** Run `herdr-projects` in a terminal inside herdr and the tab that
 terminal is in gets that name for as long as the board is open, so you can tell it from your other tabs. Only that one
 tab is renamed. When the board closes (also when it closes to take you into an agent) the tab gets back the name it had
 before; a name you gave it yourself while the board was open is kept. A board that was killed leaves the name, and the

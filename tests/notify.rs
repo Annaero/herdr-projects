@@ -34,7 +34,7 @@ fn board_notify_what_counts_as_an_event_and_none_bell_or_a_command_as_its_value(
     assert_eq!(event_of(&obj(json!({ "id": "p/1", "stage": "approval", "prFailure": { "title": "x" } }))), "needs you");
     assert_eq!(event_of(&obj(json!({ "id": "p/1", "stage": "failed", "archivedAt": 1 }))), "");
     assert_eq!(set_value("board.notify", &json!("Bell"), &Scope::you()).unwrap().value, json!("bell"));
-    assert_eq!(set_value("board.notify", &json!("notify-send \"$HERDR_SUPERWORK_TITLE\""), &Scope::you()).unwrap().value, json!("notify-send \"$HERDR_SUPERWORK_TITLE\""));
+    assert_eq!(set_value("board.notify", &json!("notify-send \"$HERDR_PROJECTS_TITLE\""), &Scope::you()).unwrap().value, json!("notify-send \"$HERDR_PROJECTS_TITLE\""));
     assert_eq!(unset_value("board.notify", &Scope::you()).unwrap().value, json!("none"));
     let t = obj(json!({ "id": "proj/1" }));
     let e = set_value("board.notify", &json!("bell"), &Scope::task(&t)).unwrap_err().msg;
@@ -53,13 +53,13 @@ fn board_notify_a_command_runs_once_per_event_with_the_task_s_id_title_and_what_
     assert_eq!(task(&id).s("stage"), "approval", "{}", task(&id).at("failure"));
     sw::clock::set(Some(sw::clock::now()));
     pass(); pass();
-    let mut env = vec![format!("HERDR_SUPERWORK_ID={id}"), "HERDR_SUPERWORK_TITLE=Ready soon".to_string(), "HERDR_SUPERWORK_EVENT=ready to approve".to_string()];
+    let mut env = vec![format!("HERDR_PROJECTS_ID={id}"), "HERDR_PROJECTS_TITLE=Ready soon".to_string(), "HERDR_PROJECTS_EVENT=ready to approve".to_string()];
     assert_eq!(ran(), vec![("tell-me".to_string(), env.clone())]); // once, however often the board looks
     put(&id, |t| { t.put("stage", "failed"); t.put("msg", "Check failed"); });
     pass(); pass();
     let events: Vec<String> = ran().iter().map(|(_, e)| e[2].clone()).collect();
-    env[2] = "HERDR_SUPERWORK_EVENT=failed".into();
-    assert_eq!(events, vec!["HERDR_SUPERWORK_EVENT=ready to approve".to_string(), env[2].clone()]);
+    env[2] = "HERDR_PROJECTS_EVENT=failed".into();
+    assert_eq!(events, vec!["HERDR_PROJECTS_EVENT=ready to approve".to_string(), env[2].clone()]);
     put(&id, |t| { t.put("stage", "working"); }); pass();
     assert!(task(&id).at("notice").is_null()); // nothing to tell: and the next event is new again
     // the bell: an open board rings for what happens while it is open, once, and not for what was already so

@@ -55,12 +55,12 @@ pub fn link_mode() -> &'static str {
     static MODE: OnceLock<&'static str> = OnceLock::new();
     MODE.get_or_init(|| {
         let has = std::process::Command::new("sh").args(["-c", "command -v tailscale"]).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().map(|s| s.success()).unwrap_or(false);
-        if std::env::var("HERDR_SUPERWORK_LINKS").as_deref() == Ok("local") || !has { "local" } else { "tailscale" }
+        if std::env::var("HERDR_PROJECTS_LINKS").as_deref() == Ok("local") || !has { "local" } else { "tailscale" }
     })
 }
 /// Where a task's saved artifacts are served from. Falls back to local when Tailscale is absent or sharing fails.
 pub fn artifact_base(id: &str) -> String {
-    if std::env::var("HERDR_SUPERWORK_NO_SERVER").as_deref() == Ok("1") { return String::new(); }
+    if std::env::var("HERDR_PROJECTS_NO_SERVER").as_deref() == Ok("1") { return String::new(); }
     let info = ensure_server();
     if !info.b("port") { return String::new(); }
     let local = format!("http://127.0.0.1:{}", info.i("port"));
@@ -78,7 +78,7 @@ pub fn publish_review(enabled: bool, dir: &Path, listed: &Value, review: &Value,
     Some(vec![json!({ "file": REVIEW_FILE, "caption": "Open review", "detail": "Work · verdict · selected evidence", "kind": "review", "link": link })])
 }
 
-// ---- `herdr-superwork serve`: 127.0.0.1 only; serves nothing but artifacts folders ------------------------------------
+// ---- `herdr-projects serve`: 127.0.0.1 only; serves nothing but artifacts folders ------------------------------------
 fn kind_of(file: &Path) -> &'static str {
     match file.extension().map(|e| e.to_string_lossy().to_lowercase()).as_deref() {
         Some("html") => "text/html; charset=utf-8", Some("png") => "image/png", Some("jpg") | Some("jpeg") => "image/jpeg", Some("gif") => "image/gif", Some("webp") => "image/webp",

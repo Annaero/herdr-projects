@@ -28,7 +28,7 @@ fn far(s: &mut State, r: &Obj, fx: &mut Vec<Effect>) {
     s.stick = r.t("id");
     // A machine on an older plugin sends no version and would not know "reopen": the pane it last named is opened.
     if m.version.is_empty() {
-        s.flash(format!("Update herdr-superwork on {host}: it cannot reopen a closed space yet."), Ink::Yellow);
+        s.flash(format!("Update herdr-projects on {host}: it cannot reopen a closed space yet."), Ink::Yellow);
         let pane = r.at("link").t("pane");
         return go(s, json!({ "machine": pc.id, "pane": pane, "workspace": pane.split(':').next().unwrap_or(""), "view": "chat" }));
     }

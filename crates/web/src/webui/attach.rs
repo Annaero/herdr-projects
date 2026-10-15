@@ -1,7 +1,7 @@
 //! A file attached in the web board's chat box (a picture pasted, dropped or picked, or any other file), kept where
 //! whoever gets the words can read it, as the herdr web UI keeps one beside its pane: the box then puts `@<path>` in
 //! the message, which the agent reads the file from. Beside the Coordinator in its own folder, beside a task's agent in
-//! its working folder (under `.herdr-superwork/files/`, which git is told to leave alone), and with no Coordinator in
+//! its working folder (under `.herdr-projects/files/`, which git is told to leave alone), and with no Coordinator in
 //! the board's own folder (the words become a task). Only on this machine: another machine's gets none.
 use super::web::Client;
 use crate::flow::task::RULE_DIR;
@@ -48,12 +48,12 @@ pub fn attach(c: &Client, args: &Value) -> Result<Value, String> {
 }
 fn too_big(name: &str) -> String { format!("Too large to attach: {}. A file can be up to 8 MB.", if name.is_empty() { "that file" } else { name }) }
 /// Written once, readable only by you, under a name no other file has. The folder's own `.gitignore` keeps it out of
-/// git, also in a repo that does not leave `.herdr-superwork/` alone.
+/// git, also in a repo that does not leave `.herdr-projects/` alone.
 pub fn keep(dir: &Path, name: &str, kind: &str, bytes: &[u8]) -> std::io::Result<PathBuf> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     std::fs::create_dir_all(dir)?;
-    // A link in the folder's place (`.herdr-superwork` or `files` in a working folder an agent writes in) would send
+    // A link in the folder's place (`.herdr-projects` or `files` in a working folder an agent writes in) would send
     // the file somewhere else: refused, and the `.gitignore` is never written through one.
     for d in [dir, dir.parent().unwrap_or(dir)] { if std::fs::symlink_metadata(d)?.file_type().is_symlink() { return Err(std::io::Error::other("its folder is a link")); } }
     match std::fs::OpenOptions::new().write(true).create_new(true).custom_flags(libc::O_NOFOLLOW).open(dir.join(".gitignore")) {

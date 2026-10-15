@@ -43,25 +43,25 @@ impl Bench {
     /// generated code is in its own target/.
     fn build(&self, wt: &str) {
         let here = self.dir(wt).display().to_string();
-        self.write(wt, "target/quick/herdr-superwork", &format!("built in {wt}"));
+        self.write(wt, "target/quick/herdr-projects", &format!("built in {wt}"));
         self.write(wt, "target/quick/deps/sw-1a.d", &format!("# env-dep:CARGO_MANIFEST_DIR={here}\n"));
-        self.write(wt, "target/quick/.fingerprint/herdr-superwork-1a/lib-sw", "1");
+        self.write(wt, "target/quick/.fingerprint/herdr-projects-1a/lib-sw", "1");
         self.write(wt, "target/quick/deps/serde-2b.d", &format!("# env-dep:OUT_DIR={here}/target/quick/build/serde-3c/out\n"));
         self.write(wt, "target/quick/.fingerprint/serde-2b/lib-serde", "2");
     }
     /// The workspace setup's two steps around its build: `ws_seed`, the build (the stand-in, when `build`), `ws_keep`.
     fn setup(&self, wt: &str, build: bool) -> String {
         let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("scripts/warm-start.sh");
-        let built = if build { format!("mkdir -p target/quick && echo 'built in {wt}' > target/quick/herdr-superwork") } else { ":".into() };
+        let built = if build { format!("mkdir -p target/quick && echo 'built in {wt}' > target/quick/herdr-projects") } else { ":".into() };
         let o = Command::new("/bin/sh").arg("-c").arg(format!("set -e; . '{}'; ws_seed; {built}; ws_keep", script.display()))
-            .current_dir(self.dir(wt)).env("XDG_CACHE_HOME", self.base.join("cache")).env_remove("HERDR_SUPERWORK_NO_WARM")
+            .current_dir(self.dir(wt)).env("XDG_CACHE_HOME", self.base.join("cache")).env_remove("HERDR_PROJECTS_NO_WARM")
             .env_remove("CARGO_TARGET_DIR").env("GIT_CONFIG_GLOBAL", "/dev/null").env("GIT_CONFIG_NOSYSTEM", "1").output().unwrap();
         assert!(o.status.success(), "the setup's steps failed: {}", String::from_utf8_lossy(&o.stderr));
         String::from_utf8_lossy(&o.stdout).into_owned()
     }
     /// The commit the kept build was built from, if one is kept.
     fn kept(&self) -> Option<String> {
-        let warm = std::fs::read_dir(self.base.join("cache/herdr-superwork/warm")).ok()?.next()?.ok()?.path();
+        let warm = std::fs::read_dir(self.base.join("cache/herdr-projects/warm")).ok()?.next()?.ok()?.path();
         let name = std::fs::read_to_string(warm.join("current")).ok()?;
         std::fs::read_to_string(warm.join(name.trim()).join("commit")).ok().map(|c| c.trim().to_string())
     }
@@ -91,7 +91,7 @@ fn real_programs_a_new_worktree_starts_from_the_build_kept_and_builds_again_only
     b.worktree("three", "main");
     let said = b.setup("three", false);
     assert!(said.contains(&format!("Started from the warm build of {}", &first[..7])), "{said}");
-    assert_eq!(std::fs::read_to_string(b.dir("three").join("target/quick/herdr-superwork")).unwrap().trim(), "built in two");
+    assert_eq!(std::fs::read_to_string(b.dir("three").join("target/quick/herdr-projects")).unwrap().trim(), "built in two");
     assert!(b.changed("three", "src/a.rs") < long_ago(), "a file as it was built is taken as built");
     assert!(b.changed("three", "src/b.rs") > long_ago(), "a file changed since is built again");
     assert_eq!(b.git("three", &["status", "--porcelain"]), "", "only the times changed");
@@ -106,14 +106,14 @@ fn real_programs_what_was_built_with_the_other_folders_path_in_it_is_built_again
     b.setup("one", true);
     b.build("one");
     // kept again by hand as the setup would have, with the stand-in build's files in it
-    let warm = std::fs::read_dir(b.base.join("cache/herdr-superwork/warm")).unwrap().next().unwrap().unwrap().path();
+    let warm = std::fs::read_dir(b.base.join("cache/herdr-projects/warm")).unwrap().next().unwrap().unwrap().path();
     let name = std::fs::read_to_string(warm.join("current")).unwrap();
     let kept = warm.join(name.trim()).join("target");
     std::fs::remove_dir_all(&kept).unwrap();
     assert!(Command::new("cp").arg("-pR").arg(b.dir("one").join("target")).arg(warm.join(name.trim())).status().unwrap().success());
     b.worktree("two", "main");
     b.setup("two", false);
-    assert!(!b.has("two", "target/quick/.fingerprint/herdr-superwork-1a"), "the program said where it was built: built again");
+    assert!(!b.has("two", "target/quick/.fingerprint/herdr-projects-1a"), "the program said where it was built: built again");
     assert!(b.has("two", "target/quick/.fingerprint/serde-2b"), "a path into its own target/ cargo moves itself");
 }
 

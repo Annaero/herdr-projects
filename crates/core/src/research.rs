@@ -149,7 +149,7 @@ pub fn changes_of(t: &Task, dir: &Path) -> Option<Vec<String>> {
 pub fn starts_as(t: &mut Task) -> Res<()> {
     let only = setting(RESEARCH, Some(t)) == json!(true);
     let why = turn_refusal(t, only);
-    if !why.is_empty() { crate::fail!("{why} To start it as it was: herdr-superwork set {RESEARCH} false --task {}", t.s("id")); }
+    if !why.is_empty() { crate::fail!("{why} To start it as it was: herdr-projects set {RESEARCH} false --task {}", t.s("id")); }
     if let Some(run) = t.at("researchRun").as_bool() { if run != only && t.b("startedAgentAt") { t.put("researchTurned", true); } }
     t.put("researchRun", only);
     t.del("researchOpen");
@@ -181,9 +181,9 @@ pub fn changed_failure(t: &Task, tree: &str, list: &[String], rounds: Option<i64
     let folder = report_folder(t).display().to_string();
     let start: String = [t.s("syncedTo"), t.s("baseSha"), t.s("from")].into_iter().find(|s| !s.is_empty()).unwrap_or("").chars().take(12).collect();
     let next = if t.b("worktree") {
-        format!("Move the result out of the repo: save the report in {folder}/ (outside the repo), then undo every change, the commits too, so that the branch is where it started ({start}) with no commit of yours on it and `git status` is clean. If the change is wanted after all, the human turns research only off for this task (herdr-superwork set research.only false --task {id}) and delegates it again.")
+        format!("Move the result out of the repo: save the report in {folder}/ (outside the repo), then undo every change, the commits too, so that the branch is where it started ({start}) with no commit of yours on it and `git status` is clean. If the change is wanted after all, the human turns research only off for this task (herdr-projects set research.only false --task {id}) and delegates it again.")
     } else {
-        format!("This is the human's own checkout, and it may hold changes of theirs: undo only what you changed yourself, file by file, and never reset or clean the checkout. Move the result out of the repo first: save the report in {folder}/ (outside the repo). Take back a commit of yours without losing anything of the human's. If a listed change is not yours, or the change is wanted after all, say so and stop: the human turns research only off for this task (herdr-superwork set research.only false --task {id}) and delegates it again, or retries.")
+        format!("This is the human's own checkout, and it may hold changes of theirs: undo only what you changed yourself, file by file, and never reset or clean the checkout. Move the result out of the repo first: save the report in {folder}/ (outside the repo). Take back a commit of yours without losing anything of the human's. If a listed change is not yours, or the change is wanted after all, say so and stop: the human turns research only off for this task (herdr-projects set research.only false --task {id}) and delegates it again, or retries.")
     };
     let place = if t.b("worktree") { format!("Worktree: {tree}\nBranch: {}", t.s("branch")) } else { format!("Folder (your own checkout): {tree}") };
     obj(json!({

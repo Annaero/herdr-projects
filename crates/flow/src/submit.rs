@@ -20,8 +20,8 @@ fn ms(name: &str, d: i64) -> i64 { std::env::var(name).ok().and_then(|v| v.parse
 /// How often enter is pressed again.
 pub const TRIES: i64 = 3;
 /// How long the agent gets to start before enter is pressed again: 5 seconds, then twice as long each time.
-fn wait_ms(m: Option<&Value>) -> i64 { ms("HERDR_SUPERWORK_SUBMIT_MS", 5000) * 2_i64.pow(m.map(|m| m.i("tries")).unwrap_or(0).clamp(0, 10) as u32) }
-fn step_ms() -> i64 { ms("HERDR_SUPERWORK_READY_STEP_MS", 400) }
+fn wait_ms(m: Option<&Value>) -> i64 { ms("HERDR_PROJECTS_SUBMIT_MS", 5000) * 2_i64.pow(m.map(|m| m.i("tries")).unwrap_or(0).clamp(0, 10) as u32) }
+fn step_ms() -> i64 { ms("HERDR_PROJECTS_READY_STEP_MS", 400) }
 const QUIET_MAX: i64 = 4000;
 
 // ---- before the first prompt: is the program up? ----------------------------------------------------------------------
@@ -35,7 +35,7 @@ pub fn drawn(screen: &str, launch: &str) -> bool {
 /// Wait, after `agent start`, until the program has drawn its screen and that screen stands still for a moment (or has
 /// been there a few seconds). Gives up after a minute and says so with false.
 pub fn settle(api: &Herdr, pane: &str, launch: &str) -> bool {
-    let max = ms("HERDR_SUPERWORK_READY_MS", 60000);
+    let max = ms("HERDR_PROJECTS_READY_MS", 60000);
     if max <= 0 { return true; }
     let until = now() + max;
     let (mut prev, mut since) = (None::<String>, 0);

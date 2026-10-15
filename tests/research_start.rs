@@ -18,7 +18,7 @@ fn started(id: &str) -> String { read(&sw::store::files::dir_of(id).join("rules.
 fn research_only_is_decided_when_the_agent_starts_and_the_repos_file_is_the_one_of_its_commit() {
     let w = world_with(Opts { repo: true, repo_settings: Some(json!({ "research": { "only": true } })), settings: json!({ "board.agents": 1 }), ..Default::default() });
     // The checkout's own copy of the file says nothing (not committed): main still says research only.
-    std::fs::write(w.root.join(".herdr-superwork.json"), "{}").unwrap();
+    std::fs::write(w.root.join(".herdr-projects.json"), "{}").unwrap();
     w.script(json!({ "worker": vec![json!({ "status": "working" }); 3] }));
     let first = w.add("From the commit");
     let second = sw::actions::filing::add(&w.root, "Changed while it waits", sw::actions::filing::AddOpts { research: Some(false), ..Default::default() }).unwrap().t("id");
@@ -48,7 +48,7 @@ fn research_only_is_decided_when_the_agent_starts_and_the_repos_file_is_the_one_
 #[test]
 fn real_programs_a_change_while_the_repos_setup_still_runs_counts_for_the_agent_that_starts_after_it() {
     let w = world();
-    let bin = env!("CARGO_BIN_EXE_herdr-superwork");
+    let bin = env!("CARGO_BIN_EXE_herdr-projects");
     let seen = w.base.join("seen.json");
     w.script(json!({ "worker": [{ "status": "working" }] }));
     let setup = format!("'{bin}' list --json > '{0}.before' && '{bin}' set {NAME} true --task proj/1 > /dev/null && '{bin}' list --json > '{0}'", seen.display());

@@ -60,11 +60,11 @@ pub fn pane(st: &mut Value, verb: &str, arg2: &str, argv: &[String], flag: &dyn 
         }
         "close" => { arr(st, "panes").remove(pi); F::drop_empty(st); ok(json!({ "type": "ok" })) }
         // A command run at the pane's shell. One that starts an agent program in a read-only mount
-        // (`env HERDR_SUPERWORK_AGENT=<name> bwrap … -- <kind> <args>`) leaves that agent in the pane.
+        // (`env HERDR_PROJECTS_AGENT=<name> bwrap … -- <kind> <args>`) leaves that agent in the pane.
         "run" => {
             let w = words(&argv[3..].join(" "));
             let at = w.iter().position(|x| x == "--");
-            let name = w.iter().find_map(|x| x.strip_prefix("HERDR_SUPERWORK_AGENT=")).unwrap_or("").to_string();
+            let name = w.iter().find_map(|x| x.strip_prefix("HERDR_PROJECTS_AGENT=")).unwrap_or("").to_string();
             if let (true, Some(at), false) = (w.iter().any(|x| x == "bwrap"), at, p.at("agent").is_object()) {
                 let seq = st.i("seq") + 1; st["seq"] = json!(seq);
                 let kind = w.get(at + 1).cloned().unwrap_or_default();

@@ -55,7 +55,7 @@ fn another_machines_coordinator_sends_its_words_with_its_tasks_and_the_chat_show
     call("press", json!({ "id": "scope" })); call("press", json!({ "id": "scope" })); call("press", json!({ "id": "scope" })); far::answered("t", 1);
     let c = call("board", json!({})).at("chat").clone();
     assert_eq!(c.s("coord"), "Coordinator on vm-a");
-    assert_eq!(c.arr("parts").last().unwrap().s("text"), "vm-a runs an older herdr-superwork, which does not send what its Coordinator says: update it there.");
+    assert_eq!(c.arr("parts").last().unwrap().s("text"), "vm-a runs an older herdr-projects, which does not send what its Coordinator says: update it there.");
     // One with no Coordinator adds what you type as a task, and the chat says so.
     far.answers("vm-a", "list", &json!({ "host": "vm-a", "version": "0.9.0", "tasks": [], "coordinator": { "off": true } }));
     call("press", json!({ "id": "scope" })); call("press", json!({ "id": "scope" })); call("press", json!({ "id": "scope" })); far::answered("t", 1);

@@ -19,8 +19,8 @@ pub fn change(socket: &str, f: impl FnOnce(&mut Obj) -> bool) -> Res<Obj> {
         Ok(c)
     })
 }
-/// Where it runs: a folder of its own (HERDR_SUPERWORK_COORDINATOR_DIR names another, used for nothing else). A folder
+/// Where it runs: a folder of its own (HERDR_PROJECTS_COORDINATOR_DIR names another, used for nothing else). A folder
 /// nothing else chats in is how its conversation is told from any other.
 pub fn home(socket: &str) -> PathBuf {
-    std::env::var("HERDR_SUPERWORK_COORDINATOR_DIR").ok().filter(|s| !s.is_empty()).map(PathBuf::from).unwrap_or_else(|| dir_of(socket).join("chat"))
+    std::env::var("HERDR_PROJECTS_COORDINATOR_DIR").ok().filter(|s| !s.is_empty()).map(PathBuf::from).unwrap_or_else(|| dir_of(socket).join("chat"))
 }

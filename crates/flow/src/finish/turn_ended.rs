@@ -62,7 +62,7 @@ fn finish_once(id: &str, force: bool) -> bool {
     let session0 = t.t("session");
     let mine0 = |e: &Value| e.s("role") == "agent" && !(e.b("side") && e.s("session") != session0);
     // 1. Without an event, give herdr's screen guess time to correct itself.
-    if !pending_events(&t).iter().any(mine0) { sleep(ms("HERDR_SUPERWORK_SETTLE_MS", 5000)); }
+    if !pending_events(&t).iter().any(mine0) { sleep(ms("HERDR_PROJECTS_SETTLE_MS", 5000)); }
     let mut ev: Option<Value> = None;
     let mut mine = false;
     let Ok(t) = update_wait(id, 10000, |t| {
@@ -104,7 +104,7 @@ fn finish_steps(id: &str, g: &mut Guard, mut t: Task, ev: Option<Value>, force: 
         //     ten seconds until the file shows something newer than the last handled turn.
         let file = e.so("file").map(Path::new);
         let session = if e.b("session") { e.t("session") } else { t.t("session") };
-        let until = now() + ms("HERDR_SUPERWORK_READ_MS", 10000);
+        let until = now() + ms("HERDR_PROJECTS_READ_MS", 10000);
         loop {
             turn = installed::read_turn_of(&k, file, &session, &cwd_of(&t), false);
             if newer(turn.as_ref(), &t) && turn.as_ref().map(|x| x.finished || !x.error.is_empty()).unwrap_or(false) { break; }

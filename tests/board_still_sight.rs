@@ -54,7 +54,7 @@ fn an_agent_its_reviewer_and_the_coordinator_start_and_end_out_of_sight() {
     let w = world_with(Opts { repo: true, settings: json!({ "coordinator.agent": "claude", "review.when": "never" }), ..Default::default() });
     let home = w.base.join("home-coord");
     std::fs::create_dir_all(&home).unwrap();
-    unsafe { std::env::set_var("HERDR_SUPERWORK_COORDINATOR_DIR", &home) };
+    unsafe { std::env::set_var("HERDR_PROJECTS_COORDINATOR_DIR", &home) };
     board_pane(&w);
     w.script(json!({ "coordinator": [{ "said": "ready" }] }));
     let socket = sw::herdr::cli::current_socket();
@@ -68,5 +68,5 @@ fn an_agent_its_reviewer_and_the_coordinator_start_and_end_out_of_sight() {
     drain();
     out_of_sight(&w);
     assert_eq!(w.state().arr("focus").len(), 0, "{:?}", w.state().at("focus"));
-    unsafe { std::env::remove_var("HERDR_SUPERWORK_COORDINATOR_DIR") };
+    unsafe { std::env::remove_var("HERDR_PROJECTS_COORDINATOR_DIR") };
 }

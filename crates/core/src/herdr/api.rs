@@ -127,7 +127,7 @@ impl Herdr {
         run_raw(self.socket.as_deref(), &a, 30000, "")
     }
     pub fn metadata(&self, id: &str, extra: &[String]) -> Option<Value> {
-        let mut a = args(&["pane", "report-metadata", id, "--source", "plugin:herdr-superwork"]);
+        let mut a = args(&["pane", "report-metadata", id, "--source", "plugin:herdr-projects"]);
         a.extend(extra.iter().cloned());
         self.call(a).ok()
     }
@@ -158,12 +158,12 @@ impl Herdr {
     /// The board in a tab of its own, an ordinary pane that stays when you go elsewhere. Answers that pane's id (herdr
     /// answers the pane itself).
     pub fn open_board(&self) -> HRes<Option<String>> {
-        let p = self.call(args(&["plugin", "pane", "open", "--plugin", "herdr-superwork", "--entrypoint", "board", "--placement", "tab"]))?.at("plugin_pane").at("pane").clone();
+        let p = self.call(args(&["plugin", "pane", "open", "--plugin", "herdr-projects", "--entrypoint", "board", "--placement", "tab"]))?.at("plugin_pane").at("pane").clone();
         Ok(p.as_str().or(p.so("pane_id")).filter(|s| !s.is_empty()).map(String::from))
     }
     /// The board in herdr's popup. herdr refuses with `ui_busy` while a popup, anybody's, is open.
     pub fn open_board_popup(&self, width: &str, height: &str) -> HRes<Value> {
-        let mut a = args(&["plugin", "pane", "open", "--plugin", "herdr-superwork", "--entrypoint", "board", "--placement", "popup"]);
+        let mut a = args(&["plugin", "pane", "open", "--plugin", "herdr-projects", "--entrypoint", "board", "--placement", "popup"]);
         if !width.is_empty() { a.extend(args(&["--width", width])); }
         if !height.is_empty() { a.extend(args(&["--height", height])); }
         self.call(a)

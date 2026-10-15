@@ -8,7 +8,7 @@ sc_cores=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/nul
 case "$sc_cores" in ''|0*|*[!0-9]*) sc_cores=1 ;; esac
 sc_agents=$(awk '/"board"[[:space:]]*:/ { b = 1 }
   b && match($0, /"agents"[[:space:]]*:[[:space:]]*[0-9]+/) { s = substr($0, RSTART, RLENGTH); gsub(/[^0-9]/, "", s); print s; exit }' \
-  "${HERDR_SUPERWORK_HOME:-$HOME/.herdr-superwork}/settings/config.json" 2>/dev/null || true)
+  "${HERDR_PROJECTS_HOME:-$HOME/.herdr-projects}/settings/config.json" 2>/dev/null || true)
 case "$sc_agents" in ''|0*|*[!0-9]*) sc_agents=4 ;; esac
 sc_jobs=$(( (sc_cores + sc_agents - 1) / sc_agents ))
 CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-$sc_jobs}"; RUST_TEST_THREADS="${RUST_TEST_THREADS:-$sc_jobs}"

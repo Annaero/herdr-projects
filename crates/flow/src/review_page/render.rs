@@ -97,7 +97,7 @@ pub fn render_review_page(ctx: &Value, review: &Value, evidence: &[Obj], dir: &P
     format!(r##"<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>{name} — Review</title>
 <style>
-{theme}{css}</style></head><body><a class="skip" href="#overview">Skip to review content</a><header class="top"><div class="top-inner"><div class="brand">herdr-superwork <span class="hint">/ Review</span></div><nav aria-label="Review sections"><a href="#overview">Work</a><a href="#review">Review</a><a href="#evidence">Evidence</a></nav></div></header>
+{theme}{css}</style></head><body><a class="skip" href="#overview">Skip to review content</a><header class="top"><div class="top-inner"><div class="brand">herdr-projects <span class="hint">/ Review</span></div><nav aria-label="Review sections"><a href="#overview">Work</a><a href="#review">Review</a><a href="#evidence">Evidence</a></nav></div></header>
 <main><div class="eyebrow">Review{round_part} · {eid}</div><h1>{name}</h1><div class="meta"><span><time datetime="{when}">{when_shown}</time></span>{commit}{prlink}</div>
 <div class="layout"><div class="content"><section id="overview"><h2>What changed</h2>{summary}{stat}{desc}</section>
 <section id="review"><h2>The review</h2>{rtext}<h3>Findings</h3>{findings}<h3>What was checked</h3>{checks}<h3>Limits &amp; unverified areas</h3>{limits}</section>

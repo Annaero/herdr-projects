@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-pub const REPO_FILE: &str = ".herdr-superwork.json";
+pub const REPO_FILE: &str = ".herdr-projects.json";
 pub fn config_file() -> PathBuf { config_dir().join("config.json") }
 
 #[derive(Clone, Debug)]

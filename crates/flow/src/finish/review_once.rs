@@ -94,8 +94,8 @@ pub fn review_once(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, 
             let s = get(id).map(|c| c.t("reviewSession")).filter(|s| !s.is_empty()).or_else(|| adapter::find_session_but(&rkind, &folder, started_at, &tl, &was))?;
             mark_cell.borrow().as_ref().and_then(|m| crate::submit::shown(&rkind, None, &s, &folder, m, &brief))
         };
-        let until = now() + ms("HERDR_SUPERWORK_REVIEW_MS", 20 * 60000);
-        let every = ms("HERDR_SUPERWORK_POLL_MS", 3000);
+        let until = now() + ms("HERDR_PROJECTS_REVIEW_MS", 20 * 60000);
+        let every = ms("HERDR_PROJECTS_POLL_MS", 3000);
         let (mut sent, mut sent_at, mut quiet_since) = (false, 0i64, 0i64);
         let mut waited: Vec<i64> = vec![]; // its own turn-end reports while its helpers were still at work
         // Its turn ended while helpers it started are still at work (agents/helpers.rs): their answers start it again.
@@ -103,7 +103,7 @@ pub fn review_once(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, 
         // The reviewer ended its turn with no verdict. Its saved conversation says why.
         let mut no_verdict = |ev: Option<&Value>, or: &str| -> String {
             let mut w = why_stopped(&get(id).unwrap_or(t.clone()), "reviewer", ev);
-            let until = now() + ms("HERDR_SUPERWORK_READ_MS", 5000);
+            let until = now() + ms("HERDR_PROJECTS_READ_MS", 5000);
             while ev.is_some() && w.can_read && !w.turn.as_ref().map(|x| x.finished || !x.error.is_empty()).unwrap_or(false) && now() < until { sleep(400); w = why_stopped(&get(id).unwrap_or(t.clone()), "reviewer", ev); }
             auth = w.turn.as_ref().map(|x| x.auth).unwrap_or(false);
             if let Some(x) = w.turn.as_ref().filter(|x| !x.error.is_empty()) { cut = Some(Cut { passing: x.passing, reason: x.reason.clone(), error: x.error.clone() }); return format!("the reviewer stopped: {}", x.error); }
@@ -149,7 +149,7 @@ pub fn review_once(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, 
                 *mark_cell.borrow_mut() = Some(m);
                 if r == "took" || r == "unknown" { *mark_cell.borrow_mut() = None; }
                 else if r == "lost" { error = "the reviewer did not start: its brief sits unsent in its box".into(); break; }
-            } else if sent && a.is_some() && crate::agents::kinds::kind(&rkind).map(|k| k.reads_turn).unwrap_or(false) && now() - sent_at > ms("HERDR_SUPERWORK_ENDED_MS", 5000) {
+            } else if sent && a.is_some() && crate::agents::kinds::kind(&rkind).map(|k| k.reads_turn).unwrap_or(false) && now() - sent_at > ms("HERDR_PROJECTS_ENDED_MS", 5000) {
                 // No hook: "idle" alone never fails a review. Only its saved conversation ending in a finished message or
                 // an error, and still no verdict 15 seconds later, does.
                 let mut session = cur.t("reviewSession");
@@ -158,7 +158,7 @@ pub fn review_once(id: &str, g: &mut Guard, text: &str, change: Option<&Value>, 
                 match turn {
                     Some(x) if x.pos > sent_at && (x.finished || !x.error.is_empty()) && !(x.error.is_empty() && still_at_work(&rkind, Some(&x), started_at)) => {
                         if quiet_since == 0 { quiet_since = now(); }
-                        if now() - quiet_since > ms("HERDR_SUPERWORK_QUIET_MS", 15000) && !verdict_file.exists() { error = no_verdict(None, ""); ended = true; break; }
+                        if now() - quiet_since > ms("HERDR_PROJECTS_QUIET_MS", 15000) && !verdict_file.exists() { error = no_verdict(None, ""); ended = true; break; }
                     }
                     _ => quiet_since = 0,
                 }

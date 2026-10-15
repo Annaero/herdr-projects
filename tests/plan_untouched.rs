@@ -17,7 +17,7 @@ fn file(tree: &str, rel: &str) -> Option<String> { std::fs::read_to_string(Path:
 #[test]
 fn nothing_is_changed_before_the_yes_what_gets_in_is_put_back_and_a_change_the_board_may_not_undo_holds_the_build() {
     let w = world_with(Opts { repo: true, settings: json!({ "plan.approve": "you", "worker.agent": "codex", "review.when": "never" }), ..Default::default() });
-    unsafe { std::env::set_var("HERDR_SUPERWORK_SANDBOX", "bwrap") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_SANDBOX", "bwrap") };
     w.patch(|s| s["pids"] = json!(true));
     std::fs::write(w.root.join(".gitignore"), "ignored.txt\nkept.log\n").unwrap();
     git(&w.root, &["add", "-A"]); git(&w.root, &["commit", "-qm", "ignore"]);

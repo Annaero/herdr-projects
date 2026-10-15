@@ -28,7 +28,7 @@ fn prefix_a_taken_the_first_run_offers_the_next_free_key_and_says_why() {
 fn the_popup_and_a_board_outside_herdr_have_no_tab_to_name() {
     let _w = world();
     let set = |pairs: &[(&str, &str)]| { for k in ["HERDR_ENV", "HERDR_PANE_ID", "HERDR_PLUGIN_ID", "TMUX"] { unsafe { std::env::remove_var(k) } } for (k, v) in pairs { unsafe { std::env::set_var(k, v) } } };
-    set(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-superwork")]); assert_eq!(board_pane(), "", "the popup: no pane");
+    set(&[("HERDR_ENV", "1"), ("HERDR_PLUGIN_ID", "herdr-projects")]); assert_eq!(board_pane(), "", "the popup: no pane");
     set(&[]); assert_eq!(board_pane(), "", "outside herdr");
     set(&[("HERDR_ENV", "1"), ("HERDR_PANE_ID", "w1:p1")]); assert_eq!(board_pane(), "w1:p1");
     set(&[]);

@@ -158,9 +158,9 @@ fn a_late_working_from_the_terminal_before_a_restart_does_not_re_open_work_finis
     on_pane(&w, &pane);
     assert_eq!(task(&id).s("stage"), "working");
     // a late "done" from the old terminal finishes nothing, however long ago the task was armed
-    unsafe { std::env::set_var("HERDR_SUPERWORK_REOPEN_MS", "0") };
+    unsafe { std::env::set_var("HERDR_PROJECTS_REOPEN_MS", "0") };
     apply(&id, &with(&old, json!({ "agent_status": "done" })), &api(&w));
-    unsafe { std::env::remove_var("HERDR_SUPERWORK_REOPEN_MS") };
+    unsafe { std::env::remove_var("HERDR_PROJECTS_REOPEN_MS") };
     assert_eq!((task(&id).t("stage"), task(&id).at("last").t("term"), jobs().len()), ("working".into(), "term_after_restart".into(), 0));
     note(&t, Some("Did v2."), 50);
     herdr_says(&w, &pane, "done", true, 1);

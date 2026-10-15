@@ -22,7 +22,7 @@ pub fn context(cwd: &Path, delegate: bool, about: &str) -> Res<Value> {
 }
 /// Of the messages dealt with, the last few stay; one not dealt with yet is never dropped.
 const KEPT: usize = 5;
-pub fn rest_ms() -> i64 { std::env::var("HERDR_SUPERWORK_HANDLED_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(15000) }
+pub fn rest_ms() -> i64 { std::env::var("HERDR_PROJECTS_HANDLED_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(15000) }
 pub fn trimmed(list: &[Value]) -> Vec<Value> { let cut = list.len().saturating_sub(KEPT); list.iter().enumerate().filter(|(i, x)| *i >= cut || !x.b("handled")).map(|(_, x)| x.clone()).collect() }
 pub fn where_text(socket: &str) -> String {
     let list = get(socket).map(|c| c.arr("where").to_vec()).unwrap_or_default();

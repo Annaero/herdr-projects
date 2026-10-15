@@ -98,8 +98,8 @@ fn head_file(dir: &Path) -> String {
 pub fn head_of(dir: &Path) -> String { let k = head_file(dir); if !k.is_empty() { k } else { git_out(dir, &["rev-parse", "HEAD"]).unwrap_or_default() } }
 pub fn dirty(dir: &Path) -> String { git_out(dir, &["status", "--porcelain"]).unwrap_or_default() }
 /// The board's own comments on a pull request are posted as the logged-in user: each ends with this mark.
-pub const BOARD_COMMENT: &str = "\n\n<!-- herdr-superwork -->";
-pub fn board_comment(body: &str) -> bool { body.contains("<!-- herdr-superwork -->") || { let b = body.trim_start(); b.starts_with("**Review ·") || (b.starts_with("**Review ") && b[9..].split(' ').next().map(|n| n.bytes().all(|c| c.is_ascii_digit())).unwrap_or(false) && b.contains(" · ")) } }
+pub const BOARD_COMMENT: &str = "\n\n<!-- herdr-projects -->";
+pub fn board_comment(body: &str) -> bool { body.contains("<!-- herdr-projects -->") || { let b = body.trim_start(); b.starts_with("**Review ·") || (b.starts_with("**Review ") && b[9..].split(' ').next().map(|n| n.bytes().all(|c| c.is_ascii_digit())).unwrap_or(false) && b.contains(" · ")) } }
 /// Who is logged in to GitHub here: the human. Asked once a day; "" when gh cannot say.
 pub fn gh_user(cwd: &Path) -> String {
     let file = data_dir().join("gh-user.json");

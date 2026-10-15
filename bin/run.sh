@@ -1,9 +1,9 @@
 #!/bin/sh
 # herdr runs every plugin command through this file, with its server's environment (which may lack the user's PATH).
 # It runs the program, the first of:
-#   1. the one built from this checkout (target/release/herdr-superwork), when no source file is newer than it;
-#   2. the downloaded one for this platform, bin/herdr-superwork-<os>-<arch>, when it is this checkout's version
-#      (Cargo.toml) or newer (`herdr-superwork update` puts a newer one there); its version is in the .version file
+#   1. the one built from this checkout (target/release/herdr-projects), when no source file is newer than it;
+#   2. the downloaded one for this platform, bin/herdr-projects-<os>-<arch>, when it is this checkout's version
+#      (Cargo.toml) or newer (`herdr-projects update` puts a newer one there); its version is in the .version file
 #      beside it, read without running it;
 #   3. that file, downloaded now from the GitHub release of this checkout's version: its checksum checked, renamed into
 #      place in one step, one download at a time (a second start waits for the first);
@@ -11,24 +11,24 @@
 #      download is tried again ten minutes later, not on every command.
 # When there is none it says on stderr what to do and exits 1: it never waits long, so it never holds herdr up.
 # `run.sh --fetch` only gets the program (the plugin's build step), building it from source when it cannot download.
-# HERDR_SUPERWORK_RELEASES names another place for the releases (a fork, a mirror, a folder as file:///…).
+# HERDR_PROJECTS_RELEASES names another place for the releases (a fork, a mirror, a folder as file:///…).
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 root=$(dirname -- "$here")
 PATH="${PATH:+$PATH:}/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:$HOME/.cargo/bin"; export PATH
-say() { printf 'herdr-superwork: %s\n' "$*" >&2; }
+say() { printf 'herdr-projects: %s\n' "$*" >&2; }
 fetch_only=""; [ "$1" = "--fetch" ] && { fetch_only=1; shift; }
 run() { [ -n "$fetch_only" ] && exit 0; exec "$@"; }
 
-built="$root/target/release/herdr-superwork"
+built="$root/target/release/herdr-projects"
 fresh() { [ -x "$built" ] && [ -z "$(find "$root/src" "$root/crates" "$root/Cargo.toml" "$root/Cargo.lock" -newer "$built" 2>/dev/null | head -n 1)" ]; }
 fresh && run "$built" "$@"
 
 want=$(sed -n 's/^version *= *"\([^"]*\)".*/\1/p' "$root/Cargo.toml" 2>/dev/null | head -n 1)
 case "$(uname -s)" in Linux) os=linux ;; Darwin) os=macos ;; *) os="" ;; esac
 case "$(uname -m)" in x86_64 | amd64) arch=x86_64 ;; aarch64 | arm64) arch=aarch64 ;; *) arch="" ;; esac
-name="herdr-superwork-$os-$arch"
+name="herdr-projects-$os-$arch"
 prog="$here/$name"
-base="${HERDR_SUPERWORK_RELEASES:-https://github.com/eliasstravik/herdr-superwork/releases}"; base="${base%/}"
+base="${HERDR_PROJECTS_RELEASES:-https://github.com/eliasstravik/herdr-projects/releases}"; base="${base%/}"
 
 # at_least A B: A is B or newer, part by part as numbers (0.10.0 is newer than 0.9.1).
 at_least() {
@@ -45,7 +45,7 @@ at_least() {
 have() { [ -x "$prog" ] && v=$(cat "$prog.version" 2>/dev/null) && [ -n "$v" ] && at_least "$v" "$want"; }
 [ -n "$os" ] && [ -n "$arch" ] && have && run "$prog" "$@"
 
-gh_repo="https://github.com/eliasstravik/herdr-superwork/releases/download/"
+gh_repo="https://github.com/eliasstravik/herdr-projects/releases/download/"
 fetch() {
   if command -v curl >/dev/null 2>&1; then curl -fsSL --connect-timeout 10 --max-time 300 -o "$2" "$1" 2>/dev/null && return 0
   elif command -v wget >/dev/null 2>&1; then wget -q --tries=1 -T 30 -O "$2" "$1" && return 0
@@ -54,7 +54,7 @@ fetch() {
   case "$1" in "$gh_repo"*/*) ;; *) return 1 ;; esac
   command -v gh >/dev/null 2>&1 || return 1
   rest=${1#"$gh_repo"}
-  gh release download "${rest%%/*}" -R eliasstravik/herdr-superwork -p "${rest#*/}" -O "$2" --clobber </dev/null >/dev/null 2>&1
+  gh release download "${rest%%/*}" -R eliasstravik/herdr-projects -p "${rest#*/}" -O "$2" --clobber </dev/null >/dev/null 2>&1
 }
 sha256() { { sha256sum "$1" || shasum -a 256 "$1" || openssl dgst -sha256 -r "$1"; } 2>/dev/null | cut -d ' ' -f 1; }
 build_hint="or build it here: cd '$root' && cargo build --release (Rust: https://rustup.rs)"
@@ -77,7 +77,7 @@ download() {
   trap 'rm -rf "$lock" "$tmp" "$tmp.sha256"' EXIT
   trap 'exit 1' INT TERM HUP
   url="$base/download/v$want/$name"
-  say "downloading herdr-superwork $want for $os $arch (once)"
+  say "downloading herdr-projects $want for $os $arch (once)"
   ok=""
   if ! fetch "$url" "$tmp" || ! fetch "$url.sha256" "$tmp.sha256"; then
     say "could not download $url (no network, no release v$want with this file yet, or a private repo: log in with gh auth login): try again later, $build_hint"
@@ -103,5 +103,5 @@ if [ -n "$fetch_only" ] && command -v cargo >/dev/null 2>&1; then
   (cd "$root" && cargo build --release --locked) && exit 0
 fi
 [ -x "$built" ] && { say "using $built, which is older than its source: build it again (cd '$root' && cargo build --release)"; run "$built" "$@"; }
-[ -x "$prog" ] && { say "using the downloaded herdr-superwork $(cat "$prog.version" 2>/dev/null), not $want"; run "$prog" "$@"; }
+[ -x "$prog" ] && { say "using the downloaded herdr-projects $(cat "$prog.version" 2>/dev/null), not $want"; run "$prog" "$@"; }
 exit 1

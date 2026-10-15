@@ -15,7 +15,7 @@ fn end(code: i32, stderr: &str) -> Ended { Ended { code: Some(code), stderr: std
 fn has(text: &str, re: &str) -> bool { regex::Regex::new(re).unwrap().is_match(text) }
 /// The list's words with the side panel cut off and the wrapped lines joined.
 fn flat(lines: &[String]) -> String { lines.iter().map(|l| l.split('│').next().unwrap_or("").trim().to_string()).collect::<Vec<_>>().join(" ") }
-const BASH: &str = "bash: line 1: herdr-superwork: command not found\n";
+const BASH: &str = "bash: line 1: herdr-projects: command not found\n";
 fn answer(b: &mut common::board::Board, label: &str, a: Result<Value, Value>) { update(&mut b.s, Event::Remote { label: label.into(), answer: a }); }
 fn list(tasks: Value) -> Result<Value, Value> { Ok(json!({ "host": "x", "version": "0.2.0", "tasks": tasks })) }
 fn bash_why(label: &str) -> Value { why_not(&end(127, BASH), label, &format!("me@{label}")) }
@@ -35,15 +35,15 @@ fn the_board_never_shows_a_machine_that_did_not_answer_as_an_empty_one() {
     let text = s.text();
     assert!(text.contains("Mine") && text.contains("Theirs 1"), "{text}");
     let all = flat(&s.screen(120));
-    assert!(has(&all, r"vm-a: its tasks cannot be read: herdr-superwork is not found there\. +More: \S.*?\."), "{all}");
+    assert!(has(&all, r"vm-a: its tasks cannot be read: herdr-projects is not found there\. +More: \S.*?\."), "{all}");
     assert!(all.contains("vm-c: its tasks cannot be read: it answered, but not with its tasks."), "{all}");
     assert!(!text.contains("must be on the PATH"));
     // that machine's own board: no "nothing here yet", the reason whole
     s.press(&["alt+m"]); assert_eq!(s.s.scope, "vm-a");
     let all = flat(&s.screen(120));
-    assert!(!all.contains("Nothing here yet") && all.contains("vm-a: its tasks cannot be read: herdr-superwork is not found there."), "{all}");
-    assert!(all.contains("must be on the PATH that a login shell gets") && all.contains(r#"ln -s "$(command -v herdr-superwork)""#), "{all}");
-    assert!(has(&all, r"What came back:\s+bash: line 1: herdr-superwork: command not found"), "{all}");
+    assert!(!all.contains("Nothing here yet") && all.contains("vm-a: its tasks cannot be read: herdr-projects is not found there."), "{all}");
+    assert!(all.contains("must be on the PATH that a login shell gets") && all.contains(r#"ln -s "$(command -v herdr-projects)""#), "{all}");
+    assert!(has(&all, r"What came back:\s+bash: line 1: herdr-projects: command not found"), "{all}");
     // a small screen: what does not fit is reached with the arrows, and a line says that there is more
     s.rows = 24; s.s.side = false;
     let read_down = |s: &mut common::board::Board| { let mut seen: Vec<String> = vec![]; for _ in 0..20 { let now = s.screen(60).join("\n"); if seen.last() == Some(&now) { break; } seen.push(now); s.press(&["down"]); } seen };
@@ -52,7 +52,7 @@ fn the_board_never_shows_a_machine_that_did_not_answer_as_an_empty_one() {
     assert!(seen[0].contains("↓ more below (") && !seen[0].contains("↑ more above"), "{}", seen[0]);
     assert!(seen.last().unwrap().contains("↑ more above (") && !seen.last().unwrap().contains("↓ more below"), "{}", seen.last().unwrap());
     let read: String = seen.join("\n").split_whitespace().collect::<Vec<_>>().join(" ");
-    for part in [r"or link the program into a folder that is on it already:", r#"ln -s "\$\(command -v herdr-superwork\)" ~/\.local/bin/"#, r#"Test it from this machine: ssh \S+@vm-a 'exec \$SHELL -lc "herdr-superwork remote list"' \| tail -c 200"#] { assert!(has(&read, part), "{part}: {read}"); }
+    for part in [r"or link the program into a folder that is on it already:", r#"ln -s "\$\(command -v herdr-projects\)" ~/\.local/bin/"#, r#"Test it from this machine: ssh \S+@vm-a 'exec \$SHELL -lc "herdr-projects remote list"' \| tail -c 200"#] { assert!(has(&read, part), "{part}: {read}"); }
     // words on their way to that machine have rows of their own: the arrows still read all of it, then reach the row
     for _ in 0..20 { s.press(&["up"]); }
     let job = sw::store::inbox::new_dispatch("@vm-a fix the build", obj(json!({ "remote": "vm-a" }))).unwrap();
@@ -60,7 +60,7 @@ fn the_board_never_shows_a_machine_that_did_not_answer_as_an_empty_one() {
     s.load();
     let with_job = read_down(&mut s);
     assert!(with_job.len() > 2, "{with_job:?}");
-    assert!(has(&with_job.join("\n").split_whitespace().collect::<Vec<_>>().join(" "), r#"(?s)ln -s "\$\(command -v herdr-superwork\)" ~/\.local/bin/.*Test it from this machine: ssh"#));
+    assert!(has(&with_job.join("\n").split_whitespace().collect::<Vec<_>>().join(" "), r#"(?s)ln -s "\$\(command -v herdr-projects\)" ~/\.local/bin/.*Test it from this machine: ssh"#));
     assert_eq!(s.s.sel, job.s("id"));
     s.press(&["up"]); assert!(s.s.unread_top < s.s.unread_max, "{} {}", s.s.unread_top, s.s.unread_max);
     sw::store::inbox::clear_dispatch(job.s("id")); s.load();

@@ -1,4 +1,4 @@
-//! The detached runner's entry: `herdr-superwork run <job> <task id>`. Every runner runs one housekeeping pass as it
+//! The detached runner's entry: `herdr-projects run <job> <task id>`. Every runner runs one housekeeping pass as it
 //! exits, so a slot freed by a merge is reused at once.
 use crate::herdr::cli::current_socket;
 use crate::housekeeping::{housekeeping, poll_prs, Force};

@@ -83,7 +83,7 @@ gets its new words at once, or within the second; an entry goes with its pane (h
 that closed); and a task that is archived or removed while its pane lives on has the board's words taken off it.
 
 It is written as herdr's display metadata (`herdr pane report-metadata`, `herdr workspace report-metadata` and the
-space's name), from the source `plugin:herdr-superwork`: row 2 is the agent's shown name, row 3 the token `progress`.
+space's name), from the source `plugin:herdr-projects`: row 2 is the agent's shown name, row 3 the token `progress`.
 The token `summary` is only the Coordinator's: on a task's pane and space it is cleared, so a line an older version
 wrote goes by itself.
 

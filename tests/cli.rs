@@ -6,7 +6,7 @@ use sw::json::*;
 
 /// The program run in the world's repo: its exit code, what it printed and what it said went wrong.
 fn run(w: &World, args: &[&str]) -> (i32, String, String) {
-    let o = std::process::Command::new(env!("CARGO_BIN_EXE_herdr-superwork")).args(args).current_dir(&w.root)
+    let o = std::process::Command::new(env!("CARGO_BIN_EXE_herdr-projects")).args(args).current_dir(&w.root)
         .env("HERDR_SOCKET_PATH", "/nonexistent").env("HERDR_BIN_PATH", "/bin/false").output().unwrap();
     (o.status.code().unwrap_or(-1), String::from_utf8_lossy(&o.stdout).into_owned(), String::from_utf8_lossy(&o.stderr).into_owned())
 }
@@ -24,7 +24,7 @@ fn real_programs_add_list_report_set_unset_and_show() {
     let listed: serde_json::Value = serde_json::from_str(&out(&w, &["list", "--json"])).unwrap();
     assert_eq!((listed[0].s("state"), listed[0].s("app"), listed[0].s("msg")), ("working", sw::store::files::me().as_str(), "on it"));
     assert_eq!(out(&w, &["set", "board.agents", "2"]), "board.agents: 2  (you)\n");
-    assert!(out(&w, &["--skill"]).starts_with("---\nname: herdr-superwork\n"));
+    assert!(out(&w, &["--skill"]).starts_with("---\nname: herdr-projects\n"));
     assert_eq!(out(&w, &["set", "review.when", "never", "--task", "1"]), "review.when for PRJ-1: never  (this task)\n");
     assert!(regex::Regex::new(r"^Your settings \(\* = changed by you\)\n[\s\S]*\n  merge\.by +you +built in\n[\s\S]*\n\* board\.agents +2 +you\n").unwrap().is_match(&out(&w, &["show"])));
     assert!(regex::Regex::new(r"^PRJ-1: every setting, and the place it came from[\s\S]*\n\* review\.when +never +this task\n[\s\S]*\n  board\.agents +2 +you\n").unwrap().is_match(&out(&w, &["show", "1"])));
@@ -56,7 +56,7 @@ fn real_programs_a_flag_a_command_does_not_know_is_refused_with_the_nearest_righ
     refused(&w, &["set", "board.agents", "2", "--tsak", "1"], r"set does not know --tsak\. Did you mean --task\?");
     refused(&w, &["automations", "add", "n", "--prompt", "p", "--schedule", "daily 09:00", "--evry-repo"], r"Did you mean --every-repo\?");
     refused(&w, &["report", "--title", "x", "--query=y"], r"report does not know --query\.");
-    refused(&w, &["--archived"], r"herdr-superwork does not know --archived\. It takes: --skill, --json, --help");
+    refused(&w, &["--archived"], r"herdr-projects does not know --archived\. It takes: --skill, --json, --help");
     refused(&w, &["nonsense", "--x"], r#"Unknown command "nonsense""#);
     refused(&w, &["help", "--bogus"], r"help does not know --bogus\. It takes: --json, --help");
     for hidden in ["hook", "keeper", "keeper-work", "open", "open-coordinator", "approve-current", "serve", "run", "turn-ended", "plan-written", "skill", "remote"] { refused(&w, &[hidden, "--bogus"], &format!("{hidden} does not know --bogus")); }

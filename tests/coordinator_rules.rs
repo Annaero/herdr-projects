@@ -10,7 +10,7 @@ fn coord_world() -> World {
     let w = world_with(Opts { repo: true, settings: json!({ "coordinator.agent": "claude", "review.when": "never" }), ..Default::default() });
     let home = w.base.join("home-coord");
     std::fs::create_dir_all(&home).unwrap();
-    unsafe { std::env::set_var("HERDR_SUPERWORK_COORDINATOR_DIR", &home) };
+    unsafe { std::env::set_var("HERDR_PROJECTS_COORDINATOR_DIR", &home) };
     w
 }
 fn drain() { flush(); sw::runner::drain_jobs(&|job, id, extra| { sw::jobs::run_job(job, id, extra); flush(); }); }
@@ -28,9 +28,9 @@ fn the_rules_are_agents_md_in_the_folder_it_starts_in_on_no_launch_flag_and_stil
     assert_eq!(["claude", "codex", "pi"].map(|k| sw::agents::kinds::kind(k).unwrap().rules_file), [Some("CLAUDE.md"), Some("AGENTS.md"), Some("AGENTS.md")]);
     let a = agent(&w);
     assert_eq!(file("AGENTS.md").matches(HEAD).count(), 1); assert!(file("AGENTS.md").contains("board add \"<short title"));
-    assert!(file("AGENTS.md").contains(&format!("The board's command is: {}/bin/herdr-superwork ", sw::store::files::data_dir().display())));
+    assert!(file("AGENTS.md").contains(&format!("The board's command is: {}/bin/herdr-projects ", sw::store::files::data_dir().display())));
     // Claude Code reads CLAUDE.md: it only passes on to AGENTS.md, so the rules are there once.
-    assert!(regex::Regex::new(r"^<!-- herdr-superwork[^\n]*-->\n@AGENTS\.md\n<!-- /herdr-superwork -->\n$").unwrap().is_match(&file("CLAUDE.md")), "{}", file("CLAUDE.md"));
+    assert!(regex::Regex::new(r"^<!-- herdr-projects[^\n]*-->\n@AGENTS\.md\n<!-- /herdr-projects -->\n$").unwrap().is_match(&file("CLAUDE.md")), "{}", file("CLAUDE.md"));
     // Told one way only: no flag carries them, no line is put before your words, and the old pointer file is gone.
     let no_flag = |a: &Value| assert!(!a.arr("args").iter().map(text).any(|x| regex::Regex::new("append-system-prompt|developer_instructions|rules\\.md").unwrap().is_match(&x)), "{}", a.at("args"));
     no_flag(&a);
@@ -43,7 +43,7 @@ fn the_rules_are_agents_md_in_the_folder_it_starts_in_on_no_launch_flag_and_stil
         drain();
         assert_eq!(agent(&w).s("kind"), "claude"); no_flag(&agent(&w));
         assert_eq!(file("AGENTS.md").matches(HEAD).count(), 1);
-        assert!(regex::Regex::new(r"^something else\n\n<!-- herdr-superwork[^\n]*-->\n@AGENTS\.md\n").unwrap().is_match(&file("CLAUDE.md")), "{what}: {}", file("CLAUDE.md"));
+        assert!(regex::Regex::new(r"^something else\n\n<!-- herdr-projects[^\n]*-->\n@AGENTS\.md\n").unwrap().is_match(&file("CLAUDE.md")), "{what}: {}", file("CLAUDE.md"));
     }
     // Another program, in the same folder: it reads AGENTS.md itself, so nothing is put before the first message.
     for kind in ["codex", "pi"] {
@@ -65,19 +65,19 @@ fn a_program_the_board_does_not_know_gets_agents_md_your_own_notes_in_the_file_a
     let w = coord_world();
     let home = state::home(&w.socket);
     let file = |name: &str| read(&home.join(name));
-    let text = rules("/x/bin/herdr-superwork");
+    let text = rules("/x/bin/herdr-projects");
     std::fs::write(home.join("AGENTS.md"), "# Mine\nAlways answer in Swedish.\n").unwrap();
     let (path, reads) = write_rules(&home, "amp", &text).unwrap();
     assert_eq!(path, home.join("AGENTS.md")); assert!(!reads, "a kind not known to read it by itself: one line points at it");
     assert_eq!(intro_line(&home), format!("[Your standing rules as the Coordinator of the human's work board are in the file {}: read it first.]", home.join("AGENTS.md").display()));
-    assert!(file("AGENTS.md").starts_with("# Mine\nAlways answer in Swedish.\n\n<!-- herdr-superwork"), "{}", file("AGENTS.md")); assert_eq!(file("AGENTS.md").matches(HEAD).count(), 1);
+    assert!(file("AGENTS.md").starts_with("# Mine\nAlways answer in Swedish.\n\n<!-- herdr-projects"), "{}", file("AGENTS.md")); assert_eq!(file("AGENTS.md").matches(HEAD).count(), 1);
     assert!(!home.join("CLAUDE.md").exists(), "only what its kind reads");
     // The rules changed (a new version of the board, a note of yours): the block is brought up to date, the rest kept.
     let mine = regex::Regex::new("You are the Coordinator[^\n]*").unwrap().replace(&file("AGENTS.md"), "old words").replace("# Mine", "# Mine, edited");
     std::fs::write(home.join("AGENTS.md"), format!("{mine}A note below.\n")).unwrap();
     write_rules(&home, "amp", &text).unwrap();
     assert_eq!(file("AGENTS.md").matches(HEAD).count(), 1); assert!(!file("AGENTS.md").contains("old words"));
-    assert!(file("AGENTS.md").starts_with("# Mine, edited\n")); assert!(file("AGENTS.md").ends_with("<!-- /herdr-superwork -->\nA note below.\n"), "{}", file("AGENTS.md"));
+    assert!(file("AGENTS.md").starts_with("# Mine, edited\n")); assert!(file("AGENTS.md").ends_with("<!-- /herdr-projects -->\nA note below.\n"), "{}", file("AGENTS.md"));
     // Written the same way twice: nothing is added.
     let before = file("AGENTS.md"); write_rules(&home, "amp", &text).unwrap(); assert_eq!(file("AGENTS.md"), before);
     drop(w);

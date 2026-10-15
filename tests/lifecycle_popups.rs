@@ -36,7 +36,7 @@ fn no_notifications_a_task_that_needs_you_raises_nothing_and_the_popup_block_an_
     let file = w.base.join("fake").join("config.toml");
     let side = sw::extras::block_text("sidebar", "");
     let mine = format!("[keys]\nx = \"prefix+x\"\n\n{side}\n");
-    std::fs::write(&file, format!("{mine}\n# >>> herdr-superwork popups (added by the herdr-superwork plugin; `herdr-superwork remove-extras` removes it)\n[ui.toast]\ndelivery = \"herdr\"\n# <<< herdr-superwork popups\n")).unwrap();
+    std::fs::write(&file, format!("{mine}\n# >>> herdr-projects popups (added by the herdr-projects plugin; `herdr-projects remove-extras` removes it)\n[ui.toast]\ndelivery = \"herdr\"\n# <<< herdr-projects popups\n")).unwrap();
     let _env = ConfigPath;
     unsafe { std::env::set_var("HERDR_CONFIG_PATH", &file) }
     assert!(sw::extras::offers().at("popups").is_null());

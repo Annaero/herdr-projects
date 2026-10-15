@@ -1,7 +1,7 @@
 //! Other machines. Every machine keeps its own tasks; a home board asks each machine for its list and sends each
-//! action to the machine that owns the task, through one entry point there: `herdr-superwork remote list|do|dispatch`,
+//! action to the machine that owns the task, through one entry point there: `herdr-projects remote list|do|dispatch`,
 //! run over SSH with a login shell so PATH is set. Work never moves between machines. Why a machine did not answer is
-//! remote/why.rs; the check you can run (`herdr-superwork machines`) is remote/check.rs.
+//! remote/why.rs; the check you can run (`herdr-projects machines`) is remote/check.rs.
 //!
 //! Machines come from `herdr machine list --json` (the ones the client added with `herdr machine add`): each has an
 //! `id`, a `label`, a `target` (`user@host` or `ssh://user@host:port`), a `session` and `enabled`. The
@@ -45,7 +45,7 @@ pub fn machines() -> Vec<Machine> {
 /// so asking again every few seconds costs almost nothing. The remote side runs through a login shell so PATH is set.
 pub fn ssh_command(m: &Machine, remote: &str, tty: bool) -> (String, Vec<String>) {
     let session = if !m.session.is_empty() && m.session != "default" { format!("HERDR_SESSION={} ", clean(&m.session, "_.-")) } else { String::new() };
-    if let Ok(s) = std::env::var("HERDR_SUPERWORK_SSH") { return (s, vec![m.target.clone(), format!("{session}{remote}")]); } // a stand-in, for tests
+    if let Ok(s) = std::env::var("HERDR_PROJECTS_SSH") { return (s, vec![m.target.clone(), format!("{session}{remote}")]); } // a stand-in, for tests
     let d = data_dir();
     let mut a: Vec<String> = if tty { vec!["-t".into()] } else { vec!["-o".into(), "BatchMode=yes".into()] };
     for o in ["ConnectTimeout=6", "StrictHostKeyChecking=accept-new"] { a.extend(["-o".into(), o.into()]); }
@@ -67,7 +67,7 @@ pub fn run_ended(mut c: std::process::Command, ms: u64) -> Ended {
 /// Ask a machine: its answer (one line of JSON, wherever the shell's start-up files printed around it), or why there
 /// is none (remote/why.rs).
 pub fn ask(m: &Machine, what: &str, arg: Option<&Value>, ms: u64) -> Result<Value, Value> {
-    let (cmd, args) = ssh_command(m, &format!("herdr-superwork remote {what}{}", arg.map(|a| format!(" {}", b64(a))).unwrap_or_default()), false);
+    let (cmd, args) = ssh_command(m, &format!("herdr-projects remote {what}{}", arg.map(|a| format!(" {}", b64(a))).unwrap_or_default()), false);
     let mut c = std::process::Command::new(cmd);
     c.args(args);
     let end = run_ended(c, ms);

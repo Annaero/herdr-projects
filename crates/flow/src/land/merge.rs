@@ -118,7 +118,7 @@ pub fn land_core(id: &str, g: &mut Guard) -> Res<()> {
             let asked = || serde_json::from_str::<Value>(&gh(&["pr", "view", &pr, "--json", "headRefOid"], &root, 60000).stdout).map(|v| v.t("headRefOid")).unwrap_or_default();
             let mut remote = asked();
             // Asked right after a push, GitHub may still name the commit before it: asked again, a few times.
-            let lag = std::env::var("HERDR_SUPERWORK_PR_LAG_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(5000u64);
+            let lag = std::env::var("HERDR_PROJECTS_PR_LAG_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(5000u64);
             let mut i = 0;
             while i < 6 && !remote.is_empty() && remote != reviewed && flow::git::remote_head(&root, t.s("branch")) == reviewed { if lag > 0 { std::thread::sleep(std::time::Duration::from_millis(lag)); } remote = asked(); i += 1; }
             if !remote.is_empty() && remote != reviewed {

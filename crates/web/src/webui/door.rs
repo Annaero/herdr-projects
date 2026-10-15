@@ -1,6 +1,6 @@
 //! The front door: a small server in front of the herdr web UI. Every request goes through to the web UI as it is
 //! (proxy.rs); the two things added are the board's own pages and calls, all under one path the web UI does not use
-//! (`/superwork/`), and one script line in the web UI's page. A fault of ours never breaks the web UI: whatever goes
+//! (`/herdr-projects/`), and one script line in the web UI's page. A fault of ours never breaks the web UI: whatever goes
 //! wrong on the way to the board, a request that is not the board's is still passed through. Who may use the board is
 //! whoever the web UI itself lets in: it is asked, with the caller's own headers, for every call. 127.0.0.1 only.
 use super::proxy::{ask, bad, caller_headers, parse_request, pass, read_answer, read_head, connect, Answer, Head, DOWN};
@@ -8,7 +8,7 @@ use crate::json::*;
 use std::io::Write;
 use std::net::TcpStream;
 
-pub const BASE: &str = "/superwork";
+pub const BASE: &str = "/herdr-projects";
 pub fn tag() -> String { format!("<script type=\"module\" src=\"{BASE}/page/start.js\"></script>") }
 /// Where the web UI is now, and which of its links goes through this door (for the one answer corrected here).
 pub trait Upstream: Send + Sync { fn to(&self) -> Option<(String, u16)>; fn link(&self) -> String; fn down(&self); }
@@ -95,7 +95,7 @@ pub fn handle(mut client: TcpStream, up: &dyn Upstream) {
 }
 // ---- who may use the board ---------------------------------------------------------------------------------------------
 pub const WHO: &str = "/api/health?scope=bridge";
-pub const OUR_HEADER: &str = "x-herdr-superwork";
+pub const OUR_HEADER: &str = "x-herdr-projects";
 /// Ok(role): "drive" may change things, "watch" may only look. Err: why not ("down" when the web UI did not answer).
 pub fn who(h: &Head, to: &(String, u16)) -> Result<String, String> {
     let Some(a) = ask(&to.0, to.1, "GET", WHO, &caller_headers(h), 1 << 20, 4000) else { return Err("down".into()) };

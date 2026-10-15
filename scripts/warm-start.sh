@@ -2,9 +2,9 @@
 # A new worktree starts from a warm build, not from nothing: the workspace setup (scripts/setup.sh) copies the last
 # kept build of the main line into its fresh `target/quick` before it builds (`ws_seed`), so that build only redoes
 # what differs, and keeps its own build as the next one's start when it is newer on the main line (`ws_keep`).
-# Sourced, it only defines the two; HERDR_SUPERWORK_NO_WARM=1 turns both off, as does a CARGO_TARGET_DIR of your own. How and why: docs/testing.md.
+# Sourced, it only defines the two; HERDR_PROJECTS_NO_WARM=1 turns both off, as does a CARGO_TARGET_DIR of your own. How and why: docs/testing.md.
 #
-# The kept builds live in ~/.cache/herdr-superwork/warm/<repo>/, one folder each (`seed-…`: `target/quick`, the
+# The kept builds live in ~/.cache/herdr-projects/warm/<repo>/, one folder each (`seed-…`: `target/quick`, the
 # commit it was built from, the compiler, the folder it was built in) and `current` naming the newest. A copy is a
 # clone where the file system can (APFS, Btrfs, XFS), a plain copy elsewhere; never hard links, as cargo writes into
 # some of its files in place. Cargo decides what is out of date by the times files were changed, and every file of a
@@ -13,7 +13,7 @@
 ws_old=200001010000
 ws_dir() {
   ws_git=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
-  ws_root="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-superwork/warm/$(printf '%s' "$ws_git" | cksum | cut -d' ' -f1)"
+  ws_root="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-projects/warm/$(printf '%s' "$ws_git" | cksum | cut -d' ' -f1)"
 }
 ws_rustc() { rustc -vV 2>/dev/null | tr -d '\r'; }
 # A copy of a folder that keeps every file's time: a clone where it can be, else a plain copy.
@@ -28,7 +28,7 @@ ws_changed() {
 }
 ws_seed() {
   ws_clean=""
-  [ -z "$HERDR_SUPERWORK_NO_WARM$CARGO_TARGET_DIR" ] && [ ! -e target/quick ] && ws_dir || return 0
+  [ -z "$HERDR_PROJECTS_NO_WARM$CARGO_TARGET_DIR" ] && [ ! -e target/quick ] && ws_dir || return 0
   [ -z "$(git status --porcelain --untracked-files=no 2>/dev/null)" ] && ws_clean=$(git rev-parse HEAD) || ws_clean=""
   ws_name=$(cat "$ws_root/current" 2>/dev/null) && [ -n "$ws_name" ] && [ -d "$ws_root/$ws_name/target/quick" ] || return 0
   ws_src="$ws_root/$ws_name"
@@ -55,7 +55,7 @@ ws_seed() {
   echo "Started from the warm build of ${ws_from%"${ws_from#???????}"}: only what changed since is built again."
 }
 ws_keep() {
-  [ -z "$HERDR_SUPERWORK_NO_WARM$CARGO_TARGET_DIR" ] && [ -n "$ws_clean" ] && [ -d target/quick ] && ws_dir || return 0
+  [ -z "$HERDR_PROJECTS_NO_WARM$CARGO_TARGET_DIR" ] && [ -n "$ws_clean" ] && [ -d target/quick ] && ws_dir || return 0
   # Kept only as built: from a commit of the main line, with nothing changed before or during the build.
   [ "$(git rev-parse HEAD)" = "$ws_clean" ] && [ -z "$(git status --porcelain --untracked-files=no)" ] || return 0
   ws_main=""

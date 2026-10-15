@@ -92,7 +92,7 @@ fn draw_at(s: &mut State, t: &Theme, width: usize, rows: usize) -> Screen {
     s.chat_folded = (s.full || s.auto_open || s.menu.is_some() || rows_n < 14) && !who.as_ref().map(|w| w.always).unwrap_or(false);
     let framed = !s.chat_folded && s.ask.is_none() && chat_up(s, who.as_ref()) && who.as_ref().map(|w| w.said).unwrap_or(false) && width >= 8;
     // What just happened, on a line of its own: the hints below it stay readable.
-    let stale = if s.stale.is_empty() { String::new() } else if !s.ctx.can_reload { "herdr-superwork was updated: close the board and open it again for the new version.".into() } else { "herdr-superwork was updated: the new version loads when nothing is half typed.".into() };
+    let stale = if s.stale.is_empty() { String::new() } else if !s.ctx.can_reload { "herdr-projects was updated: close the board and open it again for the new version.".into() } else { "herdr-projects was updated: the new version loads when nothing is half typed.".into() };
     let said: Vec<Inked> = if !s.msg.is_empty() && !(!s.off_note.is_empty() && s.msg_kind != Ink::Red) {
         let mut m = Inked::of(s.msg.clone(), s.msg_kind);
         if s.msg_kind == Ink::Red { m = m.add(Inked::of(format!("  ({} dismisses)", key_name("back")), Ink::Muted)); }

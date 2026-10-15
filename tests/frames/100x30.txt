@@ -1,5 +1,5 @@
 == the list
- herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
+ herdr-projects  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
  ? #9     Max length for task titles                                                              1m
           Should the old settings file be removed, or kept for one more version so that nobody lose…
  @ #10    Max length for task titles                                                              1m
@@ -30,7 +30,7 @@
 ────────────────────────────────────────────────────────────────────────────────────────────────────
   enter open this task's agent · space talk to the agent · ctrl+x stop the agent · ? all keys
 == the task beside it
- herdr-superwork  proj · 5 need you · 1 ready · 9 working … │  #5 Max length for task titles
+ herdr-projects  proj · 5 need you · 1 ready · 9 working ·… │  #5 Max length for task titles
  @ #10    Max length for task titles                     1m │
           Needs a login                                     │  Status ─────────────────────────────
  ! #12    Max length for task titles     R#1 PR#123456   1m │  State        ◐ working · for 1m
@@ -123,7 +123,7 @@
 ────────────────────────────────────────────────────────────────────────────────────────────────────
   ↑↓ pick a key · enter press it · esc close the menu
 == a draft
- herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
+ herdr-projects  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
  ? #9     Max length for task titles                                                              1m
           Should the old settings file be removed, or kept for one more version so that nobody lose…
  @ #10    Max length for task titles                                                              1m
