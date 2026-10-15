@@ -119,6 +119,7 @@ mod herdr_keys;
 mod home_folder;
 mod home_folder_more;
 mod install;
+mod keeper_update;
 mod keys_list;
 mod lifecycle;
 mod lifecycle_more;

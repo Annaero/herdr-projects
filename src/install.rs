@@ -146,7 +146,7 @@ pub fn install(exe: &Path) -> String {
 
 /// The commands: `install`, `update [VERSION]`.
 pub fn main(cmd: &str, args: &[String]) -> i32 {
-    let exe = PathBuf::from(bin().display().to_string().trim_end_matches(" (deleted)"));
+    let exe = bin();
     let exe = std::fs::canonicalize(&exe).unwrap_or(exe);
     let out = if cmd == "install" { Ok(install(&exe)) } else { update(&exe, args.first().map(String::as_str), &fetch) };
     match out { Ok(s) => { println!("{s}"); 0 } Err(e) => { eprintln!("{}", e.msg); 1 } }

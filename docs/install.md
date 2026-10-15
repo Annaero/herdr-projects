@@ -30,7 +30,10 @@ release files are built for every version tag by `.github/workflows/release.yml`
 (`update 0.3.1` a given version); an open board and the keeper see the file change and load it by themselves
 ([the board's size](board-size.md)). Pulling a newer version of the plugin (`git pull`) does the same at the next
 command herdr runs: `bin/run.sh` downloads that version. A program you built yourself is updated with `git pull` and
-`cargo build --release`, never by a download.
+`cargo build --release`, never by a download. The keeper starts its successor on the new file itself once the file has stopped changing
+(a build still being linked is waited for), with no board open and no agent running, and goes only when the successor
+runs; a new file that does not start leaves the old keeper running, and it tries again a little later (`keeper.log` in
+the data folder says so).
 
 **Building from source** instead: `cargo build --release` in the checkout (Rust: https://rustup.rs). `bin/run.sh`
 then runs that build, and builds again are picked up the same way.

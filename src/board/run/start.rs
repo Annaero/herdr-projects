@@ -108,7 +108,7 @@ pub fn threads(tx: &Sender<Msg>, wants: &Arc<Mutex<Wants>>, load: &Arc<(Mutex<bo
     });
     let t = tx.clone();
     std::thread::spawn(move || {
-        let exe = std::env::current_exe().map(|p| std::path::PathBuf::from(p.display().to_string().trim_end_matches(" (deleted)"))).unwrap_or_default();
+        let exe = crate::store::files::bin();
         let first = crate::keeper::code_stamp(&exe);
         // Every five seconds (HERDR_SUPERWORK_STAMP_MS: the tests that load a new version look sooner).
         let every = env("HERDR_SUPERWORK_STAMP_MS").parse().unwrap_or(5000u64);
@@ -145,7 +145,7 @@ pub fn watch_tab(socket: Option<String>, tab: &str, gone: impl Fn() + Send + Syn
 pub fn reload() {
     use std::os::unix::process::CommandExt;
     let reloads: i64 = env("HERDR_SUPERWORK_RELOADS").parse().unwrap_or(0);
-    let exe = std::env::current_exe().map(|p| std::path::PathBuf::from(p.display().to_string().trim_end_matches(" (deleted)"))).unwrap_or_default();
+    let exe = crate::store::files::bin();
     let err = std::process::Command::new(exe).args(std::env::args_os().skip(1)).env(term::KEPT, "1").env("HERDR_SUPERWORK_RELOADS", (reloads + 1).to_string()).exec();
     eprintln!("herdr-superwork could not start its new version: {err}");
 }

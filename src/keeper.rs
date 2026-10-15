@@ -5,15 +5,17 @@
 //! agent's own command (so it is never born inside an agent's process group). It looks after this machine's tasks only.
 //!
 //! Two processes: the keeper itself only holds the lock, rewrites its heartbeat once a second and watches for an
-//! update of the program; a child does the ticking, so a slow herdr or gh call never stops the heartbeat.
+//! update of the program; a child does the ticking, so a slow herdr or gh call never stops the heartbeat. On an
+//! update it starts its successor itself and goes only once that one beats, so a keeper runs on with no board open
+//! and no agent's hook to start one.
 use crate::clock::{iso, now};
 use crate::err::Kind;
 use crate::flow::{live::board_for, sidebar::sync_sidebar, task::is_agent_task};
 use crate::herdr::{cli::{current_socket, socket_exists}, Herdr};
-use crate::housekeeping::{housekeeping, spawn_loose, Force};
+use crate::housekeeping::{housekeeping, loose, spawn_loose, Force};
 use crate::json::*;
 use crate::runner::{inline, user_env};
-use crate::store::{files::{data_dir, hold_lock, proc_start, with_lock_wait, write_json, VERSION}, marks::due, repos::cwd_of, tasks::{list, update_wait, Change, ListOpts}};
+use crate::store::{files::{bin, data_dir, hold_lock, proc_start, read_obj, with_lock_wait, write_json, VERSION}, marks::due, repos::cwd_of, tasks::{list, update_wait, Change, ListOpts}};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
@@ -34,12 +36,15 @@ pub fn code_stamp(exe: &Path) -> String {
     let m = std::fs::metadata(exe).and_then(|m| m.modified()).map(|t| t.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)).unwrap_or(0);
     format!("{VERSION}:{m}")
 }
+/// How often the keeper looks at the program on disk (HERDR_SUPERWORK_STAMP_MS: the tests that update it look sooner).
+fn stamp_every() -> i64 { std::env::var("HERDR_SUPERWORK_STAMP_MS").ok().and_then(|s| s.parse().ok()).filter(|&n: &i64| n > 0).unwrap_or(5000) }
 
 pub fn keeper_main() {
     if no_keeper() { return; }
-    let Ok(held) = hold_lock("keeper", 10000) else { return }; // another keeper has it
+    let Ok(lock) = hold_lock("keeper", 10000) else { return }; // another keeper has it
+    let mut held = Some(lock);
     user_env();
-    let exe = std::env::current_exe().map(|p| PathBuf::from(p.display().to_string().trim_end_matches(" (deleted)"))).unwrap_or_default();
+    let exe = bin();
     let stamp = code_stamp(&exe);
     let pid = std::process::id() as i64;
     let info = json!({ "pid": pid, "start": proc_start(pid), "version": VERSION, "started": now() });
@@ -51,11 +56,11 @@ pub fn keeper_main() {
     unsafe { for s in [libc::SIGTERM, libc::SIGINT, libc::SIGHUP] { libc::signal(s, on_signal as *const () as usize); } }
     let mut child: Option<std::process::Child> = None;
     let mut restart_at = 0i64;
-    let mut successor = false;
-    let why;
-    let mut last_stamp = now();
+    let why: Option<String>;
+    let every = stamp_every();
+    let (mut seen, mut look_at, mut tries) = (stamp.clone(), now() + every, 0i64);
     loop {
-        if ENDING.load(std::sync::atomic::Ordering::SeqCst) { why = "a signal".to_string(); break; }
+        if ENDING.load(std::sync::atomic::Ordering::SeqCst) { why = Some("a signal".into()); break; }
         if child.is_none() && now() >= restart_at {
             let mut c = std::process::Command::new(&exe);
             c.arg("keeper-work").current_dir(data_dir()).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
@@ -65,19 +70,54 @@ pub fn keeper_main() {
         if let Some(ch) = child.as_mut() {
             if let Ok(Some(st)) = ch.try_wait() {
                 child = None;
-                if st.code() == Some(3) { why = "herdr is gone".into(); break; }
+                if st.code() == Some(3) { why = Some("herdr is gone".into()); break; }
                 restart_at = now() + 2000;
             }
         }
         beat();
-        if now() - last_stamp >= 5000 { last_stamp = now(); if code_stamp(&exe) != stamp { why = "the plugin was updated".into(); successor = true; break; } }
-        std::thread::sleep(std::time::Duration::from_millis(1000));
+        if now() >= look_at {
+            look_at = now() + every;
+            let now_stamp = code_stamp(&exe);
+            // A new program, settled: the same file on two looks in a row (one cargo is still writing changes between
+            // them). The successor is started and seen beating before this one goes; one that does not come up leaves
+            // this one keeping on, and trying again a little later.
+            if now_stamp != stamp && now_stamp == seen && exe.is_file() {
+                log("ending: the plugin was updated");
+                stop(&mut child);
+                held = None;
+                let _ = std::fs::remove_file(beat_file());
+                let failed = match handover(pid) { Ok(()) => { why = None; break; } Err(e) => e };
+                // Taken back at once: a keeper that has it now (started by a hook meanwhile) runs the new program.
+                let Ok(lock) = hold_lock("keeper", 0) else { why = Some("another keeper took over".into()); break };
+                held = Some(lock);
+                tries += 1;
+                look_at = now() + every * 6 * tries.min(20);
+                restart_at = 0;
+                beat();
+                log(&format!("the new version did not start ({failed}): keeping on, trying again in {}s", (look_at - now()) / 1000));
+            }
+            seen = now_stamp;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(every.clamp(1, 1000) as u64));
     }
-    log(&format!("ending: {why}"));
-    if let Some(mut ch) = child { unsafe { libc::kill(ch.id() as i32, libc::SIGTERM); } let _ = ch.wait(); }
-    let _ = std::fs::remove_file(beat_file());
+    if let Some(why) = why { log(&format!("ending: {why}")); }
+    stop(&mut child);
+    if held.is_some() { let _ = std::fs::remove_file(beat_file()); }
     drop(held);
-    if successor { spawn_loose(&["keeper"]); } // it waits up to ten seconds for the lock
+}
+fn stop(child: &mut Option<std::process::Child>) { if let Some(mut ch) = child.take() { unsafe { libc::kill(ch.id() as i32, libc::SIGTERM); } let _ = ch.wait(); } }
+/// Starts the keeper on the new program and waits for its heartbeat. A program that cannot be started (still being
+/// written: "text file busy"; half written: "exec format error") or that ends at once is said, and nothing runs it.
+fn handover(own: i64) -> Result<(), String> {
+    let mut c = loose(&["keeper"]).spawn().map_err(|e| e.to_string())?;
+    let until = now() + 15000;
+    while now() < until {
+        // Its own beat, or that of a keeper a hook started meanwhile (this one then gives up waiting for the lock).
+        if keeper_alive() && read_obj(&beat_file()).map(|b| b.i("pid") != own).unwrap_or(false) { return Ok(()); }
+        if let Ok(Some(st)) = c.try_wait() { return Err(format!("it ended: {st}")); }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    Err("no heartbeat in 15s".into())
 }
 
 // ---- the tick: what the board's own tick does, once a second ----------------------------------------------------------

@@ -44,8 +44,14 @@ pub fn tasks_dir() -> PathBuf { data_dir().join("tasks") }
 pub fn has_tasks() -> bool { tasks_dir().exists() }
 pub fn dir_of(id: &str) -> PathBuf { let mut p = tasks_dir(); for part in id.split('/') { p.push(part); } p }
 pub fn artifacts_dir(id: &str) -> PathBuf { dir_of(id).join("artifacts") }
-/// This program, by its full path: what agents and hooks are handed.
-pub fn bin() -> PathBuf { std::env::current_exe().unwrap_or_else(|_| PathBuf::from("herdr-superwork")) }
+/// This program, by its full path: what agents and hooks are handed, and what a process starts its successors from.
+/// Once an update put a new file at that path, Linux names the running one "… (deleted)", a file nothing can be started
+/// from: the path is the one without it, where the new program is.
+pub fn bin() -> PathBuf {
+    use std::os::unix::ffi::OsStrExt;
+    let Ok(p) = std::env::current_exe() else { return PathBuf::from("herdr-superwork") };
+    match p.as_os_str().as_bytes().strip_suffix(b" (deleted)") { Some(b) => PathBuf::from(std::ffi::OsStr::from_bytes(b)), None => p }
+}
 pub fn absolute(p: &Path) -> PathBuf { if p.is_absolute() { p.to_path_buf() } else { std::env::current_dir().map(|d| d.join(p)).unwrap_or_else(|_| p.to_path_buf()) } }
 
 /// The user's name, as the owner of a task.

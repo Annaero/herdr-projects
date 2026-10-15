@@ -96,7 +96,9 @@ pub fn fetch_mains() {
     }
 }
 /// A detached job that belongs to no single task.
-pub fn spawn_loose(a: &[&str]) -> u32 {
+pub fn spawn_loose(a: &[&str]) -> u32 { loose(a).spawn().map(|ch| ch.id()).unwrap_or(0) }
+/// The command `spawn_loose` starts, for a caller that follows what became of it (the keeper's successor).
+pub fn loose(a: &[&str]) -> std::process::Command {
     use std::process::{Command, Stdio};
     user_env();
     let _ = std::fs::create_dir_all(data_dir());
@@ -108,5 +110,5 @@ pub fn spawn_loose(a: &[&str]) -> u32 {
         Err(_) => { c.stdout(Stdio::null()).stderr(Stdio::null()); }
     }
     detach(&mut c);
-    c.spawn().map(|ch| ch.id()).unwrap_or(0)
+    c
 }

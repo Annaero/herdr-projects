@@ -108,7 +108,7 @@ impl DoorLoop {
 /// In the page server's process: opens the front door while there is a web UI, and keeps looking. Never fails.
 pub fn run_door() {
     if off() { return; }
-    let exe = std::env::current_exe().unwrap_or_default();
+    let exe = crate::store::files::bin();
     let stamp = crate::keeper::code_stamp(&exe);
     let mut d = DoorLoop::new();
     std::thread::spawn(move || loop {
