@@ -20,16 +20,17 @@ pub fn held_size(cols: u16, rows: u16, layout: &Value, pane: &str) -> Option<(u1
 /// The attach processes on this machine that hold a terminal, oldest first: (pid, seconds).
 pub fn holders(terminal: &str) -> Vec<(i64, i64)> {
     if terminal.is_empty() { return vec![]; }
-    let out = std::process::Command::new("ps").args(["-eo", "pid=,etimes=,args="]).output().ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
+    // `etime`, not `etimes`: macOS's ps has no `etimes` and fails outright, and then no view was ever seen.
+    let out = std::process::Command::new("ps").args(["-eo", "pid=,etime=,args="]).output().ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
     holders_in(terminal, &out)
 }
-/// The same, from what `ps -eo pid=,etimes=,args=` printed.
+/// The same, from what `ps -eo pid=,etime=,args=` printed.
 pub fn holders_in(terminal: &str, out: &str) -> Vec<(i64, i64)> {
     if terminal.is_empty() { return vec![]; }
     let valued = ["--session", "--machine", "--remote", "--remote-keybindings"];
     let mut v: Vec<(i64, i64)> = out.lines().filter_map(|l| {
         let mut it = l.split_whitespace();
-        let (pid, secs) = (it.next()?.parse::<i64>().ok()?, it.next()?.parse::<i64>().ok()?);
+        let (pid, secs) = (it.next()?.parse::<i64>().ok()?, elapsed(it.next()?)?);
         let a: Vec<&str> = it.collect();
         let first = a.first()?;
         if !(*first == "herdr" || first.ends_with("/herdr")) { return None; }
@@ -40,6 +41,11 @@ pub fn holders_in(terminal: &str, out: &str) -> Vec<(i64, i64)> {
     }).collect();
     v.sort_by(|a, b| b.1.cmp(&a.1));
     v
+}
+/// `ps`'s elapsed time in seconds: `[[days-]hours:]minutes:seconds`, or plain seconds.
+fn elapsed(t: &str) -> Option<i64> {
+    let (days, rest) = match t.split_once('-') { Some((d, r)) => (d.parse::<i64>().ok()?, r), None => (0, t) };
+    rest.split(':').try_fold(0i64, |n, p| p.parse::<i64>().ok().map(|v| n * 60 + v)).map(|s| days * 86400 + s)
 }
 /// One look, for the pane this process runs in. None when nothing holds the size, or it cannot be known.
 pub fn look(cols: u16, rows: u16) -> Option<Held> {

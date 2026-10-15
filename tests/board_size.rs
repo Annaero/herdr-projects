@@ -164,4 +164,7 @@ fn a_terminal_held_at_another_views_size_is_told_from_herdrs_own_window_a_zoomed
     assert_eq!(holders_in("term_aa", &ps), vec![(100, 2400), (105, 600), (108, 300), (101, 30), (111, 20)]);
     assert_eq!(holders_in("term_zz", &ps), vec![(110, 9001), (109, 9000)]);
     assert_eq!(holders_in("", &ps), vec![]);
+    // macOS's ps has no `etimes`: its `etime` is [[days-]hours:]minutes:seconds, read as seconds all the same.
+    let ps = ["  200       00:07 /Users/u/.local/bin/herdr terminal attach term_mm", "  201    01:02:03 herdr terminal attach term_mm", "  202 2-00:00:01 herdr terminal attach term_mm", "  203      xx:07 herdr terminal attach term_mm"].join("\n");
+    assert_eq!(holders_in("term_mm", &ps), vec![(202, 172801), (201, 3723), (200, 7)]);
 }

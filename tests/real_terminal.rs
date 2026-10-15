@@ -9,7 +9,7 @@ use std::os::unix::process::CommandExt;
 use std::time::{Duration, Instant};
 
 struct Term { master: std::fs::File, child: std::process::Child, out: Vec<u8>, answered: usize }
-fn winsize(fd: i32, cols: u16, rows: u16) { let ws = libc::winsize { ws_row: rows, ws_col: cols, ws_xpixel: 0, ws_ypixel: 0 }; unsafe { libc::ioctl(fd, libc::TIOCSWINSZ, &ws) }; }
+fn winsize(fd: i32, cols: u16, rows: u16) { let ws = libc::winsize { ws_row: rows, ws_col: cols, ws_xpixel: 0, ws_ypixel: 0 }; unsafe { libc::ioctl(fd, libc::TIOCSWINSZ as _, &ws) }; }
 fn start(cwd: &std::path::Path, cols: u16, rows: u16) -> Term {
     let (mut m, mut s) = (0, 0);
     assert_eq!(unsafe { libc::openpty(&mut m, &mut s, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut()) }, 0);
