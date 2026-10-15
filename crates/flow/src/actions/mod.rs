@@ -3,6 +3,7 @@
 pub mod archive;
 pub mod filing;
 pub mod finish_line;
+pub mod finish_stuck;
 pub mod limits;
 pub mod plan;
 pub mod settings;

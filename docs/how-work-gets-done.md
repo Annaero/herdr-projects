@@ -23,7 +23,9 @@ login error, token use. With the board open or closed it then:
    reviewer that finishes its turn with no verdict is started once more by itself, as the same review; a second one that
    does fails the review, with its last message. Only the reviewer's own turn ending counts: a helper it hands part of
    the review to (Codex's sub-agents, Claude Code's background agents) finishing is not the review ending, and while one
-   of its helpers is still at work the review is still going (the same holds for a working agent and its task). One
+   of its helpers is still at work the review is still going (the same holds for a working agent and its task). A
+   helper is back when its answer is in the conversation (a message of its own, or a queued one taken into a turn still
+   going) or its own saved conversation ends in its finished reply. One
    whose turn was ended by its provider is tried again by the board (see [A turn cut off by the
    provider](provider-errors.md)). The board decides from the findings (see [The gate](gate.md)): a review that fails
    goes straight back to the agent. The row says the result and a tally (`Pass · 2 minor`), and its `R#2` tag which
@@ -40,7 +42,8 @@ screen, so "idle" alone never finishes a task. The turn counts as ended when the
 message or an error, or a closing note was written to the task's own folder (`closing-note.md`, [where it
 is](home-folder.md#nothing-of-the-boards-goes-into-the-folder-an-agent-works-in); the rules still ask for one as the
 fallback). Otherwise the task is held as "Stopped without a summary": `Ctrl+R` tells the agent to continue, `Ctrl+L`
-takes the work as it is. Typing in the agent's own terminal, or replying from the board, re-arms all of this: an
+takes the work as it is. A task whose finish the board missed (its agent at rest, the row still "Finishing") is
+finished with `herdr-projects finish <id>`: what the agent said last is the summary. Typing in the agent's own terminal, or replying from the board, re-arms all of this: an
 approval is revoked, a pending auto-merge cancelled (a cancellation that fails is saved as a visible failure), the old
 review marked stale. A chat with reviewed work is the exception below: what it re-arms only counts once the code
 changed.

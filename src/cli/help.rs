@@ -30,7 +30,8 @@ pub const HELP: &str = r#"herdr-projects: a work board for herdr
   herdr-projects review <id>                   send the reviewer's findings back to the agent
   herdr-projects retry <id>                    send the saved error back to the agent; on a task a limit stopped: continue
   herdr-projects fix <id>                      send failure details to the agent (never approves a merge)
-  herdr-projects finish <id>                   finish anyway, when the agent stopped without a summary or at a limit
+  herdr-projects finish <id>                   finish anyway, when the agent stopped without a summary or at a limit,
+                                                or when the board missed it finishing (its agent at rest, the row still "Finishing")
   herdr-projects details <id>                  failure details, review, next steps, and what it used against its limits
   herdr-projects pin|archive|restore|clear <id>
   herdr-projects set <name> <value> [--repo NAME | --task ID | --automation NAME]

@@ -3,7 +3,7 @@
 //! conversation names the thread that started it. And while a helper the agent started is still at work, the agent's
 //! own turn ending is not the end of its work: the helper's answer starts the agent again.
 use super::adapter::transcript;
-use super::read_turn::{head_of, read_turn, when, Turn, TAIL};
+use super::read_turn::{head_of, read_turn, tail_lines, when, Turn, TAIL};
 use crate::json::*;
 use std::io::BufRead;
 use std::path::Path;
@@ -50,7 +50,9 @@ fn word_after(line: &str, key: &str) -> Vec<String> {
     line.match_indices(key).map(|(i, _)| line[i + key.len()..].chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_').collect::<String>()).filter(|w| !w.is_empty()).collect()
 }
 /// Claude Code: an agent sent to the background is at work from its launch (or a message that resumes it) until its
-/// `<task-notification>` comes back.
+/// `<task-notification>` comes back. One that comes back while the agent's turn is still going is no message of its own:
+/// it is written as a queued command (`queue-operation`, then an `attachment` taken into the running turn), as seen on
+/// HSW-218 (Claude Code 2.1.300, 2026-10-15), where the board waited for a helper back for half an hour.
 fn claude_running(file: &Path, since: i64) -> usize {
     let mut live: Vec<(String, i64)> = vec![];
     let mut known: Vec<String> = vec![];
@@ -58,7 +60,7 @@ fn claude_running(file: &Path, since: i64) -> usize {
         let at = when(e.at("timestamp"));
         if e.s("type") == "user" && l.contains("Async agent launched") {
             for id in word_after(&l, "agentId: ") { live.retain(|(x, _)| *x != id); live.push((id.clone(), at)); known.push(id); }
-        } else if e.s("type") == "user" && l.contains("<task-notification>") {
+        } else if ["user", "attachment", "queue-operation"].contains(&e.s("type")) && l.contains("<task-notification>") {
             for id in word_after(&l, "<task-id>") { live.retain(|(x, _)| *x != id); }
         } else if e.s("type") == "assistant" {
             for c in e.at("message").arr("content") {
@@ -67,5 +69,13 @@ fn claude_running(file: &Path, since: i64) -> usize {
             }
         }
     }
-    live.iter().filter(|(_, at)| *at >= since).count()
+    live.iter().filter(|(id, at)| *at >= since && !claude_back(file, id, *at)).count()
+}
+/// A Claude Code helper's own conversation (`<conversation>/subagents/agent-<id>.jsonl`) ends in its finished reply,
+/// written since it was last started: it is back, whatever the agent's own file shows of its notification.
+fn claude_back(file: &Path, id: &str, at: i64) -> bool {
+    let own = file.with_extension("").join("subagents").join(format!("agent-{id}.jsonl"));
+    let Ok(lines) = tail_lines(&own, 256 * 1024) else { return false };
+    let Some(e) = lines.iter().rev().find(|e| ["user", "assistant"].contains(&e.s("type"))) else { return false };
+    e.s("type") == "assistant" && e.at("message").s("stop_reason") == "end_turn" && when(e.at("timestamp")) >= at
 }

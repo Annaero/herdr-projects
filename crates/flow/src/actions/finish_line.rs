@@ -160,11 +160,13 @@ pub fn send_failure(id: &str) -> Res<Said> {
     let msg = if out.msg.starts_with("queued") { out.msg.clone() } else { format!("{cid}: sent to the agent to fix") };
     Ok(say(out.task, msg))
 }
-/// "Finish anyway": run the pipeline on a turn that left no closing note, with the screen text as the summary.
+/// "Finish anyway": run the pipeline on a turn that left no closing note, with the screen text as the summary. Also on
+/// a task whose finish the board missed, its agent at rest at stage "working" (finish_stuck.rs).
 pub fn finish_anyway(id: &str) -> Res<Said> {
     let cur = find(id)?;
     assert_unarchived(&cur)?;
     if stopped_at_limit(&cur) { return take_as_is(cur.s("id")); }
+    if cur.s("stage") == "working" { return super::finish_stuck::finish_stuck(&cur); }
     if cur.s("stage") != "nosummary" { crate::fail!("{} did not stop without a summary.", cur.s("id")); }
     let t = update(cur.s("id"), |t| {
         if t.s("stage") != "nosummary" || runner_alive(t) { crate::fail!("{} is busy.", t.s("id")); }

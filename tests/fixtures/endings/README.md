@@ -19,3 +19,6 @@ the API's documented 529 and 429 texts; the two `-finished-made` files are an or
   ends while a helper it started is still at work, in the shape of the recorded ones (Codex 0.162.1's
   `SubAgentActivity`, Claude Code 2.1's "Async agent launched" result and `<task-notification>`), and the turn its
   helper's answer starts.
+- `claude-helper-back-mid-turn-made` (tests/finish_missed.rs): a helper whose answer comes back while the agent's turn
+  is still going, in the shape recorded on HSW-218 (Claude Code 2.1.300): its `<task-notification>` is only a
+  `queue-operation` and an `attachment` (a queued command taken into the running turn), never a message of its own.
