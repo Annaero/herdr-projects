@@ -99,7 +99,7 @@ fn herdr_s_sidebar_says_where_a_task_stands_in_the_board_s_status_words() {
     assert_eq!(place(&t), "review failed");
     let old = with(&t, json!({ "review": { "score": 4, "recommend": true, "text": "Old." } }));
     let e = sw::flow::sidebar::entry_now(&old, sw::clock::now());
-    assert_eq!((e.place.as_str(), e.line.as_str()), ("ready to approve", "4/5 reviewer says yes"));
+    assert_eq!((e.place.as_str(), e.line.as_str()), ("ready to approve", ""));
     assert_eq!(place(&with(&t, json!({ "stage": "reviewing" }))), "agent · under review");
     assert_eq!(place(&with(&t, json!({ "stage": "reviewing", "reviewRound": 0 }))), "agent · under review"); // the agent's own entry: the reviewer's says `reviewer`
     assert_eq!(place(&with(&t, json!({ "stage": "reviewneeds" }))), "needs you");

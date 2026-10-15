@@ -43,9 +43,9 @@ fn tasks_that_wait_for_a_free_slot_have_their_own_mark_colour_and_place_in_the_q
     assert!(said.lines().any(|l| l.contains("Third waits") && l.contains("waiting for a free slot, Q#2")), "{said}");
     let d = sw::actions::finish_line::details(&c).unwrap();
     assert_eq!((d.at("queue").i("place"), d.at("queue").s("words")), (2, "waiting for a free slot, Q#2"));
-    // herdr's sidebar: where it stands, then the row's second line with its place.
+    // herdr's sidebar: where it stands, then its place, without the row's second line.
     let e = sw::flow::sidebar_entry::entry_of(&row(&c), "", sw::clock::now());
-    assert_eq!((e.place.as_str(), e.line.as_str(), e.progress.as_str()), ("queued", "Waiting for a free slot", "Q#2"));
+    assert_eq!((e.place.as_str(), e.line.as_str(), e.progress.as_str()), ("queued", "", "Q#2"));
     // The web Board: the same mark, colour and place.
     let s = web(&w, "board", json!({}));
     let rows: Vec<Value> = s.at("list").arr("groups").iter().flat_map(|g| g.arr("rows").iter().cloned()).collect();

@@ -128,7 +128,7 @@ fn review_rounds_0_is_the_manual_mode_and_one_tasks_own_bar_and_rounds_send_even
     assert_eq!((review_round(&t), pane_prompts(&w, &t).len(), t.at("review").at("pass")), (1, 1, &json!(false)));
     assert!(t.s("msg").starts_with("Approve to merge? Review: Fail · 1 critical."), "{}", t.s("msg"));
     let e = sw::flow::sidebar::entry_now(&t, sw::clock::now());
-    assert_eq!((e.place.as_str(), e.line.as_str()), ("review failed", "Review failed · 1 critical"));
+    assert_eq!((e.place.as_str(), e.line.as_str()), ("review failed", ""));
     let refused = sw::actions::finish_line::approve(&id, None, false).unwrap_err().msg;
     assert!(re(r"was not merged: its last review failed \(1 critical\)[\s\S]*approve proj/1 --anyway", &refused), "{refused}");
     assert_eq!(task(&id).s("stage"), "approval", "a plain approve never merges it");

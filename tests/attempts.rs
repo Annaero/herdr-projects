@@ -50,10 +50,10 @@ fn one_row_times_three_pick_one_the_panel_and_the_approve_key_keeps_the_selected
     for want in ["needs you", "Pick one of 3 · the reviewer recommends B", "Pick one of 3 ─", "recommends B: B handles the", "Misses the empty case.", "Open its diff", "1 file · +1 −0"] { assert!(shown.contains(want), "{want}: {shown}"); }
     assert!(regex::Regex::new(r"  A +claude · ✓ passed the check").unwrap().is_match(&shown), "{shown}");
     assert!(regex::Regex::new(r"  B › +claude · ✓ passed the check").unwrap().is_match(&shown), "{shown}");
-    // herdr's sidebar says it too.
+    // herdr's sidebar says where it stands, and not the row's sentence.
     sw::flow::sidebar::sync_sidebar(&sw::flow::live::board(false), None, sw::clock::now());
     let meta: Vec<String> = w.state().arr("metadata").iter().map(|m| m.arr("args").iter().map(text).collect::<Vec<_>>().join(" ")).collect();
-    assert!(meta.iter().any(|m| m.contains("summary=Pick one of 3 · the reviewer recommends B")), "{}", meta.join("\n"));
+    assert!(!meta.iter().any(|m| m.contains("Pick one of 3")), "{}", meta.join("\n"));
     assert!(meta.iter().any(|m| m.contains("--display-agent pick one")), "{}", meta.join("\n"));
     let last = b.lines().last().cloned().unwrap_or_default();
     assert!(last.contains(&format!("{} keep attempt B · {} the next attempt · enter open attempt B's agent", sw::board::keys::key_name("yes"), sw::board::keys::key_name("nextAttempt"))), "{last}");

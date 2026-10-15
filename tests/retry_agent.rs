@@ -38,7 +38,7 @@ fn a_turn_cut_off_by_a_passing_error_is_told_to_carry_on_by_itself_not_held_as_f
     let r = row(&id);
     assert_eq!((r.s("state"), r.s("note")), ("working", "Agent's connection dropped, trying again in 2m"));
     let e = sw::flow::sidebar::entry_now(&t, sw::clock::now());
-    assert_eq!((e.place.as_str(), e.line.as_str()), ("agent · working", r.s("note"))); // herdr's sidebar says what the row says
+    assert_eq!((e.place.as_str(), e.line.as_str()), ("agent · working", "")); // herdr's sidebar says where the row stands, not its sentence
     // on the board: under "working", the row and the task panel say why and when, and nothing asks for you
     let mut b = common::board::open(&w.root, 40);
     let screen = b.screen(130).join("\n");

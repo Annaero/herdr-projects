@@ -119,9 +119,9 @@ fn work_whose_review_failed_stands_under_needs_you_and_its_yes_is_merge_anyway()
     let refused = sw::actions::finish_line::approve(&bad, None, false).unwrap_err().msg;
     assert!(has(&refused, r"proj/1 was not merged: its last review failed \(1 critical, 1 major\)\..*herdr-superwork approve proj/1 --anyway"), "{refused}");
     let said = |t: &Obj| { let e = sw::flow::sidebar::entry_now(t, sw::clock::now()); (e.place, e.line) };
-    assert_eq!(said(&task(&bad)), ("review failed".to_string(), "Review failed · 1 critical, 1 major".to_string()));
-    assert_eq!(said(&task(&good)), ("ready to approve".to_string(), "Pass".to_string()));
-    assert_eq!(said(&obj(json!({ "id": "proj/9", "stage": "asks", "kind": "question", "msg": "Sand or pebbles?" }))), ("asks you".to_string(), "Sand or pebbles?".to_string()));
+    assert_eq!(said(&task(&bad)), ("review failed".to_string(), String::new()));
+    assert_eq!(said(&task(&good)), ("ready to approve".to_string(), String::new()));
+    assert_eq!(said(&obj(json!({ "id": "proj/9", "stage": "asks", "kind": "question", "msg": "Sand or pebbles?" }))), ("asks you".to_string(), String::new()));
     assert_eq!(said(&obj(json!({ "id": "proj/9", "stage": "working", "agent": "claude", "app": "claude" }))), ("agent · working".to_string(), String::new()));
 }
 

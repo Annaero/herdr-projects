@@ -161,13 +161,13 @@ fn the_pace_is_a_setting_and_herdrs_sidebar_keeps_the_minutes_left_between_looks
     x.tick(0); x.answer(0, &all(1, 50), 0, "");
     // herdr's sidebar is told the row by whoever ticks (flow/sidebar.rs): the Watcher itself writes nothing to herdr.
     let sync = || sw::flow::sidebar::sync_sidebar(&sw::flow::live::board(true), None, sw::clock::now());
-    let told = || -> Vec<String> { x.w.state().arr("metadata").iter().map(|m| m.arr("args").iter().map(text).collect::<Vec<_>>().join(" ")).filter(|a| a.contains("summary=doing 1")).filter_map(|a| regex::Regex::new(r"progress=(.*?) --").unwrap().captures(&a).map(|c| c[1].to_string())).collect() };
-    sync(); assert_eq!(told(), vec!["50% 30m left"]);
+    let told = || -> Vec<String> { x.w.state().arr("metadata").iter().map(|m| m.arr("args").iter().map(text).collect::<Vec<_>>().join(" ")).filter(|a| a.contains("--display-agent")).filter_map(|a| regex::Regex::new(r"progress=(.*?) --").unwrap().captures(&a).map(|c| c[1].to_string())).collect() };
+    sync(); assert_eq!(told(), vec!["50% 30m"]);
     x.screen("proj/1", "● Writing tests\n");
     x.tick(61); x.tick(119); assert_eq!(x.n(), 1); // two minutes between looks, as set
     // No look, yet the sidebar has the minutes worked out afresh, written when they change: 31 spent at 50%.
-    sync(); assert_eq!(told(), vec!["50% 30m left"]);
-    put("proj/1", |t| { let s = t.i("since"); t.put("since", s - 60000); }); sync(); assert_eq!(told(), vec!["50% 30m left", "50% 31m left"]);
+    sync(); assert_eq!(told(), vec!["50% 30m"]);
+    put("proj/1", |t| { let s = t.i("since"); t.put("since", s - 60000); }); sync(); assert_eq!(told(), vec!["50% 30m", "50% 31m"]);
     put("proj/1", |t| { let s = t.i("since"); t.put("since", s + 60000); });
     assert_eq!(row("proj/1").i("eta"), 30, "the board's own row counts by itself");
     x.tick(125); assert_eq!(x.n(), 2);

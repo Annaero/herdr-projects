@@ -53,10 +53,10 @@ fn the_hidden_helper_the_watcher_writes_a_line_and_a_guess() {
     assert_eq!((watch.s("msg"), watch.i("progress"), watch.at("eta").is_null()), ("editing the greeting file", 42, true), "{watch}");
     let shown = row("proj/1");
     assert_eq!((shown.s("note"), shown.i("progress"), shown.i("eta")), ("editing the greeting file", 42, 55), "40 × 58 ÷ 42");
-    // whoever ticks tells herdr's sidebar the row: the same line, percent and minutes left
+    // whoever ticks tells herdr's sidebar the row's numbers: its percent and minutes to go, not its line
     sw::flow::sidebar::sync_sidebar(&rows(), None, sw::clock::now());
     let meta: Vec<String> = w.state().arr("metadata").iter().map(|m| m.arr("args").iter().map(text).collect::<Vec<_>>().join(" ")).collect();
-    assert!(meta.iter().any(|m| m.contains("--display-agent agent · working") && m.contains("summary=editing the greeting file") && m.contains("progress=42% 55m left")), "{meta:?}");
+    assert!(meta.iter().any(|m| m.contains("--display-agent agent · working") && m.contains("--clear-token summary") && m.contains("progress=42% 55m ")), "{meta:?}");
     // What it was told: the task's description (cut short), the time spent, and no rule against going lower.
     let first = seen.borrow().clone();
     assert!(has(&first, r"Task: build a login page\nWhat the task asks for:\nIt needs a password field\. x+\n"), "{first}"); assert!(!first.contains(&"x".repeat(900)));

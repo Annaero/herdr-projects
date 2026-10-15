@@ -71,8 +71,8 @@ like any chat's, and the task waits for your new yes after the review).
 board's tick does: it polls pull requests, starts queued tasks, runs the Watcher, keeps herdr's sidebar
 current. An agent's entry there is a small copy of its task's row on the board ([herdr's sidebar](sidebar.md)): the
 task's number and title; who is on it and where it stands, in the board's own words (one list:
-`src/status_words.rs`), with the review round and the pull request; and the row's second line with its percent and
-time left (the question itself, `Pass · 1 minor`, what failed). The task is named the same way in the pane's
+`src/status_words.rs`), with the review round and the pull request; and the row's numbers, its percent and time
+to go (`8% 16m`). The task is named the same way in the pane's
 title, so the web UI's sidebar reads the same. A review that is running has two entries, the agent's and the
 reviewer's: they are two agents. It raises no notification, pop-up or sound: what needs you is on the board and in
 herdr's sidebar. herdr starts it with its server; any herdr event or

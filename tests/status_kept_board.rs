@@ -29,9 +29,10 @@ fn no_bare_ellipsis_as_a_status_line_the_list_the_panel_the_whole_task_page_and_
     assert_eq!(sw::shown::states::as_row(&row("proj/1")).s("msg"), "Just started");
     assert!(has(&side, r"^[ ▌] +Just started"), "the list: {side:#?}");
     for (k, d) in [("side", &side), ("page", &page)] { assert!(has(d, r"Now\s+Just started"), "{k}: {d:#?}"); assert!(!bare(d), "{k}: {d:#?}"); }
-    // Until the Watcher's first answer herdr's sidebar has the same words as the row.
+    // herdr's sidebar never has the row's sentence: only where it stands and its numbers.
     let meta = sidebar(&w);
-    assert!(meta.iter().any(|m| m.contains("--display-agent agent · working") && m.contains("summary=Just started")), "{meta:?}");
+    assert!(meta.iter().any(|m| m.contains("--display-agent agent · working") && m.contains("--clear-token summary")), "{meta:?}");
+    assert!(!meta.iter().any(|m| m.contains("Just started")), "{meta:?}");
     look();
     assert!(has(&drawn(&mut b).0, r"^[ ▌] +editing the greeting file"));
     // Told to go on (a new turn): the guess goes, the sentence stays, with how old it is.
@@ -49,7 +50,7 @@ fn no_bare_ellipsis_as_a_status_line_the_list_the_panel_the_whole_task_page_and_
     let (side, page) = drawn(&mut b);
     assert!(has(&side, r"^[ ▌] +5m ago: editing the greeting file"), "the list: {side:#?}");
     for (k, d) in [("side", &side), ("page", &page)] { assert!(has(d, r"Now\s+5m ago: editing"), "{k}: {d:#?}"); assert!(!bare(d), "{k}"); }
-    assert!(sidebar(&w).iter().any(|m| m.contains("summary=5m ago: editing the greeting file")));
+    assert!(!sidebar(&w).iter().any(|m| m.contains("editing the greeting file")));
     look();
     assert!(task("proj/1").at("watch").is_object()); // the new sentence takes its place
     assert!(has(&drawn(&mut b).0, r"^[ ▌] +editing the greeting file"));

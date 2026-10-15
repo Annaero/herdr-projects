@@ -25,10 +25,10 @@ fn the_finish_lines_sidebar_entries_are_written_once_again_only_when_a_word_chan
     let pane = t.at("link").t("pane");
     let st = w.state();
     let said: Vec<String> = st.arr("metadata").iter().filter(|m| m.s("pane") == pane).map(args_of).collect();
-    assert!(has(said.last().unwrap(), r"--clear-state-labels --display-agent ready to approve · R#1 · <1m ago --title PRJ-1 Add a greeting --token summary=Pass · 1 minor --clear-token progress --clear-token eta$"), "{said:?}");
-    // The task's space is named the same way, with the same line under it.
+    assert!(has(said.last().unwrap(), r"--clear-state-labels --display-agent ready to approve · R#1 · <1m ago --title PRJ-1 Add a greeting --clear-token summary --clear-token progress --clear-token eta$"), "{said:?}");
+    // The task's space is named the same way, with no line of the agent's under it either.
     let ws: Vec<String> = st.arr("metadata").iter().filter(|m| m.s("workspace") == t.at("link").s("workspace")).map(args_of).collect();
-    assert!(has(ws.last().unwrap(), r"--token summary=Pass · 1 minor --clear-token progress$"), "{ws:?}");
+    assert!(has(ws.last().unwrap(), r"--clear-token summary --clear-token progress$"), "{ws:?}");
     // On its way here the reviewer's pane had an entry of its own from its start, naming the reviewer.
     assert!(st.arr("metadata").iter().any(|m| m.b("pane") && m.s("pane") != pane && args_of(m).contains("--display-agent reviewer · under review · R#1 · <1m --title PRJ-1 Add a greeting")), "the reviewer's own entry");
     assert_eq!(agent_of(&w, &pane).s("kind"), "claude");
@@ -37,14 +37,14 @@ fn the_finish_lines_sidebar_entries_are_written_once_again_only_when_a_word_chan
     let live = with(&t, json!({ "state": "blocked", "kind": "permission", "live": { "status": "done" } }));
     let n = calls().len(); sync(&[live.clone()]); sync(&[live.clone()]); assert_eq!(calls().len(), n, "nothing written twice");
     sync(&[with(&t, json!({ "stage": "stopped", "state": "idle", "note": "Stopped", "live": { "status": "idle" } }))]);
-    assert!(has(&last(), r"--display-agent to do · R#1 · <1m ago .*--token summary=Stopped --clear-token progress --clear-token eta$"), "{}", last());
+    assert!(has(&last(), r"--display-agent to do · R#1 · <1m ago .*--clear-token summary --clear-token progress --clear-token eta$"), "{}", last());
     let working = with(&t, json!({ "stage": "working", "state": "working", "note": "Writing greet.sh", "progress": 40, "eta": 12, "research": true, "pr": "https://example.com/pull/7", "live": { "status": "working" } }));
     sync(&[working.clone()]);
-    assert!(has(&last(), r"--display-agent agent · working · R#1 PR#7 · \[research\] · <1m .*--token summary=Writing greet\.sh --token progress=40% 12m left --clear-token eta$"), "{}", last());
+    assert!(has(&last(), r"--display-agent agent · working · R#1 PR#7 · \[research\] · <1m .*--clear-token summary --token progress=40% 12m --clear-token eta$"), "{}", last());
     let n = calls().len(); sync(&[working.clone()]); assert_eq!(calls().len(), n, "the same words: not written again");
-    sync(&[with(&working, json!({ "eta": 11 }))]); assert!(last().contains("progress=40% 11m left"), "a minute less: written: {}", last());
+    sync(&[with(&working, json!({ "eta": 11 }))]); assert!(last().contains("progress=40% 11m "), "a minute less: written: {}", last()); assert!(!last().contains("left"), "never \"left\": {}", last());
     sync(&[with(&t, json!({ "stage": "asks", "kind": "question", "msg": "Sand or pebbles?", "note": "Sand or pebbles?", "state": "blocked", "live": { "status": "done" } }))]);
-    assert!(has(&last(), r"--display-agent asks you · R#1 · <1m ago .*--token summary=Sand or pebbles\? --clear-token progress --clear-token eta$"), "{}", last());
+    assert!(has(&last(), r"--display-agent asks you · R#1 · <1m ago .*--clear-token summary --clear-token progress --clear-token eta$"), "{}", last());
     // herdr not running, or the pane of another session: nothing is written and nothing taken off.
     let n = calls().len(); sync(&[with(&live, json!({ "live": { "down": true } }))]); assert_eq!(calls().len(), n);
     let archived = with(&live, json!({ "archivedAt": sw::clock::now() }));
@@ -68,7 +68,7 @@ fn the_finish_lines_sidebar_entries_are_written_once_again_only_when_a_word_chan
     w.patch(|st| { for p in st["panes"].as_array_mut().unwrap() { if p.s("pane_id") == pane { p.as_object_mut().unwrap().remove("display_agent"); } } });
     sync(&[with(&live, json!({ "live": { "status": "done", "pane": herdrs() } }))]);
     assert_eq!(calls().len(), n + 1, "herdr lost it: written again");
-    assert!(has(&last(), r"--display-agent ready to approve · R#1 .*--token summary=Pass · 1 minor"), "{}", last());
+    assert!(has(&last(), r"--display-agent ready to approve · R#1 .*--clear-token summary"), "{}", last());
     // approve: merged, and the worktree it was done in is gone
     sw::actions::finish_line::approve(&id, None, false).unwrap();
     let done = settle(&id);

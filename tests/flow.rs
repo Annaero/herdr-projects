@@ -75,10 +75,10 @@ fn the_finish_line_checks_reviews_waits_for_approval_and_approve_merges_and_clea
     assert_eq!((r.s("state"), r.s("kind")), ("blocked", "permission"));
     let st = w.state();
     assert!(st.arr("notifications").is_empty(), "nothing pops up when a task lands in review");
-    // herdr's own sidebar says what the row says: where it stands as the agent's shown name, the second line as summary.
+    // herdr's own sidebar says where the row stands, as the agent's shown name; not the row's second line.
     let said: Vec<String> = st.arr("metadata").iter().filter(|m| m.s("pane") == t.at("link").s("pane")).map(|m| m.arr("args").iter().map(text).collect::<Vec<_>>().join(" ")).collect();
     let last = said.last().cloned().unwrap_or_default();
-    assert!(last.contains("--display-agent ready to approve · R#1") && last.contains("--title PRJ-1 Add a greeting --token summary=Pass · 1 minor"), "{last}");
+    assert!(last.contains("--display-agent ready to approve · R#1") && last.contains("--title PRJ-1 Add a greeting --clear-token summary"), "{last}");
     assert_eq!(st.arr("workspaces").iter().find(|x| x.s("workspace_id") == t.at("link").s("workspace")).map(|x| x.t("label")).unwrap_or_default(), "PRJ-1 Add a greeting");
     assert!(!st.arr("panes").iter().any(|p| p.at("agent").s("name") == "sw-proj-1-r"), "the reviewer's pane is closed again");
     finish_line::approve(&id, None, false).unwrap();

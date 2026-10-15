@@ -43,7 +43,7 @@ fn a_conflict_with_main_goes_to_the_agent_by_itself_before_any_approval_and_the_
     assert!(said.contains("resolve the conflicts, commit, and finish again") && !said.contains("already approved"), "{said}");
     assert!(!t.b("review") && !t.b("mergeIntent"));
     let e = sw::flow::sidebar::entry_now(&t, sw::clock::now());
-    assert_eq!((row(&id).t("state"), row(&id).t("note"), e.place, e.line), ("working".into(), "Resolving a conflict with main".into(), "agent · working".into(), "Resolving a conflict with main".into()), "what the board shows, and herdr's sidebar with it");
+    assert_eq!((row(&id).t("state"), row(&id).t("note"), e.place, e.line), ("working".into(), "Resolving a conflict with main".into(), "agent · working".into(), String::new()), "what the board shows, and where herdr's sidebar says it stands");
     assert!(finish_line::approve(&id, None, false).unwrap_err().msg.contains("not waiting for an approval"));
     // the agent resolves it in its own worktree and finishes again
     let _ = common::worktrees::git(tree(&t), &["merge", "-q", &target]);

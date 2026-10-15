@@ -65,8 +65,8 @@ block sits between two marker lines, and a change herdr rejects is rolled back:
   with `k` alike, and however your config writes a binding (one key, a list of keys, the older `[keys.indexed]`). A key that is already set up for the board is left as it is;
 - sidebar rows, so that an agent's entry in herdr's sidebar is a small copy of its task's row on the board
   ([herdr's sidebar](sidebar.md)): the task's number and title; who is on it and where it stands, with the review
-  round and the pull request (`agent · working · R#1 PR#113`); and the row's second line with its percent and time
-  left. Without the rows herdr shows the first two, with the tab's name (`Agent`) after the title, and not the
+  round and the pull request (`agent · working · R#1 PR#113`); and the row's percent and time to go (`8% 16m`).
+  Without the rows herdr shows the first two, with the tab's name (`Agent`) after the title, and not the
   third: its default sidebar shows no custom value. The rows an older version of the plugin wrote are brought up to
   date by themselves, between the same marker lines; rows of your own are never touched.
 

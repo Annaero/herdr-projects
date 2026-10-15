@@ -36,7 +36,7 @@ fn limit_time_a_stop_is_needs_you_nothing_is_reviewed_meanwhile_and_every_way_on
     assert_eq!(sw::notify::event_of(&r), "needs you");
     let e = sw::flow::sidebar_entry::entry_of(&r, "", sw::clock::now());
     assert!(e.stands.contains("needs you"), "{e:?}");
-    assert_eq!(e.line, "stopped at its 2h limit");
+    assert_eq!(e.line, ""); // the row's sentence is the board's, not the sidebar's
     // it never fires again by itself, and nothing is checked, reviewed or merged meanwhile
     let at = task(&id).at("limitStop").at("at").clone();
     for m in [141, 200, 900] { tick(&w, t0 + m * 60000); }

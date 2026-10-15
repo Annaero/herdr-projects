@@ -1,7 +1,7 @@
 //! Telling herdr's own sidebar about a task: one entry per live agent, a small copy of the task's row on the board.
 //! An entry has three rows: 1. herdr's dot, then the task's number and title (the name of the task's space); 2. who is
 //! on it and where it stands, then the review round, the pull request and the tags (the agent's shown name); 3. the
-//! row's second line, then the percent and the time left (the pane's `summary` and `progress` tokens). This file is
+//! percent and the time to go, bare (the pane's `progress` token; its `summary` is only the Coordinator's). This file is
 //! the only writer of a task's panes and space: by whoever ticks, once a second (`sync_sidebar`), and at once where a
 //! task comes to wait for you, goes wrong, is taken up again or ends (`tell_sidebar`). Written again only when a word
 //! changed; taken off again when the task is archived or removed while its pane lives on.
@@ -39,7 +39,7 @@ fn wanted(t: &Obj, now: i64) -> Vec<Write> {
     { let (api, e2, p) = (api.clone(), e.clone(), pane.clone()); out.push((format!("e|{socket}|{pane}"), json!(e), Box::new(move || api.metadata(&p, &pane_args(&e2, &e2.name)).is_some()))); }
     let rv = t.at("link").at("reviewer").t("pane");
     if !rv.is_empty() { let r = reviewer_entry(t, now); let (api, name) = (api.clone(), e.name.clone()); let rv2 = rv.clone(); let r2 = r.clone(); out.push((format!("e|{socket}|{rv}"), json!(r), Box::new(move || api.metadata(&rv2, &pane_args(&r2, &name)).is_some()))); }
-    // The task's space: its name is the task's number and title, and under it the row's second line. One writer.
+    // The task's space: its name is the task's number and title, and under it the row's numbers. One writer.
     let ws = if t.at("link").b("ownsWorkspace") { t.at("link").t("workspace") } else { String::new() };
     if !ws.is_empty() {
         { let (api, ws2, name) = (api.clone(), ws.clone(), e.name.clone()); out.push((format!("n|{socket}|{ws}"), json!(e.name), Box::new(move || api.call(args(&["workspace", "rename", &ws2, &name])).is_ok()))); }
@@ -82,14 +82,14 @@ pub fn sync_sidebar(tasks: &[Obj], socket: Option<&str>, now: i64) {
     let mut list: Vec<Write> = vec![];
     let (mut down, mut lost) = (false, false);
     // A task's attempts have panes of their own: each has an entry like a task's. A task that waits for your pick has
-    // no pane yet: its space says so.
+    // no pane yet, and no numbers: what its space had written is taken off.
     let mut all: Vec<Obj> = vec![];
     for t in tasks {
         all.push(t.clone());
         for c in t.arr("tries").iter().filter_map(|c| c.as_object()).filter(|c| !c.b("chosen")) { let mut c = c.clone(); c.put("parentStage", t.at("stage").clone()); all.push(c); }
         if t.s("stage") == "pick" && !is_agent_task(t) && t.at("link").b("workspace") && t.at("link").s("socket") == socket && !t.b("archivedAt") {
-            let (api, ws, note) = (Herdr::new(Some(socket.clone())), t.at("link").t("workspace"), t.t("note"));
-            list.push((format!("w|{socket}|{ws}"), json!([note, ""]), Box::new(move || { let mut a = args(&["workspace", "report-metadata", &ws, "--source", SOURCE]); a.extend(token("summary", &note)); a.extend(token("progress", "")); api.call(a).is_ok() })));
+            let (api, ws) = (Herdr::new(Some(socket.clone())), t.at("link").t("workspace"));
+            list.push((format!("w|{socket}|{ws}"), json!(["", ""]), Box::new(move || api.call(args(&["workspace", "report-metadata", &ws, "--source", SOURCE, "--clear-token", "summary", "--clear-token", "progress"])).is_ok())));
         }
     }
     for t in &all {
