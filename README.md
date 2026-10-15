@@ -34,8 +34,9 @@ herdr's config, updating, and taking the plugin out again: [installing](docs/ins
 
 ## Start
 
-Type `herdr-projects` in any pane (its launcher on your PATH), or run the plugin's action "Open the work board":
-that opens the board. Type what needs doing and press `Enter`: the Coordinator, the board's own agent, makes it a
+Run the plugin's action "Open the work board" (`herdr plugin action invoke open --plugin herdr-projects` in a herdr
+pane), or type `herdr-projects` in any pane once `~/.herdr-projects/data/bin` is on your PATH: that opens the board.
+Its first screen offers a key that opens it from anywhere in herdr. Type what needs doing and press `Enter`: the Coordinator, the board's own agent, makes it a
 task (or several). Send it with `Tab` instead and each task it adds gets an agent at once. `?` shows everything else
 you can do.
 

@@ -47,7 +47,8 @@ the data folder says so).
 then runs that build, and builds again are picked up the same way.
 
 **The command on your PATH.** Agents and hooks are handed the launcher `~/.herdr-projects/data/bin/herdr-projects`,
-which runs the program; `herdr-projects install` writes it again and says whether something else named
+which runs the program. The board writes it when it opens (with `herdr plugin install`, open it first with the
+plugin's action "Open the work board"); `herdr-projects install` writes it again and says whether something else named
 `herdr-projects` comes first on your PATH. To type `herdr-projects` in a shell, put that folder on your PATH (in
 `~/.profile` or your shell's start-up file).
 
