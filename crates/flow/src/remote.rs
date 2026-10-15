@@ -74,6 +74,13 @@ pub fn ask(m: &Machine, what: &str, arg: Option<&Value>, ms: u64) -> Result<Valu
     let j = if end.timed_out || !end.error.is_empty() { None } else { read_answer(&end.stdout) };
     j.ok_or_else(|| why_not(&end, &m.label, &m.target))
 }
+/// Ask a machine for its tasks. An answer that came without its herdr list (an older program there) gets it from
+/// that machine's herdr itself, so the board follows its sidebar all the same (remote/sidebar.rs).
+pub fn ask_list(m: &Machine, ms: u64) -> Result<Value, Value> {
+    let mut answer = ask(m, "list", None, ms);
+    if let Ok(j) = &mut answer { if j.at("tasks").is_array() && j.get("sidebar").is_none() { if let Some(l) = sidebar::asked(m) { j["sidebar"] = l; } } }
+    answer
+}
 /// Entering a remote task's agent: SSH to that machine and `herdr agent attach <pane id>` there, in the board's own
 /// terminal. A direct view of that one agent's terminal, no nested herdr; detaching (ctrl+b q) returns to the board.
 pub fn attach_command(m: &Machine, pane: &str) -> (String, Vec<String>) {

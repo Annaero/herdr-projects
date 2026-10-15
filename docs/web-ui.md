@@ -113,9 +113,9 @@ the dot of all the boards together.
 
 Under it, one entry per machine that has a board, drawn as an agent's entry is:
 
-- **This machine**, then **each other machine the board knows** (the ones its Other machines goes round, herdr's saved
-  machines or `board.machines`), in the order of the web UI's own PCs (one it has no PC for after them, in the order of
-  herdr's sidebar: [machine order](machine-order.md)), then **All machines** (also while this machine is the only one:
+- **This machine** and **each other machine the board knows** (the ones its Other machines goes round, herdr's saved
+  machines or `board.machines`), in the order of herdr's sidebar, this machine where that sidebar puts it ([machine
+  order](machine-order.md)), then **All machines** (also while this machine is the only one:
   it then shows this machine's tasks, and stays picked). Each is named as the web UI names that machine (`Mac`,
   `elias-macbook-pro-m1`, `vm-str`), matched to its PCs as below ([other machines](#other-machines)); one the web UI has
   no PC for keeps the board's name for it, and a web UI that names this machine by no name of its own gives `This

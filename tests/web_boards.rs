@@ -76,6 +76,22 @@ fn a_machine_that_cannot_be_reached_says_so_on_its_entry_and_a_machine_without_a
 }
 
 #[test]
+fn the_entries_stand_in_the_order_of_herdrs_sidebar_this_machine_where_it_puts_it_not_in_the_web_uis_order_of_its_pcs() {
+    let w = world_with(Opts { repo: true, settings: json!({ "board.machines": "vm-a, vm-b" }), ..Default::default() });
+    let far = Far::new(&w.base);
+    std::fs::write(sw::store::files::data_dir().join("view.json"), json!({ "cwd": w.root_str() }).to_string()).unwrap();
+    // vm-b's herdr window shows this machine: its sidebar has vm-a first, then this machine
+    let mine = json!({ "label": "Mac", "target": format!("me@{}", sw::remote::check::hostname()), "session": "default", "enabled": true, "selected": true });
+    far.answers("vm-b", "list", &json!({ "host": "vm-b", "version": "0.3.0", "tasks": [], "sidebar": [{ "label": "vm-a", "target": "me@vm-a", "session": "default", "enabled": true }, mine] }));
+    far.tasks("vm-a", "0.3.0", json!([]));
+    let them = Some(vec![pc("local", "Mac", "", true), pc("pc-a", "box-a", "vm-a", false), pc("pc-b", "box-b", "vm-b", false)]);
+    boards(them.clone());
+    far::answered("t", 2);
+    let order: Vec<String> = boards(them).arr("boards").iter().map(|e| e.t("name")).collect();
+    assert_eq!(order, vec!["box-b", "box-a", "Mac", "All machines"]);
+}
+
+#[test]
 fn picking_an_entry_shows_that_machines_board_as_other_machines_does_and_the_two_stay_in_step() {
     let (_w, far) = web_world();
     far.tasks("vm-a", "0.2.0", json!([far::theirs(1)]));

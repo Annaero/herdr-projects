@@ -10,11 +10,14 @@ pub struct Far { pub dir: PathBuf }
 const SCRIPT: &str = r#"#!/bin/sh
 D='@DIR@'
 h="${1##*@}"
+cmd="$2"
 set -- $2
 while [ $# -gt 0 ] && [ "$1" != "herdr-superwork" ]; do shift; done
 what="$3"; arg="$4"; act=""
+log="$D/asked"
+case "$cmd" in *"herdr machine list"*) what="herdr-machines"; log="$D/asked-herdr" ;; esac
 [ -n "$arg" ] && act=$(printf %s "$arg" | base64 -d 2>/dev/null | sed -n 's/.*"action":"\([^"]*\)".*/\1/p')
-printf '%s %s %s\n' "$h" "$what" "$arg" >> "$D/asked"
+printf '%s %s %s\n' "$h" "$what" "$arg" >> "$log"
 f="$D/$h.$what"
 [ -n "$act" ] && [ -e "$D/$h.$what.$act.code" ] && f="$D/$h.$what.$act"
 [ -e "$f.sleep" ] && sleep "$(cat "$f.sleep")"
@@ -34,7 +37,8 @@ impl Far {
         unsafe { std::env::set_var("HERDR_SUPERWORK_SSH", &script) };
         Far { dir }
     }
-    /// How `label` ends a call of `what` ("list", "dispatch", "do", or "do.<action>" for one action only).
+    /// How `label` ends a call of `what` ("list", "dispatch", "do", or "do.<action>" for one action only; "herdr-machines"
+/// for its herdr's own list of machines).
     pub fn ends(&self, label: &str, what: &str, out: &str, err: &str, code: i32) {
         let f = |ext: &str| self.dir.join(format!("{label}.{what}.{ext}"));
         std::fs::write(f("out"), out).unwrap(); std::fs::write(f("err"), err).unwrap(); std::fs::write(f("code"), code.to_string()).unwrap();

@@ -44,7 +44,14 @@ A machine the board knows that the sidebar it follows does not show (turned off 
 comes after the rest: this machine first, then by name. A machine that does not answer stays where herdr puts it, as
 herdr keeps it in its sidebar too.
 
-The web UI's Boards section keeps the web UI's own order of its PCs, which is what that sidebar shows; a machine it
-has no PC for comes after them in this order ([web UI](web-ui.md)).
+The web UI's Boards section lists the boards in this order too, this machine where the sidebar puts it, whatever
+order the web UI keeps its PCs in ([web UI](web-ui.md)).
 
-A machine on an older plugin sends no list: it is never the one followed, and is placed as any other.
+## A machine on an older program
+
+A machine whose program is older than this order (the 0.3.0 release is) sends no herdr list with its tasks. The board
+then asks that machine's herdr for it, over the same SSH, at each of its answers (`herdr machine list --json`), and
+follows its sidebar all the same. Only an SSH alias in that list is not resolved there, so the entry that is this
+machine must then name it by one of its own names or addresses; a newer program there resolves it. A machine whose
+herdr gives no list (none found by a login shell there, or one older than its saved machines) is never the one
+followed, and is placed as any other.

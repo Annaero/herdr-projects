@@ -36,7 +36,7 @@ fn poll(s: &mut crate::board::state::State, run: &mut Run, now_too: bool) {
         if m.busy || (!now_too && !m.ok && now - m.fail_at < 30000) { continue; }
         m.busy = true;
         let (tx, mc, label) = (run.tx.clone(), m.machine.clone(), label.clone());
-        std::thread::spawn(move || { let a = crate::remote::ask(&mc, "list", None, 20000); let _ = tx.send(Msg::Ev(Event::Remote { label, answer: a })); });
+        std::thread::spawn(move || { let a = crate::remote::ask_list(&mc, 20000); let _ = tx.send(Msg::Ev(Event::Remote { label, answer: a })); });
     }
 }
 pub fn open_board(folder: &std::path::Path) -> i32 {

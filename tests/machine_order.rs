@@ -2,7 +2,8 @@
 //! shows this machine, the one it followed before, this machine's own), which entry is this machine (never a guess)
 //! and which machine each other one is (whole host names), where this machine stands in it, the ones it
 //! does not show after the rest, a reorder followed at the next answer, the board's own order when none can be read,
-//! and that order in the headings, the header, the scope key's round, the automations and the web board.
+//! and that order in the headings, the header, the scope key's round, the automations and the web board; a machine on
+//! an older program, which sends no list, followed through its herdr (the Mac mini of HSW-228).
 use crate::common;
 use crate::far;
 use common::board::open;
@@ -186,4 +187,56 @@ fn the_sidebar_followed_before_holds_while_its_machine_has_not_answered_yet() {
     answer(&mut b, "vm-c", 1, json!([]));
     answer(&mut b, "vm-b", 2, json!([mine, saved("vm-c", false)]));
     assert_eq!(b.s.order, names(&["vm-b", "", "vm-c"]), "its window shows another machine now, and it is still followed");
+}
+
+/// The machines of the task, as the Mac mini's herdr lists them (in the order they were added) and as the MacBook's
+/// sidebar shows them (its Local, the Mac mini, then the rest as the user put them).
+const MINI: [&str; 6] = ["elias-macbook-pro-m1", "vm-str", "vm-not", "vm-kil", "vm-demo", "vm-ssa"];
+fn sidebar_of_the_m1(order: &[&str]) -> Value {
+    let mini = json!({ "id": "0123456789abcdef0123456789abcdef", "label": "Mac mini", "target": format!("elias@{}", sw::remote::check::hostname()), "session": "default", "enabled": true, "selected": true });
+    json!(std::iter::once(mini).chain(order.iter().map(|l| saved(l, false))).collect::<Vec<_>>())
+}
+/// The M1 answers as a machine on an older program does: its tasks, no herdr list with them; its herdr gives its list.
+fn m1_answers(far: &Far, order: &[&str]) {
+    far.tasks("elias-macbook-pro-m1", "0.3.0", json!([theirs(1)]));
+    // herdr's list, as it comes back over SSH: whatever a start-up file printed, then the list on one line
+    far.ends("elias-macbook-pro-m1", "herdr-machines", &format!("Welcome to the M1\n{}\n", sidebar_of_the_m1(order)), "", 0);
+}
+fn ask_all(b: &mut common::board::Board) {
+    for m in sw::remote::machines() { let label = m.label.clone(); let a = sw::remote::ask_list(&m, 20000); update(&mut b.s, Event::Remote { label, answer: a }); }
+}
+
+#[test]
+fn a_machine_on_an_older_program_still_has_its_sidebar_followed_through_its_herdr_as_on_the_mac_mini_of_the_task() {
+    let w = world();
+    let far = Far::new(&w.base);
+    w.add("Mine");
+    herdr_list(&w, json!(MINI.iter().map(|l| saved(l, false)).collect::<Vec<_>>()));
+    for l in &MINI[1..] { far.tasks(l, "0.3.0", json!([theirs(2)])); }
+    m1_answers(&far, &["vm-str", "vm-ssa", "vm-not", "vm-kil", "vm-demo"]);
+    let mut b = open(&w.root, 60);
+    b.cols = 200;
+    update(&mut b.s, Event::Machines(sw::remote::machines()));
+    ask_all(&mut b);
+    b.press(&["alt+m"]);
+    assert_eq!(b.s.sidebar_from.as_deref(), Some("elias-macbook-pro-m1"));
+    let here = sw::board::update::heads::label(&b.s, "");
+    // what the user saw was the Mac mini's own list: elias-macbook-pro-m1, vm-str, vm-not, vm-kil, vm-demo, vm-ssa
+    assert_eq!(headings(&mut b), vec!["elias-macbook-pro-m1".to_string(), here.clone(), "vm-str".into(), "vm-ssa".into(), "vm-not".into(), "vm-kil".into(), "vm-demo".into()]);
+    assert!(b.text().contains("all machines: elias-macbook-pro-m1, vm-str, vm-ssa, vm-not, vm-kil, vm-demo"), "{}", b.text());
+    assert_eq!(sw::webui::model::list::list_of(&b.s, &b.theme).at("head").s("machines"), "elias-macbook-pro-m1, vm-str, vm-ssa, vm-not, vm-kil, vm-demo");
+    // the user moves vm-demo up in the MacBook's herdr: followed at the M1's next answer
+    m1_answers(&far, &["vm-demo", "vm-str", "vm-ssa", "vm-not", "vm-kil"]);
+    ask_all(&mut b);
+    assert_eq!(headings(&mut b)[2..].to_vec(), names(&["vm-demo", "vm-str", "vm-ssa", "vm-not", "vm-kil"]));
+    // a machine whose program sends its list is not asked again; one whose herdr has no list keeps the order of before
+    let mut sent = sidebar_of_the_m1(&["vm-kil", "vm-str", "vm-ssa", "vm-not", "vm-demo"]);
+    sent[0]["resolved"] = json!("");
+    far.answers("elias-macbook-pro-m1", "list", &json!({ "host": "m1", "version": "0.3.0", "tasks": [theirs(1)], "sidebar": sent }));
+    let _ = std::fs::remove_file(far.dir.join("asked-herdr"));
+    ask_all(&mut b);
+    assert_eq!(headings(&mut b)[2..].to_vec(), names(&["vm-kil", "vm-str", "vm-ssa", "vm-not", "vm-demo"]));
+    let asked = std::fs::read_to_string(far.dir.join("asked-herdr")).unwrap_or_default();
+    assert!(!asked.contains("elias-macbook-pro-m1"), "{asked}");
+    assert_eq!(asked.lines().count(), 5, "the machines that send no list are asked for herdr's: {asked}");
 }

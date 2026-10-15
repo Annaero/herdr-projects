@@ -1,9 +1,10 @@
 //! herdr's machines sidebar, whose order the board lists machines in. herdr shows Local first, then the saved machines
 //! enabled there in the order of its list (`herdr machine list --json`, kept on the computer the herdr window runs on;
 //! herdr has no command that reorders it, but a plugin or an edit of that list does). Each machine sends its own list
-//! with its tasks (`sent`); the board follows the sidebar of the machine whose herdr window shows this one, else this
-//! machine's own, and lists the machines it knows in that order, the ones that sidebar does not show after them
-//! (`order`). How to read it: docs/machine-order.md.
+//! with its tasks (`sent`; one on an older program, which sends none, has its herdr asked: `asked`); the board follows
+//! the sidebar of the machine whose herdr window shows this one, else this machine's own, and lists the machines it
+//! knows in that order, the ones that sidebar does not show after them (`order`). How to read it:
+//! docs/machine-order.md.
 use super::{short_label, Machine};
 use crate::json::*;
 
@@ -16,10 +17,22 @@ pub struct Entry { pub id: String, pub label: String, pub target: String, pub se
 pub struct Here { pub names: Vec<String>, pub session: String }
 
 /// This machine's own herdr list, as another machine is sent it with the tasks: herdr's order, disabled ones too.
-pub fn sent() -> Value {
-    json!(crate::herdr::Herdr::new(None).machines().iter().filter(|m| m.is_object()).take(64)
-        .map(|m| json!({ "id": m.t("id"), "label": m.t("label"), "target": m.t("target"), "session": m.t("session"), "enabled": m.at("enabled") != &json!(false), "selected": m.at("selected") == &json!(true), "resolved": resolve(&m.t("target")) }))
-        .collect::<Vec<_>>())
+pub fn sent() -> Value { json!(crate::herdr::Herdr::new(None).machines().iter().filter(|m| m.is_object()).take(64).map(|m| entry(m, resolve(&m.t("target")))).collect::<Vec<_>>()) }
+fn entry(m: &Value, resolved: String) -> Value {
+    json!({ "id": m.t("id"), "label": m.t("label"), "target": m.t("target"), "session": m.t("session"), "enabled": m.at("enabled") != &json!(false), "selected": m.at("selected") == &json!(true), "resolved": resolved })
+}
+/// The herdr list of a machine whose answer came without one (an older program there, which sends none), asked of
+/// its herdr itself over the same SSH: herdr's order and the machine its window shows, an SSH alias there unresolved.
+/// None when its herdr gives no list (none found, or older than its machines).
+pub fn asked(m: &Machine) -> Option<Value> {
+    let (cmd, args) = super::ssh_command(m, r#"printf "\n"; herdr machine list --json | tr -d "\n"; printf "\n""#, false);
+    let mut c = std::process::Command::new(cmd);
+    c.args(args);
+    let end = super::run_ended(c, 10000);
+    if end.code != Some(0) { return None; }
+    let j = end.stdout.lines().rev().find_map(|l| serde_json::from_str::<Value>(l.trim()).ok().filter(|v| v.is_array() || v.at("machines").is_array()))?;
+    let list = j.as_array().cloned().unwrap_or_else(|| j.arr("machines").to_vec());
+    Some(json!(list.iter().filter(|m| m.is_object()).take(64).map(|m| entry(m, String::new())).collect::<Vec<_>>()))
 }
 /// The host SSH connects to for a target, as `ssh -G` says (it reads the SSH config, connects nowhere); "" when it
 /// cannot say, and with the tests' stand-in for ssh.

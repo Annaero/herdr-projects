@@ -114,7 +114,7 @@ pub fn poll(c: &mut Client, now_too: bool) {
         if m.busy || (!now_too && !m.ok && now - m.fail_at < 30000) { continue; }
         m.busy = true;
         let (inbox, mc, label) = (c.inbox.clone(), m.machine.clone(), label.clone());
-        std::thread::spawn(move || { let a = crate::remote::ask(&mc, "list", None, 20000); inbox.lock().unwrap().push(Event::Remote { label, answer: a }); });
+        std::thread::spawn(move || { let a = crate::remote::ask_list(&mc, 20000); inbox.lock().unwrap().push(Event::Remote { label, answer: a }); });
     }
 }
 /// What came in since the last call: answers of jobs and of other machines.
