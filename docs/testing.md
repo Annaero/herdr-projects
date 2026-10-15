@@ -130,6 +130,7 @@ there, so another sccache of yours is left alone): outside every worktree, so re
 (`workspace.cleanup`) frees that worktree's `target/` and nothing shared. Where it is not installed (CI, which keeps
 its own cache, another platform, no network) builds go on as before, each worktree alone. `HERDR_SUPERWORK_NO_CACHE=1`
 turns it off; a `RUSTC_WRAPPER` of your own wins.
+The builds link with mold where it is installed ([linking](linking.md)).
 
 What it keeps is what a task does not change: the libraries. A fresh worktree finds most of them there; a few it
 builds again, because they write code into that worktree's own `target/` (their build scripts) or are macros of the

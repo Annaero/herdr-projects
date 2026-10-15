@@ -1,0 +1,9 @@
+# How the builds on Linux link: the C compiler is told not to ask for Rust's own lld and is given scripts/ld/, where it
+# finds scripts/linker.sh as its `ld`: mold when it is installed (the workspace setup installs it), Rust's own lld when
+# it is not, and for release builds. The words are the same in every worktree, so a build copied from another one
+# (scripts/warm-start.sh) and the shared build cache stay good. macOS keeps Apple's own linker. docs/linking.md.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-Clinker-features=-lld", "-Clink-arg=-Bscripts/ld/"]
+
+[target.aarch64-unknown-linux-gnu]
+rustflags = ["-Clinker-features=-lld", "-Clink-arg=-Bscripts/ld/"]
