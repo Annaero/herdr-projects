@@ -38,11 +38,22 @@ pub fn names(ids: &[String]) -> String {
     let n: Vec<String> = ids.iter().map(|i| say(i)).collect();
     match n.len() { 0 => String::new(), 1 => n[0].clone(), k => format!("{} and {}", n[..k - 1].join(", "), n[k - 1]) }
 }
-/// A waiting task's line: "starts after HSW-4, HSW-5", naming the tasks not done yet, and each machine of theirs that
-/// does not answer: "starts after vm-str:ELA-3 · waiting for vm-str: not reachable since 10:42".
+fn listed(ids: &[String]) -> String { ids.iter().map(|i| say(i)).collect::<Vec<_>>().join(", ") }
+/// A waiting task's line: "queued after HSW-4, HSW-5", naming the tasks not done yet, and each machine of theirs that
+/// does not answer: "queued after vm-str:ELA-3 · waiting for vm-str: not reachable since 10:42". A task delegated
+/// (tabbed) with `--after` is queued, as one that waits for a free slot is: it starts by itself once they are done.
 pub fn waits_line(left: &[String]) -> String {
-    let line = format!("starts after {}", left.iter().map(|i| say(i)).collect::<Vec<_>>().join(", "));
+    let line = format!("queued after {}", listed(left));
     match far::unreachable(left) { Some(w) => format!("{line} · {w}"), None => line }
+}
+/// "once that is done", "once they are done": when a queued task starts by itself.
+fn once(n: usize) -> &'static str { if n == 1 { "once that is done" } else { "once they are done" } }
+/// The note of a task nobody delegated yet that is to wait for others: "after HSW-4", naming the ones not done yet
+/// (nothing once all are). It is only a condition: such a task never starts by itself.
+pub fn todo_line(t: &Obj) -> String {
+    if after_of(t).is_empty() { return String::new(); }
+    let (left, _) = standing(t);
+    if left.is_empty() { String::new() } else { format!("after {}", listed(&left)) }
 }
 
 /// Where a task that is waited for stands: done, not yet, or never by itself, with the reason.
@@ -113,11 +124,12 @@ pub fn checked(me: Option<&str>, refs: &[String]) -> Res<Vec<String>> {
     Ok(out)
 }
 
-/// What a delegated task that waits says it does: "starts after a by itself", or why it waits for you. None for a task
-/// that does not wait.
+/// What a delegated task that waits says it does: "is queued after a and starts by itself once that is done", or why
+/// it waits for you. None for a task that does not wait.
 pub fn waiting_words(t: &Obj) -> Option<String> {
     if t.s("stage") != STAGE { return None; }
-    Some(match t.so("afterBlocked") { Some(w) => format!("waits for you: {w}"), None => format!("{} by itself", waits_line(&strings(t.at("afterLeft")))) })
+    let left = strings(t.at("afterLeft"));
+    Some(match t.so("afterBlocked") { Some(w) => format!("waits for you: {w}"), None => format!("is {} and starts by itself {}", waits_line(&left), once(left.len())) })
 }
 /// The task panel's line about waiting, from the task alone: its label ("Starts after", "Waited for", "To wait for" on
 /// one not delegated yet) and each task with whether it is done.
@@ -135,7 +147,7 @@ pub fn panel_line(r: &Obj) -> Option<(&'static str, String)> {
 pub fn still_waits(t: &Task) -> String {
     let id = t.t("id");
     let (left, broken) = standing(t);
-    let now = match broken { Some(w) => format!("{} waits for you: {w}.", say(&id)), None => format!("{} still waits: it {} by itself.", say(&id), waits_line(&left)) };
+    let now = match broken { Some(w) => format!("{} waits for you: {w}.", say(&id)), None => format!("{} is still {}: it starts by itself {}.", say(&id), waits_line(&left), once(left.len())) };
     format!("{now} To start it now anyway: herdr-superwork delegate {id} --now. To stop it waiting: herdr-superwork after {id} --clear")
 }
 /// What a task's wait comes to as its delegation is recorded (actions/start.rs), with `t` already queued: it waits

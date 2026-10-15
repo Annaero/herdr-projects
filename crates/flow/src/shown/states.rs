@@ -57,6 +57,7 @@ pub fn who_stands(r: &Obj) -> (String, String) {
         if under_review(r) { return say(words::UNDER_REVIEW, who::REVIEWER); }
         if BOARD_STEPS.contains(&r.s("stage")) { return say(step(r.s("stage")), who::BOARD); }
         if r.s("stage") == "queued" { return say(QUEUED, ""); }
+        if super::queue::waits_after(r) { return say(&super::queue::words(r), ""); }
         return say(words::WORKING, if r.s("stage") == "progress" { who::YOU } else { who::AGENT });
     }
     if r.s("stage") == "approval" && (r.b("mergeFailed") || r.b("prFailure") || r.s("prState") == "failing") { return say(words::WRONG, ""); }

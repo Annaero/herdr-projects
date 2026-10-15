@@ -56,6 +56,9 @@ pub fn sentence(r: &Obj) -> Inked {
     let raw = words(&if r.at("review").b("stale") { review_note(r) } else { r.t("msg") });
     let msg = if r.b("plain") || ["working", "needs you", "under review", "idle"].contains(&raw.as_str()) { String::new() } else { raw };
     if r.s("state") == "done" { return Inked::new(); }
+    // Queued after other tasks: in the queue's colour. Only to wait for them, never started: a dim note (after.rs).
+    if super::queue::waits_after(r) { return Inked::of(super::queue::words(r), Ink::Queue); }
+    if r.s("stage") == "todo" && r.b("after") && msg.starts_with("after ") { return Inked::of(msg, Ink::Todo); }
     // Near a limit: how much is used, before what it is doing, so it is never the part cut off.
     if r.at("limits").b("near") && r.s("state") == "working" { return Inked::of(r.at("limits").t("near"), Ink::Peach).add(quiet(if msg.is_empty() { msg } else { format!(" · {msg}") })); }
     if needs_you(r) {

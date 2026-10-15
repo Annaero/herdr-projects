@@ -24,7 +24,7 @@ pane in herdr and so no entry.
    starts it, sets up, checks, pushes, merges, or waits on the way (its check's turn, its turn to merge, GitHub's
    checks) | `board · starting`, `board · setting up`, `board · checking`, `board · pushing`, `board · merging` | | `◌`
    waits for a free slot, `Q#2` | `queued`, and row 3 says `Q#2`: its place in the queue where a task at work has its
-   percent | | `?` asks you | `asks you` | | `!` asks for your OK | `asks for your OK` | | the sign-in mark | `needs a
+   percent | | `◌` queued after other tasks ([one task after another](after.md)) | `queued after SKL-6` | | `?` asks you | `asks you` | | `!` asks for your OK | `asks for your OK` | | the sign-in mark | `needs a
    login` | | `◆` passed, waits for your yes | `ready to approve` | | `!` its review failed | `review failed` | | `×`
    went wrong (a failure, a merge or a pull request that failed) | `went wrong` | | finished, but its branch cannot be
    brought up to date | `behind main` | | waits for you, with no kind (a reviewer's dialog, stopped without a summary) |

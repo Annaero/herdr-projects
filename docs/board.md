@@ -100,7 +100,8 @@ move the task leaves the selection on it. With the task open whole (the panel) o
 selection stays on that task, and so it does while you are in its agent.
 
 Each state has a mark of its own (`◐` the agent is working, `◑` the reviewer is working, `◇` the board's
-own step, `◌` it waits for a free slot, `✗` went wrong, `◆` ready to approve, `✓` done, `○` to do; the `?`
+own step, `◌` queued: it waits for a free slot, or for the tasks it is tabbed to start after
+([one task after another](after.md)), `✗` went wrong, `◆` ready to approve, `✓` done, `○` to do; the `?`
 menu has the list), so no
 two are told apart by colour alone. **Only a moon says someone works**: `◐` and `◑`, an agent or its reviewer. Every
 mark is one column wide. herdr's `status_indicators = "dots"` brings its dots back for working (the agent's and

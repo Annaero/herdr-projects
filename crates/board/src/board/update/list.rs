@@ -66,8 +66,9 @@ pub fn relist(s: &mut State) {
         let mut g: Vec<(String, Vec<Rec>)> = vec![("archived".to_string(), shown.iter().filter(|r| r.b("archivedAt")).cloned().collect::<Vec<_>>()), ("pinned".to_string(), shown.iter().filter(|r| r.b("pinned") && !r.b("archivedAt")).cloned().collect())];
         for name in GROUPS {
             let mut rows: Vec<Rec> = shown.iter().filter(|r| group_of(r) == name && !r.b("pinned") && !r.b("archivedAt")).cloned().collect();
-            // The tasks that wait for a free slot stand last under `working`, in the order they get one (Q#1 first).
-            rows.sort_by_key(|r| if queued(r) { (1, r.i("queuePlace")) } else { (0, 0) });
+            // The queued tasks stand last under `working`: those that wait for a free slot in the order they get one
+            // (Q#1 first), then those queued after other tasks.
+            rows.sort_by_key(|r| if r.s("stage") == "queued" && queued(r) { (1, r.i("queuePlace")) } else if queued(r) { (2, 0) } else { (0, 0) });
             g.push((name.to_string(), rows));
         }
         g

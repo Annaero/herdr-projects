@@ -37,10 +37,12 @@ Every command accepts `--json`. Below, `herdr-superwork` stands for that path.
   allowance, logged out, its provider down, its rounds used up; `--reviewer.fallback` the same for the reviewer),
   `--review.when always|repos|never`, `--review.mustFix critical|major|minor|trivial`, `--merge.by you|itself`,
   `--workspace.from here` (start from their current commit). A refused option changes nothing on the task.
-- One task after another: `--after <id>[,<id>…]` on `add` or `delegate` makes a task wait until those tasks (of any repo
-  on this machine, or on another machine the board knows, named with its machine first: `vm-str:ELA-3`) are done, then
-  it starts by itself and its agent is told what they did. `after <id> <id>[,…]` changes
-  what it waits for, `after <id> --clear` drops the wait; `delegate <id> --now` starts it early. Only when the human asks.
+- One task after another: `--after <id>[,<id>…]` says a task may not start before those tasks (of any repo on this
+  machine, or on another machine the board knows, named with its machine first: `vm-str:ELA-3`) are done. Alone
+  (`add --after`) it is only that: the task stays in to do and never starts by itself. Delegated (`add --after …
+  --delegate`, `delegate <id> --after …`) it is queued after them and starts by itself once they are done, its agent
+  told what they did. `after <id> <id>[,…]` changes what it waits for, `after <id> --clear` drops the wait;
+  `delegate <id> --now` starts it regardless. Only when the human asks.
 - `herdr-superwork show [<id>]`: every setting, its value and the place it came from (for one task, or the human's own).
   `herdr-superwork set <name> <value>` changes one for the human, `--repo <name>` for one repo, `--task <id>` for one
   task; `herdr-superwork unset <name>` (same options) puts it back. Only when the human asks.

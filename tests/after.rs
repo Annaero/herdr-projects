@@ -29,22 +29,23 @@ fn a_task_waits_for_one_of_another_repo_starts_when_that_merges_and_is_told_what
     let first = to_approval(&w, "Change the skill");
     let (_, said) = run(&["add", "Take it in", "--repo", &other.display().to_string(), "--after", &first, "--delegate"]).unwrap();
     let next = "other/1".to_string();
-    assert_eq!(said, format!("{next}: added, it starts after {} by itself", short(&first)));
-    // Waiting: no agent, no slot, plainly said on its row, in details and in the list.
+    assert_eq!(said, format!("{next}: added, it is queued after {} and starts by itself once that is done", short(&first)));
+    // Queued: no agent, no slot, plainly said on its row, in details and in the list, listed with the queued tasks.
     let t = task(&next);
-    assert_eq!((t.s("stage"), t.s("msg")), ("after", "starts after PRJ-1"));
+    assert_eq!((t.s("stage"), t.s("msg")), ("after", "queued after PRJ-1"));
     assert_eq!(starts(&w).len(), 1, "only the first task's agent was started");
     let r = row(&next);
-    assert_eq!((r.s("state"), r.s("note")), ("idle", "starts after PRJ-1"));
-    assert_eq!(sw::shown::states::group_of(&sw::shown::states::as_row(&r)), "to do");
+    assert_eq!((r.s("state"), r.s("note")), ("working", "queued after PRJ-1"));
+    assert_eq!(sw::shown::states::group_of(&sw::shown::states::as_row(&r)), "working");
+    assert!(sw::shown::queue::queued(&r));
     let d = sw::actions::finish_line::details(&next).unwrap();
     assert_eq!((d.at("after").at("waiting"), d.at("after").at("waitsFor")), (&json!(true), &json!([first])));
-    assert!(run(&["list"]).unwrap().1.contains("Take it in  · starts after PRJ-1"), "{}", run(&["list"]).unwrap().1);
+    assert!(run(&["list"]).unwrap().1.contains("Take it in  · queued after PRJ-1"), "{}", run(&["list"]).unwrap().1);
     housekeep(&w);
     assert_eq!(task(&next).s("stage"), "after", "nothing is done yet");
     // Delegating it again says it still waits, and how to start it early or drop the wait.
     let e = sw::actions::start::delegate(&next, vec![]).unwrap_err().msg;
-    assert!(e.contains("OTH-1 still waits: it starts after PRJ-1 by itself.") && e.contains("delegate other/1 --now") && e.contains("after other/1 --clear"), "{e}");
+    assert!(e.contains("OTH-1 is still queued after PRJ-1: it starts by itself once that is done.") && e.contains("delegate other/1 --now") && e.contains("after other/1 --clear"), "{e}");
     // The first merges: the waiting one starts by itself, and its agent is told what landed.
     sw::actions::finish_line::approve(&first, None, false).unwrap();
     let a = settle(&first);
@@ -70,12 +71,12 @@ fn a_research_task_with_its_report_and_a_task_marked_done_without_a_merge_both_c
     let plain = w.add("Talk to the vendor");
     let id = w.add("Use what was found");
     let (_, said) = run(&["delegate", &id, "--after", &format!("{research},{plain}")]).unwrap();
-    assert_eq!(said, format!("{id}: delegated, starts after {}, {} by itself", short(&research), short(&plain)));
+    assert_eq!(said, format!("{id}: delegated, it is queued after {}, {} and starts by itself once they are done", short(&research), short(&plain)));
     // The research task is done with its report; the other is waited for still.
     std::fs::write(sw::store::files::dir_of(&research).join("closing.md"), "The API has a rate limit of 10/s.\n").unwrap();
     sw::store::tasks::set(&research, json!({ "stage": "done", "report": { "file": "index.html", "link": "https://box/report/index.html" } })).unwrap();
     housekeep(&w);
-    assert_eq!((task(&id).s("stage"), task(&id).s("msg")), ("after", "starts after PRJ-2"));
+    assert_eq!((task(&id).s("stage"), task(&id).s("msg")), ("after", "queued after PRJ-2"));
     let shown = run(&["after", &id]).unwrap().1;
     assert_eq!(shown, format!("{id}: waits for {} (done), {}", short(&research), short(&plain)));
     // Marked done, nothing merged: that is done too.
@@ -111,8 +112,8 @@ fn a_task_it_waits_for_that_fails_is_stopped_archived_or_removed_makes_it_wait_f
     // Set going again, the reason goes and it waits as before.
     sw::store::tasks::set(&dep, json!({ "stage": "working" })).unwrap();
     housekeep(&w);
-    assert_eq!((task(&id).s("msg"), task(&id).at("afterBlocked").clone()), ("starts after PRJ-1".into(), Value::Null));
-    assert_eq!(row(&id).s("state"), "idle");
+    assert_eq!((task(&id).s("msg"), task(&id).at("afterBlocked").clone()), ("queued after PRJ-1".into(), Value::Null));
+    assert_eq!(row(&id).s("state"), "working");
     sw::store::tasks::set(&dep, json!({ "stage": "stopped" })).unwrap();
     blocked("PRJ-1 was stopped");
     sw::store::tasks::set(&dep, json!({ "stage": "todo", "archivedAt": 1 })).unwrap();
@@ -126,7 +127,7 @@ fn a_task_it_waits_for_that_fails_is_stopped_archived_or_removed_makes_it_wait_f
     run(&["after", &other, &dep]).unwrap();
     sw::actions::archive::clear(&dep).unwrap();
     let e = run(&["delegate", &other]).unwrap();
-    assert_eq!(e.1, format!("{other}: delegated, waits for you: PRJ-1 was removed"));
+    assert_eq!(e.1, format!("{other}: delegated, it waits for you: PRJ-1 was removed"));
 }
 
 #[test]

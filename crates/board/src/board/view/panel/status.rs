@@ -39,7 +39,7 @@ pub fn status(k: &mut Kit, c: &Ctx, r: &Obj) -> (usize, Top, usize, String) {
     let under = crate::shown::states::under_review(r);
     let stand = if r.b("archivedAt") { "archived".to_string() } else if under { reviewer_word(r).into() } else { standing(r) };
     let rw = round_words(r);
-    rows.push(("state", k.fact("State", k.flow(vec![c.mark.clone().add(Inked::plain(" ")).add(Inked::of(stand, ink).bold()), if (reviewing(r) || r.s("stage") == "approval") && !rw.is_empty() { Inked::of(rw, ink) } else { Inked::new() }, Kit::dim(when)], None, " · "))));
+    rows.push(("state", k.fact("State", k.flow(vec![c.mark.clone().add(Inked::plain(" ")).add(Inked::of(stand.clone(), ink).bold()), if (reviewing(r) || r.s("stage") == "approval") && !rw.is_empty() { Inked::of(rw, ink) } else { Inked::new() }, Kit::dim(when)], None, " · "))));
     // What it waits for, or waited for, before it starts (after.rs): each task, and whether it is done.
     if let Some((label, line)) = crate::after::panel_line(r) { rows.push(("after", k.fact(label, Kit::wrap_at(&line, k.room).into_iter().map(|l| l.recolor(Ink::Soft)).collect()))); }
     let has_eta = r.at("eta").is_number();
@@ -55,7 +55,7 @@ pub fn status(k: &mut Kit, c: &Ctx, r: &Obj) -> (usize, Top, usize, String) {
     // What you just did, under way (update/pending.rs): said at once, before anything of it can be read.
     let p = r.at("pending");
     if p.b("word") { let ink = if p.b("failed") { Ink::Red } else { Ink::Yellow }; rows.push(("now", k.fact("Now", Kit::wrap_at(&p.t("word"), k.room).into_iter().map(|l| l.recolor(ink)).collect()))); }
-    else if working && !note.is_empty() && !(failure.is_some() && waiting_of(r).map(|w| w.s("who") == "agent").unwrap_or(false)) { rows.push(("now", k.fact_text("Now", &note))); }
+    else if working && !note.is_empty() && !same(&note, &stand) && !(failure.is_some() && waiting_of(r).map(|w| w.s("who") == "agent").unwrap_or(false)) { rows.push(("now", k.fact_text("Now", &note))); }
     // What this run and the task have used against each limit that is set, in amber from near it on.
     let lim = r.at("limits");
     let near = |x: &Value, of: f64| x.f("used") >= NEAR * of;

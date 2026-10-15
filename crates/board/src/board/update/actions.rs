@@ -60,7 +60,7 @@ pub fn tab(s: &mut State, text: &str, r: Option<&Obj>, fx: &mut Vec<Effect>) {
     // One that waits for other tasks to be done starts by itself: early only on a yes.
     if r.s("stage") == crate::after::STAGE {
         let job = if r.b("host") { far(s, r, "delegate", json!({ "now": true }), false) } else { Job::Delegate { id: r.t("id"), name: n.clone(), now: true } };
-        let why = if r.b("afterBlocked") { format!("It waits for you: {}.", r.s("afterBlocked")) } else { format!("It {} by itself.", r.s("msg")) };
+        let why = if r.b("afterBlocked") { format!("It waits for you: {}.", r.s("afterBlocked")) } else { format!("It {}.", crate::after::waiting_words(r).unwrap_or_default()) };
         return confirm(s, format!("Start {n} now?"), job, Valid::Always, vec![("sayYes", "start now".into()), ("sayNo", "let it wait".into())], why, false);
     }
     act(s, r, "delegate", json!({}), Job::Delegate { id: r.t("id"), name: n, now: false }, fx);
@@ -161,10 +161,11 @@ pub fn send_back(s: &mut State, r: &Obj, fx: &mut Vec<Effect>) {
     let (action, local) = if fix { ("fix", Job::SendFailure { id }) } else if r.s("state") == "error" { ("retry", Job::SendError { id }) } else { ("review", Job::SendReview { id }) };
     act(s, r, action, json!({}), local, fx);
 }
-/// An agent is on it right now: at work, in a step of the finish line, waiting for you to answer it, or for a slot.
+/// An agent is on it right now: at work, in a step of the finish line, waiting for you to answer it, or queued (for a
+/// slot, or after other tasks: stop stops the waiting).
 pub fn running(r: &Obj) -> bool {
     let live = crate::store::files::SLOT_STAGES.contains(&r.s("stage")) || ["asks", "plan"].contains(&r.s("stage"));
-    (r.s("state") == "working" && (is_agent(r) || r.s("stage") == "progress")) || r.s("stage") == "queued" || (is_agent(r) && live)
+    (r.s("state") == "working" && (is_agent(r) || r.s("stage") == "progress")) || ["queued", crate::after::STAGE].contains(&r.s("stage")) || (is_agent(r) && live)
 }
 /// Stop the agent while one runs. On a task with none running the same key asks to remove the task; a stop never
 /// goes on to that question by itself.

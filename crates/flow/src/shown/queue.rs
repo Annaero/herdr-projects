@@ -1,10 +1,13 @@
 //! A task's place in the queue for a free slot (`board.agents` all taken): `Q#1` gets the next slot, `Q#2` the one
 //! after. The board starts waiting tasks in this order (actions/start.rs: start_queued), so the row, the task panel,
-//! `list`, `details`, herdr's sidebar and the web Board all say the same place.
+//! `list`, `details`, herdr's sidebar and the web Board all say the same place. A task delegated with `--after` is
+//! queued too, after the tasks it waits for (after.rs): the same mark and colour, no place, and "queued after HSW-6".
 use crate::json::*;
 
-/// Waiting for a free slot: started, no slot yet.
-pub fn queued(r: &Obj) -> bool { r.s("stage") == "queued" && !r.b("archivedAt") }
+/// Queued: started, no slot yet, or queued after other tasks to be done.
+pub fn queued(r: &Obj) -> bool { (r.s("stage") == "queued" || waits_after(r)) && !r.b("archivedAt") }
+/// Queued after other tasks to be done (after.rs), and nothing in the way: one whose wait went wrong waits for you.
+pub fn waits_after(r: &Obj) -> bool { r.s("stage") == crate::after::STAGE && !r.b("afterBlocked") && !r.b("archivedAt") }
 /// The waiting tasks of one herdr session, in the order they get a slot: the first to wait first.
 pub fn order<'a>(all: impl IntoIterator<Item = &'a Obj>, socket: &str) -> Vec<&'a Obj> {
     let mut waiting: Vec<&Obj> = all.into_iter().filter(|t| t.s("stage") == "queued" && t.at("link").s("socket") == socket).collect();
@@ -30,6 +33,9 @@ pub fn number(rows: &mut [Obj]) {
 }
 /// `Q#2`, or nothing where the task does not wait or its place is not known.
 pub fn tag(r: &Obj) -> String { if queued(r) && r.i("queuePlace") > 0 { format!("Q#{}", r.i("queuePlace")) } else { String::new() } }
-/// "waiting for a free slot, Q#2": where a waiting task stands, in words.
-pub fn words(r: &Obj) -> String { let q = tag(r); if q.is_empty() { WAITING.into() } else { format!("{WAITING}, {q}") } }
+/// "waiting for a free slot, Q#2", or "queued after HSW-6": where a queued task stands, in words.
+pub fn words(r: &Obj) -> String {
+    if waits_after(r) { return crate::after::waits_line(&strings(r.at("afterLeft"))); }
+    let q = tag(r); if q.is_empty() { WAITING.into() } else { format!("{WAITING}, {q}") }
+}
 pub const WAITING: &str = "waiting for a free slot";

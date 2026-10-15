@@ -32,14 +32,14 @@ fn a_task_waits_for_one_of_another_machine_and_starts_when_that_is_done_told_wha
     answers(&far, json!([ela("open", "", json!([]))]));
     let id = w.add("Use the new API");
     let (_, said) = run(&["delegate", &id, "--after", "vm-str:ELA-3"]).unwrap();
-    assert_eq!(said, format!("{id}: delegated, starts after vm-str:ELA-3 by itself"));
+    assert_eq!(said, format!("{id}: delegated, it is queued after vm-str:ELA-3 and starts by itself once that is done"));
     // Asked there, by what you typed; kept by its machine and its id there.
     let (who, what, req) = far.asked().last().cloned().unwrap();
     assert_eq!((who.as_str(), what.as_str(), req.at("refs")), ("vm-str", "after", &json!(["ELA-3"])));
     let t = task(&id);
-    assert_eq!((t.s("stage"), t.at("after"), t.s("msg")), ("after", &json!(["vm-str:ela/3"]), "starts after vm-str:ELA-3"));
-    assert_eq!(row(&id).s("note"), "starts after vm-str:ELA-3");
-    assert!(run(&["list"]).unwrap().1.contains("Use the new API  · starts after vm-str:ELA-3"));
+    assert_eq!((t.s("stage"), t.at("after"), t.s("msg")), ("after", &json!(["vm-str:ela/3"]), "queued after vm-str:ELA-3"));
+    assert_eq!(row(&id).s("note"), "queued after vm-str:ELA-3");
+    assert!(run(&["list"]).unwrap().1.contains("Use the new API  · queued after vm-str:ELA-3"));
     assert_eq!(run(&["after", &id]).unwrap().1, format!("{id}: waits for vm-str:ELA-3"));
     // Its own job asks again, by the task's id there; nothing is done yet.
     ask_and_pass(&w);
@@ -65,10 +65,10 @@ fn a_machine_that_does_not_answer_keeps_it_waiting_and_says_since_when() {
     let at = sw::clock::now();
     far.ends("vm-str", "after", "", "ssh: connect to host vm-str port 22: Connection timed out\n", 255);
     ask_and_pass(&w);
-    let line = format!("starts after vm-str:ELA-3 · waiting for vm-str: not reachable since {}", sw::after::far::clock(at));
+    let line = format!("queued after vm-str:ELA-3 · waiting for vm-str: not reachable since {}", sw::after::far::clock(at));
     let t = task(&id);
     assert_eq!((t.s("stage"), t.s("msg"), t.at("afterBlocked")), ("after", line.as_str(), &Value::Null));
-    assert_eq!((row(&id).s("state"), row(&id).s("note")), ("idle", line.as_str()));
+    assert_eq!((row(&id).s("state"), row(&id).s("note")), ("working", line.as_str()));
     let d = sw::actions::finish_line::details(&id).unwrap();
     assert_eq!(d.at("after").s("notReachable"), format!("waiting for vm-str: not reachable since {}", sw::after::far::clock(at)));
     // Still not answering later: the time it first did not stays.
@@ -78,7 +78,7 @@ fn a_machine_that_does_not_answer_keeps_it_waiting_and_says_since_when() {
     // It answers again: the usual line.
     answers(&far, json!([ela("open", "", json!([]))]));
     ask_and_pass(&w);
-    assert_eq!(task(&id).s("msg"), "starts after vm-str:ELA-3");
+    assert_eq!(task(&id).s("msg"), "queued after vm-str:ELA-3");
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn a_task_there_that_went_wrong_or_was_removed_makes_it_wait_for_you_with_the_re
     // Set going again there: it waits as before.
     answers(&far, json!([ela("open", "", json!([]))]));
     ask_and_pass(&w);
-    assert_eq!((task(&id).s("msg"), task(&id).at("afterBlocked").clone()), ("starts after vm-str:ELA-3".into(), Value::Null));
+    assert_eq!((task(&id).s("msg"), task(&id).at("afterBlocked").clone()), ("queued after vm-str:ELA-3".into(), Value::Null));
     // Removed there: its name is the one it had.
     answers(&far, json!([{ "found": false, "msg": "No task ela/3" }]));
     ask_and_pass(&w);
