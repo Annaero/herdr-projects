@@ -64,6 +64,7 @@ mod board_rows_sidebar;
 mod board_rows_tall;
 mod board_rows_tall_list;
 mod board_rows_two;
+mod board_rows_waits;
 mod board_rows_wrap;
 mod board_rows_wrap_list;
 mod board_setup;

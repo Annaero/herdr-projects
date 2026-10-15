@@ -140,7 +140,9 @@ retried after its repair. A checkout with unsaved files is never forced.
 
 **A pull request merges only once its checks on GitHub pass** (`merge.checks`: `github`), by itself or on your yes,
 in every repo the board merges in. Before the merge the board looks at them: still running, the task says
-`Waiting for GitHub checks: <names>` and merges by itself once they pass; failed, nothing merges, and the failure goes
+how far they are, `Waiting for GitHub checks · 2 of 3 passed` (each check counted once, a workflow for its jobs until
+GitHub lists them; `details` names them: `checksWaitingFor`), keeps the plain `◐` of a task that waits, and merges by itself once
+they pass; failed, nothing merges, and the failure goes
 back to the agent like a failed check of the board's own, with the failing check's name and the end of its log, within
 `review.rounds` (the merge you approved goes on once GitHub's checks pass on the repair); after that it waits for you,
 and `approve <id>` says why and refuses, as for a failed review, until `approve <id> --anyway`. Checks that never
@@ -149,7 +151,7 @@ it merges as before. The board decides from what the repo expects, not only from
 GitHub workflow of the branch that runs for this pull request (`.github/workflows`, its triggers read as GitHub reads
 them: `push` and `pull_request`, their `branches` against the branch, `paths` against the files the pull request
 changes, `types`) must have its run on the commit, and that run must be through and passed: every job of it, every
-member of a matrix, also one GitHub has not listed yet (`Waiting for GitHub checks: CI`). A workflow that cannot run
+member of a matrix, also one GitHub has not listed yet (counted as one check still to pass). A workflow that cannot run
 for it (only for other paths, only into another branch, only on tags) is not waited for. Each check the branch it
 merges into requires (its protection or rulesets) must be listed and pass, and a check listed on the commit before and
 gone from the list now has not passed. With nothing listed at all, the task says `Waiting for GitHub checks to start`
@@ -172,7 +174,7 @@ A check is named once whichever way it was read (a workflow `Check` and its job 
 the pull request), and what was remembered for an earlier commit, or read the other way, is not looked for again.
 
 **When gh cannot read GitHub at all** (not logged in, the network), a merge that waits for its checks says so on its
-row (`Waiting for GitHub checks: could not read them (…)`) and goes on by itself once gh reads again; past
+row (`Waiting for GitHub checks · could not read them (…)`) and goes on by itself once gh reads again; past
 `check.timeout` it waits for you with `Could not read GitHub's checks`. herdr may start the board's keeper (after a
 reboot) without your login shell's environment: the board takes your PATH and gh's login variables (`GH_TOKEN`,
 `GH_HOST`, `GH_ENTERPRISE_TOKEN`, …) from a login shell, never writing a token down.

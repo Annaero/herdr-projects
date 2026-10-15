@@ -3,7 +3,7 @@
 //! with their logs) and commit statuses. Passed, failed, still running, no CI at all; what cannot be read is said on the
 //! task, and nothing asks you for a login.
 use crate::common;
-use crate::pull_requests_checks::{merged, none, pane_prompts, pr_world, LOG};
+use crate::pull_requests_checks::{merged, none, pane_prompts, pr_world, LOG, waits};
 use common::*;
 use serde_json::{json, Value};
 use sw::actions::finish_line;
@@ -49,7 +49,7 @@ fn a_run_still_going_or_failed_is_judged_as_itself_whatever_its_jobs_listed_so_f
     w.gh_says(says(&head, ("in_progress", ""), json!([job("build", "completed", "success", 9)]), json!([])));
     finish_line::approve(&id, None, false).unwrap();
     let t = settle(&id);
-    assert_eq!(t.s("stage"), "merging", "{}", t.at("failure")); assert_eq!(t.s("msg"), "Waiting for GitHub checks: CI"); assert!(!merged(&w));
+    assert_eq!(t.s("stage"), "merging", "{}", t.at("failure")); waits(&t, "Waiting for GitHub checks · 1 of 2 passed", "CI"); assert!(!merged(&w));
     poll_prs(); settle(&id);
     assert!(!merged(&w), "the job that passed is not the run: {}", gh_log(&w));
     // the run failed though every job listed passed (one GitHub did not list): nothing merges
@@ -96,11 +96,11 @@ fn running_jobs_and_pending_statuses_are_waited_for_then_it_merges_and_github_is
     let from = gh_log(&w).lines().count();
     finish_line::approve(&id, None, false).unwrap();
     let t = settle(&id);
-    assert_eq!(t.s("stage"), "merging", "{}", t.at("failure")); assert_eq!(t.s("msg"), "Waiting for GitHub checks: CI, Vercel"); assert!(!merged(&w));
+    assert_eq!(t.s("stage"), "merging", "{}", t.at("failure")); waits(&t, "Waiting for GitHub checks · 0 of 2 passed", "CI, Vercel"); assert!(!merged(&w));
     no_login_asked(&t, &id);
     w.gh_says(says(&head, ("in_progress", ""), json!([job("build", "in_progress", "", 9)]), json!([["Vercel", "pending", ""]])));
     poll_prs(); let t = settle(&id);
-    assert_eq!(t.s("stage"), "merging", "still running: still waiting"); assert_eq!(t.s("msg"), "Waiting for GitHub checks: CI, build, Vercel"); assert!(!merged(&w));
+    assert_eq!(t.s("stage"), "merging", "still running: still waiting"); waits(&t, "Waiting for GitHub checks · 0 of 2 passed", "CI, build, Vercel"); assert!(!merged(&w));
     w.gh_says(says(&head, ("completed", "success"), json!([job("build", "completed", "success", 9)]), json!([["Vercel", "success", ""]])));
     poll_prs();
     let t = settle(&id);
@@ -126,7 +126,7 @@ fn no_ci_at_all_merges_at_once_and_a_required_check_no_token_can_read_is_named_n
     let mut s = says(&head, ("in_progress", ""), json!([job("build", "in_progress", "", 9)]), json!([])); s["required"] = json!(["build", "app/scan"]);
     w.gh_says(s);
     finish_line::approve(&id, None, false).unwrap();
-    assert_eq!(settle(&id).s("msg"), "Waiting for GitHub checks: CI, build, app/scan");
+    waits(&settle(&id), "Waiting for GitHub checks · 0 of 2 passed", "CI, build, app/scan");
     let mut s = says(&head, ("completed", "success"), json!([job("build", "completed", "success", 9)]), json!([])); s["required"] = json!(["build", "app/scan"]);
     w.gh_says(s);
     poll_prs();

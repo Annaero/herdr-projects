@@ -37,6 +37,29 @@ pub fn unique(names: impl IntoIterator<Item = String>) -> Vec<String> {
     for n in names { if !out.iter().any(|o| o.eq_ignore_ascii_case(&n)) { out.push(n); } }
     out
 }
+/// What the row says while GitHub's checks run: how far they are (`· 2 of 3 passed`), never their names, which say
+/// little and repeat (a workflow `Check` and its job `check`, its runs for the push and for the pull request). Each
+/// check counts once, whatever its case, by its own result: a workflow of the same name never makes it pending. A
+/// workflow (its run read from Actions, or one waited for by name: `flows`) stands for its jobs until they are listed,
+/// and for those still to come once all listed have passed. `waited`: what is still waited for (running, gone from
+/// the list, a workflow not through).
+pub fn waiting_words(listed: &[Value], waited: &[String], flows: &[String]) -> String {
+    let is = |a: &str, b: &str| a.eq_ignore_ascii_case(b);
+    let (runs, checks): (Vec<&Value>, Vec<&Value>) = listed.iter().partition(|c| c.b("run"));
+    let workflows = unique(runs.iter().map(|c| name(c)).chain(flows.iter().cloned()));
+    let a_workflow = |n: &str| workflows.iter().any(|f| is(f, n));
+    let waits = |n: &str| waited.iter().chain(flows).any(|w| is(w, n));
+    let running = |n: &str| checks.iter().any(|c| is(&name(c), n) && !CHECK_GOOD.contains(&word(c).as_str()));
+    let stands = |wf: &str| { let jobs: Vec<String> = checks.iter().filter(|c| is(c.s("workflowName"), wf)).map(|c| name(c)).collect(); jobs.is_empty() || (waits(wf) && !jobs.iter().any(|j| running(j))) };
+    // Each: still waited for, or passed. A listed check by its own result (or waited for under a name no workflow has).
+    let mut all: Vec<bool> = unique(checks.iter().map(|c| name(c))).iter().map(|n| running(n) || (waits(n) && !a_workflow(n))).collect();
+    all.extend(workflows.iter().filter(|f| stands(f)).map(|f| waits(f)));
+    let listed_name = |n: &str| checks.iter().any(|c| is(&name(c), n));
+    all.extend(unique(waited.iter().filter(|w| !listed_name(w) && !a_workflow(w)).cloned()).iter().map(|_| true));
+    let left = all.iter().filter(|p| **p).count();
+    if left == 0 { return "Waiting for GitHub checks to start".into(); }
+    format!("Waiting for GitHub checks · {} of {} passed", all.len() - left, all.len())
+}
 /// Every check GitHub listed on this commit while the board waited for it (`checksWait.seen`), and every one it waited
 /// for (`checksWait.names`), read the same way (`via`, readable.rs): what was listed for an earlier commit, or read
 /// another way (GitHub's list names jobs only, the one read from Actions names their runs too), is not looked for.
@@ -174,7 +197,7 @@ pub fn before_merge(id: &str, g: &mut Guard, t: &Task, root: &Path) -> Res<bool>
                     &format!("Look at the pull request's checks on GitHub (gh pr checks {}): one may be stuck, or wait for a runner. Approve again to wait for them again, or merge without them: herdr-superwork approve {id} --anyway.", pr_number(&pr)), no_fix())?;
                 return Ok(false);
             }
-            let msg = if names.is_empty() { "Waiting for GitHub checks to start".to_string() } else { format!("Waiting for GitHub checks: {}", names.join(", ")) };
+            let msg = waiting_words(listed, &checks, &flows);
             let d = g.set(|t| { t.put("failure", Value::Null); t.put("autoMerge", true); t.put("autoMergeLocal", true); let seen = unique(known(t, &head, read.via()).into_iter().chain(listed.iter().map(name))); t.put("checksWait", json!({ "since": since, "head": head, "via": read.via(), "for": approved, "names": checks, "flows": flows, "seen": seen })); t.put("msg", msg.clone()); })?;
             flow::sidebar::tell_sidebar(&d);
             Ok(false)

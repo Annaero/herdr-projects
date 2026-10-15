@@ -31,7 +31,7 @@ fn unread(id: &str, said: &str) {
     let _ = update_wait(id, 10000, |t| {
         if !t.b("autoMerge") || !t.b("checksWait") || runner_alive(t) { return Ok(Change::Keep); }
         if checks::overdue(t) { land = true; t.put("autoMerge", false); t.put("autoMergeLocal", false); t.put("msg", "Merging"); }
-        else { t.put("msg", format!("Waiting for GitHub checks: could not read them ({why})")); }
+        else { t.put("msg", format!("Waiting for GitHub checks · could not read them ({why})")); }
         Ok(Change::Write)
     });
     if land { spawn_runner("land", id, &[]); }
@@ -135,8 +135,8 @@ fn poll_one(id: &str, pr: &str, j: &Value, via: &str) {
                 let was = if t.at("checksWait").s("via") == via { strings(t.at("checksWait").at("seen")) } else { vec![] };
                 let seen = checks::unique(was.into_iter().chain(checks.iter().map(checks::name)));
                 t.obj_mut("checksWait").put("names", json!(names)); t.obj_mut("checksWait").put("seen", json!(seen)); t.obj_mut("checksWait").put("via", via);
-                let said = checks::unique(names.into_iter().chain(strings(t.at("checksWait").at("flows")))); // the workflows not through, by name
-                t.put("msg", format!("Waiting for GitHub checks: {}", said.join(", ")));
+                let msg = checks::waiting_words(&checks, &names, &strings(t.at("checksWait").at("flows"))); // the workflows not through, by name
+                t.put("msg", msg);
             }
             return Ok(Change::Write);
         }

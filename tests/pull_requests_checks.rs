@@ -23,6 +23,13 @@ pub fn failed(head: &str) -> Value { view(head, json!({ "__typename": "CheckRun"
 pub const LOG: &str = "build\tRun tests\t2026-10-14T10:00:00.0000000Z running 3 tests\nbuild\tRun tests\t2026-10-14T10:00:01.0000000Z test parses_flags ... FAILED\nbuild\tRun tests\t2026-10-14T10:00:02.0000000Z \u{1b}[31merror: 1 test failed\u{1b}[0m";
 pub fn merged(w: &World) -> bool { gh_log(w).lines().any(|l| l.starts_with("pr merge")) }
 pub fn pane_prompts(w: &World, id: &str) -> Vec<String> { prompts(w, task(id).at("link").s("pane")) }
+/// What a merge that waits for GitHub's checks says (how far they are) and which it waits for, each once.
+#[track_caller]
+pub fn waits(t: &Obj, says: &str, names: &str) {
+    let w = t.at("checksWait");
+    let waited = sw::land::checks::unique(strings(w.at("names")).into_iter().chain(strings(w.at("flows"))));
+    assert_eq!((t.t("msg"), waited.join(", ")), (says.to_string(), names.to_string()));
+}
 
 #[test]
 fn checks_still_running_the_merge_waits_and_says_so_then_merges_once_they_pass() {
@@ -33,7 +40,7 @@ fn checks_still_running_the_merge_waits_and_says_so_then_merges_once_they_pass()
     finish_line::approve(&id, None, false).unwrap();
     let t = settle(&id);
     assert_eq!(t.s("stage"), "merging"); assert!(t.b("autoMerge") && t.b("checksWait"));
-    assert_eq!(t.s("msg"), "Waiting for GitHub checks: build");
+    waits(&t, "Waiting for GitHub checks · 0 of 1 passed", "build");
     assert_eq!(row(&id).s("state"), "working", "waiting on GitHub is not waiting on you");
     assert!(!merged(&w), "nothing merges while they run: {}", gh_log(&w));
     poll_prs(); settle(&id);
@@ -103,7 +110,7 @@ fn checks_that_never_finish_wait_for_you_after_the_check_timeout() {
     let t0 = sw::clock::now() - 3600000; sw::clock::set(Some(t0));
     w.gh_says(json!({ "view": running(&head) }));
     finish_line::approve(&id, None, false).unwrap();
-    assert_eq!(settle(&id).s("msg"), "Waiting for GitHub checks: build");
+    waits(&settle(&id), "Waiting for GitHub checks · 0 of 1 passed", "build");
     sw::clock::advance(9 * 60000);
     poll_prs(); settle(&id);
     assert_eq!(task(&id).s("stage"), "merging", "not yet");

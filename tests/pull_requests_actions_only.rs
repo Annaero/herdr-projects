@@ -3,7 +3,7 @@
 //! restarted without gh's login it says it cannot read them, and goes on once gh reads again; names remembered for an
 //! earlier commit, or read another way, never hold it.
 use crate::common;
-use crate::pull_requests_checks::{merged, none, pr_world};
+use crate::pull_requests_checks::{merged, none, pr_world, waits};
 use common::*;
 use serde_json::{json, Value};
 use sw::actions::finish_line;
@@ -33,7 +33,7 @@ fn waiting(w: &World, title: &str) -> (String, String) {
     finish_line::approve(&id, None, false).unwrap();
     let t = settle(&id);
     assert_eq!(t.s("stage"), "merging", "{}", t.at("failure"));
-    assert_eq!(t.s("msg"), "Waiting for GitHub checks: Check");
+    waits(&t, "Waiting for GitHub checks · 0 of 1 passed", "Check");
     assert_eq!(t.at("checksWait").s("via"), "actions");
     assert!(!merged(w));
     (id, head)
@@ -49,7 +49,7 @@ fn actions_only_a_workflow_check_with_job_check_for_push_and_pull_request_merges
     w.gh_says(actions(&head, PASSED, GOING));
     poll_prs();
     let t = settle(&id);
-    assert_eq!(t.s("stage"), "merging"); assert_eq!(t.s("msg"), "Waiting for GitHub checks: Check"); assert!(!merged(&w));
+    assert_eq!(t.s("stage"), "merging"); waits(&t, "Waiting for GitHub checks · 0 of 1 passed", "Check"); assert!(!merged(&w));
     w.gh_says(actions(&head, PASSED, PASSED));
     poll_prs();
     let t = settle(&id);
@@ -75,7 +75,7 @@ fn after_a_restart_without_gh_login_a_waiting_merge_says_so_and_goes_on_once_gh_
     poll_prs();
     let t = settle(&id);
     assert_eq!(t.s("stage"), "merging"); assert!(!merged(&w));
-    assert_eq!(t.s("msg"), "Waiting for GitHub checks: could not read them (To get started with GitHub CLI, please run:  gh auth login)");
+    assert_eq!(t.s("msg"), "Waiting for GitHub checks · could not read them (To get started with GitHub CLI, please run:  gh auth login)");
     // gh reads again (its login taken from the login shell, login_env.rs): the merge is looked at again and goes on
     w.gh_says(actions(&head, PASSED, PASSED));
     poll_prs();

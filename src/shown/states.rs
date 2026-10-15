@@ -29,7 +29,12 @@ pub fn reviewing(r: &Obj) -> bool { r.s("state") != "done" && (r.s("stage") == "
 /// The reviewer is at work on it right now.
 pub fn under_review(r: &Obj) -> bool { reviewing(r) && r.s("state") == "working" }
 const BOARD_STEPS: [&str; 5] = ["starting", "setup", "checking", "pushing", "merging"];
-fn step_waits(r: &Obj) -> bool { (r.s("stage") == "checking" && r.at("check").s("state") == "waiting") || (r.s("stage") == "merging" && r.b("lineAt")) || waiting_of(r).is_some() }
+/// It only waits (for its check's turn, its turn to merge, GitHub's checks, a retry): the plain mark of work, not ◒.
+fn step_waits(r: &Obj) -> bool {
+    (r.s("stage") == "checking" && r.at("check").s("state") == "waiting") || (r.s("stage") == "merging" && (r.b("lineAt") || waits_for_github(r))) || waiting_of(r).is_some()
+}
+/// A merge that waits for GitHub's checks (land/checks.rs) until they pass: once they have, the board merges (◒ again).
+pub fn waits_for_github(r: &Obj) -> bool { r.b("checksWait") && r.b("autoMerge") }
 /// The board itself is on it: it starts the agent, sets up, runs the check, pushes or merges (◒).
 pub fn board_step(r: &Obj) -> bool { !r.b("archivedAt") && r.s("state") == "working" && BOARD_STEPS.contains(&r.s("stage")) && !step_waits(r) }
 pub fn reviewer_mark(r: &Obj) -> bool { under_review(r) && waiting_of(r).is_none() }

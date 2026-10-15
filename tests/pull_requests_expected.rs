@@ -3,7 +3,7 @@
 //! commit is through, every job and matrix member of it; a check the branch requires; a check gone from the list; with
 //! nothing listed, an outside CI that reports in the repo; and a repo with no checks at all, which merges at once.
 use crate::common;
-use crate::pull_requests_checks::{merged, none, passed, pr_world, running, view};
+use crate::pull_requests_checks::{merged, none, passed, pr_world, running, view, waits};
 use common::*;
 use serde_json::{json, Value};
 use sw::actions::finish_line;
@@ -29,12 +29,12 @@ fn a_workflow_that_runs_for_the_pull_request_is_waited_for_until_its_run_is_thro
     w.gh_says(json!({ "view": none(&head) }));
     finish_line::approve(&id, None, false).unwrap();
     let t = settle(&id);
-    assert_eq!(t.s("stage"), "merging", "{}", t.at("failure")); assert_eq!(t.s("msg"), "Waiting for GitHub checks: CI"); assert!(!merged(&w));
+    assert_eq!(t.s("stage"), "merging", "{}", t.at("failure")); waits(&t, "Waiting for GitHub checks · 0 of 1 passed", "CI"); assert!(!merged(&w));
     poll_prs(); settle(&id);
     assert_eq!(task(&id).s("stage"), "merging", "still nothing: still waiting"); assert!(!merged(&w));
     w.gh_says(json!({ "view": running(&head), "runs": [run("in_progress", "")] }));
     poll_prs(); let t = settle(&id);
-    assert_eq!(t.s("msg"), "Waiting for GitHub checks: build, CI"); assert!(!merged(&w));
+    waits(&t, "Waiting for GitHub checks · 0 of 2 passed", "build, CI"); assert!(!merged(&w));
     // the check that was running is gone from the list again: no pass either
     w.gh_says(json!({ "view": none(&head), "runs": [run("in_progress", "")] }));
     poll_prs(); let t = settle(&id);
@@ -77,17 +77,17 @@ fn a_check_seen_on_the_commit_and_gone_from_the_list_is_waited_for_even_when_the
     let listed = |checks: Value| json!({ "state": "OPEN", "headRefOid": head, "statusCheckRollup": checks, "comments": [], "reviews": [], "author": { "login": "me" } });
     w.gh_says(json!({ "view": listed(json!([build, lint("")])) }));
     finish_line::approve(&id, None, false).unwrap();
-    assert_eq!(settle(&id).s("msg"), "Waiting for GitHub checks: build, lint");
+    waits(&settle(&id), "Waiting for GitHub checks · 0 of 2 passed", "build, lint");
     // only lint is listed now, and it passed: build never did
     w.gh_says(json!({ "view": listed(json!([lint("SUCCESS")])) }));
     poll_prs();
     let t = settle(&id);
-    assert_eq!(t.s("stage"), "merging", "{}", t.at("failure")); assert_eq!(t.s("msg"), "Waiting for GitHub checks: build"); assert!(!merged(&w), "{}", gh_log(&w));
+    assert_eq!(t.s("stage"), "merging", "{}", t.at("failure")); waits(&t, "Waiting for GitHub checks · 1 of 2 passed", "build"); assert!(!merged(&w), "{}", gh_log(&w));
     // asked by the land step itself, the same
     sw::store::tasks::update(&id, |t| { t.put("autoMerge", false); t.put("autoMergeLocal", false); Ok(sw::store::tasks::Change::Write) }).unwrap();
     sw::jobs::run_job("land", &id, &[]);
     let t = settle(&id);
-    assert_eq!(t.s("msg"), "Waiting for GitHub checks: build"); assert!(!merged(&w));
+    waits(&t, "Waiting for GitHub checks · 1 of 2 passed", "build"); assert!(!merged(&w));
     let build_ok = json!({ "__typename": "CheckRun", "name": "build", "status": "COMPLETED", "conclusion": "SUCCESS" });
     w.gh_says(json!({ "view": listed(json!([build_ok, lint("SUCCESS")])) }));
     poll_prs();
@@ -114,7 +114,7 @@ fn checks_not_registered_yet_are_waited_for_an_outside_ci_seen_on_other_pull_req
     w.gh_says(json!({ "view": listed(&head, json!([job("lint", "SUCCESS")])), "runs": [run("in_progress", "")] }));
     finish_line::approve(&id, None, false).unwrap();
     let t = settle(&id);
-    assert_eq!(t.s("msg"), "Waiting for GitHub checks: CI", "{}", t.at("failure")); assert!(!merged(&w), "{}", gh_log(&w));
+    waits(&t, "Waiting for GitHub checks · 1 of 2 passed", "CI"); assert!(!merged(&w), "{}", gh_log(&w));
     poll_prs(); settle(&id);
     assert_eq!(task(&id).s("stage"), "merging", "lint alone is listed, and passed: still waiting"); assert!(!merged(&w));
     // build registers and fails: nothing merges, and it waits for you (no rounds)
@@ -132,7 +132,7 @@ fn a_check_the_branch_requires_is_waited_for_until_it_is_listed_and_passes() {
     w.gh_says(json!({ "view": passed(&head), "required": ["ci/outside"] }));
     finish_line::approve(&id, None, false).unwrap();
     let t = settle(&id);
-    assert_eq!(t.s("msg"), "Waiting for GitHub checks: ci/outside", "{}", t.at("failure")); assert!(!merged(&w));
+    waits(&t, "Waiting for GitHub checks · 1 of 2 passed", "ci/outside"); assert!(!merged(&w));
     let both = json!({ "state": "OPEN", "headRefOid": head, "statusCheckRollup": [passed(&head)["statusCheckRollup"][0], { "__typename": "StatusContext", "context": "ci/outside", "state": "SUCCESS" }], "comments": [], "reviews": [], "author": { "login": "me" } });
     w.gh_says(json!({ "view": both, "required": ["ci/outside"] }));
     poll_prs();
@@ -149,7 +149,7 @@ fn a_push_workflow_whose_checks_appear_late_is_waited_for_and_a_repo_with_no_wor
     let head = task(&id).t("prHead");
     w.gh_says(json!({ "view": none(&head) }));
     finish_line::approve(&id, None, false).unwrap();
-    assert_eq!(settle(&id).s("msg"), "Waiting for GitHub checks: ci.yml"); assert!(!merged(&w));
+    waits(&settle(&id), "Waiting for GitHub checks · 0 of 1 passed", "ci.yml"); assert!(!merged(&w));
     w.gh_says(json!({ "view": view(&head, job("test", "")), "runs": [run("in_progress", "")] }));
     poll_prs(); settle(&id);
     assert_eq!(task(&id).s("stage"), "merging"); assert!(!merged(&w));
@@ -178,7 +178,7 @@ fn a_matrix_member_not_reported_yet_is_waited_for_and_a_workflow_that_cannot_run
     w.gh_says(json!({ "view": listed(&head, json!([job("build (ubuntu-latest)", "SUCCESS")])), "runs": [run("in_progress", "")] }));
     finish_line::approve(&id, None, false).unwrap();
     let t = settle(&id);
-    assert_eq!(t.s("msg"), "Waiting for GitHub checks: CI", "{}", t.at("failure")); assert!(!merged(&w));
+    waits(&t, "Waiting for GitHub checks · 1 of 2 passed", "CI"); assert!(!merged(&w));
     w.gh_says(json!({ "view": listed(&head, json!([job("build (ubuntu-latest)", "SUCCESS"), job("build (windows-latest)", "SUCCESS")])), "runs": [run("completed", "success")] }));
     poll_prs();
     assert_eq!(settle(&id).s("stage"), "done"); assert!(merged(&w));
@@ -190,7 +190,7 @@ fn a_matrix_member_not_reported_yet_is_waited_for_and_a_workflow_that_cannot_run
     let head = task(&id).t("prHead");
     w.gh_says(json!({ "view": listed(&head, json!([job("lint", "SUCCESS")])) }));
     finish_line::approve(&id, None, false).unwrap();
-    assert_eq!(settle(&id).s("msg"), "Waiting for GitHub checks: CI"); assert!(!merged(&w));
+    waits(&settle(&id), "Waiting for GitHub checks · 1 of 2 passed", "CI"); assert!(!merged(&w));
     drop(w);
     // the same workflow for a change outside src/, and one only for pull requests into release: neither runs here
     let w = pr_world(json!({}));

@@ -3,6 +3,7 @@
 //! only wake the agent.
 use crate::common;
 use common::*;
+use crate::pull_requests_checks::waits;
 use serde_json::json;
 use std::path::Path;
 use sw::actions::{archive, finish_line, talk};
@@ -32,7 +33,7 @@ fn pull_requests_pushed_as_a_draft_merged_through_gh_on_approval_remembered_when
     finish_line::approve(&id, None, false).unwrap();
     let t = settle(&id);
     assert_eq!(t.s("stage"), "merging"); assert_eq!(t.at("autoMerge"), &json!(true));
-    assert_eq!(t.s("msg"), "Waiting for GitHub checks: build");
+    waits(&t, "Waiting for GitHub checks · 0 of 1 passed", "build");
     assert!(!regex::Regex::new("--auto|--delete-branch").unwrap().is_match(&gh_log(&w)), "remembered here, not handed to GitHub; gh never deletes local work");
     assert!(archive::archive(&id).unwrap_err().msg.contains("still active"));
     poll_prs();

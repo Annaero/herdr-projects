@@ -260,8 +260,9 @@ screen and on the chat line. The mark says it without colour too: the half moon 
 reviewer works, and is the agent's `◐` again once the task goes back to its agent. The board's own steps (starting,
 setting up, running the check, pushing, merging) share a third one, `◒`. A task that waits for a free slot has the
 fourth, `◓`, in a pink of its own (below). A task that only waits for
-anything else keeps the plain `◐`: to try again after a turn was cut off, for its check's turn or for its turn to
-merge. So a blue `◑` with a bar says a review is running, an amber `◐` that the agent is at work, a pink `◓` that
+anything else keeps the plain `◐`: to try again after a turn was cut off, for its check's turn, for its turn to
+merge or for GitHub's checks on its pull request (`Waiting for GitHub checks · 2 of 3 passed`); `◒` comes back when
+the board merges it. So a blue `◑` with a bar says a review is running, an amber `◐` that the agent is at work, a pink `◓` that
 it has not started yet, and a green `!` that the task is ready for your yes. A group's heading keeps the colour of
 its group: a task under review is filed under `working`.
 A task nobody has started (`to do`: its heading and its `○`) is a dim grey of its own, never the plain text colour,
