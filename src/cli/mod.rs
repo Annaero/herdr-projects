@@ -47,6 +47,7 @@ fn run(cmd: &str, a: &Args) -> Res<i32> {
     // A flag the command does not know is refused before anything is done, with the nearest right one named
     // (cli/flags.rs). Every command: the ones herdr, a hook and the board itself run too.
     refuse_unknown(cmd, a)?;
+    crate::take_over::at_start(cmd); // older installs taken over: herdr-superwork's, the old herdr-projects 0.2's (take_over.rs)
     home_at_start(cmd); // an older version's folders move into the one home folder, once (store/move_home.rs)
     crate::store::old_copy::copy_at_start(cmd); // …then a copy of the data an older (Node) version wrote, once (store/old_copy.rs)
     // …and its settings into the new names, once (store/settings/migrate.rs). Asking for help changes nothing.
@@ -80,6 +81,7 @@ fn run(cmd: &str, a: &Args) -> Res<i32> {
         "help" => { print!("{}", help::HELP); return Ok(0); }
         _ if a.flags.b("help") => { print!("{}", help::HELP); return Ok(0); }
         "install" | "update" => return Ok(crate::install::main(cmd, &a.pos[1..])),
+        "doctor" => { println!("{}", crate::take_over::look::look_here().join("\n")); return Ok(0); }
         "version" => { println!("herdr-projects {} ({})", crate::store::files::VERSION, crate::store::files::bin().display()); return Ok(0); }
         "docs" => {
             let mut v: Vec<String> = ["check", "guard"].iter().filter(|k| a.flags.b(k)).map(|k| format!("--{k}")).collect();

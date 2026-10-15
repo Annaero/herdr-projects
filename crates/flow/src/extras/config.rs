@@ -126,6 +126,17 @@ pub fn remove_popups() -> bool {
     if is_link() || !herdr_config().exists() { return false; }
     with_lock_wait("extras", 15000, || Ok(remove_blocks(Some("popups")))).unwrap_or(false)
 }
+/// The whole file made `next`, for what an older install left in it (take_over/herdr_config.rs): checked on a copy
+/// first, backed up, herdr told to reload, and put back as it was when herdr rejects it.
+pub fn rewrite(file: &std::path::Path, next: &str) -> Result<(), String> {
+    if std::fs::symlink_metadata(file).map(|m| m.file_type().is_symlink()).unwrap_or(false) { return Err(format!("{} is a link, not ours to rewrite", tilde(&file.display().to_string()))); }
+    accepted(next).map_err(|why| format!("herdr would reject the change: {why}"))?;
+    let text = std::fs::read_to_string(file).unwrap_or_default();
+    std::fs::copy(file, format!("{}.bak-herdr-projects", file.display())).and_then(|_| std::fs::write(file, next)).map_err(|e| e.to_string())?;
+    let (status, why) = reload();
+    if status == "failed" { let _ = std::fs::write(file, &text); reload(); return Err(format!("herdr rejected the change, so it was put back. It said: {}", one_line(&why, 300))); }
+    Ok(())
+}
 /// Take out the plugin's marked blocks (one kind, or every kind).
 pub fn remove_blocks(what: Option<&str>) -> bool {
     let file = herdr_config();

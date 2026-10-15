@@ -9,9 +9,9 @@ use crate::json::*;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-fn lstat(p: &Path) -> Option<fs::Metadata> { fs::symlink_metadata(p).ok() }
-fn real(p: &Path) -> PathBuf { fs::canonicalize(p).unwrap_or_else(|_| absolute(p)) }
-fn short(p: &Path, home: &Path) -> String {
+pub fn lstat(p: &Path) -> Option<fs::Metadata> { fs::symlink_metadata(p).ok() }
+pub fn real(p: &Path) -> PathBuf { fs::canonicalize(p).unwrap_or_else(|_| absolute(p)) }
+pub fn short(p: &Path, home: &Path) -> String {
     if p == home { "~".into() } else if let Ok(rest) = p.strip_prefix(home) { format!("~/{}", rest.display()) } else { p.display().to_string() }
 }
 #[derive(Clone)]
@@ -35,7 +35,7 @@ pub fn move_plan(home: &Path, env: &Env) -> Plan {
 }
 /// This copy of the program runs from a linked git worktree (a task's agent works on this very code): only the copy
 /// the board runs from moves the board's files.
-fn linked_worktree(bin: &Path) -> bool {
+pub fn linked_worktree(bin: &Path) -> bool {
     let mut d = bin.to_path_buf();
     while d.pop() { if let Ok(m) = fs::metadata(d.join(".git")) { return m.is_file(); } }
     false
@@ -115,7 +115,7 @@ fn link(target: &Path, at: &Path) -> std::io::Result<()> { std::os::unix::fs::sy
 ///   2. <old> and <old>.moving change places: old -> new -> <old>.moving, which is now the folder
 ///   3. new and <old>.moving change places: new is the folder, old -> new; the spare link is removed
 /// Returns what was done: "moved", "merged", "linked", or None.
-fn move_one(p: &Part, rec: &mut Obj, file: &Path, aside: &Path, swap: &dyn Fn(&Path, &Path) -> bool) -> std::io::Result<Option<String>> {
+pub fn move_one(p: &Part, rec: &mut Obj, file: &Path, aside: &Path, swap: &dyn Fn(&Path, &Path) -> bool) -> std::io::Result<Option<String>> {
     let tmp = PathBuf::from(format!("{}.moving", p.from.display()));
     let points = |at: &Path, to: &Path| fs::read_link(at).map(|x| x == to).unwrap_or(false);
     let save = |rec: &mut Obj, v: Obj| { rec.put(p.what, v); let _ = write_json(file, &Value::Object(rec.clone())); };
@@ -212,11 +212,15 @@ pub fn move_home(home: &Path, env: &Env, bin: &Path, linked: Option<bool>, wait_
     let line = format!("Moved the board's files into {}: {}.{}{}", short(&p.home, home), said.join(", "),
         if moved.iter().any(|(_, h)| h != "linked") { " The old places are links to the new ones, so whatever is running carries on." } else { "" },
         if kept > 0 { format!(" {kept} file{} in both places {} kept in {}.", if kept == 1 { " that was" } else { "s that were" }, if kept == 1 { "is" } else { "are" }, short(&p.aside, home)) } else { String::new() });
-    let prev = if rec.at("told") == &json!(false) { rec.t("line") } else { String::new() };
-    rec.put("line", [prev, line.clone()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" "));
-    rec.put("told", false);
+    add_line(&mut rec, &line);
     let _ = write_json(&p.file, &Value::Object(rec));
     out(Moved { moved, line, ..Default::default() })
+}
+/// One more line for the human, after what is still to be said.
+pub fn add_line(rec: &mut Obj, line: &str) {
+    let prev = if rec.at("told") == &json!(false) { rec.t("line") } else { String::new() };
+    rec.put("line", [prev, line.to_string()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" "));
+    rec.put("told", false);
 }
 /// The one line for the human, until it was shown once (the first run may be a hook, with nobody looking).
 pub fn move_note(home: &Path, env: &Env) -> String {

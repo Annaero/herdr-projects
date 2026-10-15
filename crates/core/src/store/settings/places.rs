@@ -11,6 +11,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 pub const REPO_FILE: &str = ".herdr-projects.json";
+/// The name herdr-superwork gave that file: still read, in a repo that has only that one (docs/old-installs.md).
+pub const OLD_REPO_FILE: &str = ".herdr-superwork.json";
 pub fn config_file() -> PathBuf { config_dir().join("config.json") }
 
 #[derive(Clone, Debug)]
@@ -108,10 +110,12 @@ pub fn write_yours(name: &str, value: Option<&Value>, repo: &str) -> crate::err:
 /// Read from the commit a worktree starts from (`reference`), so an agent's own branch cannot change the rules it is
 /// checked by; anything but the repo's facts is refused. Returns the facts, and one sentence per thing that did not count.
 pub fn repo_file(root: &Path, reference: Option<&str>) -> (Obj, Vec<String>) {
-    let text = match reference {
-        Some(r) => git_out(root, &["show", &format!("{r}:{REPO_FILE}")]).unwrap_or_default(),
-        None => read_text(&root.join(REPO_FILE)).unwrap_or_default(),
+    let text_of = |name: &str| match reference {
+        Some(r) => git_out(root, &["show", &format!("{r}:{name}")]).unwrap_or_default(),
+        None => read_text(&root.join(name)).unwrap_or_default(),
     };
+    let mut text = text_of(REPO_FILE);
+    if text.trim().is_empty() { text = text_of(OLD_REPO_FILE); }
     if text.trim().is_empty() { return (Obj::new(), vec![]); }
     let Ok(j) = serde_json::from_str::<Value>(&text) else { return (Obj::new(), vec![format!("{REPO_FILE} is not valid JSON: nothing in it counts")]) };
     let facts = repo_facts();

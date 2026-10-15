@@ -21,7 +21,7 @@ fn stamp(repos: &Obj) -> String {
     let own = super::keys_given::record_file();
     let whole = |f: &std::path::Path| read_text(f).unwrap_or_default();
     let mut stamp = vec![data_dir().display().to_string(), cfg.display().to_string(), whole(&cfg), whole(&own)];
-    for (name, root) in repos { stamp.push(name.clone()); stamp.push(text(root)); stamp.push(whole(&std::path::Path::new(&text(root)).join(places::REPO_FILE))); }
+    for (name, root) in repos { stamp.push(name.clone()); stamp.push(text(root)); for f in [places::REPO_FILE, places::OLD_REPO_FILE] { stamp.push(whole(&std::path::Path::new(&text(root)).join(f))); } }
     stamp.join("\n")
 }
 /// Every key that is said, with who says it. Asked on every look at the board, so the answer is kept until one of

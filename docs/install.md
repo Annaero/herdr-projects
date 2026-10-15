@@ -43,6 +43,10 @@ which runs the program; `herdr-projects install` writes it again and says whethe
 `herdr-projects` comes first on your PATH. To type `herdr-projects` in a shell, put that folder on your PATH (in
 `~/.profile` or your shell's start-up file).
 
+**From herdr-superwork or the old herdr-projects 0.2**: the first run takes them over by itself (their data moved or
+set aside, their extras in herdr's config, the agents' settings and skills folders made right, their processes
+replaced) and says so; `herdr-projects doctor` looks again and says where things stand ([older installs](old-installs.md)).
+
 **From the older Node version**: `npm unlink -g herdr-projects` takes the Node program off your PATH. The first run
 of this version keeps a copy of the data folder as it was (`~/.herdr-projects/data-0.2.0`) before it changes
 anything; the data's form is the same, so nothing is converted.

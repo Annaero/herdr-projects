@@ -68,6 +68,11 @@ where a `closing-1.md` beside `data` and `settings` comes from. What that means 
   That is the cache of a tool for working on this code, not something the board keeps for you: it can be deleted
   at any time.
 
+## Coming from herdr-superwork or herdr-projects 0.2
+
+`~/.herdr-superwork` becomes this folder, and the old herdr-projects 0.2's projects, which it kept under this very
+name, are set aside to `~/.herdr-projects-legacy` first: [older installs](old-installs.md).
+
 ## Coming from an older version: the one-time move
 
 Older versions kept the data in `~/.local/state/herdr-superwork`, the settings in `~/.config/herdr-superwork`, and

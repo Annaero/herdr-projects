@@ -143,6 +143,6 @@ pub fn install(exe: &Path) -> String {
 pub fn main(cmd: &str, args: &[String]) -> i32 {
     let exe = bin();
     let exe = std::fs::canonicalize(&exe).unwrap_or(exe);
-    let out = if cmd == "install" { Ok(install(&exe)) } else { update(&exe, args.first().map(String::as_str), &fetch) };
+    let out = if cmd == "install" { Ok(format!("{}\n{}", install(&exe), crate::take_over::look::look_here().join("\n"))) } else { update(&exe, args.first().map(String::as_str), &fetch) };
     match out { Ok(s) => { println!("{s}"); 0 } Err(e) => { eprintln!("{}", e.msg); 1 } }
 }

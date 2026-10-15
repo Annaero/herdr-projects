@@ -5,6 +5,7 @@ mod common;
 mod far;
 mod move_home;
 mod review_kit;
+mod takeover_kit;
 
 mod after;
 mod after_far;
@@ -190,6 +191,8 @@ mod sync_behind;
 mod sync_conflict;
 mod sync_remote;
 mod tabs;
+mod take_over;
+mod take_over_more;
 mod talk;
 mod talk_rest;
 mod talk_who;

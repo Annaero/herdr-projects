@@ -14,6 +14,7 @@ pub mod keys_given;
 pub mod marks;
 pub mod move_home;
 pub mod old_copy;
+pub mod old_installs;
 pub mod old_research;
 pub mod old_suggestions;
 pub mod repos;

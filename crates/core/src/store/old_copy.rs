@@ -3,7 +3,7 @@
 //! nothing is converted; the copy is only there to go back with. Made once: skipped when it is there. Its one line is
 //! said as the move's is (store/move_home.rs): on the terminal, or on the board when the first run was a hook.
 use super::files::*;
-use super::move_home::{env_now, launcher_target, move_note, move_plan, move_told, OLD_NAME};
+use super::move_home::{add_line, env_now, launcher_target, move_note, move_plan, move_told, OLD_NAME};
 use crate::json::*;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -72,10 +72,8 @@ pub fn copy_at_start(cmd: &str) {
     if !line.is_empty() {
         let file = move_plan(&home, &env).file;
         let mut rec = read_obj(&file).unwrap_or_default();
-        let prev = if rec.at("told") == &json!(false) { rec.t("line") } else { String::new() };
-        if prev.contains(&line) { return; } // a copy that failed again: said once
-        rec.put("line", [prev, line].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" "));
-        rec.put("told", false);
+        if rec.at("told") == &json!(false) && rec.t("line").contains(&line) { return; } // a copy that failed again: said once
+        add_line(&mut rec, &line);
         let _ = write_json(&file, &Value::Object(rec));
     }
     if QUIET.contains(&cmd) || unsafe { libc::isatty(2) } == 0 { return; }
