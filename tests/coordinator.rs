@@ -51,12 +51,11 @@ fn the_box_talks_to_one_long_lived_coordinator_started_once_with_nothing_held_ba
     assert_eq!(ag.arr("prompts")[0].s(""), "", "{}", ag.at("prompts"));
     assert_eq!(text(&ag.arr("prompts")[0]), "build a login page", "your words go in exactly as typed");
     assert!(has(&sw::coordinator::requests::where_text(&socket), r#"^The human's last message from the board:\n- "build a login page" was sent from the repo "proj" \(.*\)\. No task was open\. It was sent with enter: delegate only what the human asked you to\.$"#), "{}", sw::coordinator::requests::where_text(&socket));
-    // Its reply takes the place of what you said: the box never holds both.
+    // Its reply comes under what you said: the box holds both, as an exchange.
     s.load();
     for width in [160, 120, 60] {
         let txt = s.screen(width).join("\n");
-        assert!(has(&txt, &format!(r"\n *\n[ ▌]○ Coordinator  idle *\n╭─[^\n]*╮\n│ Coordinator: +│\n│ Added proj/1\. +│\n│ +│\n│ ❯ Send message to Coordinator +│\n╰─+╯\n[ ▌] [^\n]*{} hide the latest message · \? all keys *$", regex::escape(&key_name("chatMessage")))), "at {width}: {txt}");
-        assert!(!txt.contains("build a login page"));
+        assert!(has(&txt, &format!(r"\n *\n[ ▌]○ Coordinator  idle *\n╭─[^\n]*╮\n│ You: +│\n│ build a login page +│\n│ +│\n│ Coordinator: +│\n│ Added proj/1\. +│\n│ +│\n│ ❯ Send message to Coordinator +│\n╰─+╯\n[ ▌] [^\n]*{} hide the latest message · \? all keys *$", regex::escape(&key_name("chatMessage")))), "at {width}: {txt}");
         assert!(s.screen(width).iter().all(|l| sw::text::width(l) <= width));
     }
     assert_eq!(sw::coordinator::look::look(&socket).unseen, "", "a reply you can see counts as seen");

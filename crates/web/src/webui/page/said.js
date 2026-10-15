@@ -1,8 +1,9 @@
-// The conversation above the box, as the terminal board's chat box holds it: the newest thing said, each under a line
-// that names who said it, and the rest of the conversation above it. It opens on the newest and holds only that; going
-// up (the Earlier button, the wheel or a swipe at its top) opens it to the conversation and scrolls up through it, half
-// a box at a time with the buttons; Later goes down, and once more from the end closes it to the newest again. A new
-// message starts at its beginning; only a program's screen (one whose conversation cannot be read) at its end.
+// The conversation above the box, as the terminal board's chat box holds it: the newest thing said (or your newest words
+// and what was said after them), each under a line that names who said it, and the rest of the conversation above it.
+// It opens on the newest and holds only that; going up (the Earlier button, the wheel or a swipe at its top) opens it to
+// the conversation and scrolls up through it, half a box at a time with the buttons; Later goes down, and once more from
+// the end closes it to the newest again. A new message starts at its beginning; only a program's screen (one whose
+// conversation cannot be read) at its end.
 /* global requestAnimationFrame, ResizeObserver */
 import { h, icon } from "./dom.js";
 
@@ -11,7 +12,8 @@ const partEl = (p) => h(`div.sw-said-turn${p.mine ? ".is-mine" : ""}${p.raw ? ".
 
 export function saidEl() {
   // `start`: a new message is to be placed at its beginning, once it can be laid out (it may come while hidden).
-  let parts = [], open = false, raw = false, swipe = null, start = false;
+  // `from`: the part it opens on (the newest, or your newest words with the answer under them).
+  let parts = [], from = 0, open = false, raw = false, swipe = null, start = false;
   const text = h("div.sw-said", { role: "log", "aria-label": "The conversation", tabIndex: 0 });
   const up = h("button.icon-button.sw-said-up", { type: "button", "aria-label": "Earlier messages", title: "Earlier messages" }, icon("up"));
   const down = h("button.icon-button.sw-said-down", { type: "button", "aria-label": "Later messages", title: "Later messages" }, icon("down"));
@@ -22,22 +24,22 @@ export function saidEl() {
   // Hidden, nothing can be measured: it is measured again when it shows (and whenever its size changes).
   const mark = () => {
     if (el.hidden || !text.clientHeight) return;
-    up.hidden = !(text.scrollTop > 1 || (!open && parts.length > 1));
+    up.hidden = !(text.scrollTop > 1 || (!open && from > 0));
     down.hidden = !(!atEnd() || open);
     el.classList.toggle("is-open", open);
   };
-  const draw = () => { text.replaceChildren(...(open ? parts : parts.slice(-1)).map(partEl)); };
-  // Open the conversation where the newest thing said stands now, so nothing jumps; then `by` up.
+  const draw = () => { text.replaceChildren(...(open ? parts : parts.slice(from)).map(partEl)); };
+  // Open the conversation where what it opened on stands now, so nothing jumps; then `by` up.
   const opening = (by) => {
     const was = text.scrollTop;
     open = true; draw();
-    const newest = text.lastElementChild;
+    const newest = text.children[from];
     text.scrollTop = (newest ? newest.offsetTop - text.firstElementChild.offsetTop : 0) + was - by;
     mark();
   };
   const close = () => { open = false; draw(); text.scrollTop = raw ? text.scrollHeight : 0; mark(); };
   const scroll = (by) => { text.scrollBy({ top: by, behavior: "smooth" }); };
-  up.addEventListener("click", () => { if (!open && parts.length > 1 && text.scrollTop <= 1) opening(half()); else scroll(-half()); });
+  up.addEventListener("click", () => { if (!open && from > 0 && text.scrollTop <= 1) opening(half()); else scroll(-half()); });
   down.addEventListener("click", () => { if (open && atEnd()) close(); else scroll(half()); });
   // A new message starts at its beginning (a screen at its end), once it can be laid out.
   const begin = () => {
@@ -48,17 +50,17 @@ export function saidEl() {
   // Its size changes (shown again, the window, the phone's keyboard): what there is more of is measured again.
   if (typeof ResizeObserver === "function") new ResizeObserver(() => mark()).observe(text);
   // At the top of the newest message, going further up opens the conversation: the wheel, or a finger moving down.
-  text.addEventListener("wheel", (e) => { if (e.deltaY < 0 && !open && parts.length > 1 && text.scrollTop <= 1) { e.preventDefault(); opening(Math.min(half(), -e.deltaY * 2)); } }, { passive: false });
+  text.addEventListener("wheel", (e) => { if (e.deltaY < 0 && !open && from > 0 && text.scrollTop <= 1) { e.preventDefault(); opening(Math.min(half(), -e.deltaY * 2)); } }, { passive: false });
   text.addEventListener("touchstart", (e) => { swipe = e.touches[0]?.clientY ?? null; }, { passive: true });
-  text.addEventListener("touchmove", (e) => { const y = e.touches[0]?.clientY; if (swipe == null || y == null) return; if (y - swipe > 12 && !open && parts.length > 1 && text.scrollTop <= 1) { swipe = null; opening(24); } }, { passive: true });
+  text.addEventListener("touchmove", (e) => { const y = e.touches[0]?.clientY; if (swipe == null || y == null) return; if (y - swipe > 12 && !open && from > 0 && text.scrollTop <= 1) { swipe = null; opening(24); } }, { passive: true });
   // The keys the terminal has for it, here while the conversation has the focus: page up and down.
   text.addEventListener("keydown", (e) => { if (e.key === "PageUp") { e.preventDefault(); up.click(); } else if (e.key === "PageDown") { e.preventDefault(); down.click(); } });
   return {
     el,
     // A new conversation or a new message (also in the same words: `fresh`) starts over; otherwise where you are stays.
-    set(list, fresh, isRaw) {
+    set(list, fresh, isRaw, at = list.length - 1) {
       if (!fresh) return;
-      parts = list; raw = isRaw; open = false;
+      parts = list; raw = isRaw; open = false; from = Math.min(Math.max(0, at | 0), Math.max(0, list.length - 1));
       draw(); start = true; begin();
     },
     // Shown or hidden (Hide and Show, or nothing to show): shown again, the buttons are measured again.

@@ -28,6 +28,12 @@ pub fn with_mine(parts: Vec<Part>, mine: &str) -> Vec<Part> {
     out.push(Part { by: "You".into(), text: words.into(), mine: true, sent: true, ..Default::default() });
     out
 }
+/// The part a chat's box opens on: your newest words, with what was said after them (the answer as it comes), while
+/// nobody else sent anything since; otherwise the newest thing said.
+pub fn opens_at(parts: &[Part]) -> usize {
+    let newest = parts.len().saturating_sub(1);
+    match parts.iter().rposition(|p| p.sent) { Some(n) if parts[n].by == "You" => n, _ => newest }
+}
 pub fn talk(r: &Obj) -> Talk {
     let tk = r.at("snap").at("talk");
     let who = if tk.b("who") { tk.t("who") } else { crate::flow::talk::talker(r).to_string() };

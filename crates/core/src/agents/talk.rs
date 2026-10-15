@@ -35,7 +35,11 @@ fn claude_talk(rows: &[Value]) -> Vec<Said> {
     let mut out = vec![];
     let mut id: Option<String> = None;
     for e in rows {
-        if e.b("isSidechain") || e.b("isMeta") || e.b("isCompactSummary") || !e.at("message").is_object() { continue; }
+        if e.b("isSidechain") || e.b("isMeta") || e.b("isCompactSummary") { continue; }
+        // Words typed while it works wait in its queue and go in during its turn: written down as that, never as a
+        // prompt of their own. Only a person's words (a helper that finished is queued the same way).
+        if let Some(text) = queued(e) { add(&mut out, true, &text, when(e.at("timestamp"))); id = None; continue; }
+        if !e.at("message").is_object() { continue; }
         if e.s("type") == "user" {
             let text = unwrap_paste(&text_of(e.at("message").at("content"), &["text"]));
             if text.is_empty() || own(e) || text.starts_with("[Request interrupted by user") { continue; }
@@ -49,6 +53,12 @@ fn claude_talk(rows: &[Value]) -> Vec<Said> {
         }
     }
     out
+}
+/// A message to Claude Code typed while it worked, as it went in.
+fn queued(e: &Value) -> Option<String> {
+    let a = e.at("attachment");
+    if e.s("type") != "attachment" || a.s("type") != "queued_command" || a.s("commandMode") != "prompt" || (a.at("origin").b("kind") && a.at("origin").s("kind") != "human") { return None; }
+    Some(unwrap_paste(&text_of(a.at("prompt"), &["text"]))).filter(|t| !t.is_empty())
 }
 /// Codex. What was typed to it is written down as an event of its own; the same words stand among the model's input
 /// too, beside what Codex itself put there, so that input is read only in a file that has no such event.

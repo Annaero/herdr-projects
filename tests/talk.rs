@@ -40,6 +40,18 @@ fn a_saved_conversation_is_read_as_its_words_alone_for_every_program() {
     let mut plain = claude_rows("<question>Ready?</question>", &["Ready to review."]);
     plain.push(json!({ "type": "user", "timestamp": ts(30), "promptId": "p9", "message": { "role": "user", "content": "ordinary words" } }));
     assert_eq!(words("claude", &jsonl(&dir.join("plain.jsonl"), &plain)), vec!["you: <question>Ready?</question>", "them: Ready to review.", "you: ordinary words"]);
+    // words typed while it works are queued, and written down as they go in: a person's are yours, nothing else is
+    let queued = |a: Value| json!({ "type": "attachment", "timestamp": ts(31), "attachment": a });
+    plain.extend([
+        queued(json!({ "type": "queued_command", "commandMode": "prompt", "origin": { "kind": "human" }, "prompt": "and the tests too" })),
+        queued(json!({ "type": "queued_command", "commandMode": "task-notification", "origin": { "kind": "task-notification" }, "prompt": "<task-notification>a helper finished</task-notification>" })),
+        queued(json!({ "type": "queued_command", "commandMode": "prompt", "origin": { "kind": "peer" }, "prompt": "another session's words" })),
+        json!({ "type": "attachment", "isMeta": true, "timestamp": ts(31), "attachment": { "type": "queued_command", "origin": { "kind": "coordinator" }, "prompt": "a reminder" } }),
+        queued(json!({ "type": "queued_command", "commandMode": "prompt", "prompt": [{ "type": "text", "text": "an older version names no origin" }] })),
+        queued(json!({ "type": "edited_text_file", "filename": "f.txt" })),
+        json!({ "type": "assistant", "timestamp": ts(32), "message": { "id": "m7", "role": "assistant", "content": [{ "type": "text", "text": "Both done." }] } }),
+    ]);
+    assert_eq!(words("claude", &jsonl(&dir.join("queued.jsonl"), &plain))[2..], ["you: ordinary words", "you: and the tests too", "you: an older version names no origin", "them: Both done."]);
     let item = |ty: &str, text: &str| json!({ "timestamp": ts(30), "type": "event_msg", "payload": { "type": "item_completed", "item": { "type": ty, "content": [{ "type": "text", "text": text }] } } });
     let codex = jsonl(&dir.join("codex.jsonl"), &[
         json!({ "timestamp": ts(30), "type": "event_msg", "payload": { "type": "task_started" } }),

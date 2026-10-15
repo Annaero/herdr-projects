@@ -94,10 +94,12 @@ fn the_page_has_a_switch_hide_and_show_a_conversation_that_scrolls_back_and_tab_
     assert!(!CHAT.contains("Talk to this task's agent\") : null"), "no text link any more");
     // Hide and Show press alt+c's key
     assert!(CHAT.contains(r#"onclick: () => onPress("chatMessage")"#) && CHAT.contains(r#"c.open ? "Hide" : "Show""#));
-    // the conversation: the newest thing said; Earlier opens the rest; the wheel and a swipe at the top do the same;
-    // Later goes down and once more from the end closes it; a new message starts at its beginning
-    assert!(SAID.contains("text.replaceChildren(...(open ? parts : parts.slice(-1)).map(partEl));"));
-    assert!(SAID.contains(r#"up.addEventListener("click", () => { if (!open && parts.length > 1 && text.scrollTop <= 1) opening(half()); else scroll(-half()); });"#));
+    // the conversation: the newest thing said (or your newest words and the answer under them: the part the board
+    // says it opens on); Earlier opens the rest; the wheel and a swipe at the top do the same; Later goes down and once
+    // more from the end closes it; a new message starts at its beginning
+    assert!(SAID.contains("text.replaceChildren(...(open ? parts : parts.slice(from)).map(partEl));"));
+    assert!(CHAT.contains("fresh, !!c.raw, c.parts && c.parts.length ? c.from : 0);"));
+    assert!(SAID.contains(r#"up.addEventListener("click", () => { if (!open && from > 0 && text.scrollTop <= 1) opening(half()); else scroll(-half()); });"#));
     assert!(SAID.contains(r#"down.addEventListener("click", () => { if (open && atEnd()) close(); else scroll(half()); });"#));
     assert!(SAID.contains(r#"text.addEventListener("wheel""#) && SAID.contains(r#"text.addEventListener("touchmove""#));
     assert!(SAID.contains("draw(); start = true; begin();") && SAID.contains("text.scrollTop = raw ? text.scrollHeight : 0; start = false;"));

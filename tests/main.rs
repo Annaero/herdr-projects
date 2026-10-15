@@ -29,6 +29,7 @@ mod board_chat;
 mod board_chat_esc;
 mod board_chat_rest;
 mod board_chat_scroll;
+mod board_chat_yours;
 mod board_colours;
 mod board_colours_rest;
 mod board_evidence;

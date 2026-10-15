@@ -104,12 +104,12 @@ fn one_chat_for_everyone_space_on_a_task_talks_to_its_agent_otherwise_to_the_coo
     e.press(&["alt+c"]); assert!(e.s.chat_open); assert!(has(&wide(&mut e, 160), r"\n│ Done\. +│\n│ +│\n│ ❯ Send message to Agent"));
     // space goes back to the Coordinator with its message up, and its reply is there.
     e.press(&["space"]); assert!(e.s.chat_open && !e.s.reply); e.load();
-    assert!(has(&e.text(), r"\n[ ▌]. Coordinator {2}idle *\n╭─[^\n]*╮\n│ Coordinator: +│\n│ All done\. +│\n│ +│\n│ ❯ Send message to Coordinator"), "{}", e.text()); assert_eq!(look(&so).unseen, "");
+    assert!(has(&e.text(), r"\n[ ▌]. Coordinator {2}idle *\n╭─[^\n]*╮\n│ You: +│\n│ do something +│\n│ +│\n│ Coordinator: +│\n│ All done\. +│\n│ +│\n│ ❯ Send message to Coordinator"), "{}", e.text()); assert_eq!(look(&so).unseen, "");
     // Nothing changes who the chat names while you type.
     e.typed("half typed");
     w.script(json!({ "coordinator": [{ "said": "Again." }] }));
     send(&w.root, "once more", false, "", &so).unwrap(); drain(); e.load(); e.load();
-    assert!(has(&e.text(), r"\n[ ▌]. Coordinator {2}[^\n]*\n╭─[^\n]*╮\n│ Coordinator: +│\n│ Again\. +│\n│ +│\n│ ❯ half typed"), "{}", e.text());
+    assert!(has(&e.text(), r"\n[ ▌]. Coordinator {2}[^\n]*\n╭─[^\n]*╮\n│ You: +│\n│ once more +│\n│ +│\n│ Coordinator: +│\n│ Again\. +│\n│ +│\n│ ❯ half typed"), "{}", e.text());
     e.press(&["esc"]);
     unsafe { std::env::remove_var("HERDR_ENV") };
 }
