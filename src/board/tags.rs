@@ -11,8 +11,6 @@ const TAG_MAX: usize = 12;
 const FAR_MAX: usize = 14;
 /// The tag gives way, on every row at once, where it would leave a row's name fewer cells than this.
 pub const NAME_LEFT: usize = 16;
-/// The most empty cells between a tag and its title.
-pub const GAP: usize = 3;
 fn id_of(r: &Obj) -> String { if r.b("rid") { r.t("rid") } else { r.t("id") } }
 fn clean(s: &str) -> String { crate::shown::words::clean(s) }
 /// The tag in words. `scope`: whose board shows ("*" every machine: another machine's tag names its machine). `machine`:
@@ -32,17 +30,11 @@ pub fn number_tag(r: &Obj, keys: &Keys, scope: &str, machine: bool) -> String {
 }
 /// The tag on a row of the list: never its machine, which the heading above it names.
 pub fn row_tag(r: &Obj, keys: &Keys) -> String { number_tag(r, keys, "", false) }
-/// The column for tags of these widths: the one that lines up the most titles within the limit, the narrower of two
-/// that line up as many. A tag wider than it runs on, and a tag too short for it stands right before its own title.
-pub fn tag_column(widths: &[usize]) -> usize {
-    let lined = |col: usize| widths.iter().filter(|w| **w <= col && col - **w < GAP).count();
-    let mut all: Vec<usize> = widths.iter().copied().filter(|w| *w > 0).collect();
-    all.sort(); all.dedup();
-    all.sort_by(|a, b| lined(*b).cmp(&lined(*a)).then(a.cmp(b)));
-    all.first().copied().unwrap_or(0)
-}
+/// The column for tags of these widths: as wide as the widest, so every title in view starts at the same place
+/// (`HP-1   ` lines up with `HSW-206`).
+pub fn tag_column(widths: &[usize]) -> usize { widths.iter().copied().max().unwrap_or(0) }
 /// The cells a tag this wide fills in that column, without the cell that parts it from its title.
-pub fn tag_cells(w: usize, col: usize) -> usize { if col == 0 || w == 0 { 0 } else if w <= col && col - w < GAP { col } else { w } }
+pub fn tag_cells(w: usize, col: usize) -> usize { if col == 0 || w == 0 { 0 } else { w.max(col) } }
 /// What the tags of a list are made from: the column, and the widest tag.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Numbering { pub cells: usize, pub widest: usize }

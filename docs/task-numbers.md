@@ -20,23 +20,19 @@ row and in every message: never a bare `#134`.
 - **Where.** Right of the status mark, left of the title: `HSW-134`, its repo's key and its number.
 - **Quiet.** It is in the theme's grey for greyed-out words, the same on every row and in every state, so the title
   is what you read first.
-- **One column, and never far from the title.** There are never more than **3 empty columns** between a tag and its
-  title: the one that parts them, and at most two more to line a shorter tag up. So the tags share one column and
-  every title starts in the same place wherever that costs no more than this: `HSW-9`, `HSW-98` and `HSW-134` above. The
-  column is the tag width that lines up the most titles of the list (all its tasks, also the ones folded away, so it
-  does not move as the list folds). Tags are written from the left, never moved to the right.
-- **A tag that does not fit the column.** A rare longer tag runs on, and only its own title starts later. A tag more
-  than two cells shorter than the column stands right before its own title. No tag can push the whole list's titles
-  away:
+- **One column: every title starts in the same place.** The tags share one column as wide as the widest tag of the
+  list (all its tasks, also the ones folded away, so it does not move as the list folds), and a shorter tag is filled
+  out with spaces to it. So titles line up even where ids differ in length from repo to repo: `HP-1` lines up with
+  `HSW-206`. Tags are written from the left, never moved to the right:
 
   ```
-   ○ CRM-1   Tidy the first-run questions
-   ○ CRM-2   Rename the hint line
-   ○ CRM-140 Add an undo for clear
-   ○ GT-1  A task of a repo with a two-letter key
+   ○ HP-1      Tidy the first-run questions
+   ○ CRM-2     Rename the hint line
+   ○ HSW-206   Add an undo for clear
    ○ HSWXY-140 A task with a long key and a long number
   ```
 
+  Where a narrow screen has no room for the widest tag beside a name, the tags give way on every row at once.
   What a live task says, on its second line, starts under its own title, not under the tag.
 - **Not the tags on the right.** `R#2` is the review round and `PR#18` the pull request: they sit at the right edge,
   in the colour of how the review and the checks went. The task's tag is at the left, grey, and has no letter before

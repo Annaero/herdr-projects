@@ -1,11 +1,11 @@
 == the list
  herdr-superwork  proj · 5 need you · 1…
- ◒ #4  Max length for task titles
-       Starting                       1m
-▌◐ #5  Max length for task titles
-▌      Found the cause; now checking
-▌      every caller of the resize handl…
-▌      ████████░░░░░  60% 11m left    1m
+ ◒ #4     Max length for task titles
+          Starting                    1m
+▌◐ #5     Max length for task titles
+▌         Found the cause; now checking
+▌         every caller of the resize ha…
+▌         ██████░░░░  60% 11m left    1m
 
 
  ↓ 9 more · ↑ 7 more
@@ -17,12 +17,12 @@
   enter open this task's agent
 == the task beside it
  herdr-superwork  proj · 5 need you · 1…
- ◒ #4  Max length for task titles
-       Starting                       1m
-▌◐ #5  Max length for task titles
-▌      Found the cause; now checking
-▌      every caller of the resize handl…
-▌      ████████░░░░░  60% 11m left    1m
+ ◒ #4     Max length for task titles
+          Starting                    1m
+▌◐ #5     Max length for task titles
+▌         Found the cause; now checking
+▌         every caller of the resize ha…
+▌         ██████░░░░  60% 11m left    1m
 
  ↓ 9 more · ↑ 7 more
 
@@ -68,12 +68,12 @@
   ↑↓ pick a key · esc close the menu
 == a draft
  herdr-superwork  proj · 5 need you · 1…
- ◒ #4  Max length for task titles
-       Starting                       1m
-▌◐ #5  Max length for task titles
-▌      Found the cause; now checking
-▌      every caller of the resize handl…
-▌      ████████░░░░░  60% 11m left    1m
+ ◒ #4     Max length for task titles
+          Starting                    1m
+▌◐ #5     Max length for task titles
+▌         Found the cause; now checking
+▌         every caller of the resize ha…
+▌         ██████░░░░  60% 11m left    1m
 
 
  ↓ 9 more · ↑ 7 more

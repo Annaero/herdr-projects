@@ -113,7 +113,7 @@ fn the_web_board_has_each_tasks_tag_on_its_row_on_the_open_task_and_in_the_chats
     assert_eq!((nine.as_str(), big.as_str()), ("proj/9", "proj/134"));
     let tags = |s: &Value, id: &str| { let r = rows_of(s).into_iter().find(|r| r.s("id") == id).unwrap(); (r.t("tag"), r.i("tagWidth")) };
     let s = web(&w, "board", json!({}));
-    assert_eq!((tags(&s, &big), tags(&s, &nine)), (("PRJ-134".into(), 7), ("PRJ-9".into(), 7)), "one column, within the limit on the space before a title");
+    assert_eq!((tags(&s, &big), tags(&s, &nine)), (("PRJ-134".into(), 7), ("PRJ-9".into(), 7)), "one column, as wide as the widest tag");
     sw::store::settings::change::set_value("repo.key", &json!("hsw"), &sw::store::settings::lookup::Scope::repo("proj")).unwrap();
     let s = web(&w, "board", json!({}));
     assert_eq!((tags(&s, &big), tags(&s, &nine)), (("HSW-134".into(), 7), ("HSW-9".into(), 7)));
@@ -130,4 +130,8 @@ fn the_web_board_has_each_tasks_tag_on_its_row_on_the_open_task_and_in_the_chats
     assert_eq!(web(&w, "find", json!({ "text": "hsw-9" })).at("list").s("selected"), nine);
     assert_eq!(web(&w, "find", json!({ "text": "#134" })).at("list").s("selected"), big);
     web(&w, "find", json!({ "text": "" }));
+    // Tags of very different lengths share the widest's column too, so every title starts in the same place.
+    std::fs::write(&seq, "999").unwrap(); let wide = w.add("Number one thousand");
+    let s = web(&w, "board", json!({}));
+    assert_eq!([tags(&s, "proj/1"), tags(&s, &nine), tags(&s, &wide)], [("HSW-1".into(), 8), ("HSW-9".into(), 8), ("HSW-1000".into(), 8)]);
 }

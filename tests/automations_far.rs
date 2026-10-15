@@ -92,8 +92,8 @@ fn other_machines_automations_are_in_the_list_with_their_machine_named_and_are_c
     assert!(!t(&mut s, 120).contains("Theirs nightly"), "this machine only: its own");
     s.press(&["alt+m"]); assert_eq!(s.s.scope, "*");
     let text = t(&mut s, 140);
-    like(&text, r"\n ⟳ on {2}Look for old dependencies {2}every 2h +next in {2}2h\n"); // its repo is the one the board shows: not said
-    like(&text, r"\n ⟳ on {2}Theirs nightly {2}every 5m · far · on vm-b +○ #7 next in {2}4m\n"); // another repo and another machine: said; and the task it made there
+    like(&text, r"\n ⟳ on {4}Look for old dependencies {2}every 2h +next in {2}2h\n"); // its repo is the one the board shows: not said
+    like(&text, r"\n ⟳ on {4}Theirs nightly {2}every 5m · far · on vm-b +○ #7 next in {2}4m\n"); // another repo and another machine: said; and the task it made there
     s.s.sel = "vm-b:auto:0a1b2c3d".into(); s.load(); assert_eq!(s.s.auto().unwrap().s("host"), "vm-b");
     assert_eq!(s.screen(140).last().unwrap(), "  enter open this automation · space turn this automation off · tab fire it now · ctrl+x remove it · ctrl+e its settings · ? all keys");
     // each key is sent to that machine, and its answer is what the board says

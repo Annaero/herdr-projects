@@ -1,9 +1,9 @@
 == the list
  herdr-superwork  proj · 5 ne…
-▌◐ #5  Max length for task
-▌      titles
-▌      Found the cause; now
-▌      checking every caller …
+▌◐ #5     Max length for task
+▌         titles
+▌         Found the cause; now
+▌         checking every call…
 ▌           60% 11m left    1m
 
  + New task  added word for w…
@@ -13,10 +13,10 @@
   enter open this task's agent
 == the task beside it
  herdr-superwork  proj · 5 ne…
-▌◐ #5  Max length for task
-▌      titles
-▌      Found the cause; now
-▌      checking every caller …
+▌◐ #5     Max length for task
+▌         titles
+▌         Found the cause; now
+▌         checking every call…
  + New task  added word for w…
 ──────────────────────────────
 ❯ Add a task
@@ -52,10 +52,10 @@
   ↑↓ pick a key
 == a draft
  herdr-superwork  proj · 5 ne…
-▌◐ #5  Max length for task
-▌      titles
-▌      Found the cause; now
-▌      checking every caller …
+▌◐ #5     Max length for task
+▌         titles
+▌         Found the cause; now
+▌         checking every call…
 ▌           60% 11m left    1m
 
  + New task  added word for w…

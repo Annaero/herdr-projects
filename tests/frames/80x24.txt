@@ -1,21 +1,21 @@
 == the list
  herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
- ✗ #13 Max length for task titles                                             1m
-       Conflict with main
- ✗ #14 Max length for task titles                                             1m
-       Stopped without a summary
+ ✗ #13    Max length for task titles                                          1m
+          Conflict with main
+ ✗ #14    Max length for task titles                                          1m
+          Stopped without a summary
 
  ▾ ready to approve
- ◆ #11 Max length for task titles                             R#1 PR#60       1m
-       Pass
+ ◆ #11    Max length for task titles                          R#1 PR#60       1m
+          Pass
 
  ▾ working
- ◐ #2  Max length for task titles                                             1m
-       Drafting
- ◒ #4  Max length for task titles                                             1m
-       Starting
-▌◐ #5  Max length for task titles                                             1m
-▌      Found the cause; now checking every caller of the resize handler for the…
+ ◐ #2     Max length for task titles                                          1m
+          Drafting
+ ◒ #4     Max length for task titles                                          1m
+          Starting
+▌◐ #5     Max length for task titles                                          1m
+▌         Found the cause; now checking every caller of the resize handler for …
  ↓ 9 more · ↑ 3 more
 
  + New task  added word for word
@@ -25,20 +25,20 @@
   enter open this task's agent · space talk to the agent · ? all keys
 == the task beside it
  herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
- ✗ #14 Max length for task titles                                             1m
-       Stopped without a summary
+ ✗ #14    Max length for task titles                                          1m
+          Stopped without a summary
 
  ▾ ready to approve
- ◆ #11 Max length for task titles                             R#1 PR#60       1m
-       Pass
+ ◆ #11    Max length for task titles                          R#1 PR#60       1m
+          Pass
 
  ▾ working
- ◐ #2  Max length for task titles                                             1m
-       Drafting
- ◒ #4  Max length for task titles                                             1m
-       Starting
-▌◐ #5  Max length for task titles                                             1m
-▌      Found the cause; now checking every caller of the resize handler for the…
+ ◐ #2     Max length for task titles                                          1m
+          Drafting
+ ◒ #4     Max length for task titles                                          1m
+          Starting
+▌◐ #5     Max length for task titles                                          1m
+▌         Found the cause; now checking every caller of the resize handler for …
 
  ↓ 9 more · ↑ 4 more
 
@@ -100,22 +100,22 @@
   ↑↓ pick a key · enter press it · esc close the menu
 == a draft
  herdr-superwork  proj · 5 need you · 1 ready · 9 working · 2 to do · 1 done
- ✗ #13 Max length for task titles                                             1m
-       Conflict with main
- ✗ #14 Max length for task titles                                             1m
-       Stopped without a summary
+ ✗ #13    Max length for task titles                                          1m
+          Conflict with main
+ ✗ #14    Max length for task titles                                          1m
+          Stopped without a summary
 
  ▾ ready to approve
- ◆ #11 Max length for task titles                             R#1 PR#60       1m
-       Pass
+ ◆ #11    Max length for task titles                          R#1 PR#60       1m
+          Pass
 
  ▾ working
- ◐ #2  Max length for task titles                                             1m
-       Drafting
- ◒ #4  Max length for task titles                                             1m
-       Starting
-▌◐ #5  Max length for task titles                                             1m
-▌      Found the cause; now checking every caller of the resize handler for the…
+ ◐ #2     Max length for task titles                                          1m
+          Drafting
+ ◒ #4     Max length for task titles                                          1m
+          Starting
+▌◐ #5     Max length for task titles                                          1m
+▌         Found the cause; now checking every caller of the resize handler for …
  ↓ 9 more · ↑ 3 more
 
  + New task  added word for word
