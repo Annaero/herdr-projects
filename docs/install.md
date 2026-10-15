@@ -5,6 +5,14 @@ program; optionally `gh` (pull requests) and `tailscale` (private review links).
 program.
 
 ```sh
+herdr plugin install eliasstravik/herdr-projects
+```
+
+herdr clones the repo's main branch into its own plugins folder (`herdr plugin list` shows where; `--ref v1.0.0`
+takes a given release) and runs the plugin's build step there, which downloads the program. Or, to keep a checkout
+of your own:
+
+```sh
 git clone https://github.com/eliasstravik/herdr-projects && cd herdr-projects
 herdr plugin link "$PWD"          # hooks, the board's tab and the actions
 sh bin/run.sh install             # gets the program, writes its launcher, says how to put it on your PATH
@@ -39,7 +47,8 @@ the data folder says so).
 then runs that build, and builds again are picked up the same way.
 
 **The command on your PATH.** Agents and hooks are handed the launcher `~/.herdr-projects/data/bin/herdr-projects`,
-which runs the program; `herdr-projects install` writes it again and says whether something else named
+which runs the program. The board writes it when it opens (with `herdr plugin install`, open it first with the
+plugin's action "Open the work board"); `herdr-projects install` writes it again and says whether something else named
 `herdr-projects` comes first on your PATH. To type `herdr-projects` in a shell, put that folder on your PATH (in
 `~/.profile` or your shell's start-up file).
 

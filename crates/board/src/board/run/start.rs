@@ -32,6 +32,7 @@ pub fn prepare(folder: &std::path::Path) -> (State, Theme, Option<(String, Strin
     // them), and answers while the tasks are read.
     let asked = term::ask_colours();
     crate::keeper::ensure_keeper(); // the board opening is one of the keeper's starters
+    crate::flow::send::shim(); // the launcher in the data folder, there from the first time the board opens
     let _ = crate::extras::sync_skill(); crate::extras::remove_popups(); crate::extras::refresh_sidebar();
     let reloads: i64 = env("HERDR_PROJECTS_RELOADS").parse().unwrap_or(0);
     let named = place::name_board_tab(&place::board_pane());

@@ -49,7 +49,7 @@ order the web UI keeps its PCs in ([web UI](web-ui.md)).
 
 ## A machine on an older program
 
-A machine whose program is older than this order (the 0.3.0 release is) sends no herdr list with its tasks. The board
+A machine whose program is older than this order (herdr-superwork 0.3.0 is) sends no herdr list with its tasks. The board
 then asks that machine's herdr for it, over the same SSH, at each of its answers (`herdr machine list --json`), and
 follows its sidebar all the same. Only an SSH alias in that list is not resolved there, so the entry that is this
 machine must then name it by one of its own names or addresses; a newer program there resolves it. A machine whose
