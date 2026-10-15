@@ -91,7 +91,7 @@ async function call(what, body) {
   return out;
 }
 // A key that brings words back (a draft that was put away, words taken back to change) puts them in the text box.
-const press = async (id) => { const out = await call("press", { id }); if (out.draft) chat.fill(out.draft); return out; };
+const press = async (id) => { const out = await call("press", { id }); if (out.draft) chat?.fill(out.draft); return out; };
 
 export function openBoard({ onClose }) {
   if (root) return;
@@ -135,6 +135,7 @@ export function closeBoard() {
   clearInterval(timer); timer = null;
   untrap?.(); untrap = null;
   window.removeEventListener("resize", fit);
+  chat?.destroy(); chat = null;
   root.remove(); root = null;
   tell();
 }

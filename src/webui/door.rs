@@ -112,7 +112,7 @@ pub fn same_origin(h: &Head) -> bool {
     match h.header("origin") { None => site.is_some(), Some(o) => o.split("://").nth(1).map(|x| x.split('/').next().unwrap_or("")) == h.header("host") }
 }
 /// What a watching device may not do; and what it may (its own selection and filter, a key that only shows).
-pub const CHANGES: [&str; 2] = ["send", "set"];
+pub const CHANGES: [&str; 3] = ["send", "set", "attach"];
 pub const LOOKS: [&str; 5] = ["press", "pick", "find", "fold", "scope"];
 fn ours(mut client: TcpStream, head: &Head, rest: Vec<u8>, up: &dyn Upstream) {
     let path = head.path().to_string();
@@ -135,7 +135,8 @@ fn ours(mut client: TcpStream, head: &Head, rest: Vec<u8>, up: &dyn Upstream) {
     if head.header(OUR_HEADER) != Some("1") || !same_origin(head) { return json_out(&mut client, 403, &json!({ "ok": false, "msg": "Use the board's own controls." })); }
     if CHANGES.contains(&call.as_str()) && role != "drive" { return json_out(&mut client, 403, &json!({ "ok": false, "msg": "This device can only watch." })); }
     let len: usize = head.header("content-length").and_then(|v| v.parse().ok()).unwrap_or(0);
-    if len > 256 * 1024 { return json_out(&mut client, 400, &json!({ "ok": false, "msg": "The request could not be read." })); }
+    // A file attached in the chat box comes whole, as base64 (attach.rs); anything else is small.
+    if len > if call == "attach" { super::attach::MOST.div_ceil(3) * 4 + 64 * 1024 } else { 256 * 1024 } { return json_out(&mut client, 400, &json!({ "ok": false, "msg": "The request could not be read." })); }
     let mut body = rest;
     while body.len() < len { let mut chunk = vec![0u8; len - body.len()]; match std::io::Read::read(&mut client, &mut chunk) { Ok(0) | Err(_) => break, Ok(n) => body.extend_from_slice(&chunk[..n]) } }
     let Ok(Value::Object(mut args)) = serde_json::from_slice::<Value>(if body.is_empty() { b"{}" } else { &body }) else { return json_out(&mut client, 400, &json!({ "ok": false, "msg": "The request could not be read." })) };

@@ -161,6 +161,7 @@ pub fn call(client_id: &str, call: &str, args: Value, machine: &str, pcs: Option
             let kept = super::view::send(c, args.s("text"), args.b("delegate"), to);
             let mut o = snapshot(c, ""); o.as_object_mut().unwrap().insert("kept".into(), json!(kept)); Ok(o)
         }
+        "attach" => { if !drive { return watch(); } super::attach::attach(c, &args) }
         "set" => {
             if !drive { return watch(); }
             let v = args.at("value");

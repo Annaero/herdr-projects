@@ -27,6 +27,26 @@ Measured against **herdr-web-ui 0.4.8** (see [how](#how-it-was-measured)):
   in this browser.
 - **The round Send** in the lower right: the web UI's 32 px circle in its primary colour with an arrow up (inside a
   40 px target on touch), faded while there is nothing to send and while a message is on its way.
+- **Attaching files**, as in the web UI: the round **+** in the lower left picks any files; a picture pasted into the
+  box, or files dropped on it, are taken too (the card's border turns to the accent while files are over it). Each
+  stands as a tile above the message (a picture's thumbnail, else its name) saying Uploading, Attached or Failed,
+  with a cross that takes it out. Its path goes into the message as `@<path> `, at its start, in the order the files
+  were picked, which is how the agent reads it; Send waits while one is on its way. The web UI's limits: 8 MB a file
+  (a bigger one says so in a band over the box), three on their way at a time, and as many at once as its Settings →
+  Chat → Files at once says. The file is kept where whoever gets the words can read it: in the Coordinator's own
+  folder, in a task's working folder under `.herdr-superwork/files/` (git is told to leave it alone), or, with no
+  Coordinator, in the board's own folder (`files/` in its data folder). Only on this machine: a file for another
+  machine's Coordinator or agent is refused, and that is said.
+- **Dictation**, as in the web UI: the mic beside the add button. Tap it to start and tap again to finish, or hold
+  it and let go (or hold ctrl+shift+space, cmd on a Mac). While it listens, a pill over the box shows Cancel, where it
+  stands (Ready, Recording, Transcribing, or No microphone input), the words heard so far, the level, the time (the
+  last ten seconds counted down) and Done; Escape cancels. The words go in at the caret, with a space against a word
+  on either side, without taking the focus; where the web UI's server writes a tidied version afterwards, it takes
+  their place unless you changed them meanwhile. A dictation too long for the box is refused whole. It uses the web
+  UI's own engines and settings: its server when it has an OpenAI key (Settings → Voice input there), else the
+  browser's own speech recognition; the mic shows as the web UI's does (on auto only where it can work, and not on a
+  phone), in its language, tidied or not as its Settings → Chat says. At most two minutes. A device that may only
+  watch dictates nothing.
 - **Focus is the card's**, never a rectangle on the field inside it.
 - **No look of the browser's own** on the field in Chrome, Firefox or Safari: no frame, no focus ring, no inner
   shadow, no resize corner, no scroll arrows.
@@ -40,7 +60,7 @@ Measured against **herdr-web-ui 0.4.8** (see [how](#how-it-was-measured)):
 | The board's | Where it is in the box |
 |---|---|
 | who gets your words: the Coordinator (and on which machine, where another one's shows) or a task's agent, with the task named | said by the switch over the box ([the web UI](web-ui.md)), not in it: the box's own hint says it too while empty (`Send message to Coordinator`) |
-| the lock that keeps a draft with who it was typed for | a filled chip in the lower left, where the web UI has its add button, only while the page shows somebody else: `To: HSW-34 agent · not who is shown above` |
+| the lock that keeps a draft with who it was typed for | a filled chip in the lower left, beside the add button, only while the page shows somebody else: `To: HSW-34 agent · not who is shown above`. Attaching a file locks it as typing does |
 | the box's colour by who you type to ([colours](colours.md)) | the card's border: the plain text colour for the Coordinator, the task's status colour for its agent. The web UI's border is grey and turns to its accent on focus; here the border already says who, so focus draws a ring of that same colour round it |
 | the two ways to send | the round button and enter send; **Send + start** and tab, while there are words and it applies, send and put an agent on what it adds. **Send + start** is a chip of the web UI's (the shape of its one-tap replies). Each says in its tooltip what it does with the words |
 | the switch between the Coordinator and the task's agent, and the conversation | over the box, as wide as it: the web UI's segmented switch, Hide and Show, and the conversation in a panel of its own that scrolls back ([the web UI](web-ui.md)) |
@@ -52,9 +72,6 @@ Measured against **herdr-web-ui 0.4.8** (see [how](#how-it-was-measured)):
 
 Left out, because the Board cannot do it, rather than shown as a dead control:
 
-- **Attaching a file or a picture**: no add button, no picture strip. A picture pasted or dropped on the box does
-  nothing (and is not opened by the browser in the Board's place); pasted words go in.
-- **Dictation** (the mic).
 - **Stop**: the web UI's round button turns into Stop while the agent works. The Board's stays Send; stopping a
   task's agent is a button on the open task.
 - **The model, the effort and the context ring** between the controls: the Board's box talks to different agents.

@@ -2,11 +2,11 @@
    shadow, type and controls, written from its CSS variables (Composer.css and DESIGN.md there; each name has the
    web UI's own value behind it, used only if it ever drops the name). Measured against herdr-web-ui 0.4.8:
    docs/web-chat-box.md says how, so it can be measured again. What is the board's own: the frame's colour says who
-   gets your words, the chip in the lower left names them when that is not who the page shows, and a second way to
+   gets your words, the chip in the lower left (beside the add button, files.css) names them when that is not who the page shows, and a second way to
    send stands beside the round button. */
 .sw-composer { position: relative; flex: none; width: 100%; --sw-grip-h: 12px; padding-top: var(--sw-grip-h); }
 .sw-card {
-  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "text text" "left right";
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "files files" "text text" "left right";
   width: min(100%, var(--chat-w, 820px)); margin-inline: auto;
   background: var(--bg-elevated, #211e1a); border: var(--hairline, 1px) solid var(--sw-frame); border-radius: var(--radius-2xl, 24px); box-shadow: var(--shadow-card, 0 4px 16px rgba(0, 0, 0, .35));
   transition: border-color var(--dur-fast, 120ms) var(--ease-out, ease-out), box-shadow var(--dur-fast, 120ms) var(--ease-out, ease-out);

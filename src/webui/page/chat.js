@@ -1,8 +1,8 @@
 // The chat at the foot of the board, the terminal board's chat: a switch with the two you can talk to (the Coordinator,
 // or the selected task's agent), which shows who gets your words; the line on where they stand; the conversation
 // (said.js: the newest thing said, the rest above it) with Hide and Show; and what the box you type in (compose.js) does
-// with your words: who they are for, kept with them until they are sent. Who that is, what the box says while empty
-// and what its buttons do come from the board (webui/model/side.rs).
+// with your words: who they are for, kept with them until they are sent, and who a file attached is for. Who that
+// is, what the box says while empty and what its buttons do come from the board (webui/model/side.rs).
 /* global sessionStorage */
 import { h, icon, markEl } from "./dom.js";
 import { composeEl } from "./compose.js";
@@ -22,18 +22,31 @@ export function chatEl({ onSend, onPress }) {
   // `to`: who the words in the box are for, taken when the first of them is typed and kept until they are sent or
   // cleared: { id, reply, label, enter, delegate }. Tapping another task meanwhile changes what you look at, not this.
   let last = null, to = null, now = null, tone = "text";
-  let busy = false;
+  let busy = false, closed = false; // closed: the board was closed, and this box writes nothing more
   const go = async (delegate) => {
     const text = box.value;
-    if (!text.trim() || busy) return;
+    if (!text.trim() || busy || files.busy()) return; // a file on its way: its path is not in the words yet
     busy = true; sync();
+    // Only what was sent leaves the box: files attached while it is on its way wait (their paths go in after) and stay.
+    const sent = files.ids();
+    voice.forget(); // sent as it is: a tidied version of dictated words that comes later is not put in
     const kept = await onSend(text, delegate, to ? { id: to.id, reply: to.reply, scope: to.scope || "" } : null);
     busy = false;
-    if (!kept) { box.value = ""; to = null; keep(""); grow(); }
-    sync();
+    if (closed) return; // the board closed while it was on its way: a new box has the draft now
+    if (!kept) {
+      // Words typed after it, while it was on its way, stay; changed inside it, the whole box stays, and says so.
+      const edited = box.value !== text && !box.value.startsWith(text);
+      box.value = edited ? box.value : box.value.slice(text.length).replace(/^\s+/, ""); files.clear(sent);
+      if (edited) say("Sent as it was. Your changes made while it was sending stayed here and were not sent.");
+      if (!box.value.trim() && !files.count()) to = null;
+      keep(box.value, to); grow();
+    }
+    files.place(); sync();
   };
   // Tab sends as the terminal's does, and puts an agent on what it adds, where that applies to the words typed.
-  const { el: compose, card, box, to: chip, send, also, grow } = composeEl({ onSend: go, onInput: () => { sync(); keep(box.value, to); }, onTab: () => { if (also.hidden || busy) return false; go(true); return true; } });
+  // A file attached is for whoever the words are for: attaching one locks that as typing does (sync).
+  const whom = () => { const w = to || now; return w ? { id: w.id, reply: w.reply, scope: w.scope || "" } : null; };
+  const { el: compose, card, box, to: chip, send, also, grow, files, voice, say, destroy } = composeEl({ onSend: go, onInput: () => { if (closed) return; sync(); keep(box.value, to); }, onTab: () => { if (also.hidden || busy) return false; go(true); return true; }, whom, hold: () => busy });
   box.value = saved();
   if (box.value.trim()) to = savedTo(); // a reload brings the words back with who they were for
   // Who you talk to: two choices, the one that gets your words pressed. The other presses the board's own key for it.
@@ -46,10 +59,10 @@ export function chatEl({ onSend, onPress }) {
   const said = saidEl();
   const note = h("p.sw-chat-note", { hidden: true });
   let labels = { enter: "", delegate: "" };
-  // The first word typed locks who the draft is for, as the box then says; an empty box lets it go again.
+  // The first word typed (or file attached) locks who the draft is for, as the box then says; an empty box lets it go.
   function sync() {
-    const typing = !!box.value.trim();
-    if (!typing) to = null; else if (!to && now) to = { ...now };
+    const typing = !!box.value.trim(), holding = typing || files.count() > 0;
+    if (!holding) to = null; else if (!to && now) to = { ...now };
     const l = to || labels;
     // Where the page now shows somebody else (another task, another machine's Coordinator), the chip says that the
     // words are not for them: the line above the box names who is shown, the chip who gets the words.
@@ -60,12 +73,15 @@ export function chatEl({ onSend, onPress }) {
     // Who gets the words is said by the switch above; the box says it only when they are for somebody the page no
     // longer shows: then the switch names who is shown, the chip who gets the words.
     chip.hidden = !moved; chip.className = "sw-to is-locked"; chip.textContent = moved ? `To: ${to.label}${to.reply ? " agent" : ""} · not who is shown above` : "";
-    send.disabled = !typing || busy; send.title = cap(l.enter) || "Send message"; also.hidden = !typing || !l.delegate; also.disabled = busy; also.title = l.delegate ? `${cap(l.delegate)} (Tab)` : "";
+    send.disabled = !typing || busy || files.busy(); files.refresh(); voice.sync(); send.title = cap(l.enter) || "Send message"; also.hidden = !typing || !l.delegate; also.disabled = busy; also.title = l.delegate ? `${cap(l.delegate)} (Tab)` : "";
   }
   const el = h("footer.sw-chat", { "aria-label": "Chat" }, h("div.sw-chat-head", pick, who, hide), note, said.el, compose);
   return {
     el,
     typing: () => !!box.value.trim(),
+    // The board closed: dictation stops and lets the microphone go, and nothing this box still hears of (an answer, a
+    // file, a dictation) changes the kept draft, which the next board's box shows.
+    destroy() { closed = true; destroy(); },
     fill(text) { box.value = text; to = null; sync(); keep(text, to); grow(); box.focus(); },
     update(snap) {
       const c = snap.chat;

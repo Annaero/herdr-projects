@@ -20,11 +20,11 @@ fn the_keys_are_the_web_uis_enter_sends_shift_enter_is_a_new_line_and_its_own_se
 
 #[test]
 fn the_box_is_the_web_uis_card_the_message_first_one_row_of_controls_the_grip_and_no_dead_control() {
-    assert!(JS.contains(r#"h("div.sw-card.sw-b-text", grip, box, h("div.sw-controls.sw-controls-left", to), h("div.sw-controls.sw-controls-right", also, send))"#));
+    assert!(JS.contains(r#"h("div.sw-card.sw-b-text", grip, files.strip, box, h("div.sw-controls.sw-controls-left", files.input, files.add, voice.el, to), h("div.sw-controls.sw-controls-right", also, send))"#));
     assert!(JS.contains(r#"h("textarea.sw-input", { rows: 1, maxLength: LONGEST"#) && JS.contains("LONGEST = 20000"));
     assert!(JS.contains(r#"h("button.sw-action.sw-send", { type: "button", disabled: true"#) && JS.contains(r#"h("button.sw-also", { type: "button", hidden: true }"#));
     assert!(JS.contains(r#"h("div.sw-composer", { role: "group""#));
-    assert!(!Regex::new(r#"type: "file"|Attach|Stop agent"#).unwrap().is_match(JS), "no attach, no stop: the board has neither, and shows no dead control");
+    assert!(!Regex::new(r#"Stop agent"#).unwrap().is_match(JS), "no stop: the board has none, and shows no dead control (attaching: web_attach.rs)");
     // the grip: a key's step, two with shift, Home gives the height back; never over half the window (480 at most); kept
     assert!(JS.contains("const STEP = 24") && JS.contains("MOST = 480") && JS.contains("step = e.shiftKey ? STEP * 2 : STEP"));
     assert!(JS.contains(r#"if (e.key === "ArrowUp") setHeight(within(now + step)); else if (e.key === "ArrowDown") setHeight(within(now - step)); else if (e.key === "Home") setHeight(null);"#));
@@ -32,18 +32,20 @@ fn the_box_is_the_web_uis_card_the_message_first_one_row_of_controls_the_grip_an
     assert!(JS.contains(r#"const HEIGHT = "sw-box-height""#) && JS.contains("localStorage.removeItem(HEIGHT)"));
     // a drag that does not travel sets nothing; two taps give the height back
     assert!(JS.contains("SLACK = { mouse: 3, touch: 10 }, TWICE = 350") && JS.contains("if (u.timeStamp - tapped < TWICE) { tapped = 0; setHeight(null); }"));
-    // a file dropped on the box is not opened by the browser in the board's place
-    assert!(JS.contains(r#"for (const name of ["dragover", "drop"]) card.addEventListener(name, (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) e.preventDefault(); });"#));
+    // a file dropped on the box is attached (files.js), never opened by the browser in the board's place
+    assert!(JS.contains("files.dropOn(card);"));
     assert!(JS.contains(r#"send.addEventListener("click", () => onSend(false));"#) && JS.contains(r#"also.addEventListener("click", () => onSend(true));"#));
 }
 
 #[test]
 fn who_gets_the_words_is_said_while_empty_too_and_a_second_enter_while_the_first_is_on_its_way_does_nothing() {
     // sends once: busy while the board has not answered; the words stay until it has them; kept words stay
-    assert!(CHAT.contains("if (!text.trim() || busy) return;") && CHAT.contains("busy = true; sync();"));
+    assert!(CHAT.contains("if (!text.trim() || busy || files.busy()) return;") && CHAT.contains("busy = true; sync();"));
     assert!(CHAT.contains(r#"const kept = await onSend(text, delegate, to ? { id: to.id, reply: to.reply, scope: to.scope || "" } : null);"#));
-    assert!(CHAT.contains(r#"if (!kept) { box.value = ""; to = null; keep(""); grow(); }"#));
-    assert!(CHAT.contains("send.disabled = !typing || busy;") && CHAT.contains("also.disabled = busy;") && CHAT.contains("also.hidden = !typing || !l.delegate;"));
+    // only what was sent leaves the box: words typed after it stay; changed inside it, all stays, and that is said
+    assert!(CHAT.contains(r#"box.value = edited ? box.value : box.value.slice(text.length).replace(/^\s+/, ""); files.clear(sent);"#));
+    assert!(CHAT.contains("if (!box.value.trim() && !files.count()) to = null;"));
+    assert!(CHAT.contains("send.disabled = !typing || busy || files.busy();") && CHAT.contains("also.disabled = busy;") && CHAT.contains("also.hidden = !typing || !l.delegate;"));
     // who: always said, quietly while empty, locked once words are typed; the buttons say what they do
     assert!(CHAT.contains("chip.hidden = !moved;") && CHAT.contains("send.title = cap(l.enter) || \"Send message\";") && CHAT.contains("also.title = l.delegate ? `${cap(l.delegate)} (Tab)` : \"\";"));
     assert!(CHAT.contains("box.placeholder = cap(snap.send.place || \"\");"));
@@ -69,5 +71,5 @@ fn the_styles_are_the_web_uis_variables_hide_the_browsers_own_looks_and_name_the
     // The page says how it was measured, the moment of sending among it. (The measuring script was a node program and is
     // in the repo's history now, not in the repo: the page says so.)
     assert!(DOC.contains("chat-box-match.js") && DOC.contains("--sending"));
-    assert!(START.contains(r#"["board", "chat", "compose", "boards"]"#), "the page loads the chat's, the box's and the boards' styles");
+    assert!(START.contains(r#"["board", "chat", "compose", "files", "voice", "boards"]"#), "the page loads the chat's, the box's, its files', its mic's and the boards' styles");
 }

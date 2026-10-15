@@ -12,11 +12,15 @@ const FILES: &[(&str, &str)] = &[
     ("compose.css", include_str!("page/compose.css")),
     ("compose.js", include_str!("page/compose.js")),
     ("dom.js", include_str!("page/dom.js")),
+    ("files.css", include_str!("page/files.css")),
+    ("files.js", include_str!("page/files.js")),
     ("list.js", include_str!("page/list.js")),
     ("panel.js", include_str!("page/panel.js")),
     ("said.js", include_str!("page/said.js")),
     ("sheets.js", include_str!("page/sheets.js")),
     ("start.js", include_str!("page/start.js")),
+    ("voice.css", include_str!("page/voice.css")),
+    ("voice.js", include_str!("page/voice.js")),
 ];
 pub fn file(name: &str) -> Option<&'static str> { FILES.iter().find(|(n, _)| *n == name).map(|(_, b)| *b) }
 pub fn send_page(client: &mut std::net::TcpStream, name: &str, head_only: bool) {
