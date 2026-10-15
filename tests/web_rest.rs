@@ -10,7 +10,7 @@ use std::path::Path;
 use sw::json::*;
 use sw::shown::ink::{Ink, Inked};
 
-const CSS: &str = include_str!("../src/webui/page/board.css");
+const CSS: &str = include_str!("../crates/web/src/webui/page/board.css");
 fn colour_in_css(name: &str) -> bool { regex::Regex::new(&format!(r"\.sw-c-{name}(?:[^a-z0-9_-])[^{{}}]*\{{[^}}]*color:")).unwrap().is_match(CSS) }
 fn sources(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
     for e in std::fs::read_dir(dir).unwrap().flatten() { let p = e.path(); if p.is_dir() { sources(&p, out); } else if p.extension().is_some_and(|x| x == "rs") { out.push(p); } }
@@ -23,12 +23,12 @@ fn ink_named(n: &str) -> Option<Ink> {
 
 #[test]
 fn every_colour_name_the_boards_code_paints_with_has_a_colour_on_the_page_and_reaches_it_by_its_name() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("crates");
     let mut files = vec![];
-    for d in ["board", "shown", "webui"] { sources(&root.join(d), &mut files); }
+    for d in ["board/src/board", "flow/src/board", "flow/src/shown", "flow/src/webui", "web/src/webui"] { sources(&root.join(d), &mut files); }
     let mut named = std::collections::BTreeSet::new();
     // (the theme turns every name into a colour, and ink.rs names them all: neither paints with one)
-    for f in files.iter().filter(|f| !f.starts_with(root.join("board/theme")) && !f.ends_with("shown/ink.rs")) {
+    for f in files.iter().filter(|f| !f.starts_with(root.join("flow/src/board/theme")) && !f.ends_with("shown/ink.rs")) {
         for c in regex::Regex::new(r"Ink::([A-Z][a-z]+)").unwrap().captures_iter(&std::fs::read_to_string(f).unwrap()) { named.insert(c[1].to_string()); }
     }
     // the backgrounds and the terminal's own text are no colour name of the page
@@ -38,7 +38,7 @@ fn every_colour_name_the_boards_code_paints_with_has_a_colour_on_the_page_and_re
     let theme = sw::board::theme::Theme::default_dark(false);
     for n in &named {
         let ink = ink_named(n).unwrap_or_else(|| panic!("no ink {n}"));
-        assert!(colour_in_css(ink.name()), "the web page has no colour for \"{}\" (src/webui/page/board.css: .sw-c-{})", ink.name(), ink.name());
+        assert!(colour_in_css(ink.name()), "the web page has no colour for \"{}\" (crates/web/src/webui/page/board.css: .sw-c-{})", ink.name(), ink.name());
         assert_eq!(sw::webui::ink::pieces(&Inked::of("x", ink)), vec![json!({ "t": "x", "c": ink.name() })], "the name reaches the page as it is");
         let _ = theme.ink(ink); // and the terminal has a colour for it too
     }

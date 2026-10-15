@@ -1,13 +1,14 @@
-//! The web board's chat box (src/webui/page/compose.js, compose.css), read as text: built as the herdr web UI builds its
-//! own chat input, from its CSS variables; enter and shift+enter, the grip, both ways to send, no second send while one
-//! is on its way, who gets the words said when it is not who the switch shows, and the version it was measured against. (The old tests drove the
-//! page's code in node with a stand-in document; no browser or node runs here.)
+//! The web board's chat box (crates/web/src/webui/page/compose.js, compose.css), read as text: built as the herdr web
+//! UI builds its own chat input, from its CSS variables; enter and shift+enter, the grip, both ways to send, no second
+//! send while one is on its way, who gets the words said when it is not who the switch shows, and the version it was
+//! measured against. (The old tests drove the page's code in node with a stand-in document; no browser or node runs
+//! here.)
 use regex::Regex;
 
-const JS: &str = include_str!("../src/webui/page/compose.js");
-const CHAT: &str = include_str!("../src/webui/page/chat.js");
-const CSS: &str = include_str!("../src/webui/page/compose.css");
-const START: &str = include_str!("../src/webui/page/start.js");
+const JS: &str = include_str!("../crates/web/src/webui/page/compose.js");
+const CHAT: &str = include_str!("../crates/web/src/webui/page/chat.js");
+const CSS: &str = include_str!("../crates/web/src/webui/page/compose.css");
+const START: &str = include_str!("../crates/web/src/webui/page/start.js");
 const DOC: &str = include_str!("../docs/web-chat-box.md");
 fn rule(sel: &str) -> String { Regex::new(&format!(r"{} \{{([^}}]*)\}}", regex::escape(sel))).unwrap().captures(CSS).map(|c| c[1].to_string()).unwrap_or_default() }
 
@@ -25,7 +26,8 @@ fn the_box_is_the_web_uis_card_the_message_first_one_row_of_controls_the_grip_an
     assert!(JS.contains(r#"h("button.sw-action.sw-send", { type: "button", disabled: true"#) && JS.contains(r#"h("button.sw-also", { type: "button", hidden: true }"#));
     assert!(JS.contains(r#"h("div.sw-composer", { role: "group""#));
     assert!(!Regex::new(r#"Stop agent"#).unwrap().is_match(JS), "no stop: the board has none, and shows no dead control (attaching: web_attach.rs)");
-    // the grip: a key's step, two with shift, Home gives the height back; never over half the window (480 at most); kept
+    // the grip: a key's step, two with shift, Home gives the height back; never over half the window (480 at most);
+    // kept
     assert!(JS.contains("const STEP = 24") && JS.contains("MOST = 480") && JS.contains("step = e.shiftKey ? STEP * 2 : STEP"));
     assert!(JS.contains(r#"if (e.key === "ArrowUp") setHeight(within(now + step)); else if (e.key === "ArrowDown") setHeight(within(now - step)); else if (e.key === "Home") setHeight(null);"#));
     assert!(JS.contains("Math.min(MOST, Math.round((window.visualViewport?.height || window.innerHeight) / 2))"));
@@ -68,8 +70,8 @@ fn the_styles_are_the_web_uis_variables_hide_the_browsers_own_looks_and_name_the
     // The version is said in one way in both places.
     let version = Regex::new(r"Measured against herdr-web-ui ([\d.]+)").unwrap().captures(CSS).map(|c| c[1].to_string()).expect("the styles say which version they were measured against");
     assert!(DOC.contains(&format!("herdr-web-ui {version}")), "docs/web-chat-box.md names the same version");
-    // The page says how it was measured, the moment of sending among it. (The measuring script was a node program and is
-    // in the repo's history now, not in the repo: the page says so.)
+    // The page says how it was measured, the moment of sending among it. (The measuring script was a node program and
+    // is in the repo's history now, not in the repo: the page says so.)
     assert!(DOC.contains("chat-box-match.js") && DOC.contains("--sending"));
     assert!(START.contains(r#"["board", "chat", "compose", "files", "voice", "boards"]"#), "the page loads the chat's, the box's, its files', its mic's and the boards' styles");
 }

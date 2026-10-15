@@ -1,6 +1,6 @@
-//! The program installs and updates itself (src/install.rs), and bin/run.sh finds or downloads the program herdr runs:
-//! platform names, release URLs, versions, checksums, the update put in place, the launcher, and run.sh in a scratch
-//! plugin folder with a release folder of its own (file://). No network, never the real ~/.herdr-superwork.
+//! The program installs and updates itself (crates/flow/src/install.rs), and bin/run.sh finds or downloads the program
+//! herdr runs: platform names, release URLs, versions, checksums, the update put in place, the launcher, and run.sh in
+//! a scratch plugin folder with a release folder of its own (file://). No network, never the real ~/.herdr-superwork.
 use std::path::{Path, PathBuf};
 use std::sync::MutexGuard;
 use sw::install::*;

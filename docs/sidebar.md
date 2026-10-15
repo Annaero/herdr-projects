@@ -1,8 +1,9 @@
 # herdr's sidebar: a small copy of the board's rows
 
 What herdr's sidebar says about an agent is what that task's row on the board says, in the same words, but only its
-short marks and numbers: not the row's second line, what the agent says it does. One entry per live agent: a task's agent, its reviewer while a review runs, and the Coordinator. A task
-nobody is on (to do, done and cleaned up) has no pane in herdr and so no entry.
+short marks and numbers: not the row's second line, what the agent says it does. One entry per live agent: a task's
+agent, its reviewer while a review runs, and the Coordinator. A task nobody is on (to do, done and cleaned up) has no
+pane in herdr and so no entry.
 
 ## The three rows of an entry
 
@@ -16,24 +17,18 @@ nobody is on (to do, done and cleaned up) has no pane in herdr and so no entry.
    ([task numbers](task-numbers.md)). The number comes first and herdr cuts a row at its end, so a narrow
    sidebar cuts the title, never the number. The machine's name stands before it only where the sidebar shows more
    than one machine: that is herdr's own `machine` token.
-2. **Who is on it and where it stands**, from the one list of status words (`src/status_words.rs`):
+2. **Who is on it and where it stands**, from the one list of status words (`crates/core/src/status_words.rs`):
 
-   | The row on the board | Row 2 of the entry |
-   |---|---|
-   | `◐` the agent works | `agent · working` |
-   | `◑` under review | `reviewer · under review` on the reviewer's entry, `agent · under review` on the agent's |
-   | `◇` the board starts it, sets up, checks, pushes, merges, or waits on the way (its check's turn, its turn to merge, GitHub's checks) | `board · starting`, `board · setting up`, `board · checking`, `board · pushing`, `board · merging` |
-   | `◌` waits for a free slot, `Q#2` | `queued`, and row 3 says `Q#2`: its place in the queue where a task at work has its percent |
-   | `?` asks you | `asks you` |
-   | `!` asks for your OK | `asks for your OK` |
-   | the sign-in mark | `needs a login` |
-   | `◆` passed, waits for your yes | `ready to approve` |
-   | `!` its review failed | `review failed` |
-   | `×` went wrong (a failure, a merge or a pull request that failed) | `went wrong` |
-   | finished, but its branch cannot be brought up to date | `behind main` |
-   | waits for you, with no kind (a reviewer's dialog, stopped without a summary) | `needs you` |
-   | stopped, put back | `to do` |
-   | done, while its space is still open | `done` |
+   | The row on the board | Row 2 of the entry | |---|---| | `◐` the agent works | `agent · working` | | `◑` under
+   review | `reviewer · under review` on the reviewer's entry, `agent · under review` on the agent's | | `◇` the board
+   starts it, sets up, checks, pushes, merges, or waits on the way (its check's turn, its turn to merge, GitHub's
+   checks) | `board · starting`, `board · setting up`, `board · checking`, `board · pushing`, `board · merging` | | `◌`
+   waits for a free slot, `Q#2` | `queued`, and row 3 says `Q#2`: its place in the queue where a task at work has its
+   percent | | `?` asks you | `asks you` | | `!` asks for your OK | `asks for your OK` | | the sign-in mark | `needs a
+   login` | | `◆` passed, waits for your yes | `ready to approve` | | `!` its review failed | `review failed` | | `×`
+   went wrong (a failure, a merge or a pull request that failed) | `went wrong` | | finished, but its branch cannot be
+   brought up to date | `behind main` | | waits for you, with no kind (a reviewer's dialog, stopped without a summary) |
+   `needs you` | | stopped, put back | `to do` | | done, while its space is still open | `done` |
 
    Somebody is named only while somebody is on it: a task that waits says what it waits for. Then the review round
    and the pull request as the row writes them (`R#1 PR#113`), the task's tags (`[research]`, `[auto]`), and last
@@ -71,21 +66,21 @@ pick one of its attempts has none: its attempts' entries say `pick one`.
 
 ## How it gets there
 
-The board keeps one writer for all of it (`src/flow/sidebar.rs`), and that writer has no words of its own: it draws
-the task's row with the board's own code, without colours (`src/flow/sidebar_entry.rs`). Whoever ticks, the keeper
-or an open board, writes an entry once a second when a word of it changed: as often as the board draws its own rows
-again. Where a task comes to wait for you, goes wrong, is taken up again or ends, whatever did that writes the entry
-at once, without waiting for the tick. The Watcher and the check only keep what they find on the task
-([the Watcher](watcher.md), [the check's progress](check-progress.md)); they write nothing to herdr themselves, so
-no two writers fight over one line.
+The board keeps one writer for all of it (`crates/flow/src/flow/sidebar.rs`), and that writer has no words of its own:
+it draws the task's row with the board's own code, without colours (`crates/flow/src/flow/sidebar_entry.rs`). Whoever
+ticks, the keeper or an open board, writes an entry once a second when a word of it changed: as often as the board draws
+its own rows again. Where a task comes to wait for you, goes wrong, is taken up again or ends, whatever did that writes
+the entry at once, without waiting for the tick. The Watcher and the check only keep what they find on the task ([the
+Watcher](watcher.md), [the check's progress](check-progress.md)); they write nothing to herdr themselves, so no two
+writers fight over one line.
 
 herdr keeps none of this when its server is started again. The board notices on its next tick, by herdr's own reading
 of the pane (the shown name it wrote is gone), and writes every entry of that herdr again, whether a word changed
 or not.
 
 Nothing stale is left: what was written is replaced, never left to run out. A task that is stopped, done or moved on
-gets its new words at once, or within the second; an entry goes with its pane (herdr drops what was written about a pane that closed); and a
-task that is archived or removed while its pane lives on has the board's words taken off it.
+gets its new words at once, or within the second; an entry goes with its pane (herdr drops what was written about a pane
+that closed); and a task that is archived or removed while its pane lives on has the board's words taken off it.
 
 It is written as herdr's display metadata (`herdr pane report-metadata`, `herdr workspace report-metadata` and the
 space's name), from the source `plugin:herdr-superwork`: row 2 is the agent's shown name, row 3 the token `progress`.

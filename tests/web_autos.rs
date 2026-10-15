@@ -37,7 +37,7 @@ fn the_web_board_has_the_automations_one_whole_with_its_buttons_and_a_firing_tha
     assert_eq!([one.i("tagWidth"), two.i("tagWidth"), s.at("list").arr("groups")[0].arr("rows")[0].i("tagWidth")], [5, 5, 5], "one column: the names start where the task's title does");
     // on the page its row shows all of what it says, on any width, and its word (on, off) stays when the tasks' numbers give way
     assert_eq!((one.at("automation"), two.at("automation"), s.at("list").arr("groups")[0].arr("rows")[0].at("automation")), (&json!(true), &json!(true), &Value::Null));
-    assert!(include_str!("../src/webui/page/board.css").contains(".sw-row.is-automation .sw-says { display: block; overflow: visible; -webkit-line-clamp: none; }"));
+    assert!(include_str!("../crates/web/src/webui/page/board.css").contains(".sw-row.is-automation .sw-says { display: block; overflow: visible; -webkit-line-clamp: none; }"));
     // tap one: it opens, whole, with its buttons; a watching device may look
     let s = web(&w, "pick", json!({ "id": one.s("id"), "open": true }));
     assert_eq!((s.at("list").s("selected"), s.at("panel").s("title"), s.at("panel").at("automation"), s.at("panel").at("task"), s.at("flags").at("open"), s.at("canOpen")), (one.s("id"), "Look for old dependencies", &json!(true), &json!(false), &json!(true), &json!(false)));

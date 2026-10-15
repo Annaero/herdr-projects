@@ -1,4 +1,4 @@
-//! Small tools the parts share: a link's escaping, a random id, quoting for a shell.
+//! Small tools the parts share: a link's escaping, a random id, quoting for a shell, versions compared.
 use std::io::Read;
 
 /// A text as one part of a link (JavaScript's encodeURIComponent).
@@ -82,3 +82,10 @@ macro_rules! re { ($s:expr) => {{ static R: std::sync::OnceLock<regex::Regex> = 
 pub fn env_set(k: &str) -> bool { std::env::var(k).map(|v| !v.is_empty()).unwrap_or(false) }
 /// Its value when it says something.
 pub fn env_val(k: &str) -> Option<String> { std::env::var(k).ok().filter(|v| !v.is_empty()) }
+fn parts(v: &str) -> Vec<u64> { v.trim_start_matches('v').split('.').map(|p| p.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse().unwrap_or(0)).collect() }
+/// Versions compared part by part as numbers (0.10.0 is newer than 0.9.1): true when `a` is newer than `b`.
+pub fn newer(a: &str, b: &str) -> bool {
+    let (x, y) = (parts(a), parts(b));
+    for i in 0..x.len().max(y.len()) { let (p, q) = (x.get(i).copied().unwrap_or(0), y.get(i).copied().unwrap_or(0)); if p != q { return p > q; } }
+    false
+}

@@ -13,7 +13,7 @@ fn tracked(dirs: &[&str]) -> Result<Vec<String>, String> {
 }
 /// The files the map is made of: the program's code, its page, its scripts, its release.
 pub fn sources() -> Result<Vec<String>, String> {
-    Ok(tracked(&["src", "bin", "scripts", "tests", ".github"])?.into_iter().filter(|f| [".rs", ".sh", ".js", ".css", ".yml"].iter().any(|e| f.ends_with(e))).collect())
+    Ok(tracked(&["src", "crates", "bin", "scripts", "tests", ".github"])?.into_iter().filter(|f| [".rs", ".sh", ".js", ".css", ".yml"].iter().any(|e| f.ends_with(e))).collect())
 }
 /// What a file holds: the first sentence of the comment at its top.
 pub fn holds(file: &str) -> Result<String, String> {
@@ -40,12 +40,13 @@ fn table(head: &[&str], rows: Vec<Vec<String>>) -> String {
 }
 fn dir_of(f: &str) -> String { std::path::Path::new(f).parent().map(|p| p.display().to_string()).unwrap_or_default() }
 fn base(f: &str) -> String { std::path::Path::new(f).file_name().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default() }
-/// The map. `under`: only the folders at or below this one ("src/board"), and then without the list of pages.
+/// The map. `under`: only the folders at or below this one ("crates/board/src/board"), and then without the list of
+/// pages.
 pub fn where_page(under: &str) -> Result<String, String> {
     let at = under.trim_start_matches("./").trim_end_matches('/').to_string();
     let files = sources()?;
     let mut dirs: Vec<String> = files.iter().map(|f| dir_of(f)).collect();
-    dirs.sort_by_key(|d| (!d.starts_with("src"), d.clone()));
+    dirs.sort_by_key(|d| (!d.starts_with("src") && !d.starts_with("crates"), d.clone()));
     dirs.dedup();
     dirs.retain(|d| at.is_empty() || *d == at || d.starts_with(&format!("{at}/")));
     let pages: Vec<String> = if at.is_empty() { tracked(&["docs"])?.into_iter().filter(|f| crate::re!(r"^docs/[^/]+\.md$").is_match(f) && f != WHERE).collect() } else { vec![] };

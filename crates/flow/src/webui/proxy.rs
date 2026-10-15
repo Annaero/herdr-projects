@@ -21,6 +21,8 @@ impl Head {
         s.into_bytes()
     }
 }
+/// The caller's own headers, as the web UI is asked with them who they are (door.rs) and what PCs it has (pcs.rs).
+pub fn caller_headers(h: &Head) -> Vec<(String, String)> { h.without(&["content-length", "content-type", "transfer-encoding", "expect", "connection", "upgrade", "accept-encoding", "if-none-match", "if-modified-since", "range"]) }
 fn find(hay: &[u8], needle: &[u8]) -> Option<usize> { hay.windows(needle.len()).position(|w| w == needle) }
 /// A message's head (request or answer) and whatever was read past it.
 pub fn read_head(s: &mut TcpStream, max: usize) -> Option<(Vec<u8>, Vec<u8>)> {

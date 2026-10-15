@@ -374,13 +374,9 @@ dependencies = [
  "libc",
  "ratatui",
  "regex",
- "serde",
  "serde_json",
- "sha1_smol",
+ "sw-web",
  "toml",
- "unicode-segmentation",
- "unicode-width",
- "yaml-rust2",
 ]
 
 [[package]]
@@ -969,6 +965,67 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "sw-board"
+version = "0.3.0"
+dependencies = [
+ "crossterm",
+ "libc",
+ "ratatui",
+ "regex",
+ "serde_json",
+ "sw-flow",
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "sw-core"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "crossterm",
+ "fancy-regex",
+ "libc",
+ "ratatui",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha1_smol",
+ "toml",
+ "unicode-segmentation",
+ "unicode-width",
+]
+
+[[package]]
+name = "sw-flow"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "libc",
+ "ratatui",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha1_smol",
+ "sw-core",
+ "toml",
+ "unicode-segmentation",
+ "yaml-rust2",
+]
+
+[[package]]
+name = "sw-web"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "libc",
+ "regex",
+ "serde_json",
+ "sha1_smol",
+ "sw-board",
+ "sw-flow",
 ]
 
 [[package]]

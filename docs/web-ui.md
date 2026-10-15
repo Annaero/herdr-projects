@@ -113,12 +113,13 @@ the dot of all the boards together.
 
 Under it, one entry per machine that has a board, drawn as an agent's entry is:
 
-- **This machine**, then **each other machine the board knows** (the ones its Other machines goes round, herdr's
-  saved machines or `board.machines`), in the order of the web UI's own PCs (one it has no PC for after them, in the
-  order of herdr's sidebar: [machine order](machine-order.md)), then **All machines** (also while this
-  machine is the only one: it then shows this machine's tasks, and stays picked). Each is named as the web UI names that machine (`Mac`, `elias-macbook-pro-m1`,
-  `vm-str`), matched to its PCs as below ([other machines](#other-machines)); one the web UI has no PC for keeps the
-  board's name for it, and a web UI that names this machine by no name of its own gives `This machine`.
+- **This machine**, then **each other machine the board knows** (the ones its Other machines goes round, herdr's saved
+  machines or `board.machines`), in the order of the web UI's own PCs (one it has no PC for after them, in the order of
+  herdr's sidebar: [machine order](machine-order.md)), then **All machines** (also while this machine is the only one:
+  it then shows this machine's tasks, and stays picked). Each is named as the web UI names that machine (`Mac`,
+  `elias-macbook-pro-m1`, `vm-str`), matched to its PCs as below ([other machines](#other-machines)); one the web UI has
+  no PC for keeps the board's name for it, and a web UI that names this machine by no name of its own gives `This
+  machine`.
 - **A dot in the board's status colours**, in the place where an agent's status stands: red when a task needs you,
   green when one is ready to approve, the working colour when work goes on (it breathes as the web UI's working dot
   does, where the web UI has that), the dim grey when all is quiet.
@@ -170,11 +171,11 @@ the web UI's own chat input, built again and measured against it: [the web board
 | find, the archive, grouping by repo, all done tasks, other machines | the search button, and **Show** in More…; what is on shows as a chip under the header |
 | going into a task's agent | **Open this task's agent**: the web UI's own view of that pane (chat, or the terminal when no agent is in it) |
 
-**The page speaks web and fits a thumb.** No terminal key is named on it (a task's settings point to **All settings** below
-them, not to `ctrl+e`; a setting that is the task's own says so in words, not with a star). There is one back
-arrow at a time: on a phone the open task's stands for the Board's. Nothing that is read is under 13 px, and
-everything that is tapped is 40 px high at least (the chat box's two send controls are the web UI's own sizes: 32
-and 34 px with a mouse, 40 px on touch). The header names the repo, with no folder path.
+**The page speaks web and fits a thumb.** No terminal key is named on it (a task's settings point to **All settings**
+below them, not to `ctrl+e`; a setting that is the task's own says so in words, not with a star). There is one back
+arrow at a time: on a phone the open task's stands for the Board's. Nothing that is read is under 13 px, and everything
+that is tapped is 40 px high at least (the chat box's two send controls are the web UI's own sizes: 32 and 34 px with a
+mouse, 40 px on touch). The header names the repo, with no folder path.
 
 Every [key](keys.md) of the board is a button or a menu entry, except the ones that belong to a terminal: closing
 the board's terminal, the `?` menu itself, the side panel and the full screen (the page scrolls, and shows the list
@@ -197,12 +198,12 @@ machine: the board says so instead of opening it.
 ## The same code decides
 
 The web board works nothing out again. On the server it *is* the terminal board, opened with no terminal
-(`src/webui/view.rs`, and the board as data for the page in `src/webui/model/`): the same list, selection, questions and actions. A button presses the board's own key; what
-is typed is sent as enter sends it. The row's mark, words and columns, the task panel's lines, the hint line and the
-`?` menu are drawn by the board's own code through a theme that names each colour instead of painting it, and the page
-gives each name a colour. So the two boards cannot disagree, and a change to the terminal board is a change to the web
-board. A key's button has a name of its own in the board's words there (`web` in `src/board/keys.rs`): "“Undo” brings
-it back".
+(`crates/web/src/webui/view.rs`, and the board as data for the page in `crates/web/src/webui/model/`): the same list,
+selection, questions and actions. A button presses the board's own key; what is typed is sent as enter sends it. The
+row's mark, words and columns, the task panel's lines, the hint line and the `?` menu are drawn by the board's own code
+through a theme that names each colour instead of painting it, and the page gives each name a colour. So the two boards
+cannot disagree, and a change to the terminal board is a change to the web board. A key's button has a name of its own
+in the board's words there (`web` in `crates/flow/src/board/keys.rs`): "“Undo” brings it back".
 
 ## Other machines
 
@@ -212,11 +213,10 @@ has herdr's saved machines ([other machines](other-machines.md)). The front door
 saved machine where the web UI names it, else by where they connect (the same host, port and herdr session, and the
 same user where both say one).
 
-- **Every machine, or one.** An entry of the sidebar's **Boards** section ([above](#the-boards-section)) shows
-  that machine's board, or all of them. `More` → **Other machines** goes round as `Alt+M` does on the terminal board: this
+- **Every machine, or one.** An entry of the sidebar's **Boards** section ([above](#the-boards-section)) shows that
+  machine's board, or all of them. `More` → **Other machines** goes round as `Alt+M` does on the terminal board: this
   machine, every machine, each one by itself. A chip says which, and takes you on. Every button works on another
-  machine's task as on the terminal board, and what you type while one machine shows goes to that machine's
-  Coordinator.
+  machine's task as on the terminal board, and what you type while one machine shows goes to that machine's Coordinator.
 - **It opens on the terminal board's choice.** A page shows whose board the terminal board shows (this machine,
   every machine, or one), so the two show the same tasks. A board picked on the web is the web's own and stays for
   the next page; picking the terminal board's choice again makes the web follow the terminal board again.
@@ -252,8 +252,8 @@ and on its other PCs. Three things made it unusable there and are handled by the
   four seconds. A view somebody is looking through now keeps the terminal, and the board is drawn for it.
 - **`Alt` keys and `Shift+Enter` work.** The web UI's terminal sends the old byte forms for them, and the board
   takes those too.
-- **A phone's input line** sends an Enter of its own behind what you type. While a view of the pane is open, behind `?`, `y`, `n` or space that Enter
-  is dropped, so `?` opens the menu and leaves it open.
+- **A phone's input line** sends an Enter of its own behind what you type. While a view of the pane is open, behind `?`,
+  `y`, `n` or space that Enter is dropped, so `?` opens the menu and leaves it open.
 
 | The key | In a desktop browser | On a phone |
 |---|---|---|
@@ -273,13 +273,13 @@ inside the agent. The web Board's **Open this task's agent** is the way that wor
 - **It updates itself**: nothing to do. The front door changes none of its files.
 - **It was redesigned and the sidebar's foot is gone**: a small floating **Board** button shows instead of the
   Boards section, and says once why. The board itself is unchanged.
-- **It gets an add-on slot of its own**: the front door can go. Until then, check these on a new version of the web
-  UI: the sidebar foot (`.sidebar-footer`), the Agents section's classes the Boards section is built of
-  (`AgentSidebar.tsx` and `.css` there: `agent-section-toggle`, `agent-section-caret`, `agent-list-contents`,
-  `agent-item`, `agent-row`, `agent-copy`, `agent-title`, `agent-context`), the drawer's scrim (`.scrim.is-open`), its address parameters `ws`,
-  `pane` and `view` (`src/lib/deepLink.ts`), `/api/health?scope=bridge` saying who asks, and that `/superwork/` is
-  still free, what `/api/access` says about its link (`server/tailscale.ts`), `/api/machines` naming each PC's
-  `id`, `kind`, `target` and `state`, and its `machine` address parameter.
+- **It gets an add-on slot of its own**: the front door can go. Until then, check these on a new version of the web UI:
+  the sidebar foot (`.sidebar-footer`), the Agents section's classes the Boards section is built of (`AgentSidebar.tsx`
+  and `.css` there: `agent-section-toggle`, `agent-section-caret`, `agent-list-contents`, `agent-item`, `agent-row`,
+  `agent-copy`, `agent-title`, `agent-context`), the drawer's scrim (`.scrim.is-open`), its address parameters `ws`,
+  `pane` and `view` (`src/lib/deepLink.ts`), `/api/health?scope=bridge` saying who asks, and that `/superwork/` is still
+  free, what `/api/access` says about its link (`server/tailscale.ts`), `/api/machines` naming each PC's `id`, `kind`,
+  `target` and `state`, and its `machine` address parameter.
 - **It changes its chat input**: the Board's box is measured against it again, with one command
   ([the web board's chat box](web-chat-box.md)).
 

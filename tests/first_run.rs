@@ -1,5 +1,5 @@
-//! The first run of this version on data an older (Node) version wrote (src/store/old_copy.rs): one copy of the data
-//! folder as it was, beside it, made once, and its one line for the human. In a scratch HERDR_SUPERWORK_HOME.
+//! The first run of this version on data an older (Node) version wrote (crates/core/src/store/old_copy.rs): one copy of
+//! the data folder as it was, beside it, made once, and its one line for the human. In a scratch HERDR_SUPERWORK_HOME.
 use std::path::{Path, PathBuf};
 use std::sync::MutexGuard;
 use sw::store::old_copy::*;

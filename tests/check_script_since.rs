@@ -11,7 +11,7 @@ impl Repo {
         let _ = std::fs::remove_dir_all(&dir);
         let mut r = Repo { dir, first: String::new() };
         for f in ["tests/main.rs", "tests/sync.rs", "tests/sync_conflict.rs", "tests/board_keys.rs", "tests/web_board.rs", "tests/guard.rs", "tests/common/mod.rs",
-            "tests/far/mod.rs", "src/lib.rs", "src/sync/conflict.rs", "src/finish/wrapup.rs", "src/board/keys.rs", "src/board/view/panel/mod.rs", "docs/keys.md", "Cargo.toml"] { r.write(f, "x\n"); }
+            "tests/far/mod.rs", "src/lib.rs", "crates/flow/src/lib.rs", "crates/flow/src/sync/conflict.rs", "crates/flow/src/finish/wrapup.rs", "crates/flow/src/board/keys.rs", "crates/board/src/board/view/panel/mod.rs", "docs/keys.md", "Cargo.toml"] { r.write(f, "x\n"); }
         r.write("tests/web_board.rs", "use crate::far;\nuse sw::finish::wrapup;\n");
         r.write("tests/guard.rs", "// reads docs/keys.md\n");
         std::fs::create_dir_all(r.dir.join("scripts")).unwrap();
@@ -43,20 +43,21 @@ fn real_programs_the_shorter_check_picks_the_test_files_a_change_reaches_and_all
     let r = Repo::new();
     assert_eq!(r.pick(&r.first).0, "", "nothing changed: no test file");
     // by the file's name and its folder's; by its module's path; a test file itself, new or changed; a shared module by its users
-    assert_eq!(r.alone("src/sync/conflict.rs").0, "sync sync_conflict");
-    assert_eq!(r.alone("src/board/keys.rs").0, "board_keys web_board");
-    assert_eq!(r.alone("src/finish/wrapup.rs").0, "web_board");
+    assert_eq!(r.alone("crates/flow/src/sync/conflict.rs").0, "sync sync_conflict");
+    assert_eq!(r.alone("crates/flow/src/board/keys.rs").0, "board_keys web_board");
+    assert_eq!(r.alone("crates/flow/src/finish/wrapup.rs").0, "web_board");
     assert_eq!(r.alone("tests/board_keys.rs").0, "board_keys");
     assert_eq!(r.alone("tests/new_one.rs").0, "new_one");
     assert_eq!(r.alone("tests/far/mod.rs").0, "web_board");
     assert_eq!(r.alone("docs/keys.md").0, "guard");
     // committed or not, all of it since the commit counts
-    r.write("src/board/keys.rs", "a\n"); r.git(&["commit", "-qam", "keys"]); r.write("tests/sync.rs", "b\n");
+    r.write("crates/flow/src/board/keys.rs", "a\n"); r.git(&["commit", "-qam", "keys"]); r.write("tests/sync.rs", "b\n");
     assert_eq!(r.pick(&r.first).0, "board_keys sync web_board");
     r.git(&["reset", "-q", "--hard", &r.first]);
     // what it cannot tell: all, and why
     for (f, why) in [("tests/common/mod.rs", "tests/common/mod.rs is shared by every test."), ("src/lib.rs", "src/lib.rs holds the whole program."),
-        ("src/board/view/panel/mod.rs", "no test file is named by src/board/view/panel/mod.rs or writes its path."), ("Cargo.toml", "Cargo.toml is not a test, the program or a page: what it reaches is not known.")] {
+        ("crates/flow/src/lib.rs", "crates/flow/src/lib.rs is the root of a crate (docs/crates.md): it names all of that crate's code."),
+        ("crates/board/src/board/view/panel/mod.rs", "no test file is named by crates/board/src/board/view/panel/mod.rs or writes its path."), ("Cargo.toml", "Cargo.toml is not a test, the program or a page: what it reaches is not known.")] {
         assert_eq!(r.alone(f), ("all".to_string(), format!("Every test runs: {why}")), "{f}");
     }
     assert_eq!(r.pick("").0, "all");

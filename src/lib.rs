@@ -1,50 +1,9 @@
 //! herdr-superwork: a work board for herdr, one native program. The board's screen (board/), its command line (cli/),
 //! the keeper that runs the flow of a task, other machines, and the web Board.
 //! `herdr-superwork docs --where` prints which file holds what, from the comment at the top of each file.
-pub mod actions;
-pub mod after;
-pub mod agents;
-pub mod attempts;
-pub mod automations;
-pub mod board;
-pub mod board_rule;
-pub mod check_progress;
+//! This crate is the command line and the made pages, on the crates below it (sw-web, sw-board, sw-flow, sw-core),
+//! whose modules it passes on as its own: everything is `sw::…`, as before the split (docs/crates.md).
+pub use sw_web::*;
+
 pub mod cli;
-pub mod clock;
-pub mod coordinator;
-pub mod delegate;
 pub mod docs;
-pub mod err;
-pub mod extras;
-pub mod finish;
-pub mod flow;
-pub mod gate;
-pub mod herdr;
-pub mod hook;
-pub mod housekeeping;
-pub mod http;
-pub mod install;
-pub mod jobs;
-pub mod json;
-pub mod keeper;
-pub mod land;
-pub mod limits;
-pub mod login_env;
-pub mod notify;
-pub mod plan;
-pub mod remote;
-pub mod research;
-pub mod review_page;
-pub mod runner;
-pub mod shown;
-pub mod state;
-pub mod status_kept;
-pub mod status_words;
-pub mod store;
-pub mod submit;
-pub mod sync;
-pub mod text;
-pub mod turn;
-pub mod util;
-pub mod watcher;
-pub mod webui;

@@ -1,19 +1,20 @@
-//! Dictation in the web board's chat box (src/webui/page/voice.js, voice.css), read as text: the web UI's mic in the
-//! lower left (tap, or hold and let go, or its shortcut held), its pill with Cancel and Done, Escape that cancels, the
-//! words at the caret with a tidied version only over its own unchanged words, the web UI's engines (its server through
-//! the front door, else the browser's) and its Settings → Voice input, and the limits.
-const VOICE: &str = include_str!("../src/webui/page/voice.js");
-const CSS: &str = include_str!("../src/webui/page/voice.css");
-const COMPOSE: &str = include_str!("../src/webui/page/compose.js");
-const CHAT: &str = include_str!("../src/webui/page/chat.js");
-const START: &str = include_str!("../src/webui/page/start.js");
+//! Dictation in the web board's chat box (crates/web/src/webui/page/voice.js, voice.css), read as text: the web UI's
+//! mic in the lower left (tap, or hold and let go, or its shortcut held), its pill with Cancel and Done, Escape that
+//! cancels, the words at the caret with a tidied version only over its own unchanged words, the web UI's engines (its
+//! server through the front door, else the browser's) and its Settings → Voice input, and the limits.
+const VOICE: &str = include_str!("../crates/web/src/webui/page/voice.js");
+const CSS: &str = include_str!("../crates/web/src/webui/page/voice.css");
+const COMPOSE: &str = include_str!("../crates/web/src/webui/page/compose.js");
+const CHAT: &str = include_str!("../crates/web/src/webui/page/chat.js");
+const START: &str = include_str!("../crates/web/src/webui/page/start.js");
 const DOC: &str = include_str!("../docs/web-chat-box.md");
 
 #[test]
 fn the_mic_is_the_web_uis_tapped_held_or_its_shortcut_with_its_pill_and_escape_that_cancels() {
     assert!(VOICE.contains(r#"h("button.sw-mic", { type: "button", "aria-label": "Dictate (hold)", title: "Dictate (hold)", "aria-pressed": "false" }, icon("mic"))"#));
     assert!(COMPOSE.contains("files.input, files.add, voice.el, to)") && COMPOSE.contains("note, voice.pill, card)"));
-    // a press starts (or finishes); held this long, letting go finishes; the click after a release is not a second press
+    // a press starts (or finishes); held this long, letting go finishes; the click after a release is not a second
+    // press
     assert!(VOICE.contains("const HOLD_MS = 300, MAX_SECONDS = 120, MAX_BYTES = 10 * 1024 * 1024"));
     assert!(VOICE.contains("if (at != null && performance.now() - at >= HOLD_MS) finish();") && VOICE.contains(r#"mic.addEventListener("click", () => { if (performance.now() - upAt > 500) press(); });"#));
     assert!(VOICE.contains("export const isShortcut = (e) => mod(e) && e.shiftKey && !e.altKey && (e.code === \"Space\" || e.key === \" \");"));
@@ -26,7 +27,8 @@ fn the_mic_is_the_web_uis_tapped_held_or_its_shortcut_with_its_pill_and_escape_t
 
 #[test]
 fn the_words_go_in_at_the_caret_by_the_web_uis_engines_and_settings_and_a_watcher_dictates_nothing() {
-    // at the caret, one space against a word; too long for the box: refused whole; the tidied version over its own words only
+    // at the caret, one space against a word; too long for the box: refused whole; the tidied version over its own
+    // words only
     assert!(VOICE.contains(r#"const lead = before && !/\s$/.test(before) ? " " : "", trail = after && !/^\s/.test(after) ? " " : "";"#));
     assert!(VOICE.contains(r#"if (n.value.length > LONGEST) return say("The dictation does not fit in the box");"#));
     assert!(VOICE.contains("if (!s || a !== b || v.slice(s.start, s.end) !== s.text || r.text === s.text) return;"));
@@ -43,12 +45,13 @@ fn the_words_go_in_at_the_caret_by_the_web_uis_engines_and_settings_and_a_watche
 
 #[test]
 fn closing_the_board_stops_dictation_lets_the_microphone_go_and_leaves_the_kept_draft_alone() {
-    const BOARD: &str = include_str!("../src/webui/page/board.js");
+    const BOARD: &str = include_str!("../crates/web/src/webui/page/board.js");
     assert!(BOARD.contains("chat?.destroy(); chat = null;"), "closing the board lets its box go");
     assert!(CHAT.contains("destroy() { closed = true; destroy(); },") && CHAT.contains("onInput: () => { if (closed) return; sync(); keep(box.value, to); }"));
     assert!(CHAT.contains("if (closed) return; // the board closed while it was on its way"));
     assert!(COMPOSE.contains("const destroy = () => { window.removeEventListener?.(\"resize\", fit); voice.destroy(); };"));
-    // dictation: cancelled (the microphone's tracks stopped, a transcript on its way aborted), every page listener let go
+    // dictation: cancelled (the microphone's tracks stopped, a transcript on its way aborted), every page listener let
+    // go
     assert!(VOICE.contains("destroy: () => { cancel(); dead = true; for (const off of offs.splice(0)) off(); } };"));
     assert!(VOICE.contains("    if (dead) return;\n") && !VOICE.contains("window.addEventListener(") && !VOICE.contains("document.addEventListener("));
 }

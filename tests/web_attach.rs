@@ -9,11 +9,11 @@ use common::*;
 use serde_json::{json, Value};
 use sw::json::*;
 
-const FILES: &str = include_str!("../src/webui/page/files.js");
-const FILES_CSS: &str = include_str!("../src/webui/page/files.css");
-const COMPOSE: &str = include_str!("../src/webui/page/compose.js");
-const CHAT: &str = include_str!("../src/webui/page/chat.js");
-const START: &str = include_str!("../src/webui/page/start.js");
+const FILES: &str = include_str!("../crates/web/src/webui/page/files.js");
+const FILES_CSS: &str = include_str!("../crates/web/src/webui/page/files.css");
+const COMPOSE: &str = include_str!("../crates/web/src/webui/page/compose.js");
+const CHAT: &str = include_str!("../crates/web/src/webui/page/chat.js");
+const START: &str = include_str!("../crates/web/src/webui/page/start.js");
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\nnot really a picture";
 fn file(name: &str, kind: &str, bytes: &[u8], to: Value) -> Value { json!({ "name": name, "type": kind, "data": sw::util::base64(bytes), "to": to }) }

@@ -115,7 +115,7 @@ the board reads that key itself, from herdr's `config.toml`: herdr's prefix key 
 Restarting the Coordinator, starting a new one and going into its whole chat are not on the board: see
 [the Coordinator](coordinator.md).
 
-<!-- made:keys Made by `herdr-superwork docs` from src/board/keys.rs. Do not edit between these two lines. -->
+<!-- made:keys Made by `herdr-superwork docs` from crates/flow/src/board/keys.rs. Do not edit between these two lines. -->
 **Plain keys**
 
 | Key | Does |

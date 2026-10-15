@@ -212,7 +212,7 @@ fn real_programs_the_page_servers_front_door_is_up_while_there_is_a_web_ui_on_th
     // the port it had (here a free one: the first one it would ask for may be a real board's)
     let free = { let l = TcpListener::bind("127.0.0.1:0").unwrap(); l.local_addr().unwrap().port() };
     sw::store::files::write_json(&sw::webui::keep::door_file(), &json!({ "port": free })).unwrap();
-    sw::webui::keep::run_door();
+    sw::webui::door_loop::run_door();
     let mut info = None;
     for _ in 0..500 { info = sw::webui::keep::door_info(); if info.is_some() { break; } std::thread::sleep(std::time::Duration::from_millis(10)); }
     env("HERDR_SUPERWORK_INLINE", Some("1")); env("HERDR_SUPERWORK_NO_SERVER", Some("1"));

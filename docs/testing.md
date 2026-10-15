@@ -1,9 +1,9 @@
 # Tests
 
-A fake herdr and scripted fake agents: no model calls, no real board, no real herdr. The tests are in `tests/`, one
-file per area, with what they share in `tests/common/`, all of them one test program (`tests/main.rs`, below); small
-tests of one function sit beside it in `src/`
-(`#[cfg(test)]`). What to run, and when, is in [AGENTS.md](../AGENTS.md); this page says how the command works and why.
+A fake herdr and scripted fake agents: no model calls, no real board, no real herdr. The tests are in `tests/`, one file
+per area, with what they share in `tests/common/`, all of them one test program (`tests/main.rs`, below); small tests of
+one function sit beside it in the code (`#[cfg(test)]`, in `src/` and `crates/`). What to run, and when, is in
+[AGENTS.md](../AGENTS.md); this page says how the command works and why.
 
 ## One command
 
@@ -22,7 +22,7 @@ Everything that runs tests uses the same command: you, an agent at work, the rev
 A name is first an area: `board-panel` (or `board_panel`) runs `tests/board_panel.rs` and every
 `tests/board_panel_*.rs`, exactly those (not `web_board_panel.rs`). A name that is no area is matched against each
 test's own name, as `cargo test` matches it: a test in `tests/` is named by its file and its function
-(`board_hints::the_hint_line_names_the_task_once_…`), and one in `src/` by its module path.
+(`board_hints::the_hint_line_names_the_task_once_…`), and one beside the code by its module path.
 `npm run check textbox` runs the tests that say `textbox`, wherever they are. A word that matches no test runs none,
 and passes.
 
@@ -36,7 +36,7 @@ It does four things, in this order, and stops at the first that fails:
    settings in `docs/settings.md`, and the map in your own folder. It says which it wrote: commit the tables.
 3. **Checks the repo's own rules** (`herdr-superwork docs --guard`, which `tests/guard.rs` runs too): no source file
    past 300 lines, every source file starts with a comment that says what it holds, a key's chord written only in
-   `src/board/keys.rs`, and no made table out of date.
+   `crates/flow/src/board/keys.rs`, and no made table out of date.
 4. **Runs the tests**, with the names you gave, in several processes at once (`scripts/run-tests.sh`, below).
 
 It compiles through the build cache every worktree shares, and takes this task's share of the cores, not all of them
@@ -65,8 +65,8 @@ On a later round of a task (a review or a failed check sent it back), the board 
 [`.herdr-superwork.json`](../.herdr-superwork.json), and when the board does so in
 [shorter checks on fix rounds](shorter-checks.md). The commit is the one the whole check last passed on.
 
-It builds, writes the made tables and checks the rules as the whole check does, then runs every test in `src/` (and
-the doc tests) and the test files the change since that commit reaches: committed since, not committed yet, and new
+It builds, writes the made tables and checks the rules as the whole check does, then runs every test beside the code
+(and the doc tests) and the test files the change since that commit reaches: committed since, not committed yet, and new
 files. `scripts/changed-tests.sh <commit>` picks them, for each file changed:
 
 | Changed | The test files it reaches |
@@ -74,13 +74,13 @@ files. `scripts/changed-tests.sh <commit>` picks them, for each file changed:
 | a test file (`tests/sync.rs`) | that file |
 | a module the files share (`tests/far/`) | the files that use it (`crate::far`) |
 | a kept frame (`tests/frames/`) | `board_frames` |
-| a file of the program (`src/sync/conflict.rs`) | those whose names hold its name or its folder's as a word (`sync_conflict`, `sync`, `sync_behind`), and those that write its module's path (`sync::conflict`); a `mod.rs` goes by its folder |
+| a file of the program (`crates/flow/src/sync/conflict.rs`) | those whose names hold its name or its folder's as a word (`sync_conflict`, `sync`, `sync_behind`), and those that write its module's path (`sync::conflict`); a `mod.rs` goes by its folder |
 | a page (`docs/keys.md`, `README.md`) | those that write its name, and `guard` |
 
 It cannot tell, and every test runs, for `tests/main.rs`, `tests/common/` and `tests/fixtures/` (every test uses
-them), `src/lib.rs` and `src/main.rs`, a file of the program that no test file is named by or writes the path of,
-any other file (`Cargo.toml`, `scripts/`, `.github/`), a commit that is not on the branch, and a change that reaches
-every test file anyway. It says why (`Every test runs: …`).
+them), `src/lib.rs`, `src/main.rs` and the crates' root files (`src/sw_*.rs`), a file of the program that no test
+file is named by or writes the path of, any other file (`Cargo.toml`, `crates/`, `scripts/`, `.github/`), a commit
+that is not on the branch, and a change that reaches every test file anyway. It says why (`Every test runs: …`).
 
 This picks by names, not by what the tests really run: a change can break a test it did not pick. That is why the
 board runs it only where GitHub runs the whole check on the pull request before anything merges. A shorter check
@@ -150,18 +150,19 @@ own as the next one's start. Measured on a 16-core machine with ten agents at on
 worktree's setup took 37 seconds before, a little over one now; the first worktree after the main line moved on
 builds the program again from the compiler's notes, about 15 seconds, and keeps that build for the ones after it.
 
-The builds kept are in `~/.cache/herdr-superwork/warm/<repo>/`, one folder each and `current` naming the newest: a
-new one is made beside the old and then named, so worktrees set up at the same moment each copy a whole build, and
-an old one goes 30 minutes after it stopped being current. The copy is a clone where the file system can (APFS,
-Btrfs, XFS: no extra space), a plain copy elsewhere (ext4: about 500 MB a build kept); never hard links, as cargo
-writes into some of its files in place. Cargo judges what is out of date by when files changed, and every file of a
-fresh worktree is new: the files whose content is the kept build's commit's get an old time, so cargo takes them as
-built, and the rest (changed on the main line since, or in the folder) keep theirs and are built again. Cargo also
-takes as built what has the folder it was built in written into it (`env!("CARGO_MANIFEST_DIR")`), which here would
-be another worktree: the copy builds such a part again, and the program finds its own repo when it runs
-(`docs::root`), not when it is built. A build by another compiler is not copied, nor one grown past 2 GB (cargo never removes the
-libraries of older versions): that worktree builds from nothing and its build is kept instead.
-`HERDR_SUPERWORK_NO_WARM=1` turns it off.
+The builds kept are in `~/.cache/herdr-superwork/warm/<repo>/`, one folder each and `current` naming the newest: a new
+one is made beside the old and then named, so worktrees set up at the same moment each copy a whole build, and an old
+one goes 30 minutes after it stopped being current. The copy is a clone where the file system can (APFS, Btrfs, XFS: no
+extra space), a plain copy elsewhere (ext4: about 500 MB a build kept); never hard links, as cargo writes into some of
+its files in place. Cargo judges what is out of date by when files changed, and every file of a fresh worktree is new:
+the files whose content is the kept build's commit's get an old time, so cargo takes them as built, and the rest
+(changed on the main line since, or in the folder) keep theirs and are built again. Cargo also takes as built what has
+the folder it was built in written into it (`env!("CARGO_MANIFEST_DIR")`), which here would be another worktree: the
+copy builds such a part again, and the program finds its own repo when it runs (`docs::root`), not when it is built. The
+program is several crates ([crates](crates.md)), each with its code in its own folder, so cargo names that code from the
+crate's folder: a crate none of whose files changed since the kept build is taken as built whole. A build by another
+compiler is not copied, nor one grown past 2 GB (cargo never removes the libraries of older versions): that worktree
+builds from nothing and its build is kept instead. `HERDR_SUPERWORK_NO_WARM=1` turns it off.
 
 ### Its share of the cores
 

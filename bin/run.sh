@@ -20,7 +20,7 @@ fetch_only=""; [ "$1" = "--fetch" ] && { fetch_only=1; shift; }
 run() { [ -n "$fetch_only" ] && exit 0; exec "$@"; }
 
 built="$root/target/release/herdr-superwork"
-fresh() { [ -x "$built" ] && [ -z "$(find "$root/src" "$root/Cargo.toml" "$root/Cargo.lock" -newer "$built" 2>/dev/null | head -n 1)" ]; }
+fresh() { [ -x "$built" ] && [ -z "$(find "$root/src" "$root/crates" "$root/Cargo.toml" "$root/Cargo.lock" -newer "$built" 2>/dev/null | head -n 1)" ]; }
 fresh && run "$built" "$@"
 
 want=$(sed -n 's/^version *= *"\([^"]*\)".*/\1/p' "$root/Cargo.toml" 2>/dev/null | head -n 1)

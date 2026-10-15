@@ -1,11 +1,12 @@
 # The board: the list and the chat
 
-**The header says where you are**, on one line: whose tasks show, then how many stand in each group
-(`herdr-superwork  proj · 3 need you · 1 ready · 2 working · 12 to do · 30 done`). With other machines in view
-that comes first, in the accent colour, and is never cut (names too long for the line go on to the next one, whole): `all machines: otherbox`, or `only otherbox`
-([other machines](other-machines.md)); otherwise it is the repo new tasks go to. There is no folder path on it. A
-filter has a line of its own under it, in the accent colour, which says what it is, how many tasks match and the key
-that clears it: `filter "import" · 1 of 33 · esc clears`; with nothing found the list says `Nothing matches "zzz".`
+**The header says where you are**, on one line: whose tasks show, then how many stand in each group (`herdr-superwork
+proj · 3 need you · 1 ready · 2 working · 12 to do · 30 done`). With other machines in view that comes first, in the
+accent colour, and is never cut (names too long for the line go on to the next one, whole): `all machines: otherbox`, or
+`only otherbox` ([other machines](other-machines.md)); otherwise it is the repo new tasks go to. There is no folder path
+on it. A filter has a line of its own under it, in the accent colour, which says what it is, how many tasks match and
+the key that clears it: `filter "import" · 1 of 33 · esc clears`; with nothing found the list says `Nothing matches
+"zzz".`
 
 **The list.** Under the header, the tasks in five groups, in the order they need you:
 
@@ -118,12 +119,12 @@ A task that waits for you is not one that failed, so its mark is never a cross. 
 | `!` | you, and the board cannot tell for what (the kind is not known) | `needs you` |
 | `✗` | nothing of these: it went wrong | `needs you` |
 
-All of them are under `needs you` and in its colour, red; with colour off (`NO_COLOR`) the mark alone tells a task
-that waits from one that went wrong. Finished work that passed and waits for your yes is none of these: its mark is
-`◆`, in green, under `ready to approve` (an exclamation mark there would read as "something is wrong", and nothing
-is). Every mark is a character every monospace font has; the web board draws the same ones. The words for where a
-task stands are one list (`src/status_words.rs`), which the rows, the State line, herdr's sidebar and the web page all
-read. The records the board writes to the terminal carry no mark: they name the state and the kind
+All of them are under `needs you` and in its colour, red; with colour off (`NO_COLOR`) the mark alone tells a task that
+waits from one that went wrong. Finished work that passed and waits for your yes is none of these: its mark is `◆`, in
+green, under `ready to approve` (an exclamation mark there would read as "something is wrong", and nothing is). Every
+mark is a character every monospace font has; the web board draws the same ones. The words for where a task stands are
+one list (`crates/core/src/status_words.rs`), which the rows, the State line, herdr's sidebar and the web page all read.
+The records the board writes to the terminal carry no mark: they name the state and the kind
 (`state=blocked:kind=question`) and the terminal draws its own.
 
 A row reads: the task's tag, greyed (`HSW-134`, its repo's short key and its number:
@@ -146,23 +147,24 @@ left), and then the review, the pull request and the time:
 ```
 
 **The spacing is one rule: one cell between two things, and one wider gap of two cells on a row, right of the
-progress.** So the wider gap says where the progress ends, and no other gap competes with it. Each thing is a column down the whole list, as
-wide as its widest value in view and no wider (the percent three cells at least, `45%`, so it does not move when
-`9%` turns `10%`). The numbers end under each other, so the only other blank cells are those before a shorter one:
-`5m` under `12m`, `R#1` under `R#12`. A pull request starts under the others, and a column a row has nothing for is
-left blank. The last line of a row on a narrow screen (below) follows the same rule.
+progress.** So the wider gap says where the progress ends, and no other gap competes with it. Each thing is a column
+down the whole list, as wide as its widest value in view and no wider (the percent three cells at least, `45%`, so it
+does not move when `9%` turns `10%`). The numbers end under each other, so the only other blank cells are those before a
+shorter one: `5m` under `12m`, `R#1` under `R#12`. A pull request starts under the others, and a column a row has
+nothing for is left blank. The last line of a row on a narrow screen (below) follows the same rule.
 
 **A live task's row is two lines.** Live is every task under `needs you`, `ready to approve` and `working`: an agent,
 the reviewer or the board's own check is on it, or it waits for you. The first line is the mark, the name and the
-columns. The second is what the task says, greyed, under the name and starting where the name starts: what it is
-doing now, how its review came out with a short tally of what it found (`Pass · 2 minor`, `Review failed · 1
-critical, 1 major`, the result in its own colour), or what it waits for. While the reviewer works, it says only what
-the reviewer is doing. It is in the brighter of the board's two greys, herdr's `subtext0`, because it has to be read
-(the fainter one, `overlay0`, is for what may be missed: times, counts, tags); what a task asks of you is in the plain
-text colour. The minutes left say what they are (`25h left`); the time after them is how long the task has worked,
-or how long ago it stopped. In the all-machines view the machine is the heading above its tasks, never in a row
-([list headings](list-headings.md)), so the second line starts under the task's name as everywhere. That line has the row's whole width, so it is rarely cut; one longer than the window is cut at its end with
-`…`, never wrapped (on a narrow screen it wraps: below).
+columns. The second is what the task says, greyed, under the name and starting where the name starts: what it is doing
+now, how its review came out with a short tally of what it found (`Pass · 2 minor`, `Review failed · 1 critical, 1
+major`, the result in its own colour), or what it waits for. While the reviewer works, it says only what the reviewer is
+doing. It is in the brighter of the board's two greys, herdr's `subtext0`, because it has to be read (the fainter one,
+`overlay0`, is for what may be missed: times, counts, tags); what a task asks of you is in the plain text colour. The
+minutes left say what they are (`25h left`); the time after them is how long the task has worked, or how long ago it
+stopped. In the all-machines view the machine is the heading above its tasks, never in a row ([list
+headings](list-headings.md)), so the second line starts under the task's name as everywhere. That line has the row's
+whole width, so it is rarely cut; one longer than the window is cut at its end with `…`, never wrapped (on a narrow
+screen it wraps: below).
 
 A done or to-do task has nothing to say and keeps one line, so that many of them show at once. (A to-do task that
 carries a note says it after its name, on that one line.)
@@ -192,12 +194,11 @@ columns they have a line of their own, the last of the row:
 
 - **Line 1** is the mark and the name, with the whole width.
 - **Line 2** is what the task says, as on a wide screen.
-- **The last line** is, in this order, the bar, the percent, the minutes left, the `R#` tag, the pull request and the time,
-  in their usual colours. It starts where the title starts (right of the mark and of the tasks' numbers, so a row
-  has one left edge) and ends at the right edge. Each of them is as wide as the widest
-  of its kind on the list, so they start under each other on every live row, and the bar takes all the room that is
-  left: every bar is the same length, and the line fills the width. The time ends at the edge with the word `ago`
-  or without it.
+- **The last line** is, in this order, the bar, the percent, the minutes left, the `R#` tag, the pull request and the
+  time, in their usual colours. It starts where the title starts (right of the mark and of the tasks' numbers, so a row
+  has one left edge) and ends at the right edge. Each of them is as wide as the widest of its kind on the list, so they
+  start under each other on every live row, and the bar takes all the room that is left: every bar is the same length,
+  and the line fills the width. The time ends at the edge with the word `ago` or without it.
 - A task with nothing for that line but a time (no progress, no review, no pull request) has no such line: its time
   stands at the end of what it says, and the row is two lines. A screen of rows that need you is not half made of
   lines that hold one right-aligned time.
@@ -237,23 +238,23 @@ there with `…` often does not say which task it is. So under 80 columns:
 
 From 80 columns on, nothing wraps and every row is as it was.
 
-**Where it switches: 80 columns of screen.** At 80 a name of 40 cells (what a name keeps before a column goes,
-below) sits beside every column at its widest: the mark (3), the name (40), the bar (8), the percent (4, `100%`), the
-minutes left (4), `R#12` (4), `PR#123` (6), the time (3) and the gaps between them (8). Narrower than that, line 1 always
-goes without something, so the columns move down; from 80 on the row is the two lines it was, and nothing changes.
-It is the screen's width that is counted, never the names or the numbers on it: all live rows switch together, and
-no row gets or loses that line when a task is renamed or gets a pull request. And it is the whole screen, not the list: a
-list made narrow by the task panel beside it, on a wide screen, keeps two-line rows (the panel shows the rest).
+**Where it switches: 80 columns of screen.** At 80 a name of 40 cells (what a name keeps before a column goes, below)
+sits beside every column at its widest: the mark (3), the name (40), the bar (8), the percent (4, `100%`), the minutes
+left (4), `R#12` (4), `PR#123` (6), the time (3) and the gaps between them (8). Narrower than that, line 1 always goes
+without something, so the columns move down; from 80 on the row is the two lines it was, and nothing changes. It is the
+screen's width that is counted, never the names or the numbers on it: all live rows switch together, and no row gets or
+loses that line when a task is renamed or gets a pull request. And it is the whole screen, not the list: a list made
+narrow by the task panel beside it, on a wide screen, keeps two-line rows (the panel shows the rest).
 
 In a width too small even for that line (under 38 columns with every column there) things go in this order:
 the word `ago`, the bar, the `R#` tag with the pull request, the percent with the minutes left. The time stays.
 
 **A list taller than the window.** The done rows give way first: the list shows the latest five of them, and when it
-still does not fit, one fewer for each line it is short, down to the newest one (the line under them says how many
-more there are, and `?` has the key that shows all of them). Then the to-dos, from the last one up, down to the
-first, with a line under them that counts the rest (`… 4 more to do`). So the live tasks, which are the ones that
-need your eye, stay on the screen, also on a phone where each takes three lines to five. The task you have selected is never
-folded away, and nothing is while you search or have asked for all done.
+still does not fit, one fewer for each line it is short, down to the newest one (the line under them says how many more
+there are, and `?` has the key that shows all of them). Then the to-dos, from the last one up, down to the first, with a
+line under them that counts the rest (`… 4 more to do`). So the live tasks, which are the ones that need your eye, stay
+on the screen, also on a phone where each takes three lines to five. The task you have selected is never folded away,
+and nothing is while you search or have asked for all done.
 
 A to-do that gave way is still one `↓` away: the arrow keys go through every to-do, and the ones that show are then
 the ones that end at the selected task. To-dos give way only on a list that has live tasks: with none there is
@@ -289,9 +290,9 @@ blue at all (a green, a purple, a grey), is not used,
 and where the board's blue is too near one of your colours it takes another blue that is not. With the terminal's own
 colours it is the terminal's blue.
 
-**A task that waits for a free slot.** At most `board.agents` agents work at once. A task started while every slot is taken waits its turn: its row has the
-mark `◌` in pink, says `Waiting for a free slot` on its second line, and has its place in the queue where a task at
-work has its percent: `Q#1` gets the next free slot, `Q#2` the one after.
+**A task that waits for a free slot.** At most `board.agents` agents work at once. A task started while every slot is
+taken waits its turn: its row has the mark `◌` in pink, says `Waiting for a free slot` on its second line, and has its
+place in the queue where a task at work has its percent: `Q#1` gets the next free slot, `Q#2` the one after.
 
 ```
  working
@@ -316,17 +317,16 @@ work has its percent: `Q#1` gets the next free slot, `Q#2` the one after.
 - A narrow board keeps it too: there `Q#2` stands with the time at the end of the row's second line, so a waiting
   task's row is two lines, not three.
 
-`R#2` is the review the task is on, or the last one it had. It belongs to the pull request, not to the progress: it
-sits one cell left of the `PR#`, and the tags end under each other down the list. Its colour says how that review
-went, and it has no mark beside it: green, it passed; red, it failed, and it stays so while the agent fixes what
-the review found; blue, the reviewer is on it right now, whatever the review before it said. The three are told apart
-in the light themes and the dark ones alike. A review from before the gate goes by its advice. Once the task is
-merged (through its pull request, or here on this machine with none) the tag goes quiet, the same grey as its merged `PR#` tag: nearly every done task passed its review, and a
-column of green says nothing. One stays red: a task merged although its last review failed (you approved it anyway),
-the only one worth noticing later. The task panel and the details page do the same with how each review went, and so
-does the archive. A
-task that was never reviewed has no tag. Every row that has had a review keeps it: under review, back with the
-agent, waiting for your yes, done.
+`R#2` is the review the task is on, or the last one it had. It belongs to the pull request, not to the progress: it sits
+one cell left of the `PR#`, and the tags end under each other down the list. Its colour says how that review went, and
+it has no mark beside it: green, it passed; red, it failed, and it stays so while the agent fixes what the review found;
+blue, the reviewer is on it right now, whatever the review before it said. The three are told apart in the light themes
+and the dark ones alike. A review from before the gate goes by its advice. Once the task is merged (through its pull
+request, or here on this machine with none) the tag goes quiet, the same grey as its merged `PR#` tag: nearly every done
+task passed its review, and a column of green says nothing. One stays red: a task merged although its last review failed
+(you approved it anyway), the only one worth noticing later. The task panel and the details page do the same with how
+each review went, and so does the archive. A task that was never reviewed has no tag. Every row that has had a review
+keeps it: under review, back with the agent, waiting for your yes, done.
 
 **When the window is narrow, rows hide the same things together.** What is shown is decided for one group at a time
 (the rows under one heading: `working`, `done`, ...), never row by row: each thing is on every row of the group that
@@ -367,16 +367,16 @@ this is decided, so `9m` turning into `10m` hides nothing. They are never wider:
 shows them as hours (`17h`). A name is drawn in the room counted that way too, so it is not cut at another place
 from one minute to the next.
 
-`PR#18` is the pull request, and its colour says how its checks went, by the same rule as the `R#` tag and with
-no mark beside it: green, they pass; red, they fail; plain, there is no result yet (they are running, or there are
-none). A merged pull request goes quiet, grey like the time beside it: nothing there needs your eye, so a list of
-done tasks is not a wall of green. The greens and reds are the theme's own, the ones the `R#` tag uses, and the
-three are told apart in the light themes and the dark ones alike. The task panel and the details page colour it
-the same way. A bare time is how long it has been working; `ago` is
-since it stopped. On a finished task the time is quiet like its merged tags, in the very same grey: a done task has
-nothing live about it, so its whole right-hand side (review tag, pull request, time) is quiet, and a bright colour
-on the board means "this is happening now". That grey is the theme's own for greyed-out words, made readable where the
-theme's is too near the background ([colours](colours.md)). The time of a task that is not done is drawn as it always was. A row never repeats what its heading says.
+`PR#18` is the pull request, and its colour says how its checks went, by the same rule as the `R#` tag and with no mark
+beside it: green, they pass; red, they fail; plain, there is no result yet (they are running, or there are none). A
+merged pull request goes quiet, grey like the time beside it: nothing there needs your eye, so a list of done tasks is
+not a wall of green. The greens and reds are the theme's own, the ones the `R#` tag uses, and the three are told apart
+in the light themes and the dark ones alike. The task panel and the details page colour it the same way. A bare time is
+how long it has been working; `ago` is since it stopped. On a finished task the time is quiet like its merged tags, in
+the very same grey: a done task has nothing live about it, so its whole right-hand side (review tag, pull request, time)
+is quiet, and a bright colour on the board means "this is happening now". That grey is the theme's own for greyed-out
+words, made readable where the theme's is too near the background ([colours](colours.md)). The time of a task that is
+not done is drawn as it always was. A row never repeats what its heading says.
 
 **While the board runs the check itself** (at the finish line, and again after a catch-up with main), the row shows
 real progress, not the Watcher's guess: the bar and the percent are the count the check reports, the minutes left
@@ -509,8 +509,9 @@ neither touches the draft. The box says where there is more and names the key: `
 
 A new message starts at its beginning: an answer is read from its first line down, and one key goes on from there
 (started at its end, you would scroll up to find where it begins and then down again to read it). Only a screen, shown
-for a program whose conversation cannot be read, starts at its end, where a terminal has what is new. Where you scrolled to is kept while the same message of the same chat shows; a new message (also one in the
-very same words as the last), your own words in its place, or another chat starts over.
+for a program whose conversation cannot be read, starts at its end, where a terminal has what is new. Where you scrolled
+to is kept while the same message of the same chat shows; a new message (also one in the very same words as the last),
+your own words in its place, or another chat starts over.
 
 A tall draft never takes the message away: in a window too small for both, the draft gives rows back and scrolls
 inside what it keeps, so that three lines of the message stay, and they still scroll.
@@ -526,11 +527,11 @@ the list is scrolled to other tasks; the box's edge names no one. That does not 
 away: the arrows are the draft's, the mouse wheel moves only the view of the list, and a click selects nothing. So an
 answer typed for one task's agent can never be sent to another's.
 
-**What you just sent takes the message's place.** Send something and the box shows your words, in the bright text
-colour under `You:`, where the agent's message was, over an empty line to type on. The old message is never shown
-under them (it is above, with the rest of the conversation). When
-the agent says something new, that takes their place, in grey (also when it answers in the very same words as before). For the Coordinator this holds when the board is
-closed and opened again; for a task's agent, for as long as the board stays open.
+**What you just sent takes the message's place.** Send something and the box shows your words, in the bright text colour
+under `You:`, where the agent's message was, over an empty line to type on. The old message is never shown under them
+(it is above, with the rest of the conversation). When the agent says something new, that takes their place, in grey
+(also when it answers in the very same words as before). For the Coordinator this holds when the board is closed and
+opened again; for a task's agent, for as long as the board stays open.
 
 ```
  ○ Coordinator  idle
@@ -572,9 +573,9 @@ pane and no tab and belongs to none: herdr draws it over whatever is there and c
 panes, their sizes and a zoomed pane are as they were when it closes. While it shows it has the keyboard and the
 mouse, as herdr's own menu has: nothing behind it takes a key or a click.
 
-- **The key again closes it**, and so does `Esc` once there is nothing left to step back from (a draft, the whole
-  task, the filter, the archive and a chat message that shows come first, as on every board), and `Ctrl+C` twice. What you typed, the task you
-  were on and the filter are there when it opens again.
+- **The key again closes it**, and so does `Esc` once there is nothing left to step back from (a draft, the whole task,
+  the filter, the archive and a chat message that shows come first, as on every board), and `Ctrl+C` twice. What you
+  typed, the task you were on and the filter are there when it opens again.
 - **`Enter` on a task closes the popup and lands in that task's agent.** The first three times it says for a moment
   how to get back.
 - **It is showing or it is closed, never left behind.** Nothing in herdr's own window can switch tab or space under
@@ -620,15 +621,16 @@ where a plugin has no other way to draw over the window ([what was tried](checke
 What herdr would need for the real thing is in [what was checked on herdr](checked-on-herdr.md), under "missing in
 herdr".
 
-**A board that looks cut off or half empty.** (What changes the board's size at all, and why a size that lasts a
-moment is not drawn for: [the board's size](board-size.md).) A view somebody is looking through, the board open in the
-web UI's terminal view, keeps the terminal, and the board's first line says so. From any other view the board takes its pane's size back by itself within a few seconds:
-the remote view described here is disconnected, and until then the board draws inside what herdr's window shows, so
-its text box and hints are never cut off. What follows is what you see until then, and when the
-board could not take the size back. A remote view of the pane the board runs in (a `herdr terminal attach`,
+**A board that looks cut off or half empty.** (What changes the board's size at all, and why a size that lasts a moment
+is not drawn for: [the board's size](board-size.md).) A view somebody is looking through, the board open in the web UI's
+terminal view, keeps the terminal, and the board's first line says so. From any other view the board takes its pane's
+size back by itself within a few seconds: the remote view described here is disconnected, and until then the board draws
+inside what herdr's window shows, so its text box and hints are never cut off. What follows is what you see until then,
+and when the board could not take the size back. A remote view of the pane the board runs in (a `herdr terminal attach`,
 which herdr's web UI starts for each pane it shows) sets that pane's size to its own and holds it for as long as it
-runs, also after its browser tab is gone. herdr's own window then shows a cut-out of a board drawn for another size.
-The board notices within ten seconds and says so on its first line, top left where a cut-out still shows it, with what frees the size first so a narrow window keeps it:
+runs, also after its browser tab is gone. herdr's own window then shows a cut-out of a board drawn for another size. The
+board notices within ten seconds and says so on its first line, top left where a cut-out still shows it, with what frees
+the size first so a narrow window keeps it:
 
 ```
  ! Shown cut off: a remote view holds this pane at 435×58 (herdr's own window: 184×78). ctrl+k ends that view
@@ -641,15 +643,16 @@ at once too. The line is not shown
 outside herdr, in a tmux inside the pane, or in herdr's popup (which has no pane of its own).
 
 **The board's tab is named `herdr-superwork`.** Run `herdr-superwork` in a terminal inside herdr and the tab that
-terminal is in gets that name for as long as the board is open, so you can tell it from your other tabs. Only that
-one tab is renamed. When the board closes (also when it closes to take you into an agent) the tab gets back the name
-it had before; a name you gave it yourself while the board was open is kept. A board that was killed leaves the
-name, and the next board that opens and closes in that tab puts the old one back. Nothing is renamed by the popup
-(it is no tab and has none of its own), in the tab your board key opens (that one is named `board`, above), outside herdr, in a tmux inside the pane, or by a subcommand that opens no board (`add`,
-`list`, `show` and the rest). The code is `name_board_tab` in `src/board/run/place.rs`.
+terminal is in gets that name for as long as the board is open, so you can tell it from your other tabs. Only that one
+tab is renamed. When the board closes (also when it closes to take you into an agent) the tab gets back the name it had
+before; a name you gave it yourself while the board was open is kept. A board that was killed leaves the name, and the
+next board that opens and closes in that tab puts the old one back. Nothing is renamed by the popup (it is no tab and
+has none of its own), in the tab your board key opens (that one is named `board`, above), outside herdr, in a tmux
+inside the pane, or by a subcommand that opens no board (`add`, `list`, `show` and the rest). The code is
+`name_board_tab` in `crates/board/src/board/run/place.rs`.
 
-While the text box holds text it owns the keyboard: only `Enter`, `Tab`, `Esc` and `Ctrl+C` act on the board, so no shortcut
-fires in the middle of a draft. `Esc` puts a draft away; `Ctrl+Z` brings it back only to whoever it was for, so a reply
-stays a reply. It never changes who you talk to: when the chat names somebody else, it says who the words were for
-(the Coordinator: `Space` goes back to it; a task's agent: select that task, and `Space` if you talk to the
+While the text box holds text it owns the keyboard: only `Enter`, `Tab`, `Esc` and `Ctrl+C` act on the board, so no
+shortcut fires in the middle of a draft. `Esc` puts a draft away; `Ctrl+Z` brings it back only to whoever it was for, so
+a reply stays a reply. It never changes who you talk to: when the chat names somebody else, it says who the words were
+for (the Coordinator: `Space` goes back to it; a task's agent: select that task, and `Space` if you talk to the
 Coordinator), and the words stay put away until you are there.

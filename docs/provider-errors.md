@@ -12,12 +12,12 @@ neither finished nor failed:
   one that runs is still the "1st") and is not in the list of reviews. If the last try is cut off too, the task
   fails with the real reason and the provider's own words (`Review failed: the reviewer's model is at capacity,
   still after 5 tries over 15m. Its error: Selected model is at capacity…`), and `Ctrl+L` reviews again.
-- *The working agent.* The same waits, and then the board tells the agent to carry on where it left off, as a turn
-  of the plugin's own: counters and an approved merge survive it. The row stays under `working` and says
-  `Agent's connection dropped, trying again in 2m`. The cut-off is saved under the wait, so a reply, `Ctrl+R` or
-  `Ctrl+L` does it right away, and stopping the task ends the wait. After the last try the task is "Agent stopped"
-  with the real reason, as before. A reply starts the count again. An agent whose program exited with the error is started again in
-  the same conversation and told the same.
+- *The working agent.* The same waits, and then the board tells the agent to carry on where it left off, as a turn of
+  the plugin's own: counters and an approved merge survive it. The row stays under `working` and says `Agent's
+  connection dropped, trying again in 2m`. The cut-off is saved under the wait, so a reply, `Ctrl+R` or `Ctrl+L` does it
+  right away, and stopping the task ends the wait. After the last try the task is "Agent stopped" with the real reason,
+  as before. A reply starts the count again. An agent whose program exited with the error is started again in the same
+  conversation and told the same.
 
 Errors that waiting cannot fix are never retried and go to you at once, as before: a login, a model that
 does not exist or is not offered, a usage limit, a request the provider refuses, and any error the board does not
@@ -29,7 +29,8 @@ With a fallback agent set (`worker.fallback`, `reviewer.fallback`) another agent
 otherwise give up or go to you: after the last try for an error that passes, at once for one that waiting cannot
 fix. The order is the tries first, then the fallback, then you ([the fallback agent](fallback.md)).
 
-The waits are fixed. What was seen in real conversation files is in [checked-on-herdr.md](checked-on-herdr.md); the
-code is `provider_error` in `src/agents/provider_error.rs` (which errors pass), `src/store/retries.rs` (the wait) and
-`src/finish/turn_ended.rs` and `src/finish/review.rs` (the retries); the tests are `tests/retry.rs`, `tests/retry_agent.rs`
-and `tests/endings.rs`, on recorded endings in `tests/fixtures/endings`.
+The waits are fixed. What was seen in real conversation files is in [checked-on-herdr.md](checked-on-herdr.md); the code
+is `provider_error` in `crates/core/src/agents/provider_error.rs` (which errors pass),
+`crates/core/src/store/retries.rs` (the wait) and `crates/flow/src/finish/turn_ended.rs` and
+`crates/flow/src/finish/review.rs` (the retries); the tests are `tests/retry.rs`, `tests/retry_agent.rs` and
+`tests/endings.rs`, on recorded endings in `tests/fixtures/endings`.

@@ -14,16 +14,16 @@ fn table(head: &[&str], rows: Vec<Vec<String>>) -> String {
 fn key_words(text: &str) -> Result<String, String> {
     let mut bad = None;
     let out = crate::re!(r"\{(\w+)\}").replace_all(text, |c: &regex::Captures| match by_name(&c[1]) { Some(k) => written(&crate::board::keys::name(k.id)), None => { bad = Some(c[1].to_string()); String::new() } }).into_owned();
-    match bad { Some(id) => Err(format!("\"{{{id}}}\" names no key (src/board/keys.rs)")), None => Ok(out) }
+    match bad { Some(id) => Err(format!("\"{{{id}}}\" names no key (crates/flow/src/board/keys.rs)")), None => Ok(out) }
 }
 pub fn keys_table() -> Result<String, String> {
     for k in KEYS {
-        if k.doc.is_none() && k.with.is_none() { return Err(format!("src/board/keys.rs: the key \"{}\" has no `doc` (or `with`, the entry whose row describes it)", k.name)); }
-        if let Some(w) = k.with { if by_name(w).and_then(|x| x.doc).is_none() { return Err(format!("src/board/keys.rs: the key \"{}\" is described with \"{w}\", which has no `doc`", k.name)); } }
-        for w in [k.help, k.hint, k.doc].into_iter().flatten() { key_words(w).map_err(|e| format!("src/board/keys.rs: in the key \"{}\": {e}", k.name))?; }
+        if k.doc.is_none() && k.with.is_none() { return Err(format!("crates/flow/src/board/keys.rs: the key \"{}\" has no `doc` (or `with`, the entry whose row describes it)", k.name)); }
+        if let Some(w) = k.with { if by_name(w).and_then(|x| x.doc).is_none() { return Err(format!("crates/flow/src/board/keys.rs: the key \"{}\" is described with \"{w}\", which has no `doc`", k.name)); } }
+        for w in [k.help, k.hint, k.doc].into_iter().flatten() { key_words(w).map_err(|e| format!("crates/flow/src/board/keys.rs: in the key \"{}\": {e}", k.name))?; }
         if let Some(g) = k.group {
-            if !GROUPS.iter().any(|(x, _)| *x == g) { return Err(format!("src/board/keys.rs: the key \"{}\" is in the group \"{g}\", which is none of plain, ctrl, alt", k.name)); }
-            if g != "plain" && !k.keys.iter().all(|c| c.starts_with(&format!("{g}+"))) { return Err(format!("src/board/keys.rs: the key \"{}\" is in the group \"{g}\" and is pressed with {}", k.name, k.keys.join(", "))); }
+            if !GROUPS.iter().any(|(x, _)| *x == g) { return Err(format!("crates/flow/src/board/keys.rs: the key \"{}\" is in the group \"{g}\", which is none of plain, ctrl, alt", k.name)); }
+            if g != "plain" && !k.keys.iter().all(|c| c.starts_with(&format!("{g}+"))) { return Err(format!("crates/flow/src/board/keys.rs: the key \"{}\" is in the group \"{g}\" and is pressed with {}", k.name, k.keys.join(", "))); }
         }
     }
     // Another chord for the same thing is named in its row (the shifted and "return" twins of a key are not).
@@ -36,14 +36,14 @@ pub fn keys_table() -> Result<String, String> {
     Ok(parts.join("\n\n"))
 }
 pub fn settings_table() -> Result<String, String> {
-    for s in SETTINGS.iter() { if s.doc.is_empty() { return Err(format!("src/store/settings_list.rs: the setting \"{}\" has no `doc`", s.name)); } }
+    for s in SETTINGS.iter() { if s.doc.is_empty() { return Err(format!("crates/core/src/store/settings_list.rs: the setting \"{}\" has no `doc`", s.name)); } }
     let shown = |v: &Value| format!("`{}`", match v { Value::Array(a) => a.iter().map(text).collect::<Vec<_>>().join(", "), v => text(v) });
     let place = |s: &crate::store::settings_list::Entry| match s.kind { Kind::Board => "you only", Kind::Repo => "repo entry, repo file", Kind::Work if s.repo => "task, repo entry, you, repo file", Kind::Work => "task, repo entry, you" };
     let rows: Result<Vec<Vec<String>>, String> = SETTINGS.iter().map(|s| Ok(vec![format!("`{}`", s.name), shown(&s.builtin), place(s).to_string(), key_words(&s.doc)?])).collect();
     Ok(table(&["Setting", "Built in", "Can be said by", "Means"], rows?))
 }
 type Make = fn() -> Result<String, String>;
-const PARTS: [(&str, &str, &str, Make); 2] = [("docs/keys.md", "keys", "src/board/keys.rs", keys_table), ("docs/settings.md", "settings", "src/store/settings_list.rs", settings_table)];
+const PARTS: [(&str, &str, &str, Make); 2] = [("docs/keys.md", "keys", "crates/flow/src/board/keys.rs", keys_table), ("docs/settings.md", "settings", "crates/core/src/store/settings_list.rs", settings_table)];
 fn with_part(file: &str, id: &str, from: &str, body: &str) -> Result<String, String> {
     let text = super::read(file);
     let (start, end) = (format!("<!-- made:{id} "), format!("<!-- /made:{id} -->"));

@@ -14,7 +14,7 @@ pub const FIRST_NATIVE: &str = "0.3.0";
 /// when only its launcher (`exec node '…/herdr-superwork.js' "$@"`) says so. None: this version's data, or none.
 pub fn older_writer(data: &Path) -> Option<String> {
     let kept = read_obj(&data.join("keeper.json")).map(|o| o.t("version")).unwrap_or_default();
-    if !kept.is_empty() && crate::install::newer(FIRST_NATIVE, &kept) { return Some(kept); }
+    if !kept.is_empty() && crate::util::newer(FIRST_NATIVE, &kept) { return Some(kept); }
     let node = read_text(&data.join("bin").join("herdr-superwork")).and_then(|t| t.lines().find_map(launcher_target)).map(|p| p.ends_with(".js")).unwrap_or(false);
     node.then(|| "node".to_string())
 }

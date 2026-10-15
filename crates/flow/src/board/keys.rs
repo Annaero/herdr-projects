@@ -134,7 +134,7 @@ pub fn pair(id: K) -> String {
     std::iter::once(k).chain(KEYS.iter().filter(|x| x.with == Some(k.name))).map(own).collect::<Vec<_>>().join(k.gap.unwrap_or(" "))
 }
 /// The key with this name, as the board writes it. Words elsewhere name a key by its name: key_name("yes").
-pub fn key_name(n: &str) -> String { by_name(n).map(own).unwrap_or_else(|| panic!("No key is called \"{n}\" (src/board/keys.rs)")) }
+pub fn key_name(n: &str) -> String { by_name(n).map(own).unwrap_or_else(|| panic!("No key is called \"{n}\" (crates/flow/src/board/keys.rs)")) }
 /// Words that name other keys as {name}, with each key as the board writes it.
 pub fn say(text: &str) -> String {
     let re = crate::re!(r"\{(\w+)\}");

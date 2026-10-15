@@ -135,8 +135,8 @@ take over instead of waiting for you.
 
 ## Where it is
 
-`src/limits/` (`run.rs`: the light part, a run and what counts; `spent.rs`: counting; `reached.rs`: the stop;
-`tick.rs`: the pass that looks; `shown.rs`: what is shown), `src/actions/limits.rs` (continue, as it is), `src/agents/read_tokens.rs` (one counter per program). The
-token limit is asked at the end of a turn in `src/finish/turn_ended.rs` and `src/finish/pipeline.rs`, and before
-anything merges by itself in `src/finish/auto_merge.rs`. Tests: `tests/limits.rs`, `tests/limits_more.rs`,
-`tests/limits_tokens.rs`.
+`crates/flow/src/limits/` (`run.rs`: the light part, a run and what counts; `spent.rs`: counting; `reached.rs`: the
+stop; `tick.rs`: the pass that looks; `shown.rs`: what is shown), `crates/flow/src/actions/limits.rs` (continue, as it
+is), `crates/core/src/agents/read_tokens.rs` (one counter per program). The token limit is asked at the end of a turn in
+`crates/flow/src/finish/turn_ended.rs` and `crates/flow/src/finish/pipeline.rs`, and before anything merges by itself in
+`crates/flow/src/finish/auto_merge.rs`. Tests: `tests/limits.rs`, `tests/limits_more.rs`, `tests/limits_tokens.rs`.

@@ -73,4 +73,5 @@ The reviewer and the Coordinator are held to the same. A reviewer that never sta
 | `HERDR_SUPERWORK_READY_MS` | 60000 | the longest the board waits for a started program to draw its screen; 0 types at once |
 | `HERDR_SUPERWORK_SUBMIT_MS` | 5000 | the wait before the first extra enter; each later wait is twice the one before |
 
-The code is `src/submit.rs`; what was measured on real programs is in [what was checked](checked-on-herdr.md).
+The code is `crates/flow/src/submit.rs`; what was measured on real programs is in [what was
+checked](checked-on-herdr.md).

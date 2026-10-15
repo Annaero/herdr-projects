@@ -1,7 +1,7 @@
 // The board over the web UI's page: its frame (the header, the list, one task, the chat), asking the board for what
 // to show, and sending it what you do. It is kept fresh while it is open: asked every two seconds, drawn again only
 // where something changed. Nothing about a task is worked out here: every word, colour and button comes from the
-// board (src/webui/*-model.js), and a button only says which key of the board it presses.
+// board (crates/web/src/webui/*-model.js), and a button only says which key of the board it presses.
 /* global document, window, location, history, PopStateEvent, CustomEvent */
 import { h, icon, get, post } from "./dom.js";
 import { listEl } from "./list.js";

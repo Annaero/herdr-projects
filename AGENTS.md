@@ -5,35 +5,42 @@ holds what, so that two tasks do not edit the same file.
 
 - Build the program once: `cargo build --profile quick` (the workspace setup, `scripts/setup.sh`, does it for you,
   through the build cache every worktree shares). It is then `./target/quick/herdr-superwork`.
-- `./target/quick/herdr-superwork docs --where` prints all of the map; `… docs --where src/board/view` only that
-  folder.
+- `./target/quick/herdr-superwork docs --where` prints all of the map; `… docs --where crates/board/src/board/view` only
+  that folder.
 - It is also a page in your own folder, `docs/where-things-live.md`, written by the workspace setup and by
   `npm run check`. It is not in git: never commit it. The tests are one file per area (`ls tests`), all of them
   modules of one test program, `tests/main.rs`.
 
-The program is Rust, one native program: `Cargo.toml` at the root, the library in `src/lib.rs`, the command in
-`src/main.rs`. There is no Node and nothing to `npm install`; `package.json` is only there so that every agent finds
-the one command that runs the tests.
+The program is Rust, one native program: `Cargo.toml` at the root, the command in `src/main.rs`. Its code is five
+crates, one on top of the other, so that a change builds again only its own crate and those on top of it: sw-core
+(`crates/core/`: the data, herdr, the agents), sw-flow (`crates/flow/`: the flow of a task), sw-board
+(`crates/board/`: the board's screen), sw-web (`crates/web/`: the board in the herdr web UI), and the command line
+with the made pages in `src/` (`sw`, which the tests use) ([docs/crates.md](docs/crates.md)). There is no Node and
+nothing to `npm install`; `package.json` is only there so that every agent finds the one command that runs the tests.
 
 ## Where new things go
 
 - **One area, one small file.** Put a change in the file of its area. A new area is a new file, not more lines at
   the end of an old one. A source file may not pass 300 lines (the check fails): split it by area into a folder of
-  small files with the old file passing them on, as `src/finish.rs` and `src/finish/` do.
+  small files with the old file passing them on, as `crates/flow/src/finish.rs` and `crates/flow/src/finish/` do.
 - **Every source file starts with a comment that says what it holds**: `//!` lines in a `.rs` file (`#` in a shell
   script, `//` in the web page's `.js`, `/* */` in its `.css`). Its first sentence is its line in the map; the check
   fails for a file without one.
-- **A part of the board's screen is a file in `src/board/view/`** (a part of the task panel: `src/board/view/panel/`),
-  named in that folder's `mod.rs` with one `pub mod` line beside its kin. What it draws is that file's; what a key
-  does to the board is `src/board/update/`, one file per area; the board's one record of what it shows is
-  `src/board/state.rs`.
-- **A key is one entry in `src/board/keys.rs`**: its chord, its name, what it does, its hint, its line in the `?`
-  menu, its button on the web board. The key handler, the menu, the hint line and `docs/keys.md` all read that list.
-  What it does is its arm in `src/board/update/` (a key with no arm there does not compile). Never write a key's
-  chord anywhere else (the check fails): test for it with `keys::is(p, K::…)`, and name it in a message with
-  `key_name("undo")`.
-- **A setting is one entry in `src/store/settings_list.rs`**, beside the ones of its area: its default and what it
-  means. Its row in the task panel is `src/board/view/panel/settings.rs`.
+- **A new module goes in the lowest crate whose code it uses**: one `pub mod` line in that crate's `src/lib.rs`. Every
+  crate passes on the modules of those below it, so it is `crate::store` in every crate and `sw::store` in the tests. A
+  crate cannot use the crates on top of it (it does not build): move what it needs down, or let the caller above hand
+  it in ([docs/crates.md](docs/crates.md)).
+- **A part of the board's screen is a file in `crates/board/src/board/view/`** (a part of the task panel:
+  `crates/board/src/board/view/panel/`), named in that folder's `mod.rs` with one `pub mod` line beside its kin. What it
+  draws is that file's; what a key does to the board is `crates/board/src/board/update/`, one file per area; the board's
+  one record of what it shows is `crates/board/src/board/state.rs`.
+- **A key is one entry in `crates/flow/src/board/keys.rs`**: its chord, its name, what it does, its hint, its line in
+  the `?` menu, its button on the web board. The key handler, the menu, the hint line and `docs/keys.md` all read that
+  list. What it does is its arm in `crates/board/src/board/update/` (a key with no arm there does not compile). Never
+  write a key's chord anywhere else (the check fails): test for it with `keys::is(p, K::…)`, and name it in a message
+  with `key_name("undo")`.
+- **A setting is one entry in `crates/core/src/store/settings_list.rs`**, beside the ones of its area: its default and
+  what it means. Its row in the task panel is `crates/board/src/board/view/panel/settings.rs`.
 - **In a list many tasks add to, one entry per line (or per block), placed beside the entries it belongs with**, never
   at the end: two additions at the end always conflict.
 - **Never edit a made table by hand**: what is between the `made:` lines in `docs/keys.md` and `docs/settings.md`.
@@ -52,9 +59,10 @@ the one command that runs the tests.
 
 One command runs tests, for everyone: `npm run check` (`npm test` is the same; both run `scripts/check.sh`). It builds
 the program with the `quick` profile, writes the made tables when they are out of date, checks the repo's own rules
-(`herdr-superwork docs --guard`: file sizes, the comment at the top, chords only in the keys' table, no made table
-out of date) and runs the tests, in several processes at once (`scripts/run-tests.sh`). It remembers what passed for this exact code (every file of the folder,
-committed or not, and the compiler), and shares that with the reviewer and the board: asked again, it answers at once.
+(`herdr-superwork docs --guard`: file sizes, the comment at the top, chords only in the keys' table, no made table out
+of date) and runs the tests, in several processes at once (`scripts/run-tests.sh`). It remembers what passed for this
+exact code (every file of the folder, committed or not, and the compiler), and shares that with the reviewer and the
+board: asked again, it answers at once.
 
 - **Run cargo through the check**: it builds through the one build cache every worktree shares and takes this task's
   share of the cores, not all of them (`scripts/build-cache.sh`, `scripts/share-cores.sh`).

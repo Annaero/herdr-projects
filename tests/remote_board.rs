@@ -113,7 +113,7 @@ fn the_web_board_says_the_same_an_unread_machine_is_a_line_with_its_reason_behin
     assert_eq!((s.at("list").s("empty"), s.at("list").arr("unread").len(), s.at("list").arr("groups").len()), ("", 1, 0));
     assert!(!has(s.at("msg").s("text"), "cannot be read|let the board in"));
     // the page draws it: the line, and the rest behind "Why, and what to do" (the page's own code, read as text)
-    let page = include_str!("../src/webui/page/list.js");
+    let page = include_str!("../crates/web/src/webui/page/list.js");
     for part in ["sw-unread-line", "sw-unread-detail", "Why, and what to do", "summary"] { assert!(page.contains(part), "list.js has {part}"); }
     assert!(has(page, r"empty"), "an empty list says so");
 }

@@ -90,7 +90,7 @@ the task (fast mode for a program that has none) is not offered ([the task panel
 
 ## The list
 
-<!-- made:settings Made by `herdr-superwork docs` from src/store/settings_list.rs. Do not edit between these two lines. -->
+<!-- made:settings Made by `herdr-superwork docs` from crates/core/src/store/settings_list.rs. Do not edit between these two lines. -->
 | Setting | Built in | Can be said by | Means |
 |---|---|---|---|
 | `worker.agent` | `claude` | task, repo entry, you | the working agent's program: `claude`, `codex` or `pi`, with an optional model after a slash (`codex/gpt-5.5`). The model travels with the program, so one program's model is never handed to another |

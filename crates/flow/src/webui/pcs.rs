@@ -3,7 +3,7 @@
 //! the web UI's own view of that pane (`?machine=<its PC>`), and to show the board of the machine the web UI is on.
 //! Nothing is written: the front door asks the web UI, with the caller's own headers, what PCs it has
 //! (`GET /api/machines`, checked on herdr-web-ui 0.4.8), keeps the answer a few seconds, and passes on what is needed.
-use super::proxy::{ask, Head};
+use super::proxy::{ask, caller_headers, Head};
 use crate::json::*;
 use crate::remote::Machine;
 
@@ -29,7 +29,7 @@ pub fn forget() { *KNOWN.lock().unwrap() = (0, None); }
 pub fn ask_pcs(h: &Head, to: &(String, u16)) -> Option<Vec<Pc>> {
     let now = crate::clock::now();
     { let k = KNOWN.lock().unwrap(); if now - k.0 < 5000 { return k.1.clone(); } }
-    let list = ask(&to.0, to.1, "GET", PCS, &super::door::caller_headers(h), 16 << 20, 8000).filter(|a| a.status == 200).and_then(|a| read_pcs(&String::from_utf8_lossy(&a.body)));
+    let list = ask(&to.0, to.1, "GET", PCS, &caller_headers(h), 16 << 20, 8000).filter(|a| a.status == 200).and_then(|a| read_pcs(&String::from_utf8_lossy(&a.body)));
     *KNOWN.lock().unwrap() = (crate::clock::now(), list.clone());
     list
 }

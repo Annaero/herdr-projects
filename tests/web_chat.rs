@@ -12,11 +12,11 @@ use sw::agents::talk::Said;
 use sw::coordinator::{far as coord_far, look::Look};
 use sw::json::*;
 
-const CHAT: &str = include_str!("../src/webui/page/chat.js");
-const SAID: &str = include_str!("../src/webui/page/said.js");
-const COMPOSE: &str = include_str!("../src/webui/page/compose.js");
-const CSS: &str = include_str!("../src/webui/page/chat.css");
-const BOARD_CSS: &str = include_str!("../src/webui/page/board.css");
+const CHAT: &str = include_str!("../crates/web/src/webui/page/chat.js");
+const SAID: &str = include_str!("../crates/web/src/webui/page/said.js");
+const COMPOSE: &str = include_str!("../crates/web/src/webui/page/compose.js");
+const CSS: &str = include_str!("../crates/web/src/webui/page/chat.css");
+const BOARD_CSS: &str = include_str!("../crates/web/src/webui/page/board.css");
 
 fn call(what: &str, args: Value) -> Value { let mut a = args; if a.get("role").is_none() { a["role"] = json!("drive"); } sw::webui::web::call("t", what, a, "", None).unwrap_or_else(|e| panic!("{what}: {e}")) }
 fn far_world() -> (World, Far) {

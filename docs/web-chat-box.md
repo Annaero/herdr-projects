@@ -6,8 +6,8 @@ chat and back feels like one program.
 
 It is not the web UI's code. The web UI's input is part of its bundled app, and its built files change with every
 release, so the Board loads and lifts nothing from them. It is the same thing built again, in the Board's own page
-(`src/webui/page/compose.js`, `compose.css`), from the web UI's CSS variables and its `DESIGN.md`, and then measured
-against the original.
+(`crates/web/src/webui/page/compose.js`, `compose.css`), from the web UI's CSS variables and its `DESIGN.md`, and then
+measured against the original.
 
 ## What is the same
 
@@ -50,8 +50,9 @@ Measured against **herdr-web-ui 0.4.8** (see [how](#how-it-was-measured)):
 - **Focus is the card's**, never a rectangle on the field inside it.
 - **No look of the browser's own** on the field in Chrome, Firefox or Safari: no frame, no focus ring, no inner
   shadow, no resize corner, no scroll arrows.
-- **Enter sends, shift+enter is a new line**, on a phone too (tab is the board's own: below). Where the web UI's Settings → Chat has "Enter sends"
-  turned off, ctrl or cmd with enter sends here as well. A keyboard that composes letters keeps its enter.
+- **Enter sends, shift+enter is a new line**, on a phone too (tab is the board's own: below). Where the web UI's
+  Settings → Chat has "Enter sends" turned off, ctrl or cmd with enter sends here as well. A keyboard that composes
+  letters keeps its enter.
 - **Above a phone's keyboard**: the Board is as tall as the web UI's own shell, which follows the keyboard.
 - Light, dark and every palette of the web UI: they are its variables.
 
@@ -82,11 +83,11 @@ Left out, because the Board cannot do it, rather than shown as a dead control:
 
 ## How it was measured
 
-A script, `scripts/chat-box-match.js`, opens the two side by side in a real browser: the web UI on an agent's chat, and the
-Board through its front door in front of that same web UI. At a phone's (390×800) and a desktop's (1280×800) size, in
-dark and light, with the box empty, with one line, with fourteen lines, focused, and focused and empty, it reads
-each one's sizes, places and styles and compares the pixels of the message field and of the round Send. It ends
-with 1 when the two differ in anything but what is the board's own.
+A script, `scripts/chat-box-match.js`, opens the two side by side in a real browser: the web UI on an agent's chat, and
+the Board through its front door in front of that same web UI. At a phone's (390×800) and a desktop's (1280×800) size,
+in dark and light, with the box empty, with one line, with fourteen lines, focused, and focused and empty, it reads each
+one's sizes, places and styles and compares the pixels of the message field and of the round Send. It ends with 1 when
+the two differ in anything but what is the board's own.
 
     node chat-box-match.js --web-ui 'http://127.0.0.1:7317/?ws=…&pane=…&view=chat' \
         --board 'http://127.0.0.1:7327/#board' --playwright <the web UI's checkout> [--browser firefox] [--sending]
@@ -124,11 +125,11 @@ written, `-webkit-appearance: none` and the rest, and not seen), and a real phon
 
 ## When the web UI changes its box
 
-Run the script again against the new version (from the repo's history, above). What it prints is what to change in `compose.css`; then name the new
-version there and here.
+Run the script again against the new version (from the repo's history, above). What it prints is what to change in
+`compose.css`; then name the new version there and here.
 
-Already known: the web UI's code after 0.4.8 (its `main` on 2026-10-13, commit `a4b2295`, not released) changes its
-box, and the script says so (82 differences): the message has 4 px less padding at each side (16 px, 12 px on a phone),
-the round Send stands 4 px further in with a mouse, the model moves to the left beside the add button, and a strip with the folder
-and the branch hangs under the card, which lifts the card 29 px. The Board matches the released 0.4.8 until that is
-released.
+Already known: the web UI's code after 0.4.8 (its `main` on 2026-10-13, commit `a4b2295`, not released) changes its box,
+and the script says so (82 differences): the message has 4 px less padding at each side (16 px, 12 px on a phone), the
+round Send stands 4 px further in with a mouse, the model moves to the left beside the add button, and a strip with the
+folder and the branch hangs under the card, which lifts the card 29 px. The Board matches the released 0.4.8 until that
+is released.

@@ -15,8 +15,8 @@ pub fn mark(state: &str, kind: &str, symbols: bool) -> &'static str {
     if symbols { pair.1 } else { pair.0 }
 }
 /// The marks as the web page gets them: it draws herdr's dots itself, tells the reviewer from the agent's dot by the
-/// half moon and draws the waiting ◌ as a dotted ring (src/webui/page/dom.js); the board's own step and what a waiting
-/// task needs as on the terminal board.
+/// half moon and draws the waiting ◌ as a dotted ring (crates/web/src/webui/page/dom.js); the board's own step and what
+/// a waiting task needs as on the terminal board.
 pub fn web_mark(state: &str, kind: &str) -> &'static str {
     if state == "blocked" { if let s @ ("?" | "!" | "@") = mark(state, kind, true) { if kind == "question" || kind == "permission" || kind == "auth" { return s; } } }
     match state { "idle" => "○", "working" => "●", "review" => "◑", "board" => "◇", "queue" => "◌", "ready" => "◆", "blocked" => "!", "done" => "✓", "error" => "✗", _ => "·" }

@@ -82,7 +82,7 @@ if [ "$again" = 1 ]; then
     names=""
   else
     names="--units $(printf '%s\n' "$picked" | sed 's/^/=/' | tr '\n' ' ')"
-    echo "The shorter check: the test files the change since $since reaches ($(printf '%s\n' "$picked" | grep -c .) of $(ls tests/*.rs | grep -vc '^tests/main.rs$')), and the tests in src/: $(printf '%s\n' "$picked" | tr '\n' ' ')"
+    echo "The shorter check: the test files the change since $since reaches ($(printf '%s\n' "$picked" | grep -c .) of $(ls tests/*.rs | grep -vc '^tests/main.rs$')), and the tests beside the code: $(printf '%s\n' "$picked" | tr '\n' ' ')"
   fi
 fi
 # shellcheck disable=SC2086

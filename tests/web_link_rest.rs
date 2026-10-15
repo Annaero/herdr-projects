@@ -8,7 +8,8 @@ use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use sw::store::settings::{change::{set_value, unset_value}, lookup::Scope};
-use sw::webui::keep::{door_file, door_info, DoorLoop};
+use sw::webui::door_loop::DoorLoop;
+use sw::webui::keep::{door_file, door_info};
 
 const SCRIPT: &str = r#"#!/bin/sh
 D='@DIR@'

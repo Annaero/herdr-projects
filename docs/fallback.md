@@ -121,17 +121,17 @@ writes cannot switch a hand-over on or off ([settings](settings.md)).
 
 ## Beside the other settings
 
-The research these come from draws them next to others. [Several attempts](attempts.md) are built: there each
-attempt is worked on like a task of its own, so each has the fallback list for itself, and a hand-over in one
-attempt changes nothing in the others. When an attempt that changed hands is the one chosen, the task keeps the
-agent that took it over, its model and the hand-overs. The two differ: a hand-over is one agent after another, only on failure, and
-costs nothing when all goes well; attempts are side by side, always.
+The research these come from draws them next to others. [Several attempts](attempts.md) are built: there each attempt is
+worked on like a task of its own, so each has the fallback list for itself, and a hand-over in one attempt changes
+nothing in the others. When an attempt that changed hands is the one chosen, the task keeps the agent that took it over,
+its model and the hand-overs. The two differ: a hand-over is one agent after another, only on failure, and costs nothing
+when all goes well; attempts are side by side, always.
 
 [Limits on time and tokens](limits.md) are built too. A task stopped at its limit is **not** handed over: the limit
 is your cap on what the task may cost, a token limit counts all its agents together, and another agent would only
 go on spending. It waits for you, as that page says. Not built yet is a plan you approve. The hand-over is one
-function (`hand_over` in `src/finish/hand_over.rs`) that any step can call with its reason.
+function (`hand_over` in `crates/flow/src/finish/hand_over.rs`) that any step can call with its reason.
 
-The code: `src/store/handovers.rs` (what is kept on the task, the next on the list, the words),
-`src/finish/hand_over.rs` (the working agent's), `src/finish/review_fallback.rs` (the reviewer's); the tests are
-`tests/fallback.rs`, `tests/fallback_more.rs` and `tests/fallback_settings.rs`.
+The code: `crates/core/src/store/handovers.rs` (what is kept on the task, the next on the list, the words),
+`crates/flow/src/finish/hand_over.rs` (the working agent's), `crates/flow/src/finish/review_fallback.rs` (the
+reviewer's); the tests are `tests/fallback.rs`, `tests/fallback_more.rs` and `tests/fallback_settings.rs`.

@@ -9,9 +9,9 @@ fn the_map_has_its_title_the_scripts_and_one_folder_or_a_folder_with_those_under
     assert!(all.contains("\n## `src/`\n") && all.contains("\n## `scripts/`\n"));
     assert!(re(r"\| `check\.sh` \| The one command that runs the tests", &all));
     // (The old map left the tests out, as `ls test` lists them; this one lists `tests/` too, each file by its comment.)
-    let view = sw::docs::map::where_page("src/board/view/").unwrap();
+    let view = sw::docs::map::where_page("crates/board/src/board/view/").unwrap();
     let heads: Vec<&str> = view.lines().filter(|l| l.starts_with("## ")).collect();
-    assert_eq!(heads, vec!["## `src/board/view/`", "## `src/board/view/panel/`"], "that folder and those under it, nothing else");
+    assert_eq!(heads, vec!["## `crates/board/src/board/view/`", "## `crates/board/src/board/view/panel/`"], "that folder and those under it, nothing else");
     assert!(re(r"\| `layout\.rs` \| The whole screen", &view));
-    assert!(re(r"\n## `src/board/`\n[\s\S]*\n## `src/board/view/`\n", &sw::docs::map::where_page("src/board").unwrap()));
+    assert!(re(r"\n## `crates/board/src/board/`\n[\s\S]*\n## `crates/board/src/board/view/`\n", &sw::docs::map::where_page("crates/board/src/board").unwrap()));
 }

@@ -1,7 +1,7 @@
 //! `herdr-superwork docs`: the pages made from the code, and the repo's own rules checked. It writes what is out of
 //! date (`--check` only says which), prints the map (`--where [folder]`), or lists what breaks a rule (`--guard`).
-//!   docs/keys.md              the table of keys, from src/board/keys.rs
-//!   docs/settings.md          the table of settings, from src/store/settings_list.rs
+//!   docs/keys.md              the table of keys, from crates/flow/src/board/keys.rs
+//!   docs/settings.md          the table of settings, from crates/core/src/store/settings_list.rs
 //!   docs/where-things-live.md the map: which file holds what, from the comment at the top of each file. Not in git
 //!                             (it changed in most pull requests and collided): written in your own folder only.
 //! A page made in part keeps its own words outside the two marker lines; only what is between them is replaced.

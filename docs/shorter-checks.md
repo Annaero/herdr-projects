@@ -38,6 +38,6 @@ GitHub before the merge.
 ## What this repo's shorter check runs
 
 `npm run check -- --since <commit>` builds the program, writes the made tables and checks the repo's rules as the
-whole check does, then runs the tests in `src/` and only the test files the change since that commit reaches
+whole check does, then runs the tests beside the code and only the test files the change since that commit reaches
 ([testing](testing.md#the-shorter-check-of-a-fix-round)). Where it cannot tell what a change reaches, it runs every
 test.

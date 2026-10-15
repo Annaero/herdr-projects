@@ -1,37 +1,17 @@
-//! The front door's life. It runs inside the board's one page server (`herdr-superwork serve`, review_page.rs), as a
-//! second listener there, so the plugin still owns one long-lived process and not two. It is up while the web UI plugin
-//! is installed (find.rs), follows the web UI to another port, hands over to a new process when the program was
-//! updated, and stops cleanly. Its bookkeeping (its process, its port, where it passes things on to) is one file in the
-//! data folder: front-door.json. The keeper, herdr's start and the board opening all see to it that it is up.
+//! The front door's loop: in the page server's process, it opens the front door while the web UI plugin is installed
+//! (find.rs), follows the web UI to another port, hands over to a new process when the program was updated, and stops
+//! cleanly. Whether it is up, and starting it from outside: keep.rs.
 use super::door::{handle, Upstream};
 use super::find::{web_ui, WebUi};
+use super::keep::{door_file, off, FIRST_PORT};
 use super::link;
 use crate::json::*;
-use crate::store::files::{data_dir, marker, marker_alive, read_json, write_json, VERSION};
+use crate::store::files::{marker, read_json, write_json, VERSION};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-pub fn door_file() -> std::path::PathBuf { data_dir().join("front-door.json") }
-pub fn door_info() -> Option<Value> { read_json(&door_file()).filter(|d| marker_alive(d) && d.b("port")) }
-/// The port it asks for the first time; after that the one it had, so the shared link keeps pointing at it.
-pub const FIRST_PORT: u16 = 7327;
 const EVERY: u64 = 30;
-fn off() -> bool { std::env::var("HERDR_SUPERWORK_NO_SERVER").as_deref() == Ok("1") || crate::runner::inline() }
-
-/// Seen to from outside: the page server is started when the web UI is there and no front door answers. A page server
-/// from before the front door existed (it never wrote the front door's file) is told to go, and the next look starts
-/// today's. One that wrote it is today's, and opens its front door by itself.
-pub fn ensure_door() -> bool {
-    if off() || web_ui(false).is_none() { return false; }
-    if door_info().is_some() { return true; }
-    if let Some(old) = crate::review_page::server_info() {
-        if !door_file().exists() { unsafe { libc::kill(old.i("pid") as i32, libc::SIGTERM); } }
-        return false;
-    }
-    crate::review_page::ensure_server();
-    door_info().is_some()
-}
 /// What the requests are passed on to, as the door's loop last saw it.
 #[derive(Default)]
 struct Door { to: Mutex<Option<WebUi>>, linked: Mutex<String>, looked_at: Mutex<i64> }

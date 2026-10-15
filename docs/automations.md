@@ -144,23 +144,23 @@ no heading while there is no automation.
 - **Making and rewording one** is done through the Coordinator's text box, which stays where it is: on an
   automation's row no task is selected, so what you type goes where it goes with no task selected (to the
   Coordinator; with none on, it is added as a task, word for word, and an automation is made with the command).
-- **A task an automation made says so**: `[auto]` after its name on its row, in the automations' colour, and `Made by` in its panel's Status,
-  which names the automation.
-- **Other machines' automations** show with their tasks ([other machines](other-machines.md)): on the board of
-  every machine each row names its machine (`on otherbox`), and one machine's own board shows only its own. They
-  are turned on and off, fired and removed there, on the machine that has them; the whole automation is drawn from
-  what that machine sent (its latest twenty firings). `Ctrl+E` opens its settings as it does this machine's: the
-  rows are that machine's own (every work setting as its next task will have it there), and a row changed or put back is changed on that machine. Only a machine on a version that sends no such
-  rows has no page: there the board says the command instead.
+- **A task an automation made says so**: `[auto]` after its name on its row, in the automations' colour, and `Made by`
+  in its panel's Status, which names the automation.
+- **Other machines' automations** show with their tasks ([other machines](other-machines.md)): on the board of every
+  machine each row names its machine (`on otherbox`), and one machine's own board shows only its own. They are turned on
+  and off, fired and removed there, on the machine that has them; the whole automation is drawn from what that machine
+  sent (its latest twenty firings). `Ctrl+E` opens its settings as it does this machine's: the rows are that machine's
+  own (every work setting as its next task will have it there), and a row changed or put back is changed on that
+  machine. Only a machine on a version that sends no such rows has no page: there the board says the command instead.
 
-The [web board](web-ui.md) has the same group at the foot of its list, the same automation whole and the same
-actions, drawn from the same code: a row tapped open, buttons to turn it on or off, fire it now and remove it, and
-each firing that made a task as a link to it. A row shows all of what it says however narrow the page is (a
-task's row keeps to two lines): whether it is on or off and when it fires are never cut away. An automation's settings page is the terminal board's; on the web
-they are changed with the command. The popup is the same board, so it has all of this too.
+The [web board](web-ui.md) has the same group at the foot of its list, the same automation whole and the same actions,
+drawn from the same code: a row tapped open, buttons to turn it on or off, fire it now and remove it, and each firing
+that made a task as a link to it. A row shows all of what it says however narrow the page is (a task's row keeps to two
+lines): whether it is on or off and when it fires are never cut away. An automation's settings page is the terminal
+board's; on the web they are changed with the command. The popup is the same board, so it has all of this too.
 
 ## Where it is kept
 
 `data/automations/` in [the home folder](home-folder.md): `automations.json` (the list), `firings/<id>.jsonl` (every
-firing of one automation) and `events.json` (which board events were counted already). Code: `src/automations/`
-and `src/store/automations.rs`.
+firing of one automation) and `events.json` (which board events were counted already). Code:
+`crates/flow/src/automations/` and `crates/core/src/store/automations.rs`.

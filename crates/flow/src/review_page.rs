@@ -101,7 +101,9 @@ pub fn serve_artifact(path: &str) -> crate::http::Response {
         None => Response::text(404, "Not found"),
     }
 }
-pub fn serve_main() -> i32 {
+/// The page server's process, which is also the front door of the herdr web UI while that plugin is installed: the
+/// command line hands it the front door's loop (webui/door_loop.rs), a part built on top of this one.
+pub fn serve_main(front_door: fn()) -> i32 {
     let prev = read_json(&serve_file()).unwrap_or(Value::Null);
     let Ok(listener) = crate::http::listen(prev.i("port") as u16) else { return 1 };
     let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
@@ -109,8 +111,8 @@ pub fn serve_main() -> i32 {
     let mut all = prev.as_object().cloned().unwrap_or_default();
     all.put("pid", pid); all.put("start", proc_start(pid)); all.put("port", port);
     let _ = write_json(&serve_file(), &Value::Object(all));
-    // The same process is the front door of the herdr web UI, while that plugin is installed (webui/keep.rs).
-    crate::webui::keep::run_door();
+    // The same process is the front door of the herdr web UI, while that plugin is installed (webui/door_loop.rs).
+    front_door();
     crate::http::serve(listener, |req, _| Some(serve_artifact(&req.path)));
     0
 }

@@ -40,7 +40,7 @@ Now the old board gives back the modes it took (keyboard, paste) but stays in th
 frame up, and the new board, which is in that view already, neither enters it again nor clears it (herdr clears
 the view on entering it a second time) and draws its first frame over the old one.
 Recorded the same way: no frame between the two boards but the board itself. If the new board cannot start, the
-terminal gets its plain screen back. (`src/board/run/term.rs`, `src/board/run/start.rs`.)
+terminal gets its plain screen back. (`crates/board/src/board/run/term.rs`, `crates/board/src/board/run/start.rs`.)
 
 ## What does not change it: agents starting and ending
 

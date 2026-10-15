@@ -3,12 +3,12 @@
 //! colour by who gets the words, a draft kept with who it is for, and the styles a thumb and the eye need.
 use regex::Regex;
 
-const LIST: &str = include_str!("../src/webui/page/list.js");
-const CHAT: &str = include_str!("../src/webui/page/chat.js");
-const DOM: &str = include_str!("../src/webui/page/dom.js");
-const SHEETS: &str = include_str!("../src/webui/page/sheets.js");
-const CSS: &str = include_str!("../src/webui/page/board.css");
-const COMPOSE_CSS: &str = include_str!("../src/webui/page/compose.css");
+const LIST: &str = include_str!("../crates/web/src/webui/page/list.js");
+const CHAT: &str = include_str!("../crates/web/src/webui/page/chat.js");
+const DOM: &str = include_str!("../crates/web/src/webui/page/dom.js");
+const SHEETS: &str = include_str!("../crates/web/src/webui/page/sheets.js");
+const CSS: &str = include_str!("../crates/web/src/webui/page/board.css");
+const COMPOSE_CSS: &str = include_str!("../crates/web/src/webui/page/compose.css");
 fn has(text: &str, re: &str) -> bool { Regex::new(re).unwrap().is_match(text) }
 
 #[test]

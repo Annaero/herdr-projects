@@ -4,7 +4,7 @@
 //!
 //! The old test moved keys to other chords at run time and saw them move everywhere. Here the list is fixed when the
 //! program is built (a `static`), so the same promise is checked the other way round: everything shown is made from the
-//! entries, and nothing outside src/board/keys.rs spells a chord of the board.
+//! entries, and nothing outside crates/flow/src/board/keys.rs spells a chord of the board.
 use crate::common;
 use common::board::open;
 use common::*;
@@ -53,13 +53,13 @@ fn the_keys_list_every_place_names_a_key_as_its_entry_does_and_a_chord_not_in_it
 #[test]
 fn no_source_file_but_the_keys_list_writes_a_board_keys_chord_into_its_words() {
     // The text box's own editing keys and herdr's keys are not the board's: they have their own words.
-    let skip = ["src/board/keys.rs", "src/board/textbox/", "src/herdr/"];
+    let skip = ["crates/flow/src/board/keys.rs", "crates/board/src/board/textbox/", "crates/core/src/herdr/"];
     let chords: Vec<String> = sw::board::keys::KEYS.iter().flat_map(|k| k.keys.iter()).filter(|c| c.starts_with("ctrl+") || c.starts_with("alt+")).map(|c| c.to_string()).collect();
     let quoted = regex::Regex::new(r#""[^"\n]*""#).unwrap();
     let chord_re = regex::Regex::new(r"\b(?:ctrl|alt)\+[a-z]\b").unwrap();
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut bad = vec![];
-    let mut stack = vec![root.join("src")];
+    let mut stack = vec![root.join("src"), root.join("crates")];
     while let Some(d) = stack.pop() {
         for e in std::fs::read_dir(&d).unwrap().flatten() {
             let p = e.path();

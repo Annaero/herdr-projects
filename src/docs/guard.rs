@@ -2,11 +2,11 @@
 //! written only in the keys' table, every test file in the one test program, and no made table out of date. Part of
 //! the check (tests/guard.rs runs it); by hand: `herdr-superwork docs --guard`.
 
-/// A source file past this many lines is split by area (as src/finish/ was) rather than appended to.
+/// A source file past this many lines is split by area (as crates/flow/src/finish/ was) rather than appended to.
 pub const MAX_LINES: usize = 300;
-const KEYS_FILE: &str = "src/board/keys.rs";
+const KEYS_FILE: &str = "crates/flow/src/board/keys.rs";
 /// The text box's own editing keys (the chords every text box has) are its own table.
-const BOX_KEYS: &str = "src/board/textbox/keys.rs";
+const BOX_KEYS: &str = "crates/board/src/board/textbox/keys.rs";
 /// The one test program: every file in tests/ is a module of it.
 const TESTS_MAIN: &str = "tests/main.rs";
 /// A file made by a script (herdr's palette) is as long as what it is made from.
@@ -21,9 +21,9 @@ pub fn problems() -> Vec<String> {
         if n > MAX_LINES && !made(&text) && !f.ends_with(".css") { out.push(format!("{f} has {n} lines, more than {MAX_LINES}: split it by area into a folder of small files (AGENTS.md, \"Where new things go\")")); }
         if let Err(e) = super::map::holds(f) { out.push(e); }
     }
-    // A key's chord is written in src/board/keys.rs and nowhere else, so that changing a key is one edit.
+    // A key's chord is written in crates/flow/src/board/keys.rs and nowhere else, so that changing a key is one edit.
     let chord = crate::re!(r#""(ctrl|alt|shift)\+[a-z]"#);
-    for f in files.iter().filter(|f| f.starts_with("src/") && f.ends_with(".rs") && *f != KEYS_FILE && *f != BOX_KEYS) {
+    for f in files.iter().filter(|f| (f.starts_with("src/") || f.starts_with("crates/")) && f.ends_with(".rs") && *f != KEYS_FILE && *f != BOX_KEYS) {
         let mut in_tests = false;
         for (n, l) in super::read(f).lines().enumerate() {
             if l.contains("#[cfg(test)]") { in_tests = true; }

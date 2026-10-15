@@ -24,13 +24,8 @@ pub fn releases() -> String {
 pub fn asset_url(base: &str, version: Option<&str>, asset: &str) -> String {
     match version { Some(v) => format!("{base}/download/v{}/{asset}", v.trim_start_matches('v')), None => format!("{base}/latest/download/{asset}") }
 }
-fn parts(v: &str) -> Vec<u64> { v.trim_start_matches('v').split('.').map(|p| p.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse().unwrap_or(0)).collect() }
-/// Versions compared part by part as numbers (0.10.0 is newer than 0.9.1): true when `a` is newer than `b`.
-pub fn newer(a: &str, b: &str) -> bool {
-    let (x, y) = (parts(a), parts(b));
-    for i in 0..x.len().max(y.len()) { let (p, q) = (x.get(i).copied().unwrap_or(0), y.get(i).copied().unwrap_or(0)); if p != q { return p > q; } }
-    false
-}
+/// Versions compared part by part (util.rs, where the data folder's own check reads it too).
+pub use crate::util::newer;
 /// The hash a `.sha256` file holds (`<hex>  <name>`, as sha256sum writes it).
 pub fn sum_in(text: &str) -> Option<String> {
     let h = text.split_whitespace().next()?.to_ascii_lowercase();

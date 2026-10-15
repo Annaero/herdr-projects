@@ -25,12 +25,13 @@ for f in $changed; do
     tests/*/*) d=${f#tests/}; d=${d%%/*}; by_text "crate::$d" ;;
     tests/*.rs) pick "$(basename "$f" .rs)" ;;
     src/lib.rs|src/main.rs) all "$f holds the whole program." ;;
-    src/*)
+    crates/*/src/lib.rs) all "$f is the root of a crate (docs/crates.md): it names all of that crate's code." ;;
+    src/*|crates/*/src/*)
       # A file of the program: the test files named by it (its name, its folder's) or that write its module's path.
       stem=$(basename "$f"); stem=${stem%.*}
       dir=$(dirname "$f"); parent=$(basename "$dir")
       [ "$stem" = mod ] && { stem=$parent; dir=$(dirname "$dir"); parent=$(basename "$dir"); }
-      [ "$parent" = src ] && parent=sw
+      [ "$parent" = src ] && parent=sw # the top of a crate's code (src/, crates/<crate>/src/)
       by_word "$stem"
       [ "$parent" = sw ] || by_word "$parent"
       by_text "$parent::$stem"

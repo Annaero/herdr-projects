@@ -1,9 +1,9 @@
 [package]
 name = "herdr-superwork"
-version = "0.3.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 description = "A work board for herdr: one list of tasks, each delegated one running as an ordinary herdr agent."
-license = "MIT"
+license.workspace = true
 publish = false
 # The tests are one program (tests/main.rs, every file in tests/ a module of it), not one program per file.
 autotests = false
@@ -20,7 +20,26 @@ path = "src/main.rs"
 name = "main"
 path = "tests/main.rs"
 
-[dependencies]
+# The program is several crates, one on top of the other, so that a change builds again only its own crate and the
+# ones on top of it: sw-core (the data and herdr), sw-flow (the flow of a task), sw-board (the board's screen), sw-web
+# (the board in the herdr web UI), each in crates/, and this one (the command line and the made pages, src/), which
+# the tests use as `sw`. Why and how: docs/crates.md.
+[workspace]
+members = ["crates/core", "crates/flow", "crates/board", "crates/web"]
+# `cargo build` and `cargo test` take them all, as they took the one crate before: the tests beside the code too.
+default-members = [".", "crates/core", "crates/flow", "crates/board", "crates/web"]
+
+[workspace.package]
+version = "0.3.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+sw-core = { path = "crates/core" }
+sw-flow = { path = "crates/flow" }
+sw-board = { path = "crates/board" }
+sw-web = { path = "crates/web" }
 ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
 crossterm = "0.29"
 serde = { version = "1", features = ["derive"] }
@@ -36,6 +55,19 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 sha1_smol = "1"
 # GitHub's workflow files, read as GitHub reads them, to know which checks a pull request is to get (land/triggers.rs).
 yaml-rust2 = { version = "0.10", default-features = false }
+
+[dependencies]
+sw-web.workspace = true
+regex.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+chrono.workspace = true
+crossterm.workspace = true
+fancy-regex.workspace = true
+libc.workspace = true
+ratatui.workspace = true
 
 [profile.release]
 opt-level = "s"
