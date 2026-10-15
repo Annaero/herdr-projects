@@ -102,6 +102,7 @@ pub fn remote_list() -> Value {
         let snap = snapshot(&t);
         for k in ["live", "announced", "events"] { t.del(k); }
         if let Some(k) = keys.get(t.s("repo")) { t.put("key", k.clone()); }
+        crate::after::sent(&mut t);
         t.put("snap", snap);
         Value::Object(t)
     }).collect();

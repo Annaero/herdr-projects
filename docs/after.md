@@ -21,20 +21,25 @@ it was done still counts as done.
 ## Not tabbed: a condition only
 
 A task with `--after` that nobody tabbed (`add --after` without `--delegate`, or `after <id> <id>` on a task in to do)
-stays under **to do** with its `○`, and a dim note says what it is to wait for: `after SKL-6`, or `after SKL-4, SKL-5`,
-naming the ones not done yet (none once they all are). It **never starts by itself**, not even once those tasks are
-done. Tab starts it any time: while they are not all done it is then queued (below); once they are, it starts at once.
-The task panel has a `To wait for` line, and `list` says it beside the title.
+stays under **to do** with its `○`, and its row says nothing of the wait: the wait is only shown once the task is
+queued (below). It **never starts by itself**, not even once those tasks are done. Tab starts it any time: while they
+are not all done it is then queued (below); once they are, it starts at once. The task panel has a `To wait for` line
+(`To wait for  SKL-6`), where it is seen and changed, and `list` says it beside the title: `after SKL-6`, or
+`after SKL-4, SKL-5`, naming the ones not done yet (none once they all are). The web Board and the herdr sidebar rows
+say nothing of it either.
 
 ## Tabbed: queued after them
 
 A task tabbed (`delegate`) with `--after` while those tasks are not all done is queued, exactly as a task that waits for a
 free slot is ([the board](board.md)): the pink `◌` and the queue's colour, under **working** with the queued tasks
 (after those that wait for a slot), and its line says `queued after AGT-2` (or `queued after SKL-4, SKL-5`) in the
-queue's colour, naming the ones not done yet (by their key where the repo has one). It has no place (`Q#2`) yet: it
+queue's colour, naming the ones not done yet by their key, as everywhere else (`vm-str:ELA-3` for a task of another
+machine). It has no place (`Q#2`) yet: it
 waits for tasks, not for a slot. The task panel's State says `queued after AGT-2` and a `Starts after` line has each task
 (`(done)` beside those that are), `details` has an `after` part, and `list` says it beside the title. The web Board,
-another machine's board and the herdr sidebar (`queued after AGT-2`) show the same. Tasks added with
+another machine's board and the herdr sidebar (`queued after AGT-2`) show the same: another machine's board shows the
+line and the names as the task's own machine says them (its keys, which that board may not know), never the bare id
+(`gtm-agent/2`). Tasks added with
 `--after … --delegate` before this was so count as tabbed and show as queued.
 
 - It holds no agent slot (`board.agents`) and nothing runs for it: no worktree, no space, no agent.

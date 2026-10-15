@@ -14,7 +14,7 @@ use crate::store::{keys::{repo_keys, tag_of}, reviews::{current_review, review_r
 /// One task of `list`: named by its key (`HSW-134`), in a column of its own.
 fn line(t: &Obj, keys: &crate::store::keys::Keys) -> String {
     format!("{:<9} {:<8}{}{}  {}{}{}{}", crate::store::keys::say_id(t.s("id"), keys), t.t("state"), if t.b("kind") { format!(" {}", t.s("kind")) } else { String::new() }, if t.b("shownApp") { format!(" [{}]", t.s("shownApp")) } else { String::new() },
-        t.s("title"), if t.b("research") { " [research]" } else { "" }, if queued(t) { format!("  · {}", queue_words(t)) } else if t.b("note") { format!("  · {}", t.s("note")) } else { String::new() }, if t.b("archivedAt") { "  (archived)" } else { "" })
+        t.s("title"), if t.b("research") { " [research]" } else { "" }, if queued(t) { format!("  · {}", queue_words(t)) } else if !crate::after::todo_line(t).is_empty() { format!("  · {}", crate::after::todo_line(t)) } else if t.b("note") { format!("  · {}", t.s("note")) } else { String::new() }, if t.b("archivedAt") { "  (archived)" } else { "" })
 }
 fn brief(t: &Obj) -> Value {
     let mut o = obj(json!({ "id": t.at("id"), "state": t.at("state"), "kind": t.at("kind"), "app": t.at("shownApp"), "title": t.at("title"), "msg": t.at("note"), "stage": t.at("stage"), "progress": t.at("progress"), "eta": t.at("eta") }));

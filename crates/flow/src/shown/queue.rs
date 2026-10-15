@@ -35,7 +35,7 @@ pub fn number(rows: &mut [Obj]) {
 pub fn tag(r: &Obj) -> String { if queued(r) && r.i("queuePlace") > 0 { format!("Q#{}", r.i("queuePlace")) } else { String::new() } }
 /// "waiting for a free slot, Q#2", or "queued after HSW-6": where a queued task stands, in words.
 pub fn words(r: &Obj) -> String {
-    if waits_after(r) { return crate::after::waits_line(&strings(r.at("afterLeft"))); }
+    if waits_after(r) { return crate::after::row_line(r); }
     let q = tag(r); if q.is_empty() { WAITING.into() } else { format!("{WAITING}, {q}") }
 }
 pub const WAITING: &str = "waiting for a free slot";

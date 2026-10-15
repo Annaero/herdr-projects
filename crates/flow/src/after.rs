@@ -46,12 +46,25 @@ pub fn waits_line(left: &[String]) -> String {
     let line = format!("queued after {}", listed(left));
     match far::unreachable(left) { Some(w) => format!("{line} · {w}"), None => line }
 }
+/// A queued task's line on its row: another machine's row brings the one its own board says (`afterLine`, remote.rs),
+/// as the tasks it names are that machine's to name (its keys, its machines).
+pub fn row_line(r: &Obj) -> String { r.so("afterLine").map(String::from).unwrap_or_else(|| waits_line(&strings(r.at("afterLeft")))) }
+/// A task a row waits for, named as the row's own board names it (`afterNames`, remote.rs), else as this one does.
+fn say_on(r: &Obj, id: &str) -> String { r.at("afterNames").so(id).map(String::from).unwrap_or_else(|| say(id)) }
+/// What another machine's board is sent of a task's wait, said here for it: its queued line and each task's name.
+pub fn sent(t: &mut Obj) {
+    if after_of(t).is_empty() { return; }
+    let names: Obj = after_of(t).iter().map(|i| (i.clone(), json!(say(i)))).collect();
+    if t.s("stage") == STAGE { t.put("afterLine", waits_line(&strings(t.at("afterLeft")))); }
+    t.put("afterNames", names);
+}
 /// "once that is done", "once they are done": when a queued task starts by itself.
 fn once(n: usize) -> &'static str { if n == 1 { "once that is done" } else { "once they are done" } }
-/// The note of a task nobody delegated yet that is to wait for others: "after HSW-4", naming the ones not done yet
-/// (nothing once all are). It is only a condition: such a task never starts by itself.
+/// What `list` says of a task in to do (nobody delegated it yet) that is to wait for others: "after HSW-4", naming the
+/// ones not done yet (nothing once all are; nothing in any other stage, whose own words `list` says). It is only a
+/// condition: such a task never starts by itself, and its row says nothing of it.
 pub fn todo_line(t: &Obj) -> String {
-    if after_of(t).is_empty() { return String::new(); }
+    if t.s("stage") != "todo" || after_of(t).is_empty() { return String::new(); }
     let (left, _) = standing(t);
     if left.is_empty() { String::new() } else { format!("after {}", listed(&left)) }
 }
@@ -137,11 +150,11 @@ pub fn panel_line(r: &Obj) -> Option<(&'static str, String)> {
     let all = after_of(r);
     if r.s("stage") == STAGE {
         let left = strings(r.at("afterLeft"));
-        return Some(("Starts after", all.iter().map(|i| if left.contains(i) || !r.has("afterLeft") { say(i) } else { format!("{} (done)", say(i)) }).collect::<Vec<_>>().join(", ")));
+        return Some(("Starts after", all.iter().map(|i| if left.contains(i) || !r.has("afterLeft") { say_on(r, i) } else { format!("{} (done)", say_on(r, i)) }).collect::<Vec<_>>().join(", ")));
     }
     let done = r.arr("afterDone");
-    if !done.is_empty() { return Some(("Waited for", done.iter().map(|d| format!("{} ({})", say(d.s("id")), if d.b("done") { "done" } else { "not done" })).collect::<Vec<_>>().join(", "))); }
-    (!all.is_empty()).then(|| ("To wait for", all.iter().map(|i| say(i)).collect::<Vec<_>>().join(", ")))
+    if !done.is_empty() { return Some(("Waited for", done.iter().map(|d| format!("{} ({})", say_on(r, d.s("id")), if d.b("done") { "done" } else { "not done" })).collect::<Vec<_>>().join(", "))); }
+    (!all.is_empty()).then(|| ("To wait for", all.iter().map(|i| say_on(r, i)).collect::<Vec<_>>().join(", ")))
 }
 /// Said to a delegation of a task that already waits: it starts by itself, or early when asked.
 pub fn still_waits(t: &Task) -> String {

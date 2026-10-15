@@ -59,7 +59,7 @@ A task started while every slot of `board.agents` is taken has a colour no other
 place in the queue (`Q#2`), the State line in the task panel and its agent's text box. A task tabbed with `--after`
 while the tasks it waits for are not all done is queued too and has the same pink: its `◌`, its State line, its box,
 and its line `queued after SKL-6` ([one task after another](after.md)). One only to wait for others, never tabbed,
-stays the dim grey of "to do", with its note `after SKL-6` in that grey. Pink is the colour furthest
+stays the dim grey of "to do", and its row says nothing of the wait. Pink is the colour furthest
 from all the others: amber works, red needs you, green is ready, teal is done, blue is under review, grey is to do
 and purple is an automation.
 
