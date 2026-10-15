@@ -44,9 +44,10 @@ pub struct Setup { pub file: String, pub typing: bool, pub key: Option<(bool, St
 /// What you sent a task's agent, until it says something new.
 #[derive(Clone, Debug, Default)]
 pub struct Sent { pub text: String, pub over: (String, Value, Value) }
-/// A chat message longer than its box: where you scrolled to, for which message.
+/// A chat message longer than its box: where you scrolled to, in which chat (`key`). Opened (`top`), it stays open while
+/// its conversation changes: `lines` its lines as last drawn, to find the place again, `end` whether it showed the end.
 #[derive(Clone, Debug, Default)]
-pub struct ChatAt { pub key: String, pub top: Option<usize> }
+pub struct ChatAt { pub key: String, pub top: Option<usize>, pub lines: Vec<String>, pub end: bool }
 #[derive(Clone, Debug, Default)]
 pub struct ChatFit { pub total: usize, pub rows: usize, pub top: usize, pub above: usize, pub below: usize, pub latest: usize }
 /// One row of the folded list: a heading, a task, a note ("↓ 3 more done"), or an automation. A heading is a machine's

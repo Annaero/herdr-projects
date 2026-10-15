@@ -20,6 +20,7 @@ pub struct Who { pub mark: Inked, pub tag: String, pub name: String, pub status:
 fn parts_text(parts: &[Part]) -> String { parts.iter().map(|p| format!("{}{}", if p.by.is_empty() { String::new() } else { format!("{}:\n", p.by) }, p.text)).collect::<Vec<_>>().join("\n\n") }
 /// Who the chat talks to now, as the chat draws it. None in find.
 pub fn chat_of(s: &mut State, t: &Theme, r: Option<&Obj>) -> Option<Who> {
+    same_chat(s);
     if s.mode == Mode::Find { return None; }
     if let (true, Some(r)) = (s.reply, r) {
         let to_agent = has_agent(r);
@@ -128,7 +129,6 @@ pub fn chat_lines(c: Option<&Who>, width: usize, tight: bool) -> Vec<Inked> {
 pub fn chat_up(s: &State, c: Option<&Who>) -> bool { c.map(|c| s.chat_open || c.always).unwrap_or(false) }
 /// The conversation, wrapped to `width`, on at most `max` lines: each thing said under the line that names who said it.
 pub fn chat_message(s: &mut State, c: Option<&Who>, width: usize, max: usize) -> Vec<Inked> {
-    if c.map(|c| c.text.is_empty()).unwrap_or(false) { s.chat_at = None; }
     let Some(c) = c.filter(|c| !c.text.is_empty()) else { return vec![] };
     if max < 1 { return vec![]; }
     let paint = |by: bool, l: Inked, p: &Part| if by { l.recolor(Ink::Muted) } else if !p.tone.is_empty() { l.recolor(crate::board::update::beat::ink_of(&p.tone)) } else if p.mine { l } else { l.recolor(Ink::Soft) };
@@ -137,22 +137,32 @@ pub fn chat_message(s: &mut State, c: Option<&Who>, width: usize, max: usize) ->
     let newest = starts.last().copied().unwrap_or(0);
     let yours = starts.get(opens_at(&c.parts)).copied().unwrap_or(newest);
     let latest = if lines.len() - yours <= max { yours } else { newest };
-    let top = chat_window(s, c, lines.len(), max, latest);
+    let texts: Vec<String> = lines.iter().map(|l| l.text()).collect();
+    let top = chat_window(s, c, &texts, max, latest);
     let rows = s.chat_fit.as_ref().map(|f| f.rows).unwrap_or(0);
     lines.into_iter().skip(top).take(rows).collect()
 }
 /// Which lines of a conversation show: the box opens on the newest thing said (from `latest`: your newest words with
-/// what was said after them) and holds only that; the first scroll up opens it to the conversation. Only a screen starts at its end. Kept for as long as the same message shows.
-pub fn chat_window(s: &mut State, c: &Who, total: usize, max: usize, latest: usize) -> usize {
-    let key = [if s.reply { s.sel.clone() } else { String::new() }, if c.mine { "mine".into() } else { String::new() }, if c.raw { String::new() } else { c.turn.clone() }, c.text.clone()].join("\n");
-    if s.chat_at.as_ref().map(|a| a.key != key).unwrap_or(true) { s.chat_at = Some(ChatAt { key, top: None }); }
-    let at = s.chat_at.as_ref().unwrap().top;
-    let open = c.raw || at.is_some();
+/// what was said after them) and holds only that; the first scroll up opens it to the conversation. Only a screen starts
+/// at its end. Opened, it stays open for as long as you talk to the same one, whatever they say meanwhile: on the lines
+/// you read, or on the end when you were there (chat_keep.rs). Down once more from its end, hiding the chat, or talking
+/// to another closes it.
+pub fn chat_window(s: &mut State, c: &Who, lines: &[String], max: usize, latest: usize) -> usize {
+    let total = lines.len();
+    same_chat(s);
+    let at = s.chat_at.get_or_insert_with(Default::default);
+    let open = c.raw || at.top.is_some();
     let rows = max.min(if open { total } else { total - latest }).max(1);
     let last = total.saturating_sub(rows);
-    let top = at.unwrap_or(if c.raw { last } else { latest }).min(last);
+    let top = if at.top.is_some() { super::chat_keep::kept(at, lines, last) } else if c.raw { last } else { latest.min(last) };
+    if at.top.is_some() { at.top = Some(top); at.lines = lines.to_vec(); at.end = top >= last; }
     s.chat_fit = Some(ChatFit { total, rows, top, above: top, below: last - top, latest });
     top
+}
+/// Talking to another (even one with nothing to show yet) starts its chat closed.
+fn same_chat(s: &mut State) {
+    let key = if s.reply { format!("task {}", s.sel) } else { coord_name(s) };
+    if s.chat_at.as_ref().map(|a| a.key != key).unwrap_or(true) { s.chat_at = Some(ChatAt { key, ..Default::default() }); }
 }
 /// The words on the box that say the message goes on, with the key that shows it, in `room` columns.
 pub fn more_word(up: bool, room: usize) -> Inked {

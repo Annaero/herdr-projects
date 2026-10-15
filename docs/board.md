@@ -529,9 +529,14 @@ neither touches the draft. The box says where there is more and names the key: `
 
 A new message starts at its beginning: an answer is read from its first line down, and one key goes on from there
 (started at its end, you would scroll up to find where it begins and then down again to read it). Only a screen, shown
-for a program whose conversation cannot be read, starts at its end, where a terminal has what is new. Where you scrolled
-to is kept while the same message of the same chat shows; a new message (also one in the very same words as the last),
-your own words in its place, or another chat starts over.
+for a program whose conversation cannot be read, starts at its end, where a terminal has what is new.
+
+Opened to the conversation, the chat stays open until you close it: whatever happens meanwhile (the Coordinator at
+work, a new message, the list read again, tasks changing), it stays on the lines you were reading, found again where
+they moved as the oldest messages drop off (also in a reply said twice: the one you read). Scrolled to its end, it
+shows each new message as it comes. `Alt+U` goes further up with each press; it goes back to the newest message only
+when you take it there: `Alt+J` once more from its end, hiding the chat (`Alt+C`, or esc) and showing it again, or
+talking to another (the task's agent, another task's, back to the Coordinator).
 
 A tall draft never takes the message away: in a window too small for both, the draft gives rows back and scrolls
 inside what it keeps, so that three lines of the message stay, and they still scroll.

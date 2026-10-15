@@ -78,7 +78,7 @@ fn the_chats_box_grows_with_the_answer_up_to_two_thirds_of_the_window_and_shrink
 }
 
 #[test]
-fn alt_u_and_alt_j_scroll_a_message_longer_than_its_box_with_a_draft_too_the_box_says_where_there_is_more_a_new_message_starts_over() {
+fn alt_u_and_alt_j_scroll_a_message_longer_than_its_box_with_a_draft_too_the_box_says_where_there_is_more_a_new_message_keeps_the_place() {
     let mut b = B::new(30, 30);
     let (up, down) = (regex::escape(&key_name("chatScrollUp")), regex::escape(&key_name("chatScrollDown")));
     // The box names the key where there is more: under the message at first, on its top edge too once scrolled.
@@ -107,13 +107,14 @@ fn alt_u_and_alt_j_scroll_a_message_longer_than_its_box_with_a_draft_too_the_box
     // A message that fits has nothing to scroll: the keys do nothing, and are not typed into the draft.
     b.said.text = "Done.".into(); b.chat(120); b.key(&["alt+j", "alt+u"]); assert_eq!(b.b.s.value(), "my draft"); assert_eq!(b.chat(120).message, vec!["Done."]);
     b.key(&["esc"]);
-    // Scrolled down, then the message changes: the new one starts at its beginning.
-    b.said.text = answer(40); b.chat(120); b.key(&["alt+j"]); assert_eq!(b.first(), "Line 8 of the answer.");
-    b.said.text = answer(41); assert_eq!(b.first(), "Line 1 of the answer.");
-    // So does an answer in the very same words: it is another turn. And the same words after nothing was said.
-    b.key(&["alt+j"]); assert_eq!(b.first(), "Line 8 of the answer.");
-    b.said.turn = "turn-2".into(); assert_eq!(b.first(), "Line 1 of the answer.");
-    b.key(&["alt+j"]); let words = b.said.text.clone(); b.said.text = String::new(); b.screen(120); b.said.text = words; assert_eq!(b.first(), "Line 1 of the answer.");
+    // Scrolled down, then the message changes: the place stays (board_chat_open.rs has more). So it does for another
+    // turn in the very same words, and for the same words after nothing was said a moment.
+    // (Open on the whole of a short one, a long one shows its end, where it went on.)
+    b.said.text = answer(40); assert_eq!(b.chat(120).message.last().unwrap(), "Line 40 of the answer.");
+    b.key(&["alt+u"; 4]); b.key(&["alt+j"]); assert_eq!(b.first(), "Line 8 of the answer.");
+    b.said.text = answer(41); assert_eq!(b.first(), "Line 8 of the answer.");
+    b.said.turn = "turn-2".into(); assert_eq!(b.first(), "Line 8 of the answer.");
+    let words = b.said.text.clone(); b.said.text = String::new(); b.screen(120); b.said.text = words; assert_eq!(b.first(), "Line 8 of the answer.");
     // The turn is the chat's own to name: the Coordinator's turn, and a task's handled turn.
     let t = sw::board::theme::Theme::default_dark(true);
     b.apply(); b.b.s.data.coord.said = "Done.".into(); b.b.s.data.coord.turn = Some(sw::agents::read_turn::Turn { id: "t-7".into(), ..Default::default() });
@@ -121,15 +122,18 @@ fn alt_u_and_alt_j_scroll_a_message_longer_than_its_box_with_a_draft_too_the_box
     let rec = (*b.b.s.items[0]).clone(); b.b.s.reply = true;
     let turn = |s: &mut sw::board::state::State, m: &str| { let mut r = rec.clone(); r.put("handled", serde_json::json!({ "msg": m })); sw::board::view::chat::chat_of(s, &t, Some(&r)).unwrap().turn };
     assert_ne!(turn(&mut b.b.s, "m1"), turn(&mut b.b.s, "m2")); b.b.s.reply = false;
-    // So does the same words in another chat: the selected task's agent, and back. (The old test showed these words
-    // in the task's chat too; here the place a chat keeps is checked where it is kept: per chat, the task's by its id.)
+    // Another chat starts closed, on its beginning: the selected task's agent (as just now), and back. (The old test
+    // showed these words in the task's chat too; here the place a chat keeps is checked where it is kept: per chat, the
+    // task's by its id.)
+    assert_eq!(b.first(), "Line 1 of the answer.");
     b.key(&["alt+j"]); assert_eq!(b.first(), "Line 8 of the answer.");
     b.apply();
+    let lines: Vec<String> = std::iter::once("Coordinator:".to_string()).chain(answer(41).lines().map(String::from)).collect();
     let who = sw::board::view::chat::chat_of(&mut b.b.s, &t, None).unwrap();
     let fit = b.b.s.chat_fit.clone().unwrap();
-    assert_eq!(sw::board::view::chat::chat_window(&mut b.b.s, &who, fit.total, fit.rows, fit.latest), 8, "the same chat keeps its place");
+    assert_eq!(sw::board::view::chat::chat_window(&mut b.b.s, &who, &lines, fit.rows, fit.latest), 8, "the same chat keeps its place");
     b.b.s.reply = true;
-    assert_eq!(sw::board::view::chat::chat_window(&mut b.b.s, &who, fit.total, fit.rows, fit.latest), 0, "another chat starts at its beginning");
+    assert_eq!(sw::board::view::chat::chat_window(&mut b.b.s, &who, &lines, fit.rows, fit.latest), 0, "another chat starts at its beginning");
     b.b.s.reply = false; b.b.s.chat_at = None;
     // A screen (a dialog that is up) starts at its end, where a terminal has what is new; it scrolls up from there.
     b.said.raw = true; let c = b.chat(120);

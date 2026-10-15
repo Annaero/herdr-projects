@@ -21,7 +21,7 @@ const keep = (text, to = null) => { try { sessionStorage.setItem(DRAFT, text); i
 export function chatEl({ onSend, onPress }) {
   // `to`: who the words in the box are for, taken when the first of them is typed and kept until they are sent or
   // cleared: { id, reply, label, enter, delegate }. Tapping another task meanwhile changes what you look at, not this.
-  let last = null, to = null, now = null, tone = "text";
+  let last = null, lastWho = null, to = null, now = null, tone = "text";
   let busy = false, closed = false; // closed: the board was closed, and this box writes nothing more
   const go = async (delegate) => {
     const text = box.value;
@@ -103,10 +103,12 @@ export function chatEl({ onSend, onPress }) {
       hide.hidden = !c.text; hide.replaceChildren(icon(c.open ? "eyeOff" : "eye"), c.open ? "Hide" : "Show");
       hide.title = c.open ? "Hide the latest message" : "Show the latest message"; hide.setAttribute("aria-pressed", String(!c.open));
       note.hidden = !c.note; note.textContent = c.note;
-      const key = JSON.stringify([c.toAgent ? snap.list.selected : "", c.coord, c.text, c.mine]);
-      const fresh = key !== last;
-      if (fresh) last = key;
-      said.set(c.parts && c.parts.length ? c.parts : c.text ? [{ by: "", text: c.text, mine: c.mine, raw: c.raw, tone: c.tone }] : [], fresh, !!c.raw, c.parts && c.parts.length ? c.from : 0);
+      // Who it is (hidden and shown again, it is another), then what they said: an opened chat stays open while only that changes.
+      const whose = JSON.stringify([c.toAgent ? snap.list.selected : "", c.coord, !!c.open]);
+      const key = JSON.stringify([whose, c.text, c.mine]);
+      const fresh = key !== last, same = whose === lastWho;
+      if (fresh) { last = key; lastWho = whose; }
+      said.set(c.parts && c.parts.length ? c.parts : c.text ? [{ by: "", text: c.text, mine: c.mine, raw: c.raw, tone: c.tone }] : [], fresh, !!c.raw, c.parts && c.parts.length ? c.from : 0, same);
       said.show(shown);
       // The box's frame says who gets your words, as on the terminal board: the plain text colour for the Coordinator,
       // the task's status colour for its agent.

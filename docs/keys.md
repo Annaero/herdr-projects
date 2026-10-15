@@ -150,7 +150,7 @@ Restarting the Coordinator, starting a new one and going into its whole chat are
 | Key | Shows or hides |
 |---|---|
 | `Alt+C` | the chat's latest message, the Coordinator's or a task agent's. The one key for it, both ways |
-| `Alt+U` `Alt+J` | more of a chat message that is longer than its box: `Alt+U` scrolls it up, `Alt+J` down, half a box at a time, also while you type. The box says where there is more, and names the key (`alt+u more ↑`, `alt+j more ↓`). The mouse wheel does the same with the pointer over the chat ([mouse.md](mouse.md)) |
+| `Alt+U` `Alt+J` | more of a chat message that is longer than its box: `Alt+U` scrolls it up, `Alt+J` down, half a box at a time, also while you type. Up opens the box to the conversation before the newest message, each press further up; it stays open, whatever comes meanwhile, until `Alt+J` at its end goes back to the newest message (`Alt+C` hides and shows the whole chat; talking to another starts it at the newest too). The box says where there is more, and names the key (`alt+u more ↑`, `alt+j more ↓`). The mouse wheel does the same with the pointer over the chat ([mouse.md](mouse.md)) |
 | `Alt+P` | the side panel: the selected task or automation, beside the list |
 | `Alt+T` | the whole task (on an automation's row: the whole automation), full screen, and back to the list |
 | `Alt+A` | the archive, and back to the board |

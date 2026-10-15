@@ -3,7 +3,8 @@
 // It opens on the newest and holds only that; going up (the Earlier button, the wheel or a swipe at its top) opens it to
 // the conversation and scrolls up through it, half a box at a time with the buttons; Later goes down, and once more from
 // the end closes it to the newest again. A new message starts at its beginning; only a program's screen (one whose
-// conversation cannot be read) at its end.
+// conversation cannot be read) at its end. Opened, it stays open while the same chat shows: on what you were reading,
+// or on its end, where the new message comes, when you were there.
 /* global requestAnimationFrame, ResizeObserver */
 import { h, icon } from "./dom.js";
 
@@ -37,6 +38,21 @@ export function saidEl() {
     text.scrollTop = (newest ? newest.offsetTop - text.firstElementChild.offsetTop : 0) + was - by;
     mark();
   };
+  // Where you read in an opened conversation: the first thing said in view, and how far above the top it starts.
+  const rel = (n) => n.offsetTop - text.firstElementChild.offsetTop;
+  const reading = () => { const i = [...text.children].findIndex((n) => rel(n) + n.offsetHeight > text.scrollTop); return i < 0 ? null : { i, off: rel(text.children[i]) - text.scrollTop }; };
+  // How a conversation moved from `was` to `now`: the shift that lines up the most of what was said (the smallest on a
+  // tie), so that something said twice is found where it was read, not at its other place.
+  const same = (a, b) => !!a && !!b && a.by === b.by && a.text === b.text;
+  const shift = (was, now) => {
+    let best = 0, most = -1;
+    for (let d = -now.length; d <= was.length; d++) {
+      let n = 0;
+      for (let k = Math.max(0, -d); k < now.length && k + d < was.length; k++) if (same(now[k], was[k + d])) n++;
+      if (n > most || (n === most && Math.abs(d) < Math.abs(best))) { most = n; best = d; }
+    }
+    return best;
+  };
   const close = () => { open = false; draw(); text.scrollTop = raw ? text.scrollHeight : 0; mark(); };
   const scroll = (by) => { text.scrollBy({ top: by, behavior: "smooth" }); };
   up.addEventListener("click", () => { if (!open && from > 0 && text.scrollTop <= 1) opening(half()); else scroll(-half()); });
@@ -58,10 +74,17 @@ export function saidEl() {
   return {
     el,
     // A new conversation or a new message (also in the same words: `fresh`) starts over; otherwise where you are stays.
-    set(list, fresh, isRaw, at = list.length - 1) {
+    // In the `same` chat an opened conversation stays open: on what you read (found again as the oldest drop off), or
+    // on its end when you were there.
+    set(list, fresh, isRaw, at = list.length - 1, sameChat = false) {
       if (!fresh) return;
-      parts = list; raw = isRaw; open = false; from = Math.min(Math.max(0, at | 0), Math.max(0, list.length - 1));
-      draw(); start = true; begin();
+      const keep = sameChat && open && !el.hidden, end = keep && atEnd(), was = keep ? reading() : null, before = parts;
+      parts = list; raw = isRaw; open = keep; from = Math.min(Math.max(0, at | 0), Math.max(0, list.length - 1));
+      draw();
+      if (!keep) { start = true; begin(); return; }
+      const i = was ? Math.min(Math.max(0, was.i - shift(before, parts)), parts.length - 1) : -1;
+      if (end) text.scrollTop = text.scrollHeight; else if (i >= 0) text.scrollTop = rel(text.children[i]) - was.off;
+      mark();
     },
     // Shown or hidden (Hide and Show, or nothing to show): shown again, the buttons are measured again.
     show(on) {

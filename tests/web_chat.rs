@@ -96,13 +96,18 @@ fn the_page_has_a_switch_hide_and_show_a_conversation_that_scrolls_back_and_tab_
     assert!(CHAT.contains(r#"onclick: () => onPress("chatMessage")"#) && CHAT.contains(r#"c.open ? "Hide" : "Show""#));
     // the conversation: the newest thing said (or your newest words and the answer under them: the part the board
     // says it opens on); Earlier opens the rest; the wheel and a swipe at the top do the same; Later goes down and once
-    // more from the end closes it; a new message starts at its beginning
+    // more from the end closes it; a new message starts at its beginning, but an opened conversation stays open while
+    // the same chat shows, on what you read or on its end (board_chat_open.rs for the terminal's)
     assert!(SAID.contains("text.replaceChildren(...(open ? parts : parts.slice(from)).map(partEl));"));
-    assert!(CHAT.contains("fresh, !!c.raw, c.parts && c.parts.length ? c.from : 0);"));
+    assert!(CHAT.contains("fresh, !!c.raw, c.parts && c.parts.length ? c.from : 0, same);"));
+    assert!(CHAT.contains(r#"const whose = JSON.stringify([c.toAgent ? snap.list.selected : "", c.coord, !!c.open]);"#) && CHAT.contains("const fresh = key !== last, same = whose === lastWho;"));
+    assert!(SAID.contains("const keep = sameChat && open && !el.hidden, end = keep && atEnd(), was = keep ? reading() : null, before = parts;"));
+    assert!(SAID.contains("const i = was ? Math.min(Math.max(0, was.i - shift(before, parts)), parts.length - 1) : -1;"));
+    assert!(SAID.contains("if (end) text.scrollTop = text.scrollHeight; else if (i >= 0) text.scrollTop = rel(text.children[i]) - was.off;"));
     assert!(SAID.contains(r#"up.addEventListener("click", () => { if (!open && from > 0 && text.scrollTop <= 1) opening(half()); else scroll(-half()); });"#));
     assert!(SAID.contains(r#"down.addEventListener("click", () => { if (open && atEnd()) close(); else scroll(half()); });"#));
     assert!(SAID.contains(r#"text.addEventListener("wheel""#) && SAID.contains(r#"text.addEventListener("touchmove""#));
-    assert!(SAID.contains("draw(); start = true; begin();") && SAID.contains("text.scrollTop = raw ? text.scrollHeight : 0; start = false;"));
+    assert!(SAID.contains("if (!keep) { start = true; begin(); return; }") && SAID.contains("text.scrollTop = raw ? text.scrollHeight : 0; start = false;"));
     // hidden, nothing is measured; shown again (Show, also after a reload with it hidden) or resized, the buttons are
     // measured again, so a long reply has its Later button
     assert!(SAID.contains("if (el.hidden || !text.clientHeight) return;") && SAID.contains("if (on) begin();"));
