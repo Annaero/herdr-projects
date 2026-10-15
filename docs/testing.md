@@ -109,6 +109,29 @@ next build after a small edit quick; a cache cannot take those. A shared `target
 out: cargo lets one build at a time into a `target/`, so tasks would wait on each other, and the program it builds
 for the tests is one file at one place there, which two tasks would overwrite under each other's tests.
 
+### A new worktree starts warm
+
+The cache keeps the libraries, not the program's own code, and a build of that alone took about 35 seconds. So the
+setup does not start a fresh worktree's build from nothing: `scripts/warm-start.sh` copies in the last build kept of
+the main line (`target/quick`), and only what changed since is built again. After its build, a worktree whose commit
+is on the main line and newer than the build kept, with nothing changed in it before or during the build, keeps its
+own as the next one's start. Measured on a 16-core machine with ten agents at once (two cores a build): a fresh
+worktree's setup took 37 seconds before, a little over one now; the first worktree after the main line moved on
+builds the program again from the compiler's notes, about 15 seconds, and keeps that build for the ones after it.
+
+The builds kept are in `~/.cache/herdr-superwork/warm/<repo>/`, one folder each and `current` naming the newest: a
+new one is made beside the old and then named, so worktrees set up at the same moment each copy a whole build, and
+an old one goes 30 minutes after it stopped being current. The copy is a clone where the file system can (APFS,
+Btrfs, XFS: no extra space), a plain copy elsewhere (ext4: about 500 MB a build kept); never hard links, as cargo
+writes into some of its files in place. Cargo judges what is out of date by when files changed, and every file of a
+fresh worktree is new: the files whose content is the kept build's commit's get an old time, so cargo takes them as
+built, and the rest (changed on the main line since, or in the folder) keep theirs and are built again. Cargo also
+takes as built what has the folder it was built in written into it (`env!("CARGO_MANIFEST_DIR")`), which here would
+be another worktree: the copy builds such a part again, and the program finds its own repo when it runs
+(`docs::root`), not when it is built. A build by another compiler is not copied, nor one grown past 2 GB (cargo never removes the
+libraries of older versions): that worktree builds from nothing and its build is kept instead.
+`HERDR_SUPERWORK_NO_WARM=1` turns it off.
+
 ### Its share of the cores
 
 A task's build and tests take the machine's cores divided by `board.agents` (how many agents work at once; 4 when it

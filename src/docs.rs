@@ -11,10 +11,14 @@ pub mod tables;
 
 use std::path::{Path, PathBuf};
 
-/// The repo this program was built from: the made pages are its.
+/// The repo this program was built in (`<repo>/target/<profile>/…`): the made pages are its, else the folder it runs
+/// in. Found when it runs, never written into the program when it is built: a new worktree starts from a copy of
+/// another's build (scripts/warm-start.sh), which would then read and write the other worktree's pages.
 pub fn root() -> PathBuf {
     if let Ok(r) = std::env::var("HERDR_SUPERWORK_REPO") { return PathBuf::from(r); }
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let ours = |d: &Path| std::fs::read_to_string(d.join("Cargo.toml")).is_ok_and(|t| t.contains("name = \"herdr-superwork\""));
+    let exe = std::env::current_exe().ok().and_then(|e| e.canonicalize().ok());
+    exe.as_deref().and_then(|e| e.ancestors().skip(1).find(|d| ours(d))).map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."))
 }
 pub fn read(file: &str) -> String { std::fs::read_to_string(root().join(file)).unwrap_or_default() }
 pub fn write_file(file: &str, text: &str) -> bool { std::fs::write(root().join(file), text).is_ok() }
