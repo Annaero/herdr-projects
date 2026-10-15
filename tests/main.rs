@@ -36,6 +36,7 @@ mod board_frames;
 mod board_hints;
 mod board_keys;
 mod board_keys_rest;
+mod board_landing;
 mod board_layout;
 mod board_layout_rest;
 mod board_list;

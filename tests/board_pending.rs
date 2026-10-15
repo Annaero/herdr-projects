@@ -148,8 +148,11 @@ fn another_machines_row_waits_for_that_machine_to_show_what_was_done() {
     // Then it shows the agent on it.
     update(&mut s.s, Event::Remote { label: "otherbox".into(), answer: theirs("progress", "working") });
     assert!(s.s.pending.is_empty() && !s.text().contains("Starting…"), "{}", s.text());
+    // The task went to the working group: the selection stayed where you were, on this machine's task.
+    assert_ne!(s.s.sel, "otherbox:proj/151");
     // A stop that machine refuses: red on the row, and the message says why.
     s.s.pending.clear();
+    s.s.sel = "otherbox:proj/151".into(); sw::board::update::list::relist(&mut s.s);
     let fx = s.hold("ctrl+x");
     assert!(has(&row(&s.screen(120), "Theirs"), r"Stopping…"), "{}", s.text());
     assert_eq!(jobs(&fx).len(), 1);

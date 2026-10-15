@@ -179,9 +179,13 @@ fn the_list_says_what_it_hides_the_header_where_you_are_and_an_action_what_it_di
     let id = s.s.sel.clone();
     let tag = short(&id);
     let title = task(&id).t("title");
+    let below = s.s.steps[s.s.steps.iter().position(|x| *x == id).unwrap() + 1].clone();
     s.press(&["ctrl+p"]); assert_eq!(s.s.msg, format!("Pinned {tag} \"{title}\" to the top. {} unpins it.", key_name("pin")));
-    assert_eq!(s.s.sel, id); assert!(has(&s.screen(100).join("\n"), r"\n ▾ pinned *\n▌"));
-    s.press(&["ctrl+p"]); assert_eq!(s.s.msg, format!("Unpinned {tag} \"{title}\".")); assert_eq!(s.s.sel, id);
+    // The pinned task goes to the top; the selection stays where you were: on the task that was below it.
+    assert_eq!(s.s.sel, below); assert!(has(&s.screen(100).join("\n"), r"\n ▾ pinned *\n [^▌]"));
+    s.s.sel = id.clone(); s.load(); sw::board::update::list::relist(&mut s.s);
+    // Unpinned, it goes back among the to-dos; the pinned group is empty, so the selection is on the next group's first.
+    s.press(&["ctrl+p"]); assert_eq!(s.s.msg, format!("Unpinned {tag} \"{title}\".")); assert_eq!(s.s.sel, below);
     s.s.flash("proj/7: started, an agent is on it", Ink::Muted); assert_eq!(s.s.msg, "PRJ-7: started, an agent is on it");
     s.s.flash("Run: herdr-superwork approve proj/7 --anyway", Ink::Muted); assert!(s.s.msg.contains("approve proj/7 --anyway"), "a command keeps the id it takes");
     s.press(&["ctrl+r"]); assert_eq!(s.s.msg, "Nothing to send back here."); assert_ne!(s.s.msg_kind, Ink::Red);

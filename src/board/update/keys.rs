@@ -90,7 +90,6 @@ fn press(s: &mut State, p: &Press, fx: &mut Vec<Effect>) {
     if s.full && scroll { return act::scroll_panel(s, if is(p, K::Up) { -1 } else { 1 }); }
     if s.full && (is(p, K::PageUp) || is(p, K::PageDown)) { let by = s.panel_height.saturating_sub(1).max(1) as i64; return act::scroll_panel(s, if is(p, K::PageUp) { -by } else { by }); }
     let key = typed(p, |k| has_run(k.id));
-    if let (Some(k), Some(r)) = (key, &r) { if k == K::Yes || k == K::SendBack { s.stick = r.t("id"); } }
     if let Some(k) = key { if on(s, k, r.as_ref()) { return run(s, k, r.as_ref(), fx); } }
     s.input.handle(p);
     if s.mode == Mode::Find { relist(s); }

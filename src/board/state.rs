@@ -54,9 +54,10 @@ pub struct ChatFit { pub total: usize, pub rows: usize, pub top: usize, pub abov
 /// folded holds how many tasks it hides (0: open); the automations' heading has no id.
 #[derive(Clone, Debug)]
 pub enum Row { Head { name: String, autos: bool, id: String, machine: bool, folded: usize }, Rec(Rec), Note(String), Auto(Obj) }
-/// The selection's row in the list as last laid out, to keep the selection steady when rows move.
+/// The selection's row in the list as last laid out, to keep the selection steady when rows move: `group` is the
+/// heading it stands under (a heading's own id; update/landing.rs for the rows that are no task's).
 #[derive(Clone, Debug, Default)]
-pub struct SelRow { pub id: String, pub order: String, pub at: i64, pub done: bool, pub base: i64 }
+pub struct SelRow { pub id: String, pub order: String, pub at: i64, pub done: bool, pub base: i64, pub group: String }
 /// What a key started on a row, shown on it until what it did is read (update/pending.rs): its word ("Stopping…") and
 /// what it says if it fails ("Could not stop"), when, another machine's row as it was then (`was`), whether a read
 /// must show it (`wait`), and how it went: `answered` the reads started when its job ended, `failed` why it did not

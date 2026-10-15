@@ -1,7 +1,8 @@
 //! The task list from what was read: which rows there are, under which headings, which one is selected. The selection
-//! stays on its task while rows move; it goes to a neighbour only when its task leaves the list. Pure: what was read
-//! comes in with the state (data.rs).
-use super::heads::{group_id, is_head, machine_id, parts};
+//! stays on its task while other rows move; when its own task moves (to another group, elsewhere in the list, out of
+//! it) the selection stays where you were working (landing.rs). Pure: what was read comes in with the state (data.rs).
+use super::heads::{group_id, host_of, is_head, machine_id, parts};
+use super::landing::{land, AUTOS, JOBS};
 use crate::board::state::{Away, Mode, Rec, Row, SelRow, State};
 use crate::board::tags::number_tag;
 use crate::board::keys::key_name;
@@ -46,14 +47,15 @@ pub fn relist(s: &mut State) {
     super::pending::overlay(s);
     s.jobs = if s.archive_view { vec![] } else { s.data.jobs.clone() };
     let f = filter_now(s);
-    // The task the selection is held on keeps its row whatever it has become meanwhile.
-    let held = |r: &Obj| r.s("id") == s.stick && r.s("id") == s.sel;
+    let layout = serde_json::to_string(&json!([s.scope, s.by_repo, s.all_done, s.archive_view, f])).unwrap_or_default();
+    // The task the selection is held on (or that the panel shows whole, in the same list) keeps its row whatever it has
+    // become meanwhile.
+    let held = |r: &Obj| r.s("id") == s.sel && (r.s("id") == s.stick || (s.full && layout == s.selection_layout));
     let eligible: Vec<Rec> = s.items.iter().filter(|r| held(r) || if s.archive_view { r.b("archivedAt") } else { !f.is_empty() || !r.b("archivedAt") }).cloned().collect();
     let shown: Vec<Rec> = if f.is_empty() { eligible } else { eligible.into_iter().filter(|r| held(r) || {
         let hay = format!("{} {} {} {} {} {} {} {} {} {}", tags(s, r).join(" "), r.s("id"), r.s("title"), r.s("msg"), r.t("state"), r.s("app"), if r.b("archivedAt") { "archived" } else { "" }, r.s("description"), r.at("failure").s("title"), r.at("failure").s("detail"));
         hay.to_lowercase().contains(&f)
     }).collect() };
-    let layout = serde_json::to_string(&json!([s.scope, s.by_repo, s.all_done, s.archive_view, f])).unwrap_or_default();
     s.grouped = if s.by_repo {
         let mut names: Vec<String> = vec![];
         for r in &shown { let g = repo_name(r).to_string(); if !names.contains(&g) { names.push(g); } }
@@ -78,13 +80,19 @@ pub fn relist(s: &mut State) {
     // The selection taken to a task (or the list laid out anew under it): that task's headings unfold.
     if !is_head(&s.sel) && (layout != s.selection_layout || !s.selection_rows.iter().any(|r| r.id == s.sel)) { super::heads::reveal(s); }
     s.rows = fold_rows(s);
-    let selectable: Vec<Rec> = s.rows.iter().filter_map(|r| match r { Row::Rec(o) => Some(o.clone()), Row::Head { id, .. } if !id.is_empty() => Some(Rec::new(obj(json!({ "id": id, "state": "heading" })))), _ => None })
-        .chain(s.autos.iter().map(|a| Rec::new(obj(json!({ "id": a.s("row"), "state": "automation", "created": a.at("created") })))))
-        .chain(s.jobs.iter().cloned().map(Rec::new)).collect();
+    // Every row the arrows stop on (the to-dos a long list folds too), with the heading it stands under.
+    let mut under: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    for (name, recs) in &s.grouped { for r in recs { let host = if s.scope == "*" { host_of(r) } else { s.scope.clone() }; under.insert(r.t("id"), group_id(s, &host, name)); } }
+    let recs: std::collections::HashMap<&str, &Rec> = s.items.iter().map(|r| (r.s("id"), r)).collect();
+    let selectable: Vec<(Rec, String)> = s.steps.iter().filter_map(|id| if is_head(id) { Some((Rec::new(obj(json!({ "id": id, "state": "heading" }))), id.clone())) } else { recs.get(id.as_str()).map(|r| ((*r).clone(), under.get(id).cloned().unwrap_or_default())) })
+        .chain(s.autos.iter().map(|a| (Rec::new(obj(json!({ "id": a.s("row"), "state": "automation", "created": a.at("created") }))), AUTOS.to_string())))
+        .chain(s.jobs.iter().cloned().map(|j| (Rec::new(j), JOBS.to_string()))).collect();
+    let folded_heads: Vec<String> = s.rows.iter().filter_map(|r| match r { Row::Head { id, folded, .. } if *folded > 0 => Some(id.clone()), _ => None }).collect();
     // Only the selected task's ordering data matters: new rows, progress and other tasks moving never steal the selection.
     let base: std::collections::HashMap<String, i64> = s.items.iter().enumerate().map(|(n, r)| (r.t("id"), n as i64)).collect();
-    let next: Vec<SelRow> = selectable.iter().map(|r| { let task = r.has("title"); SelRow {
-        id: r.t("id"), order: serde_json::to_string(&json!([if task { group_of(r).to_string() } else { r.t("state") }, r.b("pinned"), r.at("created"), r.b("archivedAt")])).unwrap_or_default(),
+    let next: Vec<SelRow> = selectable.iter().map(|(r, group)| { let task = r.has("title"); SelRow { group: group.clone(),
+        // Where the row stands, not what the task is: a pinned (or archived) task keeps its row whatever its status.
+        id: r.t("id"), order: serde_json::to_string(&json!([if task { rank(r).to_string() } else { r.t("state") }, r.b("pinned"), r.at("created"), r.b("archivedAt")])).unwrap_or_default(),
         at: if task && is_done(r) { r.i("at") } else { 0 }, done: task && is_done(r), base: base.get(r.s("id")).copied().unwrap_or(-1) } }).collect();
     let ids: Vec<String> = next.iter().map(|r| r.id.clone()).collect();
     let selected = s.sel.clone();
@@ -101,12 +109,11 @@ pub fn relist(s: &mut State) {
         }),
         _ => false,
     };
-    // The selection stays where it is while you read or answer a task, and on the task you just acted on.
-    let reading = s.full || s.reply || (s.stick == selected && after.is_some());
+    // The selection stays on its task while you read it whole or answer it, and while you are in its agent. Else a task
+    // that moves (an action you took on it, or its agent) leaves the selection where you were working.
+    let reading = s.reply || ((s.full || s.stick == selected) && after.is_some());
     if layout == s.selection_layout && old.is_some() && !reading && (after.is_none() || after.as_ref().map(|a| a.order != old.as_ref().unwrap().order).unwrap_or(false) || crossed) {
-        let b = before.unwrap();
-        let neighbours: Vec<&SelRow> = s.selection_rows[b + 1..].iter().chain(s.selection_rows[..b].iter().rev()).collect();
-        s.sel = neighbours.iter().find(|r| ids.contains(&r.id) && !is_head(&r.id)).map(|r| r.id.clone()).unwrap_or_else(|| if after.is_some() { selected.clone() } else { first_row(&ids) });
+        s.sel = land(&s.selection_rows, before.unwrap(), &ids, &|id| folded_heads.iter().any(|h| h == id)).unwrap_or_else(|| if after.is_some() { selected.clone() } else { first_row(&ids) });
     }
     if !ids.contains(&s.sel) { s.sel = first_row(&ids); }
     s.selection_rows = next;

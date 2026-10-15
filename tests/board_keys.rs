@@ -58,14 +58,17 @@ fn typing_adds_a_task_tab_delegates_space_replies_and_enter_opens_the_agent() {
     let popup = sw::store::files::read_obj(&sw::store::files::data_dir().join("view-popup.json")).unwrap_or_default();
     assert_eq!(popup.s("sel"), "proj/1");
     assert!(!sw::store::files::data_dir().join("view.json").exists(), "the popup keeps its view in a file of its own");
-    // ctrl+x stops the agent, and the selection stays; only a second ctrl+x asks to remove, and only y would.
+    // ctrl+x stops the agent, and the selection stays where it was: the task left the working group, which is empty
+    // now, so the next group's first task. Only a second ctrl+x on the stopped task asks to remove, and only y would.
     w.add("Another one"); w.add("And one more");
     let mut s2 = open_with(&w.root, 34, true);
     assert_eq!(s2.s.sel, "proj/1");
     s2.press(&["ctrl+x"]);
     assert_eq!(task("proj/1").s("stage"), "stopped");
     assert!(s2.text().contains("Stopped PRJ-1 \"Add a greeting\"."), "{}", s2.text());
-    assert!(s2.s.ask.is_none() && s2.s.sel == "proj/1");
+    assert!(s2.s.ask.is_none());
+    let todo = s2.s.steps.iter().position(|x| x == "head:status\t\tto do").unwrap(); assert_eq!(s2.s.sel, s2.s.steps[todo + 1]);
+    s2.s.sel = "proj/1".into(); s2.load();
     s2.press(&["ctrl+x"]);
     assert!(has(&s2.text(), r#"\n[ ▌]\? Remove PRJ-1 "Add a greeting"\?[^?]*\n   y = remove · n = keep"#), "{}", s2.text());
     s2.press(&["enter", "ctrl+x"]); assert!(s2.s.ask.is_some());

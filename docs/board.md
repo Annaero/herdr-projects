@@ -86,9 +86,17 @@ nothing under it at the bottom of the screen. (A list of fewer than eight lines 
 **The selected row has a mark.** Every line of it starts with a bar in the gutter (`▌`), in every list (tasks and
 automations, the archive, the settings page, the `?` menu), on the theme's own tint. Where no background can be
 painted (`NO_COLOR`, or a theme with none for it) the row is in inverse video instead, so which task the keys act on
-never hangs on colour. A click on a row selects it ([the mouse](mouse.md)). After you act on a task (put an agent on
-it, say yes, send it back, pin it) the selection follows that task to wherever it moves; when it leaves the list
-(archived), the message says which task the selection is on now.
+never hangs on colour. A click on a row selects it ([the mouse](mouse.md)).
+
+**The selection stays where you were working.** When an action (put an agent on it, say yes, send it back, stop,
+pin, archive) moves the selected task to another group, elsewhere in the list or out of it, the selection does not go
+with it: it is on the next task below in the same group, or the one above when the task was the last there; when the
+group is left empty, on the next group's first task (on its heading when that group is folded), else on the group
+above. So you go through tasks one after another without arrowing back. A folded group a task moves into stays
+folded; under a filter the next task that matches it is the one; grouped by repo the same holds inside the repo. When
+the task leaves the list (archived), the message says which task the selection is on now. An action that does not
+move the task leaves the selection on it. With the task open whole (the panel) or while you talk to its agent, the
+selection stays on that task, and so it does while you are in its agent.
 
 Each state has a mark of its own (`◐` the agent is working, `◑` the reviewer is working, `◇` the board's
 own step, `◌` it waits for a free slot, `✗` went wrong, `◆` ready to approve, `✓` done, `○` to do; the `?`

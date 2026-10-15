@@ -115,8 +115,11 @@ fn ctrl_does_something_alt_only_shows_or_hides_and_no_old_key_is_left() {
         assert_eq!(tasks(), first, "{k}"); assert_eq!(shown(&s), start, "{k}"); assert!(s.s.ask.is_none() && s.s.menu.is_none(), "{k}"); assert_eq!(s.s.value(), "", "{k}"); assert_eq!(s.s.sel, id, "{k}"); assert!(!s.closed, "{k}");
     }
     // Ctrl: each does its one thing. ctrl+p pins (it is no longer the side panel), ctrl+a archives (no longer "yes").
-    key(&mut s, Char('p'), c); assert!(task(&id).b("pinned")); assert_eq!(shown(&s), start); key(&mut s, Char('p'), c); assert!(!task(&id).b("pinned"));
+    key(&mut s, Char('p'), c); assert!(task(&id).b("pinned")); assert_eq!(shown(&s), start);
+    assert_ne!(s.s.sel, id, "the pinned task went to the top, the selection stayed where it was"); s.s.sel = id.clone(); s.load();
+    key(&mut s, Char('p'), c); assert!(!task(&id).b("pinned"));
     s.press(&["ctrl+l"]); assert!(s.text().contains("Nothing here waits for a yes."), "{}", s.text()); assert!(s.s.ask.is_none());
+    s.s.sel = id.clone(); s.load();
     s.press(&["ctrl+a"]); assert!(task(&id).b("archivedAt")); assert!(s.s.ask.is_none());
     s.press(&["ctrl+z"]); assert!(!task(&id).b("archivedAt"));
     s.press(&["ctrl+f"]); assert_eq!(s.s.mode, sw::board::state::Mode::Find); s.press(&["esc"]); assert_eq!(s.s.mode, sw::board::state::Mode::New);

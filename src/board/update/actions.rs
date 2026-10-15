@@ -56,7 +56,6 @@ pub fn tab(s: &mut State, text: &str, r: Option<&Obj>, fx: &mut Vec<Effect>) {
     if !text.is_empty() { if (s.reply && r.is_some()) || s.mode != crate::board::state::Mode::New { return; } let w = s.value(); dispatch(s, w.trim(), true, None, fx); s.input.set_text(""); return; }
     let Some(r) = r else { return };
     if r.b("archivedAt") { return s.flash(read_only(), Ink::Yellow); }
-    s.stick = r.t("id");
     let n = name(s, r);
     // One that waits for other tasks to be done starts by itself: early only on a yes.
     if r.s("stage") == crate::after::STAGE {
@@ -171,7 +170,6 @@ pub fn running(r: &Obj) -> bool {
 /// goes on to that question by itself.
 pub fn stop(s: &mut State, r: &Obj, fx: &mut Vec<Effect>) {
     if !running(r) { return remove(s, r); }
-    s.stick = r.t("id");
     let said = format!("Stopped {}.", name(s, r));
     act(s, r, "stop", json!({}), Job::Stop { id: r.t("id"), said }, fx);
 }
@@ -221,7 +219,6 @@ pub fn archive_selected(s: &mut State, r: &Obj, fx: &mut Vec<Effect>) {
 }
 pub fn pin(s: &mut State, r: &Obj, fx: &mut Vec<Effect>) {
     if r.b("archivedAt") { return s.flash(read_only(), Ink::Yellow); }
-    s.stick = r.t("id");
     let n = name(s, r);
     act(s, r, "pin", json!({}), Job::Pin { id: r.t("id"), name: n, key: key_name("pin") }, fx);
 }

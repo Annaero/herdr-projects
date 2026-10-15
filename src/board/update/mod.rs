@@ -94,6 +94,7 @@ pub mod chat;
 pub mod done;
 pub mod edit;
 pub mod keys;
+pub mod landing;
 pub mod menu;
 pub mod mouse;
 pub mod pending;
