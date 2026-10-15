@@ -8,7 +8,7 @@ use sw::board::run::draw::draw;
 use sw::board::theme::{Seen, Theme, C};
 use sw::shown::ink::{Ink, Inked};
 
-const STATES: [&str; 7] = ["working", "review", "board", "blocked", "done", "idle", "error"];
+const STATES: [&str; 8] = ["working", "review", "board", "queue", "blocked", "done", "idle", "error"];
 fn herdr_config(text: &str) { let f = sw::extras::herdr_config(); std::fs::create_dir_all(f.parent().unwrap()).unwrap(); std::fs::write(f, text).unwrap(); }
 fn load(light: Option<bool>) -> Theme { Theme::load(light, Seen::default()) }
 /// The line drawn: each cell's text colour, background and attributes.
@@ -29,14 +29,14 @@ fn the_board_paints_with_what_it_read_true_colour_the_terminals_16_colours_herdr
     assert_eq!(fg(&t, Ink::Muted), Color::Reset); // this theme's greys cannot be trusted, nor can faint: untold, greyed-out words are the text colour
     assert_eq!(fg(&t, Ink::Soft), Color::Reset); // and words that have to be read the text colour itself
     assert!(t.paints_selection()); assert_eq!(bg(&t, Ink::Selection), Color::Indexed(8)); // no selection colour in this theme: herdr's active row colour
-    assert_eq!(marks(&t), ["◐", "◑", "◒", "!", "✓", "○", "✗"]);
+    assert_eq!(marks(&t), ["◐", "◑", "◇", "◌", "!", "✓", "○", "✗"]);
     let t = load(Some(true));
     assert_eq!(fg(&t, Ink::Red), Color::Rgb(210, 15, 57)); assert_eq!(bg(&t, Ink::Selection), Color::Rgb(189, 208, 245));
     herdr_config("");
     assert!(!Theme::needs_light()); // no theme set: herdr's default, with nothing to ask
     let t = load(None);
     // A symbol of its own for each state is the board's default: no two states are told apart by colour alone.
-    assert_eq!(marks(&t), ["◐", "◑", "◒", "!", "✓", "○", "✗"]);
+    assert_eq!(marks(&t), ["◐", "◑", "◇", "◌", "!", "✓", "○", "✗"]);
     // A task that waits for you says what it needs: an answer, a yes or no, a sign-in; `!` where the kind is not known.
     // None of them is a cross: that is for what went wrong, and told from it by the mark alone, with colour off too.
     let needs: Vec<&str> = ["question", "permission", "auth", "", "nonsense"].iter().map(|k| t.mark("blocked", k)).collect();
@@ -44,7 +44,7 @@ fn the_board_paints_with_what_it_read_true_colour_the_terminals_16_colours_herdr
     assert_eq!(t.mark("error", "question"), "✗"); assert_eq!(t.mark("working", "auth"), "◐"); // the kind belongs to blocked only
     herdr_config("[ui]\nstatus_indicators = \"dots\"\n"); // herdr's dots only when its config asks for them by name
     let t = load(None);
-    assert_eq!(marks(&t), ["●", "●", "●", "!", "●", "○", "✗"]);
+    assert_eq!(marks(&t), ["●", "●", "◇", "◌", "!", "●", "○", "✗"]); // herdr's dot for someone at work, as a moon is with symbols
     assert_eq!(["question", "permission", "auth", ""].map(|k| t.mark("blocked", k)), ["?", "!", "@", "!"]); // what a task needs is said with dots too
     herdr_config("");
     assert_eq!(fg(&load(None), Ink::Yellow), Color::Rgb(249, 226, 175)); // no theme set here: herdr's default, as herdr shows it
@@ -82,4 +82,19 @@ fn the_board_paints_with_what_it_read_true_colour_the_terminals_16_colours_herdr
     // reversed and keeps bold: neither is a colour, and both still say what colour said (theme/mod.rs, draw.rs).
     assert!(!t.paints_selection()); assert_eq!(fg(&t, Ink::Accent), Color::Reset);
     unsafe { std::env::remove_var("NO_COLOR") };
+}
+
+#[test]
+fn only_a_moon_says_someone_works_and_every_mark_is_one_column_wide() {
+    use sw::board::theme::marks::{mark, web_mark, MARK_STATES};
+    let kinds = ["", "question", "permission", "auth"];
+    let all: Vec<(&str, &str, &str)> = MARK_STATES.iter().flat_map(|s| kinds.iter().flat_map(move |k| [("symbols", *s, mark(s, k, true)), ("dots", *s, mark(s, k, false)), ("web", *s, web_mark(s, k))])).collect();
+    for (how, state, m) in &all {
+        assert_eq!((sw::text::width(m), m.chars().count()), (1, 1), "{how} {state}: {m}");
+        let mut buf = Buffer::empty(Rect::new(0, 0, 3, 1)); draw(&Theme::default_dark(true), &[Inked::plain(*m).add(Inked::plain("x"))], &mut buf);
+        assert_eq!(buf[(1, 0)].symbol(), "x", "{how} {state}: {m} takes one cell on the terminal board");
+        let moon = "◐◑◒◓".contains(*m);
+        assert_eq!(moon, ["working", "review"].contains(state) && *how != "dots" && !(*how == "web" && *state == "working"), "{how} {state}: {m}");
+    }
+    assert_eq!(["board", "queue"].map(|s| mark(s, "", true)), ["◇", "◌"]); assert_eq!(["board", "queue"].map(|s| web_mark(s, "")), ["◇", "◌"]);
 }

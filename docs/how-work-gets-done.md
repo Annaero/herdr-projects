@@ -144,7 +144,7 @@ retried after its repair. A checkout with unsaved files is never forced.
 **A pull request merges only once its checks on GitHub pass** (`merge.checks`: `github`), by itself or on your yes,
 in every repo the board merges in. Before the merge the board looks at them: still running, the task says
 how far they are, `Waiting for GitHub checks · 2 of 3 passed` (each check counted once, a workflow for its jobs until
-GitHub lists them; `details` names them: `checksWaitingFor`), keeps the plain `◐` of a task that waits, and merges by itself once
+GitHub lists them; `details` names them: `checksWaitingFor`), has the board's own `◇` (nobody works on it meanwhile), and merges by itself once
 they pass; failed, nothing merges, and the failure goes
 back to the agent like a failed check of the board's own, with the failing check's name and the end of its log, within
 `review.rounds` (the merge you approved goes on once GitHub's checks pass on the repair); after that it waits for you,

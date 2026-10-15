@@ -90,11 +90,13 @@ never hangs on colour. A click on a row selects it ([the mouse](mouse.md)). Afte
 it, say yes, send it back, pin it) the selection follows that task to wherever it moves; when it leaves the list
 (archived), the message says which task the selection is on now.
 
-Each state has a mark of its own (`◐` the agent is working, `◑` the reviewer is working, `◒` the board
-itself is on it, `◓` it waits for a free slot, `✗` went wrong, `◆` ready to approve, `✓` done, `○` to do; the `?`
+Each state has a mark of its own (`◐` the agent is working, `◑` the reviewer is working, `◇` the board's
+own step, `◌` it waits for a free slot, `✗` went wrong, `◆` ready to approve, `✓` done, `○` to do; the `?`
 menu has the list), so no
-two are told apart by colour alone (herdr's `status_indicators = "dots"` brings its dots back for working and done;
-what a waiting task needs keeps its mark with dots too).
+two are told apart by colour alone. **Only a moon says someone works**: `◐` and `◑`, an agent or its reviewer. Every
+mark is one column wide. herdr's `status_indicators = "dots"` brings its dots back for working (the agent's and
+the reviewer's) and done; the board's `◇`, the `◌` of a wait for a slot and what a waiting task needs keep their
+marks with dots too, as no dot means those.
 
 A task that waits for you is not one that failed, so its mark is never a cross. It says what the task needs, the
 `kind` of the terminal program-status spec ([OSC 7501](https://mitchellh.com/writing/program-status-osc7501)):
@@ -257,13 +259,14 @@ empty. (In a list squeezed to a single line, the selected task shows its name.)
 ready for you. Red: it failed, or it needs you. For as long as the reviewer works, the row's mark, its bar, the
 percent, the minutes left and the `R#` tag are blue, and so are the same things in the task panel, on the details
 screen and on the chat line. The mark says it without colour too: the half moon faces the other way, `◑`, while the
-reviewer works, and is the agent's `◐` again once the task goes back to its agent. The board's own steps (starting,
-setting up, running the check, pushing, merging) share a third one, `◒`. A task that waits for a free slot has the
-fourth, `◓`, in a pink of its own (below). A task that only waits for
-anything else keeps the plain `◐`: to try again after a turn was cut off, for its check's turn, for its turn to
-merge or for GitHub's checks on its pull request (`Waiting for GitHub checks · 2 of 3 passed`); `◒` comes back when
-the board merges it. So a blue `◑` with a bar says a review is running, an amber `◐` that the agent is at work, a pink `◓` that
-it has not started yet, and a green `!` that the task is ready for your yes. A group's heading keeps the colour of
+reviewer works, and is the agent's `◐` again once the task goes back to its agent. Only those two moons say someone
+works. The board's own steps are no moon but a `◇`: starting, setting up, running the check, pushing and merging,
+and the waits on the way, for the check's turn, for its turn to merge and for GitHub's checks on its pull request
+(`Waiting for GitHub checks · 2 of 3 passed`). A task that waits for a free slot has an empty, dotted ring, `◌`, in
+a pink of its own (below). An agent or a reviewer whose turn was cut off and that waits to try again keeps its moon:
+it is still the one on the task. So a blue `◑` with a bar says a review is running, an amber `◐` that the agent is
+at work, a `◇` that the board is on it, a pink `◌` that it has not started yet, and a green `!` that the task is
+ready for your yes. A group's heading keeps the colour of
 its group: a task under review is filed under `working`.
 A task nobody has started (`to do`: its heading and its `○`) is a dim grey of its own, never the plain text colour,
 and always readable: every grey on the board is held to a floor of contrast with the background.
@@ -279,16 +282,16 @@ and where the board's blue is too near one of your colours it takes another blue
 colours it is the terminal's blue.
 
 **A task that waits for a free slot.** At most `board.agents` agents work at once. A task started while every slot is taken waits its turn: its row has the
-mark `◓` in pink, says `Waiting for a free slot` on its second line, and has its place in the queue where a task at
+mark `◌` in pink, says `Waiting for a free slot` on its second line, and has its place in the queue where a task at
 work has its percent: `Q#1` gets the next free slot, `Q#2` the one after.
 
 ```
  working
  ◐ HSW-151 Rewrite the board in Rust on Ratatui           █████░░░  65%  3m       9m
            Reading the list code
- ◓ HSW-152 Show automations in the main list                         Q#1           2m
+ ◌ HSW-152 Show automations in the main list                         Q#1           2m
         Waiting for a free slot
- ◓ #153 Fix the footer                                               Q#2          40s
+ ◌ #153 Fix the footer                                               Q#2          40s
         Waiting for a free slot
 ```
 
@@ -299,7 +302,7 @@ work has its percent: `Q#1` gets the next free slot, `Q#2` the one after.
   minute and move them under another heading each time a slot frees. Their mark, their colour and their `Q#` tell
   them from the tasks at work, and the order says which one is next. (Grouped by repo there is no status heading:
   they stand among their repo's tasks.)
-- The same place is said everywhere: the task panel's State line (`◓ waiting for a free slot, Q#2`), `list`
+- The same place is said everywhere: the task panel's State line (`◌ waiting for a free slot, Q#2`), `list`
   (`· waiting for a free slot, Q#2`; `--json` has `queue: 2`), `details` (`queue: { place, words }`), the message
   when you start it, herdr's sidebar ([sidebar](sidebar.md)) and the web Board.
 - A narrow board keeps it too: there `Q#2` stands with the time at the end of the row's second line, so a waiting
@@ -373,9 +376,9 @@ come from how long its last full runs took on this machine. How a check reports,
 do: [the check's progress](check-progress.md).
 
 ```
- ◒ Add a greeting                                    █████░░░  65%  3m       9m
+ ◇ Add a greeting                                    █████░░░  65%  3m       9m
    running the check · tests 31 of 47
- ◐ Fix the footer                                                     6m       2m
+ ◇ Fix the footer                                                     6m       2m
    waiting for its turn · 2 ahead
 ```
 

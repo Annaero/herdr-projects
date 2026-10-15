@@ -86,7 +86,7 @@ fn the_web_board_has_the_automations_one_whole_with_its_buttons_and_a_firing_tha
     let made = rows_of(&s).into_iter().find(|r| r.s("id") == "proj/2").unwrap();
     assert!(made.s("title").ends_with("[auto]") && made.at("made") == &json!(true), "its tag is drawn in the automations' colour");
     let auto = s.at("list").arr("groups").last().unwrap().arr("rows")[0].clone();
-    assert_eq!(auto.at("review").as_array().unwrap().iter().map(|p| p.t("t")).collect::<String>(), "◒ PRJ-2", "the automation's row has the task its last firing made");
+    assert_eq!(auto.at("review").as_array().unwrap().iter().map(|p| p.t("t")).collect::<String>(), "◇ PRJ-2", "the automation's row has the task its last firing made");
     assert!(part(&s, 0).iter().any(|x| x.s("k") == "fact" && x.s("label") == "Made by"));
     // remove: the same question, the same answers
     web(&w, "pick", json!({ "id": "proj/2", "open": false })); web(&w, "pick", json!({ "id": format!("auto:{}", b.s("id")), "open": true }));

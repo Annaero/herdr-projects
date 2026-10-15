@@ -120,7 +120,7 @@ fn a_task_an_automation_made_says_so_and_with_the_board_open_a_schedule_fires_by
     assert_eq!(sw::store::tasks::list(Default::default()).iter().map(|t| (t.t("id"), t.t("title"), t.t("stage"))).collect::<Vec<_>>(), [("proj/1".to_string(), "Look for old dependencies".to_string(), "starting".to_string())]);
     assert_eq!(firings_of(a.s("id"))[0].s("cause"), "schedule");
     like(&t(&mut s, 120), r"\n[ ▌]. PRJ-1 Look for old dependencies \[auto\] ");
-    like(&t(&mut s, 120), r"\n[ ▌]⟳ on {4}Look for old dependencies {2}every 2h +◒ PRJ-1 next in +\d");
+    like(&t(&mut s, 120), r"\n[ ▌]⟳ on {4}Look for old dependencies {2}every 2h +◇ PRJ-1 next in +\d");
     assert_eq!(s.s.sel, row_id(&a), "the selection stayed on the automation: a task it makes does not take it");
     s.press(&["up"]); assert_eq!(s.s.sel, "proj/1"); s.press(&["alt+t"]); like(&t(&mut s, 120), "\n Made by {6}the automation \"Look for old dependencies\"\n"); s.press(&["esc"]);
     // on an automation's row with no Coordinator on, what is typed is a new task, as anywhere with no task selected

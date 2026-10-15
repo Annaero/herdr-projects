@@ -159,12 +159,11 @@
 .sw-row.is-selected { background: var(--sw-lift); box-shadow: inset 3px 0 0 var(--accent, #f0a830); }
 .sw-row:focus-visible, .sw-more:focus-visible { outline: var(--ring, 2px solid var(--sw-yellow)); outline-offset: calc(-1 * var(--ring-offset, 2px)); }
 .sw-mark { flex: none; width: 1.25em; text-align: center; line-height: var(--lh-base, 1.5); font-size: var(--fs-md, 14px); }
-/* The round marks, drawn at one size: an agent at work (full), its reviewer (the right half), the board (the lower half). */
+/* The round marks, drawn at one size: an agent at work (full), its reviewer (the right half), a wait for a free slot (a dotted ring). */
 .sw-dot { display: inline-block; width: 0.72em; height: 0.72em; border-radius: 50%; border: 1.5px solid currentColor; box-sizing: border-box; vertical-align: -0.04em; }
 .sw-dot-full { background: currentColor; }
 .sw-dot-right { background: linear-gradient(90deg, transparent 50%, currentColor 50%); }
-.sw-dot-bottom { background: linear-gradient(180deg, transparent 50%, currentColor 50%); }
-.sw-dot-top { background: linear-gradient(180deg, currentColor 50%, transparent 50%); }
+.sw-dot-dotted { border-style: dotted; border-width: 2px; }
 /* An automation's mark, an arrow going round (⟳), drawn at the round marks' size: a ring with a gap on its upper right, and the arrow's head where the ring ends. */
 .sw-turn { display: inline-block; position: relative; width: 0.72em; height: 0.72em; vertical-align: -0.04em; }
 .sw-turn::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 95deg, currentColor 310deg, transparent 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1px)); mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1px)); }

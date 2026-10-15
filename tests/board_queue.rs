@@ -1,4 +1,4 @@
-//! Tasks that wait for a free slot: their own mark (◓) and colour, and their place in the queue (Q#1 gets the next
+//! Tasks that wait for a free slot: their own mark (◌) and colour, and their place in the queue (Q#1 gets the next
 //! slot) the same on the row, the task panel, `list` and `details`, herdr's sidebar and the web Board; last under
 //! `working`, in the order they start; and the places move up when a slot frees.
 use crate::common;
@@ -30,14 +30,14 @@ fn tasks_that_wait_for_a_free_slot_have_their_own_mark_colour_and_place_in_the_q
     let (at_b, lb) = line_of(&lines, "Second waits");
     let (at_c, lc) = line_of(&lines, "Third waits");
     let (at_a, _) = line_of(&lines, "First at work");
-    assert!(lb.contains('◓') && lb.trim_end().contains("Q#1") && lc.contains('◓') && lc.contains("Q#2"), "{lb}\n{lc}");
+    assert!(lb.contains('◌') && lb.trim_end().contains("Q#1") && lc.contains('◌') && lc.contains("Q#2"), "{lb}\n{lc}");
     assert!(at_a < at_b && at_b < at_c, "the waiting ones last under working, Q#1 first:\n{}", lines.join("\n"));
     assert!(lines[at_b + 1].contains("Waiting for a free slot"), "{}", lines[at_b + 1]);
     // A narrow board says the place with the time, at the end of the second line: the row stays two lines.
     assert!(bd.screen(44).iter().any(|l| l.contains("Waiting for a free slot") && l.contains("Q#2")), "{}", bd.screen(44).join("\n"));
     // The task panel's State line.
     let panel = sw::board::view::panel::panel(&mut bd.s, &bd.theme, &r, 100, false, 0).iter().map(|l| l.text()).collect::<Vec<_>>().join("\n");
-    assert!(panel.contains("◓ waiting for a free slot, Q#2"), "{panel}");
+    assert!(panel.contains("◌ waiting for a free slot, Q#2"), "{panel}");
     // `list` and `details`.
     let (_, said) = sw::cli::tasks::command("list", &sw::cli::flags::parse(&["list".to_string()])).unwrap();
     assert!(said.lines().any(|l| l.contains("Third waits") && l.contains("waiting for a free slot, Q#2")), "{said}");
@@ -50,7 +50,7 @@ fn tasks_that_wait_for_a_free_slot_have_their_own_mark_colour_and_place_in_the_q
     let s = web(&w, "board", json!({}));
     let rows: Vec<Value> = s.at("list").arr("groups").iter().flat_map(|g| g.arr("rows").iter().cloned()).collect();
     let wc = rows.iter().find(|x| x.s("id") == c).unwrap();
-    assert_eq!((wc.s("mark"), wc.s("color"), wc.s("percent")), ("◓", "queue", "Q#2"));
+    assert_eq!((wc.s("mark"), wc.s("color"), wc.s("percent")), ("◌", "queue", "Q#2"));
     // A slot frees: the first in the queue starts, and the one after it moves up.
     settle(&a);
     sw::housekeeping::housekeeping(&w.socket, sw::housekeeping::Force::Yes);

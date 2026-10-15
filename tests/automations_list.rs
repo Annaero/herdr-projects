@@ -60,10 +60,10 @@ fn the_group_has_a_colour_of_its_own_narrow_rows_a_menu_of_its_own_and_stays_wit
     s.press(&["space"]); like(&s.screen(120)[6], r"^▌⟳ off {3}Look for old dependencies {2}every 2h +never fired");
     assert_eq!(s.screen(140).last().unwrap(), "  enter open this automation · space turn this automation on · ctrl+x remove it · ctrl+e its settings · ? all keys");
     s.press(&["space", "tab"]);
-    like(&t(&mut s, 120), r"\n▌⟳ on {4}Look for old dependencies {2}every 2h +◒ PRJ-2 next in {2}2h\n"); // the task its last firing made, by that task's own mark and number
+    like(&t(&mut s, 120), r"\n▌⟳ on {4}Look for old dependencies {2}every 2h +◇ PRJ-2 next in {2}2h\n"); // the task its last firing made, by that task's own mark and number
     assert_eq!(task("proj/2").at("settings"), &serde_json::json!({ "reviewer.agent": "claude", "merge.by": "itself" }));
     s.press(&["tab"]); l::turn(all[0].s("id"), false).unwrap(); s.load();
-    like(&t(&mut s, 120), r"⟳ off {3}Look for old dependencies {2}every 2h +◒ PRJ-2 skipped +\d+s ago"); l::turn(all[0].s("id"), true).unwrap(); s.load();
+    like(&t(&mut s, 120), r"⟳ off {3}Look for old dependencies {2}every 2h +◇ PRJ-2 skipped +\d+s ago"); l::turn(all[0].s("id"), true).unwrap(); s.load();
     // the key the old list had is no key here; what is typed is no reply to anyone: with no Coordinator on, it is a new task
     s.press(&["down", "down", "down"]); assert_eq!(s.s.sel, row_id(&all[2])); s.press(&["up"]); assert_eq!(s.s.sel, row_id(&all[1]));
     s.press(&["alt+o"]); assert_eq!(s.s.msg, ""); assert_eq!(s.s.sel, row_id(&all[1]));

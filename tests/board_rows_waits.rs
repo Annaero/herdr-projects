@@ -1,6 +1,7 @@
-//! A row that only waits (for GitHub's checks, its turn to merge, its check's turn) keeps the plain mark of work, ◐ in
-//! amber, never the board's own ◒, on the terminal board and the web Board alike; and a merge that waits for GitHub's
-//! checks says how far they are (`2 of 3 passed`), each check once, never their names.
+//! A row where the board waits on its way (for GitHub's checks, its turn to merge, its check's turn) has the board's
+//! own ◇, never a moon (only a moon says someone works), on the terminal board and the web Board alike, in the colour
+//! it had; and a merge that waits for GitHub's checks says how far they are (`2 of 3 passed`), each check once, never
+//! their names.
 use crate::common;
 use crate::pull_requests_checks::{merged, pr_world};
 use common::board::{open, web};
@@ -42,7 +43,7 @@ fn waiting_for_github_checks_says_how_far_they_are_each_check_once_whatever_its_
 }
 
 #[test]
-fn a_merge_waiting_for_github_checks_has_the_plain_mark_of_work_and_says_how_far_they_are_on_both_boards() {
+fn a_merge_waiting_for_github_checks_has_the_boards_own_mark_and_says_how_far_they_are_on_both_boards() {
     let w = pr_world(json!({}));
     let id = to_approval(&w, "Waits for GitHub");
     let head = task(&id).t("prHead");
@@ -54,37 +55,40 @@ fn a_merge_waiting_for_github_checks_has_the_plain_mark_of_work_and_says_how_far
     assert_eq!(finish_line::details(&id).unwrap().at("checksWaitingFor"), &json!(["build"]), "the names, each once, are in `details`");
     let r = as_row(&row(&id));
     let theme = Theme::default_dark(true);
-    assert_eq!((mark(&theme, &r).text(), status_ink(&r)), ("◐".to_string(), Ink::Yellow), "it waits: the plain mark of work, not the board's own ◒");
+    assert_eq!((mark(&theme, &r).text(), status_ink(&r)), ("◇".to_string(), Ink::Yellow), "nobody works on it: the board's own mark, no moon");
     let mut b = open(&w.root, 30);
     let lines = b.screen(120);
     let at = lines.iter().position(|l| l.contains("Waits for GitHub") && !l.contains("herdr-superwork")).unwrap_or_else(|| panic!("{}", lines.join("\n")));
-    assert!(lines[at].contains('◐') && !lines[at].contains('◒'), "{}", lines[at]);
+    assert!(lines[at].contains('◇') && !lines[at].contains('◐'), "{}", lines[at]);
     assert!(lines[at + 1].trim_start_matches([' ', '▌']).starts_with("Waiting for GitHub checks · 2 of 3 passed") && !lines[at + 1].contains("uild"), "{}", lines[at + 1]);
-    // The web Board: herdr's dot of work and its amber, the same words.
+    // The web Board: the same mark, its amber, the same words.
     let s = web(&w, "board", json!({}));
     let rows: Vec<Value> = s.at("list").arr("groups").iter().flat_map(|g| g.arr("rows").iter().cloned()).collect();
     let wr = rows.iter().find(|x| x.s("id") == id).unwrap();
-    assert_eq!((wr.s("mark"), wr.s("color")), ("●", Ink::Yellow.name()), "{wr}");
+    assert_eq!((wr.s("mark"), wr.s("color")), ("◇", Ink::Yellow.name()), "{wr}");
     let says: String = wr.at("says").as_array().unwrap().iter().map(|p| p.t("t")).collect();
     assert_eq!(says, "Waiting for GitHub checks · 2 of 3 passed");
-    assert_eq!(mark(&Theme::web(), &r).text(), "●");
-    // Once the checks have passed the board merges: its own step again.
+    assert_eq!(mark(&Theme::web(), &r).text(), "◇");
+    // Once the checks have passed the board merges: its own step still.
     let merging = with(&r, json!({ "autoMerge": false, "msg": "Merging" }));
-    assert_eq!((mark(&theme, &merging).text(), mark(&Theme::web(), &merging).text()), ("◒".to_string(), "◒".to_string()));
+    assert_eq!((mark(&theme, &merging).text(), mark(&Theme::web(), &merging).text()), ("◇".to_string(), "◇".to_string()));
 }
 
 #[test]
-fn every_other_wait_keeps_the_plain_mark_of_work_too() {
+fn every_other_wait_of_the_board_has_its_own_mark_too_and_a_cut_off_turn_its_moon() {
     let theme = Theme::default_dark(true);
     let base = obj(json!({ "id": "x/1", "title": "Waits", "state": "working", "agent": true }));
     let merging = with(&base, json!({ "stage": "merging" }));
-    assert_eq!(mark(&theme, &merging).text(), "◒", "the board merges it: its own step");
+    assert_eq!(mark(&theme, &merging).text(), "◇", "the board merges it: its own step");
     for (wait, ink, what) in [
         (with(&merging, json!({ "lineAt": 5, "msg": "Waiting to merge: x/2 goes first" })), Ink::Yellow, "its turn to merge"),
         (with(&merging, json!({ "checksWait": { "since": 5 }, "autoMerge": true, "msg": "Waiting for GitHub checks · could not read them (no network)" })), Ink::Yellow, "GitHub's checks it cannot read just now"),
         // the board's own check, waiting or running, is in its light grey (docs/check-progress.md)
         (with(&base, json!({ "stage": "checking", "check": { "state": "waiting" }, "msg": "Waiting for its turn · 2 ahead" })), Ink::Check, "its check's turn"),
     ] {
-        assert_eq!((mark(&theme, &wait).text(), mark(&Theme::web(), &wait).text(), status_ink(&wait)), ("◐".to_string(), "●".to_string(), ink), "{what}");
+        assert_eq!((mark(&theme, &wait).text(), mark(&Theme::web(), &wait).text(), status_ink(&wait)), ("◇".to_string(), "◇".to_string(), ink), "{what}");
     }
+    // An agent whose turn was cut off, waiting to try again, is still the one on the task: its moon.
+    let cut = with(&base, json!({ "stage": "reviewing", "reviewRound": 1, "waiting": { "who": "reviewer", "reason": "model is at capacity", "until": 9, "tries": 1 } }));
+    assert_eq!(mark(&theme, &cut).text(), "◐");
 }

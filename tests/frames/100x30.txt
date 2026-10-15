@@ -18,7 +18,7 @@
  ▾ working
  ◐ #2     Max length for task titles                                40% 90m left                  1m
           Drafting
- ◒ #4     Max length for task titles                                                              1m
+ ◇ #4     Max length for task titles                                                              1m
           Starting
 ▌◐ #5     Max length for task titles                                60% 11m left                  1m
 ▌         Found the cause; now checking every caller of the resize handler for the same mistake
@@ -47,7 +47,7 @@
  ▾ working                                                  │  words.
  ◐ #2     Max length for task titles                     1m │  Second paragraph, with
           Drafting                                          │  a/very/long/path/that/has/no/space/i
- ◒ #4     Max length for task titles                     1m │  n/it/at/all/src/board/view/row-wrap.
+ ◇ #4     Max length for task titles                     1m │  n/it/at/all/src/board/view/row-wrap.
           Starting                                          │  js and more words after it.
 ▌◐ #5     Max length for task titles                     1m │
 ▌         Found the cause; now checking every caller of th… │  Settings ───────────────────────────
@@ -142,7 +142,7 @@
  ▾ working
  ◐ #2     Max length for task titles                                40% 90m left                  1m
           Drafting
- ◒ #4     Max length for task titles                                                              1m
+ ◇ #4     Max length for task titles                                                              1m
           Starting
 ▌◐ #5     Max length for task titles                                60% 11m left                  1m
 ▌         Found the cause; now checking every caller of the resize handler for the same mistake

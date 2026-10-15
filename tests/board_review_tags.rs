@@ -18,17 +18,17 @@ fn the_boards_own_steps_share_one_mark_and_the_reviewer_says_only_what_it_is_doi
     let _w = world();
     let mut v = V::new();
     let (working, second) = (v.working(), with(&v.pr(), json!({ "reviewRound": 2 })));
-    m(&v.row(&with(&second, json!({ "stage": "merging", "state": "working", "kind": null, "msg": "merging" })), 120), r"^[ ▌]◒ #\d+ Build a flying game +R#2 PR#12 {2}0s\n[ ▌] {5}merging$");
+    m(&v.row(&with(&second, json!({ "stage": "merging", "state": "working", "kind": null, "msg": "merging" })), 120), r"^[ ▌]◇ #\d+ Build a flying game +R#2 PR#12 {2}0s\n[ ▌] {5}merging$");
     // the board's own steps share one mark of their own, in the row and on the State line: neither the agent's nor the reviewer's
     for stage in ["starting", "setup", "checking", "pushing", "merging"] {
         let r = with(&working, json!({ "stage": stage, "msg": "x" }));
-        m(&v.row(&r, 120), r"^[ ▌]◒ #\d+ Other "); m(&v.page(&r, false), r"\n State {8}◒ working ");
+        m(&v.row(&r, 120), r"^[ ▌]◇ #\d+ Other "); m(&v.page(&r, false), r"\n State {8}◇ working ");
     }
-    // a task that waits for a free slot has a half moon of its own (board_queue.rs)
+    // a task that waits for a free slot has a dotted ring of its own (board_queue.rs)
     let queued = with(&working, json!({ "stage": "queued", "msg": "x" }));
-    m(&v.row(&queued, 120), r"^[ ▌]◓ #\d+ Other "); m(&v.page(&queued, false), r"\n State {8}◓ waiting for a free slot ");
-    // a task that only waits for anything else keeps the plain working mark: the reviewer cut off and waiting to try again
-    m(&v.row(&with(&working, json!({ "stage": "merging", "lineAt": 1, "msg": "Waiting to merge: proj/1 goes first" })), 120), r"^[ ▌]◐ #\d+ Other "); // in the line to merge
+    m(&v.row(&queued, 120), r"^[ ▌]◌ #\d+ Other "); m(&v.page(&queued, false), r"\n State {8}◌ waiting for a free slot ");
+    // the board waiting on its way is still the board's step; the reviewer cut off and waiting to try again keeps its moon
+    m(&v.row(&with(&working, json!({ "stage": "merging", "lineAt": 1, "msg": "Waiting to merge: proj/1 goes first" })), 120), r"^[ ▌]◇ #\d+ Other "); // in the line to merge
     let cut = with(&working, json!({ "stage": "reviewing", "reviewRound": 1, "waiting": { "who": "reviewer", "reason": "model is at capacity", "until": v.now + 120000, "tries": 1 } }));
     m(&v.row(&cut, 120), r"^[ ▌]◐ #\d+ Other "); m(&v.page(&cut, false), r"\n State {8}◐ reviewer was cut off");
     m(&v.row(&with(&working, json!({ "stage": "merging", "state": "error" })), 120), r"^[ ▌]✗ #\d+ Other "); // a step that failed is no step at work

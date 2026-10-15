@@ -55,7 +55,7 @@ fn the_chat_line_shows_only_what_there_is_and_the_boxs_frame_says_who_gets_the_w
 fn the_pages_styles_nothing_under_13px_targets_a_thumb_can_hit_and_a_draft_kept_with_who_it_is_for() {
     assert!(CSS.contains("--fs-2xs: 13px; --fs-xs: 13px;")); assert!(!CSS.contains("text-transform: uppercase"));
     assert!(!has(CSS, r"min-height: (2\d|3\d)px"), "no tap target under 40px");
-    for part in ["full", "right", "bottom"] { assert!(CSS.contains(&format!(".sw-dot-{part} {{")), "{part}"); }
+    for part in ["full", "right", "dotted"] { assert!(CSS.contains(&format!(".sw-dot-{part} {{")), "{part}"); }
     assert!(CSS.contains(".sw-board.has-task .sw-back { display: none; }"), "one back arrow at a time on a phone");
     assert!(has(CSS, r"\.sw-row\.is-selected \{[^}]*box-shadow: inset 3px 0 0 var\(--accent"), "the selected row has a bar in its gutter, not a tint alone");
     // The draft is kept with who it is for: a reload brings both back, so the words never go to whoever shows then.

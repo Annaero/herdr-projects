@@ -49,9 +49,9 @@ fn a_check_on_the_board_its_mark_bars_together_waiting_in_the_list_and_the_chat_
     b.s.sel = id.clone(); b.s.side = false; b.load(); b.press(&["space"]);
     let head = |b: &mut common::board::Board, cols: usize| b.chat(cols).who;
     let h60 = head(&mut b, 60);
-    assert!(re(r"^[ ▌]◒ (PRJ-\d+ +)?Add a greeting {2}Running the check[^█░]*… {2}65% 3m left$").is_match(&h60), "the words are cut, the numbers never: {h60}");
+    assert!(re(r"^[ ▌]◇ (PRJ-\d+ +)?Add a greeting {2}Running the check[^█░]*… {2}65% 3m left$").is_match(&h60), "the words are cut, the numbers never: {h60}");
     let h30 = head(&mut b, 30);
-    assert!(re(r"^[ ▌]◒ (PRJ-\d+ +)?Add a greeting {2}Runn[^%]*…$").is_match(&h30), "{h30}");
+    assert!(re(r"^[ ▌]◇ (PRJ-\d+ +)?Add a greeting {2}Runn[^%]*…$").is_match(&h30), "{h30}");
     // Waiting for its turn: in the list, the minutes and no bar, the words under its name.
     put(step_check(&start_check(now, 2 * MIN), Some(&json!({ "state": "waiting", "ahead": 2 })), now));
     b.press(&["esc"]); b.s.side = true; b.load();

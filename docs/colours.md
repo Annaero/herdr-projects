@@ -55,7 +55,7 @@ mark is a plain light grey, the theme's `subtext0` ([the check's progress](check
 
 ## A task that waits for a free slot is pink
 
-A task started while every slot of `board.agents` is taken has a colour no other state has: a pink, for its `◓`, its
+A task started while every slot of `board.agents` is taken has a colour no other state has: a pink, for its `◌`, its
 place in the queue (`Q#2`), the State line in the task panel and its agent's text box. Pink is the colour furthest
 from all the others: amber works, red needs you, green is ready, teal is done, blue is under review, grey is to do
 and purple is an automation.
@@ -75,7 +75,7 @@ neighbour is red, the colour of "needs you", so the measure keeps it well away f
 | Solarized Light | `#9d174d` |
 | `terminal` | `#ec4899`: the terminal's sixteen colours have no pink, and their magenta is the automations'. A middle pink reads on a dark terminal and a light one alike |
 
-**Colour is not the only clue**: the `◓` is a half moon of its own and `Q#2` and `Waiting for a free slot` are
+**Colour is not the only clue**: the `◌` is a dotted ring no other state has and `Q#2` and `Waiting for a free slot` are
 words. With `NO_COLOR` they still say it.
 
 On the web Board it is the board's own `#ec4899`, pulled towards the page's text colour as the purple is.
