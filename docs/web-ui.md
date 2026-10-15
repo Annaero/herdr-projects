@@ -217,6 +217,9 @@ same user where both say one).
   machine, every machine, each one by itself. A chip says which, and takes you on. Every button works on another
   machine's task as on the terminal board, and what you type while one machine shows goes to that machine's
   Coordinator.
+- **It opens on the terminal board's choice.** A page shows whose board the terminal board shows (this machine,
+  every machine, or one), so the two show the same tasks. A board picked on the web is the web's own and stays for
+  the next page; picking the terminal board's choice again makes the web follow the terminal board again.
 - **Open this task's agent** on another machine's task: that machine reopens the task's space and restarts an exited
   agent, as it does for the terminal board, and the page goes to the web UI's own view of that pane on that PC
   (`?machine=<its PC>&pane=…`). Work never moves: only the page does.

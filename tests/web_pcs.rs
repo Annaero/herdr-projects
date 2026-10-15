@@ -62,7 +62,7 @@ fn the_web_board_goes_with_the_web_ui_on_another_pc_it_is_that_machines_board_an
     let s = board("pc-a", Some(pcs.clone()));
     assert_eq!((scope(&s), s.at("list").at("head").s("only"), s.at("msg").s("text")), ("vm-a".into(), "vm-a", "Only vm-a. What you type goes to vm-a."));
     // what a page opened later starts with is what this one showed before it went there, not where the web UI was
-    assert_eq!(sw::store::files::read_obj(&sw::store::files::data_dir().join("web-view.json")).unwrap().s("scope"), "");
+    assert_eq!(sw::store::files::read_obj(&sw::store::files::data_dir().join("web-view.json")).unwrap().at("ownScope"), &json!(null), "the terminal board's, followed");
     // while it stays there, a choice of your own stands
     let chosen = scope(&call("c", "press", json!({ "id": "scope" }), "pc-a", Some(pcs.clone())));
     assert_eq!(scope(&board("pc-a", Some(pcs.clone()))), chosen);

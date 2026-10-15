@@ -95,3 +95,59 @@ fn picking_an_entry_shows_that_machines_board_as_other_machines_does_and_the_two
     assert!(call("scope", json!({ "to": "nowhere" }), None).unwrap_err().contains("nowhere"));
     assert_eq!(boards(None).s("scope"), "*", "nothing changed");
 }
+
+#[test]
+fn a_new_page_shows_whose_board_the_terminal_board_shows_until_a_board_is_picked_on_the_web() {
+    // The terminal board shows every machine; the tasks are all on another machine; the web board was last left on
+    // this machine only (as every web board was before it took the terminal board's choice): the page showed nothing.
+    let w = world_with(Opts { repo: true, settings: json!({ "board.machines": "vm-a" }), ..Default::default() });
+    let far = Far::new(&w.base);
+    let view = |scope: &str| std::fs::write(sw::store::files::data_dir().join("view.json"), json!({ "cwd": w.root_str(), "scope": scope }).to_string()).unwrap();
+    let kept = || sw::store::files::read_obj(&sw::store::files::data_dir().join("web-view.json")).unwrap_or_default();
+    view("*");
+    std::fs::write(sw::store::files::data_dir().join("web-view.json"), json!({ "scope": "" }).to_string()).unwrap();
+    far.tasks("vm-a", "0.2.0", json!([far::theirs(1), far::theirs(2)]));
+    boards(pcs());
+    far::answered("t", 1);
+    let s = call("board", json!({}), None).unwrap();
+    let rows: Vec<String> = s.at("list").arr("groups").iter().flat_map(|g| g.arr("rows").iter().map(|r| r.t("title"))).collect();
+    assert_eq!((s.at("flags").s("scope"), rows.clone()), ("*", vec!["Theirs 1".to_string(), "Theirs 2".into()]), "the terminal board's tasks");
+    assert_eq!(s.at("list").s("empty"), "");
+    // a board picked on the web is the web's own: a page opened later starts there, whatever the terminal board shows
+    call("scope", json!({ "to": "" }), None).unwrap();
+    assert_eq!(kept().s("ownScope"), "");
+    sw::webui::web::forget();
+    assert_eq!(call("board", json!({}), None).unwrap().at("flags").s("scope"), "");
+    // picked back to what the terminal board shows: the web follows the terminal board again
+    call("scope", json!({ "to": "*" }), None).unwrap();
+    assert_eq!(kept().at("ownScope"), &json!(null));
+    view("");
+    sw::webui::web::forget();
+    assert_eq!(call("board", json!({}), None).unwrap().at("flags").s("scope"), "");
+}
+
+#[test]
+fn only_a_board_picked_on_the_web_is_kept_another_change_leaves_the_web_following_the_terminal_board() {
+    // A page opened while the terminal board showed this machine; the terminal board then went to every machine; a
+    // change of the grouping on the page saved the web's choices, and that was taken for a pick of this machine.
+    let w = world_with(Opts { repo: true, settings: json!({ "board.machines": "vm-a" }), ..Default::default() });
+    let far = Far::new(&w.base);
+    let view = |scope: &str| std::fs::write(sw::store::files::data_dir().join("view.json"), json!({ "cwd": w.root_str(), "scope": scope }).to_string()).unwrap();
+    let kept = || sw::store::files::read_obj(&sw::store::files::data_dir().join("web-view.json")).unwrap_or_default();
+    far.tasks("vm-a", "0.2.0", json!([far::theirs(1)]));
+    view("");
+    assert_eq!(call("board", json!({}), None).unwrap().at("flags").s("scope"), "");
+    view("*");
+    call("press", json!({ "id": "byRepo", "role": "drive" }), None).unwrap();
+    assert_eq!(kept().b("byRepo"), true, "the grouping is kept");
+    assert_eq!(kept().at("ownScope"), &json!(null), "no board was picked");
+    sw::webui::web::forget();
+    boards(pcs());
+    far::answered("t", 1);
+    let s = call("board", json!({}), None).unwrap();
+    assert_eq!(s.at("flags").s("scope"), "*");
+    assert!(s.at("list").arr("groups").iter().any(|g| g.arr("rows").iter().any(|r| r.s("title") == "Theirs 1")), "{}", s.at("list"));
+    // the scope key pressed on the web is a pick, as the sidebar's entry is
+    call("press", json!({ "id": "scope" }), None).unwrap();
+    assert_eq!(kept().at("ownScope"), &json!("vm-a"));
+}

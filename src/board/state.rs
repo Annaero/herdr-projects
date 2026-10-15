@@ -62,9 +62,10 @@ pub struct SelRow { pub id: String, pub order: String, pub at: i64, pub done: bo
 pub struct Held { pub columns: u16, pub rows: u16, pub room: (u16, u16), pub by: Vec<(i64, i64)>, pub known: bool }
 
 /// The web board's own (webui/web.rs): the agent page to go to, how often the settings part was asked for, the messages
-/// counted (a page shows each once), and the web UI's PCs with the one its page is on.
+/// counted (a page shows each once), and the web UI's PCs with the one its page is on. `own_scope`: whose board it
+/// shows was picked on the web, and is kept as the web's own; else it is the terminal board's (web.rs).
 #[derive(Clone, Debug, Default)]
-pub struct Web { pub go: Option<Value>, pub show_settings: i64, pub msg_n: i64, pub pcs: Option<Vec<crate::webui::pcs::Pc>>, pub at: Option<String>, pub stranger: String, pub stranger_tried: i64, pub followed: Option<String> }
+pub struct Web { pub go: Option<Value>, pub show_settings: i64, pub msg_n: i64, pub pcs: Option<Vec<crate::webui::pcs::Pc>>, pub at: Option<String>, pub stranger: String, pub stranger_tried: i64, pub followed: Option<String>, pub own_scope: bool }
 
 pub struct State {
     pub ctx: Ctx,

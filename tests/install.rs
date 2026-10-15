@@ -134,6 +134,8 @@ fn install_writes_the_launcher_for_this_program() {
     let (b, _one) = scratch();
     let exe = sw::store::files::bin();
     let launcher = b.join("sw/data/bin/herdr-superwork");
+    // The PATH is the whole test program's: it keeps /bin (sh and cat are only there on macOS) and is given back.
+    let was = std::env::var("PATH").unwrap_or_default();
     set("PATH", "/usr/bin:/bin");
     let said = install(&exe);
     let text = read(&launcher);
@@ -144,12 +146,14 @@ fn install_writes_the_launcher_for_this_program() {
     assert!(said.contains(&format!("export PATH=\"{}:$PATH\"", launcher.parent().unwrap().display())), "{said}");
     // Another herdr-superwork comes first on the PATH (npm link's): said, with the way out.
     exec(&b.join("npm/bin/herdr-superwork"), "#!/bin/sh\n");
-    set("PATH", &format!("{}:{}:/usr/bin", b.join("npm/bin").display(), launcher.parent().unwrap().display()));
+    set("PATH", &format!("{}:{}:/usr/bin:/bin", b.join("npm/bin").display(), launcher.parent().unwrap().display()));
     let said = install(&exe);
     assert!(said.contains(&format!("{} comes first on your PATH", b.join("npm/bin/herdr-superwork").display())), "{said}");
     // The launcher's folder is on the PATH first: nothing more to say.
-    set("PATH", &format!("{}:/usr/bin", launcher.parent().unwrap().display()));
-    assert_eq!(install(&exe).lines().count(), 1);
+    set("PATH", &format!("{}:/usr/bin:/bin", launcher.parent().unwrap().display()));
+    let lines = install(&exe).lines().count();
+    set("PATH", &was);
+    assert_eq!(lines, 1);
 }
 
 // ---- bin/run.sh ---------------------------------------------------------------------------------------------------

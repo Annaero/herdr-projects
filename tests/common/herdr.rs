@@ -96,7 +96,8 @@ impl FakeHerdr {
     }
     fn answer(&self, argv: &[String]) -> Out {
         let mut st = self.st.borrow_mut();
-        let calls = arr(&mut st, "calls"); calls.push(json!(argv.join(" ").chars().take(300).collect::<String>()));
+        // Long enough for a call's last flags also under macOS's long temp folders (/private/var/folders/…).
+        let calls = arr(&mut st, "calls"); calls.push(json!(argv.join(" ").chars().take(2000).collect::<String>()));
         let flag = |n: &str| argv.iter().position(|a| a == n).and_then(|i| argv.get(i + 1)).cloned();
         let has = |n: &str| argv.iter().any(|a| a == n);
         let env_of = || -> Value { let mut o = serde_json::Map::new(); for (i, a) in argv.iter().enumerate() { if a == "--env" { if let Some((k, v)) = argv.get(i + 1).and_then(|x| x.split_once('=')) { o.insert(k.into(), json!(v)); } } } Value::Object(o) };

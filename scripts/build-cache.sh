@@ -33,5 +33,16 @@ bc_use() {
   RUSTC_WRAPPER="$bc_bin"; SCCACHE_DIR="$bc_dir/sccache"; SCCACHE_SERVER_UDS="$bc_dir/sccache.sock"
   SCCACHE_CACHE_SIZE="${SCCACHE_CACHE_SIZE:-2G}"; SCCACHE_CLIENT_SIDE=1 # compiles in the build's own process, not the server's
   export RUSTC_WRAPPER SCCACHE_DIR SCCACHE_SERVER_UDS SCCACHE_CACHE_SIZE SCCACHE_CLIENT_SIDE
+  bc_serve || { unset RUSTC_WRAPPER; echo "The shared build cache did not start: this build runs on its own." >&2; }
+}
+# The server is started here, before cargo, never by rustc's first call: worktrees set up at the same moment would
+# each start one, and every start that loses the race to bind the socket fails its compile ("Server startup failed:
+# File exists"). A start that loses here is retried, and finds the winner's server running.
+bc_serve() {
+  for bc_try in 1 2 3 4 5; do
+    "$bc_bin" --start-server >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  return 1
 }
 case "$0" in *build-cache.sh) bc_install ;; *) bc_use ;; esac

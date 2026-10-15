@@ -44,7 +44,8 @@ fn the_panel_beside_the_list_cuts_a_long_description_short_and_the_whole_panel_s
     assert!(has(&text, r"│ {2}Settings ─+ *\n[^\n]*│ {2}Agent {8}claude · default model *\n[^\n]*│ {15}default effort *\n[^\n]*│ {2}Plan first {3}off *\n"), "{text}");
     assert!(!text.contains("as usual"));
     let whole = text_of(&panel_of(&mut s, 80, true));
-    assert!(has(&whole, r"\n Settings ─+\n Project {6}\S+\n Worktree {5}on\n Branch {7}main\n Agent "), "{whole}");
+    // (A long folder, as macOS's temp folders are, goes on on a line of its own.)
+    assert!(has(&whole, r"\n Settings ─+\n Project {6}\S+\n(?: {14}\S+\n)? Worktree {5}on\n Branch {7}main\n Agent "), "{whole}");
     // Every setting shows in both; where the task is (its project, its worktree, its branch) is on the whole task only.
     for fact in SETTINGS { assert!(whole.contains(&format!("\n {fact} ")), "{fact}"); assert!(text.contains(&format!("│  {fact} ")), "{fact}"); }
     for fact in ["Project", "Worktree", "Branch"] { assert!(whole.contains(&format!("\n {fact} ")), "{fact}"); assert!(!text.contains(&format!("│  {fact} ")), "{fact}"); }

@@ -20,9 +20,11 @@ const WAIT: u64 = 25;
 static CLIENTS: Mutex<Option<HashMap<String, Arc<Mutex<Client>>>>> = Mutex::new(None);
 pub fn theme() -> &'static Theme { static T: std::sync::OnceLock<Theme> = std::sync::OnceLock::new(); T.get_or_init(Theme::web) }
 fn prefs_file() -> std::path::PathBuf { crate::store::files::data_dir().join("web-view.json") }
+/// What the terminal board last kept of its view (view.json): the web board reads it and never writes it.
+fn terminal_view() -> crate::json::Obj { crate::store::files::read_obj(&crate::store::files::data_dir().join("view.json")).unwrap_or_default() }
 /// Where the web board is "in": the repo the terminal board was last opened in, else the home folder.
 fn last_folder() -> String {
-    let cwd = crate::store::files::read_obj(&crate::store::files::data_dir().join("view.json")).map(|p| p.t("cwd")).unwrap_or_default();
+    let cwd = terminal_view().t("cwd");
     if !cwd.is_empty() && std::path::Path::new(&cwd).exists() { cwd } else { crate::store::files::user_home().display().to_string() }
 }
 fn open() -> Client {
@@ -31,10 +33,16 @@ fn open() -> Client {
     let mut s = State::new(ctx, Data::default());
     if !keys.is_empty() { s.flash(keys, crate::shown::ink::Ink::Green); }
     // The web board keeps its own few choices, in a file of its own: it never writes the terminal board's.
-    // The selection is where the terminal board left it.
-    s.sel = crate::store::files::read_obj(&crate::store::files::data_dir().join("view.json")).map(|p| p.t("sel")).unwrap_or_default();
+    // The selection is where the terminal board left it, and so is whose board it shows (this machine, every machine
+    // or one), unless a board was picked on the web: that one is the web's own ("scope", kept before, is not: every
+    // web board kept "this machine" by itself, and showed nothing while the tasks were on the other machines).
+    let view = terminal_view();
+    s.sel = view.t("sel");
     let p = crate::store::files::read_obj(&prefs_file()).unwrap_or_default();
-    s.by_repo = p.b("byRepo"); s.all_done = p.b("allDone"); s.scope = p.t("scope"); s.chat_open = p.s("chat") != "closed";
+    s.by_repo = p.b("byRepo"); s.all_done = p.b("allDone"); s.chat_open = p.s("chat") != "closed";
+    let own = p.get("ownScope").and_then(|x| x.as_str()).map(String::from);
+    s.web.own_scope = own.is_some();
+    s.scope = own.unwrap_or_else(|| view.t("scope"));
     s.folded = p.arr("folded").iter().filter_map(|x| x.as_str()).map(String::from).collect();
     Client { s, inbox: Arc::new(Mutex::new(vec![])), at: 0, machines_at: 0, boards_at: 0 }
 }
@@ -52,10 +60,18 @@ pub fn client(id: &str) -> Arc<Mutex<Client>> {
     { let mut g = c.lock().unwrap(); g.at = now; if fresh { reload(&mut g); if g.s.all() { poll(&mut g, true); } } }
     c
 }
+/// Whose board was picked on the web (the sidebar's Boards, the scope key): the web's own from now on, unless it is
+/// the terminal board's own choice, which the web then follows again.
+fn picked(c: &mut Client) {
+    c.s.web.own_scope = c.s.scope != terminal_view().t("scope");
+    save_prefs(&c.s);
+}
 pub fn save_prefs(s: &State) {
     // While it shows the machine the web UI is on (view.rs), what is kept is what it showed before it went there.
     let scope = s.web.followed.clone().unwrap_or_else(|| s.scope.clone());
-    let _ = crate::store::files::write_json(&prefs_file(), &json!({ "byRepo": s.by_repo, "allDone": s.all_done, "scope": scope, "folded": s.folded, "chat": if s.chat_open { "open" } else { "closed" } }));
+    // Only a board picked on the web is kept (picked): any other save leaves the web following the terminal board.
+    let own = if s.web.own_scope { json!(scope) } else { Value::Null };
+    let _ = crate::store::files::write_json(&prefs_file(), &json!({ "byRepo": s.by_repo, "allDone": s.all_done, "ownScope": own, "folded": s.folded, "chat": if s.chat_open { "open" } else { "closed" } }));
 }
 /// Everything read again: the tasks, the closer look at the selected one and the one the chat talks to.
 pub fn reload(c: &mut Client) {
@@ -138,7 +154,7 @@ pub fn call(client_id: &str, call: &str, args: Value, machine: &str, pcs: Option
     let watch = || Err::<Value, String>("This device can only watch.".into());
     match call {
         "board" => { let now = crate::clock::now(); let fx = update(&mut c.s, Event::Tick(now)); effects(c, fx, true); Ok(snapshot(c, args.s("have"))) }
-        "press" => { let draft = super::view::press(c, args.s("id"), drive)?; let mut o = snapshot(c, ""); o.as_object_mut().unwrap().insert("draft".into(), json!(draft)); Ok(o) }
+        "press" => { let draft = super::view::press(c, args.s("id"), drive)?; if args.s("id") == "scope" { picked(c); } let mut o = snapshot(c, ""); o.as_object_mut().unwrap().insert("draft".into(), json!(draft)); Ok(o) }
         "send" => {
             if !drive { return watch(); }
             let to = args.at("to").as_object().map(|t| (t.t("id"), t.b("reply"), t.get("scope").and_then(|x| x.as_str()).map(|x| x.chars().take(80).collect())));
@@ -157,7 +173,7 @@ pub fn call(client_id: &str, call: &str, args: Value, machine: &str, pcs: Option
         "fold" => { super::view::fold(c, args.s("id")); Ok(snapshot(c, "")) }
         // The sidebar's Boards section: every machine's board at a glance, and picking one of them.
         "boards" => Ok(super::boards::boards(c)),
-        "scope" => { super::boards::choose(c, args.s("to"))?; Ok(snapshot(c, "")) }
+        "scope" => { super::boards::choose(c, args.s("to"))?; picked(c); Ok(snapshot(c, "")) }
         other => Err(format!("Unknown call {other}")),
     }
 }
