@@ -8,7 +8,7 @@ program.
 herdr plugin install eliasstravik/herdr-projects
 ```
 
-herdr clones the repo's main branch into its own plugins folder (`herdr plugin list` shows where; `--ref v1.0.0`
+herdr clones the repo's main branch into its own plugins folder (`herdr plugin list` shows where; `--ref v1.0.1`
 takes a given release) and runs the plugin's build step there, which downloads the program. Or, to keep a checkout
 of your own:
 
