@@ -83,5 +83,5 @@ fn real_programs_a_check_that_stops_before_it_starts_says_why_once() {
             .env("HOME", b.home()).env("PATH", "/usr/bin:/bin").output().unwrap();
         (o.status.code().unwrap_or(-1), String::from_utf8_lossy(&o.stderr).into_owned(), std::fs::read_to_string(b.base.join("cargo-saw")).unwrap_or_default())
     };
-    assert_eq!((code, err.as_str(), saw.as_str()), (2, "check does not know --nope. It takes: --all, --fresh, and names of tests.\n", ""));
+    assert_eq!((code, err.as_str(), saw.as_str()), (2, "check does not know --nope. It takes: --all, --fresh, --since <commit>, and names of tests.\n", ""));
 }

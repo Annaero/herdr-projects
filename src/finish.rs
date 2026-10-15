@@ -3,6 +3,7 @@
 //! herdr says the agent stopped, so it works with the board closed. One step per file in finish/.
 pub mod auto_merge;
 pub mod chat;
+pub mod check_again;
 pub mod check_run;
 pub mod hand_over;
 pub mod line;

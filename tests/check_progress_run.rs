@@ -19,7 +19,7 @@ fn checking(id: &str) -> sw::runner::Guard {
     let t = sw::runner::claim(id, "pipeline", |t| { t.put("stage", "checking"); }).unwrap().unwrap();
     let mut g = sw::runner::Guard::new(id); g.expect(&t, &[]); g
 }
-fn run(g: &mut sw::runner::Guard, id: &str, root: &Path, cmd: &str) -> (bool, bool) { let (r, known) = run_check(g, id, cmd, root, &[], root, 1.0).unwrap(); (r.ok, known) }
+fn run(g: &mut sw::runner::Guard, id: &str, root: &Path, cmd: &str) -> (bool, bool) { let (r, known) = run_check(g, id, cmd, false, root, &[], root, 1.0).unwrap(); (r.ok, known) }
 
 #[test]
 fn the_task_shows_it_everywhere_its_progress_shows_in_a_colour_of_its_own() {

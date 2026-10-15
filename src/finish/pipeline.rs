@@ -1,5 +1,6 @@
 //! The pipeline: commit, bring main in, set up, check, push, pull request, review, then wait for approval. The second
 //! half (the review and what follows from it) is pipeline_end.rs.
+use super::check_again::{choose, passed_patch, CHECKED_ENV};
 use super::check_run::run_check;
 use super::hand_over::hand_over;
 use super::pipeline_end::{after_review, Ctx};
@@ -96,8 +97,13 @@ pub fn pipeline(id: &str, g: &mut Guard, text: &str, keep_intent: bool, reason: 
     }
     // The chosen attempt of several: its check passed on this very commit, as that attempt. Not run twice.
     let proven = t.b("checkedHead") && !tree.is_empty() && t.s("checkedWith") == check && flow::git::head_of(Path::new(&tree)) == t.s("checkedHead");
+    // On a later round, the shorter check where it may stand in for the full one (check_again.rs).
+    let run = choose(&t, &ch, &check, &tree, &root);
+    let ran = run.shown();
     if !check.is_empty() && !research && !proven {
-        let (r, _) = run_check(g, id, &check, &folder, &env, &root, ms(ch.s("check.timeout")) as f64 / 60000.0)?;
+        let mut env = env.clone();
+        if run.short() { env.push((CHECKED_ENV.into(), run.since.clone())); }
+        let (r, _) = run_check(g, id, &run.cmd, run.short(), &folder, &env, &root, ms(ch.s("check.timeout")) as f64 / 60000.0)?;
         if r.aborted { return Ok(()); }
         if !r.ok {
             let merged = if kept.is_some() { " The branch was only re-merged with main since its review passed, so the tests ran instead of a new review." } else { "" };
@@ -106,9 +112,9 @@ pub fn pipeline(id: &str, g: &mut Guard, text: &str, keep_intent: bool, reason: 
             let last = fails > rounds; // it goes back by itself `review.rounds` times
             let auth = is_auth_failure(&r.out);
             let tail = r.out.lines().filter(|l| !l.is_empty()).last().unwrap_or("").to_string();
-            let mut f = failure("check", &format!("Check failed{}", if last && fails > 1 { format!(" after {fails} tries") } else { String::new() }), &format!("Command: {check}\nFolder: {}\n\n{}", folder.display(), r.out), "Fix the failed check, run it again and finish for a fresh review.");
+            let mut f = failure("check", &format!("Check failed{}", if last && fails > 1 { format!(" after {fails} tries") } else { String::new() }), &format!("Command: {ran}\nFolder: {}\n\n{}", folder.display(), r.out), "Fix the failed check, run it again and finish for a fresh review.");
             f.put("auth", auth); f.put("agentCanFix", true);
-            if last && fails > 1 { f.put("msg", format!("The check still fails after {fails} tries ({check}): {tail}")); }
+            if last && fails > 1 { f.put("msg", format!("The check still fails after {fails} tries ({ran}): {tail}")); }
             // The agent had its rounds and the check still fails: the next one on `worker.fallback` takes over.
             if last && !auth && rounds > 0 && !get(id).map(|c| c.b("mergeIntent")).unwrap_or(false) && hand_over(id, g, &format!("the check still failed after {fails} tries"), &format!("The check still fails, so this is not done yet.{merged}\n\n{}", bound_detail(f.s("detail"))))? { return Ok(()); }
             if last || auth { fail(g, f, FailHow { patch: obj(json!({ "checkFails": fails })), ..Default::default() })?; return Ok(()); }
@@ -126,7 +132,10 @@ pub fn pipeline(id: &str, g: &mut Guard, text: &str, keep_intent: bool, reason: 
     if !check.is_empty() && !tree.is_empty() && !research && !proven {
         let tp = Path::new(&tree);
         if git_out(tp, &["diff", "--name-only"]).map(|s| !s.is_empty()).unwrap_or(false) { let _ = git_out(tp, &["commit", "-am", &format!("Written by the check\n\nTask: {}", task_ref(id, &repo_keys()))]); }
-    }
+        // The full check is where the shorter one of a later round starts from; the reviewer hears which one passed.
+        let passed = if run.short() { None } else { Some(passed_patch(&flow::git::head_of(tp), &check)) };
+        g.set(|t| { if let Some(p) = &passed { t.put("checkPassed", p.clone()); } t.put("checkShort", if run.short() { json!(ran) } else { Value::Null }); })?;
+    } else { g.set(|t| t.put("checkShort", Value::Null))?; }
     t = g.check()?;
     // One of several attempts stops here: it passed, and waits to be chosen.
     if t.b("attemptOf") {

@@ -17,6 +17,7 @@ Everything that runs tests uses the same command: you, an agent at work, the rev
 | One area: its test files (`tests/board_panel.rs`, `tests/board_panel_*.rs`) | `npm run check board-panel`, `npm run check gate sync` |
 | Only the tests whose names hold a word | `npm run check textbox` |
 | Again, although it passed | add `--fresh` |
+| Only what a change since a commit reaches (the board's check on a fix round) | `npm run check -- --since <commit>` |
 
 A name is first an area: `board-panel` (or `board_panel`) runs `tests/board_panel.rs` and every
 `tests/board_panel_*.rs`, exactly those (not `web_board_panel.rs`). A name that is no area is matched against each
@@ -56,6 +57,35 @@ no file, so it changes nothing here; any edit does.
 
 A failed run is never remembered. A run with names is remembered as that run only: `npm run check textbox` passing
 says nothing about the whole. `--fresh` runs regardless.
+
+### The shorter check of a fix round
+
+On a later round of a task (a review or a failed check sent it back), the board runs `npm run check -- --since
+<commit>` instead of the whole check, where GitHub's checks still guard the merge: `check.again` in
+[`.herdr-superwork.json`](../.herdr-superwork.json), and when the board does so in
+[shorter checks on fix rounds](shorter-checks.md). The commit is the one the whole check last passed on.
+
+It builds, writes the made tables and checks the rules as the whole check does, then runs every test in `src/` (and
+the doc tests) and the test files the change since that commit reaches: committed since, not committed yet, and new
+files. `scripts/changed-tests.sh <commit>` picks them, for each file changed:
+
+| Changed | The test files it reaches |
+|---|---|
+| a test file (`tests/sync.rs`) | that file |
+| a module the files share (`tests/far/`) | the files that use it (`crate::far`) |
+| a kept frame (`tests/frames/`) | `board_frames` |
+| a file of the program (`src/sync/conflict.rs`) | those whose names hold its name or its folder's as a word (`sync_conflict`, `sync`, `sync_behind`), and those that write its module's path (`sync::conflict`); a `mod.rs` goes by its folder |
+| a page (`docs/keys.md`, `README.md`) | those that write its name, and `guard` |
+
+It cannot tell, and every test runs, for `tests/main.rs`, `tests/common/` and `tests/fixtures/` (every test uses
+them), `src/lib.rs` and `src/main.rs`, a file of the program that no test file is named by or writes the path of,
+any other file (`Cargo.toml`, `scripts/`, `.github/`), a commit that is not on the branch, and a change that reaches
+every test file anyway. It says why (`Every test runs: …`).
+
+This picks by names, not by what the tests really run: a change can break a test it did not pick. That is why the
+board runs it only where GitHub runs the whole check on the pull request before anything merges. A shorter check
+that passed is remembered as itself (with its commit); one that ran every test counts as the whole check too. The
+whole check having passed on this exact code answers it at once.
 
 ### One test program
 

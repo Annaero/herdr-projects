@@ -4,10 +4,16 @@
 # them side by side is more processes. `sh scripts/run-tests.sh [names]`: no name runs every test; a name that is an
 # area (`board-panel`: tests/board_panel.rs and tests/board_panel_*.rs) runs those files, any other name the tests whose
 # own names hold it. How many processes: HERDR_SUPERWORK_TEST_PROCS, else twice this task's share of the cores
-# (scripts/share-cores.sh), as a process that takes turns uses about half a core. docs/testing.md.
+# (scripts/share-cores.sh), as a process that takes turns uses about half a core. For the shorter check of a fix round
+# (scripts/check.sh --since): `=name` runs exactly that file's tests, and `--units` every test outside tests/ (those in
+# src/ and the doc tests). docs/testing.md.
 set -e
-mods=""; words=""
+mods=""; words=""; units=""
 for n in "$@"; do
+  case "$n" in
+    --units) units=1; continue ;;
+    =*) [ -f "tests/${n#=}.rs" ] && mods="$mods|${n#=}"; continue ;;
+  esac
   f=$(printf '%s' "$n" | tr - _); found=""
   for t in tests/"$f".rs tests/"$f"_*.rs; do
     [ -f "$t" ] && [ "$t" != tests/main.rs ] && { found=1; mods="$mods|$(basename "$t" .rs)"; }
@@ -30,7 +36,10 @@ i=0
 for b in $bins; do
   : > "$tmp/all"
   # shellcheck disable=SC2086
-  if [ -z "$mods" ] || [ -n "$words" ]; then "$b" --list --format terse $words >> "$tmp/all"; fi
+  case "$(basename "$b")" in
+    main-*) if [ -z "$units" ] && { [ -z "$mods" ] || [ -n "$words" ]; }; then "$b" --list --format terse $words >> "$tmp/all"; fi ;;
+    *) if [ -n "$units" ] || [ -z "$mods" ] || [ -n "$words" ]; then "$b" --list --format terse $words >> "$tmp/all"; fi ;;
+  esac
   case "$(basename "$b")" in main-*) if [ -n "$mods" ]; then "$b" --list --format terse > "$tmp/mods"; grep -E "^(${mods#|})::" "$tmp/mods" >> "$tmp/all" || true; fi ;; esac
   sed -n 's/: test$//p' "$tmp/all" | sort -u > "$tmp/list"
   # Dealt out in turn, so each process gets some of every file's tests (the files differ, the tests of one file less).
@@ -45,7 +54,7 @@ started=$(date +%s)
 # The examples in the code's own comments (doc tests), compiled by cargo: beside the areas, which are tests/ files only.
 doc=0
 # shellcheck disable=SC2086
-if [ -z "$mods" ] || [ -n "$words" ]; then
+if [ -n "$units" ] || [ -z "$mods" ] || [ -n "$words" ]; then
   cargo test --profile quick --quiet --doc -- $words > "$tmp/doc.out" 2>&1 || { cat "$tmp/doc.out"; exit 101; }
   doc=$(sed -n 's/^test result: [A-Za-z]*\. \([0-9]*\) passed.*/\1/p' "$tmp/doc.out" | tail -1)
 fi

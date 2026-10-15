@@ -13,12 +13,13 @@ use std::path::{Path, PathBuf};
 pub const PROGRESS_ENV: &str = "HERDR_SUPERWORK_PROGRESS";
 pub fn progress_file(id: &str) -> PathBuf { dir_of(id).join("check-progress") }
 /// The check itself, followed: what `sh` gave, plus `known` when the command answered at once for code that passed before.
-pub fn run_check(g: &mut Guard, id: &str, cmd: &str, folder: &Path, env: &[(String, String)], root: &Path, timeout_min: f64) -> Res<(ShOut, bool)> {
+/// `short`: the shorter check of a later round (check_again.rs), said so on the task.
+pub fn run_check(g: &mut Guard, id: &str, cmd: &str, short: bool, folder: &Path, env: &[(String, String)], root: &Path, timeout_min: f64) -> Res<(ShOut, bool)> {
     let file = progress_file(id);
     let _ = std::fs::remove_file(&file);
     let check = std::cell::RefCell::new(start_check(now(), usual_check(root, cmd)));
     let seen = std::cell::RefCell::new(String::new());
-    g.set(|t| { t.put("msg", "Running the check"); t.put("check", check.borrow().clone()); })?;
+    g.set(|t| { t.put("msg", if short { "Running the shorter check of a fix round" } else { "Running the check" }); t.put("check", check.borrow().clone()); })?;
     let read = || -> bool {
         let text = std::fs::read_to_string(&file).unwrap_or_default();
         if *seen.borrow() == text { return false; }

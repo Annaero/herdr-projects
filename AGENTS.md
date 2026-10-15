@@ -64,6 +64,8 @@ committed or not, and the compiler), and shares that with the reviewer and the b
   them all, about 15 seconds on a quiet machine.
 - **The board runs the whole check at the end**, when you finish: `npm run check -- --all`. Run that yourself at most
   once, last of all, when your task asks for it; never after each edit. The board's run then answers at once.
+  On a later round (a review or a failed check sent the work back) it runs the shorter check instead,
+  `npm run check -- --since <commit>`: only the test files your change since the last whole run reaches.
 - **Never wait in a loop for the machine to be quiet**, and never look at the load before a run. A busy machine fails
   nothing: the check has no time budget, and the light tests never wait for the real clock. `Blocking waiting for
   file lock` is cargo letting another build in the same folder finish first: leave it, it goes on by itself.
