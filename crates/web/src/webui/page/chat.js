@@ -1,6 +1,6 @@
 // The chat at the foot of the board, the terminal board's chat: a switch with the two you can talk to (the Coordinator,
 // or the selected task's agent), which shows who gets your words; the line on where they stand; the conversation
-// (said.js: the newest thing said, or your newest words and the answer, the rest above it) with Hide and Show; and what the box you type in (compose.js) does
+// (said.js: the newest thing said, the rest above it) with Hide and Show; and what the box you type in (compose.js) does
 // with your words: who they are for, kept with them until they are sent, and who a file attached is for. Who that
 // is, what the box says while empty and what its buttons do come from the board (webui/model/side.rs).
 /* global sessionStorage */

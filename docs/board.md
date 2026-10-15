@@ -486,18 +486,14 @@ panel.
   shift+enter new line · esc put away`). What each hint says, and what gives way in a narrow window, is in
   [the hint line](keys.md#the-hint-line).
 
-**Your words stay, with the answer under them.** What you just sent shows under `You:` the moment you send it, and
-the answer comes under it as it is said: `You:` with your words, then `Agent:` (or `Coordinator:`) with all it said
-since, for the Coordinator and for a task's agent alike. That holds also for words you send while the agent works:
-Claude Code queues them and they go in during its turn, and the board reads them there. Where somebody else sent
-something since (the board's own words, the Coordinator's), the box holds only the newest thing said, and where your
-words and the answer together do not fit in the box, the answer alone: your words are then one scroll up.
+**The box holds one message: the newest, whoever said it.** What you just sent shows under `You:` the moment you send
+it, and stays there until the answer comes; then the answer alone (`Agent:`, or `Coordinator:`), for the Coordinator
+and for a task's agent alike. That holds also for words you send while the agent works: Claude Code queues them and
+they go in during its turn, and the board reads them there. Your words are then one scroll up, with the rest of the
+conversation.
 
 ```
 ╭────────────────────────────────────────────────────────────────────────────────────────────╮
-│ You:                                                                                       │
-│ yes, g too                                                                                 │
-│                                                                                            │
 │ Agent:                                                                                     │
 │ Made g.                                                                                    │
 │                                                                                            │
@@ -505,10 +501,11 @@ words and the answer together do not fit in the box, the answer alone: your word
 ╰────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-**The box scrolls through the conversation's words.** It opens on the newest thing said (or your words and the
-answer under them) and holds only that. What was said and sent before is above it: `Alt+U` opens the box to the
-conversation and scrolls up through it, `Alt+J` down, half a box at a time (U sits above J on the keyboard), and down
-once more from its end closes it to the newest message again. The last dozen things said are there, each under the line that names who said it, as in the
+**The box scrolls through the conversation's words.** It opens on the newest thing said and holds only that. What
+was said and sent before is above it: `Alt+U` opens the box to the conversation and scrolls up through it, `Alt+J`
+down, half a box at a time (U sits above J on the keyboard), and `Alt+J` once more from its end closes it to the
+newest message alone again, from its start. That holds wherever the box was opened, whoever you talk to, and also
+after new messages came while it was open. The last dozen things said are there, each under the line that names who said it, as in the
 Coordinator's chat: `You:` for your words (typed in the box, with `tell`, or in the agent's own pane), `Agent:` or
 `Reviewer:` for what it said, `Coordinator:` for what the Coordinator sent it, and `Board:` for what the board sent
 on its own (its brief, a review's findings, the word to go on). A long text sent, such as a brief, shows only its

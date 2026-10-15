@@ -37,11 +37,11 @@ fn an_opened_chat_stays_open_on_what_you_read_while_the_coordinator_works_and_sa
     for i in 1..=5 { w.add(&format!("Task number {i}")); }
     let mut b = open(&w.root, 34); b.s.side = false;
     read(&mut b, 1, 12, "idle");
-    // Closed, the box holds the newest: your words and the answer under them.
+    // Closed, the box holds the newest alone: the answer, your words above it.
     let l = shown(&mut b);
-    assert!(has(&l, "Message 12, line 4.") && has(&l, "Message 11, line 1.") && !has(&l, "Message 10,"), "{l:?}");
+    assert!(has(&l, "Message 12, line 4.") && !has(&l, "Message 11,"), "{l:?}");
     // Up, and up again: the conversation, from an older message.
-    b.press(&["alt+u", "alt+u", "alt+u"]);
+    for _ in 0..3 { b.press(&["alt+u"]); shown(&mut b); }
     let reading = shown(&mut b);
     assert!(!has(&reading, "Message 12, line 4."), "scrolled up from the end: {reading:?}");
     let first = reading[0].clone();

@@ -109,8 +109,8 @@ fn alt_u_and_alt_j_scroll_a_message_longer_than_its_box_with_a_draft_too_the_box
     b.key(&["esc"]);
     // Scrolled down, then the message changes: the place stays (board_chat_open.rs has more). So it does for another
     // turn in the very same words, and for the same words after nothing was said a moment.
-    // (Open on the whole of a short one, a long one shows its end, where it went on.)
-    b.said.text = answer(40); assert_eq!(b.chat(120).message.last().unwrap(), "Line 40 of the answer.");
+    // (alt+j at the end of the short one closed it to the newest: a long one then shows from its start.)
+    b.said.text = answer(40); assert_eq!(b.first(), "Line 1 of the answer.");
     b.key(&["alt+u"; 4]); b.key(&["alt+j"]); assert_eq!(b.first(), "Line 8 of the answer.");
     b.said.text = answer(41); assert_eq!(b.first(), "Line 8 of the answer.");
     b.said.turn = "turn-2".into(); assert_eq!(b.first(), "Line 8 of the answer.");

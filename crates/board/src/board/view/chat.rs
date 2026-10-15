@@ -133,20 +133,17 @@ pub fn chat_message(s: &mut State, c: Option<&Who>, width: usize, max: usize) ->
     if max < 1 { return vec![]; }
     let paint = |by: bool, l: Inked, p: &Part| if by { l.recolor(Ink::Muted) } else if !p.tone.is_empty() { l.recolor(crate::board::update::beat::ink_of(&p.tone)) } else if p.mine { l } else { l.recolor(Ink::Soft) };
     let (lines, starts) = super::chat_text::part_lines(&c.parts, width.max(1), &paint);
-    // Your newest words with the answer under them, where both fit; else the answer alone, your words just above it.
-    let newest = starts.last().copied().unwrap_or(0);
-    let yours = starts.get(opens_at(&c.parts)).copied().unwrap_or(newest);
-    let latest = if lines.len() - yours <= max { yours } else { newest };
+    // The newest thing said alone, whoever said it: the rest of the conversation is above it.
+    let latest = starts.get(opens_at(&c.parts)).copied().unwrap_or(0);
     let texts: Vec<String> = lines.iter().map(|l| l.text()).collect();
     let top = chat_window(s, c, &texts, max, latest);
     let rows = s.chat_fit.as_ref().map(|f| f.rows).unwrap_or(0);
     lines.into_iter().skip(top).take(rows).collect()
 }
-/// Which lines of a conversation show: the box opens on the newest thing said (from `latest`: your newest words with
-/// what was said after them) and holds only that; the first scroll up opens it to the conversation. Only a screen starts
-/// at its end. Opened, it stays open for as long as you talk to the same one, whatever they say meanwhile: on the lines
-/// you read, or on the end when you were there (chat_keep.rs). Down once more from its end, hiding the chat, or talking
-/// to another closes it.
+/// Which lines of a conversation show: the box opens on the newest thing said (from `latest`) and holds only that; the
+/// first scroll up opens it to the conversation. Only a screen starts at its end. Opened, it stays open for as long as
+/// you talk to the same one, whatever they say meanwhile: on the lines you read, or on the end when you were there
+/// (chat_keep.rs). Down once more from its end, hiding the chat, or talking to another closes it.
 pub fn chat_window(s: &mut State, c: &Who, lines: &[String], max: usize, latest: usize) -> usize {
     let total = lines.len();
     same_chat(s);

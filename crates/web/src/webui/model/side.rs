@@ -36,7 +36,7 @@ pub fn side_of(s: &mut State, t: &Theme) -> Obj {
     let chat = who.as_ref().map(|w| json!({
         "mark": first(&w.mark), "tag": w.tag, "name": w.name, "status": w.status, "progress": w.progress.last().map(|p| p.text()).unwrap_or_default(), "text": w.text,
         "parts": w.parts.iter().map(|x| json!({ "by": x.by, "text": x.text, "mine": x.mine, "tone": x.tone, "raw": x.raw })).collect::<Vec<_>>(),
-        // The part it opens on: your newest words with the answer under them, or the newest thing said.
+        // The part it opens on: the newest thing said, whoever said it.
         "from": crate::board::view::talk::opens_at(&w.parts),
         "raw": w.raw, "mine": w.mine, "tone": if w.name == "Coordinator" && w.parts.first().map(|p| p.tone == "red").unwrap_or(false) { "red" } else { "" }, "note": w.note,
         "toAgent": s.reply && r.is_some(), "box": crate::board::view::textbox::box_ink(s, r.as_ref()).name(),

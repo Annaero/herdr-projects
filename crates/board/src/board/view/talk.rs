@@ -28,12 +28,9 @@ pub fn with_mine(parts: Vec<Part>, mine: &str) -> Vec<Part> {
     out.push(Part { by: "You".into(), text: words.into(), mine: true, sent: true, ..Default::default() });
     out
 }
-/// The part a chat's box opens on: your newest words, with what was said after them (the answer as it comes), while
-/// nobody else sent anything since; otherwise the newest thing said.
-pub fn opens_at(parts: &[Part]) -> usize {
-    let newest = parts.len().saturating_sub(1);
-    match parts.iter().rposition(|p| p.sent) { Some(n) if parts[n].by == "You" => n, _ => newest }
-}
+/// The part a chat's box opens on, and the only one it holds until you scroll up: the newest thing said, whoever said
+/// it. Your own words are that only until the answer comes; then the answer alone.
+pub fn opens_at(parts: &[Part]) -> usize { parts.len().saturating_sub(1) }
 pub fn talk(r: &Obj) -> Talk {
     let tk = r.at("snap").at("talk");
     let who = if tk.b("who") { tk.t("who") } else { crate::flow::talk::talker(r).to_string() };
@@ -59,7 +56,8 @@ pub fn talk(r: &Obj) -> Talk {
             else { format!("The agent shows a dialog on its screen that waits for your answer: {} opens it.", key_name("enter")) }, "dialog", "yellow"));
     } else if !tk.is_object() && r.b("host") && who == "reviewer" {
         parts.push(note(format!("The reviewer is at work. {} runs an older herdr-superwork, which does not send what its reviewer says: update it there.", r.s("host")), "old", ""));
-    } else if !parts.iter().any(|p| !p.sent) {
+    } else if !parts.iter().any(|p| !p.sent) && parts.last().map(|p| p.by != "You").unwrap_or(true) {
+        // Your words, with nothing said after them, are the newest thing said: they hold the box until the answer.
         parts.push(note(if who == "reviewer" || r.s("state") == "working" { format!("The {who} has just started: nothing to show yet.") } else { format!("The {who} has said nothing yet.") }, "empty", ""));
     }
     Talk { who, name: name.into(), parts, dialog, raw }

@@ -1,5 +1,5 @@
-// The conversation above the box, as the terminal board's chat box holds it: the newest thing said (or your newest words
-// and what was said after them), each under a line that names who said it, and the rest of the conversation above it.
+// The conversation above the box, as the terminal board's chat box holds it: the newest thing said, whoever said it,
+// under a line that names who said it, and the rest of the conversation above it.
 // It opens on the newest and holds only that; going up (the Earlier button, the wheel or a swipe at its top) opens it to
 // the conversation and scrolls up through it, half a box at a time with the buttons; Later goes down, and once more from
 // the end closes it to the newest again. A new message starts at its beginning; only a program's screen (one whose
@@ -13,7 +13,7 @@ const partEl = (p) => h(`div.sw-said-turn${p.mine ? ".is-mine" : ""}${p.raw ? ".
 
 export function saidEl() {
   // `start`: a new message is to be placed at its beginning, once it can be laid out (it may come while hidden).
-  // `from`: the part it opens on (the newest, or your newest words with the answer under them).
+  // `from`: the part it opens on (the newest thing said).
   let parts = [], from = 0, open = false, raw = false, swipe = null, start = false;
   const text = h("div.sw-said", { role: "log", "aria-label": "The conversation", tabIndex: 0 });
   const up = h("button.icon-button.sw-said-up", { type: "button", "aria-label": "Earlier messages", title: "Earlier messages" }, icon("up"));

@@ -94,8 +94,8 @@ fn the_page_has_a_switch_hide_and_show_a_conversation_that_scrolls_back_and_tab_
     assert!(!CHAT.contains("Talk to this task's agent\") : null"), "no text link any more");
     // Hide and Show press alt+c's key
     assert!(CHAT.contains(r#"onclick: () => onPress("chatMessage")"#) && CHAT.contains(r#"c.open ? "Hide" : "Show""#));
-    // the conversation: the newest thing said (or your newest words and the answer under them: the part the board
-    // says it opens on); Earlier opens the rest; the wheel and a swipe at the top do the same; Later goes down and once
+    // the conversation: the newest thing said, whoever said it (the part the board says it opens on); Earlier opens
+    // the rest; the wheel and a swipe at the top do the same; Later goes down and once
     // more from the end closes it; a new message starts at its beginning, but an opened conversation stays open while
     // the same chat shows, on what you read or on its end (board_chat_open.rs for the terminal's)
     assert!(SAID.contains("text.replaceChildren(...(open ? parts : parts.slice(from)).map(partEl));"));

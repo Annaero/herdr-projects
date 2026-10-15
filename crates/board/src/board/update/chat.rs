@@ -38,12 +38,13 @@ pub fn sync_coord(s: &mut State, fx: &mut Vec<Effect>) {
     if !s.reply && s.chat_open && s.setup.is_none() { fx.push(Effect::Run(crate::board::job::Job::CoordSeen { unseen })); s.data.coord.unseen.clear(); }
     else if s.reply && s.told_reply != unseen && s.msg.is_empty() { s.told_reply = unseen; s.flash(format!("The Coordinator replied. {} goes back to it.", crate::board::keys::key_name("talk")), crate::shown::ink::Ink::Green); }
 }
-/// Scroll the message `by` lines (up when negative). Down again from the end of a conversation that was opened closes
-/// it to its newest message. Nothing but what shows changes: the place is yours now (view/chat_keep.rs).
+/// Scroll the message `by` lines (up when negative). Down again from the end of a conversation that was opened (or
+/// of a message scrolled through) closes it to the newest message alone, from its start. Nothing but what shows
+/// changes: the place is yours now (view/chat_keep.rs).
 pub fn scroll(s: &mut State, by: i64) -> bool {
     let (Some(f), Some(at)) = (s.chat_fit.clone(), s.chat_at.as_mut()) else { return false };
     let last = f.total.saturating_sub(f.rows);
-    if by > 0 && f.top >= last && f.latest > 0 && at.top.is_some() { at.top = None; return true; }
+    if by > 0 && f.top >= last && at.top.is_some() { at.top = None; return true; }
     if f.total <= f.rows { return false; }
     let top = (f.top as i64 + by).clamp(0, last as i64) as usize;
     at.top = Some(top); at.end = top >= last;
