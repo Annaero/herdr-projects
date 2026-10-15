@@ -20,11 +20,41 @@ it was done still counts as done.
   each task (`(done)` beside those that are), `details` has an `after` part, and `list` says it beside the title. The
   web Board, another machine's board and the herdr sidebar show the same.
 - It holds no agent slot (`board.agents`) and nothing runs for it: no worktree, no space, no agent.
-- The ids may be tasks of **other repos**, any repo on this machine. A task of another machine cannot be waited for:
-  `--after otherbox#4` is refused with that reason.
+- The ids may be tasks of **other repos**, any repo on this machine, and tasks of **other machines** the board knows
+  (below).
 - An id that does not exist is refused, and so is a wait in a circle (`a` waits for `b`, which waits for `a`): the
   answer shows the circle, `proj/1 → proj/3 → proj/2 → proj/1`, and nothing is changed. An `--after` that is refused
   on `add` adds no task.
+
+## A task of another machine
+
+A task can wait for tasks on any other machine the board knows (`board.machines`, or herdr's own list of machines:
+[other-machines.md](other-machines.md)). Keys alone may clash across machines, so such a task is named by its machine
+first: `vm-str:ELA-3`, `vm-str:ela/3` or `vm-str#3`. It is kept as `vm-str:ela/3`, and said as `vm-str:ELA-3` wherever
+the board says what a task waits for (its row, its panel, `details`, `list`, another machine's board).
+
+```sh
+herdr-superwork delegate notably/3 --after vm-str:ELA-3
+herdr-superwork add "Use the new API" --after vm-str:ELA-3,HSW-12 --delegate
+```
+
+- When the wait is set, the board asks that machine over the machine link whether the task is there: an unknown
+  machine, a task that machine does not have, and a machine that does not answer right then are refused, and nothing is
+  changed. A wait in a circle across machines is refused too: the board follows what the task there waits for in turn,
+  on that machine and on any other one it names, back to this one. When that cannot be followed to its end (a machine
+  on the way does not answer, or names a machine this board does not know), the wait is refused as well: a circle
+  nobody saw would wait forever.
+- While it waits, the waiting machine asks the other one about it by itself, every 15 seconds, in a job of its own (so
+  a slow machine holds nothing else up). The other machine needs nothing but this version of herdr-superwork (an older
+  one cannot answer, and is said so, with "update it there"): its own board does not need to be open.
+- A machine that does not answer does not end the wait: the task goes on waiting and says so on its row,
+  `starts after vm-str:ELA-3 · waiting for vm-str: not reachable since 10:42` (`details`: `after.notReachable`). Once it
+  answers again, the line is the usual one.
+- Done, failed, stopped, removed or archived without being done are what that machine says of its task, and do here
+  what they do for a task of this machine: done counts, the others make the task wait for you with the reason
+  (`vm-str:ELA-3 was stopped`).
+- When the wait is over, its agent is told what that task did as for one of this machine (its closing note, pull
+  request, merge commit or report, and which machine it was on), from what the other machine said last.
 
 ## When the wait is over
 
@@ -55,5 +85,5 @@ going again, and once it is done the wait goes on by itself.
   again.
 - A task an agent is on cannot be made to wait: the wait is before the start.
 
-The Coordinator knows all of this: "then", "once that is merged", "after HSW-12" in what you type to it becomes an
-`--after` on the task it adds or delegates.
+The Coordinator knows all of this: "then", "once that is merged", "after HSW-12", "after ELA-3 on vm-str" in what you
+type to it becomes an `--after` on the task it adds or delegates.

@@ -130,6 +130,7 @@ pub fn door(what: &str, req: &Value) -> Res<Value> {
     let ok = |msg: String| Ok(json!({ "ok": true, "msg": msg }));
     match what {
         "list" => Ok(remote_list()),
+        "after" => Ok(crate::after::far_ask::door(req)), // the tasks a task of the asking machine waits for (after/far_ask.rs)
         "hello" => Ok(json!({ "ok": true, "host": check::hostname(), "version": VERSION })), // the check a machine runs on itself (remote/check.rs)
         "do" if automations::is_automation_action(req.s("action")) => automations::automation_do(req), // an automation of this machine, not a task
         "do" => {

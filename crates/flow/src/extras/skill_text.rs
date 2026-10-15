@@ -38,7 +38,8 @@ Every command accepts `--json`. Below, `herdr-superwork` stands for that path.
   `--review.when always|repos|never`, `--review.mustFix critical|major|minor|trivial`, `--merge.by you|itself`,
   `--workspace.from here` (start from their current commit). A refused option changes nothing on the task.
 - One task after another: `--after <id>[,<id>…]` on `add` or `delegate` makes a task wait until those tasks (of any repo
-  on this machine) are done, then it starts by itself and its agent is told what they did. `after <id> <id>[,…]` changes
+  on this machine, or on another machine the board knows, named with its machine first: `vm-str:ELA-3`) are done, then
+  it starts by itself and its agent is told what they did. `after <id> <id>[,…]` changes
   what it waits for, `after <id> --clear` drops the wait; `delegate <id> --now` starts it early. Only when the human asks.
 - `herdr-superwork show [<id>]`: every setting, its value and the place it came from (for one task, or the human's own).
   `herdr-superwork set <name> <value>` changes one for the human, `--repo <name>` for one repo, `--task <id>` for one

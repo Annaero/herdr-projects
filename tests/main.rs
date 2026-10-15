@@ -7,6 +7,7 @@ mod move_home;
 mod review_kit;
 
 mod after;
+mod after_far;
 mod after_more;
 mod attempts;
 mod attempts_more;

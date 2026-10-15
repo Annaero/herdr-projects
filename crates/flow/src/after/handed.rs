@@ -1,4 +1,5 @@
-//! What a task that waited is told when it starts: for each task it waited for, its id, title and closing note, and
+//! What a task that waited is told when it starts: for each task it waited for (on this machine or another), its id,
+//! title and closing note, and
 //! the pull request and merge commit where its work merged, or the report where it was research. Taken when the wait
 //! ends and kept on the task (`afterDone`), so a clean-up of the task before it loses nothing of it.
 use super::{after_of, say, stand_of, Stand};
@@ -19,6 +20,7 @@ fn note_of(d: &Task) -> String {
 }
 /// One task waited for, as it is now.
 pub fn of(id: &str) -> Value {
+    if super::far::is_far(id) { return super::far::handed(id); } // a task of another machine: what it said last
     let Some(d) = get(id) else { return json!({ "id": id, "gone": true }) };
     let mut o = obj(json!({ "id": id, "title": d.at("title"), "repo": d.at("repo"), "done": stand_of(id) == Stand::Done, "stage": d.at("stage"), "research": is_research(&d) }));
     let note: String = note_of(&d).chars().take(NOTE_MAX).collect();
@@ -48,7 +50,8 @@ pub fn words(t: &Obj) -> String {
     for d in list {
         let id = d.t("id");
         if d.b("gone") { out.push(format!("- {}: removed from the board, nothing is known of it.", say(&id))); continue; }
-        let mut line = format!("- {} \"{}\" (repo {}): {}", say(&id), d.s("title"), d.s("repo"), if d.b("done") { "done" } else { "not done yet" });
+        let on = if d.b("machine") { format!(" on {}", d.s("machine")) } else { String::new() };
+        let mut line = format!("- {} \"{}\" (repo {}{on}): {}", say(&id), d.s("title"), d.s("repo"), if d.b("done") { "done" } else { "not done yet" });
         if d.b("merged") {
             line.push_str(", its work merged");
             if d.b("pr") { line.push_str(&format!(": pull request {}", d.s("pr"))); }

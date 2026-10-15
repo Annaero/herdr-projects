@@ -1,16 +1,20 @@
 //! A task that waits for others to be done (`--after`, docs/after.md): what it waits for, checked when it is said
-//! (each task exists, is on this machine, and no task ends up waiting for itself), where each of those stands, and the
+//! (each task exists, here or on a machine the board knows, and no task ends up waiting for itself), where each of those stands, and the
 //! words a waiting task says. Done is the stage the board calls done, however it got there: merged, a research task's
 //! report finished, or marked done. The pass that starts a task once its wait is over is after/pass.rs; what its agent
 //! is told of the work before it is after/handed.rs.
 pub mod change;
+pub mod circle;
+pub mod far;
+pub mod far_ask;
 pub mod handed;
 pub mod pass;
 
 use crate::err::Res;
 use crate::json::*;
+use crate::remote::Machine;
 use crate::store::keys::{repo_keys, say_id};
-use crate::store::tasks::{find, get, list, ListOpts, Task};
+use crate::store::tasks::{find, get, Task};
 use std::collections::HashMap;
 
 /// What a delegation says about waiting: the tasks named with `--after` (None: what the task had; an empty list or
@@ -28,19 +32,24 @@ pub fn refs_of(text: &str) -> Vec<String> {
 /// What a task waits for, as kept on it: task ids.
 pub fn after_of(t: &Obj) -> Vec<String> { strings(t.at("after")) }
 /// A task as a person names it: `HSW-12` where its repo has a short key, else its id.
-pub fn say(id: &str) -> String { say_id(id, &repo_keys()) }
+pub fn say(id: &str) -> String { if far::is_far(id) { far::say(id) } else { say_id(id, &repo_keys()) } }
 /// Several tasks in one phrase: "a", "a and b", "a, b and c".
 pub fn names(ids: &[String]) -> String {
     let n: Vec<String> = ids.iter().map(|i| say(i)).collect();
     match n.len() { 0 => String::new(), 1 => n[0].clone(), k => format!("{} and {}", n[..k - 1].join(", "), n[k - 1]) }
 }
-/// A waiting task's line: "starts after HSW-4, HSW-5", naming the tasks not done yet.
-pub fn waits_line(left: &[String]) -> String { format!("starts after {}", left.iter().map(|i| say(i)).collect::<Vec<_>>().join(", ")) }
+/// A waiting task's line: "starts after HSW-4, HSW-5", naming the tasks not done yet, and each machine of theirs that
+/// does not answer: "starts after vm-str:ELA-3 · waiting for vm-str: not reachable since 10:42".
+pub fn waits_line(left: &[String]) -> String {
+    let line = format!("starts after {}", left.iter().map(|i| say(i)).collect::<Vec<_>>().join(", "));
+    match far::unreachable(left) { Some(w) => format!("{line} · {w}"), None => line }
+}
 
 /// Where a task that is waited for stands: done, not yet, or never by itself, with the reason.
 #[derive(Debug, PartialEq)]
 pub enum Stand { Done, Open, Broken(String) }
 pub fn stand_of(id: &str) -> Stand {
+    if far::is_far(id) { return far::stand(id); }
     let Some(d) = get(id) else { return Stand::Broken(format!("{} was removed", say(id))) };
     if d.s("stage") == "done" { return Stand::Done; }
     if d.b("archivedAt") { return Stand::Broken(format!("{} was archived without being done", say(id))); }
@@ -60,49 +69,48 @@ pub fn standing(t: &Obj) -> (Vec<String>, Option<String>) {
     (left, broken)
 }
 
-/// A machine of the board's own (remote.rs) that a reference names before its task: `otherbox#1`, `otherbox:HSW-1`.
-fn far_machine(r: &str) -> Option<String> {
-    let at = r.find([':', '#'])?;
-    let p = &r[..at];
-    if p.is_empty() { return None; }
-    crate::remote::machines().into_iter().map(|m| m.label).find(|l| l.eq_ignore_ascii_case(p))
-}
 /// The tasks `refs` names, as ids, for task `me` to wait for (None: a task being added, which nothing waits for yet).
-/// Refused, and nothing changed, for a task that does not exist, one of another machine, or a wait in a circle.
+/// A task of another machine is named by its machine first (`vm-str:ELA-3`) and asked for there. Refused, and nothing
+/// changed, for a task or a machine that does not exist, a machine that does not answer, or a wait in a circle (or
+/// one that cannot be followed to its end to know).
 pub fn checked(me: Option<&str>, refs: &[String]) -> Res<Vec<String>> {
+    let far_refs: Vec<(String, String, String)> = refs.iter().filter_map(|r| far::split(r).filter(|(p, _)| !circle::is_me(p)).map(|(p, rest)| (r.clone(), p, rest))).collect();
+    let ms = if far_refs.is_empty() { vec![] } else { crate::remote::machines() };
+    // Each machine asked once, about all of its tasks named.
+    let mut answers: HashMap<String, Value> = HashMap::new();
+    let mut by: Vec<(Machine, Vec<(String, String)>)> = vec![];
+    for (r, p, rest) in &far_refs {
+        let Some(m) = ms.iter().find(|m| m.label.eq_ignore_ascii_case(p)) else { crate::fail!("{r}: {p} is not a machine the board knows (herdr machine list, or the board.machines setting): it cannot be waited for. Nothing was changed.") };
+        match by.iter_mut().find(|(x, _)| x.label == m.label) { Some((_, v)) => v.push((r.clone(), rest.clone())), None => by.push((m.clone(), vec![(r.clone(), rest.clone())])) }
+    }
+    for (m, named) in &by {
+        let locals: Vec<String> = named.iter().map(|(_, l)| l.clone()).collect();
+        let got = far_ask::ask(m, &locals).map_err(|why| crate::err::Error::new(format!("{} did not answer ({why}), so {} cannot be checked: try again once it does. Nothing was changed.", m.label, named.iter().map(|(r, _)| r.as_str()).collect::<Vec<_>>().join(", "))))?;
+        for ((r, l), a) in named.iter().zip(got) {
+            if !a.b("found") { crate::fail!("No task {l} on {}: {r} cannot be waited for. Nothing was changed.", m.label); }
+            answers.insert(r.clone(), json!({ "label": m.label, "a": a }));
+        }
+    }
     let mut out: Vec<String> = vec![];
     for r in refs {
-        let d = match find(r) {
-            Ok(d) => d,
-            Err(e) => match far_machine(r) {
-                Some(m) => crate::fail!("{r} is a task of {m}, another machine: a task can only wait for tasks on its own machine. Nothing was changed."),
-                None => crate::fail!("{}: it cannot be waited for. Nothing was changed.", e.msg),
-            },
+        let id = if let Some(x) = answers.get(r) { far::id_of(x.s("label"), x.at("a").s("id")) } else {
+            let local = far::split(r).filter(|(p, _)| circle::is_me(p)).map(|(_, rest)| rest).unwrap_or_else(|| r.clone());
+            let d = find(&local).map_err(|e| crate::err::Error::new(format!("{}: it cannot be waited for. Nothing was changed.", e.msg)))?;
+            if d.b("attemptOf") { d.t("attemptOf") } else { d.t("id") } // an attempt is its task's
         };
-        let id = if d.b("attemptOf") { d.t("attemptOf") } else { d.t("id") }; // an attempt is its task's
         if !out.contains(&id) { out.push(id); }
     }
-    if let Some(me) = me { if let Some(path) = circle(me, &out) {
-        let p: Vec<String> = path.iter().map(|i| say(i)).collect();
-        crate::fail!("{} cannot wait for that: tasks would wait on each other ({}). Nothing was changed.", say(me), p.join(" → "));
-    } }
-    Ok(out)
-}
-/// A way from `me` through what each task waits for back to `me`, were `me` to wait for `deps`.
-fn circle(me: &str, deps: &[String]) -> Option<Vec<String>> {
-    let mut edges: HashMap<String, Vec<String>> = list(ListOpts { include_archived: true, ..Default::default() }).iter().map(|t| (t.t("id"), after_of(t))).collect();
-    edges.insert(me.to_string(), deps.to_vec());
-    fn walk(at: &str, me: &str, edges: &HashMap<String, Vec<String>>, seen: &mut Vec<String>, path: &mut Vec<String>) -> bool {
-        for next in edges.get(at).cloned().unwrap_or_default() {
-            path.push(next.clone());
-            if next == me { return true; }
-            if !seen.contains(&next) { seen.push(next.clone()); if walk(&next, me, edges, seen, path) { return true; } }
-            path.pop();
+    if let Some(me) = me {
+        let mut g = circle::Graph::new(me, &out, ms);
+        for x in answers.values() { g.take_in(x.s("label"), x.at("a")); }
+        let found = g.circle(me).map_err(|why| crate::err::Error::new(format!("{} cannot wait for that: whether tasks would wait on each other cannot be checked, because {why}. Nothing was changed.", say(me))))?;
+        if let Some(path) = found {
+            let p: Vec<String> = path.iter().map(|i| g.say(i)).collect();
+            crate::fail!("{} cannot wait for that: tasks would wait on each other ({}). Nothing was changed.", say(me), p.join(" → "));
         }
-        false
     }
-    let mut path = vec![me.to_string()];
-    walk(me, me, &edges, &mut vec![], &mut path).then_some(path)
+    for (m, _) in &by { far_ask::note_answers(&m.label, &answers.values().filter(|x| x.s("label") == m.label).map(|x| x.at("a").clone()).collect::<Vec<_>>()); }
+    Ok(out)
 }
 
 /// What a delegated task that waits says it does: "starts after a by itself", or why it waits for you. None for a task

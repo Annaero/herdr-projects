@@ -8,6 +8,10 @@ use crate::store::tasks::{update, Change, Task};
 
 /// Every waiting task of this herdr session brought up to date; true when one of them is now queued.
 pub fn after_pass(tasks: &[Task], socket: &str) -> bool {
+    // The machines that tasks here wait on are asked by a job of its own (after/far_ask.rs), now and then.
+    if super::far_ask::waits_far(tasks) && crate::store::marks::due("after-far", super::far_ask::EVERY_MS) {
+        if crate::runner::inline() { crate::runner::JOBS.with(|j| j.borrow_mut().push(("afterfar".into(), "-".into(), vec![]))); } else { crate::housekeeping::spawn_loose(&["run", "afterfar", "-"]); }
+    }
     let mut woke = false;
     for t in tasks.iter().filter(|t| t.s("stage") == STAGE && t.at("link").s("socket") == socket && !t.b("archivedAt")) { if refresh(t.s("id")) { woke = true; } }
     woke

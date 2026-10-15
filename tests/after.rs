@@ -130,8 +130,8 @@ fn a_task_it_waits_for_that_fails_is_stopped_archived_or_removed_makes_it_wait_f
 }
 
 #[test]
-fn a_wait_in_a_circle_an_unknown_task_and_one_of_another_machine_are_refused_and_change_nothing() {
-    let w = world_with(Opts { repo: true, settings: json!({ "board.machines": "otherbox" }), ..Default::default() });
+fn a_wait_in_a_circle_and_an_unknown_task_are_refused_and_change_nothing() {
+    let w = world();
     let a = w.add("A");
     let b = w.add("B");
     let c = w.add("C");
@@ -144,8 +144,6 @@ fn a_wait_in_a_circle_an_unknown_task_and_one_of_another_machine_are_refused_and
     assert!(!task(&a).has("after") && task(&a).s("stage") == "todo");
     let e = run(&["after", &a, "proj/99"]).unwrap_err();
     assert_eq!(e, "No task proj/99: it cannot be waited for. Nothing was changed.");
-    let e = run(&["after", &a, "otherbox#4"]).unwrap_err();
-    assert!(e.contains("otherbox#4 is a task of otherbox, another machine: a task can only wait for tasks on its own machine"), "{e}");
     // A refused --after on add adds nothing.
     let n = sw::store::tasks::all().len();
     assert!(run(&["add", "D", "--after", "proj/99", "--delegate"]).is_err());

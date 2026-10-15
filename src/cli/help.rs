@@ -16,7 +16,8 @@ pub const HELP: &str = r#"herdr-superwork: a work board for herdr
   herdr-superwork delegate <id> [--after ID[,ID…]|--now] [--<setting> VALUE ...] [--research|--no-research]
                                       any work setting, for this task only: --reviewer.agent claude --merge.by itself
                                       (a refused option changes nothing on the task)
-                                      --after: start only once those tasks (of any repo here) are done, by itself;
+                                      --after: start only once those tasks (of any repo here, or of another machine:
+                                       vm-str:ELA-3) are done, by itself;
                                       --now: start a task that waits without waiting
   herdr-superwork after <id> [ID[,ID…] | --clear]   what a task waits for: shown, changed, or dropped (it starts then)
   herdr-superwork tell <id> <text>              send a message to the task's agent
