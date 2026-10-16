@@ -3,6 +3,7 @@
 //! lookup, set and unset, the task branch's name, `show`, and the one-time move from the old names.
 pub mod branch;
 pub mod change;
+pub mod key_map;
 pub mod lookup;
 pub mod migrate;
 pub mod places;
