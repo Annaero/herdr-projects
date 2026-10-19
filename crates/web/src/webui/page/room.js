@@ -1,4 +1,5 @@
-// The room the chat has above a phone's keyboard. While you type with the keyboard up, the board's header, its chips
+// The room the board's own chat has above a phone's keyboard (the web UI's, docked, is the web UI's own). While you
+// type with the keyboard up, the board's header, its chips
 // and the list step aside (as for the chat full screen, chat.css), the conversation takes what is left over the box and
 // steps aside under its least, and the box you type in is never taller than the room left: its card stays whole above
 // the keyboard and the line with the caret stays in view, however long the words get. On an iPhone it also leaves out
@@ -6,9 +7,8 @@
 // window does not leave out.
 /* global window, document, navigator, getComputedStyle, requestAnimationFrame, ResizeObserver, MutationObserver,
    setTimeout */
-
-// The least the conversation is shown at: its Earlier and Later buttons, one over the other (two thumbs and its
-// padding). How much smaller than the window the visible part must be for a keyboard to be up. The strip iOS 26 floats
+// The least the conversation is shown at: about two lines of it and its padding (less is not worth reading). How much
+// smaller than the window the visible part must be for a keyboard to be up. The strip iOS 26 floats
 // over the page: its top stands 73 px over the foot of the visible window (measured on an iPhone's screenshot), so the
 // box, 8 px over that foot, keeps 72 more and stands clear of it.
 const LEAST = 104, KEYBOARD = 120, IOS_BAR = 72;
@@ -57,8 +57,8 @@ export function roomFor({ chat, said, box }) {
     } else board.style.removeProperty("--sw-kb-cover");
     // Still too tall for the board (a short window, or a keyboard the page was not told of): the field is as tall as
     // the room left, and scrolls (never under its one line).
-    const card = box.closest(".sw-card") || box;
-    const over = () => card.getBoundingClientRect().bottom - (Math.min(chat.getBoundingClientRect().bottom, board.getBoundingClientRect().bottom) - px(getComputedStyle(chat).paddingBottom));
+    const card = box.closest(".sw-card") || box, foot = box.closest(".sw-own") || chat;
+    const over = () => card.getBoundingClientRect().bottom - (Math.min(chat.getBoundingClientRect().bottom, board.getBoundingClientRect().bottom) - px(getComputedStyle(foot).paddingBottom));
     const cap = () => { const o = over(); if (o > 0.5) box.style.setProperty("--sw-room", `${Math.max(px(getComputedStyle(box).minHeight), Math.floor(box.offsetHeight - o))}px`); };
     cap();
     // Not even one line fits over the keyboard (a phone on its side): all but the box steps aside, the files' tiles
