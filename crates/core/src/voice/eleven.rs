@@ -1,8 +1,9 @@
 //! ElevenLabs, from this machine: the agent made to match agent.rs (its tools first, then the agent, each made once and
-//! updated in place when the stamp changed, as herdr-call does it), and a short-lived token for one call, which is
+//! updated in place when the stamp changed), and a short-lived token for one call, which is
 //! all a page ever gets. The key goes to `curl` on its standard input, never on a command line. A test answers in
 //! the test's own thread instead (`set_fake`).
 use super::agent::{self, Made};
+use super::builtin;
 use crate::json::*;
 use crate::store::files::{read_obj, write_json};
 use std::cell::RefCell;
@@ -38,11 +39,12 @@ pub fn request(key: &str, method: &str, path: &str, body: &Value) -> Result<Valu
 fn tool_body(t: &agent::Tool) -> Value {
     json!({ "tool_config": { "type": "client", "name": t.name, "description": t.description, "parameters": (t.params)(), "expects_response": true, "response_timeout_secs": 20 } })
 }
-/// The agent's whole configuration. With language `auto` it starts in English and follows you into Swedish.
+/// The agent's whole configuration. With language `auto` it starts in English and follows you into any of the
+/// languages ElevenLabs' agents speak.
 pub fn agent_body(m: &Made, tool_ids: &[String]) -> Value {
     let lang = if m.language == "auto" { "en" } else { m.language.as_str() };
     let mut presets = json!({});
-    if m.language == "auto" { presets = json!({ "sv": { "overrides": { "agent": { "language": "sv", "first_message": agent::first_message("sv") } } } }); }
+    if m.language == "auto" { presets = Value::Object(agent::LANGUAGES.iter().filter(|l| **l != "en").map(|l| (l.to_string(), json!({ "overrides": { "agent": { "language": l } } }))).collect()); }
     json!({
         "name": agent::NAME, "tags": ["herdr-projects"],
         "conversation_config": {
@@ -51,7 +53,7 @@ pub fn agent_body(m: &Made, tool_ids: &[String]) -> Value {
                     "built_in_tools": if m.language == "auto" { json!({ "language_detection": { "type": "system", "name": "language_detection", "description": "", "params": { "system_tool_type": "language_detection", "only_at_conversation_start": false } } }) } else { json!({}) } } },
             "language_presets": presets,
             "tts": { "voice_id": m.voice, "model_id": agent::TTS_MODEL, "agent_output_audio_format": "pcm_16000" },
-            "asr": { "keywords": ["Coordinator", "herdr", "merge", "approve", "godkänn"], "user_input_audio_format": "pcm_16000" },
+            "asr": { "keywords": ["Coordinator", "herdr", "merge", "approve"], "user_input_audio_format": "pcm_16000" },
             "turn": { "turn_eagerness": "patient", "turn_timeout": 10, "silence_end_call_timeout": agent::SILENCE_S },
             "conversation": { "max_duration_seconds": agent::LONGEST_S, "client_events": ["conversation_initiation_metadata", "ping", "audio", "interruption", "user_transcript", "agent_response", "agent_response_correction", "client_tool_call", "vad_score"] },
         },
@@ -69,7 +71,9 @@ fn make_agent(key: &str) -> Result<String, String> {
     // Everything the agent is made of, its whole configuration too.
     let stamp = sha1_smol::Sha1::from(format!("{}{}", agent::stamp(&m), agent_body(&m, &[]))).digest().to_string();
     let was = read_obj(&state_file()).unwrap_or_default();
-    if was.s("stamp") == stamp && !was.s("agent").is_empty() { return Ok(was.t("agent")); }
+    // speaking with Will in Warren's place (builtin.rs), Warren is tried again a day later
+    let retry = was.s("voice") == builtin::OLD && crate::clock::now() - was.i("at") >= builtin::RETRY_MS;
+    if was.s("stamp") == stamp && !was.s("agent").is_empty() && !retry { return Ok(was.t("agent")); }
     let mut ids: Vec<String> = vec![];
     let mut kept = obj(json!({}));
     for t in agent::tools() {
@@ -79,18 +83,29 @@ fn make_agent(key: &str) -> Result<String, String> {
         kept.put(t.name, id.clone());
         ids.push(id);
     }
-    let body = agent_body(&m, &ids);
     let old = was.t("agent");
-    // The agent made before is updated; one ElevenLabs no longer has is made again. Any other refusal is said.
-    let patched = if old.is_empty() { None } else { Some(request(key, "PATCH", &format!("/v1/convai/agents/{old}"), &body)) };
-    let agent = match patched {
-        Some(Ok(_)) => old,
-        Some(Err(e)) if !e.contains(" 404 ") => return Err(refused(&e, &m)),
-        _ => request(key, "POST", "/v1/convai/agents/create", &body).map_err(|e| refused(&e, &m))?.t("agent_id"),
-    };
+    let mut voice = m.voice.clone();
+    let mut agent = put_agent(key, &old, &agent_body(&m, &ids));
+    // The built-in voice not in the account: added to it, or else Will while the account has it (builtin.rs).
+    if m.voice == agent::VOICE && agent.as_ref().is_err_and(|e| builtin::not_found(e)) {
+        let added = builtin::add(key);
+        if added.is_err() { voice = builtin::OLD.into(); }
+        agent = put_agent(key, &old, &agent_body(&Made { voice: voice.clone(), ..m.clone() }, &ids));
+        if let (Err(e), Err(why)) = (&agent, &added) { if builtin::not_found(e) { return Err(builtin::missing(why)); } }
+    }
+    let agent = agent.map_err(|e| refused(&e, &m))?;
     if agent.is_empty() { return Err("ElevenLabs made the agent but gave no id for it".into()); }
-    let _ = write_json(&state_file(), &json!({ "stamp": stamp, "agent": agent, "tools": kept }));
+    let _ = write_json(&state_file(), &json!({ "stamp": stamp, "agent": agent, "tools": kept, "voice": voice, "at": crate::clock::now() }));
     Ok(agent)
+}
+/// The agent made before, updated; one ElevenLabs no longer has, made again. Answers its id, or ElevenLabs' refusal.
+fn put_agent(key: &str, old: &str, body: &Value) -> Result<String, String> {
+    let patched = if old.is_empty() { None } else { Some(request(key, "PATCH", &format!("/v1/convai/agents/{old}"), body)) };
+    match patched {
+        Some(Ok(_)) => Ok(old.into()),
+        Some(Err(e)) if !e.contains(" 404 ") || builtin::not_found(&e) => Err(e),
+        _ => request(key, "POST", "/v1/convai/agents/create", body).map(|v| v.t("agent_id")),
+    }
 }
 /// ElevenLabs' refusal in plain words: a voice agents may not use (one with live moderation, one not in your account)
 /// says which, and how to pick another.
@@ -103,7 +118,7 @@ pub fn refused(e: &str, m: &Made) -> String {
     if !(low.contains("voice") && (low.contains(" 400 ") || low.contains(" 403 ") || low.contains(" 404 ") || low.contains(" 422 "))) { return e.into(); }
     let why = if low.contains("moderat") { "it has live moderation, which agents may not use" } else if low.contains("not_found") || low.contains("not found") || low.contains(" 404 ") { "it is not in your ElevenLabs account" } else { "agents may not use it" };
     let ours = if m.voice == agent::VOICE { "the built-in one" } else { "the one voice.voice names" };
-    format!("ElevenLabs refused the voice {} ({ours}) for the call's agent: {why}. Pick another: herdr-projects set voice.voice <voice id> (one from your ElevenLabs account, Voices, that agents can use and that speaks Swedish), or herdr-projects set voice.voice none for the built-in one. ElevenLabs said: {}", m.voice, crate::text::cut(e, 300))
+    format!("ElevenLabs refused the voice {} ({ours}) for the call's agent: {why}. Pick another: herdr-projects set voice.voice <voice id> (one from your ElevenLabs account, Voices, that agents can use and that speaks your call's language), or herdr-projects set voice.voice none for the built-in one. ElevenLabs said: {}", m.voice, crate::text::cut(e, 300))
 }
 /// A signed address for one call over ElevenLabs' WebSocket (the terminal board's call, which the helper on your
 /// computer holds): good for a quarter of an hour to start with, and all the helper gets.
