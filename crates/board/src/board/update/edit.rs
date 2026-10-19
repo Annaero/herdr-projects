@@ -10,7 +10,7 @@ use crate::board::keys::{is, key_name, Press, K};
 use crate::board::state::{Editing, State};
 use crate::json::*;
 use crate::shown::ink::Ink;
-use crate::store::settings::values::agent_of;
+use crate::store::settings::values::{agent_of, fits};
 use crate::store::settings_list::{entry_of, Ty};
 
 /// A switch reads as on or off on the page, as the panel says it; every other value as `show` says it.
@@ -18,7 +18,7 @@ pub fn value_say(v: &Value) -> String { match v { Value::Bool(true) => "on".into
 /// Values that are one of a few words are changed by going to the next one; every other value is typed.
 pub fn words_of(name: &str) -> Option<Vec<Value>> {
     let e = entry_of(name)?;
-    match e.ty { Ty::Switch => Some(vec![json!(true), json!(false)]), Ty::Choice => Some(e.values.iter().map(|v| json!(v)).collect()), Ty::Access => Some(vec![json!("full"), json!("ask")]), _ => None }
+    match e.ty { Ty::Switch => Some(vec![json!(true), json!(false)]), Ty::Choice => Some(e.values.iter().map(|v| json!(v)).collect()), Ty::Access => Some(crate::agents::access::VALUES.iter().map(|v| json!(v)).collect()), _ => None }
 }
 /// The page's rows: a task's work settings (an automation's: what its next task will have). A setting that cannot
 /// apply to it is not offered (fast mode for a program that has none, a repo's setting for a task in no repo); one
@@ -83,7 +83,13 @@ pub fn key(s: &mut State, p: &Press, fx: &mut Vec<Effect>) -> bool {
         if s.current().map(|r| r.b("archivedAt")).unwrap_or(false) && !e.auto { s.flash(read_only(), Ink::Yellow); return true; }
         if row.s("note").starts_with("does not apply") { s.flash(format!("{} {}.", row.s("name"), row.s("note")), Ink::Yellow); return true; }
         match words_of(row.s("name")) {
-            Some(words) => { let n = words.iter().position(|w| w == row.at("value")).map(|n| n + 1).unwrap_or(0) % words.len(); save(s, row.s("name"), Some(text(&words[n])), fx); }
+            Some(words) => {
+                // The next word the row's program takes: an access its program cannot do is passed over (`auto` for pi).
+                let agent = all.iter().find(|x| x.s("name") == format!("{}.agent", row.s("name").split('.').next().unwrap_or(""))).map(|x| x.t("value")).unwrap_or_default();
+                let start = words.iter().position(|w| w == row.at("value")).map(|n| n + 1).unwrap_or(0);
+                let n = (0..words.len()).map(|i| (start + i) % words.len()).find(|&n| fits(row.s("name"), &text(&words[n]), &agent, false).is_empty()).unwrap_or(start % words.len());
+                save(s, row.s("name"), Some(text(&words[n])), fx);
+            }
             None => { s.editing.as_mut().unwrap().typing = row.t("name"); s.input.set_text(""); } // an empty box: what is typed is the whole new value
         }
         return true;
