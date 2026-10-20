@@ -129,7 +129,14 @@ fn real_programs_herdr_superworks_own_processes_are_stopped_and_no_other() {
     std::fs::create_dir_all(old.parent().unwrap()).unwrap();
     // a copy of bash, not of sleep: a multi-call coreutils (uutils, Ubuntu 25.10+) runs as whatever its file name says
     std::fs::copy("/bin/bash", &old).unwrap();
-    let mut keeper = std::process::Command::new(&old).args(["-c", "read -t 30"]).stdin(std::process::Stdio::piped()).spawn().unwrap();
+    // macOS rejects Apple's copied signature outside /bin; sign only this disposable fixture.
+    #[cfg(target_os = "macos")]
+    assert!(std::process::Command::new("/usr/bin/codesign").args(["--force", "--sign", "-"]).arg(&old).status().unwrap().success());
+    let mut keeper = std::process::Command::new(&old).args(["-c", "echo ready; read -t 30"]).stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).spawn().unwrap();
+    use std::io::BufRead;
+    let mut ready = String::new();
+    std::io::BufReader::new(keeper.stdout.take().unwrap()).read_line(&mut ready).unwrap();
+    assert_eq!(ready, "ready\n", "the keeper must start before its identity is recorded");
     let _quiet = keeper.stdin.take(); // held open here, so it waits on nothing and starts no other program
     let mut other = std::process::Command::new("/bin/sleep").arg("30").spawn().unwrap();
     let mark = |c: &std::process::Child| { let pid = c.id() as i64; serde_json::json!({ "pid": pid, "start": sw::store::files::proc_start(pid) }).to_string() };

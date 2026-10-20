@@ -4,10 +4,20 @@ use crate::common;
 use common::*;
 use std::time::{Duration, Instant};
 
-/// A process's state letter in /proc (`Z`: a zombie, ended and nobody waited for it), None once it is gone.
+/// A process's state letter (`Z`: a zombie, ended and nobody waited for it), None once it is gone.
 fn state(pid: u32) -> Option<char> {
-    let s = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
-    s[s.rfind(')')? + 2..].chars().next()
+    #[cfg(target_os = "macos")]
+    {
+        let out = std::process::Command::new("/bin/ps").args(["-o", "stat=", "-p", &pid.to_string()]).output().unwrap();
+        // ps exits 1 when the pid is gone; other failures must not look like successful reaping.
+        assert!(out.status.success() || out.status.code() == Some(1), "ps: {out:?}");
+        String::from_utf8(out.stdout).unwrap().trim().chars().next()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let s = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+        s[s.rfind(')')? + 2..].chars().next()
+    }
 }
 fn until(done: impl Fn() -> bool) -> bool { let end = Instant::now() + Duration::from_secs(20); while Instant::now() < end { if done() { return true; } std::thread::sleep(Duration::from_millis(10)); } done() }
 

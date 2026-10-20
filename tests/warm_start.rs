@@ -13,7 +13,8 @@ impl Bench {
         let base = std::env::temp_dir().join(format!("sw-warm-start-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(base.join("repo/src")).unwrap();
-        let b = Bench { base };
+        // Match the physical pwd stored by the shell; /var aliases /private/var on macOS.
+        let b = Bench { base: std::fs::canonicalize(base).unwrap() };
         b.git("repo", &["init", "-q", "-b", "main"]);
         b.write("repo", "src/a.rs", "a");
         b.write("repo", "src/b.rs", "b");
